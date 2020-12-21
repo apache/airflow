@@ -39,7 +39,7 @@ class MsSqlOperator(BaseOperator):
     :param mssql_conn_id: reference to a specific mssql database
     :type mssql_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
     :type autocommit: bool
@@ -54,22 +54,23 @@ class MsSqlOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         sql: str,
         mssql_conn_id: str = 'mssql_default',
         parameters: Optional[Union[Mapping, Iterable]] = None,
         autocommit: bool = False,
         database: Optional[str] = None,
-        *args, **kwargs
+        **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id
         self.sql = sql
         self.parameters = parameters
         self.autocommit = autocommit
         self.database = database
-        self._hook = None
+        self._hook: Optional[Union[MsSqlHook, OdbcHook]] = None
 
-    def get_hook(self):
+    def get_hook(self) -> Optional[Union[MsSqlHook, OdbcHook]]:
         """
         Will retrieve hook as determined by Connection.
 
@@ -80,13 +81,15 @@ class MsSqlOperator(BaseOperator):
         if not self._hook:
             conn = MsSqlHook.get_connection(conn_id=self.mssql_conn_id)
             try:
-                self._hook: Union[MsSqlHook, OdbcHook] = conn.get_hook()
-                self._hook.schema = self.database
+                self._hook = conn.get_hook()
+                self._hook.schema = self.database  # type: ignore[union-attr]
             except AirflowException:
                 self._hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id, schema=self.database)
         return self._hook
 
-    def execute(self, context):
+    def execute(self, context: dict) -> None:
         self.log.info('Executing: %s', self.sql)
         hook = self.get_hook()
-        hook.run(sql=self.sql, autocommit=self.autocommit, parameters=self.parameters)
+        hook.run(  # type: ignore[union-attr]
+            sql=self.sql, autocommit=self.autocommit, parameters=self.parameters
+        )

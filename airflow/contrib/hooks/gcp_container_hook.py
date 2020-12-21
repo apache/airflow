@@ -23,18 +23,18 @@ from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.kubernetes_engine`",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
 class GKEClusterHook(GKEHook):
-    """
-    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.container.GKEHook`.
-    """
+    """This class is deprecated. Please use `airflow.providers.google.cloud.hooks.container.GKEHook`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "This class is deprecated. Please use `airflow.providers.google.cloud.hooks.container.GKEHook`.",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

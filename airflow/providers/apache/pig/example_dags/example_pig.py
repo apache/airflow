@@ -24,14 +24,14 @@ from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': days_ago(2),
 }
 
 dag = DAG(
     dag_id='example_pig_operator',
     default_args=args,
     schedule_interval=None,
-    tags=['example']
+    start_date=days_ago(2),
+    tags=['example'],
 )
 
 run_this = PigOperator(

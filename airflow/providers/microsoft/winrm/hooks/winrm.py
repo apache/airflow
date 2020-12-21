@@ -18,11 +18,12 @@
 #
 """Hook for winrm remote execution."""
 import getpass
+from typing import Optional
 
 from winrm.protocol import Protocol
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 # TODO: Fixme please - I have too complex implementation
@@ -88,27 +89,30 @@ class WinRMHook(BaseHook):
     :type send_cbt: bool
     """
 
-    def __init__(self,
-                 ssh_conn_id=None,
-                 endpoint=None,
-                 remote_host=None,
-                 remote_port=5985,
-                 transport='plaintext',
-                 username=None,
-                 password=None,
-                 service='HTTP',
-                 keytab=None,
-                 ca_trust_path=None,
-                 cert_pem=None,
-                 cert_key_pem=None,
-                 server_cert_validation='validate',
-                 kerberos_delegation=False,
-                 read_timeout_sec=30,
-                 operation_timeout_sec=20,
-                 kerberos_hostname_override=None,
-                 message_encryption='auto',
-                 credssp_disable_tlsv1_2=False,
-                 send_cbt=True):
+    def __init__(
+        self,
+        ssh_conn_id: Optional[str] = None,
+        endpoint: Optional[str] = None,
+        remote_host: Optional[str] = None,
+        remote_port: int = 5985,
+        transport: str = 'plaintext',
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        service: str = 'HTTP',
+        keytab: Optional[str] = None,
+        ca_trust_path: Optional[str] = None,
+        cert_pem: Optional[str] = None,
+        cert_key_pem: Optional[str] = None,
+        server_cert_validation: str = 'validate',
+        kerberos_delegation: bool = False,
+        read_timeout_sec: int = 30,
+        operation_timeout_sec: int = 20,
+        kerberos_hostname_override: Optional[str] = None,
+        message_encryption: Optional[str] = 'auto',
+        credssp_disable_tlsv1_2: bool = False,
+        send_cbt: bool = True,
+    ) -> None:
+        super().__init__()
         self.ssh_conn_id = ssh_conn_id
         self.endpoint = endpoint
         self.remote_host = remote_host
@@ -180,8 +184,9 @@ class WinRMHook(BaseHook):
                 if "message_encryption" in extra_options:
                     self.message_encryption = str(extra_options["message_encryption"])
                 if "credssp_disable_tlsv1_2" in extra_options:
-                    self.credssp_disable_tlsv1_2 = \
+                    self.credssp_disable_tlsv1_2 = (
                         str(extra_options["credssp_disable_tlsv1_2"]).lower() == 'true'
+                    )
                 if "send_cbt" in extra_options:
                     self.send_cbt = str(extra_options["send_cbt"]).lower() == 'true'
 
@@ -193,13 +198,14 @@ class WinRMHook(BaseHook):
             self.log.debug(
                 "username to WinRM to host: %s is not specified for connection id"
                 " %s. Using system's default provided by getpass.getuser()",
-                self.remote_host, self.ssh_conn_id
+                self.remote_host,
+                self.ssh_conn_id,
             )
             self.username = getpass.getuser()
 
         # If endpoint is not set, then build a standard wsman endpoint from host and port.
         if not self.endpoint:
-            self.endpoint = 'http://{0}:{1}/wsman'.format(self.remote_host, self.remote_port)
+            self.endpoint = f'http://{self.remote_host}:{self.remote_port}/wsman'
 
         try:
             if self.password and self.password.strip():
@@ -220,14 +226,14 @@ class WinRMHook(BaseHook):
                     kerberos_hostname_override=self.kerberos_hostname_override,
                     message_encryption=self.message_encryption,
                     credssp_disable_tlsv1_2=self.credssp_disable_tlsv1_2,
-                    send_cbt=self.send_cbt
+                    send_cbt=self.send_cbt,
                 )
 
             self.log.info("Establishing WinRM connection to host: %s", self.remote_host)
             self.client = self.winrm_protocol.open_shell()
 
         except Exception as error:
-            error_msg = "Error connecting to host: {0}, error: {1}".format(self.remote_host, error)
+            error_msg = f"Error connecting to host: {self.remote_host}, error: {error}"
             self.log.error(error_msg)
             raise AirflowException(error_msg)
 

@@ -24,12 +24,11 @@ from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 
 
 class TestDagUnpausedDep(unittest.TestCase):
-
     def test_concurrency_reached(self):
         """
         Test paused DAG should fail dependency
         """
-        dag = Mock(is_paused=True)
+        dag = Mock(**{'get_is_paused.return_value': True})
         task = Mock(dag=dag)
         ti = TaskInstance(task=task, execution_date=None)
 
@@ -39,7 +38,7 @@ class TestDagUnpausedDep(unittest.TestCase):
         """
         Test all conditions met should pass dep
         """
-        dag = Mock(is_paused=False)
+        dag = Mock(**{'get_is_paused.return_value': False})
         task = Mock(dag=dag)
         ti = TaskInstance(task=task, execution_date=None)
 

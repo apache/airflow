@@ -17,9 +17,9 @@
 # under the License.
 from typing import Callable, Dict, List, Optional
 
-from airflow.operators.python import PythonOperator
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.operator_helpers import determine_kwargs
 
 
 class PythonSensor(BaseSensorOperator):
@@ -50,13 +50,15 @@ class PythonSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            python_callable: Callable,
-            op_args: Optional[List] = None,
-            op_kwargs: Optional[Dict] = None,
-            templates_dict: Optional[Dict] = None,
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self,
+        *,
+        python_callable: Callable,
+        op_args: Optional[List] = None,
+        op_kwargs: Optional[Dict] = None,
+        templates_dict: Optional[Dict] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
         self.python_callable = python_callable
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}
@@ -65,7 +67,7 @@ class PythonSensor(BaseSensorOperator):
     def poke(self, context: Dict):
         context.update(self.op_kwargs)
         context['templates_dict'] = self.templates_dict
-        self.op_kwargs = PythonOperator.determine_op_kwargs(self.python_callable, context, len(self.op_args))
+        self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         self.log.info("Poking callable: %s", str(self.python_callable))
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)

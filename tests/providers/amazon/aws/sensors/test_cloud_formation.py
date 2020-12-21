@@ -16,12 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest.mock import MagicMock, patch
 
 import boto3
-from mock import MagicMock, patch
 
 from airflow.providers.amazon.aws.sensors.cloud_formation import (
-    CloudFormationCreateStackSensor, CloudFormationDeleteStackSensor,
+    CloudFormationCreateStackSensor,
+    CloudFormationDeleteStackSensor,
 )
 
 try:
@@ -30,8 +31,9 @@ except ImportError:
     mock_cloudformation = None
 
 
-@unittest.skipIf(mock_cloudformation is None,
-                 "Skipping test because moto.mock_cloudformation is not available")
+@unittest.skipIf(
+    mock_cloudformation is None, "Skipping test because moto.mock_cloudformation is not available"
+)
 class TestCloudFormationCreateStackSensor(unittest.TestCase):
     task_id = 'test_cloudformation_cluster_create_sensor'
 
@@ -73,8 +75,9 @@ class TestCloudFormationCreateStackSensor(unittest.TestCase):
             self.assertEqual('Stack foo in bad state: bar', str(error.exception))
 
 
-@unittest.skipIf(mock_cloudformation is None,
-                 "Skipping test because moto.mock_cloudformation is not available")
+@unittest.skipIf(
+    mock_cloudformation is None, "Skipping test because moto.mock_cloudformation is not available"
+)
 class TestCloudFormationDeleteStackSensor(unittest.TestCase):
     task_id = 'test_cloudformation_cluster_delete_sensor'
 
@@ -120,7 +123,3 @@ class TestCloudFormationDeleteStackSensor(unittest.TestCase):
     def test_poke_stack_does_not_exist(self):
         op = CloudFormationDeleteStackSensor(task_id='task', stack_name='foo')
         self.assertTrue(op.poke({}))
-
-
-if __name__ == '__main__':
-    unittest.main()

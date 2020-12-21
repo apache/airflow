@@ -21,10 +21,12 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.databricks.operators.databricks import (  # noqa
-    DatabricksRunNowOperator, DatabricksSubmitRunOperator,
+    DatabricksRunNowOperator,
+    DatabricksSubmitRunOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.databricks.operators.databricks`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

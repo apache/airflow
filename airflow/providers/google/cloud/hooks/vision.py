@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Vision Hook.
-"""
+"""This module contains a Google Cloud Vision Hook."""
 
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -26,42 +24,40 @@ from cached_property import cached_property
 from google.api_core.retry import Retry
 from google.cloud.vision_v1 import ImageAnnotatorClient, ProductSearchClient
 from google.cloud.vision_v1.types import (
-    AnnotateImageRequest, FieldMask, Image, Product, ProductSet, ReferenceImage,
+    AnnotateImageRequest,
+    FieldMask,
+    Image,
+    Product,
+    ProductSet,
+    ReferenceImage,
 )
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
-ERR_DIFF_NAMES = \
-    """The {label} name provided in the object ({explicit_name}) is different than the name created
-    from the input parameters ({constructed_name}). Please either:
+ERR_DIFF_NAMES = """The {label} name provided in the object ({explicit_name}) is different
+    than the name created from the input parameters ({constructed_name}). Please either:
     1) Remove the {label} name,
     2) Remove the location and {id_label} parameters,
     3) Unify the {label} name and input parameters.
     """
 
-ERR_UNABLE_TO_CREATE = \
-    """Unable to determine the {label} name. Please either set the name directly
+ERR_UNABLE_TO_CREATE = """Unable to determine the {label} name. Please either set the name directly
     in the {label} object or provide the `location` and `{id_label}` parameters.
     """
 
 
 class NameDeterminer:
-    """
-    Helper class to determine entity name.
-    """
+    """Helper class to determine entity name."""
+
     def __init__(self, label: str, id_label: str, get_path: Callable[[str, str, str], str]) -> None:
         self.label = label
         self.id_label = id_label
         self.get_path = get_path
 
     def get_entity_with_name(
-        self,
-        entity: Any,
-        entity_id: Optional[str],
-        location: Optional[str],
-        project_id: str
+        self, entity: Any, entity_id: Optional[str], location: Optional[str], project_id: str
     ) -> Any:
         """
         Check if entity has the `name` attribute set:
@@ -100,23 +96,23 @@ class NameDeterminer:
                 return entity
 
             if explicit_name != constructed_name:
-                raise AirflowException(ERR_DIFF_NAMES.format(
-                    label=self.label,
-                    explicit_name=explicit_name,
-                    constructed_name=constructed_name,
-                    id_label=self.id_label)
+                raise AirflowException(
+                    ERR_DIFF_NAMES.format(
+                        label=self.label,
+                        explicit_name=explicit_name,
+                        constructed_name=constructed_name,
+                        id_label=self.id_label,
+                    )
                 )
 
         # Not enough parameters to construct the name. Trying to use the name from Product / ProductSet.
         if explicit_name:
             return entity
         else:
-            raise AirflowException(
-                ERR_UNABLE_TO_CREATE.format(label=self.label, id_label=self.id_label)
-            )
+            raise AirflowException(ERR_UNABLE_TO_CREATE.format(label=self.label, id_label=self.id_label))
 
 
-class CloudVisionHook(CloudBaseHook):
+class CloudVisionHook(GoogleBaseHook):
     """
     Hook for Google Cloud Vision APIs.
 
@@ -129,8 +125,17 @@ class CloudVisionHook(CloudBaseHook):
         'ProductSet', 'productset_id', ProductSearchClient.product_set_path
     )
 
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self._client = None
 
     def get_conn(self) -> ProductSearchClient:
@@ -142,8 +147,7 @@ class CloudVisionHook(CloudBaseHook):
         """
         if not self._client:
             self._client = ProductSearchClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._client
 
@@ -162,13 +166,12 @@ class CloudVisionHook(CloudBaseHook):
         if "error" in response:
             raise AirflowException(response)
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_product_set(
         self,
         location: str,
         product_set: Union[dict, ProductSet],
-        project_id: Optional[str] = None,
+        project_id: str,
         product_set_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -176,10 +179,8 @@ class CloudVisionHook(CloudBaseHook):
     ) -> str:
         """
         For the documentation see:
-        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductSetOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         parent = ProductSearchClient.location_path(project_id, location)
         self.log.info('Creating a new ProductSet under the parent: %s', parent)
@@ -201,22 +202,20 @@ class CloudVisionHook(CloudBaseHook):
 
         return product_set_id
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_product_set(
         self,
         location: str,
         product_set_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
-        timeout: Optional[float] = None, metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ) -> Dict:
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ) -> dict:
         """
         For the documentation see:
-        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionGetProductSetOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = ProductSearchClient.product_set_path(project_id, location, product_set_id)
         self.log.info('Retrieving ProductSet: %s', name)
@@ -225,25 +224,22 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('ProductSet retrieved:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_product_set(
         self,
         product_set: Union[dict, ProductSet],
+        project_id: str,
         location: Optional[str] = None,
         product_set_id: Optional[str] = None,
         update_mask: Union[dict, FieldMask] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         For the documentation see:
-        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductSetOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         product_set = self.product_set_name_determiner.get_entity_with_name(
             product_set, product_set_id, location, project_id
@@ -256,47 +252,41 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('ProductSet updated:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_product_set(
         self,
         location: str,
         product_set_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ) -> None:
         """
         For the documentation see:
-        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductSetOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = ProductSearchClient.product_set_path(project_id, location, product_set_id)
         self.log.info('Deleting ProductSet: %s', name)
         client.delete_product_set(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('ProductSet with the name [%s] deleted.', name)
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_product(
         self,
         location: str,
         product: Union[dict, Product],
-        project_id: Optional[str] = None,
+        project_id: str,
         product_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         For the documentation see:
-        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         parent = ProductSearchClient.location_path(project_id, location)
         self.log.info('Creating a new Product under the parent: %s', parent)
@@ -318,23 +308,20 @@ class CloudVisionHook(CloudBaseHook):
 
         return product_id
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_product(
         self,
         location: str,
         product_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         For the documentation see:
-        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionGetProductOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = ProductSearchClient.product_path(project_id, location, product_id)
         self.log.info('Retrieving Product: %s', name)
@@ -343,25 +330,22 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('Product retrieved:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def update_product(
         self,
         product: Union[dict, Product],
+        project_id: str,
         location: Optional[str] = None,
         product_id: Optional[str] = None,
         update_mask: Optional[Dict[str, FieldMask]] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         For the documentation see:
-        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         product = self.product_name_determiner.get_entity_with_name(product, product_id, location, project_id)
         self.log.info('Updating ProductSet: %s', product.name)
@@ -372,48 +356,42 @@ class CloudVisionHook(CloudBaseHook):
         self.log.debug('Product updated:\n%s', response)
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_product(
         self,
         location: str,
         product_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None
-    ):
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ) -> None:
         """
         For the documentation see:
-        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = ProductSearchClient.product_path(project_id, location, product_id)
         self.log.info('Deleting ProductSet: %s', name)
         client.delete_product(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Product with the name [%s] deleted:', name)
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_reference_image(
         self,
         location: str,
         product_id: str,
-        reference_image: Union[Dict, ReferenceImage],
+        reference_image: Union[dict, ReferenceImage],
+        project_id: str,
         reference_image_id: Optional[str] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> str:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateReferenceImageOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         self.log.info('Creating ReferenceImage')
         parent = ProductSearchClient.product_path(project=project_id, location=location, product=product_id)
@@ -439,55 +417,52 @@ class CloudVisionHook(CloudBaseHook):
 
         return reference_image_id
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_reference_image(
         self,
         location: str,
         product_id: str,
         reference_image_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         self.log.info('Deleting ReferenceImage')
         name = ProductSearchClient.reference_image_path(
             project=project_id, location=location, product=product_id, reference_image=reference_image_id
         )
-        response = client.delete_reference_image(name=name,  # pylint: disable=assignment-from-no-return
-                                                 retry=retry,
-                                                 timeout=timeout,
-                                                 metadata=metadata)
+        # pylint: disable=assignment-from-no-return
+        response = client.delete_reference_image(
+            name=name,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
 
         self.log.info('ReferenceImage with the name [%s] deleted.', name)
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def add_product_to_product_set(
         self,
         product_set_id: str,
         product_id: str,
+        project_id: str,
         location: Optional[str] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> None:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionAddProductToProductSetOperator`
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
 
         product_name = ProductSearchClient.product_path(project_id, location, product_id)
@@ -501,24 +476,21 @@ class CloudVisionHook(CloudBaseHook):
 
         self.log.info('Product added to Product Set')
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def remove_product_from_product_set(
         self,
         product_set_id: str,
         product_id: str,
+        project_id: str,
         location: Optional[str] = None,
-        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> None:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator` # pylint: disable=line-too-long # noqa
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionRemoveProductFromProductSetOperator` # pylint: disable=line-too-long # noqa
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
 
         product_name = ProductSearchClient.product_path(project_id, location, product_id)
@@ -532,16 +504,15 @@ class CloudVisionHook(CloudBaseHook):
 
         self.log.info('Product removed from Product Set')
 
-    @CloudBaseHook.catch_http_exception
     def annotate_image(
         self,
         request: Union[dict, AnnotateImageRequest],
         retry: Optional[Retry] = None,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
     ) -> Dict:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_image_annotator_operator.CloudVisionAnnotateImage`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator`
         """
         client = self.annotator_client
 
@@ -554,43 +525,41 @@ class CloudVisionHook(CloudBaseHook):
 
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def batch_annotate_images(
         self,
         requests: Union[List[dict], List[AnnotateImageRequest]],
         retry: Optional[Retry] = None,
-        timeout: Optional[float] = None
-    ) -> Dict:
+        timeout: Optional[float] = None,
+    ) -> dict:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_image_annotator_operator.CloudVisionAnnotateImage`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator`
         """
         client = self.annotator_client
 
         self.log.info('Annotating images')
 
-        response = client.batch_annotate_images(requests=requests,  # pylint: disable=no-member
-                                                retry=retry,
-                                                timeout=timeout)
+        response = client.batch_annotate_images(
+            requests=requests, retry=retry, timeout=timeout  # pylint: disable=no-member
+        )
 
         self.log.info('Images annotated')
 
         return MessageToDict(response)
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def text_detection(
         self,
-        image: Union[Dict, Image],
+        image: Union[dict, Image],
         max_results: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        additional_properties: Optional[Dict] = None
-    ) -> Dict:
+        additional_properties: Optional[Dict] = None,
+    ) -> dict:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectTextOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectTextOperator`
         """
         client = self.annotator_client
 
@@ -609,19 +578,18 @@ class CloudVisionHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def document_text_detection(
         self,
-        image: Union[Dict, Image],
+        image: Union[dict, Image],
         max_results: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        additional_properties: Optional[Dict] = None
-    ) -> Dict:
+        additional_properties: Optional[dict] = None,
+    ) -> dict:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectDocumentTextOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionTextDetectOperator`
         """
         client = self.annotator_client
 
@@ -640,19 +608,18 @@ class CloudVisionHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def label_detection(
         self,
-        image: Union[Dict, Image],
+        image: Union[dict, Image],
         max_results: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        additional_properties: Optional[Dict] = None
-    ) -> Dict:
+        additional_properties: Optional[dict] = None,
+    ) -> dict:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageLabelsOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageLabelsOperator`
         """
         client = self.annotator_client
 
@@ -671,19 +638,18 @@ class CloudVisionHook(CloudBaseHook):
 
         return response
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def safe_search_detection(
         self,
-        image: Union[Dict, Image],
+        image: Union[dict, Image],
         max_results: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        additional_properties: Optional[Dict] = None
-    ) -> Dict:
+        additional_properties: Optional[dict] = None,
+    ) -> dict:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageSafeSearchOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageSafeSearchOperator`
         """
         client = self.annotator_client
 
@@ -706,7 +672,7 @@ class CloudVisionHook(CloudBaseHook):
         try:
             name = response.name
         except AttributeError as e:
-            raise AirflowException('Unable to get name from response... [{}]\n{}'.format(response, e))
+            raise AirflowException(f'Unable to get name from response... [{response}]\n{e}')
         if '/' not in name:
-            raise AirflowException('Unable to get id from name... [{}]'.format(name))
+            raise AirflowException(f'Unable to get id from name... [{name}]')
         return name.rsplit('/', 1)[1]

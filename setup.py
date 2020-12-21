@@ -17,42 +17,30 @@
 # under the License.
 """Setup.py for the Airflow project."""
 
-import io
 import logging
 import os
 import subprocess
 import sys
 import unittest
-from importlib import util
 from os.path import dirname
-from typing import List
+from textwrap import wrap
+from typing import Dict, Iterable, List
 
-from setuptools import Command, find_packages, setup
+from setuptools import Command, Distribution, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
-# Kept manually in sync with airflow.__version__
-# noinspection PyUnresolvedReferences
-spec = util.spec_from_file_location("airflow.version", os.path.join('airflow', 'version.py'))
-# noinspection PyUnresolvedReferences
-mod = util.module_from_spec(spec)
-spec.loader.exec_module(mod)  # type: ignore
-version = mod.version  # type: ignore
+version = '2.0.0'
 
 PY3 = sys.version_info[0] == 3
 
-# noinspection PyUnboundLocalVariable
-try:
-    with io.open('README.md', encoding='utf-8') as f:
-        long_description = f.read()
-except FileNotFoundError:
-    long_description = ''
+my_dir = dirname(__file__)
 
 
 def airflow_test_suite():
     """Test suite for Airflow tests"""
     test_loader = unittest.TestLoader()
-    test_suite = test_loader.discover('tests', pattern='test_*.py')
+    test_suite = test_loader.discover(os.path.join(my_dir, 'tests'), pattern='test_*.py')
     return test_suite
 
 
@@ -71,10 +59,9 @@ class CleanCommand(Command):
     def finalize_options(self):
         """Set final values for options."""
 
-    # noinspection PyMethodMayBeStatic
-    def run(self):
+    def run(self):  # noqa
         """Run command to remove temporary files and directories."""
-        os.chdir(dirname(__file__))
+        os.chdir(my_dir)
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
 
@@ -93,10 +80,29 @@ class CompileAssets(Command):
     def finalize_options(self):
         """Set final values for options."""
 
-    # noinspection PyMethodMayBeStatic
-    def run(self):
+    def run(self):  # noqa
         """Run a command to compile and build assets."""
         subprocess.check_call('./airflow/www/compile_assets.sh')
+
+
+class ListExtras(Command):
+    """
+    List all available extras
+    Registered as cmdclass in setup() so it can be called with ``python setup.py list_extras``.
+    """
+
+    description = "List available extras"
+    user_options = []  # type: List[str]
+
+    def initialize_options(self):
+        """Set default values for options."""
+
+    def finalize_options(self):
+        """Set final values for options."""
+
+    def run(self):  # noqa
+        """List extras."""
+        print("\n".join(wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)))
 
 
 def git_version(version_: str) -> str:
@@ -114,8 +120,9 @@ def git_version(version_: str) -> str:
     """
     try:
         import git
+
         try:
-            repo = git.Repo(os.path.join(*[dirname(__file__), '.git']))
+            repo = git.Repo(os.path.join(*[my_dir, '.git']))
         except git.NoSuchPathError:
             logger.warning('.git directory not found: Cannot compute the git version')
             return ''
@@ -128,14 +135,14 @@ def git_version(version_: str) -> str:
     if repo:
         sha = repo.head.commit.hexsha
         if repo.is_dirty():
-            return '.dev0+{sha}.dirty'.format(sha=sha)
+            return f'.dev0+{sha}.dirty'
         # commit is clean
-        return '.release:{version}+{sha}'.format(version=version_, sha=sha)
+        return f'.release:{version_}+{sha}'
     else:
         return 'no_git_version'
 
 
-def write_version(filename: str = os.path.join(*[dirname(__file__), "airflow", "git_version"])):
+def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version"])):
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
 
@@ -146,9 +153,25 @@ def write_version(filename: str = os.path.join(*[dirname(__file__), "airflow", "
         file.write(text)
 
 
-# 'Start dependencies group' and 'Start dependencies group' are mark for ./test/test_order_setup.py
-# If you change this mark you should also change ./test/test_order_setup.py function test_main_dependent_group
+if os.environ.get('USE_THEME_FROM_GIT'):
+    _SPHINX_AIRFLOW_THEME_URL = (
+        "@ https://github.com/apache/airflow-site/releases/download/0.0.4/"
+        "sphinx_airflow_theme-0.0.4-py3-none-any.whl"
+    )
+else:
+    _SPHINX_AIRFLOW_THEME_URL = ''
+
+# 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
+# If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
+amazon = [
+    'boto3>=1.15.0,<1.16.0',
+    'botocore>=1.18.0,<1.19.0',
+    'watchtower~=0.7.3',
+]
+apache_beam = [
+    'apache-beam[gcp]',
+]
 async_packages = [
     'eventlet>= 0.9.7',
     'gevent>=0.13',
@@ -157,27 +180,25 @@ async_packages = [
 atlas = [
     'atlasclient>=0.1.2',
 ]
-aws = [
-    'boto3~=1.10',
-    'watchtower~=0.7.3',
-]
 azure = [
-    'azure-cosmos>=3.0.1',
+    'azure-batch>=8.0.0',
+    'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
-    'azure-kusto-data>=0.0.43',
-    'azure-mgmt-containerinstance>=1.5.0',
+    'azure-identity>=1.3.1',
+    'azure-keyvault>=4.1.0',
+    'azure-kusto-data>=0.0.43,<0.1',
+    'azure-mgmt-containerinstance>=1.5.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage>=0.34.0',
-    'azure-storage-blob<12.0',
+    'azure-storage>=0.34.0, <0.37.0',
 ]
 cassandra = [
     'cassandra-driver>=3.13.0,<3.21.0',
 ]
 celery = [
-    'celery~=4.3',
+    'celery~=4.4.2',
     'flower>=0.7.3, <1.0',
-    'tornado>=4.2.0, <6.0',  # Dep of flower. Pin to a version that works on Py3.5.2
+    'vine~=1.3',  # https://stackoverflow.com/questions/32757259/celery-no-module-named-five
 ]
 cgroups = [
     'cgroupspy>=0.1.4',
@@ -185,9 +206,7 @@ cgroups = [
 cloudant = [
     'cloudant>=2.0',
 ]
-dask = [
-    'distributed>=1.17.1, <2',
-]
+dask = ['cloudpickle>=1.4.1, <1.5.0', 'distributed>=2.11.1, <2.20']
 databricks = [
     'requests>=2.20.0, <3',
 ]
@@ -198,9 +217,13 @@ doc = [
     'sphinx>=2.1.2',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
+    'sphinx-copybutton',
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
+    "sphinxcontrib-redoc>=1.6.0",
+    "sphinxcontrib-spelling==5.2.1",
+    f"sphinx-airflow-theme{_SPHINX_AIRFLOW_THEME_URL}",
 ]
 docker = [
     'docker~=3.0',
@@ -209,53 +232,68 @@ druid = [
     'pydruid>=0.4.1',
 ]
 elasticsearch = [
-    'elasticsearch>7',
+    'elasticsearch>7, <7.6.0',
     'elasticsearch-dbapi==0.1.0',
     'elasticsearch-dsl>=5.0.0',
 ]
-flask_oauth = [
-    'Flask-OAuthlib>=0.9.1',
-    'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
-    'requests-oauthlib==1.1.0',
+exasol = [
+    'pyexasol>=0.5.1,<1.0.0',
 ]
-gcp = [
+facebook = [
+    'facebook-business>=6.0.2',
+]
+flask_oauth = [
+    'Flask-OAuthlib>=0.9.1,<0.9.6',  # Flask OAuthLib 0.9.6 requires Flask-Login 0.5.0 - breaks FAB
+    'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
+    'requests-oauthlib<1.2.0',
+]
+google = [
     'PyOpenSSL',
-    'google-api-python-client>=1.6.0, <2.0.0dev',
-    'google-auth>=1.0.0, <2.0.0dev',
+    'google-ads>=4.0.0,<8.0.0',
+    'google-api-python-client>=1.6.0,<2.0.0',
+    'google-auth>=1.0.0,<2.0.0',
     'google-auth-httplib2>=0.0.1',
-    'google-cloud-automl>=0.4.0',
-    'google-cloud-bigquery-datatransfer>=0.4.0',
-    'google-cloud-bigtable>=1.0.0',
-    'google-cloud-container>=0.1.1',
-    'google-cloud-dataproc>=0.5.0',
-    'google-cloud-dlp>=0.11.0',
-    'google-cloud-kms>=1.2.1',
-    'google-cloud-language>=1.1.1',
-    'google-cloud-logging>=1.14.0',
-    'google-cloud-monitoring>=0.34.0',
-    'google-cloud-pubsub>=1.0.0',
-    'google-cloud-redis>=0.3.0',
-    'google-cloud-spanner>=1.10.0',
-    'google-cloud-speech>=0.36.3',
-    'google-cloud-storage>=1.16',
-    'google-cloud-tasks>=1.2.1',
-    'google-cloud-texttospeech>=0.4.0',
-    'google-cloud-translate>=1.5.0',
-    'google-cloud-videointelligence>=1.7.0',
-    'google-cloud-vision>=0.35.2',
+    'google-cloud-automl>=0.4.0,<2.0.0',
+    'google-cloud-bigquery-datatransfer>=0.4.0,<2.0.0',
+    'google-cloud-bigtable>=1.0.0,<2.0.0',
+    'google-cloud-container>=0.1.1,<2.0.0',
+    'google-cloud-datacatalog>=0.5.0, <0.8',  # TODO: we should migrate to 1.0 likely and add <2.0.0 then
+    'google-cloud-dataproc>=1.0.1,<2.0.0',
+    'google-cloud-dlp>=0.11.0,<2.0.0',
+    'google-cloud-kms>=1.2.1,<2.0.0',
+    'google-cloud-language>=1.1.1,<2.0.0',
+    'google-cloud-logging>=1.14.0,<2.0.0',
+    'google-cloud-memcache>=0.2.0',
+    'google-cloud-monitoring>=0.34.0,<2.0.0',
+    'google-cloud-os-login>=2.0.0,<3.0.0',
+    'google-cloud-pubsub>=1.0.0,<2.0.0',
+    'google-cloud-redis>=0.3.0,<2.0.0',
+    'google-cloud-secret-manager>=0.2.0,<2.0.0',
+    'google-cloud-spanner>=1.10.0,<2.0.0',
+    'google-cloud-speech>=0.36.3,<2.0.0',
+    'google-cloud-storage>=1.16,<2.0.0',
+    'google-cloud-tasks>=1.2.1,<2.0.0',
+    'google-cloud-texttospeech>=0.4.0,<2.0.0',
+    'google-cloud-translate>=1.5.0,<2.0.0',
+    'google-cloud-videointelligence>=1.7.0,<2.0.0',
+    'google-cloud-vision>=0.35.2,<2.0.0',
     'grpcio-gcp>=0.2.2',
-    'httplib2~=0.15',  # not sure we're ready for 1.0 here; test before updating
     'pandas-gbq',
 ]
 grpc = [
+    'google-auth>=1.0.0, <2.0.0dev',
+    'google-auth-httplib2>=0.0.1',
     'grpcio>=1.15.0',
 ]
+hashicorp = [
+    'hvac~=0.10',
+]
 hdfs = [
-    'snakebite>=2.7.8',
+    'snakebite-py3',
 ]
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive>=0.6.0',
+    'pyhive[hive]>=0.6.0',
 ]
 jdbc = [
     'jaydebeapi>=1.1.1',
@@ -269,13 +307,13 @@ jira = [
 kerberos = [
     'pykerberos>=1.1.13',
     'requests_kerberos>=0.10.0',
-    'snakebite[kerberos]>=2.7.8',
     'thrift_sasl>=0.2.0',
 ]
 kubernetes = [
     'cryptography>=2.0.0',
-    'kubernetes>=3.0.0',
+    'kubernetes>=3.0.0, <12.0.0',
 ]
+kylin = ['kylinpy>=2.6']
 ldap = [
     'ldap3>=2.5.1',
 ]
@@ -284,9 +322,10 @@ mongo = [
     'pymongo>=3.6.0',
 ]
 mssql = [
-    'pymssql~=2.1.1',
+    'pymssql~=2.1,>=2.1.5',
 ]
 mysql = [
+    'mysql-connector-python>=8.0.11, <=8.0.18',
     'mysqlclient>=1.3.6,<1.4',
 ]
 odbc = [
@@ -296,7 +335,7 @@ oracle = [
     'cx_Oracle>=5.1.2',
 ]
 pagerduty = [
-    'pypd>=1.1.0',
+    'pdpyras>=4.1.2,<5',
 ]
 papermill = [
     'papermill[all]>=1.2.1',
@@ -309,23 +348,24 @@ password = [
 pinot = [
     'pinotdb==0.1.1',
 ]
+plexus = [
+    'arrow>=0.16.0',
+]
 postgres = [
     'psycopg2-binary>=2.7.4',
 ]
-presto = [
-    'presto-python-client>=0.7.0,<0.8'
-]
-qds = [
+presto = ['presto-python-client>=0.7.0,<0.8']
+qubole = [
     'qds-sdk>=1.10.4',
 ]
 rabbitmq = [
-    'librabbitmq>=1.6.1',
+    'amqp<5.0.0',
 ]
 redis = [
     'redis~=3.2',
 ]
 salesforce = [
-    'simple-salesforce>=0.72',
+    'simple-salesforce>=1.0.0',
 ]
 samba = [
     'pysmbclient>=0.1.3',
@@ -342,14 +382,30 @@ sentry = [
 ]
 singularity = ['spython>=0.0.56']
 slack = [
-    'slackclient>=1.0.0,<2.0.0',
+    'slackclient>=2.0.0,<3.0.0',
 ]
 snowflake = [
+    # The `azure` provider uses legacy `azure-storage` library, where `snowflake` uses the
+    # newer and more stable versions of those libraries. Most of `azure` operators and hooks work
+    # fine together with `snowflake` because the deprecated library does not overlap with the
+    # new libraries except the `blob` classes. So while `azure` works fine for most cases
+    # blob is the only exception
+    # Solution to that is being worked on in https://github.com/apache/airflow/pull/12188
+    # once it is merged, we can move those two back to `azure` extra.
+    'azure-storage-blob',
+    'azure-storage-common',
+    # snowflake is not compatible with latest version.
+    # This library monkey patches the requests library, so SSL is broken globally.
+    # See: https://github.com/snowflakedb/snowflake-connector-python/issues/324
+    'requests<2.24.0',
     'snowflake-connector-python>=1.5.2',
     'snowflake-sqlalchemy>=1.1.0',
 ]
+spark = [
+    'pyspark',
+]
 ssh = [
-    'paramiko>=2.1.1',
+    'paramiko>=2.6.0',
     'pysftp>=0.2.9',
     'sshtunnel>=0.1.4,<0.2',
 ]
@@ -357,7 +413,10 @@ statsd = [
     'statsd>=3.3.0, <4.0',
 ]
 tableau = [
-    'tableauserverclient==0.9',
+    'tableauserverclient~=0.12',
+]
+telegram = [
+    'python-telegram-bot==13.0',
 ]
 vertica = [
     'vertica-python>=0.5.1',
@@ -371,7 +430,7 @@ webhdfs = [
 winrm = [
     'pywinrm~=0.4',
 ]
-yandexcloud = [
+yandex = [
     'yandexcloud>=0.22.0',
 ]
 zendesk = [
@@ -379,232 +438,511 @@ zendesk = [
 ]
 # End dependencies group
 
-all_dbs = (cassandra + cloudant + druid + hdfs + hive + mongo + mssql + mysql +
-           pinot + postgres + presto + vertica)
+all_dbs = (
+    cassandra
+    + cloudant
+    + druid
+    + exasol
+    + hdfs
+    + hive
+    + mongo
+    + mssql
+    + mysql
+    + pinot
+    + postgres
+    + presto
+    + vertica
+)
 
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
 # IF you are removing dependencies from this list, please make sure that you also increase
-# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
 ############################################################################################################
 devel = [
     'beautifulsoup4~=4.7.1',
-    'click==6.7',
+    'black',
+    'blinker',
+    'bowler',
+    'click~=7.1',
     'contextdecorator;python_version<"3.4"',
     'coverage',
+    'docutils',
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
     'freezegun',
+    'github3.py',
+    'gitpython',
+    'importlib-resources~=1.4',
     'ipdb',
     'jira',
     'mongomock',
-    'moto>=1.3.14,<2.0.0',
+    'moto',
     'parameterized',
     'paramiko',
+    'pipdeptree',
     'pre-commit',
-    'pylint~=2.4',
+    'pylint==2.6.0',
     'pysftp',
     'pytest',
     'pytest-cov',
     'pytest-instafail',
+    'pytest-rerunfailures',
+    'pytest-timeouts',
+    'pytest-xdist',
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
+    'testfixtures',
+    'wheel',
     'yamllint',
 ]
+
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
-# IF you are removing dependencies from the above list, please make sure that you also increase
-# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
+# If you are removing dependencies from the above list, please make sure that you also increase
+# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
 ############################################################################################################
 
 if PY3:
-    devel += ['mypy==0.740']
+    devel += ['mypy==0.770']
 else:
     devel += ['unittest2']
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
-devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel + doc + docker + druid +
-             elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + odbc + oracle +
-             pagerduty + papermill + password + pinot + redis + salesforce + samba + segment + sendgrid +
-             sentry + singularity + slack + snowflake + ssh + statsd + tableau + virtualenv + webhdfs +
-             yandexcloud + zendesk)
 
-# Snakebite are not Python 3 compatible :'(
+
+############################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# If you have a 'pip check' problem with dependencies, it might be because some dependency has been
+# installed via 'install_requires' in setup.cfg in higher version than required in one of the options below.
+# For example pip check was failing with requests=2.25.1 installed even if in some dependencies below
+# < 2.24.0 was specified for it. Solution in such case is to add such limiting requirement to
+# install_requires in setup.cfg (we've added requests<2.24.0 there to limit requests library).
+# This should be done with appropriate comment explaining why the requirement was added.
+############################################################################################################
+
+# Those are requirements that each provider package has
+PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
+    "amazon": amazon,
+    "apache.cassandra": cassandra,
+    "apache.druid": druid,
+    "apache.hdfs": hdfs,
+    "apache.hive": hive,
+    "apache.kylin": kylin,
+    "apache.livy": [],
+    "apache.pig": [],
+    "apache.pinot": pinot,
+    "apache.spark": spark,
+    "apache.sqoop": [],
+    "celery": celery,
+    "cloudant": cloudant,
+    "cncf.kubernetes": kubernetes,
+    "databricks": databricks,
+    "datadog": datadog,
+    "dingding": [],
+    "discord": [],
+    "docker": docker,
+    "elasticsearch": elasticsearch,
+    "exasol": exasol,
+    "facebook": facebook,
+    "ftp": [],
+    "google": google,
+    "grpc": grpc,
+    "hashicorp": hashicorp,
+    "http": [],
+    "imap": [],
+    "jdbc": jdbc,
+    "jenkins": jenkins,
+    "jira": jira,
+    "microsoft.azure": azure,
+    "microsoft.mssql": mssql,
+    "microsoft.winrm": winrm,
+    "mongo": mongo,
+    "mysql": mysql,
+    "odbc": odbc,
+    "openfaas": [],
+    "opsgenie": [],
+    "oracle": oracle,
+    "pagerduty": pagerduty,
+    "papermill": papermill,
+    "plexus": plexus,
+    "postgres": postgres,
+    "presto": presto,
+    "qubole": qubole,
+    "redis": redis,
+    "salesforce": salesforce,
+    "samba": samba,
+    "segment": segment,
+    "sendgrid": sendgrid,
+    "sftp": ssh,
+    "singularity": singularity,
+    "slack": slack,
+    "snowflake": snowflake,
+    "sqlite": [],
+    "ssh": ssh,
+    "telegram": telegram,
+    "vertica": vertica,
+    "yandex": yandex,
+    "zendesk": zendesk,
+}
+
+# Those are requirements that each extra has. For extras that match the providers
+# the requirements are identical as in the list above, but we have still a few aliases
+# that have different set of requirements.
+EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
+    'all_dbs': all_dbs,
+    'amazon': amazon,
+    'apache.atlas': atlas,
+    'apache.beam': apache_beam,
+    "apache.cassandra": cassandra,
+    "apache.druid": druid,
+    "apache.hdfs": hdfs,
+    "apache.hive": hive,
+    "apache.kylin": kylin,
+    "apache.livy": [],
+    "apache.pig": [],
+    "apache.pinot": pinot,
+    "apache.spark": spark,
+    "apache.sqoop": [],
+    "apache.webhdfs": webhdfs,
+    'async': async_packages,
+    'atlas': atlas,  # TODO: remove this in Airflow 3.0
+    'aws': amazon,  # TODO: remove this in Airflow 3.0
+    'azure': azure,  # TODO: remove this in Airflow 3.0
+    'cassandra': cassandra,  # TODO: remove this in Airflow 3.0
+    'celery': celery,
+    'cgroups': cgroups,
+    'cloudant': cloudant,
+    'cncf.kubernetes': kubernetes,
+    'crypto': [],  # TODO: remove this in Airflow 3.0
+    'dask': dask,
+    'databricks': databricks,
+    'datadog': datadog,
+    'dingding': [],
+    'discord': [],
+    'docker': docker,
+    'druid': druid,  # TODO: remove this in Airflow 3.0
+    'elasticsearch': elasticsearch,
+    'exasol': exasol,
+    'facebook': facebook,
+    'ftp': [],
+    'gcp': google,  # TODO: remove this in Airflow 3.0
+    'gcp_api': google,  # TODO: remove this in Airflow 3.0
+    'github_enterprise': flask_oauth,
+    'google': google,
+    'google_auth': flask_oauth,
+    'grpc': grpc,
+    'hashicorp': hashicorp,
+    'hdfs': hdfs,  # TODO: remove this in Airflow 3.0
+    'hive': hive,  # TODO: remove this in Airflow 3.0
+    'http': [],
+    'imap': [],
+    'jdbc': jdbc,
+    'jenkins': [],
+    'jira': jira,
+    'kerberos': kerberos,
+    'kubernetes': kubernetes,  # TODO: remove this in Airflow 3.0
+    'ldap': ldap,
+    "microsoft.azure": azure,
+    "microsoft.mssql": mssql,
+    "microsoft.winrm": winrm,
+    'mongo': mongo,
+    'mssql': mssql,  # TODO: remove this in Airflow 3.0
+    'mysql': mysql,
+    'odbc': odbc,
+    'openfaas': [],
+    'opsgenie': [],
+    'oracle': oracle,
+    'pagerduty': pagerduty,
+    'papermill': papermill,
+    'password': password,
+    'pinot': pinot,  # TODO: remove this in Airflow 3.0
+    'plexus': plexus,
+    'postgres': postgres,
+    'presto': presto,
+    'qds': qubole,  # TODO: remove this in Airflow 3.0
+    'qubole': qubole,
+    'rabbitmq': rabbitmq,
+    'redis': redis,
+    's3': amazon,  # TODO: remove this in Airflow 3.0
+    'salesforce': salesforce,
+    'samba': samba,
+    'segment': segment,
+    'sendgrid': sendgrid,
+    'sentry': sentry,
+    'sftp': [],
+    'singularity': singularity,
+    'slack': slack,
+    'snowflake': snowflake,
+    'spark': spark,
+    'sqlite': [],
+    'ssh': ssh,
+    'statsd': statsd,
+    'tableau': tableau,
+    'telegram': telegram,
+    'vertica': vertica,
+    'virtualenv': virtualenv,
+    'webhdfs': webhdfs,  # TODO: remove this in Airflow 3.0
+    'winrm': winrm,  # TODO: remove this in Airflow 3.0
+    'yandex': yandex,
+    'zendesk': [],
+}
+
+# Those are airflow providers added for the extras in many cases extra = provider
+# But for aliases and some special aliases (like all_dbs) the list might be longer.
+EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
+    'all': list(PROVIDERS_REQUIREMENTS.keys()),
+    # this is not 100% accurate with devel_ci and devel_all definition, but we really want
+    # to have all providers when devel_ci extra is installed!
+    'devel_ci': list(PROVIDERS_REQUIREMENTS.keys()),
+    'devel_all': list(PROVIDERS_REQUIREMENTS.keys()),
+    'all_dbs': [
+        "apache.cassandra",
+        "apache.druid",
+        "apache.hdfs",
+        "apache.hive",
+        "apache.pinot",
+        "cloudant",
+        "exasol",
+        "mongo",
+        "microsoft.mssql",
+        "mysql",
+        "postgres",
+        "presto",
+        "vertica",
+    ],
+    'amazon': ["amazon"],
+    'apache.atlas': [],
+    'apache.beam': [],
+    "apache.cassandra": ["apache.cassandra"],
+    "apache.druid": ["apache.druid"],
+    "apache.hdfs": ["apache.hdfs"],
+    "apache.hive": ["apache.hive"],
+    "apache.kylin": ["apache.kylin"],
+    "apache.livy": ["apache.livy"],
+    "apache.pig": ["apache.pig"],
+    "apache.pinot": ["apache.pinot"],
+    "apache.spark": ["apache.spark"],
+    "apache.sqoop": ["apache.sqoop"],
+    "apache.webhdfs": ["apache.hdfs"],
+    'async': [],
+    'atlas': [],  # TODO: remove this in Airflow 3.0
+    'aws': ["amazon"],  # TODO: remove this in Airflow 3.0
+    'azure': ["microsoft.azure"],  # TODO: remove this in Airflow 3.0
+    'cassandra': ["apache.cassandra"],  # TODO: remove this in Airflow 3.0
+    'celery': ["celery"],
+    'cgroups': [],
+    'cloudant': ["cloudant"],
+    'cncf.kubernetes': ["cncf.kubernetes"],
+    'crypto': [],  # TODO: remove this in Airflow 3.0
+    'dask': [],
+    'databricks': ["databricks"],
+    'datadog': ["datadog"],
+    'devel': ["cncf.kubernetes", "mysql"],
+    'devel_hadoop': ["apache.hdfs", "apache.hive", "presto"],
+    'dingding': ["dingding"],
+    'discord': ["discord"],
+    'doc': [],
+    'docker': ["docker"],
+    'druid': ["apache.druid"],  # TODO: remove this in Airflow 3.0
+    'elasticsearch': ["elasticsearch"],
+    'exasol': ["exasol"],
+    'facebook': ["facebook"],
+    'ftp': ["ftp"],
+    'gcp': ["google"],  # TODO: remove this in Airflow 3.0
+    'gcp_api': ["google"],  # TODO: remove this in Airflow 3.0
+    'github_enterprise': [],
+    'google': ["google"],
+    'google_auth': [],
+    'grpc': ["grpc"],
+    'hashicorp': ["hashicorp"],
+    'hdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 3.0
+    'hive': ["apache.hive"],  # TODO: remove this in Airflow 3.0
+    'http': ["http"],
+    'imap': ["imap"],
+    'jdbc': ["jdbc"],
+    'jenkins': ["jenkins"],
+    'jira': ["jira"],
+    'kerberos': [],
+    'kubernetes': ["cncf.kubernetes"],  # TODO: remove this in Airflow 3.0
+    'ldap': [],
+    "microsoft.azure": ["microsoft.azure"],
+    "microsoft.mssql": ["microsoft.mssql"],
+    "microsoft.winrm": ["microsoft.winrm"],
+    'mongo': ["mongo"],
+    'mssql': ["microsoft.mssql"],  # TODO: remove this in Airflow 3.0
+    'mysql': ["mysql"],
+    'odbc': ["odbc"],
+    'openfaas': ["openfaas"],
+    'opsgenie': ["opsgenie"],
+    'oracle': ["oracle"],
+    'pagerduty': ["pagerduty"],
+    'papermill': ["papermill"],
+    'password': [],
+    'pinot': ["apache.pinot"],  # TODO: remove this in Airflow 3.0
+    'plexus': ["plexus"],
+    'postgres': ["postgres"],
+    'presto': ["presto"],
+    'qds': ["qubole"],  # TODO: remove this in Airflow 3.0
+    'qubole': ["qubole"],
+    'rabbitmq': [],
+    'redis': ["redis"],
+    's3': ["amazon"],  # TODO: remove this in Airflow 3.0
+    'salesforce': ["salesforce"],
+    'samba': ["samba"],
+    'segment': ["segment"],
+    'sendgrid': ["sendgrid"],
+    'sentry': [],
+    'sftp': ["sftp"],
+    'singularity': ["singularity"],
+    'slack': ["slack"],
+    'snowflake': ["snowflake"],
+    'spark': ["apache.spark"],
+    'sqlite': ["sqlite"],
+    'ssh': ["ssh"],
+    'statsd': [],
+    'tableau': [],
+    'telegram': ["telegram"],
+    'vertica': ["vertica"],
+    'virtualenv': [],
+    'webhdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 3.0
+    'winrm': ["microsoft.winrm"],  # TODO: remove this in Airflow 3.0
+    'yandex': ["yandex"],
+    'zendesk': ["zendesk"],
+}
+
+
+# Those are all "users" extras (no devel extras)
+all_ = list(
+    set(
+        [req for req_list in EXTRAS_REQUIREMENTS.values() for req in req_list]
+        + [req for req_list in PROVIDERS_REQUIREMENTS.values() for req in req_list]
+    )
+)
+
+# Those are special extras
+EXTRAS_REQUIREMENTS.update(
+    {
+        'all': all_,
+        'devel': devel_minreq,  # includes doc
+        'devel_hadoop': devel_hadoop,  # includes devel_minreq
+        'doc': doc,
+    }
+)
+# This can be simplify to devel_hadoop + all_ due to inclusions
+# but we keep it for explicit sake
+devel_all = list(set(all_ + doc + devel_minreq + devel_hadoop))
+
+# Those are packages excluded for "all" dependencies
+PACKAGES_EXCLUDED_FOR_ALL = []
+
 if PY3:
-    devel_ci = [package for package in devel_all if package not in
-                ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
-else:
-    devel_ci = devel_all
+    PACKAGES_EXCLUDED_FOR_ALL.extend(
+        [
+            'snakebite',
+        ]
+    )
+
+# Those packages are excluded because they break tests (downgrading mock) and they are
+# not needed to run our test suite.
+PACKAGES_EXCLUDED_FOR_CI = [
+    'apache-beam',
+]
+
+
+def is_package_excluded(package: str, exclusion_list: List[str]):
+    """
+    Checks if package should be excluded.
+
+    :param package: package name (beginning of it)
+    :param exclusion_list: list of excluded packages
+    :return: true if package should be excluded
+    """
+    return any(package.startswith(excluded_package) for excluded_package in exclusion_list)
+
+
+devel_all = [
+    package
+    for package in devel_all
+    if not is_package_excluded(package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
+]
+
+devel_ci = [
+    package
+    for package in devel_all
+    if not is_package_excluded(
+        package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_CI + PACKAGES_EXCLUDED_FOR_ALL
+    )
+]
+
+# Those are development requirements that install all useful devel tools
+EXTRAS_REQUIREMENTS.update(
+    {
+        'devel_all': devel_all,
+        'devel_ci': devel_ci,
+    }
+)
+
+
+class AirflowDistribtuion(Distribution):
+    """setuptools.Distribution subclass with Airflow specific behaviour"""
+
+    # https://github.com/PyCQA/pylint/issues/3737
+    def parse_config_files(self, *args, **kwargs):  # pylint: disable=signature-differs
+        """
+        Ensure that when we have been asked to install providers from sources
+        that we don't *also* try to install those providers from PyPI
+        """
+        super().parse_config_files(*args, **kwargs)
+        if os.getenv('INSTALL_PROVIDERS_FROM_SOURCES') == 'true':
+            self.install_requires = [  # pylint: disable=attribute-defined-outside-init
+                req for req in self.install_requires if not req.startswith('apache-airflow-providers-')
+            ]
+
+
+def get_provider_package_from_package_id(package_id: str):
+    """
+    Builds the name of provider package out of the package id provided/
+
+    :param package_id: id of the package (like amazon or microsoft.azure)
+    :return: full name of package in PyPI
+    """
+    package_suffix = package_id.replace(".", "-")
+    return f"apache-airflow-providers-{package_suffix}"
 
 
 def do_setup():
     """Perform the Airflow package setup."""
+    setup_kwargs = {}
+
+    if os.getenv('INSTALL_PROVIDERS_FROM_SOURCES') == 'true':
+        # Only specify this if we need this option, otherwise let default from
+        # setup.cfg control this (kwargs in setup() call take priority)
+        setup_kwargs['packages'] = find_namespace_packages(include=['airflow*'])
+    else:
+        for key, value in EXTRAS_PROVIDERS_PACKAGES.items():
+            EXTRAS_REQUIREMENTS[key].extend(
+                [get_provider_package_from_package_id(package_name) for package_name in value]
+            )
+
     write_version()
     setup(
-        name='apache-airflow',
-        description='Programmatically author, schedule and monitor data pipelines',
-        long_description=long_description,
-        long_description_content_type='text/markdown',
-        license='Apache License 2.0',
+        distclass=AirflowDistribtuion,
+        # Most values come from setup.cfg -- see
+        # https://setuptools.readthedocs.io/en/latest/userguide/declarative_config.html
         version=version,
-        packages=find_packages(exclude=['tests*']),
-        package_data={
-            '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb"],
-            'airflow.serialization': ["*.json"],
-        },
-        include_package_data=True,
-        zip_safe=False,
-        scripts=['airflow/bin/airflow'],
-        #####################################################################################################
-        # IMPORTANT NOTE!!!!!!!!!!!!!!!
-        # IF you are removing dependencies from this list, please make sure that you also increase
-        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
-        #####################################################################################################
-        install_requires=[
-            'alembic>=1.2, <2.0',
-            'argcomplete~=1.10',
-            'attrs~=19.3',
-            'cached_property~=1.5',
-            'cattrs~=1.0',
-            'colorlog==4.0.2',
-            'croniter>=0.3.17, <0.4',
-            'cryptography>=0.9.3',
-            'dill>=0.2.2, <0.4',
-            'flask>=1.1.0, <2.0',
-            'flask-appbuilder~=2.2',
-            'flask-caching>=1.3.3, <1.4.0',
-            'flask-login>=0.3, <0.5',
-            'flask-swagger==0.2.13',
-            'flask-wtf>=0.14.2, <0.15',
-            'funcsigs>=1.0.0, <2.0.0',
-            'graphviz>=0.12',
-            'gunicorn>=19.5.0, <20.0',
-            'iso8601>=0.1.12',
-            'jinja2>=2.10.1, <2.11.0',
-            'json-merge-patch==0.2',
-            'jsonschema~=3.0',
-            'lazy_object_proxy~=1.3',
-            'lockfile>=0.12.2',
-            'markdown>=2.5.2, <3.0',
-            'pandas>=0.17.1, <1.0.0',
-            'pendulum==1.4.4',
-            'pep562~=1.0;python_version<"3.7"',
-            'psutil>=4.2.0, <6.0.0',
-            'pygments>=2.0.1, <3.0',
-            'python-daemon>=2.1.1, <2.2',
-            'python-dateutil>=2.3, <3',
-            'requests>=2.20.0, <3',
-            'setproctitle>=1.1.8, <2',
-            'sqlalchemy~=1.3',
-            'sqlalchemy_jsonfield~=0.9',
-            'tabulate>=0.7.5, <0.9',
-            'tenacity==4.12.0',
-            'termcolor==1.1.0',
-            'text-unidecode==1.2',
-            'thrift>=0.9.2',
-            'typing;python_version<"3.6"',
-            'typing-extensions>=3.7.4;python_version<"3.8"',
-            'tzlocal>=1.4,<2.0.0',
-            'unicodecsv>=0.14.1',
-            'werkzeug<1.0.0',
-        ],
-        #####################################################################################################
-        # IMPORTANT NOTE!!!!!!!!!!!!!!!
-        # IF you are removing dependencies from this list, please make sure that you also increase
-        # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
-        #####################################################################################################
-        setup_requires=[
-            'docutils>=0.14, <0.16'
-            'gitpython>=2.0.2',
-        ],
-        extras_require={
-            'all': devel_all,
-            'all_dbs': all_dbs,
-            'async': async_packages,
-            'atlas': atlas,
-            'aws': aws,
-            'azure': azure,
-            'cassandra': cassandra,
-            'celery': celery,
-            'cgroups': cgroups,
-            'cloudant': cloudant,
-            'dask': dask,
-            'databricks': databricks,
-            'datadog': datadog,
-            'devel': devel_minreq,
-            'devel_ci': devel_ci,
-            'devel_hadoop': devel_hadoop,
-            'doc': doc,
-            'docker': docker,
-            'druid': druid,
-            'elasticsearch': elasticsearch,
-            'gcp': gcp,
-            'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
-            'github_enterprise': flask_oauth,
-            'google_auth': flask_oauth,
-            'grpc': grpc,
-            'hdfs': hdfs,
-            'hive': hive,
-            'jdbc': jdbc,
-            'jira': jira,
-            'kerberos': kerberos,
-            'kubernetes': kubernetes,
-            'ldap': ldap,
-            'mongo': mongo,
-            'mssql': mssql,
-            'mysql': mysql,
-            'odbc': odbc,
-            'oracle': oracle,
-            'pagerduty': pagerduty,
-            'papermill': papermill,
-            'password': password,
-            'pinot': pinot,
-            'postgres': postgres,
-            'presto': presto,
-            'qds': qds,
-            'rabbitmq': rabbitmq,
-            'redis': redis,
-            'salesforce': salesforce,
-            'samba': samba,
-            'segment': segment,
-            'sendgrid': sendgrid,
-            'sentry': sentry,
-            'singularity': singularity,
-            'slack': slack,
-            'snowflake': snowflake,
-            'ssh': ssh,
-            'statsd': statsd,
-            'tableau': tableau,
-            'vertica': vertica,
-            'webhdfs': webhdfs,
-            'winrm': winrm,
-            'yandexcloud': yandexcloud,
-        },
-        classifiers=[
-            'Development Status :: 5 - Production/Stable',
-            'Environment :: Console',
-            'Environment :: Web Environment',
-            'Intended Audience :: Developers',
-            'Intended Audience :: System Administrators',
-            'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.6',
-            'Programming Language :: Python :: 3.7',
-            'Topic :: System :: Monitoring',
-        ],
-        author='Apache Software Foundation',
-        author_email='dev@airflow.apache.org',
-        url='http://airflow.apache.org/',
-        download_url=(
-            'https://dist.apache.org/repos/dist/release/airflow/' + version),
+        extras_require=EXTRAS_REQUIREMENTS,
+        download_url=('https://archive.apache.org/dist/airflow/' + version),
         cmdclass={
             'extra_clean': CleanCommand,
-            'compile_assets': CompileAssets
+            'compile_assets': CompileAssets,
+            'list_extras': ListExtras,
         },
         test_suite='setup.airflow_test_suite',
-        python_requires='~=3.6',
+        **setup_kwargs,
     )
 
 

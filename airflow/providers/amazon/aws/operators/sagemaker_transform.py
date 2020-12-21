@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -62,40 +63,42 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
-                 config,
-                 wait_for_completion=True,
-                 check_interval=30,
-                 max_ingestion_time=None,
-                 *args, **kwargs):
-        super().__init__(config=config,
-                         *args, **kwargs)
+    def __init__(
+        self,
+        *,
+        config: dict,
+        wait_for_completion: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: Optional[int] = None,
+        **kwargs,
+    ):
+        super().__init__(config=config, **kwargs)
         self.config = config
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
         self.create_integer_fields()
 
-    def create_integer_fields(self):
+    def create_integer_fields(self) -> None:
         """Set fields which should be casted to integers."""
-        self.integer_fields = [
+        self.integer_fields: List[List[str]] = [
             ['Transform', 'TransformResources', 'InstanceCount'],
             ['Transform', 'MaxConcurrentTransforms'],
-            ['Transform', 'MaxPayloadInMB']
+            ['Transform', 'MaxPayloadInMB'],
         ]
         if 'Transform' not in self.config:
             for field in self.integer_fields:
                 field.pop(0)
 
-    def expand_role(self):
+    def expand_role(self) -> None:
         if 'Model' not in self.config:
             return
         config = self.config['Model']
         if 'ExecutionRoleArn' in config:
-            hook = AwsBaseHook(self.aws_conn_id)
+            hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
-    def execute(self, context):
+    def execute(self, context) -> dict:
         self.preprocess_config()
 
         model_config = self.config.get('Model')
@@ -110,15 +113,12 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             transform_config,
             wait_for_completion=self.wait_for_completion,
             check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time)
+            max_ingestion_time=self.max_ingestion_time,
+        )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException('Sagemaker transform Job creation failed: %s' % response)
         else:
             return {
-                'Model': self.hook.describe_model(
-                    transform_config['ModelName']
-                ),
-                'Transform': self.hook.describe_transform_job(
-                    transform_config['TransformJobName']
-                )
+                'Model': self.hook.describe_model(transform_config['ModelName']),
+                'Transform': self.hook.describe_transform_job(transform_config['TransformJobName']),
             }

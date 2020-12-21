@@ -24,5 +24,6 @@ from airflow.providers.zendesk.hooks.zendesk import Zendesk, ZendeskError, Zende
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.zendesk.hooks.zendesk`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

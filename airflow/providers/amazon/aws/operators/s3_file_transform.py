@@ -19,7 +19,7 @@
 import subprocess
 import sys
 from tempfile import NamedTemporaryFile
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -52,6 +52,8 @@ class S3FileTransformOperator(BaseOperator):
     :type transform_script: str
     :param select_expression: S3 Select expression
     :type select_expression: str
+    :param script_args: arguments for transformation script (templated)
+    :type script_args: sequence of str
     :param source_aws_conn_id: source s3 connection
     :type source_aws_conn_id: str
     :param source_verify: Whether or not to verify SSL certificates for S3 connection.
@@ -76,24 +78,28 @@ class S3FileTransformOperator(BaseOperator):
     :type replace: bool
     """
 
-    template_fields = ('source_s3_key', 'dest_s3_key')
+    template_fields = ('source_s3_key', 'dest_s3_key', 'script_args')
     template_ext = ()
     ui_color = '#f9c915'
 
     @apply_defaults
     def __init__(
-            self,
-            source_s3_key: str,
-            dest_s3_key: str,
-            transform_script: Optional[str] = None,
-            select_expression=None,
-            source_aws_conn_id: str = 'aws_default',
-            source_verify: Optional[Union[bool, str]] = None,
-            dest_aws_conn_id: str = 'aws_default',
-            dest_verify: Optional[Union[bool, str]] = None,
-            replace: bool = False,
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        self,
+        *,
+        source_s3_key: str,
+        dest_s3_key: str,
+        transform_script: Optional[str] = None,
+        select_expression=None,
+        script_args: Optional[Sequence[str]] = None,
+        source_aws_conn_id: str = 'aws_default',
+        source_verify: Optional[Union[bool, str]] = None,
+        dest_aws_conn_id: str = 'aws_default',
+        dest_verify: Optional[Union[bool, str]] = None,
+        replace: bool = False,
+        **kwargs,
+    ) -> None:
+        # pylint: disable=too-many-arguments
+        super().__init__(**kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id
         self.source_verify = source_verify
@@ -103,33 +109,26 @@ class S3FileTransformOperator(BaseOperator):
         self.replace = replace
         self.transform_script = transform_script
         self.select_expression = select_expression
+        self.script_args = script_args or []
         self.output_encoding = sys.getdefaultencoding()
 
     def execute(self, context):
         if self.transform_script is None and self.select_expression is None:
-            raise AirflowException(
-                "Either transform_script or select_expression must be specified")
+            raise AirflowException("Either transform_script or select_expression must be specified")
 
         source_s3 = S3Hook(aws_conn_id=self.source_aws_conn_id, verify=self.source_verify)
         dest_s3 = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
 
         self.log.info("Downloading source S3 file %s", self.source_s3_key)
         if not source_s3.check_for_key(self.source_s3_key):
-            raise AirflowException(
-                "The source key {0} does not exist".format(self.source_s3_key))
+            raise AirflowException(f"The source key {self.source_s3_key} does not exist")
         source_s3_key_object = source_s3.get_key(self.source_s3_key)
 
         with NamedTemporaryFile("wb") as f_source, NamedTemporaryFile("wb") as f_dest:
-            self.log.info(
-                "Dumping S3 file %s contents to local file %s",
-                self.source_s3_key, f_source.name
-            )
+            self.log.info("Dumping S3 file %s contents to local file %s", self.source_s3_key, f_source.name)
 
             if self.select_expression is not None:
-                content = source_s3.select_key(
-                    key=self.source_s3_key,
-                    expression=self.select_expression
-                )
+                content = source_s3.select_key(key=self.source_s3_key, expression=self.select_expression)
                 f_source.write(content.encode("utf-8"))
             else:
                 source_s3_key_object.download_fileobj(Fileobj=f_source)
@@ -137,10 +136,10 @@ class S3FileTransformOperator(BaseOperator):
 
             if self.transform_script is not None:
                 process = subprocess.Popen(
-                    [self.transform_script, f_source.name, f_dest.name],
+                    [self.transform_script, f_source.name, f_dest.name, *self.script_args],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
-                    close_fds=True
+                    close_fds=True,
                 )
 
                 self.log.info("Output:")
@@ -149,21 +148,18 @@ class S3FileTransformOperator(BaseOperator):
 
                 process.wait()
 
-                if process.returncode > 0:
-                    raise AirflowException(
-                        "Transform script failed: {0}".format(process.returncode)
-                    )
+                if process.returncode:
+                    raise AirflowException(f"Transform script failed: {process.returncode}")
                 else:
                     self.log.info(
-                        "Transform script successful. Output temporarily located at %s",
-                        f_dest.name
+                        "Transform script successful. Output temporarily located at %s", f_dest.name
                     )
 
             self.log.info("Uploading transformed file to S3")
             f_dest.flush()
             dest_s3.load_file(
-                filename=f_dest.name,
+                filename=f_dest.name if self.transform_script else f_source.name,
                 key=self.dest_s3_key,
-                replace=self.replace
+                replace=self.replace,
             )
             self.log.info("Upload successful")

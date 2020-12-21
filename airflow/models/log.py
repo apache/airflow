@@ -18,32 +18,28 @@
 
 from sqlalchemy import Column, Index, Integer, String, Text
 
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class Log(Base):
-    """
-    Used to actively log events to the database
-    """
+    """Used to actively log events to the database"""
 
     __tablename__ = "log"
 
     id = Column(Integer, primary_key=True)
     dttm = Column(UtcDateTime)
-    dag_id = Column(String(ID_LEN))
-    task_id = Column(String(ID_LEN))
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS))
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS))
     event = Column(String(30))
     execution_date = Column(UtcDateTime)
     owner = Column(String(500))
     extra = Column(Text)
 
-    __table_args__ = (
-        Index('idx_log_dag', dag_id),
-    )
+    __table_args__ = (Index('idx_log_dag', dag_id),)
 
-    def __init__(self, event, task_instance, owner=None, extra=None, **kwargs):
+    def __init__(self, event, task_instance=None, owner=None, extra=None, **kwargs):
         self.dttm = timezone.utcnow()
         self.event = event
         self.extra = extra

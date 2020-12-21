@@ -24,5 +24,5 @@ class FakeDatetime(datetime):
     A fake replacement for datetime that can be mocked for testing.
     """
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs):  # pylint: disable=signature-differs
         return datetime.__new__(datetime, *args, **kwargs)

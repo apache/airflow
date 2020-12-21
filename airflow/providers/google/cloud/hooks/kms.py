@@ -16,49 +16,60 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains a Google Cloud KMS hook.
-"""
+"""This module contains a Google Cloud KMS hook"""
 
 
 import base64
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.kms_v1 import KeyManagementServiceClient
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 def _b64encode(s: bytes) -> str:
-    """ Base 64 encodes a bytes object to a string """
+    """Base 64 encodes a bytes object to a string"""
     return base64.b64encode(s).decode("ascii")
 
 
 def _b64decode(s: str) -> bytes:
-    """ Base 64 decodes a string to bytes. """
+    """Base 64 decodes a string to bytes"""
     return base64.b64decode(s.encode("utf-8"))
 
 
-# noinspection PyAbstractClass
-class CloudKMSHook(CloudBaseHook):
+class CloudKMSHook(GoogleBaseHook):
     """
     Hook for Google Cloud Key Management service.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self._conn = None  # type: Optional[KeyManagementServiceClient]
 
     def get_conn(self) -> KeyManagementServiceClient:
@@ -70,8 +81,7 @@ class CloudKMSHook(CloudBaseHook):
         """
         if not self._conn:
             self._conn = KeyManagementServiceClient(
-                credentials=self._get_credentials(),
-                client_info=self.client_info
+                credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._conn
 
@@ -88,7 +98,7 @@ class CloudKMSHook(CloudBaseHook):
         Encrypts a plaintext message using Google Cloud KMS.
 
         :param key_name: The Resource Name for the key (or key version)
-                         to be used for encyption. Of the form
+                         to be used for encryption. Of the form
                          ``projects/*/locations/*/keyRings/*/cryptoKeys/**``
         :type key_name: str
         :param plaintext: The message to be encrypted.
@@ -131,7 +141,7 @@ class CloudKMSHook(CloudBaseHook):
         """
         Decrypts a ciphertext message using Google Cloud KMS.
 
-        :param key_name: The Resource Name for the key to be used for decyption.
+        :param key_name: The Resource Name for the key to be used for decryption.
                          Of the form ``projects/*/locations/*/keyRings/*/cryptoKeys/**``
         :type key_name: str
         :param ciphertext: The message to be decrypted.
@@ -159,5 +169,4 @@ class CloudKMSHook(CloudBaseHook):
             metadata=metadata,
         )
 
-        plaintext = response.plaintext
-        return plaintext
+        return response.plaintext

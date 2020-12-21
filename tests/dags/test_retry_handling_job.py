@@ -34,7 +34,4 @@ default_args = {
 
 dag = DAG('test_retry_handling_job', default_args=default_args, schedule_interval='@once')
 
-task1 = BashOperator(
-    task_id='test_retry_handling_op',
-    bash_command='exit 1',
-    dag=dag)
+task1 = BashOperator(task_id='test_retry_handling_op', bash_command='exit 1', dag=dag)

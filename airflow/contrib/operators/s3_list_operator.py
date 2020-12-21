@@ -24,5 +24,6 @@ from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator  # noq
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3_list`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

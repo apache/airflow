@@ -21,10 +21,12 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.operators.python import (  # noqa
-    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator,
+    BranchPythonOperator,
+    PythonOperator,
+    PythonVirtualenvOperator,
+    ShortCircuitOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.python`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.operators.python`.", DeprecationWarning, stacklevel=2
 )

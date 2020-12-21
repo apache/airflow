@@ -20,12 +20,8 @@
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 
 for i in range(1, 2):
-    dag = DAG(dag_id='test_latest_runs_{}'.format(i))
-    task = DummyOperator(
-        task_id='dummy_task',
-        dag=dag,
-        owner='airflow',
-        start_date=datetime(2016, 2, 1))
+    dag = DAG(dag_id=f'test_latest_runs_{i}')
+    task = DummyOperator(task_id='dummy_task', dag=dag, owner='airflow', start_date=datetime(2016, 2, 1))

@@ -20,7 +20,11 @@ from urllib.parse import urlparse
 import pytest
 
 from airflow.providers.google.cloud.example_dags.example_mlengine import (
-    JOB_DIR, PREDICTION_OUTPUT, SAVED_MODEL_PATH, SUMMARY_STAGING, SUMMARY_TMP,
+    JOB_DIR,
+    PREDICTION_OUTPUT,
+    SAVED_MODEL_PATH,
+    SUMMARY_STAGING,
+    SUMMARY_TMP,
 )
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_AI_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
@@ -33,7 +37,6 @@ BUCKETS = {
 
 @pytest.mark.credential_file(GCP_AI_KEY)
 class MlEngineExampleDagTest(GoogleSystemTest):
-
     @provide_gcp_context(GCP_AI_KEY)
     def setUp(self):
         super().setUp()

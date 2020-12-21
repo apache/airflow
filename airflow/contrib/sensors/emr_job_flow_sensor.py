@@ -24,5 +24,6 @@ from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor  
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr_job_flow`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

@@ -27,6 +27,8 @@ from airflow.utils.decorators import apply_defaults
 
 @attr.s(auto_attribs=True)
 class NoteBook(File):
+    """Jupyter notebook"""
+
     type_hint: Optional[str] = "jupyter_notebook"
     parameters: Optional[Dict] = {}
 
@@ -44,19 +46,22 @@ class PapermillOperator(BaseOperator):
     :param parameters: the notebook parameters to set
     :type parameters: dict
     """
+
     supports_lineage = True
 
     @apply_defaults
-    def __init__(self,
-                 input_nb: Optional[str] = None,
-                 output_nb: Optional[str] = None,
-                 parameters: Optional[Dict] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        input_nb: Optional[str] = None,
+        output_nb: Optional[str] = None,
+        parameters: Optional[Dict] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
 
         if input_nb:
-            self.inlets.append(NoteBook(url=input_nb,
-                                        parameters=parameters))
+            self.inlets.append(NoteBook(url=input_nb, parameters=parameters))
         if output_nb:
             self.outlets.append(NoteBook(url=output_nb))
 
@@ -65,6 +70,10 @@ class PapermillOperator(BaseOperator):
             raise ValueError("Input notebook or output notebook is not specified")
 
         for i in range(len(self.inlets)):
-            pm.execute_notebook(self.inlets[i].url, self.outlets[i].url,
-                                parameters=self.inlets[i].parameters,
-                                progress_bar=False, report_mode=True)
+            pm.execute_notebook(
+                self.inlets[i].url,
+                self.outlets[i].url,
+                parameters=self.inlets[i].parameters,
+                progress_bar=False,
+                report_mode=True,
+            )

@@ -18,6 +18,7 @@
 
 import logging
 from base64 import b64encode
+from typing import Optional, Union
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
@@ -48,25 +49,28 @@ class WinRMOperator(BaseOperator):
     :param timeout: timeout for executing the command.
     :type timeout: int
     """
+
     template_fields = ('command',)
 
     @apply_defaults
-    def __init__(self,
-                 winrm_hook=None,
-                 ssh_conn_id=None,
-                 remote_host=None,
-                 command=None,
-                 timeout=10,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        winrm_hook: Optional[WinRMHook] = None,
+        ssh_conn_id: Optional[str] = None,
+        remote_host: Optional[str] = None,
+        command: Optional[str] = None,
+        timeout: int = 10,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.winrm_hook = winrm_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.command = command
         self.timeout = timeout
 
-    def execute(self, context):
+    def execute(self, context: dict) -> Union[list, str]:
         if self.ssh_conn_id and not self.winrm_hook:
             self.log.info("Hook not found, creating...")
             self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
@@ -82,11 +86,11 @@ class WinRMOperator(BaseOperator):
 
         winrm_client = self.winrm_hook.get_conn()
 
+        # pylint: disable=too-many-nested-blocks
         try:
             self.log.info("Running command: '%s'...", self.command)
-            command_id = self.winrm_hook.winrm_protocol.run_command(
-                winrm_client,
-                self.command
+            command_id = self.winrm_hook.winrm_protocol.run_command(  # type: ignore[attr-defined]
+                winrm_client, self.command
             )
 
             # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
@@ -95,11 +99,15 @@ class WinRMOperator(BaseOperator):
             command_done = False
             while not command_done:
                 try:
-                    stdout, stderr, return_code, command_done = \
-                        self.winrm_hook.winrm_protocol._raw_get_command_output(
-                            winrm_client,
-                            command_id
-                        )
+                    # pylint: disable=protected-access
+                    (
+                        stdout,
+                        stderr,
+                        return_code,
+                        command_done,
+                    ) = self.winrm_hook.winrm_protocol._raw_get_command_output(  # type: ignore[attr-defined]
+                        winrm_client, command_id
+                    )
 
                     # Only buffer stdout if we need to so that we minimize memory usage.
                     if self.do_xcom_push:
@@ -115,25 +123,23 @@ class WinRMOperator(BaseOperator):
                     # long-running process, just silently retry
                     pass
 
-            self.winrm_hook.winrm_protocol.cleanup_command(winrm_client, command_id)
-            self.winrm_hook.winrm_protocol.close_shell(winrm_client)
+            self.winrm_hook.winrm_protocol.cleanup_command(  # type: ignore[attr-defined]
+                winrm_client, command_id
+            )
+            self.winrm_hook.winrm_protocol.close_shell(winrm_client)  # type: ignore[attr-defined]
 
         except Exception as e:
-            raise AirflowException("WinRM operator error: {0}".format(str(e)))
+            raise AirflowException("WinRM operator error: {}".format(str(e)))
 
         if return_code == 0:
             # returning output if do_xcom_push is set
-            enable_pickling = conf.getboolean(
-                'core', 'enable_xcom_pickling'
-            )
+            enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
             if enable_pickling:
                 return stdout_buffer
             else:
                 return b64encode(b''.join(stdout_buffer)).decode('utf-8')
         else:
-            error_msg = "Error running cmd: {0}, return code: {1}, error: {2}".format(
-                self.command,
-                return_code,
-                b''.join(stderr_buffer).decode('utf-8')
+            error_msg = "Error running cmd: {}, return code: {}, error: {}".format(
+                self.command, return_code, b''.join(stderr_buffer).decode('utf-8')
             )
             raise AirflowException(error_msg)

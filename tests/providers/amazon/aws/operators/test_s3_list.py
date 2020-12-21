@@ -17,8 +17,7 @@
 # under the License.
 
 import unittest
-
-import mock
+from unittest import mock
 
 from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
 
@@ -35,15 +34,11 @@ class TestS3ListOperator(unittest.TestCase):
 
         mock_hook.return_value.list_keys.return_value = MOCK_FILES
 
-        operator = S3ListOperator(
-            task_id=TASK_ID, bucket=BUCKET, prefix=PREFIX, delimiter=DELIMITER)
+        operator = S3ListOperator(task_id=TASK_ID, bucket=BUCKET, prefix=PREFIX, delimiter=DELIMITER)
 
         files = operator.execute(None)
 
         mock_hook.return_value.list_keys.assert_called_once_with(
-            bucket_name=BUCKET, prefix=PREFIX, delimiter=DELIMITER)
+            bucket_name=BUCKET, prefix=PREFIX, delimiter=DELIMITER
+        )
         self.assertEqual(sorted(files), sorted(MOCK_FILES))
-
-
-if __name__ == '__main__':
-    unittest.main()

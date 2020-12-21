@@ -25,11 +25,12 @@ retrieve data from it, and write that data to a file for other uses.
 """
 import logging
 import time
+from typing import Iterable, List, Optional
 
 import pandas as pd
-from simple_salesforce import Salesforce
+from simple_salesforce import Salesforce, api
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -50,16 +51,17 @@ class SalesforceHook(BaseHook):
         We need a user's security token to connect to Salesforce.
         So we define it in the `Extras` field as `{"security_token":"YOUR_SECURITY_TOKEN"}`
 
+        For sandbox mode, add `{"domain":"test"}` in the `Extras` field
+
     """
 
-    def __init__(self, conn_id):
+    def __init__(self, conn_id: str) -> None:
+        super().__init__()
         self.conn_id = conn_id
         self.conn = None
 
-    def get_conn(self):
-        """
-        Sign into Salesforce, only if we are not already signed in.
-        """
+    def get_conn(self) -> api.Salesforce:
+        """Sign into Salesforce, only if we are not already signed in."""
         if not self.conn:
             connection = self.get_connection(self.conn_id)
             extras = connection.extra_dejson
@@ -68,11 +70,13 @@ class SalesforceHook(BaseHook):
                 password=connection.password,
                 security_token=extras['security_token'],
                 instance_url=connection.host,
-                sandbox=extras.get('sandbox', False)
+                domain=extras.get('domain'),
             )
         return self.conn
 
-    def make_query(self, query, include_deleted=False, query_params=None):
+    def make_query(
+        self, query: str, include_deleted: bool = False, query_params: Optional[dict] = None
+    ) -> dict:
         """
         Make a query to Salesforce.
 
@@ -91,12 +95,13 @@ class SalesforceHook(BaseHook):
         query_params = query_params or {}
         query_results = conn.query_all(query, include_deleted=include_deleted, **query_params)
 
-        self.log.info("Received results: Total size: %s; Done: %s",
-                      query_results['totalSize'], query_results['done'])
+        self.log.info(
+            "Received results: Total size: %s; Done: %s", query_results['totalSize'], query_results['done']
+        )
 
         return query_results
 
-    def describe_object(self, obj):
+    def describe_object(self, obj: str) -> dict:
         """
         Get the description of an object from Salesforce.
         This description is the object's schema and
@@ -111,14 +116,14 @@ class SalesforceHook(BaseHook):
 
         return conn.__getattr__(obj).describe()
 
-    def get_available_fields(self, obj):
+    def get_available_fields(self, obj: str) -> List[str]:
         """
         Get a list of all available fields for an object.
 
         :param obj: The name of the Salesforce object that we are getting a description of.
         :type obj: str
         :return: the names of the fields.
-        :rtype: list of str
+        :rtype: list(str)
         """
         self.get_conn()
 
@@ -126,7 +131,7 @@ class SalesforceHook(BaseHook):
 
         return [field['name'] for field in obj_description['fields']]
 
-    def get_object_from_salesforce(self, obj, fields):
+    def get_object_from_salesforce(self, obj: str, fields: Iterable[str]) -> dict:
         """
         Get all instances of the `object` from Salesforce.
         For each model, only get the fields specified in fields.
@@ -143,20 +148,22 @@ class SalesforceHook(BaseHook):
         """
         query = "SELECT {} FROM {}".format(",".join(fields), obj)
 
-        self.log.info("Making query to Salesforce: %s",
-                      query if len(query) < 30 else " ... ".join([query[:15], query[-15:]]))
+        self.log.info(
+            "Making query to Salesforce: %s",
+            query if len(query) < 30 else " ... ".join([query[:15], query[-15:]]),
+        )
 
         return self.make_query(query)
 
     @classmethod
-    def _to_timestamp(cls, column):
+    def _to_timestamp(cls, column: pd.Series) -> pd.Series:
         """
         Convert a column of a dataframe to UNIX timestamps if applicable
 
         :param column: A Series object representing a column of a dataframe.
-        :type column: pd.Series
+        :type column: pandas.Series
         :return: a new series that maintains the same index as the original
-        :rtype: pd.Series
+        :rtype: pandas.Series
         """
         # try and convert the column to datetimes
         # the column MUST have a four digit year somewhere in the string
@@ -170,7 +177,7 @@ class SalesforceHook(BaseHook):
         try:
             column = pd.to_datetime(column)
         except ValueError:
-            log.warning("Could not convert field to timestamps: %s", column.name)
+            log.error("Could not convert field to timestamps: %s", column.name)
             return column
 
         # now convert the newly created datetimes into timestamps
@@ -186,12 +193,14 @@ class SalesforceHook(BaseHook):
 
         return pd.Series(converted, index=column.index)
 
-    def write_object_to_file(self,
-                             query_results,
-                             filename,
-                             fmt="csv",
-                             coerce_to_timestamp=False,
-                             record_time_added=False):
+    def write_object_to_file(
+        self,
+        query_results: List[dict],
+        filename: str,
+        fmt: str = "csv",
+        coerce_to_timestamp: bool = False,
+        record_time_added: bool = False,
+    ) -> pd.DataFrame:
         """
         Write query results to file.
 
@@ -227,12 +236,69 @@ class SalesforceHook(BaseHook):
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
         :type record_time_added: bool
         :return: the dataframe that gets written to the file.
-        :rtype: pd.Dataframe
+        :rtype: pandas.Dataframe
         """
         fmt = fmt.lower()
         if fmt not in ['csv', 'json', 'ndjson']:
-            raise ValueError("Format value is not recognized: {}".format(fmt))
+            raise ValueError(f"Format value is not recognized: {fmt}")
 
+        df = self.object_to_df(
+            query_results=query_results,
+            coerce_to_timestamp=coerce_to_timestamp,
+            record_time_added=record_time_added,
+        )
+
+        # write the CSV or JSON file depending on the option
+        # NOTE:
+        #   datetimes here are an issue.
+        #   There is no good way to manage the difference
+        #   for to_json, the options are an epoch or a ISO string
+        #   but for to_csv, it will be a string output by datetime
+        #   For JSON we decided to output the epoch timestamp in seconds
+        #   (as is fairly standard for JavaScript)
+        #   And for csv, we do a string
+        if fmt == "csv":
+            # there are also a ton of newline objects that mess up our ability to write to csv
+            # we remove these newlines so that the output is a valid CSV format
+            self.log.info("Cleaning data and writing to CSV")
+            possible_strings = df.columns[df.dtypes == "object"]
+            df[possible_strings] = (
+                df[possible_strings]
+                .astype(str)
+                .apply(lambda x: x.str.replace("\r\n", "").str.replace("\n", ""))
+            )
+            # write the dataframe
+            df.to_csv(filename, index=False)
+        elif fmt == "json":
+            df.to_json(filename, "records", date_unit="s")
+        elif fmt == "ndjson":
+            df.to_json(filename, "records", lines=True, date_unit="s")
+
+        return df
+
+    def object_to_df(
+        self, query_results: List[dict], coerce_to_timestamp: bool = False, record_time_added: bool = False
+    ) -> pd.DataFrame:
+        """
+        Export query results to dataframe.
+
+        By default, this function will try and leave all values as they are represented in Salesforce.
+        You use the `coerce_to_timestamp` flag to force all datetimes to become Unix timestamps (UTC).
+        This is can be greatly beneficial as it will make all of your datetime fields look the same,
+        and makes it easier to work with in other database environments
+
+        :param query_results: the results from a SQL query
+        :type query_results: list of dict
+        :param coerce_to_timestamp: True if you want all datetime fields to be converted into Unix timestamps.
+            False if you want them to be left in the same format as they were in Salesforce.
+            Leaving the value as False will result in datetimes being strings. Default: False
+        :type coerce_to_timestamp: bool
+        :param record_time_added: True if you want to add a Unix timestamp field
+            to the resulting data that marks when the data was fetched from Salesforce. Default: False
+        :type record_time_added: bool
+        :return: the dataframe.
+        :rtype: pandas.Dataframe
+        """
         # this line right here will convert all integers to floats
         # if there are any None/np.nan values in the column
         # that's because None/np.nan cannot exist in an integer column
@@ -268,29 +334,5 @@ class SalesforceHook(BaseHook):
         if record_time_added:
             fetched_time = time.time()
             df["time_fetched_from_salesforce"] = fetched_time
-
-        # write the CSV or JSON file depending on the option
-        # NOTE:
-        #   datetimes here are an issue.
-        #   There is no good way to manage the difference
-        #   for to_json, the options are an epoch or a ISO string
-        #   but for to_csv, it will be a string output by datetime
-        #   For JSON we decided to output the epoch timestamp in seconds
-        #   (as is fairly standard for JavaScript)
-        #   And for csv, we do a string
-        if fmt == "csv":
-            # there are also a ton of newline objects that mess up our ability to write to csv
-            # we remove these newlines so that the output is a valid CSV format
-            self.log.info("Cleaning data and writing to CSV")
-            possible_strings = df.columns[df.dtypes == "object"]
-            df[possible_strings] = df[possible_strings].apply(
-                lambda x: x.str.replace("\r\n", "").str.replace("\n", "")
-            )
-            # write the dataframe
-            df.to_csv(filename, index=False)
-        elif fmt == "json":
-            df.to_json(filename, "records", date_unit="s")
-        elif fmt == "ndjson":
-            df.to_json(filename, "records", lines=True, date_unit="s")
 
         return df

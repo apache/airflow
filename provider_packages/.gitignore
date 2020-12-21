@@ -1,0 +1,6 @@
+*.egg-info
+setup.py
+CHANGELOG.txt
+README.md
+setup.cfg
+/airflow/

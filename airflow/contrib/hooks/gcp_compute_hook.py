@@ -23,7 +23,8 @@ from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 
 warnings.warn(
     "This module is deprecated. Please use airflow.providers.google.cloud.hooks.compute`",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -36,7 +37,8 @@ class GceHook(ComputeEngineHook):
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "This class is deprecated. Please use `airflow.providers.google.cloud.hooks.compute`.",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
 
         super().__init__(*args, **kwargs)

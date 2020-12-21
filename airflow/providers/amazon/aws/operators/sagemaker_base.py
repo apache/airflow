@@ -19,6 +19,8 @@
 import json
 from typing import Iterable
 
+from cached_property import cached_property
+
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.utils.decorators import apply_defaults
@@ -41,15 +43,11 @@ class SageMakerBaseOperator(BaseOperator):
     integer_fields = []  # type: Iterable[Iterable[str]]
 
     @apply_defaults
-    def __init__(self,
-                 config,
-                 aws_conn_id='aws_default',
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, config: dict, aws_conn_id: str = 'aws_default', **kwargs):
+        super().__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
         self.config = config
-        self.hook = None
 
     def parse_integer(self, config, field):
         """Recursive method for parsing string fields holding integer values to integers."""
@@ -81,15 +79,12 @@ class SageMakerBaseOperator(BaseOperator):
         for field in self.integer_fields:
             self.parse_integer(self.config, field)
 
-    def expand_role(self):
+    def expand_role(self):  # noqa: D402
         """Placeholder for calling boto3's expand_role(), which expands an IAM role name into an ARN."""
 
     def preprocess_config(self):
         """Process the config into a usable form."""
-        self.log.info(
-            'Preprocessing the config and doing required s3_operations'
-        )
-        self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
+        self.log.info('Preprocessing the config and doing required s3_operations')
 
         self.hook.configure_s3_resources(self.config)
         self.parse_config_integers()
@@ -102,3 +97,8 @@ class SageMakerBaseOperator(BaseOperator):
 
     def execute(self, context):
         raise NotImplementedError('Please implement execute() in sub class!')
+
+    @cached_property
+    def hook(self):
+        """Return SageMakerHook"""
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)

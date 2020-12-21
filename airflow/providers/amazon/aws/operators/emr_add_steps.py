@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+from typing import Any, Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -38,29 +39,34 @@ class EmrAddStepsOperator(BaseOperator):
     :type cluster_states: list
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
-    :param steps: boto3 style steps to be added to the jobflow. (templated)
-    :type steps: list
+    :param steps: boto3 style steps or reference to a steps file (must be '.json') to
+        be added to the jobflow. (templated)
+    :type steps: list|str
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     :type do_xcom_push: bool
     """
+
     template_fields = ['job_flow_id', 'job_flow_name', 'cluster_states', 'steps']
-    template_ext = ()
+    template_ext = ('.json',)
     ui_color = '#f9c915'
 
     @apply_defaults
     def __init__(
-            self,
-            job_flow_id=None,
-            job_flow_name=None,
-            cluster_states=None,
-            aws_conn_id='aws_default',
-            steps=None,
-            *args, **kwargs):
+        self,
+        *,
+        job_flow_id: Optional[str] = None,
+        job_flow_name: Optional[str] = None,
+        cluster_states: Optional[List[str]] = None,
+        aws_conn_id: str = 'aws_default',
+        steps: Optional[Union[List[dict], str]] = None,
+        **kwargs,
+    ):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         if not (job_flow_id is None) ^ (job_flow_name is None):
             raise AirflowException('Exactly one of job_flow_id or job_flow_name must be specified.')
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
+        cluster_states = cluster_states or []
         steps = steps or []
         self.aws_conn_id = aws_conn_id
         self.job_flow_id = job_flow_id
@@ -68,13 +74,15 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, Any]) -> List[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
         emr = emr_hook.get_conn()
 
-        job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(self.job_flow_name,
-                                                                          self.cluster_states)
+        job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(
+            str(self.job_flow_name), self.cluster_states
+        )
+
         if not job_flow_id:
             raise AirflowException(f'No cluster found for name: {self.job_flow_name}')
 
@@ -84,7 +92,7 @@ class EmrAddStepsOperator(BaseOperator):
         self.log.info('Adding steps to %s', job_flow_id)
 
         # steps may arrive as a string representing a list
-        # eg, if we used XCom then: steps="[{ step1 }, { step2 }]"
+        # e.g. if we used XCom or a file then: steps="[{ step1 }, { step2 }]"
         steps = self.steps
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)

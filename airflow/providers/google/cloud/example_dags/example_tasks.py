@@ -19,7 +19,7 @@
 """
 Example Airflow DAG that creates, gets, lists, updates, purges, pauses, resumes
 and deletes Queues and creates, gets, lists, runs and deletes Tasks in the Google
-Cloud Tasks service in the Google Cloud Platform.
+Cloud Tasks service in the Google Cloud.
 """
 
 
@@ -29,13 +29,14 @@ from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue
 from google.protobuf import timestamp_pb2
 
-from airflow import DAG
+from airflow import models
 from airflow.providers.google.cloud.operators.tasks import (
-    CloudTasksQueueCreateOperator, CloudTasksTaskCreateOperator, CloudTasksTaskRunOperator,
+    CloudTasksQueueCreateOperator,
+    CloudTasksTaskCreateOperator,
+    CloudTasksTaskRunOperator,
 )
 from airflow.utils.dates import days_ago
 
-default_args = {"start_date": days_ago(1)}
 timestamp = timestamp_pb2.Timestamp()
 timestamp.FromDatetime(datetime.now() + timedelta(hours=12))  # pylint: disable=no-member
 
@@ -48,12 +49,17 @@ TASK = {
     "app_engine_http_request": {  # Specify the type of request.
         "http_method": "POST",
         "relative_uri": "/example_task_handler",
-        "body": "Hello".encode(),
+        "body": b"Hello",
     },
     "schedule_time": timestamp,
 }
 
-with DAG("example_gcp_tasks", default_args=default_args, schedule_interval=None, tags=['example'],) as dag:
+with models.DAG(
+    "example_gcp_tasks",
+    schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
+    tags=['example'],
+) as dag:
 
     create_queue = CloudTasksQueueCreateOperator(
         location=LOCATION,

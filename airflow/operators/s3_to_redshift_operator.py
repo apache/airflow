@@ -15,14 +15,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3_to_redshift`."""
+"""This module is deprecated.
+
+Please use `airflow.providers.amazon.aws.operators.s3_to_redshift`.
+"""
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.providers.amazon.aws.operators.s3_to_redshift import S3ToRedshiftTransfer  # noqa
+from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3_to_redshift`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.s3_to_redshift`.",
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class S3ToRedshiftTransfer(S3ToRedshiftOperator):
+    """This class is deprecated.
+
+    Please use:
+    `airflow.providers.amazon.aws.transfers.s3_to_redshift.S3ToRedshiftOperator`.
+    """
+
+    def __init__(self, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.amazon.aws.transfers.s3_to_redshift.S3ToRedshiftOperator`.""",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(**kwargs)

@@ -4,6 +4,7 @@
     "google",
     "imap",
     "mongo",
+    "mysql",
     "postgres",
     "ssh"
   ],
@@ -31,13 +32,21 @@
     "amazon",
     "apache.cassandra",
     "cncf.kubernetes",
+    "facebook",
     "microsoft.azure",
     "microsoft.mssql",
     "mysql",
     "postgres",
-    "sftp"
+    "presto",
+    "salesforce",
+    "sftp",
+    "ssh"
+  ],
+  "hashicorp": [
+    "google"
   ],
   "microsoft.azure": [
+    "google",
     "oracle"
   ],
   "microsoft.mssql": [
@@ -59,5 +68,8 @@
   ],
   "slack": [
     "http"
+  ],
+  "snowflake": [
+    "slack"
   ]
 }

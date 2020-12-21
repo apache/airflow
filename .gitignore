@@ -87,7 +87,9 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-docs/_api/
+docs/_doctrees/
+docs/_inventory_cache/
+docs/*/_api/
 
 # PyBuilder
 target/
@@ -153,8 +155,8 @@ rat-results.txt
 # Kubernetes generated templated files
 *.generated
 *.tar.gz
-scripts/ci/in_container/kubernetes/kube/.generated/airflow.yaml
-scripts/ci/in_container/kubernetes/docker/requirements.txt
+scripts/ci/kubernetes/kube/.generated/airflow.yaml
+scripts/ci/kubernetes/docker/requirements.txt
 
 # Node & Webpack Stuff
 *.entry.js
@@ -175,7 +177,7 @@ airflow-*.pid
 .dmypy.json
 dmypy.json
 
-# Needed for CI Dockerfile build system
+# Needed for CI Dockerfile.ci build system
 .build
 /tmp
 /files
@@ -186,3 +188,30 @@ dmypy.json
 /.kube
 /.inputrc
 log.txt*
+
+# Provider-related ignores
+/provider_packages/CHANGELOG.txt
+/provider_packages/MANIFEST.in
+/airflow/providers/__init__.py
+
+# Docker context files
+/docker-context-files
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Terraform variables
+*.tfvars
+
+Chart.lock
+
+# Chart dependencies
+**/charts/*.tgz
+
+# Might be generated when you build wheels
+pip-wheel-metadata
+
+.pypirc

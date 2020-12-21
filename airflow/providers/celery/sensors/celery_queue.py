@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Any, Dict, Optional
+
 from celery.app import control
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -33,19 +35,15 @@ class CeleryQueueSensor(BaseSensorOperator):
     :param target_task_id: Task id for checking
     :type target_task_id: str
     """
-    @apply_defaults
-    def __init__(
-            self,
-            celery_queue,
-            target_task_id=None,
-            *args,
-            **kwargs):
 
-        super().__init__(*args, **kwargs)
+    @apply_defaults
+    def __init__(self, *, celery_queue: str, target_task_id: Optional[str] = None, **kwargs) -> None:
+
+        super().__init__(**kwargs)
         self.celery_queue = celery_queue
         self.target_task_id = target_task_id
 
-    def _check_task_id(self, context):
+    def _check_task_id(self, context: Dict[str, Any]) -> bool:
         """
         Gets the returned Celery result from the Airflow task
         ID provided to the sensor, and returns True if the
@@ -60,7 +58,7 @@ class CeleryQueueSensor(BaseSensorOperator):
         celery_result = ti.xcom_pull(task_ids=self.target_task_id)
         return celery_result.ready()
 
-    def poke(self, context):
+    def poke(self, context: Dict[str, Any]) -> bool:
 
         if self.target_task_id:
             return self._check_task_id(context)
@@ -75,14 +73,8 @@ class CeleryQueueSensor(BaseSensorOperator):
             scheduled = len(scheduled[self.celery_queue])
             active = len(active[self.celery_queue])
 
-            self.log.info(
-                'Checking if celery queue %s is empty.', self.celery_queue
-            )
+            self.log.info('Checking if celery queue %s is empty.', self.celery_queue)
 
             return reserved == 0 and scheduled == 0 and active == 0
         except KeyError:
-            raise KeyError(
-                'Could not locate Celery queue {0}'.format(
-                    self.celery_queue
-                )
-            )
+            raise KeyError(f'Could not locate Celery queue {self.celery_queue}')

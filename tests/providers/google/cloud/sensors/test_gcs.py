@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest import TestCase, mock
 
 import pendulum
@@ -23,8 +23,11 @@ import pendulum
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.google.cloud.sensors.gcs import (
-    GCSObjectExistenceSensor, GCSObjectsWtihPrefixExistenceSensor, GCSObjectUpdateSensor,
-    GCSUploadSessionCompleteSensor, ts_function,
+    GCSObjectExistenceSensor,
+    GCSObjectsWtihPrefixExistenceSensor,
+    GCSObjectUpdateSensor,
+    GCSUploadSessionCompleteSensor,
+    ts_function,
 )
 
 TEST_BUCKET = "TEST_BUCKET"
@@ -35,14 +38,15 @@ TEST_DELEGATE_TO = "TEST_DELEGATE_TO"
 
 TEST_GCP_CONN_ID = 'TEST_GCP_CONN_ID'
 
+TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+
 TEST_PREFIX = "TEST_PREFIX"
 
 TEST_DAG_ID = 'unit_tests_gcs_sensor'
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
-MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10)
-                   for i in range(20)]
+MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10) for i in range(25)]
 
 
 def next_time_side_effect():
@@ -65,6 +69,7 @@ class TestGoogleCloudStorageObjectSensor(TestCase):
             object=TEST_OBJECT,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.exists.return_value = True
 
@@ -73,7 +78,8 @@ class TestGoogleCloudStorageObjectSensor(TestCase):
         self.assertEqual(True, result)
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID
+            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.exists.assert_called_once_with(TEST_BUCKET, TEST_OBJECT)
 
@@ -82,17 +88,13 @@ class TestTsFunction(TestCase):
     def test_should_support_datetime(self):
         context = {
             'dag': DAG(dag_id=TEST_DAG_ID, schedule_interval=timedelta(days=5)),
-            'execution_date': datetime(2019, 2, 14, 0, 0)
+            'execution_date': datetime(2019, 2, 14, 0, 0),
         }
         result = ts_function(context)
-        self.assertEqual(datetime(2019, 2, 19, 0, 0), result)
+        self.assertEqual(datetime(2019, 2, 19, 0, 0, tzinfo=timezone.utc), result)
 
     def test_should_support_cron(self):
-        dag = DAG(
-            dag_id=TEST_DAG_ID,
-            start_date=datetime(2019, 2, 19, 0, 0),
-            schedule_interval='@weekly'
-        )
+        dag = DAG(dag_id=TEST_DAG_ID, start_date=datetime(2019, 2, 19, 0, 0), schedule_interval='@weekly')
 
         context = {
             'dag': dag,
@@ -111,13 +113,15 @@ class TestGoogleCloudStorageObjectUpdatedSensor(TestCase):
             object=TEST_OBJECT,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.is_updated_after.return_value = True
         result = task.poke(mock.MagicMock())
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID
+            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.is_updated_after.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, mock.ANY)
         self.assertEqual(True, result)
@@ -132,13 +136,15 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
             prefix=TEST_PREFIX,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list.return_value = ["NOT_EMPTY_LIST"]
         result = task.poke(mock.MagicMock)
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID
+            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
         self.assertEqual(True, result)
@@ -165,7 +171,9 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
             prefix=TEST_PREFIX,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
-            poke_interval=0)
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            poke_interval=0,
+        )
         generated_messages = ['test-prefix/obj%s' % i for i in range(5)]
         mock_hook.return_value.list.return_value = generated_messages
 
@@ -173,7 +181,8 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID
+            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
         self.assertEqual(response, generated_messages)
@@ -181,20 +190,15 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.GCSHook')
     def test_execute_timeout(self, mock_hook):
         task = GCSObjectsWtihPrefixExistenceSensor(
-            task_id="task-id",
-            bucket=TEST_BUCKET,
-            prefix=TEST_PREFIX,
-            poke_interval=0,
-            timeout=1)
+            task_id="task-id", bucket=TEST_BUCKET, prefix=TEST_PREFIX, poke_interval=0, timeout=1
+        )
         mock_hook.return_value.list.return_value = []
         with self.assertRaises(AirflowSensorTimeout):
             task.execute(mock.MagicMock)
-            mock_hook.return_value.list.assert_called_once_with(
-                TEST_BUCKET, prefix=TEST_PREFIX)
+            mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
 
 
 class TestGCSUploadSessionCompleteSensor(TestCase):
-
     def setUp(self):
         args = {
             'owner': 'airflow',
@@ -205,77 +209,90 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
         self.dag = dag
 
         self.sensor = GCSUploadSessionCompleteSensor(
-            task_id='sensor',
+            task_id='sensor_1',
             bucket='test-bucket',
             prefix='test-prefix/path',
             inactivity_period=12,
             poke_interval=10,
             min_objects=1,
             allow_delete=False,
-            previous_num_objects=0,
-            dag=self.dag
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            dag=self.dag,
         )
 
         self.last_mocked_date = datetime(2019, 4, 24, 0, 0, 0)
 
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
+    def test_get_gcs_hook(self, mock_hook):
+        self.sensor._get_gcs_hook()
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        self.assertEqual(mock_hook.return_value, self.sensor.hook)
+
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_files_deleted_between_pokes_throw_error(self):
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a', 'b'})
         with self.assertRaises(AirflowException):
-            self.sensor.is_bucket_updated(1)
+            self.sensor.is_bucket_updated({'a'})
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_files_deleted_between_pokes_allow_delete(self):
         self.sensor = GCSUploadSessionCompleteSensor(
-            task_id='sensor',
+            task_id='sensor_2',
             bucket='test-bucket',
             prefix='test-prefix/path',
             inactivity_period=12,
             poke_interval=10,
             min_objects=1,
             allow_delete=True,
-            previous_num_objects=0,
-            dag=self.dag
+            dag=self.dag,
         )
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a', 'b'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(1)
-        self.assertEqual(self.sensor.previous_num_objects, 1)
+        self.sensor.is_bucket_updated({'a'})
+        self.assertEqual(len(self.sensor.previous_objects), 1)
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a', 'c'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a', 'd'})
+        self.assertEqual(self.sensor.inactivity_seconds, 0)
+        self.sensor.is_bucket_updated({'a', 'd'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertTrue(self.sensor.is_bucket_updated(2))
+        self.assertTrue(self.sensor.is_bucket_updated({'a', 'd'}))
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_incoming_data(self):
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(3)
+        self.sensor.is_bucket_updated({'a', 'b'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(4)
+        self.sensor.is_bucket_updated({'a', 'b', 'c'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_no_new_data(self):
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_no_new_data_success_criteria(self):
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(2)
+        self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertTrue(self.sensor.is_bucket_updated(2))
+        self.assertTrue(self.sensor.is_bucket_updated({'a'}))
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_not_enough_objects(self):
-        self.sensor.is_bucket_updated(0)
+        self.sensor.is_bucket_updated(set())
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(0)
+        self.sensor.is_bucket_updated(set())
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertFalse(self.sensor.is_bucket_updated(0))
+        self.assertFalse(self.sensor.is_bucket_updated(set()))

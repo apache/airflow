@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import subprocess
 from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import Any, List, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class PigCliHook(BaseHook):
@@ -33,14 +33,19 @@ class PigCliHook(BaseHook):
 
     """
 
-    def __init__(
-            self,
-            pig_cli_conn_id="pig_cli_default"):
+    conn_name_attr = 'pig_cli_conn_id'
+    default_conn_name = 'pig_cli_default'
+    conn_type = 'pig_cli'
+    hook_name = 'Pig Client Wrapper'
+
+    def __init__(self, pig_cli_conn_id: str = default_conn_name) -> None:
+        super().__init__()
         conn = self.get_connection(pig_cli_conn_id)
         self.pig_properties = conn.extra_dejson.get('pig_properties', '')
         self.conn = conn
+        self.sub_process = None
 
-    def run_cli(self, pig, pig_opts=None, verbose=True):
+    def run_cli(self, pig: str, pig_opts: Optional[str] = None, verbose: bool = True) -> Any:
         """
         Run an pig script using the pig cli
 
@@ -49,14 +54,13 @@ class PigCliHook(BaseHook):
         >>> ("hdfs://" in result)
         True
         """
-
         with TemporaryDirectory(prefix='airflow_pigop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:
                 f.write(pig.encode('utf-8'))
                 f.flush()
                 fname = f.name
                 pig_bin = 'pig'
-                cmd_extra = []
+                cmd_extra: List[str] = []
 
                 pig_cmd = [pig_bin]
 
@@ -71,27 +75,25 @@ class PigCliHook(BaseHook):
 
                 if verbose:
                     self.log.info("%s", " ".join(pig_cmd))
-                sp = subprocess.Popen(
-                    pig_cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    cwd=tmp_dir,
-                    close_fds=True)
-                self.sp = sp
+                sub_process: Any = subprocess.Popen(
+                    pig_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=tmp_dir, close_fds=True
+                )
+                self.sub_process = sub_process
                 stdout = ''
-                for line in iter(sp.stdout.readline, b''):
+                for line in iter(sub_process.stdout.readline, b''):
                     stdout += line.decode('utf-8')
                     if verbose:
                         self.log.info(line.strip())
-                sp.wait()
+                sub_process.wait()
 
-                if sp.returncode:
+                if sub_process.returncode:
                     raise AirflowException(stdout)
 
                 return stdout
 
-    def kill(self):
-        if hasattr(self, 'sp'):
-            if self.sp.poll() is None:
-                print("Killing the Pig job")
-                self.sp.kill()
+    def kill(self) -> None:
+        """Kill Pig job"""
+        if self.sub_process:
+            if self.sub_process.poll() is None:
+                self.log.info("Killing the Pig job")
+                self.sub_process.kill()

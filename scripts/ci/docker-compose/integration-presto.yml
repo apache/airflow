@@ -1,0 +1,51 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+version: "2.2"
+services:
+  presto:
+    image: apache/airflow:presto-2020.10.08
+    container_name: presto
+    hostname: presto
+    domainname: example.com
+
+    networks:
+      example.com:
+        ipv4_address: 10.5.0.3
+
+    ports:
+      - "38080:8080"
+      - "37778:7778"
+
+    volumes:
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - ../dockerfiles/krb5-kdc-server/krb5.conf:/etc/krb5.conf:ro
+      - presto-db-volume:/data/presto
+      - kerberos-keytabs:/home/presto/kerberos-keytabs
+
+    environment:
+      - KRB5_CONFIG=/etc/krb5.conf
+      - KRB5_TRACE=/dev/stderr
+      - KRB5_KTNAME=/home/presto/kerberos-keytabs/presto.keytab
+  airflow:
+    environment:
+      - INTEGRATION_PRESTO=true
+    depends_on:
+      - presto
+
+volumes:
+  presto-db-volume:

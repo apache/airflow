@@ -37,8 +37,7 @@ class TestFileProcessorHandler(unittest.TestCase):
 
     def test_non_template(self):
         date = timezone.utcnow().strftime("%Y-%m-%d")
-        handler = FileProcessorHandler(base_log_folder=self.base_log_folder,
-                                       filename_template=self.filename)
+        handler = FileProcessorHandler(base_log_folder=self.base_log_folder, filename_template=self.filename)
         handler.dag_dir = self.dag_dir
 
         path = os.path.join(self.base_log_folder, "latest")
@@ -50,8 +49,9 @@ class TestFileProcessorHandler(unittest.TestCase):
 
     def test_template(self):
         date = timezone.utcnow().strftime("%Y-%m-%d")
-        handler = FileProcessorHandler(base_log_folder=self.base_log_folder,
-                                       filename_template=self.filename_template)
+        handler = FileProcessorHandler(
+            base_log_folder=self.base_log_folder, filename_template=self.filename_template
+        )
         handler.dag_dir = self.dag_dir
 
         path = os.path.join(self.base_log_folder, "latest")
@@ -62,8 +62,7 @@ class TestFileProcessorHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(path, "logfile.log")))
 
     def test_symlink_latest_log_directory(self):
-        handler = FileProcessorHandler(base_log_folder=self.base_log_folder,
-                                       filename_template=self.filename)
+        handler = FileProcessorHandler(base_log_folder=self.base_log_folder, filename_template=self.filename)
         handler.dag_dir = self.dag_dir
 
         date1 = (timezone.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -92,8 +91,7 @@ class TestFileProcessorHandler(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(link, "log2")))
 
     def test_symlink_latest_log_directory_exists(self):
-        handler = FileProcessorHandler(base_log_folder=self.base_log_folder,
-                                       filename_template=self.filename)
+        handler = FileProcessorHandler(base_log_folder=self.base_log_folder, filename_template=self.filename)
         handler.dag_dir = self.dag_dir
 
         date1 = (timezone.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")

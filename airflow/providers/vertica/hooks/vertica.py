@@ -19,28 +19,26 @@
 
 from vertica_python import connect
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class VerticaHook(DbApiHook):
-    """
-    Interact with Vertica.
-    """
+    """Interact with Vertica."""
 
     conn_name_attr = 'vertica_conn_id'
     default_conn_name = 'vertica_default'
+    conn_type = 'vertica'
+    hook_name = 'Vertica'
     supports_autocommit = True
 
-    def get_conn(self):
-        """
-        Returns verticaql connection object
-        """
-        conn = self.get_connection(self.vertica_conn_id)
+    def get_conn(self) -> connect:
+        """Return verticaql connection object"""
+        conn = self.get_connection(self.vertica_conn_id)  # type: ignore # pylint: disable=no-member
         conn_config = {
             "user": conn.login,
             "password": conn.password or '',
             "database": conn.schema,
-            "host": conn.host or 'localhost'
+            "host": conn.host or 'localhost',
         }
 
         if not conn.port:

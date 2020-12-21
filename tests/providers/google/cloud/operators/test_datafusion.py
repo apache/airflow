@@ -15,14 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
+from unittest import mock
 
+from airflow import DAG
 from airflow.providers.google.cloud.operators.datafusion import (
-    CloudDataFusionCreateInstanceOperator, CloudDataFusionCreatePipelineOperator,
-    CloudDataFusionDeleteInstanceOperator, CloudDataFusionDeletePipelineOperator,
-    CloudDataFusionGetInstanceOperator, CloudDataFusionListPipelinesOperator,
-    CloudDataFusionRestartInstanceOperator, CloudDataFusionStartPipelineOperator,
-    CloudDataFusionStopPipelineOperator, CloudDataFusionUpdateInstanceOperator,
+    CloudDataFusionCreateInstanceOperator,
+    CloudDataFusionCreatePipelineOperator,
+    CloudDataFusionDeleteInstanceOperator,
+    CloudDataFusionDeletePipelineOperator,
+    CloudDataFusionGetInstanceOperator,
+    CloudDataFusionListPipelinesOperator,
+    CloudDataFusionRestartInstanceOperator,
+    CloudDataFusionStartPipelineOperator,
+    CloudDataFusionStopPipelineOperator,
+    CloudDataFusionUpdateInstanceOperator,
 )
 
 HOOK_STR = "airflow.providers.google.cloud.operators.datafusion.DataFusionHook"
@@ -35,6 +41,7 @@ PIPELINE_NAME = "shrubberyPipeline"
 PIPELINE = {"test": "pipeline"}
 INSTANCE_URL = "http://datafusion.instance.com"
 NAMESPACE = "TEST_NAMESPACE"
+RUNTIME_ARGS = {"arg1": "a", "arg2": "b"}
 
 
 class TestCloudDataFusionUpdateInstanceOperator:
@@ -188,21 +195,28 @@ class TestCloudDataFusionStartPipelineOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"apiEndpoint": INSTANCE_URL}
+
         op = CloudDataFusionStartPipelineOperator(
-            task_id="test_taks",
+            task_id="test_task",
             pipeline_name=PIPELINE_NAME,
             instance_name=INSTANCE_NAME,
             namespace=NAMESPACE,
             location=LOCATION,
             project_id=PROJECT_ID,
+            runtime_args=RUNTIME_ARGS,
         )
+        op.dag = mock.MagicMock(spec=DAG, task_dict={}, dag_id="test")
+
         op.execute({})
         mock_hook.return_value.get_instance.assert_called_once_with(
             instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID
         )
 
         mock_hook.return_value.start_pipeline.assert_called_once_with(
-            instance_url=INSTANCE_URL, pipeline_name=PIPELINE_NAME, namespace=NAMESPACE
+            instance_url=INSTANCE_URL,
+            pipeline_name=PIPELINE_NAME,
+            namespace=NAMESPACE,
+            runtime_args=RUNTIME_ARGS,
         )
 
 

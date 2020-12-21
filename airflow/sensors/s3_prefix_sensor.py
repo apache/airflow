@@ -24,5 +24,6 @@ from airflow.providers.amazon.aws.sensors.s3_prefix import S3PrefixSensor  # noq
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.s3_prefix`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

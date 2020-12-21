@@ -37,9 +37,9 @@ import botocore.waiter
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.typing_compat import Protocol, runtime_checkable
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-# Add exceptions to pylint for the boto3 protocol only; ideally the boto3 library could provide
+# Add exceptions to pylint for the boto3 protocol only; ideally the boto3 library
+# could provide
 # protocols for all their dynamically generated classes (try to migrate this to a PR on botocore).
 # Note that the use of invalid-name parameters should be restricted to the boto3 mappings only;
 # all the Airflow wrappers of boto3 clients should not adopt invalid-names to match boto3.
@@ -154,7 +154,7 @@ class AwsBatchProtocol(Protocol):
 # pylint: enable=invalid-name, unused-argument
 
 
-class AwsBatchClient(LoggingMixin):
+class AwsBatchClientHook(AwsBaseHook):
     """
     A client for AWS batch services.
 
@@ -165,15 +165,6 @@ class AwsBatchClient(LoggingMixin):
     :param status_retries: number of HTTP retries to get job status, 10;
         polling is only used when waiters is None
     :type status_retries: Optional[int]
-
-    :param aws_conn_id: connection id of AWS credentials / region name. If None,
-        credential boto3 strategy will be used
-        (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
-    :type aws_conn_id: Optional[str]
-
-    :param region_name: region name to use in AWS client.
-        Override the region_name in connection (if provided)
-    :type region_name: Optional[str]
 
     .. note::
         Several methods use a default random delay to check or poll for job status, i.e.
@@ -188,7 +179,7 @@ class AwsBatchClient(LoggingMixin):
             AwsBatchClient.DEFAULT_DELAY_MIN = 0
             AwsBatchClient.DEFAULT_DELAY_MAX = 5
 
-        When explict delay values are used, a 1 second random jitter is applied to the
+        When explicit delay values are used, a 1 second random jitter is applied to the
         delay (e.g. a delay of 0 sec will be a ``random.uniform(0, 1)`` delay.  It is
         generally recommended that random jitter is added to API requests.  A
         convenience method is provided for this, e.g. to get a random delay of
@@ -208,43 +199,22 @@ class AwsBatchClient(LoggingMixin):
     DEFAULT_DELAY_MAX = 10
 
     def __init__(
-        self,
-        max_retries: Optional[int] = None,
-        status_retries: Optional[int] = None,
-        aws_conn_id: Optional[str] = None,
-        region_name: Optional[str] = None,
-    ):
-        super().__init__()
+        self, *args, max_retries: Optional[int] = None, status_retries: Optional[int] = None, **kwargs
+    ) -> None:
+        # https://github.com/python/mypy/issues/6799 hence type: ignore
+        super().__init__(client_type='batch', *args, **kwargs)  # type: ignore
         self.max_retries = max_retries or self.MAX_RETRIES
         self.status_retries = status_retries or self.STATUS_RETRIES
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
-        self._hook = None  # type: Union[AwsBaseHook, None]
-        self._client = None  # type: Union[AwsBatchProtocol, botocore.client.BaseClient, None]
 
     @property
-    def hook(self) -> AwsBaseHook:
-        """
-        An AWS API connection manager (wraps boto3)
-
-        :return: the connected hook to AWS
-        :rtype: AwsBaseHook
-        """
-        if self._hook is None:
-            self._hook = AwsBaseHook(aws_conn_id=self.aws_conn_id)
-        return self._hook
-
-    @property
-    def client(self) -> Union[AwsBatchProtocol, botocore.client.BaseClient]:
+    def client(self) -> Union[AwsBatchProtocol, botocore.client.BaseClient]:  # noqa: D402
         """
         An AWS API client for batch services, like ``boto3.client('batch')``
 
         :return: a boto3 'batch' client for the ``.region_name``
         :rtype: Union[AwsBatchProtocol, botocore.client.BaseClient]
         """
-        if self._client is None:
-            self._client = self.hook.get_client_type("batch", region_name=self.region_name)
-        return self._client
+        return self.conn
 
     def terminate_job(self, job_id: str, reason: str) -> Dict:
         """
@@ -259,7 +229,7 @@ class AwsBatchClient(LoggingMixin):
         :return: an API response
         :rtype: Dict
         """
-        response = self.client.terminate_job(jobId=job_id, reason=reason)
+        response = self.get_conn().terminate_job(jobId=job_id, reason=reason)
         self.log.info(response)
         return response
 
@@ -283,14 +253,14 @@ class AwsBatchClient(LoggingMixin):
             return True
 
         if job_status == "FAILED":
-            raise AirflowException("AWS Batch job ({}) failed: {}".format(job_id, job))
+            raise AirflowException(f"AWS Batch job ({job_id}) failed: {job}")
 
         if job_status in ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"]:
-            raise AirflowException("AWS Batch job ({}) is not complete: {}".format(job_id, job))
+            raise AirflowException(f"AWS Batch job ({job_id}) is not complete: {job}")
 
-        raise AirflowException("AWS Batch job ({}) has unknown status: {}".format(job_id, job))
+        raise AirflowException(f"AWS Batch job ({job_id}) has unknown status: {job}")
 
-    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None):
+    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
         Wait for batch job to complete
 
@@ -307,7 +277,7 @@ class AwsBatchClient(LoggingMixin):
         self.poll_for_job_complete(job_id, delay)
         self.log.info("AWS Batch job (%s) has completed", job_id)
 
-    def poll_for_job_running(self, job_id: str, delay: Union[int, float, None] = None):
+    def poll_for_job_running(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
         Poll for job running. The status that indicates a job is running or
         already complete are: 'RUNNING'|'SUCCEEDED'|'FAILED'.
@@ -331,7 +301,7 @@ class AwsBatchClient(LoggingMixin):
         running_status = ["RUNNING", "SUCCEEDED", "FAILED"]
         self.poll_job_status(job_id, running_status)
 
-    def poll_for_job_complete(self, job_id: str, delay: Union[int, float, None] = None):
+    def poll_for_job_complete(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
         Poll for job completion. The status that indicates job completion
         are: 'SUCCEEDED'|'FAILED'.
@@ -372,16 +342,17 @@ class AwsBatchClient(LoggingMixin):
             job = self.get_job_description(job_id)
             job_status = job.get("status")
             self.log.info(
-                "AWS Batch job (%s) check status (%s) in %s", job_id, job_status, match_status,
+                "AWS Batch job (%s) check status (%s) in %s",
+                job_id,
+                job_status,
+                match_status,
             )
 
             if job_status in match_status:
                 return True
 
             if retries >= self.max_retries:
-                raise AirflowException(
-                    "AWS Batch job ({}) status checks exceed max_retries".format(job_id)
-                )
+                raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
 
             retries += 1
             pause = self.exponential_delay(retries)
@@ -409,7 +380,7 @@ class AwsBatchClient(LoggingMixin):
         retries = 0
         while True:
             try:
-                response = self.client.describe_jobs(jobs=[job_id])
+                response = self.get_conn().describe_jobs(jobs=[job_id])
                 return self.parse_job_description(job_id, response)
 
             except botocore.exceptions.ClientError as err:
@@ -417,9 +388,7 @@ class AwsBatchClient(LoggingMixin):
                 if error.get("Code") == "TooManyRequestsException":
                     pass  # allow it to retry, if possible
                 else:
-                    raise AirflowException(
-                        "AWS Batch job ({}) description error: {}".format(job_id, err)
-                    )
+                    raise AirflowException(f"AWS Batch job ({job_id}) description error: {err}")
 
             retries += 1
             if retries >= self.status_retries:
@@ -457,9 +426,7 @@ class AwsBatchClient(LoggingMixin):
         jobs = response.get("jobs", [])
         matching_jobs = [job for job in jobs if job.get("jobId") == job_id]
         if len(matching_jobs) != 1:
-            raise AirflowException(
-                "AWS Batch job ({}) description error: response: {}".format(job_id, response)
-            )
+            raise AirflowException(f"AWS Batch job ({job_id}) description error: response: {response}")
 
         return matching_jobs[0]
 
@@ -498,7 +465,7 @@ class AwsBatchClient(LoggingMixin):
         return uniform(lower, upper)
 
     @staticmethod
-    def delay(delay: Union[int, float, None] = None):
+    def delay(delay: Union[int, float, None] = None) -> None:
         """
         Pause execution for ``delay`` seconds.
 
@@ -513,9 +480,9 @@ class AwsBatchClient(LoggingMixin):
             when many concurrent tasks request job-descriptions.
         """
         if delay is None:
-            delay = uniform(AwsBatchClient.DEFAULT_DELAY_MIN, AwsBatchClient.DEFAULT_DELAY_MAX)
+            delay = uniform(AwsBatchClientHook.DEFAULT_DELAY_MIN, AwsBatchClientHook.DEFAULT_DELAY_MAX)
         else:
-            delay = AwsBatchClient.add_jitter(delay)
+            delay = AwsBatchClientHook.add_jitter(delay)
         sleep(delay)
 
     @staticmethod

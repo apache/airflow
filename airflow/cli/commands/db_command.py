@@ -16,31 +16,29 @@
 # under the License.
 """Database sub-commands"""
 import os
-import subprocess
 import textwrap
 from tempfile import NamedTemporaryFile
 
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
+from airflow.utils.process_utils import execute_interactive
 
 
 def initdb(args):
     """Initializes the metadata database"""
     print("DB: " + repr(settings.engine.url))
     db.initdb()
-    print("Done.")
+    print("Initialization done")
 
 
 def resetdb(args):
     """Resets the metadata database"""
     print("DB: " + repr(settings.engine.url))
-    if args.yes or input("This will drop existing tables "
-                         "if they exist. Proceed? "
-                         "(y/n)").upper() == "Y":
+    if args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y":
         db.resetdb()
     else:
-        print("Bail.")
+        print("Cancelled")
 
 
 @cli_utils.action_logging
@@ -48,6 +46,11 @@ def upgradedb(args):
     """Upgrades the metadata database"""
     print("DB: " + repr(settings.engine.url))
     db.upgradedb()
+
+
+def check_migrations(args):
+    """Function to wait for all airflow migrations to complete. Used for launching airflow in k8s"""
+    db.check_migrations(timeout=args.migration_wait_timeout)
 
 
 @cli_utils.action_logging
@@ -58,28 +61,30 @@ def shell(args):
 
     if url.get_backend_name() == 'mysql':
         with NamedTemporaryFile(suffix="my.cnf") as f:
-            content = textwrap.dedent(f"""
+            content = textwrap.dedent(
+                f"""
                 [client]
                 host     = {url.host}
                 user     = {url.username}
                 password = {url.password or ""}
-                port     = {url.port or ""}
+                port     = {url.port or "3306"}
                 database = {url.database}
-                """).strip()
+                """
+            ).strip()
             f.write(content.encode())
             f.flush()
-            subprocess.Popen(["mysql", f"--defaults-extra-file={f.name}"]).wait()
+            execute_interactive(["mysql", f"--defaults-extra-file={f.name}"])
     elif url.get_backend_name() == 'sqlite':
-        subprocess.Popen(["sqlite3", url.database]).wait()
+        execute_interactive(["sqlite3", url.database]).wait()
     elif url.get_backend_name() == 'postgresql':
         env = os.environ.copy()
         env['PGHOST'] = url.host or ""
-        env['PGPORT'] = url.port or ""
+        env['PGPORT'] = str(url.port or "5432")
         env['PGUSER'] = url.username or ""
         # PostgreSQL does not allow the use of PGPASSFILE if the current user is root.
         env["PGPASSWORD"] = url.password or ""
         env['PGDATABASE'] = url.database
-        subprocess.Popen(["psql"], env=env).wait()
+        execute_interactive(["psql"], env=env)
     else:
         raise AirflowException(f"Unknown driver: {url.drivername}")
 

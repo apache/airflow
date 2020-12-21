@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, Mapping, Optional, Union
+from typing import Dict, Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -26,6 +26,10 @@ class MySqlOperator(BaseOperator):
     """
     Executes sql code in a specific MySQL database
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MySqlOperator`
+
     :param sql: the sql code to be executed. Can receive a str representing a
         sql statement, a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
@@ -34,7 +38,7 @@ class MySqlOperator(BaseOperator):
     :param mysql_conn_id: reference to a specific mysql database
     :type mysql_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
     :type autocommit: bool
@@ -48,25 +52,23 @@ class MySqlOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            sql: str,
-            mysql_conn_id: str = 'mysql_default',
-            parameters: Optional[Union[Mapping, Iterable]] = None,
-            autocommit: bool = False,
-            database: Optional[str] = None,
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self,
+        *,
+        sql: str,
+        mysql_conn_id: str = 'mysql_default',
+        parameters: Optional[Union[Mapping, Iterable]] = None,
+        autocommit: bool = False,
+        database: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.mysql_conn_id = mysql_conn_id
         self.sql = sql
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
 
-    def execute(self, context):
+    def execute(self, context: Dict) -> None:
         self.log.info('Executing: %s', self.sql)
-        hook = MySqlHook(mysql_conn_id=self.mysql_conn_id,
-                         schema=self.database)
-        hook.run(
-            self.sql,
-            autocommit=self.autocommit,
-            parameters=self.parameters)
+        hook = MySqlHook(mysql_conn_id=self.mysql_conn_id, schema=self.database)
+        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

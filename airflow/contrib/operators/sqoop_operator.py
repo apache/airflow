@@ -24,5 +24,6 @@ from airflow.providers.apache.sqoop.operators.sqoop import SqoopOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.sqoop.operators.sqoop`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

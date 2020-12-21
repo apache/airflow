@@ -17,8 +17,7 @@
 # under the License.
 
 import unittest
-
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow.models.dagrun import DagRun
 from airflow.ti_deps.deps.dagrun_id_dep import DagrunIdDep
@@ -31,7 +30,8 @@ class TestDagrunRunningDep(unittest.TestCase):
         Task instances whose dagrun ID is a backfill dagrun ID should fail this dep.
         """
         dagrun = DagRun()
-        dagrun.run_id = DagRunType.BACKFILL_JOB.value + '_something'
+        dagrun.run_id = "anything"
+        dagrun.run_type = DagRunType.BACKFILL_JOB
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
         self.assertFalse(DagrunIdDep().is_met(ti=ti))
 
@@ -40,11 +40,18 @@ class TestDagrunRunningDep(unittest.TestCase):
         Task instances whose dagrun ID is not a backfill dagrun ID should pass this dep.
         """
         dagrun = DagRun()
-        dagrun.run_id = 'notbackfill_something'
+        dagrun.run_type = 'custom_type'
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
         self.assertTrue(DagrunIdDep().is_met(ti=ti))
 
         dagrun = DagRun()
         dagrun.run_id = None
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
+        self.assertTrue(DagrunIdDep().is_met(ti=ti))
+
+    def test_dagrun_is_none(self):
+        """
+        Task instances which don't yet have an associated dagrun.
+        """
+        ti = Mock(get_dagrun=Mock(return_value=None))
         self.assertTrue(DagrunIdDep().is_met(ti=ti))

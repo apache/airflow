@@ -17,40 +17,44 @@
 # under the License.
 
 import time
+from typing import Optional
 
 from zdesk import RateLimitError, Zendesk, ZendeskError
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class ZendeskHook(BaseHook):
-    """
-    A hook to talk to Zendesk
-    """
-    def __init__(self, zendesk_conn_id):
+    """A hook to talk to Zendesk"""
+
+    def __init__(self, zendesk_conn_id: str) -> None:
+        super().__init__()
         self.__zendesk_conn_id = zendesk_conn_id
         self.__url = None
 
-    def get_conn(self):
+    def get_conn(self) -> Zendesk:
         conn = self.get_connection(self.__zendesk_conn_id)
         self.__url = "https://" + conn.host
-        return Zendesk(zdesk_url=self.__url, zdesk_email=conn.login, zdesk_password=conn.password,
-                       zdesk_token=True)
+        return Zendesk(
+            zdesk_url=self.__url, zdesk_email=conn.login, zdesk_password=conn.password, zdesk_token=True
+        )
 
-    def __handle_rate_limit_exception(self, rate_limit_exception):
+    def __handle_rate_limit_exception(self, rate_limit_exception: ZendeskError) -> None:
         """
         Sleep for the time specified in the exception. If not specified, wait
         for 60 seconds.
         """
-        retry_after = int(
-            rate_limit_exception.response.headers.get('Retry-After', 60))
-        self.log.info(
-            "Hit Zendesk API rate limit. Pausing for %s seconds",
-            retry_after
-        )
+        retry_after = int(rate_limit_exception.response.headers.get('Retry-After', 60))
+        self.log.info("Hit Zendesk API rate limit. Pausing for %s seconds", retry_after)
         time.sleep(retry_after)
 
-    def call(self, path, query=None, get_all_pages=True, side_loading=False):
+    def call(
+        self,
+        path: str,
+        query: Optional[dict] = None,
+        get_all_pages: bool = True,
+        side_loading: bool = False,
+    ) -> dict:
         """
         Call Zendesk API and return results
 
@@ -65,12 +69,13 @@ class ZendeskHook(BaseHook):
                to load. For more information on side-loading see
                https://developer.zendesk.com/rest_api/docs/core/side_loading
         """
+        query_params = query or {}
         zendesk = self.get_conn()
         first_request_successful = False
 
         while not first_request_successful:
             try:
-                results = zendesk.call(path, query)
+                results = zendesk.call(path, query_params)
                 first_request_successful = True
             except RateLimitError as rle:
                 self.__handle_rate_limit_exception(rle)
@@ -79,9 +84,10 @@ class ZendeskHook(BaseHook):
         keys = [path.split("/")[-1].split(".json")[0]]
         next_page = results['next_page']
         if side_loading:
-            keys += query['include'].split(',')
+            keys += query_params['include'].split(',')
         results = {key: results[key] for key in keys}
 
+        # pylint: disable=too-many-nested-blocks
         if get_all_pages:
             while next_page is not None:
                 try:
@@ -99,15 +105,13 @@ class ZendeskHook(BaseHook):
                         # next just refers to the current set of results.
                         # Hence, need to deal with this special case
                         break
-                    else:
-                        next_page = more_res['next_page']
+                    next_page = more_res['next_page']
                 except RateLimitError as rle:
                     self.__handle_rate_limit_exception(rle)
-                except ZendeskError as ze:
-                    if b"Use a start_time older than 5 minutes" in ze.msg:
+                except ZendeskError as zde:
+                    if b"Use a start_time older than 5 minutes" in zde.msg:
                         # We have pretty up to date data
                         break
-                    else:
-                        raise ze
+                    raise zde
 
         return results

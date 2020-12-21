@@ -36,35 +36,38 @@ class PostgresOperator(BaseOperator):
         (default value: False)
     :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     :param database: name of database which overwrite defined one in connection
     :type database: str
     """
 
     template_fields = ('sql',)
+    template_fields_renderers = {'sql': 'sql'}
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
     @apply_defaults
     def __init__(
-            self,
-            sql: str,
-            postgres_conn_id: str = 'postgres_default',
-            autocommit: bool = False,
-            parameters: Optional[Union[Mapping, Iterable]] = None,
-            database: Optional[str] = None,
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        self,
+        *,
+        sql: str,
+        postgres_conn_id: str = 'postgres_default',
+        autocommit: bool = False,
+        parameters: Optional[Union[Mapping, Iterable]] = None,
+        database: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.sql = sql
         self.postgres_conn_id = postgres_conn_id
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
+        self.hook = None
 
     def execute(self, context):
         self.log.info('Executing: %s', self.sql)
-        self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id,
-                                 schema=self.database)
+        self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
         self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
         for output in self.hook.conn.notices:
             self.log.info(output)

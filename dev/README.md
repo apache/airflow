@@ -16,145 +16,195 @@
  specific language governing permissions and limitations
  under the License.
 -->
-# Development Tools
-
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Airflow Jira utility](#airflow-jira-utility)
-- [Airflow Pull Request Tool](#airflow-pull-request-tool)
-- [Airflow release signing tool](#airflow-release-signing-tool)
+- [Apache Airflow source releases](#apache-airflow-source-releases)
+  - [Apache Airflow Package](#apache-airflow-package)
+  - [Provider packages](#provider-packages)
+- [Prerequisites for the release manager preparing the release](#prerequisites-for-the-release-manager-preparing-the-release)
+  - [Upload Public keys to id.apache.org](#upload-public-keys-to-idapacheorg)
+  - [Configure PyPI uploads](#configure-pypi-uploads)
+  - [Hardware used to prepare and verify the packages](#hardware-used-to-prepare-and-verify-the-packages)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Airflow Jira utility
+# Apache Airflow source releases
 
-The `airflow-jira` script interact with the Airflow project in <https://issues.apache.org/jira/>. There are two modes of operation
+The Apache Airflow releases are one of the two types:
 
+* Releases of the Apache Airflow package
+* Releases of the Backport Providers Packages
 
-- `compare` will examine issues in Jira based on the "Fix Version" field.
+## Apache Airflow Package
 
-  This is useful for preparing releases, and also has an `--unmerged` flag to
-  only show issues that aren't detected in the current branch.
+This package contains sources that allow the user building fully-functional Apache Airflow 2.0 package.
+They contain sources for:
 
-  To run this check out the release branch (for instance `v1-10-test`) and run:
+ * "apache-airflow" python package that installs "airflow" Python package and includes
+   all the assets required to release the webserver UI coming with Apache Airflow
+ * Dockerfile and corresponding scripts that build and use an official DockerImage
+ * Breeze development environment that helps with building images and testing locally
+   apache airflow built from sources
 
-  ```
-  ./dev/airflow-jira compare --unmerged --previous-version 1.10.6 1.10.7
-  ```
+In the future (Airflow 2.0) this package will be split into separate "core" and "providers" packages that
+will be distributed separately, following the mechanisms introduced in Backport Package Providers. We also
+plan to release the official Helm Chart sources that will allow the user to install Apache Airflow
+via helm 3.0 chart in a distributed fashion.
 
-  The `--previous-version` is optional, but might speed up operation. That
-  should be a tag reachable from the current HEAD, and will limit the script to
-  look for cherry-picks in the commit range `$PREV_VERSION..HEAD`
+The Source releases are the only "official" Apache Software Foundation releases, and they are distributed
+via [Official Apache Download sources](https://downloads.apache.org/)
 
-- `changelog` will create a _rough_ output for creating the changelog file for a release
+Following source releases Apache Airflow release manager also distributes convenience packages:
 
-  This output will not be perfect and will need manual processing to make sure
-  the descriptions make sense, and that the items are in the right section (for
-  instance you might want to create 'Doc-only' and 'Misc/Internal' section.)
+* PyPI packages released via https://pypi.org/project/apache-airflow/
+* Docker Images released via https://hub.docker.com/repository/docker/apache/airflow
 
-## Airflow Pull Request Tool
+Those convenience packages are not "official releases" of Apache Airflow, but the users who
+cannot or do not want to build the packages themselves can use them as a convenient way of installing
+Apache Airflow, however they are not considered as "official source releases". You can read more
+details about it in the [ASF Release Policy](http://www.apache.org/legal/release-policy.html).
 
-The `airflow-pr` tool interactively guides committers through the process of merging GitHub PRs into Airflow and closing associated JIRA issues.
+Detailed instruction of releasing Provider Packages can be found in the
+[README_RELEASE_AIRFLOW.md](README_RELEASE_AIRFLOW.md)
 
-It is very important that PRs reference a JIRA issue. The preferred way to do that is for the PR title to begin with [AIRFLOW-XXX]. However, the PR tool can recognize and parse many other JIRA issue formats in the title and will offer to correct them if possible.
+## Provider packages
 
-__Please note:__ this tool will restore your current branch when it finishes, but you will lose any uncommitted changes. Make sure you commit any changes you wish to keep before proceeding.
+The Provider packages are packages (per provider) that make it possible to easily install Hooks,
+Operators, Sensors, and Secrets for different providers (external services used by Airflow).
 
-### Execution
+There are also Backport Provider Packages that allow to use the Operators, Hooks, Secrets from the 2.0
+version of Airflow in the 1.10.* series.
 
-Simply execute the `airflow-pr` tool:
+Once you release the packages, you can simply install them with:
 
 ```
-$ ./airflow-pr
-Usage: airflow-pr [OPTIONS] COMMAND [ARGS]...
-
-  This tool should be used by Airflow committers to test PRs, merge them
-  into the master branch, and close related JIRA issues.
-
-  Before you begin, make sure you have created the 'apache' and 'github' git
-  remotes. You can use the "setup_git_remotes" command to do this
-  automatically. If you do not want to use these remote names, you can tell
-  the PR tool by setting the appropriate environment variables. For more
-  information, run:
-
-      airflow-pr merge --help
-
-Options:
-  --help  Show this message and exit.
-
-Commands:
-  close_jira         Close a JIRA issue (without merging a PR)
-  merge              Merge a GitHub PR into Airflow master
-  setup_git_remotes  Set up default git remotes
-  work_local         Clone a GitHub PR locally for testing (no push)
+pip install apache-airflow-providers-<PROVIDER>[<EXTRAS>]
 ```
 
-#### Commands
+for regular providers and
 
-Execute `airflow-pr merge` to be interactively guided through the process of merging a PR, pushing changes to master, and closing JIRA issues.
-
-Execute `airflow-pr work_local` to only merge the PR locally. The tool will pause once the merge is complete, allowing the user to explore the PR, and then will delete the merge and restore the original development environment.
-
-Execute `airflow-pr close_jira` to close a JIRA issue without needing to merge a PR. You will be prompted for an issue number and close comment.
-
-Execute `airflow-pr setup_git_remotes` to configure the default (expected) git remotes. See below for details.
-
-### Configuration
-
-#### Python Libraries
-
-The merge tool requires the `click` and `jira` libraries to be installed. If the libraries are not found, the user will be prompted to install them:
-
-```bash
-pip install click jira
+```
+pip install apache-airflow-backport-providers-<PROVIDER>[<EXTRAS>]
 ```
 
-#### git Remotes
+for backport providers.
 
-tl;dr run `airflow-pr setup_git_remotes` before using the tool for the first time.
+Where `<PROVIDER>` is the provider id and `<EXTRAS>` are optional extra packages to install.
+You can find the provider packages dependencies and extras in the README.md files in each provider
+package (in `airflow/providers/<PROVIDER>` folder) as well as in the PyPI installation page.
 
-Before using the merge tool, users need to make sure their git remotes are configured. By default, the tool assumes a setup like the one below, where the github repo remote is named `github`. If users have other remote names, they can be supplied by setting environment variables `GITHUB_REMOTE_NAME`.
+Backport providers are a great way to migrate your DAGs to Airflow-2.0 compatible DAGs. You can
+switch to the new Airflow-2.0 packages in your DAGs, long before you attempt to migrate
+airflow to 2.0 line.
 
-Users can configure this automatically by running `airflow-pr setup_git_remotes`.
+The sources released in SVN allow to build all the provider packages by the user, following the
+instructions and scripts provided. Those are also "official_source releases" as described in the
+[ASF Release Policy](http://www.apache.org/legal/release-policy.html) and they are available
+via [Official Apache Download for providers](https://downloads.apache.org/airflow/providers/) and
+[Official Apache Download for backport-providers](https://downloads.apache.org/airflow/backport-providers/)
 
-```bash
-$ git remote -v
-github https://github.com/apache/airflow.git (fetch)
-github https://github.com/apache/airflow.git (push)
-origin https://github.com/<USER>/airflow (fetch)
-origin https://github.com/<USER>/airflow (push)
+The full provider's list can be found here:
+[Provider Packages Reference](https://s.apache.org/airflow-docs)
+
+There are also convenience packages released as "apache-airflow-providers" and
+"apache-airflow-backport-providers" separately in PyPI.
+You can find all backport providers via:
+[PyPI query for providers](https://pypi.org/search/?q=apache-airflow-providers) and
+[PyPI query for backport providers](https://pypi.org/search/?q=apache-airflow-backport-providers).
+
+Detailed instruction of releasing Provider Packages can be found in the
+[README_RELEASE_PROVIDER_PACKAGES.md](README_RELEASE_PROVIDER_PACKAGES.md)
+
+# Prerequisites for the release manager preparing the release
+
+The person acting as release manager has to fulfill certain pre-requisites. More details and FAQs are
+available in the [ASF Release Policy](http://www.apache.org/legal/release-policy.html) but here some important
+pre-requisites are listed below. Note that release manager does not have to be a PMC - it is enough
+to be committer to assume the release manager role, but there are final steps in the process (uploading
+final releases to SVN) that can only be done by PMC member. If needed, the release manager
+can ask PMC to perform that final step of release.
+
+## Upload Public keys to id.apache.org
+
+Make sure your public key is on id.apache.org and in KEYS. You will need to sign the release artifacts
+with your pgp key. After you have created a key, make sure you:
+
+- Add your GPG pub key to https://dist.apache.org/repos/dist/release/airflow/KEYS , follow the instructions at the top of that file. Upload your GPG public key to https://pgp.mit.edu
+- Add your key fingerprint to https://id.apache.org/ (login with your apache credentials, paste your fingerprint into the pgp fingerprint field and hit save).
+
+```shell script
+# Create PGP Key
+gpg --gen-key
+
+# Checkout ASF dist repo
+svn checkout https://dist.apache.org/repos/dist/release/airflow
+cd airflow
+
+
+# Add your GPG pub key to KEYS file. Replace "Kaxil Naik" with your name
+(gpg --list-sigs "Kaxil Naik" && gpg --armor --export "Kaxil Naik" ) >> KEYS
+
+
+# Commit the changes
+svn commit -m "Add PGP keys of Airflow developers"
 ```
 
-#### JIRA
+See this for more detail on creating keys and what is required for signing releases.
 
-Users should set environment variables `JIRA_USERNAME` and `JIRA_PASSWORD` corresponding to their ASF JIRA login. This will allow the tool to automatically close issues. If they are not set, the user will be prompted every time.
+http://www.apache.org/dev/release-signing.html#basic-facts
 
-#### GitHub OAuth Token
+## Configure PyPI uploads
 
-Unauthenticated users can only make 60 requests/hour to the Github API. If you get an error about exceeding the rate, you will need to set a `GITHUB_OAUTH_KEY` environment variable that contains a token value. Users can generate tokens from their GitHub profile.
+In order to not reveal your password in plain text, it's best if you create and configure API Upload tokens.
+You can add and copy the tokens here:
 
-## Airflow release signing tool
+* [Test PyPI](https://test.pypi.org/manage/account/token/)
+* [Prod PyPI](https://pypi.org/manage/account/token/)
 
-The release signing tool can be used to create the SHA512/MD5 and ASC files that required for Apache releases.
 
-### Execution
+Create a `~/.pypirc` file:
 
-To create a release tarball execute following command from Airflow's root.
+```ini
+[distutils]
+index-servers =
+  pypi
+  pypitest
 
-```bash
-python setup.py compile_assets sdist --formats=gztar
+[pypi]
+username=__token__
+password=<API Upload Token>
+
+[pypitest]
+repository=https://test.pypi.org/legacy/
+username=__token__
+password=<API Upload Token>
 ```
 
-*Note: `compile_assets` command build the frontend assets (JS and CSS) files for the
-Web UI using webpack and yarn. Please make sure you have `yarn` installed on your local machine globally.
-Details on how to install `yarn` can be found in CONTRIBUTING.rst file.*
+Set proper permissions for the pypirc file:
 
-After that navigate to relative directory i.e., `cd dist` and sign the release files.
-
-```bash
-../dev/sign.sh <the_created_tar_ball.tar.gz
+```shell script
+chmod 600 ~/.pypirc
 ```
 
-Signing files will be created in the same directory.
+- Install [twine](https://pypi.org/project/twine/) if you do not have it already (it can be done
+  in a separate virtual environment).
+
+```shell script
+pip install twine
+```
+
+(more details [here](https://peterdowns.com/posts/first-time-with-pypi.html).)
+
+- Set proper permissions for the pypirc file:
+`$ chmod 600 ~/.pypirc`
+
+
+## Hardware used to prepare and verify the packages
+
+The best way to prepare and verify the releases is to prepare them on a hardware owned and controlled
+by the committer acting as release manager. While strictly speaking, releases must only be verified
+on hardware owned and controlled by the committer, for practical reasons it's best if the packages are
+prepared using such hardware. More information can be found in this
+[FAQ](http://www.apache.org/legal/release-policy.html#owned-controlled-hardware)

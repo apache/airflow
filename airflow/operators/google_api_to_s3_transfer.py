@@ -15,18 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated.
-Please use `airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`.
+"""This module is deprecated.
+
+Please use `airflow.providers.amazon.aws.transfers.google_api_to_s3`.
 """
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.providers.amazon.aws.operators.google_api_to_s3_transfer import GoogleApiToS3Transfer  # noqa
+from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
 
 warnings.warn(
-    "This module is deprecated. "
-    "Please use `airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.google_api_to_s3`.",
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class GoogleApiToS3Transfer(GoogleApiToS3Operator):
+    """This class is deprecated.
+
+    Please use:
+    `airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleApiToS3Operator`.
+    """
+
+    def __init__(self, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.amazon.aws.transfers."""
+            + "google_api_to_s3_transfer.GoogleApiToS3Operator`.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(**kwargs)

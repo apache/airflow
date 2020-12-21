@@ -21,7 +21,7 @@ import random
 import textwrap
 
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.providers.qubole.operators.qubole import QuboleOperator
 from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
@@ -30,16 +30,16 @@ from airflow.utils.dates import days_ago
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
-    'email_on_retry': False
+    'email_on_retry': False,
 }
 
 with DAG(
     dag_id='example_qubole_operator',
     default_args=default_args,
     schedule_interval=None,
+    start_date=days_ago(2),
     tags=['example'],
 ) as dag:
     dag.doc_md = textwrap.dedent(
@@ -55,7 +55,7 @@ with DAG(
         """
     )
 
-    def compare_result(**kwargs):
+    def compare_result_fn(**kwargs):
         """
         Compares the results of two QuboleOperator tasks.
 
@@ -65,11 +65,11 @@ with DAG(
         :rtype: bool
         """
         ti = kwargs['ti']
-        qubole_result_1 = t1.get_results(ti)
-        qubole_result_2 = t2.get_results(ti)
+        qubole_result_1 = hive_show_table.get_results(ti)
+        qubole_result_2 = hive_s3_location.get_results(ti)
         return filecmp.cmp(qubole_result_1, qubole_result_2)
 
-    t1 = QuboleOperator(
+    hive_show_table = QuboleOperator(
         task_id='hive_show_table',
         command_type='hivecmd',
         query='show tables',
@@ -83,10 +83,10 @@ with DAG(
         # Connection id to submit commands inside QDS, if not set "qubole_default" is used
         params={
             'cluster_label': 'default',
-        }
+        },
     )
 
-    t2 = QuboleOperator(
+    hive_s3_location = QuboleOperator(
         task_id='hive_s3_location',
         command_type="hivecmd",
         script_location="s3n://public-qubole/qbol-library/scripts/show_table.hql",
@@ -94,83 +94,68 @@ with DAG(
         tags=['tag1', 'tag2'],
         # If the script at s3 location has any qubole specific macros to be replaced
         # macros='[{"date": "{{ ds }}"}, {"name" : "abc"}]',
-        trigger_rule="all_done"
+        trigger_rule="all_done",
     )
 
-    t3 = PythonOperator(
-        task_id='compare_result',
-        python_callable=compare_result,
-        trigger_rule="all_done"
+    compare_result = PythonOperator(
+        task_id='compare_result', python_callable=compare_result_fn, trigger_rule="all_done"
     )
 
-    t3 << [t1, t2]
+    compare_result << [hive_show_table, hive_s3_location]
 
     options = ['hadoop_jar_cmd', 'presto_cmd', 'db_query', 'spark_cmd']
 
-    branching = BranchPythonOperator(
-        task_id='branching',
-        python_callable=lambda: random.choice(options)
-    )
+    branching = BranchPythonOperator(task_id='branching', python_callable=lambda: random.choice(options))
 
-    branching << t3
+    branching << compare_result
 
-    join = DummyOperator(
-        task_id='join',
-        trigger_rule='one_success'
-    )
+    join = DummyOperator(task_id='join', trigger_rule='one_success')
 
-    t4 = QuboleOperator(
+    hadoop_jar_cmd = QuboleOperator(
         task_id='hadoop_jar_cmd',
         command_type='hadoopcmd',
         sub_command='jar s3://paid-qubole/HadoopAPIExamples/'
-                    'jars/hadoop-0.20.1-dev-streaming.jar '
-                    '-mapper wc '
-                    '-numReduceTasks 0 -input s3://paid-qubole/HadoopAPITests/'
-                    'data/3.tsv -output '
-                    's3://paid-qubole/HadoopAPITests/data/3_wc',
+        'jars/hadoop-0.20.1-dev-streaming.jar '
+        '-mapper wc '
+        '-numReduceTasks 0 -input s3://paid-qubole/HadoopAPITests/'
+        'data/3.tsv -output '
+        's3://paid-qubole/HadoopAPITests/data/3_wc',
         cluster_label='{{ params.cluster_label }}',
         fetch_logs=True,
         params={
             'cluster_label': 'default',
-        }
+        },
     )
 
-    t5 = QuboleOperator(
+    pig_cmd = QuboleOperator(
         task_id='pig_cmd',
         command_type="pigcmd",
         script_location="s3://public-qubole/qbol-library/scripts/script1-hadoop-s3-small.pig",
         parameters="key1=value1 key2=value2",
-        trigger_rule="all_done"
+        trigger_rule="all_done",
     )
 
-    t5 << t4 << branching
-    t5 >> join
+    pig_cmd << hadoop_jar_cmd << branching
+    pig_cmd >> join
 
-    t6 = QuboleOperator(
-        task_id='presto_cmd',
-        command_type='prestocmd',
-        query='show tables'
-    )
+    presto_cmd = QuboleOperator(task_id='presto_cmd', command_type='prestocmd', query='show tables')
 
-    t7 = QuboleOperator(
+    shell_cmd = QuboleOperator(
         task_id='shell_cmd',
         command_type="shellcmd",
         script_location="s3://public-qubole/qbol-library/scripts/shellx.sh",
         parameters="param1 param2",
-        trigger_rule="all_done"
+        trigger_rule="all_done",
     )
 
-    t7 << t6 << branching
-    t7 >> join
+    shell_cmd << presto_cmd << branching
+    shell_cmd >> join
 
-    t8 = QuboleOperator(
-        task_id='db_query',
-        command_type='dbtapquerycmd',
-        query='show tables',
-        db_tap_id=2064
+    db_query = QuboleOperator(
+        task_id='db_query', command_type='dbtapquerycmd', query='show tables', db_tap_id=2064
     )
 
-    t9 = QuboleOperator(
+    db_export = QuboleOperator(
         task_id='db_export',
         command_type='dbexportcmd',
         mode=1,
@@ -178,13 +163,13 @@ with DAG(
         db_table='exported_airline_origin_destination',
         partition_spec='dt=20110104-02',
         dbtap_id=2064,
-        trigger_rule="all_done"
+        trigger_rule="all_done",
     )
 
-    t9 << t8 << branching
-    t9 >> join
+    db_export << db_query << branching
+    db_export >> join
 
-    t10 = QuboleOperator(
+    db_import = QuboleOperator(
         task_id='db_import',
         command_type='dbimportcmd',
         mode=1,
@@ -193,7 +178,7 @@ with DAG(
         where_clause='id < 10',
         parallelism=2,
         dbtap_id=2064,
-        trigger_rule="all_done"
+        trigger_rule="all_done",
     )
 
     prog = '''
@@ -220,22 +205,23 @@ with DAG(
 
     '''
 
-    t11 = QuboleOperator(
+    spark_cmd = QuboleOperator(
         task_id='spark_cmd',
         command_type="sparkcmd",
         program=prog,
         language='scala',
         arguments='--class SparkPi',
-        tags='airflow_example_run'
+        tags='airflow_example_run',
     )
 
-    t11 << t10 << branching
-    t11 >> join
+    spark_cmd << db_import << branching
+    spark_cmd >> join
 
 with DAG(
     dag_id='example_qubole_sensor',
     default_args=default_args,
     schedule_interval=None,
+    start_date=days_ago(2),
     doc_md=__doc__,
     tags=['example'],
 ) as dag2:
@@ -252,33 +238,31 @@ with DAG(
         """
     )
 
-    t1 = QuboleFileSensor(
+    check_s3_file = QuboleFileSensor(
         task_id='check_s3_file',
         qubole_conn_id='qubole_default',
         poke_interval=60,
         timeout=600,
         data={
-            "files":
-                [
-                    "s3://paid-qubole/HadoopAPIExamples/jars/hadoop-0.20.1-dev-streaming.jar",
-                    "s3://paid-qubole/HadoopAPITests/data/{{ ds.split('-')[2] }}.tsv"
-                ]  # will check for availability of all the files in array
-        }
+            "files": [
+                "s3://paid-qubole/HadoopAPIExamples/jars/hadoop-0.20.1-dev-streaming.jar",
+                "s3://paid-qubole/HadoopAPITests/data/{{ ds.split('-')[2] }}.tsv",
+            ]  # will check for availability of all the files in array
+        },
     )
 
-    t2 = QubolePartitionSensor(
+    check_hive_partition = QubolePartitionSensor(
         task_id='check_hive_partition',
         poke_interval=10,
         timeout=60,
-        data={"schema": "default",
-              "table": "my_partitioned_table",
-              "columns": [
-                  {"column": "month", "values":
-                      ["{{ ds.split('-')[1] }}"]},
-                  {"column": "day", "values":
-                      ["{{ ds.split('-')[2] }}", "{{ yesterday_ds.split('-')[2] }}"]}
-              ]  # will check for partitions like [month=12/day=12,month=12/day=13]
-              }
+        data={
+            "schema": "default",
+            "table": "my_partitioned_table",
+            "columns": [
+                {"column": "month", "values": ["{{ ds.split('-')[1] }}"]},
+                {"column": "day", "values": ["{{ ds.split('-')[2] }}", "{{ yesterday_ds.split('-')[2] }}"]},
+            ],  # will check for partitions like [month=12/day=12,month=12/day=13]
+        },
     )
 
-    t1 >> t2
+    check_s3_file >> check_hive_partition

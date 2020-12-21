@@ -37,25 +37,12 @@ import botocore.exceptions
 import botocore.waiter
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClient
+from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
 
 
-class AwsBatchWaiters(AwsBatchClient):
+class AwsBatchWaitersHook(AwsBatchClientHook):
     """
-    A utility to manage waiters for AWS batch services.
-
-    :param waiter_config:  a custom waiter configuration for AWS batch services
-    :type waiter_config: Optional[Dict]
-
-    :param aws_conn_id: connection id of AWS credentials / region name. If None,
-        credential boto3 strategy will be used
-        (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
-    :type aws_conn_id: Optional[str]
-
-    :param region_name: region name to use in AWS client.
-        Override the AWS region in connection (if provided)
-    :type region_name: Optional[str]
-
+    A utility to manage waiters for AWS batch services
     Examples:
 
     .. code-block:: python
@@ -101,16 +88,23 @@ class AwsBatchWaiters(AwsBatchClient):
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#waiters
         - https://github.com/boto/botocore/tree/develop/botocore/data/ec2/2016-11-15
         - https://github.com/boto/botocore/issues/1915
+
+    :param waiter_config:  a custom waiter configuration for AWS batch services
+    :type waiter_config: Optional[Dict]
+
+    :param aws_conn_id: connection id of AWS credentials / region name. If None,
+        credential boto3 strategy will be used
+        (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
+    :type aws_conn_id: Optional[str]
+
+    :param region_name: region name to use in AWS client.
+        Override the AWS region in connection (if provided)
+    :type region_name: Optional[str]
     """
 
-    def __init__(
-        self,
-        waiter_config: Optional[Dict] = None,
-        aws_conn_id: Optional[str] = None,
-        region_name: Optional[str] = None,
-    ):
+    def __init__(self, *args, waiter_config: Optional[Dict] = None, **kwargs) -> None:
 
-        AwsBatchClient.__init__(self, aws_conn_id=aws_conn_id, region_name=region_name)
+        super().__init__(*args, **kwargs)
 
         self._default_config = None  # type: Optional[Dict]
         self._waiter_config = waiter_config or self.default_config
@@ -184,9 +178,7 @@ class AwsBatchWaiters(AwsBatchClient):
         :return: a waiter object for the named AWS batch service
         :rtype: botocore.waiter.Waiter
         """
-        return botocore.waiter.create_waiter_with_client(
-            waiter_name, self.waiter_model, self.client
-        )
+        return botocore.waiter.create_waiter_with_client(waiter_name, self.waiter_model, self.client)
 
     def list_waiters(self) -> List[str]:
         """
@@ -197,7 +189,7 @@ class AwsBatchWaiters(AwsBatchClient):
         """
         return self.waiter_model.waiter_names
 
-    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None):
+    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
         Wait for batch job to complete.  This assumes that the ``.waiter_model`` is configured
         using some variation of the ``.default_config`` so that it can generate waiters with the

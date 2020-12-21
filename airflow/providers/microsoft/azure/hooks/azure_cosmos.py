@@ -24,12 +24,13 @@ login (=Endpoint uri), password (=secret key) and extra fields database_name and
 the default database and collection to use (see connection `azure_cosmos_default` for an example).
 """
 import uuid
+from typing import Optional
 
 from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.errors import HTTPFailure
 
 from airflow.exceptions import AirflowBadRequest
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureCosmosDBHook(BaseHook):
@@ -44,17 +45,21 @@ class AzureCosmosDBHook(BaseHook):
     :type azure_cosmos_conn_id: str
     """
 
-    def __init__(self, azure_cosmos_conn_id='azure_cosmos_default'):
+    conn_name_attr = 'azure_cosmos_conn_id'
+    default_conn_name = 'azure_cosmos_default'
+    conn_type = 'azure_cosmos'
+    hook_name = 'Azure CosmosDB'
+
+    def __init__(self, azure_cosmos_conn_id: str = default_conn_name) -> None:
+        super().__init__()
         self.conn_id = azure_cosmos_conn_id
         self._conn = None
 
         self.default_database_name = None
         self.default_collection_name = None
 
-    def get_conn(self):
-        """
-        Return a cosmos db client.
-        """
+    def get_conn(self) -> CosmosClient:
+        """Return a cosmos db client."""
         if not self._conn:
             conn = self.get_connection(self.conn_id)
             extras = conn.extra_dejson
@@ -68,7 +73,7 @@ class AzureCosmosDBHook(BaseHook):
             self._conn = CosmosClient(endpoint_uri, {'masterKey': master_key})
         return self._conn
 
-    def __get_database_name(self, database_name=None):
+    def __get_database_name(self, database_name: Optional[str] = None) -> str:
         self.get_conn()
         db_name = database_name
         if db_name is None:
@@ -79,7 +84,7 @@ class AzureCosmosDBHook(BaseHook):
 
         return db_name
 
-    def __get_collection_name(self, collection_name=None):
+    def __get_collection_name(self, collection_name: Optional[str] = None) -> str:
         self.get_conn()
         coll_name = collection_name
         if coll_name is None:
@@ -90,104 +95,101 @@ class AzureCosmosDBHook(BaseHook):
 
         return coll_name
 
-    def does_collection_exist(self, collection_name, database_name=None):
-        """
-        Checks if a collection exists in CosmosDB.
-        """
+    def does_collection_exist(self, collection_name: str, database_name: str) -> bool:
+        """Checks if a collection exists in CosmosDB."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 
-        existing_container = list(self.get_conn().QueryContainers(
-            get_database_link(self.__get_database_name(database_name)), {
-                "query": "SELECT * FROM r WHERE r.id=@id",
-                "parameters": [
-                    {"name": "@id", "value": collection_name}
-                ]
-            }))
+        existing_container = list(
+            self.get_conn().QueryContainers(
+                get_database_link(self.__get_database_name(database_name)),
+                {
+                    "query": "SELECT * FROM r WHERE r.id=@id",
+                    "parameters": [{"name": "@id", "value": collection_name}],
+                },
+            )
+        )
         if len(existing_container) == 0:
             return False
 
         return True
 
-    def create_collection(self, collection_name, database_name=None):
-        """
-        Creates a new collection in the CosmosDB database.
-        """
+    def create_collection(self, collection_name: str, database_name: Optional[str] = None) -> None:
+        """Creates a new collection in the CosmosDB database."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 
         # We need to check to see if this container already exists so we don't try
         # to create it twice
-        existing_container = list(self.get_conn().QueryContainers(
-            get_database_link(self.__get_database_name(database_name)), {
-                "query": "SELECT * FROM r WHERE r.id=@id",
-                "parameters": [
-                    {"name": "@id", "value": collection_name}
-                ]
-            }))
+        existing_container = list(
+            self.get_conn().QueryContainers(
+                get_database_link(self.__get_database_name(database_name)),
+                {
+                    "query": "SELECT * FROM r WHERE r.id=@id",
+                    "parameters": [{"name": "@id", "value": collection_name}],
+                },
+            )
+        )
 
         # Only create if we did not find it already existing
         if len(existing_container) == 0:
             self.get_conn().CreateContainer(
-                get_database_link(self.__get_database_name(database_name)),
-                {"id": collection_name})
+                get_database_link(self.__get_database_name(database_name)), {"id": collection_name}
+            )
 
-    def does_database_exist(self, database_name):
-        """
-        Checks if a database exists in CosmosDB.
-        """
+    def does_database_exist(self, database_name: str) -> bool:
+        """Checks if a database exists in CosmosDB."""
         if database_name is None:
             raise AirflowBadRequest("Database name cannot be None.")
 
-        existing_database = list(self.get_conn().QueryDatabases({
-            "query": "SELECT * FROM r WHERE r.id=@id",
-            "parameters": [
-                {"name": "@id", "value": database_name}
-            ]
-        }))
+        existing_database = list(
+            self.get_conn().QueryDatabases(
+                {
+                    "query": "SELECT * FROM r WHERE r.id=@id",
+                    "parameters": [{"name": "@id", "value": database_name}],
+                }
+            )
+        )
         if len(existing_database) == 0:
             return False
 
         return True
 
-    def create_database(self, database_name):
-        """
-        Creates a new database in CosmosDB.
-        """
+    def create_database(self, database_name: str) -> None:
+        """Creates a new database in CosmosDB."""
         if database_name is None:
             raise AirflowBadRequest("Database name cannot be None.")
 
         # We need to check to see if this database already exists so we don't try
         # to create it twice
-        existing_database = list(self.get_conn().QueryDatabases({
-            "query": "SELECT * FROM r WHERE r.id=@id",
-            "parameters": [
-                {"name": "@id", "value": database_name}
-            ]
-        }))
+        existing_database = list(
+            self.get_conn().QueryDatabases(
+                {
+                    "query": "SELECT * FROM r WHERE r.id=@id",
+                    "parameters": [{"name": "@id", "value": database_name}],
+                }
+            )
+        )
 
         # Only create if we did not find it already existing
         if len(existing_database) == 0:
             self.get_conn().CreateDatabase({"id": database_name})
 
-    def delete_database(self, database_name):
-        """
-        Deletes an existing database in CosmosDB.
-        """
+    def delete_database(self, database_name: str) -> None:
+        """Deletes an existing database in CosmosDB."""
         if database_name is None:
             raise AirflowBadRequest("Database name cannot be None.")
 
         self.get_conn().DeleteDatabase(get_database_link(database_name))
 
-    def delete_collection(self, collection_name, database_name=None):
-        """
-        Deletes an existing collection in the CosmosDB database.
-        """
+    def delete_collection(self, collection_name: str, database_name: Optional[str] = None) -> None:
+        """Deletes an existing collection in the CosmosDB database."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 
         self.get_conn().DeleteContainer(
-            get_collection_link(self.__get_database_name(database_name), collection_name))
+            get_collection_link(self.__get_database_name(database_name), collection_name)
+        )
 
     def upsert_document(self, document, database_name=None, collection_name=None, document_id=None):
         """
@@ -210,16 +212,17 @@ class AzureCosmosDBHook(BaseHook):
 
         created_document = self.get_conn().CreateItem(
             get_collection_link(
-                self.__get_database_name(database_name),
-                self.__get_collection_name(collection_name)),
-            document)
+                self.__get_database_name(database_name), self.__get_collection_name(collection_name)
+            ),
+            document,
+        )
 
         return created_document
 
-    def insert_documents(self, documents, database_name=None, collection_name=None):
-        """
-        Insert a list of new documents into an existing collection in the CosmosDB database.
-        """
+    def insert_documents(
+        self, documents, database_name: Optional[str] = None, collection_name: Optional[str] = None
+    ) -> list:
+        """Insert a list of new documents into an existing collection in the CosmosDB database."""
         if documents is None:
             raise AirflowBadRequest("You cannot insert empty documents")
 
@@ -228,16 +231,18 @@ class AzureCosmosDBHook(BaseHook):
             created_documents.append(
                 self.get_conn().CreateItem(
                     get_collection_link(
-                        self.__get_database_name(database_name),
-                        self.__get_collection_name(collection_name)),
-                    single_document))
+                        self.__get_database_name(database_name), self.__get_collection_name(collection_name)
+                    ),
+                    single_document,
+                )
+            )
 
         return created_documents
 
-    def delete_document(self, document_id, database_name=None, collection_name=None):
-        """
-        Delete an existing document out of a collection in the CosmosDB database.
-        """
+    def delete_document(
+        self, document_id: str, database_name: Optional[str] = None, collection_name: Optional[str] = None
+    ) -> None:
+        """Delete an existing document out of a collection in the CosmosDB database."""
         if document_id is None:
             raise AirflowBadRequest("Cannot delete a document without an id")
 
@@ -245,12 +250,14 @@ class AzureCosmosDBHook(BaseHook):
             get_document_link(
                 self.__get_database_name(database_name),
                 self.__get_collection_name(collection_name),
-                document_id))
+                document_id,
+            )
+        )
 
-    def get_document(self, document_id, database_name=None, collection_name=None):
-        """
-        Get a document from an existing collection in the CosmosDB database.
-        """
+    def get_document(
+        self, document_id: str, database_name: Optional[str] = None, collection_name: Optional[str] = None
+    ):
+        """Get a document from an existing collection in the CosmosDB database."""
         if document_id is None:
             raise AirflowBadRequest("Cannot get a document without an id")
 
@@ -259,14 +266,20 @@ class AzureCosmosDBHook(BaseHook):
                 get_document_link(
                     self.__get_database_name(database_name),
                     self.__get_collection_name(collection_name),
-                    document_id))
+                    document_id,
+                )
+            )
         except HTTPFailure:
             return None
 
-    def get_documents(self, sql_string, database_name=None, collection_name=None, partition_key=None):
-        """
-        Get a list of documents from an existing collection in the CosmosDB database via SQL query.
-        """
+    def get_documents(
+        self,
+        sql_string: str,
+        database_name: Optional[str] = None,
+        collection_name: Optional[str] = None,
+        partition_key: Optional[str] = None,
+    ) -> Optional[list]:
+        """Get a list of documents from an existing collection in the CosmosDB database via SQL query."""
         if sql_string is None:
             raise AirflowBadRequest("SQL query string cannot be None")
 
@@ -276,23 +289,27 @@ class AzureCosmosDBHook(BaseHook):
         try:
             result_iterable = self.get_conn().QueryItems(
                 get_collection_link(
-                    self.__get_database_name(database_name),
-                    self.__get_collection_name(collection_name)),
+                    self.__get_database_name(database_name), self.__get_collection_name(collection_name)
+                ),
                 query,
-                partition_key)
+                partition_key,
+            )
 
             return list(result_iterable)
         except HTTPFailure:
             return None
 
 
-def get_database_link(database_id):
+def get_database_link(database_id: str) -> str:
+    """Get Azure CosmosDB database link"""
     return "dbs/" + database_id
 
 
-def get_collection_link(database_id, collection_id):
+def get_collection_link(database_id: str, collection_id: str) -> str:
+    """Get Azure CosmosDB collection link"""
     return get_database_link(database_id) + "/colls/" + collection_id
 
 
-def get_document_link(database_id, collection_id, document_id):
+def get_document_link(database_id: str, collection_id: str, document_id: str) -> str:
+    """Get Azure CosmosDB document link"""
     return get_collection_link(database_id, collection_id) + "/docs/" + document_id

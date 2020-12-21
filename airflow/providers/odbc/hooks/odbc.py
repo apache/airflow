@@ -15,15 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains ODBC hook.
-"""
-from typing import Optional
+"""This module contains ODBC hook."""
+from typing import Any, Optional
 from urllib.parse import quote_plus
 
 import pyodbc
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.utils.helpers import merge_dicts
 
 
@@ -31,12 +29,14 @@ class OdbcHook(DbApiHook):
     """
     Interact with odbc data sources using pyodbc.
 
-    See :ref:`howto/connection/odbc` for full documentation.
+    See :doc:`/connections/odbc` for full documentation.
     """
 
     DEFAULT_SQLALCHEMY_SCHEME = 'mssql+pyodbc'
     conn_name_attr = 'odbc_conn_id'
     default_conn_name = 'odbc_default'
+    conn_type = 'odbc'
+    hook_name = 'ODBC'
     supports_autocommit = True
 
     def __init__(
@@ -48,7 +48,7 @@ class OdbcHook(DbApiHook):
         connect_kwargs: Optional[dict] = None,
         sqlalchemy_scheme: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> None:
         """
         :param args: passed to DbApiHook
         :param database: database to use -- overrides connection ``schema``
@@ -70,33 +70,27 @@ class OdbcHook(DbApiHook):
 
     @property
     def connection(self):
-        """
-        ``airflow.Connection`` object with connection id ``odbc_conn_id``
-        """
+        """``airflow.Connection`` object with connection id ``odbc_conn_id``"""
         if not self._connection:
             self._connection = self.get_connection(getattr(self, self.conn_name_attr))
         return self._connection
 
     @property
-    def database(self):
-        """
-        Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object.
-        """
+    def database(self) -> Optional[str]:
+        """Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object."""
         return self._database or self.connection.schema
 
     @property
-    def sqlalchemy_scheme(self):
-        """
-        Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object.
-        """
+    def sqlalchemy_scheme(self) -> Optional[str]:
+        """Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object."""
         return (
-            self._sqlalchemy_scheme or
-            self.connection_extra_lower.get('sqlalchemy_scheme') or
-            self.DEFAULT_SQLALCHEMY_SCHEME
+            self._sqlalchemy_scheme
+            or self.connection_extra_lower.get('sqlalchemy_scheme')
+            or self.DEFAULT_SQLALCHEMY_SCHEME
         )
 
     @property
-    def connection_extra_lower(self):
+    def connection_extra_lower(self) -> dict:
         """
         ``connection.extra_dejson`` but where keys are converted to lower case.
 
@@ -105,10 +99,8 @@ class OdbcHook(DbApiHook):
         return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
 
     @property
-    def driver(self):
-        """
-        Driver from init param if given; else try to find one in connection extra.
-        """
+    def driver(self) -> Optional[str]:
+        """Driver from init param if given; else try to find one in connection extra."""
         if not self._driver:
             driver = self.connection_extra_lower.get('driver')
             if driver:
@@ -116,10 +108,8 @@ class OdbcHook(DbApiHook):
         return self._driver and self._driver.strip().lstrip('{').rstrip('}').strip()
 
     @property
-    def dsn(self):
-        """
-        DSN from init param if given; else try to find one in connection extra.
-        """
+    def dsn(self) -> Optional[str]:
+        """DSN from init param if given; else try to find one in connection extra."""
         if not self._dsn:
             dsn = self.connection_extra_lower.get('dsn')
             if dsn:
@@ -154,9 +144,7 @@ class OdbcHook(DbApiHook):
 
             extra_exclude = {'driver', 'dsn', 'connect_kwargs', 'sqlalchemy_scheme'}
             extra_params = {
-                k: v
-                for k, v in self.connection.extra_dejson.items()
-                if not k.lower() in extra_exclude
+                k: v for k, v in self.connection.extra_dejson.items() if not k.lower() in extra_exclude
             }
             for k, v in extra_params.items():
                 conn_str += f"{k}={v};"
@@ -165,7 +153,7 @@ class OdbcHook(DbApiHook):
         return self._conn_str
 
     @property
-    def connect_kwargs(self):
+    def connect_kwargs(self) -> dict:
         """
         Returns effective kwargs to be passed to ``pyodbc.connect`` after merging between conn extra,
         ``connect_kwargs`` and hook init.
@@ -198,24 +186,20 @@ class OdbcHook(DbApiHook):
         return {k: clean_bool(v) for k, v in merged_connect_kwargs.items()}
 
     def get_conn(self) -> pyodbc.Connection:
-        """
-        Returns a pyodbc connection object.
-        """
+        """Returns a pyodbc connection object."""
         conn = pyodbc.connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
 
-    def get_uri(self):
-        """
-        URI invoked in :py:meth:`~airflow.hooks.dbapi_hook.DbApiHook.get_sqlalchemy_engine` method
-        """
+    def get_uri(self) -> str:
+        """URI invoked in :py:meth:`~airflow.hooks.dbapi.DbApiHook.get_sqlalchemy_engine` method"""
         quoted_conn_str = quote_plus(self.odbc_connection_string)
         uri = f"{self.sqlalchemy_scheme}:///?odbc_connect={quoted_conn_str}"
         return uri
 
-    def get_sqlalchemy_connection(self, connect_kwargs=None, engine_kwargs=None):
-        """
-        Sqlalchemy connection object
-        """
+    def get_sqlalchemy_connection(
+        self, connect_kwargs: Optional[dict] = None, engine_kwargs: Optional[dict] = None
+    ) -> Any:
+        """Sqlalchemy connection object"""
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx

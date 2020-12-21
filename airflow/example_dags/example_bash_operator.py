@@ -22,20 +22,21 @@ from datetime import timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': days_ago(2),
 }
 
 dag = DAG(
     dag_id='example_bash_operator',
     default_args=args,
     schedule_interval='0 0 * * *',
+    start_date=days_ago(2),
     dagrun_timeout=timedelta(minutes=60),
-    tags=['example']
+    tags=['example', 'example2'],
+    params={"example_key": "example_value"},
 )
 
 run_this_last = DummyOperator(

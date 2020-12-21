@@ -24,5 +24,6 @@ from airflow.providers.google.cloud.hooks.bigtable import BigtableHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.bigtable`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

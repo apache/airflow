@@ -24,5 +24,6 @@ from airflow.providers.grpc.hooks.grpc import GrpcHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.grpc.hooks.grpc`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

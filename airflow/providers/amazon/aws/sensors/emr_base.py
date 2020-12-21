@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.providers.amazon.aws.hooks.emr import EmrHook
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -37,17 +38,24 @@ class EmrBaseSensor(BaseSensorOperator):
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     """
+
     ui_color = '#66c3ff'
 
     @apply_defaults
-    def __init__(
-            self,
-            aws_conn_id='aws_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, aws_conn_id: str = 'aws_default', **kwargs):
+        super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
-        self.target_states = None  # will be set in subclasses
-        self.failed_states = None  # will be set in subclasses
+        self.target_states: Optional[Iterable[str]] = None  # will be set in subclasses
+        self.failed_states: Optional[Iterable[str]] = None  # will be set in subclasses
+        self.hook: Optional[EmrHook] = None
+
+    def get_hook(self) -> EmrHook:
+        """Get EmrHook"""
+        if self.hook:
+            return self.hook
+
+        self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
+        return self.hook
 
     def poke(self, context):
         response = self.get_emr_response()
@@ -78,8 +86,7 @@ class EmrBaseSensor(BaseSensorOperator):
         :return: response
         :rtype: dict[str, Any]
         """
-        raise NotImplementedError(
-            'Please implement get_emr_response() in subclass')
+        raise NotImplementedError('Please implement get_emr_response() in subclass')
 
     @staticmethod
     def state_from_response(response: Dict[str, Any]) -> str:
@@ -91,8 +98,7 @@ class EmrBaseSensor(BaseSensorOperator):
         :return: state
         :rtype: str
         """
-        raise NotImplementedError(
-            'Please implement state_from_response() in subclass')
+        raise NotImplementedError('Please implement state_from_response() in subclass')
 
     @staticmethod
     def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
@@ -104,5 +110,4 @@ class EmrBaseSensor(BaseSensorOperator):
         :return: failure message
         :rtype: Optional[str]
         """
-        raise NotImplementedError(
-            'Please implement failure_message_from_response() in subclass')
+        raise NotImplementedError('Please implement failure_message_from_response() in subclass')

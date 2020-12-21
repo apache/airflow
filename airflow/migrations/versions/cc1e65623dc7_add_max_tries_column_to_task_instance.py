@@ -33,6 +33,8 @@ from airflow import settings
 from airflow.models import DagBag
 
 # revision identifiers, used by Alembic.
+from airflow.models.base import COLLATION_ARGS
+
 revision = 'cc1e65623dc7'
 down_revision = '127d2bf2dfa7'
 branch_labels = None
@@ -43,17 +45,17 @@ BATCH_SIZE = 5000
 ID_LEN = 250
 
 
-class TaskInstance(Base):
+class TaskInstance(Base):  # noqa: D101  # type: ignore
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     execution_date = Column(sa.DateTime, primary_key=True)
     max_tries = Column(Integer)
     try_number = Column(Integer, default=0)
 
 
-def upgrade():
+def upgrade():  # noqa: D103
     op.add_column('task_instance', sa.Column('max_tries', sa.Integer, server_default="-1"))
     # Check if table task_instance exist before data migration. This check is
     # needed for database that does not create table until migration finishes.
@@ -68,15 +70,11 @@ def upgrade():
         sessionmaker = sa.orm.sessionmaker()
         session = sessionmaker(bind=connection)
         dagbag = DagBag(settings.DAGS_FOLDER)
-        query = session.query(sa.func.count(TaskInstance.max_tries)).filter(
-            TaskInstance.max_tries == -1
-        )
+        query = session.query(sa.func.count(TaskInstance.max_tries)).filter(TaskInstance.max_tries == -1)
         # Separate db query in batch to prevent loading entire table
         # into memory and cause out of memory error.
         while query.scalar():
-            tis = session.query(TaskInstance).filter(
-                TaskInstance.max_tries == -1
-            ).limit(BATCH_SIZE).all()
+            tis = session.query(TaskInstance).filter(TaskInstance.max_tries == -1).limit(BATCH_SIZE).all()
             for ti in tis:
                 dag = dagbag.get_dag(ti.dag_id)
                 if not dag or not dag.has_task(ti.task_id):
@@ -99,20 +97,16 @@ def upgrade():
         session.commit()
 
 
-def downgrade():
+def downgrade():  # noqa: D103
     engine = settings.engine
     if engine.dialect.has_table(engine, 'task_instance'):
         connection = op.get_bind()
         sessionmaker = sa.orm.sessionmaker()
         session = sessionmaker(bind=connection)
         dagbag = DagBag(settings.DAGS_FOLDER)
-        query = session.query(sa.func.count(TaskInstance.max_tries)).filter(
-            TaskInstance.max_tries != -1
-        )
+        query = session.query(sa.func.count(TaskInstance.max_tries)).filter(TaskInstance.max_tries != -1)
         while query.scalar():
-            tis = session.query(TaskInstance).filter(
-                TaskInstance.max_tries != -1
-            ).limit(BATCH_SIZE).all()
+            tis = session.query(TaskInstance).filter(TaskInstance.max_tries != -1).limit(BATCH_SIZE).all()
             for ti in tis:
                 dag = dagbag.get_dag(ti.dag_id)
                 if not dag or not dag.has_task(ti.task_id):
@@ -123,8 +117,7 @@ def downgrade():
                     # left to retry by itself. So the current try_number should be
                     # max number of self retry (task.retries) minus number of
                     # times left for task instance to try the task.
-                    ti.try_number = max(0, task.retries - (ti.max_tries -
-                                                           ti.try_number))
+                    ti.try_number = max(0, task.retries - (ti.max_tries - ti.try_number))
                 ti.max_tries = -1
                 session.merge(ti)
             session.commit()

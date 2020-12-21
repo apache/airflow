@@ -21,10 +21,14 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.apache.hive.hooks.hive import (  # noqa
-    HIVE_QUEUE_PRIORITIES, HiveCliHook, HiveMetastoreHook, HiveServer2Hook,
+    HIVE_QUEUE_PRIORITIES,
+    HiveCliHook,
+    HiveMetastoreHook,
+    HiveServer2Hook,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.hooks.hive`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

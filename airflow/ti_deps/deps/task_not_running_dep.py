@@ -24,6 +24,7 @@ from airflow.utils.state import State
 
 class TaskNotRunningDep(BaseTIDep):
     """Ensures that the task instance's state is not running."""
+
     NAME = "Task Instance Not Running"
     IGNOREABLE = False
 
@@ -39,5 +40,4 @@ class TaskNotRunningDep(BaseTIDep):
             yield self._passing_status(reason="Task is not in running state.")
             return
 
-        yield self._failing_status(
-            reason='Task is in the running state')
+        yield self._failing_status(reason='Task is in the running state')

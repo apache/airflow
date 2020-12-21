@@ -21,16 +21,21 @@ This module contains sensor that check the existence
 of a table in a Cassandra cluster.
 """
 
-from typing import Dict
+from typing import Any, Dict
 
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
 class CassandraTableSensor(BaseSensorOperator):
     """
     Checks for the existence of a table in a Cassandra cluster.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CassandraTableSensor`
+
 
     For example, if you want to wait for a table called 't' to be created
     in a keyspace 'k', instantiate it as follows:
@@ -46,15 +51,16 @@ class CassandraTableSensor(BaseSensorOperator):
         when connecting to Cassandra cluster
     :type cassandra_conn_id: str
     """
+
     template_fields = ('table',)
 
     @apply_defaults
-    def __init__(self, table: str, cassandra_conn_id: str, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, table: str, cassandra_conn_id: str, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: Dict[Any, Any]) -> bool:
         self.log.info('Sensor check existence of table: %s', self.table)
         hook = CassandraHook(self.cassandra_conn_id)
         return hook.table_exists(self.table)

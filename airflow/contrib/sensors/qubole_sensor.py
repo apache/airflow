@@ -21,10 +21,13 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.providers.qubole.sensors.qubole import (  # noqa
-    QuboleFileSensor, QubolePartitionSensor, QuboleSensor,
+    QuboleFileSensor,
+    QubolePartitionSensor,
+    QuboleSensor,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.qubole.sensors.qubole`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )

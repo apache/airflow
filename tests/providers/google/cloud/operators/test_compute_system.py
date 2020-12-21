@@ -30,14 +30,12 @@ class GcpComputeExampleDagsSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_COMPUTE_KEY)
     def setUp(self):
         super().setUp()
-        with self.authentication():
-            self.helper.delete_instance()
-            self.helper.create_instance()
+        self.helper.delete_instance()
+        self.helper.create_instance()
 
     @provide_gcp_context(GCP_COMPUTE_KEY)
     def tearDown(self):
-        with self.authentication():
-            self.helper.delete_instance()
+        self.helper.delete_instance()
         super().tearDown()
 
     @provide_gcp_context(GCP_COMPUTE_KEY)
@@ -53,14 +51,12 @@ class GcpComputeIgmExampleDagsSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_COMPUTE_KEY)
     def setUp(self):
         super().setUp()
-        with self.authentication():
-            self.helper.delete_instance_group_and_template(silent=True)
-            self.helper.create_instance_group_and_template()
+        self.helper.delete_instance_group_and_template(silent=True)
+        self.helper.create_instance_group_and_template()
 
     @provide_gcp_context(GCP_COMPUTE_KEY)
     def tearDown(self):
-        with self.authentication():
-            self.helper.delete_instance_group_and_template()
+        self.helper.delete_instance_group_and_template()
         super().tearDown()
 
     @provide_gcp_context(GCP_COMPUTE_KEY)

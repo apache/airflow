@@ -18,7 +18,7 @@
 # under the License.
 import os
 
-from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import LoggingCommandExecutor
 
 BUCKET_1 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
 BUCKET_2 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket-2")
@@ -37,7 +37,8 @@ class GcsSystemTestHelper(LoggingCommandExecutor):
 
         # Create script for transform operator
         with open(PATH_TO_TRANSFORM_SCRIPT, "w+") as file:
-            file.write("""import sys
+            file.write(
+                """import sys
 source = sys.argv[1]
 destination = sys.argv[2]
 
@@ -46,7 +47,8 @@ with open(source, "r") as src, open(destination, "w+") as dest:
     lines = [l.upper() for l in src.readlines()]
     print(lines)
     dest.writelines(lines)
-    """)
+    """
+            )
 
     @staticmethod
     def remove_test_files():
@@ -55,5 +57,5 @@ with open(source, "r") as src, open(destination, "w+") as dest:
         os.remove(PATH_TO_TRANSFORM_SCRIPT)
 
     def remove_bucket(self):
-        self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=BUCKET_1)])
-        self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=BUCKET_2)])
+        self.execute_cmd(["gsutil", "rm", "-r", f"gs://{BUCKET_1}"])
+        self.execute_cmd(["gsutil", "rm", "-r", f"gs://{BUCKET_2}"])

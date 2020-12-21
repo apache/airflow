@@ -34,11 +34,8 @@ class SageMakerEndpointSensor(SageMakerBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self,
-                 endpoint_name,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, endpoint_name, **kwargs):
+        super().__init__(**kwargs)
         self.endpoint_name = endpoint_name
 
     def non_terminal_states(self):
@@ -48,10 +45,8 @@ class SageMakerEndpointSensor(SageMakerBaseSensor):
         return SageMakerHook.failed_states
 
     def get_sagemaker_response(self):
-        sagemaker = SageMakerHook(aws_conn_id=self.aws_conn_id)
-
         self.log.info('Poking Sagemaker Endpoint %s', self.endpoint_name)
-        return sagemaker.describe_endpoint(self.endpoint_name)
+        return self.get_hook().describe_endpoint(self.endpoint_name)
 
     def get_failed_reason_from_response(self, response):
         return response['FailureReason']

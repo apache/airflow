@@ -18,11 +18,9 @@
 
 import json
 import unittest
+from unittest import mock
 
-import mock
-
-from airflow.exceptions import AirflowException
-from airflow.providers.slack.operators.slack import SlackAPIPostOperator
+from airflow.providers.slack.operators.slack import SlackAPIFileOperator, SlackAPIPostOperator
 
 
 class TestSlackAPIPostOperator(unittest.TestCase):
@@ -42,18 +40,12 @@ class TestSlackAPIPostOperator(unittest.TestCase):
                 "title": "Slack API Documentation",
                 "title_link": "https://api.slack.com/",
                 "text": "Optional text that appears within the attachment",
-                "fields": [
-                    {
-                        "title": "Priority",
-                        "value": "High",
-                        "short": 'false'
-                    }
-                ],
+                "fields": [{"title": "Priority", "value": "High", "short": 'false'}],
                 "image_url": "http://my-website.com/path/to/image.jpg",
                 "thumb_url": "http://example.com/path/to/thumb.png",
                 "footer": "Slack API",
                 "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png",
-                "ts": 123456789
+                "ts": 123456789,
             }
         ]
         self.test_blocks = [
@@ -61,19 +53,12 @@ class TestSlackAPIPostOperator(unittest.TestCase):
                 "type": "section",
                 "text": {
                     "text": "A message *with some bold text* and _some italicized text_.",
-                    "type": "mrkdwn"
+                    "type": "mrkdwn",
                 },
                 "fields": [
-                    {
-                        "type": "mrkdwn",
-                        "text": "High"
-                    },
-                    {
-                        "type": "plain_text",
-                        "emoji": True,
-                        "text": "String"
-                    }
-                ]
+                    {"type": "mrkdwn", "text": "High"},
+                    {"type": "plain_text", "emoji": True, "text": "String"},
+                ],
             }
         ]
         self.test_attachments_in_json = json.dumps(self.test_attachments)
@@ -103,52 +88,6 @@ class TestSlackAPIPostOperator(unittest.TestCase):
             blocks=self.test_blocks,
             api_params=test_api_params,
         )
-
-    @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
-    def test_execute_with_token_only(self, slack_hook_class_mock):
-        slack_hook_mock = mock.Mock()
-        slack_hook_class_mock.return_value = slack_hook_mock
-
-        test_token = 'test_token'
-        slack_api_post_operator = self.__construct_operator(test_token, None)
-
-        slack_api_post_operator.execute()
-
-        slack_hook_class_mock.assert_called_once_with(token=test_token, slack_conn_id=None)
-
-        slack_hook_mock.call.assert_called_once_with(self.expected_method, self.expected_api_params)
-
-        slack_hook_mock.reset_mock()
-        slack_hook_class_mock.reset_mock()
-
-        slack_api_post_operator = self.__construct_operator(test_token, None, self.test_api_params)
-
-        slack_api_post_operator.execute()
-
-        slack_hook_class_mock.assert_called_once_with(token=test_token, slack_conn_id=None)
-
-        slack_hook_mock.call.assert_called_once_with(self.expected_method, self.test_api_params)
-
-    @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
-    def test_execute_with_slack_conn_id_only(self, slack_hook_class_mock):
-        slack_hook_mock = mock.Mock()
-        slack_hook_class_mock.return_value = slack_hook_mock
-
-        test_slack_conn_id = 'test_slack_conn_id'
-        slack_api_post_operator = self.__construct_operator(None, test_slack_conn_id)
-
-        slack_api_post_operator.execute()
-
-        slack_hook_class_mock.assert_called_once_with(token=None, slack_conn_id=test_slack_conn_id)
-
-        slack_hook_mock.call.assert_called_once_with(self.expected_method, self.expected_api_params)
-
-    def test_init_with_invalid_params(self):
-        test_token = 'test_token'
-        test_slack_conn_id = 'test_slack_conn_id'
-        self.assertRaises(AirflowException, self.__construct_operator, test_token, test_slack_conn_id)
-
-        self.assertRaises(AirflowException, self.__construct_operator, None, None)
 
     def test_init_with_valid_params(self):
         test_token = 'test_token'
@@ -186,15 +125,84 @@ class TestSlackAPIPostOperator(unittest.TestCase):
             'channel': "#general",
             'username': self.test_username,
             'text': 'No message has been set.\n'
-                    'Here is a cat video instead\n'
-                    'https://www.youtube.com/watch?v=J---aiyznGQ',
+            'Here is a cat video instead\n'
+            'https://www.youtube.com/watch?v=J---aiyznGQ',
             'icon_url': "https://raw.githubusercontent.com/apache/"
-                        "airflow/master/airflow/www/static/pin_100.png",
+            "airflow/master/airflow/www/static/pin_100.png",
             'attachments': '[]',
             'blocks': '[]',
         }
         self.assertEqual(expected_api_params, slack_api_post_operator.api_params)
 
 
-if __name__ == "__main__":
-    unittest.main()
+class TestSlackAPIFileOperator(unittest.TestCase):
+    def setUp(self):
+        self.test_username = 'test_username'
+        self.test_channel = '#test_slack_channel'
+        self.test_initial_comment = 'test text file test_filename.txt'
+        self.test_filename = 'test_filename.txt'
+        self.test_filetype = 'text'
+        self.test_content = 'This is a test text file!'
+
+        self.test_api_params = {'key': 'value'}
+
+        self.expected_method = 'files.upload'
+        self.expected_api_params = {
+            'channel': self.test_channel,
+            'initial_comment': self.test_initial_comment,
+            'filename': self.test_filename,
+            'filetype': self.test_filetype,
+            'content': self.test_content,
+        }
+
+    def __construct_operator(self, test_token, test_slack_conn_id, test_api_params=None):
+        return SlackAPIFileOperator(
+            task_id='slack',
+            token=test_token,
+            slack_conn_id=test_slack_conn_id,
+            channel=self.test_channel,
+            initial_comment=self.test_initial_comment,
+            filename=self.test_filename,
+            filetype=self.test_filetype,
+            content=self.test_content,
+            api_params=test_api_params,
+        )
+
+    def test_init_with_valid_params(self):
+        test_token = 'test_token'
+        test_slack_conn_id = 'test_slack_conn_id'
+
+        slack_api_post_operator = self.__construct_operator(test_token, None, self.test_api_params)
+        self.assertEqual(slack_api_post_operator.token, test_token)
+        self.assertEqual(slack_api_post_operator.slack_conn_id, None)
+        self.assertEqual(slack_api_post_operator.method, self.expected_method)
+        self.assertEqual(slack_api_post_operator.initial_comment, self.test_initial_comment)
+        self.assertEqual(slack_api_post_operator.channel, self.test_channel)
+        self.assertEqual(slack_api_post_operator.api_params, self.test_api_params)
+        self.assertEqual(slack_api_post_operator.filename, self.test_filename)
+        self.assertEqual(slack_api_post_operator.filetype, self.test_filetype)
+        self.assertEqual(slack_api_post_operator.content, self.test_content)
+
+        slack_api_post_operator = self.__construct_operator(None, test_slack_conn_id)
+        self.assertEqual(slack_api_post_operator.token, None)
+        self.assertEqual(slack_api_post_operator.slack_conn_id, test_slack_conn_id)
+
+    @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
+    def test_api_call_params_with_default_args(self, mock_hook):
+        test_slack_conn_id = 'test_slack_conn_id'
+
+        slack_api_post_operator = SlackAPIFileOperator(
+            task_id='slack',
+            slack_conn_id=test_slack_conn_id,
+        )
+
+        slack_api_post_operator.execute()
+
+        expected_api_params = {
+            'channels': '#general',
+            'initial_comment': 'No message has been set!',
+            'filename': 'default_name.csv',
+            'filetype': 'csv',
+            'content': 'default,content,csv,file',
+        }
+        self.assertEqual(expected_api_params, slack_api_post_operator.api_params)

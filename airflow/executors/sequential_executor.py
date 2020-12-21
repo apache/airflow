@@ -15,12 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sequential executor."""
+"""
+SequentialExecutor
+
+.. seealso::
+    For more information on how the SequentialExecutor works, take a look at the guide:
+    :ref:`executor:SequentialExecutor`
+"""
 import subprocess
 from typing import Any, Optional
 
 from airflow.executors.base_executor import BaseExecutor, CommandType
-from airflow.models.taskinstance import TaskInstanceKeyType
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.state import State
 
 
@@ -38,11 +44,14 @@ class SequentialExecutor(BaseExecutor):
         super().__init__()
         self.commands_to_run = []
 
-    def execute_async(self,
-                      key: TaskInstanceKeyType,
-                      command: CommandType,
-                      queue: Optional[str] = None,
-                      executor_config: Optional[Any] = None) -> None:
+    def execute_async(
+        self,
+        key: TaskInstanceKey,
+        command: CommandType,
+        queue: Optional[str] = None,
+        executor_config: Optional[Any] = None,
+    ) -> None:
+        self.validate_command(command)
         self.commands_to_run.append((key, command))
 
     def sync(self) -> None:

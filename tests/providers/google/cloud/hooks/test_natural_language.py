@@ -18,8 +18,8 @@
 #
 import unittest
 from typing import Any, Dict
+from unittest import mock
 
-import mock
 from google.cloud.language_v1.proto.language_service_pb2 import Document
 
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
@@ -35,23 +35,23 @@ ENCODING_TYPE = "UTF32"
 class TestCloudNaturalLanguageHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.contrib.hooks." "gcp_api_base_hook.CloudBaseHook.__init__",
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudNaturalLanguageHook(gcp_conn_id="test")
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.client_info",
-        new_callable=mock.PropertyMock
+        new_callable=mock.PropertyMock,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook."
-                "_get_credentials")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook." "_get_credentials"
+    )
     @mock.patch("airflow.providers.google.cloud.hooks.natural_language.LanguageServiceClient")
     def test_language_service_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         result = self.hook.get_conn()
         mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value,
-            client_info=mock_client_info.return_value
+            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
         )
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.hook._conn, result)

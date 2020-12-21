@@ -20,9 +20,28 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.google.cloud.operators.translate_speech import GcpTranslateSpeechOperator  # noqa
+from airflow.providers.google.cloud.operators.translate_speech import CloudTranslateSpeechOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.translate_speech`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class GcpTranslateSpeechOperator(CloudTranslateSpeechOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.translate_speech.CloudTranslateSpeechOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.google.cloud.operators.translate_speech.CloudTranslateSpeechOperator`.
+            """,
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(*args, **kwargs)

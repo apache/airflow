@@ -23,16 +23,18 @@ from unittest.mock import Mock, patch
 import pendulum
 
 from airflow import settings
-from airflow.models import DAG, SkipMixin, TaskInstance as TI
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.models.dag import DAG
+from airflow.models.skipmixin import SkipMixin
+from airflow.models.taskinstance import TaskInstance as TI
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
 class TestSkipMixin(unittest.TestCase):
-
     @patch('airflow.utils.timezone.utcnow')
     def test_skip(self, mock_now):
         session = settings.Session()
@@ -45,14 +47,11 @@ class TestSkipMixin(unittest.TestCase):
         with dag:
             tasks = [DummyOperator(task_id='task')]
         dag_run = dag.create_dagrun(
-            run_id='manual__' + now.isoformat(),
+            run_type=DagRunType.MANUAL,
+            execution_date=now,
             state=State.FAILED,
         )
-        SkipMixin().skip(
-            dag_run=dag_run,
-            execution_date=now,
-            tasks=tasks,
-            session=session)
+        SkipMixin().skip(dag_run=dag_run, execution_date=now, tasks=tasks, session=session)
 
         session.query(TI).filter(
             TI.dag_id == 'dag',
@@ -73,11 +72,7 @@ class TestSkipMixin(unittest.TestCase):
         )
         with dag:
             tasks = [DummyOperator(task_id='task')]
-        SkipMixin().skip(
-            dag_run=None,
-            execution_date=now,
-            tasks=tasks,
-            session=session)
+        SkipMixin().skip(dag_run=None, execution_date=now, tasks=tasks, session=session)
 
         session.query(TI).filter(
             TI.dag_id == 'dag',
@@ -92,3 +87,28 @@ class TestSkipMixin(unittest.TestCase):
         SkipMixin().skip(dag_run=None, execution_date=None, tasks=[], session=session)
         self.assertFalse(session.query.called)
         self.assertFalse(session.commit.called)
+
+    def test_skip_all_except(self):
+        dag = DAG(
+            'dag_test_skip_all_except',
+            start_date=DEFAULT_DATE,
+        )
+        with dag:
+            task1 = DummyOperator(task_id='task1')
+            task2 = DummyOperator(task_id='task2')
+            task3 = DummyOperator(task_id='task3')
+
+            task1 >> [task2, task3]
+
+        ti1 = TI(task1, execution_date=DEFAULT_DATE)
+        ti2 = TI(task2, execution_date=DEFAULT_DATE)
+        ti3 = TI(task3, execution_date=DEFAULT_DATE)
+
+        SkipMixin().skip_all_except(ti=ti1, branch_task_ids=['task2'])
+
+        def get_state(ti):
+            ti.refresh_from_db()
+            return ti.state
+
+        assert get_state(ti2) == State.NONE
+        assert get_state(ti3) == State.SKIPPED

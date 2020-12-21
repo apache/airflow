@@ -15,66 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.operators.trigger_dagrun`."""
 
-import datetime
-from typing import Dict, Optional, Union
+import warnings
 
-from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import BaseOperator
-from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
+# pylint: disable=unused-import
+from airflow.operators.trigger_dagrun import TriggerDagRunLink, TriggerDagRunOperator  # noqa
 
-
-class TriggerDagRunOperator(BaseOperator):
-    """
-    Triggers a DAG run for a specified ``dag_id``
-
-    :param trigger_dag_id: the dag_id to trigger (templated)
-    :type trigger_dag_id: str
-    :param conf: Configuration for the DAG run
-    :type conf: dict
-    :param execution_date: Execution date for the dag (templated)
-    :type execution_date: str or datetime.datetime
-    """
-
-    template_fields = ("trigger_dag_id", "execution_date", "conf")
-    ui_color = "#ffefeb"
-
-    @apply_defaults
-    def __init__(
-        self,
-        trigger_dag_id: str,
-        conf: Optional[Dict] = None,
-        execution_date: Optional[Union[str, datetime.datetime]] = None,
-        *args,
-        **kwargs
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.trigger_dag_id = trigger_dag_id
-        self.conf = conf
-
-        if not isinstance(execution_date, (str, datetime.datetime, type(None))):
-            raise TypeError(
-                "Expected str or datetime.datetime type for execution_date."
-                "Got {}".format(type(execution_date))
-            )
-
-        self.execution_date: Optional[datetime.datetime] = execution_date  # type: ignore
-
-    def execute(self, context: Dict):
-        if isinstance(self.execution_date, datetime.datetime):
-            run_id = "trig__{}".format(self.execution_date.isoformat())
-        elif isinstance(self.execution_date, str):
-            run_id = "trig__{}".format(self.execution_date)
-            self.execution_date = timezone.parse(self.execution_date)  # trigger_dag() expects datetime
-        else:
-            run_id = "trig__{}".format(timezone.utcnow().isoformat())
-
-        # Ignore MyPy type for self.execution_date because it doesn't pick up the timezone.parse() for strings
-        trigger_dag(
-            dag_id=self.trigger_dag_id,
-            run_id=run_id,
-            conf=self.conf,
-            execution_date=self.execution_date,
-            replace_microseconds=False,
-        )
+warnings.warn(
+    "This module is deprecated. Please use `airflow.operators.trigger_dagrun`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

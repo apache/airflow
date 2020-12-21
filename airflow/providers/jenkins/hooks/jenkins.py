@@ -21,28 +21,33 @@ from distutils.util import strtobool
 
 import jenkins
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class JenkinsHook(BaseHook):
-    """
-    Hook to manage connection to jenkins server
-    """
+    """Hook to manage connection to jenkins server"""
 
-    def __init__(self, conn_id='jenkins_default'):
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'jenkins_default'
+    conn_type = 'jenkins'
+    hook_name = 'Jenkins'
+
+    def __init__(self, conn_id: str = default_conn_name) -> None:
+        super().__init__()
         connection = self.get_connection(conn_id)
         self.connection = connection
-        connectionPrefix = 'http'
+        connection_prefix = 'http'
         # connection.extra contains info about using https (true) or http (false)
         if connection.extra is None or connection.extra == '':
             connection.extra = 'false'
             # set a default value to connection.extra
             # to avoid rising ValueError in strtobool
         if strtobool(connection.extra):
-            connectionPrefix = 'https'
-        url = '%s://%s:%d' % (connectionPrefix, connection.host, connection.port)
+            connection_prefix = 'https'
+        url = f'{connection_prefix}://{connection.host}:{connection.port}'
         self.log.info('Trying to connect to %s', url)
         self.jenkins_server = jenkins.Jenkins(url, connection.login, connection.password)
 
-    def get_jenkins_server(self):
+    def get_jenkins_server(self) -> jenkins.Jenkins:
+        """Get jenkins server"""
         return self.jenkins_server

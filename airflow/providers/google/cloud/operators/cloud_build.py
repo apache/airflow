@@ -15,11 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Operators that integrat with Google Cloud Build service."""
+"""Operators that integrate with Google Cloud Build service."""
+import json
 import re
 from copy import deepcopy
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Optional, Sequence, Union
 from urllib.parse import unquote, urlparse
+
+import yaml
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -39,13 +42,14 @@ class BuildProcessor:
     * It is possible to provide the source as the URL address instead dict.
 
     :param body: The request body.
-        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
+        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/v1/projects.builds
     :type body: dict
     """
-    def __init__(self, body: Dict) -> None:
+
+    def __init__(self, body: dict) -> None:
         self.body = deepcopy(body)
 
-    def _verify_source(self):
+    def _verify_source(self) -> None:
         is_storage = "storageSource" in self.body["source"]
         is_repo = "repoSource" in self.body["source"]
 
@@ -57,11 +61,11 @@ class BuildProcessor:
                 "storageSource and repoSource."
             )
 
-    def _reformat_source(self):
+    def _reformat_source(self) -> None:
         self._reformat_repo_source()
         self._reformat_storage_source()
 
-    def _reformat_repo_source(self):
+    def _reformat_repo_source(self) -> None:
         if "repoSource" not in self.body["source"]:
             return
 
@@ -72,7 +76,7 @@ class BuildProcessor:
 
         self.body["source"]["repoSource"] = self._convert_repo_url_to_dict(source)
 
-    def _reformat_storage_source(self):
+    def _reformat_storage_source(self) -> None:
         if "storageSource" not in self.body["source"]:
             return
 
@@ -83,15 +87,16 @@ class BuildProcessor:
 
         self.body["source"]["storageSource"] = self._convert_storage_url_to_dict(source)
 
-    def process_body(self):
+    def process_body(self) -> dict:
         """
         Processes the body passed in the constructor
 
         :return: the body.
         :type: dict
         """
-        self._verify_source()
-        self._reformat_source()
+        if 'source' in self.body:
+            self._verify_source()
+            self._reformat_source()
         return self.body
 
     @staticmethod
@@ -154,47 +159,84 @@ class BuildProcessor:
         return source_dict
 
 
-class CloudBuildCreateOperator(BaseOperator):
+class CloudBuildCreateBuildOperator(BaseOperator):
     """
     Starts a build with the specified configuration.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudBuildCreateOperator`
+        :ref:`howto/operator:CloudBuildCreateBuildOperator`
 
-    :param body: The request body.
-        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
-    :type body: dict
+    :param body: The build config with instructions to perform with CloudBuild.
+        Can be a dictionary or path to a file type like YAML or JSON.
+        See: https://cloud.google.com/cloud-build/docs/api/reference/rest/v1/projects.builds
+    :type body: dict or string
     :param project_id: ID of the Google Cloud project if None then
         default project_id is used.
     :type project_id: str
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (for example v1 or v1beta1).
     :type api_version: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("body", "gcp_conn_id", "api_version")  # type: Iterable[str]
+    template_fields = (
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
+    )
+    template_ext = ['.yml', '.yaml', '.json']
 
     @apply_defaults
-    def __init__(self,
-                 body: dict,
-                 project_id: Optional[str] = None,
-                 gcp_conn_id: str = "google_cloud_default",
-                 api_version: str = "v1",
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        body: Union[dict, str],
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.body = body
+        # Not template fields to keep original value
+        self.body_raw = body
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
+        self.impersonation_chain = impersonation_chain
 
-    def _validate_inputs(self):
+    def prepare_template(self) -> None:
+        # if no file is specified, skip
+        if not isinstance(self.body_raw, str):
+            return
+        with open(self.body_raw) as file:
+            if any(self.body_raw.endswith(ext) for ext in ['.yaml', '.yml']):
+                self.body = yaml.load(file.read(), Loader=yaml.FullLoader)
+            if self.body_raw.endswith('.json'):
+                self.body = json.loads(file.read())
+
+    def _validate_inputs(self) -> None:
         if not self.body:
             raise AirflowException("The required parameter 'body' is missing")
 
     def execute(self, context):
-        hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
         body = BuildProcessor(body=self.body).process_body()
         return hook.create_build(body=body, project_id=self.project_id)

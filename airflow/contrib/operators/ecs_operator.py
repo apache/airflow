@@ -25,15 +25,14 @@ from airflow.typing_compat import Protocol, runtime_checkable
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
 @runtime_checkable
 class ECSProtocol(NewECSProtocol, Protocol):
-    """
-    This class is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs.ECSProtocol`.
-    """
+    """This class is deprecated. Please use `airflow.providers.amazon.aws.operators.ecs.ECSProtocol`."""
 
     # A Protocol cannot be instantiated
 

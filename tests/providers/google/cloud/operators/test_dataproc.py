@@ -21,15 +21,25 @@ from datetime import datetime
 from typing import Any
 from unittest import mock
 
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 
+from airflow import AirflowException
 from airflow.providers.google.cloud.operators.dataproc import (
-    ClusterGenerator, DataprocCreateClusterOperator, DataprocDeleteClusterOperator,
-    DataprocInstantiateInlineWorkflowTemplateOperator, DataprocInstantiateWorkflowTemplateOperator,
-    DataprocScaleClusterOperator, DataprocSubmitHadoopJobOperator, DataprocSubmitHiveJobOperator,
-    DataprocSubmitJobOperator, DataprocSubmitPigJobOperator, DataprocSubmitPySparkJobOperator,
-    DataprocSubmitSparkJobOperator, DataprocSubmitSparkSqlJobOperator, DataprocUpdateClusterOperator,
+    ClusterGenerator,
+    DataprocCreateClusterOperator,
+    DataprocDeleteClusterOperator,
+    DataprocInstantiateInlineWorkflowTemplateOperator,
+    DataprocInstantiateWorkflowTemplateOperator,
+    DataprocScaleClusterOperator,
+    DataprocSubmitHadoopJobOperator,
+    DataprocSubmitHiveJobOperator,
+    DataprocSubmitJobOperator,
+    DataprocSubmitPigJobOperator,
+    DataprocSubmitPySparkJobOperator,
+    DataprocSubmitSparkJobOperator,
+    DataprocSubmitSparkSqlJobOperator,
+    DataprocUpdateClusterOperator,
 )
 from airflow.version import version as airflow_version
 
@@ -43,78 +53,61 @@ TASK_ID = "task-id"
 GCP_PROJECT = "test-project"
 GCP_LOCATION = "test-location"
 GCP_CONN_ID = "test-conn"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 CLUSTER_NAME = "cluster_name"
-CLUSTER = {
-    "project_id": "project_id",
-    "cluster_name": CLUSTER_NAME,
-    "config": {
-        "gce_cluster_config": {
-            "zone_uri": "https://www.googleapis.com/compute/v1/projects/"
-                        "project_id/zones/zone",
-            "metadata": {"metadata": "data"},
-            "network_uri": "network_uri",
-            "subnetwork_uri": "subnetwork_uri",
-            "internal_ip_only": True,
-            "tags": ["tags"],
-            "service_account": "service_account",
-            "service_account_scopes": ["service_account_scopes"],
-        },
-        "master_config": {
-            "num_instances": 2,
-            "machine_type_uri": "https://www.googleapis.com/compute/v1/projects/"
-                                "project_id/zones/zone/machineTypes/master_machine_type",
-            "disk_config": {
-                "boot_disk_type": "master_disk_type",
-                "boot_disk_size_gb": 128,
-            },
-            "image_uri": "https://www.googleapis.com/compute/beta/projects/"
-                         "custom_image_project_id/global/images/custom_image",
-        },
-        "worker_config": {
-            "num_instances": 2,
-            "machine_type_uri": "https://www.googleapis.com/compute/v1/projects/"
-                                "project_id/zones/zone/machineTypes/worker_machine_type",
-            "disk_config": {
-                "boot_disk_type": "worker_disk_type",
-                "boot_disk_size_gb": 256,
-            },
-            "image_uri": "https://www.googleapis.com/compute/beta/projects/"
-                         "custom_image_project_id/global/images/custom_image",
-        },
-        "secondary_worker_config": {
-            "num_instances": 4,
-            "machine_type_uri": "https://www.googleapis.com/compute/v1/projects/"
-                                "project_id/zones/zone/machineTypes/worker_machine_type",
-            "disk_config": {
-                "boot_disk_type": "worker_disk_type",
-                "boot_disk_size_gb": 256,
-            },
-            "is_preemptible": True,
-        },
-        "software_config": {
-            "properties": {"properties": "data"},
-            "optional_components": ["optional_components"],
-        },
-        "lifecycle_config": {
-            "idle_delete_ttl": "60s",
-            "auto_delete_time": "2019-09-12T00:00:00.000000Z",
-        },
-        "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
-        "autoscaling_config": {"policy_uri": "autoscaling_policy"},
-        "config_bucket": "storage_bucket",
-        "initialization_actions": [
-            {"executable_file": "init_actions_uris", "execution_timeout": "600s"}
-        ],
+CONFIG = {
+    "gce_cluster_config": {
+        "zone_uri": "https://www.googleapis.com/compute/v1/projects/project_id/zones/zone",
+        "metadata": {"metadata": "data"},
+        "network_uri": "network_uri",
+        "subnetwork_uri": "subnetwork_uri",
+        "internal_ip_only": True,
+        "tags": ["tags"],
+        "service_account": "service_account",
+        "service_account_scopes": ["service_account_scopes"],
     },
-    "labels": {"labels": "data", "airflow-version": AIRFLOW_VERSION},
+    "master_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/master_machine_type",
+        "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+    },
+    "worker_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+    },
+    "secondary_worker_config": {
+        "num_instances": 4,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "is_preemptible": True,
+    },
+    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "lifecycle_config": {
+        "idle_delete_ttl": {'seconds': 60},
+        "auto_delete_time": "2019-09-12T00:00:00.000000Z",
+    },
+    "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
+    "autoscaling_config": {"policy_uri": "autoscaling_policy"},
+    "config_bucket": "storage_bucket",
+    "initialization_actions": [
+        {"executable_file": "init_actions_uris", "execution_timeout": {'seconds': 600}}
+    ],
 }
 
+LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION}
+
+LABELS.update({'airflow-version': 'v' + airflow_version.replace('.', '-').replace('+', '-')})
+
+CLUSTER = {"project_id": "project_id", "cluster_name": CLUSTER_NAME, "config": CONFIG, "labels": LABELS}
+
 UPDATE_MASK = {
-    "paths": [
-        "config.worker_config.num_instances",
-        "config.secondary_worker_config.num_instances",
-    ]
+    "paths": ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
 }
 
 TIMEOUT = 120
@@ -130,18 +123,24 @@ def assert_warning(msg: str, warning: Any):
 class TestsClusterGenerator(unittest.TestCase):
     def test_image_version(self):
         with self.assertRaises(ValueError) as err:
-            ClusterGenerator(custom_image="custom_image", image_version="image_version")
+            ClusterGenerator(
+                custom_image="custom_image",
+                image_version="image_version",
+                project_id=GCP_PROJECT,
+                cluster_name=CLUSTER_NAME,
+            )
             self.assertIn("custom_image and image_version", str(err))
 
     def test_nodes_number(self):
         with self.assertRaises(AssertionError) as err:
-            ClusterGenerator(num_workers=0, num_preemptible_workers=0)
+            ClusterGenerator(
+                num_workers=0, num_preemptible_workers=0, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
+            )
             self.assertIn("num_workers == 0 means single", str(err))
 
     def test_build(self):
         generator = ClusterGenerator(
             project_id="project_id",
-            cluster_name="cluster_name",
             num_workers=2,
             zone="zone",
             network_uri="network_uri",
@@ -165,7 +164,6 @@ class TestsClusterGenerator(unittest.TestCase):
             worker_disk_type="worker_disk_type",
             worker_disk_size=256,
             num_preemptible_workers=4,
-            labels={"labels": "data"},
             region="region",
             service_account="service_account",
             service_account_scopes=["service_account_scopes"],
@@ -175,16 +173,13 @@ class TestsClusterGenerator(unittest.TestCase):
             customer_managed_key="customer_managed_key",
         )
         cluster = generator.make()
-        self.assertDictEqual(CLUSTER, cluster)
+        self.assertDictEqual(CONFIG, cluster)
 
 
 class TestDataprocClusterCreateOperator(unittest.TestCase):
-    @mock.patch(DATAPROC_PATH.format("inspect.signature"))
-    @mock.patch(DATAPROC_PATH.format("ClusterGenerator"))
-    def test_depreciation_warning(self, mock_generator, mock_signature):
-        mock_signature.return_value.parameters = cluster_params
+    def test_deprecation_warning(self):
         with self.assertWarns(DeprecationWarning) as warning:
-            DataprocCreateClusterOperator(
+            op = DataprocCreateClusterOperator(
                 task_id=TASK_ID,
                 region=GCP_LOCATION,
                 project_id=GCP_PROJECT,
@@ -193,34 +188,46 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
                 zone="zone",
             )
         assert_warning("Passing cluster parameters by keywords", warning)
-        mock_generator.assert_called_once_with(
-            task_id=TASK_ID,
-            region=GCP_LOCATION,
-            project_id=GCP_PROJECT,
-            cluster_name="cluster_name",
-            num_workers=2,
-            zone="zone",
-        )
+
+        self.assertEqual(op.project_id, GCP_PROJECT)
+        self.assertEqual(op.cluster_name, "cluster_name")
+        self.assertEqual(op.cluster_config['worker_config']['num_instances'], 2)
+        self.assertIn("zones/zone", op.cluster_config['master_config']["machine_type_uri"])
+
+        with self.assertWarns(DeprecationWarning) as warning:
+            op_default_region = DataprocCreateClusterOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                cluster_name="cluster_name",
+                cluster_config=op.cluster_config,
+            )
+        assert_warning("Default region value", warning)
+        self.assertEqual(op_default_region.region, 'global')
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         op = DataprocCreateClusterOperator(
             task_id=TASK_ID,
             region=GCP_LOCATION,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
             project_id=GCP_PROJECT,
-            cluster=CLUSTER,
+            cluster_config=CONFIG,
             request_id=REQUEST_ID,
             gcp_conn_id=GCP_CONN_ID,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_cluster.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            cluster=CLUSTER,
+            cluster_config=CONFIG,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
             request_id=REQUEST_ID,
             retry=RETRY,
             timeout=TIMEOUT,
@@ -230,23 +237,29 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_if_cluster_exists(self, mock_hook):
         mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
+        mock_hook.return_value.get_cluster.return_value.status.state = 0
         op = DataprocCreateClusterOperator(
             task_id=TASK_ID,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            cluster=CLUSTER,
+            cluster_config=CONFIG,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
             gcp_conn_id=GCP_CONN_ID,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
             request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_cluster.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            cluster=CLUSTER,
+            cluster_config=CONFIG,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
             request_id=REQUEST_ID,
             retry=RETRY,
             timeout=TIMEOUT,
@@ -261,22 +274,108 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             metadata=METADATA,
         )
 
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_if_cluster_exists_do_not_use(self, mock_hook):
+        mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
+        mock_hook.return_value.get_cluster.return_value.status.state = 0
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_config=CONFIG,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+            use_if_exists=False,
+        )
+        with self.assertRaises(AlreadyExists):
+            op.execute(context={})
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_if_cluster_exists_in_error_state(self, mock_hook):
+        mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
+        cluster_status = mock_hook.return_value.get_cluster.return_value.status
+        cluster_status.state = 0
+        cluster_status.ERROR = 0
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_config=CONFIG,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
+            delete_on_error=True,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+        )
+        with self.assertRaises(AirflowException):
+            op.execute(context={})
+
+        mock_hook.return_value.diagnose_cluster.assert_called_once_with(
+            region=GCP_LOCATION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
+        )
+        mock_hook.return_value.delete_cluster.assert_called_once_with(
+            region=GCP_LOCATION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
+        )
+
+    @mock.patch(DATAPROC_PATH.format("exponential_sleep_generator"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._create_cluster"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_if_cluster_exists_in_deleting_state(
+        self, mock_hook, mock_get_cluster, mock_create_cluster, mock_generator
+    ):
+        cluster = mock.MagicMock()
+        cluster.status.state = 0
+        cluster.status.DELETING = 0
+
+        cluster2 = mock.MagicMock()
+        cluster2.status.state = 0
+        cluster2.status.ERROR = 0
+
+        mock_create_cluster.side_effect = [AlreadyExists("test"), cluster2]
+        mock_generator.return_value = [0]
+        mock_get_cluster.side_effect = [cluster, NotFound("test")]
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_config=CONFIG,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
+            delete_on_error=True,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+        with self.assertRaises(AirflowException):
+            op.execute(context={})
+
+        calls = [mock.call(mock_hook.return_value), mock.call(mock_hook.return_value)]
+        mock_get_cluster.assert_has_calls(calls)
+        mock_create_cluster.assert_has_calls(calls)
+        mock_hook.return_value.diagnose_cluster.assert_called_once_with(
+            region=GCP_LOCATION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
+        )
+
 
 class TestDataprocClusterScaleOperator(unittest.TestCase):
-    def test_depreciation_warning(self):
+    def test_deprecation_warning(self):
         with self.assertWarns(DeprecationWarning) as warning:
-            DataprocScaleClusterOperator(
-                task_id=TASK_ID, cluster_name=CLUSTER_NAME, project_id=GCP_PROJECT
-            )
+            DataprocScaleClusterOperator(task_id=TASK_ID, cluster_name=CLUSTER_NAME, project_id=GCP_PROJECT)
         assert_warning("DataprocUpdateClusterOperator", warning)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         cluster_update = {
-            "config": {
-                "worker_config": {"num_instances": 3},
-                "secondary_worker_config": {"num_instances": 4},
-            }
+            "config": {"worker_config": {"num_instances": 3}, "secondary_worker_config": {"num_instances": 4}}
         }
 
         op = DataprocScaleClusterOperator(
@@ -288,10 +387,11 @@ class TestDataprocClusterScaleOperator(unittest.TestCase):
             num_preemptible_workers=4,
             graceful_decommission_timeout="10m",
             gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.update_cluster.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -315,9 +415,10 @@ class TestDataprocClusterDeleteOperator(unittest.TestCase):
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.delete_cluster.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
@@ -348,10 +449,11 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
             request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -362,7 +464,75 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             metadata=METADATA,
         )
         mock_hook.return_value.wait_for_job.assert_called_once_with(
-            job_id=job_id, project_id=GCP_PROJECT, location=GCP_LOCATION
+            job_id=job_id, project_id=GCP_PROJECT, location=GCP_LOCATION, timeout=None
+        )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_async(self, mock_hook):
+        job = {}
+        job_id = "job_id"
+        mock_hook.return_value.wait_for_job.return_value = None
+        mock_hook.return_value.submit_job.return_value.reference.job_id = job_id
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job=job,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            asynchronous=True,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            job=job,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        mock_hook.return_value.wait_for_job.assert_not_called()
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_on_kill(self, mock_hook):
+        job = {}
+        job_id = "job_id"
+        mock_hook.return_value.wait_for_job.return_value = None
+        mock_hook.return_value.submit_job.return_value.reference.job_id = job_id
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job=job,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            cancel_on_kill=False,
+        )
+        op.execute(context={})
+
+        op.on_kill()
+        mock_hook.return_value.cancel_job.assert_not_called()
+
+        op.cancel_on_kill = True
+        op.on_kill()
+        mock_hook.return_value.cancel_job.assert_called_once_with(
+            project_id=GCP_PROJECT, location=GCP_LOCATION, job_id=job_id
         )
 
 
@@ -382,9 +552,10 @@ class TestDataprocUpdateClusterOperator(unittest.TestCase):
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.update_cluster.assert_called_once_with(
             location=GCP_LOCATION,
             project_id=GCP_PROJECT,
@@ -418,9 +589,10 @@ class TestDataprocWorkflowTemplateInstantiateOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
             gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.instantiate_workflow_template.assert_called_once_with(
             template_name=template_id,
             location=GCP_LOCATION,
@@ -449,9 +621,10 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
             gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.instantiate_inline_workflow_template.assert_called_once_with(
             template=template,
             location=GCP_LOCATION,
@@ -468,23 +641,16 @@ class TestDataProcHiveOperator(unittest.TestCase):
     variables = {"key": "value"}
     job_id = "uuid_id"
     job = {
-        "reference": {
-            "project_id": GCP_PROJECT,
-            "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,
-        },
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "hive_job": {"query_list": {"queries": [query]}, "script_variables": variables},
     }
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_depreciation_warning(self, mock_hook):
+    def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
-            DataprocSubmitHiveJobOperator(
-                task_id=TASK_ID,
-                region=GCP_LOCATION,
-                query="query",
-            )
+            DataprocSubmitHiveJobOperator(task_id=TASK_ID, region=GCP_LOCATION, query="query")
         assert_warning("DataprocSubmitJobOperator", warning)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
@@ -501,9 +667,10 @@ class TestDataProcHiveOperator(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             query=self.query,
             variables=self.variables,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -533,23 +700,16 @@ class TestDataProcPigOperator(unittest.TestCase):
     variables = {"key": "value"}
     job_id = "uuid_id"
     job = {
-        "reference": {
-            "project_id": GCP_PROJECT,
-            "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,
-        },
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "pig_job": {"query_list": {"queries": [query]}, "script_variables": variables},
     }
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_depreciation_warning(self, mock_hook):
+    def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
-            DataprocSubmitPigJobOperator(
-                task_id=TASK_ID,
-                region=GCP_LOCATION,
-                query="query",
-            )
+            DataprocSubmitPigJobOperator(task_id=TASK_ID, region=GCP_LOCATION, query="query")
         assert_warning("DataprocSubmitJobOperator", warning)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
@@ -566,9 +726,10 @@ class TestDataProcPigOperator(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             query=self.query,
             variables=self.variables,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -598,26 +759,16 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
     variables = {"key": "value"}
     job_id = "uuid_id"
     job = {
-        "reference": {
-            "project_id": GCP_PROJECT,
-            "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,
-        },
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
-        "spark_sql_job": {
-            "query_list": {"queries": [query]},
-            "script_variables": variables,
-        },
+        "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
     }
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_depreciation_warning(self, mock_hook):
+    def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
-            DataprocSubmitSparkSqlJobOperator(
-                task_id=TASK_ID,
-                region=GCP_LOCATION,
-                query="query",
-            )
+            DataprocSubmitSparkSqlJobOperator(task_id=TASK_ID, region=GCP_LOCATION, query="query")
         assert_warning("DataprocSubmitJobOperator", warning)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
@@ -634,9 +785,10 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             query=self.query,
             variables=self.variables,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -666,23 +818,17 @@ class TestDataProcSparkOperator(unittest.TestCase):
     jars = ["file:///usr/lib/spark/examples/jars/spark-examples.jar"]
     job_id = "uuid_id"
     job = {
-        "reference": {
-            "project_id": GCP_PROJECT,
-            "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,
-        },
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "spark_job": {"jar_file_uris": jars, "main_class": main_class},
     }
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_depreciation_warning(self, mock_hook):
+    def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
             DataprocSubmitSparkJobOperator(
-                task_id=TASK_ID,
-                region=GCP_LOCATION,
-                main_class=self.main_class,
-                dataproc_jars=self.jars,
+                task_id=TASK_ID, region=GCP_LOCATION, main_class=self.main_class, dataproc_jars=self.jars
             )
         assert_warning("DataprocSubmitJobOperator", warning)
 
@@ -709,23 +855,17 @@ class TestDataProcHadoopOperator(unittest.TestCase):
     jar = "file:///usr/lib/spark/examples/jars/spark-examples.jar"
     job_id = "uuid_id"
     job = {
-        "reference": {
-            "project_id": GCP_PROJECT,
-            "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,
-        },
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "hadoop_job": {"main_jar_file_uri": jar, "args": args},
     }
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_depreciation_warning(self, mock_hook):
+    def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
             DataprocSubmitHadoopJobOperator(
-                task_id=TASK_ID,
-                region=GCP_LOCATION,
-                main_jar=self.jar,
-                arguments=self.args,
+                task_id=TASK_ID, region=GCP_LOCATION, main_jar=self.jar, arguments=self.args
             )
         assert_warning("DataprocSubmitJobOperator", warning)
 
@@ -751,23 +891,16 @@ class TestDataProcPySparkOperator(unittest.TestCase):
     uri = "gs://{}/{}"
     job_id = "uuid_id"
     job = {
-        "reference": {
-            "project_id": GCP_PROJECT,
-            "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,
-        },
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "pyspark_job": {"main_python_file_uri": uri},
     }
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_depreciation_warning(self, mock_hook):
+    def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
-            DataprocSubmitPySparkJobOperator(
-                task_id=TASK_ID,
-                region=GCP_LOCATION,
-                main=self.uri,
-            )
+            DataprocSubmitPySparkJobOperator(task_id=TASK_ID, region=GCP_LOCATION, main=self.uri)
         assert_warning("DataprocSubmitJobOperator", warning)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))

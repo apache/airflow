@@ -16,45 +16,49 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains a BigQuery Hook.
-"""
+"""This module contains a BigQuery Hook."""
 from copy import copy
 from typing import Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import (
-    StartManualTransferRunsResponse, TransferConfig, TransferRun,
+    StartManualTransferRunsResponse,
+    TransferConfig,
+    TransferRun,
 )
 from google.protobuf.json_format import MessageToDict, ParseDict
 from googleapiclient.discovery import Resource
 
-from airflow.providers.google.cloud.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 def get_object_id(obj: dict) -> str:
-    """
-    Returns unique id of the object.
-    """
+    """Returns unique id of the object."""
     return obj["name"].rpartition("/")[-1]
 
 
-class BiqQueryDataTransferServiceHook(CloudBaseHook):
+class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     """
-     Hook for Google Bigquery Transfer API.
+    Hook for Google Bigquery Transfer API.
 
-     All the methods in the hook where ``project_id`` is used must be called with
-     keyword arguments rather than positional.
-
-     """
+    All the methods in the hook where ``project_id`` is used must be called with
+    keyword arguments rather than positional.
+    """
 
     _conn = None  # type: Optional[Resource]
 
     def __init__(
-        self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
 
     @staticmethod
     def _disable_auto_scheduling(config: Union[dict, TransferConfig]) -> TransferConfig:
@@ -71,9 +75,7 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         new_config = copy(config)
         schedule_options = new_config.get("schedule_options")
         if schedule_options:
-            disable_auto_scheduling = schedule_options.get(
-                "disable_auto_scheduling", None
-            )
+            disable_auto_scheduling = schedule_options.get("disable_auto_scheduling", None)
             if disable_auto_scheduling is None:
                 schedule_options["disable_auto_scheduling"] = True
         else:
@@ -93,12 +95,11 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             )
         return self._conn
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_transfer_config(
         self,
         transfer_config: Union[dict, TransferConfig],
-        project_id: Optional[str] = None,
+        project_id: str,
         authorization_code: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -110,7 +111,8 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         :param transfer_config: Data transfer configuration to create.
         :type transfer_config: Union[dict, google.cloud.bigquery_datatransfer_v1.types.TransferConfig]
         :param project_id: The BigQuery project id where the transfer configuration should be
-                created. If set to None or missing, the default project_id from the GCP connection is used.
+            created. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
         :type project_id: str
         :param authorization_code: authorization code to use with this transfer configuration.
             This is required if new credentials are needed.
@@ -126,8 +128,6 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: A ``google.cloud.bigquery_datatransfer_v1.types.TransferConfig`` instance.
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         parent = client.project_path(project_id)
         return client.create_transfer_config(
@@ -139,12 +139,11 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_transfer_config(
         self,
         transfer_config_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -155,7 +154,8 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         :param transfer_config_id: Id of transfer config to be used.
         :type transfer_config_id: str
         :param project_id: The BigQuery project id where the transfer configuration should be
-            created. If set to None or missing, the default project_id from the GCP connection is used.
+            created. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If `None` is
             specified, requests will not be retried.
@@ -168,22 +168,15 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: None
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
-        name = client.project_transfer_config_path(
-            project=project_id, transfer_config=transfer_config_id
-        )
-        return client.delete_transfer_config(
-            name=name, retry=retry, timeout=timeout, metadata=metadata
-        )
+        name = client.project_transfer_config_path(project=project_id, transfer_config=transfer_config_id)
+        return client.delete_transfer_config(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def start_manual_transfer_runs(
         self,
         transfer_config_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         requested_time_range: Optional[dict] = None,
         requested_run_time: Optional[dict] = None,
         retry: Optional[Retry] = None,
@@ -208,7 +201,8 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             `~google.cloud.bigquery_datatransfer_v1.types.Timestamp`
         :type requested_run_time: Union[dict, ~google.cloud.bigquery_datatransfer_v1.types.Timestamp]
         :param project_id: The BigQuery project id where the transfer configuration should be
-            created. If set to None or missing, the default project_id from the GCP connection is used.
+            created. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If `None` is
             specified, requests will not be retried.
@@ -221,12 +215,8 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.StartManualTransferRunsResponse`` instance.
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
-        parent = client.project_transfer_config_path(
-            project=project_id, transfer_config=transfer_config_id
-        )
+        parent = client.project_transfer_config_path(project=project_id, transfer_config=transfer_config_id)
         return client.start_manual_transfer_runs(
             parent=parent,
             requested_time_range=requested_time_range,
@@ -236,13 +226,12 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_transfer_run(
         self,
         run_id: str,
         transfer_config_id: str,
-        project_id: Optional[str] = None,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -255,7 +244,8 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         :param transfer_config_id: ID of transfer config to be used.
         :type transfer_config_id: str
         :param project_id: The BigQuery project id where the transfer configuration should be
-            created. If set to None or missing, the default project_id from the GCP connection is used.
+            created. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
         :type project_id: str
         :param retry: A retry object used to retry requests. If `None` is
             specified, requests will not be retried.
@@ -268,12 +258,6 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         client = self.get_conn()
-        name = client.project_run_path(
-            project=project_id, transfer_config=transfer_config_id, run=run_id
-        )
-        return client.get_transfer_run(
-            name=name, retry=retry, timeout=timeout, metadata=metadata
-        )
+        name = client.project_run_path(project=project_id, transfer_config=transfer_config_id, run=run_id)
+        return client.get_transfer_run(name=name, retry=retry, timeout=timeout, metadata=metadata)

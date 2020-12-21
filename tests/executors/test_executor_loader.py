@@ -16,11 +16,12 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
 from parameterized import parameterized
 
+from airflow import plugins_manager
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.plugins_manager import executors_modules, make_module
 from tests.test_utils.config import conf_vars
 
 # Plugin Manager creates new modules, which is difficult to mock, so we use test isolation by a unique name.
@@ -31,43 +32,43 @@ class FakeExecutor:
     pass
 
 
-class TestExecutorLoader(unittest.TestCase):
+class FakePlugin(plugins_manager.AirflowPlugin):
+    name = TEST_PLUGIN_NAME
+    executors = [FakeExecutor]
 
+
+class TestExecutorLoader(unittest.TestCase):
     def setUp(self) -> None:
         ExecutorLoader._default_executor = None
 
     def tearDown(self) -> None:
         ExecutorLoader._default_executor = None
 
-    @parameterized.expand([
-        ("LocalExecutor", ),
-        ("DebugExecutor", ),
-    ])
+    @parameterized.expand(
+        [
+            ("CeleryExecutor",),
+            ("CeleryKubernetesExecutor",),
+            ("DebugExecutor",),
+            ("KubernetesExecutor",),
+            ("LocalExecutor",),
+        ]
+    )
     def test_should_support_executor_from_core(self, executor_name):
-        with conf_vars({
-            ("core", "executor"): executor_name
-        }):
+        with conf_vars({("core", "executor"): executor_name}):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)
-            self.assertIn(executor_name, executor.__class__.__name__)
+            self.assertEqual(executor_name, executor.__class__.__name__)
 
-    def test_should_support_plugin(self):
-        executors_modules.append(make_module('airflow.executors.' + TEST_PLUGIN_NAME, [FakeExecutor]))
-        self.addCleanup(self.remove_executor_module)
-        with conf_vars({
-            ("core", "executor"): f"{TEST_PLUGIN_NAME}.FakeExecutor"
-        }):
+    @mock.patch("airflow.plugins_manager.plugins", [FakePlugin()])
+    @mock.patch("airflow.plugins_manager.executors_modules", None)
+    def test_should_support_plugins(self):
+        with conf_vars({("core", "executor"): f"{TEST_PLUGIN_NAME}.FakeExecutor"}):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)
-            self.assertIn("FakeExecutor", executor.__class__.__name__)
-
-    def remove_executor_module(self):
-        executors_modules.pop()
+            self.assertEqual("FakeExecutor", executor.__class__.__name__)
 
     def test_should_support_custom_path(self):
-        with conf_vars({
-            ("core", "executor"): f"tests.executors.test_executor_loader.FakeExecutor"
-        }):
+        with conf_vars({("core", "executor"): "tests.executors.test_executor_loader.FakeExecutor"}):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)
-            self.assertIn("FakeExecutor", executor.__class__.__name__)
+            self.assertEqual("FakeExecutor", executor.__class__.__name__)

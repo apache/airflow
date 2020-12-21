@@ -30,7 +30,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class BashOperator(BaseOperator):
-    """
+    r"""
     Execute a Bash script, command or set of commands.
 
     .. seealso::
@@ -43,7 +43,7 @@ class BashOperator(BaseOperator):
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed. (templated)
     :type bash_command: str
-    :param env: If env is not None, it must be a mapping that defines the
+    :param env: If env is not None, it must be a dict that defines the
         environment variables for the new process; these are used instead
         of inheriting the current process environment, which is the default
         behavior. (templated)
@@ -61,20 +61,65 @@ class BashOperator(BaseOperator):
     .. code-block:: python
 
         bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
+
+    .. note::
+
+        Add a space after the script name when directly calling a ``.sh`` script with the
+        ``bash_command`` argument -- for example ``bash_command="my_script.sh "``.  This
+        is because Airflow tries to apply load this file and process it as a Jinja template to
+        it ends with ``.sh``, which will likely not be what most users want.
+
+    .. warning::
+
+        Care should be taken with "user" input or when using Jinja templates in the
+        ``bash_command``, as this bash operator does not perform any escaping or
+        sanitization of the command.
+
+        This applies mostly to using "dag_run" conf, as that can be submitted via
+        users in the Web UI. Most of the default template variables are not at
+        risk.
+
+    For example, do **not** do this:
+
+    .. code-block:: python
+
+        bash_task = BashOperator(
+            task_id="bash_task",
+            bash_command='echo "Here is the message: \'{{ dag_run.conf["message"] if dag_run else "" }}\'"',
+        )
+
+    Instead, you should pass this via the ``env`` kwarg and use double-quotes
+    inside the bash_command, as below:
+
+    .. code-block:: python
+
+        bash_task = BashOperator(
+            task_id="bash_task",
+            bash_command='echo "here is the message: \'$message\'"',
+            env={'message': '{{ dag_run.conf["message"] if dag_run else "" }}'},
+        )
+
     """
+
     template_fields = ('bash_command', 'env')
-    template_ext = ('.sh', '.bash',)
+    template_fields_renderers = {'bash_command': 'bash', 'env': 'json'}
+    template_ext = (
+        '.sh',
+        '.bash',
+    )
     ui_color = '#f0ede4'
 
     @apply_defaults
     def __init__(
-            self,
-            bash_command: str,
-            env: Optional[Dict[str, str]] = None,
-            output_encoding: str = 'utf-8',
-            *args, **kwargs) -> None:
+        self,
+        *,
+        bash_command: str,
+        env: Optional[Dict[str, str]] = None,
+        output_encoding: str = 'utf-8',
+        **kwargs,
+    ) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding
@@ -95,12 +140,11 @@ class BashOperator(BaseOperator):
             env = os.environ.copy()
 
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-        self.log.debug('Exporting the following env vars:\n%s',
-                       '\n'.join(["{}={}".format(k, v)
-                                  for k, v in airflow_context_vars.items()]))
+        self.log.debug(
+            'Exporting the following env vars:\n%s',
+            '\n'.join([f"{k}={v}" for k, v in airflow_context_vars.items()]),
+        )
         env.update(airflow_context_vars)
-
-        self.lineage_data = self.bash_command
 
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
 
@@ -113,13 +157,14 @@ class BashOperator(BaseOperator):
 
             self.log.info('Running command: %s', self.bash_command)
 
-            self.sub_process = Popen(
+            self.sub_process = Popen(  # pylint: disable=subprocess-popen-preexec-fn
                 ['bash', "-c", self.bash_command],
                 stdout=PIPE,
                 stderr=STDOUT,
                 cwd=tmp_dir,
                 env=env,
-                preexec_fn=pre_exec)
+                preexec_fn=pre_exec,
+            )
 
             self.log.info('Output:')
             line = ''

@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# This tool is based on the Spark merge_spark_pr script:
+# https://github.com/apache/spark/blob/master/dev/merge_spark_pr.py
+
+import re
+import sys
+from collections import Counter, defaultdict
+from typing import List, Optional
+
+from github import Github
+from github.Issue import Issue
+from github.PullRequest import PullRequest
+
+GIT_COMMIT_FIELDS = ['id', 'author_name', 'author_email', 'date', 'subject', 'body']
+GIT_LOG_FORMAT = '%x1f'.join(['%h', '%an', '%ae', '%ad', '%s', '%b']) + '%x1e'
+pr_title_re = re.compile(r".*\((#[0-9]{1,6})\)$")
+
+try:
+    import click
+except ImportError:
+    print("Could not find the click library. Run 'sudo pip install click' to install.")
+    sys.exit(-1)
+
+try:
+    import git
+except ImportError:
+    print("Could not import git. Run 'sudo pip install gitpython' to install")
+    sys.exit(-1)
+
+STATUS_COLOR_MAP = {
+    'Resolved': 'green',
+    'Open': 'red',
+}
+
+DEFAULT_SECTION_NAME = 'Uncategorized'
+
+
+def get_commits_between_tags(repo, earlier_tag, later_tag):
+    log_args = ['--format="%H"', earlier_tag + ".." + later_tag]
+    log = repo.git.log(*log_args)
+    return list(log.strip('"').split('"\n"'))
+
+
+def get_issue_status(issue):
+    status = issue.state.capitalize()
+    if status == 'Closed':
+        return 'Resolved'
+    return status
+
+
+def style_issue_status(status):
+    if status in STATUS_COLOR_MAP:
+        return click.style(status[:10].ljust(10), STATUS_COLOR_MAP[status])
+    return status[:10].ljust(10)
+
+
+def get_issue_type(issue):
+    label_prefix = "type:"
+    issue_type = DEFAULT_SECTION_NAME
+    if issue.labels:
+        for label in issue.labels:
+            if label.name.startswith(label_prefix):
+                return label.name.replace(label_prefix, "").strip()
+    return issue_type
+
+
+def get_commit_in_master_associated_with_pr(repo: git.Repo, issue: Issue) -> Optional[str]:
+    """For a PR, find the associated merged commit & return its SHA"""
+    if issue.pull_request:
+        commit = repo.git.log(f"--grep=#{issue.number}", "origin/master", "--format=%H")
+        if commit:
+            return commit
+        else:
+            pr: PullRequest = issue.as_pull_request()
+            if pr.is_merged():
+                commit = pr.merge_commit_sha
+                return commit
+    return None
+
+
+def is_cherrypicked(repo: git.Repo, issue: Issue, previous_version: Optional[str] = None) -> bool:
+    """Check if a given issue is cherry-picked in the current branch or not"""
+    log_args = ['--format=%H', f"--grep=#{issue.number}"]
+    if previous_version:
+        log_args.append(previous_version + "..")
+    log = repo.git.log(*log_args)
+
+    if log:
+        return True
+    return False
+
+
+def print_changelog(sections):
+    for section, lines in sections.items():
+        print(section)
+        print('"' * len(section))
+        for line in lines:
+            print('-', line)
+        print()
+
+
+@click.group()
+def cli():
+    r"""
+    This tool should be used by Airflow Release Manager to verify what GitHub issue's
+     were merged in the current working branch.
+
+        airflow-github compare <target_version> <github_token>
+    """
+
+
+@cli.command(short_help='Compare a GitHub target version against git merges')
+@click.argument('target_version')
+@click.argument('github-token', envvar='GITHUB_TOKEN')
+@click.option(
+    '--previous-version',
+    'previous_version',
+    help="Specify the previous tag on the working branch to limit"
+    " searching for few commits to find the cherry-picked commits",
+)
+@click.option('--unmerged', 'show_uncherrypicked_only', help="Show unmerged issues only", is_flag=True)
+def compare(target_version, github_token, previous_version=None, show_uncherrypicked_only=False):
+    repo = git.Repo(".", search_parent_directories=True)
+
+    github_handler = Github(github_token)
+    milestone_issues: List[Issue] = list(
+        github_handler.search_issues(f"repo:apache/airflow milestone:\"Airflow {target_version}\"")
+    )
+
+    num_cherrypicked = 0
+    num_uncherrypicked = Counter()
+
+    # :<18 says left align, pad to 18
+    # :<50.50 truncates after 50 chars
+    # !s forces as string
+    formatstr = "{id:<8}|{typ!s:<15}|{status!s}|{description:<83.83}|{merged:<6}|{commit:>9.7}"
+
+    print(
+        formatstr.format(
+            id="ISSUE",
+            typ="TYPE",
+            status="STATUS".ljust(10),
+            description="DESCRIPTION",
+            merged="MERGED",
+            commit="COMMIT",
+        )
+    )
+
+    for issue in milestone_issues:
+        commit_in_master = get_commit_in_master_associated_with_pr(repo, issue)
+        status = get_issue_status(issue)
+
+        # Checks if commit was cherrypicked into branch.
+        if is_cherrypicked(repo, issue, previous_version):
+            num_cherrypicked += 1
+            if show_uncherrypicked_only:
+                continue
+            cherrypicked = click.style("Yes".ljust(6), "green")
+        else:
+            num_uncherrypicked[status] += 1
+            cherrypicked = click.style("No".ljust(6), "red")
+
+        fields = dict(
+            id=issue.number,
+            typ=get_issue_type(issue),
+            status=style_issue_status(status),
+            description=issue.title,
+        )
+
+        print(
+            formatstr.format(
+                **fields, merged=cherrypicked, commit=commit_in_master if commit_in_master else ""
+            )
+        )
+
+    print(
+        "Commits on branch: {:d}, {:d} ({}) yet to be cherry-picked".format(
+            num_cherrypicked, sum(num_uncherrypicked.values()), dict(num_uncherrypicked)
+        )
+    )
+
+
+@cli.command(short_help='Build a CHANGELOG grouped by GitHub Issue type')
+@click.argument('previous_version')
+@click.argument('target_version')
+@click.argument('github-token', envvar='GITHUB_TOKEN')
+def changelog(previous_version, target_version, github_token):
+    repo = git.Repo(".", search_parent_directories=True)
+    # Get a list of issues/PRs that have been committed on the current branch.
+    log_args = [f'--format={GIT_LOG_FORMAT}', previous_version + ".." + target_version]
+    log = repo.git.log(*log_args)
+
+    log = log.strip('\n\x1e').split("\x1e")
+    log = [row.strip().split("\x1f") for row in log]
+    log = [dict(zip(GIT_COMMIT_FIELDS, row)) for row in log]
+
+    gh = Github(github_token)
+    gh_repo = gh.get_repo("apache/airflow")
+    sections = defaultdict(list)
+    for commit in log:
+        tickets = pr_title_re.findall(commit['subject'])
+        if tickets:
+            issue = gh_repo.get_issue(number=int(tickets[0][1:]))
+            issue_type = get_issue_type(issue)
+            sections[issue_type].append(commit['subject'])
+        else:
+            sections[DEFAULT_SECTION_NAME].append(commit['subject'])
+
+    print_changelog(sections)
+
+
+if __name__ == "__main__":
+    import doctest
+
+    (failure_count, test_count) = doctest.testmod()
+    if failure_count:
+        sys.exit(-1)
+    try:
+        cli()
+    except Exception:
+        raise

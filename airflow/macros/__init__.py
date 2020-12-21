@@ -23,7 +23,7 @@ from random import random  # noqa
 
 import dateutil  # noqa
 
-from . import hive  # noqa
+from airflow.macros import hive  # noqa
 
 
 def ds_add(ds, days):
@@ -40,7 +40,6 @@ def ds_add(ds, days):
     >>> ds_add('2015-01-06', -5)
     '2015-01-01'
     """
-
     ds = datetime.strptime(ds, '%Y-%m-%d')
     if days:
         ds = ds + timedelta(days)
@@ -73,10 +72,10 @@ def datetime_diff_for_humans(dt, since=None):
     one and now.
 
     :param dt: The datetime to display the diff for
-    :type dt: datetime
+    :type dt: datetime.datetime
     :param since: When to display the date from. If ``None`` then the diff is
         between ``dt`` and now.
-    :type since: None or datetime
+    :type since: None or datetime.datetime
     :rtype: str
     """
     import pendulum

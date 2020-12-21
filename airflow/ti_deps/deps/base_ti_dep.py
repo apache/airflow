@@ -47,7 +47,7 @@ class BaseTIDep:
         return hash(type(self))
 
     def __repr__(self):
-        return "<TIDep({self.name})>".format(self=self)
+        return f"<TIDep({self.name})>"
 
     @property
     def name(self):
@@ -91,13 +91,11 @@ class BaseTIDep:
             dep_context = DepContext()
 
         if self.IGNOREABLE and dep_context.ignore_all_deps:
-            yield self._passing_status(
-                reason="Context specified all dependencies should be ignored.")
+            yield self._passing_status(reason="Context specified all dependencies should be ignored.")
             return
 
         if self.IS_TASK_DEP and dep_context.ignore_task_deps:
-            yield self._passing_status(
-                reason="Context specified all task dependencies should be ignored.")
+            yield self._passing_status(reason="Context specified all task dependencies should be ignored.")
             return
 
         yield from self._get_dep_statuses(ti, session, dep_context)
@@ -117,8 +115,7 @@ class BaseTIDep:
             state that can be used by this dependency.
         :type dep_context: BaseDepContext
         """
-        return all(status.passed for status in
-                   self.get_dep_statuses(ti, session, dep_context))
+        return all(status.passed for status in self.get_dep_statuses(ti, session, dep_context))
 
     @provide_session
     def get_failure_reasons(self, ti, session, dep_context=None):
@@ -149,6 +146,7 @@ class TIDepStatus(NamedTuple):
     Dependency status for a specific task instance indicating whether or not the task
     instance passed the dependency.
     """
+
     dep_name: str
     passed: bool
     reason: str
