@@ -26,8 +26,8 @@ workflow. Airflow is essentially a graph (Directed Acyclic Graph) made up of tas
 
 A task defined or implemented by a operator is a unit of work in your data pipeline.
 
-The purpose of Postgres Operator is to define tasks involving interactions with the PostgreSQL database. In ``Airflow-1.
-10.X``, the ``PostgresOperator`` class is in the ``postgres_operator`` module housed in the ``operators`` package.
+The purpose of Postgres Operator is to define tasks involving interactions with the PostgreSQL database.
+In ``Airflow-1.10.X``, the ``PostgresOperator`` class is in the ``postgres_operator`` module housed in the ``operators`` package.
 
 However, in ``Airflow-2.0``, the ``PostgresOperator`` class now resides at ``airflow.providers.postgres.operator.postgres``.
 You will get a deprecation warning if you try to import the ``postgres_operator`` module.
@@ -75,12 +75,12 @@ The code snippets below are based on Airflow-2.0
 
 
 Dumping SQL statements into your PostgresOperator isn't quite appealing and will create maintainability pains somewhere
-down to the road. To prevent this, Airflow offers an elegant solution for this. This is how it works: you simply create
-a directory in the DAG folder called ``sql`` and then put all the SQL files containing your SQL queries.
+down to the road. To prevent this, Airflow offers an elegant solution. This is how it works: you simply create
+a directory inside the DAG folder called ``sql`` and then put all the SQL files containing your SQL queries inside it.
 
 Your ``dags/sql/pet_schema.sql`` should like this:
 
-.. code-block:: sql
+::
 
       -- create pet table
       CREATE TABLE IF NOT EXISTS pet (
@@ -105,9 +105,9 @@ Now let's refactor ``create_pet_table`` in our DAG:
 Inserting data into a Postgres database table
 ---------------------------------------------
 
-Let's say we already the insert SQL statement below in our ``dags/sql/pet_schema.sql`` file:
+Let's say we already have the SQL insert statement below in our ``dags/sql/pet_schema.sql`` file:
 
-.. code-block:: sql
+::
 
   -- populate pet table
   INSERT INTO pet VALUES ( 'Max', 'Dog', '2018-07-05', 'Jane');
@@ -115,7 +115,7 @@ Let's say we already the insert SQL statement below in our ``dags/sql/pet_schema
   INSERT INTO pet VALUES ( 'Lester', 'Hamster', '2020-06-23', 'Lily');
   INSERT INTO pet VALUES ( 'Quincy', 'Parrot', '2013-08-11', 'Anne');
 
-We can then create a PostgresOperator task that populate the ``pet`` table like so:
+We can then create a PostgresOperator task that populate the ``pet`` table.
 
 .. code-block:: python
 
@@ -163,15 +163,15 @@ To find the owner of the pet called 'Lester':
                                               }
                                 )
 
-Now lets refactor our ``get_birth_date`` task. Instead of dumping SQL statements directly into our code, tidy things up
+Now lets refactor our ``get_birth_date`` task. Instead of dumping SQL statements directly into our code, let's tidy things up
 by creating a sql file.
 
-.. code-block:: sql
+::
 
   -- dags/sql/birth_date.sql
   SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC {{ params.start_date }} AND {{ params.end_date }};
 
-This time we will use the ``params`` attribute which we get for free from the ``BaseOperator``
+And this time we will use the ``params`` attribute which we get for free from the parent ``BaseOperator``
 class.
 
 .. code-block:: python
@@ -190,8 +190,8 @@ class.
 Conclusion
 ----------
 
-In this how-to guide we have explored the Apache Airflow PostgreOperator. I will quickly highlight the key takeaways.
+In this how-to guide we explored the Apache Airflow PostgreOperator. Let's quickly highlight the key takeaways.
 In Airflow-2.0, PostgresOperator class now resides in the ``providers`` package. It is best practice to create subdirectory
 called ``sql`` in your ``dags`` directory where you can store your sql files. This will make your code more elegant and more
-maintainable. And finally, we looked at the different ways you can dynamically pass in parameters using ``parameters`` or
-``params`` attribute.
+maintainable. And finally, we looked at the different ways you can dynamically pass parameters into our postres operator
+tasks  using ``parameters`` or ``params`` attribute.
