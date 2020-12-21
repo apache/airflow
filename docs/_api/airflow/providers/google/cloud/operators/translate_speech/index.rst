@@ -1,0 +1,103 @@
+:mod:`airflow.providers.google.cloud.operators.translate_speech`
+================================================================
+
+.. py:module:: airflow.providers.google.cloud.operators.translate_speech
+
+.. autoapi-nested-parse::
+
+   This module contains a Google Cloud Translate Speech operator.
+
+
+
+Module Contents
+---------------
+
+.. py:class:: CloudTranslateSpeechOperator(*, audio: RecognitionAudio, config: RecognitionConfig, target_language: str, format_: str, source_language: Optional[str], model: str, project_id: Optional[str] = None, gcp_conn_id: str = 'google_cloud_default', impersonation_chain: Optional[Union[str, Sequence[str]]] = None, **kwargs)
+
+   Bases: :class:`airflow.models.BaseOperator`
+
+   Recognizes speech in audio input and translates it.
+
+   Note that it uses the first result from the recognition api response - the one with the highest confidence
+   In order to see other possible results please use
+   :ref:`howto/operator:CloudSpeechToTextRecognizeSpeechOperator`
+   and
+   :ref:`howto/operator:CloudTranslateTextOperator`
+   separately
+
+   .. seealso::
+       For more information on how to use this operator, take a look at the guide:
+       :ref:`howto/operator:CloudTranslateSpeechOperator`
+
+   See https://cloud.google.com/translate/docs/translating-text
+
+   Execute method returns string object with the translation
+
+   This is a list of dictionaries queried value.
+   Dictionary typically contains three keys (though not
+   all will be present in all cases).
+
+   * ``detectedSourceLanguage``: The detected language (as an
+     ISO 639-1 language code) of the text.
+   * ``translatedText``: The translation of the text into the
+     target language.
+   * ``input``: The corresponding input value.
+   * ``model``: The model used to translate the text.
+
+   Dictionary is set as XCom return value.
+
+   :param audio: audio data to be recognized. See more:
+       https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/types.html#google.cloud.speech_v1.types.RecognitionAudio
+   :type audio: dict or google.cloud.speech_v1.types.RecognitionAudio
+
+   :param config: information to the recognizer that specifies how to process the request. See more:
+       https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/types.html#google.cloud.speech_v1.types.RecognitionConfig
+   :type config: dict or google.cloud.speech_v1.types.RecognitionConfig
+
+   :param target_language: The language to translate results into. This is required by the API and defaults
+       to the target language of the current instance.
+       Check the list of available languages here: https://cloud.google.com/translate/docs/languages
+   :type target_language: str
+
+   :param format_: (Optional) One of ``text`` or ``html``, to specify
+       if the input text is plain text or HTML.
+   :type format_: str or None
+
+   :param source_language: (Optional) The language of the text to
+       be translated.
+   :type source_language: str or None
+
+   :param model: (Optional) The model used to translate the text, such
+       as ``'base'`` or ``'nmt'``.
+   :type model: str or None
+
+   :param project_id: Optional, Google Cloud Project ID where the Compute
+       Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
+       connection is used.
+   :type project_id: str
+
+   :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+       Defaults to 'google_cloud_default'.
+   :type gcp_conn_id: str
+
+   :param impersonation_chain: Optional service account to impersonate using short-term
+       credentials, or chained list of accounts required to get the access_token
+       of the last account in the list, which will be impersonated in the request.
+       If set as a string, the account must grant the originating account
+       the Service Account Token Creator IAM role.
+       If set as a sequence, the identities from the list must grant
+       Service Account Token Creator IAM role to the directly preceding identity, with first
+       account from the list granting this role to the originating account (templated).
+   :type impersonation_chain: Union[str, Sequence[str]]
+
+   .. attribute:: template_fields
+      :annotation: = ['target_language', 'format_', 'source_language', 'model', 'project_id', 'gcp_conn_id', 'impersonation_chain']
+
+      
+
+   
+   .. method:: execute(self, context)
+
+
+
+
