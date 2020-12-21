@@ -2125,6 +2125,50 @@ class TestSchedulerJob(unittest.TestCase):
         session.rollback()
         session.close()
 
+    @parameterized.expand([(State.SUCCESS,), (State.FAILED,)])
+    def test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined(self, state):
+        """
+        Test if no on_*_callback are defined on DAG, Callbacks not registered and sent to DAG Processor
+        """
+        dag = DAG(
+            dag_id='test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined',
+            start_date=DEFAULT_DATE,
+        )
+
+        BashOperator(task_id='test_task', dag=dag, owner='airflow', bash_command='echo hi')
+
+        scheduler = SchedulerJob()
+        scheduler.processor_agent = mock.Mock()
+        scheduler.processor_agent.send_callback_to_execute = mock.Mock()
+        scheduler._send_dag_callbacks_to_processor = mock.Mock()
+
+        # Sync DAG into DB
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            scheduler.dagbag.bag_dag(dag, root_dag=dag)
+            scheduler.dagbag.sync_to_db()
+
+        session = settings.Session()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        assert orm_dag is not None
+
+        # Create DagRun
+        scheduler._create_dag_runs([orm_dag], session)
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+
+        ti = dr.get_task_instance('test_task')
+        ti.set_state(state, session)
+
+        scheduler._schedule_dag_run(dr, set(), session)
+
+        # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
+        scheduler._send_dag_callbacks_to_processor.assert_called_once_with(dr, None)
+
+        session.rollback()
+        session.close()
+
     def test_do_not_schedule_removed_task(self):
         dag = DAG(dag_id='test_scheduler_do_not_schedule_removed_task', start_date=DEFAULT_DATE)
         DummyOperator(task_id='dummy', dag=dag, owner='airflow')
@@ -3534,6 +3578,50 @@ class TestSchedulerJob(unittest.TestCase):
         ti = run2.get_task_instance(task1.task_id, session)
         assert ti.state == State.QUEUED
 
+    def test_do_schedule_max_active_runs_task_removed(self):
+        """Test that tasks in removed state don't count as actively running."""
+
+        with DAG(
+            dag_id='test_do_schedule_max_active_runs_task_removed',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@once',
+            max_active_runs=1,
+        ) as dag:
+            # Cant use DummyOperator as that goes straight to success
+            task1 = BashOperator(task_id='dummy1', bash_command='true')
+
+        session = settings.Session()
+        dagbag = DagBag(
+            dag_folder=os.devnull,
+            include_examples=False,
+            read_dags_from_db=True,
+        )
+
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        dagbag.sync_to_db(session=session)
+
+        session.add(TaskInstance(task1, DEFAULT_DATE, State.REMOVED))
+        session.flush()
+
+        run1 = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE + timedelta(hours=1),
+            state=State.RUNNING,
+            session=session,
+        )
+
+        dag.sync_to_db(session=session)  # Update the date fields
+
+        job = SchedulerJob()
+        job.executor = MockExecutor(do_update=False)
+        job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        num_queued = job._do_scheduling(session)
+
+        assert num_queued == 1
+        ti = run1.get_task_instance(task1.task_id, session)
+        assert ti.state == State.QUEUED
+
     def test_do_schedule_max_active_runs_and_manual_trigger(self):
         """
         Make sure that when a DAG is already at max_active_runs, that manually triggering a run doesn't cause
@@ -3684,7 +3772,6 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
 
     @parameterized.expand(
         [
-            # pylint: disable=bad-whitespace
             # expected, dag_count, task_count
             # One DAG with one task per DAG file
             (23, 1, 1),  # noqa
@@ -3746,7 +3833,6 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
 
     @parameterized.expand(
         [
-            # pylint: disable=bad-whitespace
             # expected, dag_count, task_count, start_ago, schedule_interval, shape
             # One DAG with one task per DAG file
             ([8, 8, 8, 8], 1, 1, "1d", "None", "no_structure"),  # noqa
@@ -3778,7 +3864,6 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             ([93, 107, 107, 107], 10, 10, "1d", "30m", "binary_tree"),  # noqa
             ([93, 107, 107, 107], 10, 10, "1d", "30m", "star"),  # noqa
             ([93, 107, 107, 107], 10, 10, "1d", "30m", "grid"),  # noqa
-            # pylint: enable=bad-whitespace
         ]
     )
     @pytest.mark.quarantined

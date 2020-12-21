@@ -414,7 +414,7 @@ class TestTaskInstance(unittest.TestCase):
     @provide_session
     def test_ti_updates_with_task(self, session=None):
         """
-        test that updating the executor_config propogates to the TaskInstance DB
+        test that updating the executor_config propagates to the TaskInstance DB
         """
         with models.DAG(dag_id='test_run_pooling_task') as dag:
             task = DummyOperator(

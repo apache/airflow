@@ -265,7 +265,7 @@ google = [
     'google-cloud-logging>=1.14.0,<2.0.0',
     'google-cloud-memcache>=0.2.0',
     'google-cloud-monitoring>=0.34.0,<2.0.0',
-    'google-cloud-os-login>=1.0.0,<2.0.0',
+    'google-cloud-os-login>=2.0.0,<3.0.0',
     'google-cloud-pubsub>=1.0.0,<2.0.0',
     'google-cloud-redis>=0.3.0,<2.0.0',
     'google-cloud-secret-manager>=0.2.0,<2.0.0',
@@ -483,7 +483,7 @@ devel = [
     'paramiko',
     'pipdeptree',
     'pre-commit',
-    'pylint==2.5.3',
+    'pylint==2.6.0',
     'pysftp',
     'pytest',
     'pytest-cov',
@@ -516,7 +516,7 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
-# If you have a 'pip check' problem with dependencies, it might be becasue some dependency has been
+# If you have a 'pip check' problem with dependencies, it might be because some dependency has been
 # installed via 'install_requires' in setup.cfg in higher version than required in one of the options below.
 # For example pip check was failing with requests=2.25.1 installed even if in some dependencies below
 # < 2.24.0 was specified for it. Solution in such case is to add such limiting requirement to

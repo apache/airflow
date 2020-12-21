@@ -47,6 +47,8 @@ to extend this list by using the following configurations option:
     [admin]
     hide_sensitive_variable_fields = comma_separated_sensitive_variable_fields_list
 
+.. _web-authentication:
+
 Web Authentication
 ------------------
 
@@ -85,9 +87,48 @@ Please use command line interface ``airflow users create`` to create accounts, o
 Other Methods
 '''''''''''''
 
-Standing on the shoulder of underlying framework Flask-AppBuilder, Airflow also supports authentication methods like
-OAuth, OpenID, LDAP, REMOTE_USER. You can configure in ``$AIRFLOW_HOME/webserver_config.py``.
-For details, please refer to
+Since the Airflow 2.0, the default UI is the Flask App Builder RBAC. A ``webserver_config.py`` configuration file
+it's automatically generated and can be used to configure the Airflow to support authentication
+methods like OAuth, OpenID, LDAP, REMOTE_USER.
+
+For previous versions from Airflow, the ``$AIRFLOW_HOME/airflow.cfg`` following entry needs to be set to enable
+the Flask App Builder RBAC UI.
+
+.. code-block:: ini
+
+    rbac = True
+
+The default authentication option described in the :ref:`Web Authentication <web-authentication>` section it's related
+with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.
+
+.. code-block:: ini
+
+    AUTH_TYPE = AUTH_DB
+
+Another way to create users it's in the UI login page, allowing user self registration through a "Register" button.
+The following entries in the ``$AIRFLOW_HOME/webserver_config.py`` can be edited to make it possible:
+
+.. code-block:: ini
+
+    AUTH_USER_REGISTRATION = True
+    AUTH_USER_REGISTRATION_ROLE = "Desired Role For The Self Registered User"
+    RECAPTCHA_PRIVATE_KEY = 'private_key'
+    RECAPTCHA_PUBLIC_KEY = 'public_key'
+
+    MAIL_SERVER = 'smtp.gmail.com'
+    MAIL_USE_TLS = True
+    MAIL_USERNAME = 'yourappemail@gmail.com'
+    MAIL_PASSWORD = 'passwordformail'
+    MAIL_DEFAULT_SENDER = 'sender@gmail.com'
+
+The package ``Flask-Mail`` needs to be installed through pip to allow user self registration since it is a
+feature provided by the framework Flask-AppBuilder.
+
+To support authentication through a third-party provider, the ``AUTH_TYPE`` entry needs to be updated with the
+desired option like OAuth, OpenID, LDAP, and the lines with references for the chosen option need to have
+the comments removed and configured in the ``$AIRFLOW_HOME/webserver_config.py``.
+
+For more details, please refer to
 `Security section of FAB documentation <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_.
 
 SSL

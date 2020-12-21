@@ -27,8 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Master](#master)
-- [Airflow 2.0.0b1](#airflow-200b1)
-- [Airflow 2.0.0a1](#airflow-200a1)
+- [Airflow 2.0.0](#airflow-200)
 - [Airflow 1.10.14](#airflow-11014)
 - [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
@@ -52,6 +51,8 @@ assists users migrating to a new version.
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Master
+
+## Airflow 2.0.0
 
 ### The experimental REST API is disabled by default
 
@@ -116,8 +117,6 @@ that this extra does not contain development dependencies. If you were relying o
 extras at all.
 
 ### Context variables `prev_execution_date_success` and `prev_execution_date_success` are now `pendulum.DateTime`
-
-## Airflow 2.0.0b1
 
 ### Rename policy to task_policy
 
@@ -216,8 +215,6 @@ def execution_date_fn(execution_date, ds_nodash, dag):
 
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
 `[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
-
-## Airflow 2.0.0a1
 
 The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
 and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
@@ -1537,7 +1534,7 @@ Migrated are:
 
 #### `airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator`
 
-The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
+The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidentally set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
 versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new
 changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is
 solved.
@@ -1701,7 +1698,7 @@ NOTE!
 On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
 does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
 of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-`pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`pip install --upgrade pip==20.2.4` or, in case you use Pip 20.3, you need to add option
 `--use-deprecated legacy-resolver` to your pip install command.
 
 

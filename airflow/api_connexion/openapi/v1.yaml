@@ -1338,7 +1338,7 @@ paths:
     get:
       summary: Get a instance status
       description: |
-        Get the status of Airflow's metadatabase and scheduler. It incluse info about
+        Get the status of Airflow's metadatabase and scheduler. It includes info about
         metadatabase and last heartbeat of scheduler.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
@@ -1883,7 +1883,7 @@ components:
             $ref: '#/components/schemas/XComCollectionItem'
 
     XCom:
-      description: Full representaiton of XCom entry.
+      description: Full representations of XCom entry.
       allOf:
         - $ref: '#/components/schemas/XComCollectionItem'
         - type: object
@@ -2784,8 +2784,8 @@ components:
         items:
           type: string
       description: |
-        The fields to update on the connection (connection, pool etc). If absent or empty, all
-        modifiable fields are updated. A comma-separated list of fully qualified names of fields.
+        The fields to update on the resource. If absent or empty, all modifiable fields are updated.
+        A comma-separated list of fully qualified names of fields.
       style: form
       explode: false
 

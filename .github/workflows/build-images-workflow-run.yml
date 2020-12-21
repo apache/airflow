@@ -284,13 +284,12 @@ jobs:
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
-          if [[ \
-            ${DEFAULT_BRANCH} != "master" || \
-            ( ${PYTHON_MAJOR_MINOR_VERSION} != "2.7" && ${PYTHON_MAJOR_MINOR_VERSION} != "3.5" ) \
+          if [[ ${DEFAULT_BRANCH} != "v1-10-test" && \
+            ( ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ) \
           ]]; then
-              echo "::set-output name=proceed::true"
-          else
               echo "::set-output name=proceed::false"
+          else
+              echo "::set-output name=proceed::true"
           fi
       - name: Initiate GitHub Checks for Building image
         uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0

@@ -1503,7 +1503,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 )
                 .filter(
                     TI.dag_id.in_(list({dag_run.dag_id for dag_run in dag_runs})),
-                    TI.state.notin_(list(State.finished)),
+                    TI.state.notin_(list(State.finished) + [State.REMOVED]),
                 )
                 .group_by(TI.dag_id, TI.execution_date)
             )

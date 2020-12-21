@@ -36,5 +36,3 @@ services:
       - postgres-db-volume:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_HOST_PORT}:5432"
-volumes:
-  postgres-db-volume:

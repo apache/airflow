@@ -1337,7 +1337,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         table_ref = TableReference(dataset_ref=DatasetReference(project_id, dataset_id), table_id=table_id)
         table = self.get_client(project_id=project_id).get_table(table_ref)
-        return {"fields": [s.to_api_repr for s in table.schema]}
+        return {"fields": [s.to_api_repr() for s in table.schema]}
 
     @GoogleBaseHook.fallback_to_default_project_id
     def poll_job_complete(
