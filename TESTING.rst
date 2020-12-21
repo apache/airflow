@@ -485,7 +485,7 @@ Airflow has tests that are run against real Kubernetes cluster. We are using
 `Kind <https://kind.sigs.k8s.io/>`_ to create and run the cluster. We integrated the tools to start/stop/
 deploy and run the cluster tests in our repository and into Breeze development environment.
 
-Configuration for the cluster is kept in ``./build/.kube/config`` file in your Airflow source repositor, and
+Configuration for the cluster is kept in ``./build/.kube/config`` file in your Airflow source repository, and
 our scripts set the ``KUBECONFIG`` variable to it. If you want to interact with the Kind cluster created
 you can do it from outside of the scripts by exporting this variable and point it to this file.
 
