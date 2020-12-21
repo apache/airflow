@@ -541,14 +541,14 @@
       version_added: ~
       type: string
       example: ~
-      default: "{{{{ ti.dag_id }}}}/{{{{ ti.task_id }}}}/{{{{ ts }}}}/{{{{ try_number }}}}.log"
+      default: "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
     - name: log_processor_filename_template
       description: |
         Formatting for how airflow generates file names for log
       version_added: ~
       type: string
       example: ~
-      default: "{{{{ filename }}}}.log"
+      default: "{{ filename }}.log"
     - name: dag_processor_manager_log_location
       description: |
         full path of dag_processor_manager logfile
