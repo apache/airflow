@@ -937,7 +937,7 @@ class SchedulerJob(BaseJob):
         else:
             ti_query = ti_query.filter(TI.state.in_(states))
 
-        task_instances_to_examine = ti_query.all()
+        task_instances_to_examine = ti_query.limit(10000).all()
 
         if len(task_instances_to_examine) == 0:
             self.log.debug("No tasks to consider for execution.")
