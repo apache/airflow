@@ -203,7 +203,7 @@ can become the Mentor and guide the proposed candidates on how they can become a
 Inactive Committers
 -------------------
 If you know you are not going to be able to contribute for a long time
-(for instance due to a change of job or circumstances) you should inform the PMC and we will mark you
+(for instance, due to a change of job or circumstances), you should inform the PMC and we will mark you
 as "inactive". Inactive committers will be removed from the "roster" on ASF and will no longer have the power
 of being a Committer (especially write access to the repos). As merit earned never expires, once you
 become active again you can simply email the PMC and ask to be reinstated.
@@ -215,7 +215,7 @@ more than 12 months.
 Guidelines to become an Airflow Committer
 ------------------------------------------
 
-Committers are community members that have write access to the project’s
+Committers are community members who have write access to the project’s
 repositories, i.e., they can modify the code, documentation, and website by themselves and also
 accept other contributions. There is no strict protocol for becoming a committer. Candidates for new
 committers are typically people that are active contributors and community members.
@@ -223,7 +223,7 @@ committers are typically people that are active contributors and community membe
 Some people might be active in several of those areas and while they might have not enough 'achievements' in any
 single one of those, their combined contributions in several areas all count.
 
-As a community we appreciate contributions to the Airflow codebase, but we also place equal value
+As a community, we appreciate contributions to the Airflow codebase, but we also place equal value
 on those who help Airflow by improving the community in some way. It is entirely possible to become
 a committer (and eventually a PMC member) without ever having to change a single line of code.
 
@@ -242,14 +242,14 @@ General prerequisites that we look for in all candidates:
 Code contribution
 ^^^^^^^^^^^^^^^^^^
 
-1.  Makes high quality commits (especially commit messages), and assess the impact of the changes including
+1.  Makes high-quality commits (especially commit messages), and assess the impact of the changes, including
     upgrade paths or deprecation policies
 2.  Testing Release Candidates to help the release cycle
 3.  Proposed and led to completion Airflow Improvement Proposal(s)
 4.  Demonstrates an understanding of Airflow Core, API, Docker image, Helm chart, dev tools or certain
-    Providers or has displayed holistic understanding of a particular part and made contributions towards a more
+    Providers or has displayed a holistic understanding of a particular part and made contributions towards a more
     strategic goal
-5.  Has made significant improvement or added an integration with services/technologies important to the Airflow
+5.  Has made a significant improvement or added an integration with services/technologies important to the Airflow
     Ecosystem
 
 Community contributions
