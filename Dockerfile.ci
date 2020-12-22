@@ -322,8 +322,10 @@ ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
 RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" != "false" ]]; then \
             pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
+            pip install --upgrade "pip==${PIP_VERSION}"; \
         else \
             pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy only-if-needed; \
+            pip install --upgrade "pip==${PIP_VERSION}"; \
         fi; \
     fi
 
