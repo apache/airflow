@@ -52,7 +52,7 @@ def _connection_mapper(conn: Connection) -> Dict[str, Any]:
     }
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def connections_get(args):
     """Get a connection."""
     try:
@@ -66,7 +66,7 @@ def connections_get(args):
     )
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def connections_list(args):
     """Lists all connections at the command line"""
     with create_session() as session:
