@@ -35,6 +35,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
     """
 
     KUBERNETES_QUEUE = conf.get('celery_kubernetes_executor', 'kubernetes_queue')
+    job_id: Optional[str] = None
 
     def __init__(self, celery_executor, kubernetes_executor):
         super().__init__()
@@ -56,6 +57,10 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     def start(self) -> None:
         """Start celery and kubernetes executor"""
+        if self.job_id:
+            self.celery_executor.job_id = self.job_id
+            self.kubernetes_executor.job_id = self.job_id
+
         self.celery_executor.start()
         self.kubernetes_executor.start()
 
