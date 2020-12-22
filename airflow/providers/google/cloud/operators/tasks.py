@@ -646,7 +646,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        queues = hook.pause_queue(
+        queue = hook.pause_queue(
             location=self.location,
             queue_name=self.queue_name,
             project_id=self.project_id,
@@ -654,7 +654,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return [MessageToDict(q) for q in queues]
+        return MessageToDict(queue)
 
 
 class CloudTasksQueueResumeOperator(BaseOperator):

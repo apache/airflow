@@ -44,6 +44,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Project Focus](#project-focus)
 - [Principles](#principles)
 - [Requirements](#requirements)
+- [Support for Python versions](#support-for-python-versions)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
 - [Official source code](#official-source-code)
@@ -90,9 +91,26 @@ running multiple schedulers -- please see the "Scheduler" docs.
 
 **Note:** SQLite is used in Airflow tests. Do not use it in production.
 
+## Support for Python versions
+
+As of Airflow 2.0 we agreed to certain rules we follow for Python support. They are based on the official
+release schedule of Python, nicely summarized in the
+[Python Developer's Guide](https://devguide.python.org/#status-of-python-branches)
+
+1. We finish support for python versions when they reach EOL (For python 3.6 it means that we will remove it
+   from being supported on 23.12.2021).
+
+2. The "oldest" supported version of Python is the default one. "Default" is only meaningful in terms of
+   "smoke tests" in CI PRs which are run using this default version.
+
+3. We support a new version of Python after it is officially released, as soon as we manage to make
+   it works in our CI pipeline (which might not be immediate) and release a new version of Airflow
+   (non-Patch version) based on this CI set-up.
+
 ### Additional notes on Python version requirements
 
-* Stable version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3 when using Python 3
+* Previous version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3
+  when using Python 3
 
 ## Getting started
 

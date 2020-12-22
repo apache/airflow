@@ -162,16 +162,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
     }
 
     MISSING_EXAMPLES_FOR_OPERATORS = {
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksQueueDeleteOperator',
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksQueueResumeOperator',
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksQueuePauseOperator',
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksQueuePurgeOperator',
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksTaskGetOperator',
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksTasksListOperator',
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksTaskDeleteOperator',
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksQueueGetOperator',
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksQueueUpdateOperator',
-        'airflow.providers.google.cloud.operators.tasks.CloudTasksQueuesListOperator',
         # Deprecated operator. Ignore it.
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
         '.CloudDataTransferServiceS3ToGCSOperator',
