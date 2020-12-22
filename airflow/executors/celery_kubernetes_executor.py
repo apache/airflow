@@ -57,10 +57,15 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     @property
     def job_id(self):
+        """
+        This is a class attribute in BaseExecutor but since this is not really an executor, but a wrapper
+        of executors we implement as property so we can have custom setter.
+        """
         return self._job_id
 
     @job_id.setter
     def job_id(self, value):
+        """job_id is manipulated by SchedulerJob.  We must propagate the job_id to wrapped executors."""
         self._job_id = value
         self.kubernetes_executor.job_id = value
         self.celery_executor.job_id = value
@@ -69,6 +74,11 @@ class CeleryKubernetesExecutor(LoggingMixin):
         """Start celery and kubernetes executor"""
         self.celery_executor.start()
         self.kubernetes_executor.start()
+
+    @property
+    def slots_available(self):
+        """Number of new tasks this executor instance can accept"""
+        return self.celery_executor.slots_available
 
     def queue_command(
         self,
