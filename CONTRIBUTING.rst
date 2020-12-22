@@ -260,7 +260,7 @@ Community contributions
 3.  Lead change and improvements introduction in the “community” processes and tools
 4.  Actively spreads the word about Airflow, example organising Airflow summit, workshops for
     community members, giving and recording talks, writing blogs
-5.  Reporting bugs with details reproduction steps
+5.  Reporting bugs with detailed reproduction steps
 
 
 Contributors
