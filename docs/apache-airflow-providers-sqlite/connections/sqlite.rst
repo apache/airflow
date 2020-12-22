@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -16,26 +15,22 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-sqlite``
-===================================
 
-Content
--------
 
-.. toctree::
-    :maxdepth: 1
-    :caption: References
+SQLite Connection
+================
+The SQLite connection type provides connection to a SQLite database.
 
-    Python API <_api/airflow/providers/sqlite/index>
+Configuring the Connection
+--------------------------
+Host (required)
+    The host to connect to.
 
-.. toctree::
-    :maxdepth: 1
-    :caption: Resources
+Schema (optional)
+    Specify the schema name to be used in the database.
 
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-sqlite/>
+Login (required)
+    Specify the user name to connect.
 
-.. toctree::
-    :maxdepth: 1
-    :caption: Resources
-
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/sqlite/example_dags>
+Password (required)
+    Specify the password to connect.
