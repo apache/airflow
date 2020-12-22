@@ -480,6 +480,7 @@ class DagFileProcessor(LoggingMixin):
             <pre><code>{task_list}\n<code></pre>
             Blocking tasks:
             <pre><code>{blocking_task_list}<code></pre>
+            Airflow Webserver URL: {conf.get(section='webserver', key='base_url')}
             """
 
             tasks_missed_sla = []
