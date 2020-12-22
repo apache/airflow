@@ -21,8 +21,8 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, SupportsAbs, Un
 from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.base import BaseHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
 
