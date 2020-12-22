@@ -27,16 +27,14 @@ from airflow import DAG
 from airflow.providers.sqlite.operators.sqlite import SqliteOperator
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow'
-}
+default_args = {'owner': 'airflow'}
 
 dag = DAG(
     dag_id='example_sqlite',
     default_args=default_args,
     schedule_interval='@daily',
     start_date=days_ago(2),
-    tags=['example']
+    tags=['example'],
 )
 
 # [START howto_operator_sqlite]
@@ -52,7 +50,7 @@ create_table_sqlite_task = SqliteOperator(
         column_3 string
     );
     """,
-    dag=dag
+    dag=dag,
 )
 
 # [END howto_operator_sqlite]
@@ -64,7 +62,7 @@ external_create_table_sqlite_task = SqliteOperator(
     task_id='create_table_sqlite_external_file',
     sqlite_conn_id='sqlite_conn_id',
     sql='/scripts/create_table.sql',
-    dag=dag
+    dag=dag,
 )
 
 # [END howto_operator_sqlite_external_file]
