@@ -100,7 +100,7 @@ release schedule of Python, nicely summarized in the
 1. We finish support for python versions when they reach EOL (For python 3.6 it means that we will remove it
    from being supported on 23.12.2021).
 
-2. The "oldest" supported version of Python ias the default one. "Default" is only meaningful in terms of
+2. The "oldest" supported version of Python is the default one. "Default" is only meaningful in terms of
    "smoke tests" in CI PRs which are run using this default version.
 
 3. We support a new version of Python after it is officially released, as soon as we manage to make
