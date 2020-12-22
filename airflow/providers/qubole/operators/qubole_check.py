@@ -29,7 +29,7 @@ class _QuboleCheckOperatorMixin:
     """This is a Mixin for Qubole related check operators"""
 
     def execute(self, context=None) -> None:
-        """Execute a check operation againt Qubole"""
+        """Execute a check operation against Qubole"""
         try:
             self._hook_context = context
             super().execute(context=context)
