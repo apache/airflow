@@ -118,12 +118,14 @@ class CloudKMSHook(GoogleBaseHook):
         :rtype: str
         """
         response = self.get_conn().encrypt(
-            name=key_name,
-            plaintext=plaintext,
-            additional_authenticated_data=authenticated_data,
+            request={
+                'name': key_name,
+                'plaintext': plaintext,
+                'additional_authenticated_data': authenticated_data,
+            },
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
 
         ciphertext = _b64encode(response.ciphertext)
@@ -161,12 +163,14 @@ class CloudKMSHook(GoogleBaseHook):
         :rtype: bytes
         """
         response = self.get_conn().decrypt(
-            name=key_name,
-            ciphertext=_b64decode(ciphertext),
-            additional_authenticated_data=authenticated_data,
+            request={
+                'name': key_name,
+                'ciphertext': _b64decode(ciphertext),
+                'additional_authenticated_data': authenticated_data,
+            },
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
 
         return response.plaintext
