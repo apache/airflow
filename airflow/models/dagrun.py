@@ -116,7 +116,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def find(dag_id=None, run_id=None, execution_date=None,
              state=None, external_trigger=None, no_backfills=False,
-             session=None):
+             session=None, limit=None):
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -157,8 +157,10 @@ class DagRun(Base, LoggingMixin):
             from airflow.jobs import BackfillJob
             qry = qry.filter(DR.run_id.notlike(BackfillJob.ID_PREFIX + '%'))
 
-        dr = qry.order_by(DR.execution_date).all()
-
+        if not limit:
+            dr = qry.order_by(DR.execution_date).all()
+        else:
+            dr = qry.order_by(DR.execution_date).limit(limit).all()
         return dr
 
     @provide_session
@@ -412,7 +414,7 @@ class DagRun(Base, LoggingMixin):
         """
         qry = session.query(DagRun).filter(
             DagRun.dag_id == dag_id,
-            DagRun.external_trigger == False, # noqa
+            DagRun.external_trigger == False,  # noqa
             DagRun.execution_date == execution_date,
         )
         return qry.first()
@@ -431,18 +433,18 @@ class DagRun(Base, LoggingMixin):
         """Returns the latest DagRun for each DAG. """
         subquery = (
             session
-            .query(
+                .query(
                 cls.dag_id,
                 func.max(cls.execution_date).label('execution_date'))
-            .group_by(cls.dag_id)
-            .subquery()
+                .group_by(cls.dag_id)
+                .subquery()
         )
         dagruns = (
             session
-            .query(cls)
-            .join(subquery,
-                  and_(cls.dag_id == subquery.c.dag_id,
-                       cls.execution_date == subquery.c.execution_date))
-            .all()
+                .query(cls)
+                .join(subquery,
+                      and_(cls.dag_id == subquery.c.dag_id,
+                           cls.execution_date == subquery.c.execution_date))
+                .all()
         )
         return dagruns

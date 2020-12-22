@@ -753,7 +753,7 @@ class SchedulerJob(BaseJob):
         """
 
         # update the state of the previously active dag runs
-        dag_runs = DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)
+        dag_runs = DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session, limit=10000)
         active_dag_runs = []
         for run in dag_runs:
             self.log.info("Examining DAG run %s", run)
