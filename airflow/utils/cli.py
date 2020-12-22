@@ -227,8 +227,11 @@ def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
         stdout = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.out')
     if not log:
         log = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.log')
+
     if not pid:
         pid = os.path.join(settings.AIRFLOW_HOME, f'airflow-{process}.pid')
+    else:
+        pid = os.path.abspath(pid)
 
     return pid, stdout, stderr, log
 

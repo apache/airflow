@@ -131,6 +131,23 @@ class TestCliUtil(unittest.TestCase):
         command = json.loads(command.replace("'", '"'))
         self.assertEqual(command, expected_command)
 
+    def test_setup_locations_relative_pid_path(self):
+        relative_pid_path = "fake.pid"
+        pid_full_path = os.path.join(os.getcwd(), relative_pid_path)
+        pid, _, _, _ = cli.setup_locations(process="fake_process", pid=relative_pid_path)
+        self.assertEqual(pid, pid_full_path)
+
+    def test_setup_locations_absolute_pid_path(self):
+        abs_pid_path = os.path.join(os.getcwd(), "fake.pid")
+        pid, _, _, _ = cli.setup_locations(process="fake_process", pid=abs_pid_path)
+        self.assertEqual(pid, abs_pid_path)
+
+    def test_setup_locations_none_pid_path(self):
+        process_name = "fake_process"
+        default_pid_path = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process_name}.pid")
+        pid, _, _, _ = cli.setup_locations(process=process_name)
+        self.assertEqual(pid, default_pid_path)
+
 
 @contextmanager
 def fail_action_logger_callback():
