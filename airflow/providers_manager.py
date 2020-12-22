@@ -143,6 +143,8 @@ class ProvidersManager:
         """
         for entry_point, dist in entry_points_with_dist('apache_airflow_provider'):
             package_name = dist.metadata['name']
+            if self._provider_dict.get(package_name) is not None:
+                continue
             log.debug("Loading %s from package %s", entry_point, package_name)
             version = dist.version
             provider_info = entry_point.load()()
