@@ -82,12 +82,14 @@ class TestCloudKMSHook(unittest.TestCase):
         result = self.kms_hook.encrypt(TEST_KEY_ID, PLAINTEXT)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.encrypt.assert_called_once_with(
-            name=TEST_KEY_ID,
-            plaintext=PLAINTEXT,
-            additional_authenticated_data=None,
+            request=dict(
+                name=TEST_KEY_ID,
+                plaintext=PLAINTEXT,
+                additional_authenticated_data=None,
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert PLAINTEXT_b64 == result
 
@@ -97,12 +99,14 @@ class TestCloudKMSHook(unittest.TestCase):
         result = self.kms_hook.encrypt(TEST_KEY_ID, PLAINTEXT, AUTH_DATA)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.encrypt.assert_called_once_with(
-            name=TEST_KEY_ID,
-            plaintext=PLAINTEXT,
-            additional_authenticated_data=AUTH_DATA,
+            request=dict(
+                name=TEST_KEY_ID,
+                plaintext=PLAINTEXT,
+                additional_authenticated_data=AUTH_DATA,
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert PLAINTEXT_b64 == result
 
@@ -112,12 +116,14 @@ class TestCloudKMSHook(unittest.TestCase):
         result = self.kms_hook.decrypt(TEST_KEY_ID, CIPHERTEXT_b64)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.decrypt.assert_called_once_with(
-            name=TEST_KEY_ID,
-            ciphertext=CIPHERTEXT,
-            additional_authenticated_data=None,
+            request=dict(
+                name=TEST_KEY_ID,
+                ciphertext=CIPHERTEXT,
+                additional_authenticated_data=None,
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert PLAINTEXT == result
 
@@ -127,11 +133,13 @@ class TestCloudKMSHook(unittest.TestCase):
         result = self.kms_hook.decrypt(TEST_KEY_ID, CIPHERTEXT_b64, AUTH_DATA)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.decrypt.assert_called_once_with(
-            name=TEST_KEY_ID,
-            ciphertext=CIPHERTEXT,
-            additional_authenticated_data=AUTH_DATA,
+            request=dict(
+                name=TEST_KEY_ID,
+                ciphertext=CIPHERTEXT,
+                additional_authenticated_data=AUTH_DATA,
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert PLAINTEXT == result
