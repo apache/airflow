@@ -45,7 +45,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_done(self, mock_hook):
-        job = self.create_job(JobStatus.DONE)
+        job = self.create_job(JobStatus.State.DONE)
         job_id = "job_id"
         mock_hook.return_value.get_job.return_value = job
 
@@ -66,7 +66,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_error(self, mock_hook):
-        job = self.create_job(JobStatus.ERROR)
+        job = self.create_job(JobStatus.State.ERROR)
         job_id = "job_id"
         mock_hook.return_value.get_job.return_value = job
 
@@ -88,7 +88,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_wait(self, mock_hook):
-        job = self.create_job(JobStatus.RUNNING)
+        job = self.create_job(JobStatus.State.RUNNING)
         job_id = "job_id"
         mock_hook.return_value.get_job.return_value = job
 
@@ -109,7 +109,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_cancelled(self, mock_hook):
-        job = self.create_job(JobStatus.CANCELLED)
+        job = self.create_job(JobStatus.State.CANCELLED)
         job_id = "job_id"
         mock_hook.return_value.get_job.return_value = job
 
