@@ -8,12 +8,14 @@
           <input id="update-chart-w-m" type="radio" name="chart-type" checked autocomplete="off">
           角度/扭矩
         </label>
-        <label class="btn btn-default font-weight-bold " for="update-chart-t-m" id="update-chart-t-m-label" style="z-index: 0"
+        <label class="btn btn-default font-weight-bold " for="update-chart-t-m" id="update-chart-t-m-label"
+               style="z-index: 0"
                title="Also include past task instances when clearing this one">
           <input id="update-chart-t-m" type="radio" name="chart-type" autocomplete="off">
           时间/扭矩
         </label>
-        <label class="btn btn-default font-weight-bold " for="update-chart-t-w" id="update-chart-t-w-label" style="z-index: 0"
+        <label class="btn btn-default font-weight-bold " for="update-chart-t-w" id="update-chart-t-w-label"
+               style="z-index: 0"
                title="Also include past task instances when clearing this one">
           <input id="update-chart-t-w" type="radio" name="chart-type" autocomplete="off">
           时间/角度
@@ -31,14 +33,14 @@
   const curKeyMap = {
     cur_w: '角度',
     cur_m: '扭矩',
-    cur_t: '时间',
+    cur_t: '时间'
   };
 
   const chartParams = {
     xKey: 'cur_w',
     yKey: 'cur_m',
     xName: curKeyMap.cur_w,
-    yName: curKeyMap.cur_m,
+    yName: curKeyMap.cur_m
   };
 
   function setChartParams(xKey, yKey) {

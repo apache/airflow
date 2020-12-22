@@ -112,6 +112,49 @@
     return data;
   }
 
+  function genMarkLine(dataKey, name, value, color = null) {
+    const { xKey, yKey } = chartParams;
+    let dataAxis = '';
+    if (xKey === dataKey) {
+      dataAxis = 'xAxis';
+    } else if (yKey === dataKey) {
+      dataAxis = 'yAxis';
+    } else {
+      return null;
+    }
+    return {
+      name,
+      [dataAxis]: value,
+      lineStyle:{
+        color: color
+      }
+    };
+  }
+
+  function getMarkLineByDataKey() {
+    const { xKey, yKey } = chartParams;
+    const dataKeys = [xKey, yKey];
+    return dataKeys.reduce(function (markLines, dataKey) {
+      if (dataKey !== 'cur_w' && dataKey !== 'cur_m') {
+        return markLines;
+      }
+      if (dataKey === 'cur_w') {
+        markLines.push(genMarkLine(dataKey, resultKeys.angle_max, result.angle_max));
+        markLines.push(genMarkLine(dataKey, resultKeys.angle_min, result.angle_min));
+        markLines.push(genMarkLine(dataKey, resultKeys.angle_target, result.angle_target));
+        markLines.push(genMarkLine(dataKey, resultKeys.measure_angle, result.measure_angle));
+        return markLines;
+      }
+      if (dataKey === 'cur_m') {
+        markLines.push(genMarkLine(dataKey, resultKeys.torque_max, result.torque_max));
+        markLines.push(genMarkLine(dataKey, resultKeys.torque_min, result.torque_min));
+        markLines.push(genMarkLine(dataKey, resultKeys.torque_target, result.torque_target));
+        markLines.push(genMarkLine(dataKey, resultKeys.measure_torque, result.measure_torque));
+        return markLines;
+      }
+    }, []);
+  }
+
   function renderChart() {
     const { xName, yName } = chartParams;
 
@@ -157,8 +200,9 @@
         },
         markLine: {
           data: [
-            { type: 'min', name: '最小值' },
-            { type: 'max', name: '最大值' }
+            // { type: 'min', name: '最小值' },
+            // { type: 'max', name: '最大值' },
+            ...getMarkLineByDataKey()
           ]
         }
       }],
@@ -267,7 +311,8 @@
         .css({ 'font-weight': 'bolder' });
       $('#doubleCheckModal').modal('hide');
       if (resp && resp.response === 'ok') {
-        $('#error-tags').html(errorTagsArr.map(t => `${t}`).map(getErrorTagText).filter(t => !!t).map(t => t.label).join(','));
+        $('#error-tags').html(errorTagsArr.map(t => `${t}`).map(getErrorTagText).filter(t => !!t).map(t => t.label)
+          .join(','));
       }
     });
   }
