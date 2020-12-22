@@ -23,16 +23,12 @@ which when triggered, is performed on the connected sqlite database.
 The second task is similar but instead calls the SQL command from an external file.
 """
 
-from datetime import timedelta
-
 from airflow import DAG
 from airflow.providers.sqlite.operators.sqlite import SqliteOperator
 from airflow.utils.dates import days_ago
 
 default_args = {
-    'owner': 'airflow',
-    "retries": 1,
-    "retry_delay": timedelta(minutes=5)
+    'owner': 'airflow'
 }
 
 dag = DAG(
@@ -40,7 +36,7 @@ dag = DAG(
     default_args=default_args,
     schedule_interval='@daily',
     start_date=days_ago(2),
-    tags=['example'],
+    tags=['example']
 )
 
 # [START howto_operator_sqlite]
@@ -68,7 +64,7 @@ external_create_table_sqlite_task = SqliteOperator(
     task_id='create_table_sqlite_external_file',
     sqlite_conn_id='sqlite_conn_id',
     sql='/scripts/create_table.sql',
-    dag=dag,
+    dag=dag
 )
 
 # [END howto_operator_sqlite_external_file]
