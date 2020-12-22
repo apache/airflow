@@ -95,6 +95,23 @@ Airflow with such extras, the necessary provider packages are installed automati
 PyPI for those packages). However you can freely upgrade and install provider packages independently from
 the main Airflow installation.
 
+Python versions support
+'''''''''''''''''''''''
+
+As of Airflow 2.0 we agreed to certain rules we follow for Python support. They are based on the official
+release schedule of Python, nicely summarized in the
+`Python Developer's Guide <https://devguide.python.org/#status-of-python-branches>`_
+
+1. We finish support for python versions when they reach EOL (For python 3.6 it means that we will remove it
+   from being supported on 23.12.2021).
+
+2. The "oldest" supported version of Python is the default one. "Default" is only meaningful in terms of
+   "smoke tests" in CI PRs which are run using this default version.
+
+3. We support a new version of Python after it is officially released, as soon as we manage to make
+   it works in our CI pipeline (which might not be immediate) and release a new version of Airflow
+   (non-Patch version) based on this CI set-up.
+
 
 Requirements
 ''''''''''''
