@@ -25,7 +25,6 @@ import pytest
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1.types import ReceivedMessage
-from google.protobuf.json_format import ParseDict
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
@@ -67,15 +66,12 @@ class TestPubSubHook(unittest.TestCase):
 
     def _generate_messages(self, count) -> List[ReceivedMessage]:
         return [
-            ParseDict(
-                {
-                    "ack_id": str(i),
-                    "message": {
-                        "data": f'Message {i}'.encode('utf8'),
-                        "attributes": {"type": "generated message"},
-                    },
+            ReceivedMessage(
+                ack_id=str(i),
+                message={
+                    "data": f'Message {i}'.encode('utf8'),
+                    "attributes": {"type": "generated message"},
                 },
-                ReceivedMessage(),
             )
             for i in range(1, count + 1)
         ]
@@ -112,20 +108,19 @@ class TestPubSubHook(unittest.TestCase):
         create_method = mock_service.return_value.create_topic
         self.pubsub_hook.create_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
         create_method.assert_called_once_with(
-            name=EXPANDED_TOPIC,
-            labels=LABELS,
-            message_storage_policy=None,
-            kms_key_name=None,
+            request=dict(name=EXPANDED_TOPIC, labels=LABELS, message_storage_policy=None, kms_key_name=None),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_topic(self, mock_service):
         delete_method = mock_service.return_value.delete_topic
         self.pubsub_hook.delete_topic(project_id=TEST_PROJECT, topic=TEST_TOPIC)
-        delete_method.assert_called_once_with(topic=EXPANDED_TOPIC, retry=None, timeout=None, metadata=None)
+        delete_method.assert_called_once_with(
+            request=dict(topic=EXPANDED_TOPIC), retry=None, timeout=None, metadata=()
+        )
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_nonexisting_topic_failifnotexists(self, mock_service):
@@ -177,21 +172,23 @@ class TestPubSubHook(unittest.TestCase):
             project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION
         )
         create_method.assert_called_once_with(
-            name=EXPANDED_SUBSCRIPTION,
-            topic=EXPANDED_TOPIC,
-            push_config=None,
-            ack_deadline_seconds=10,
-            retain_acked_messages=None,
-            message_retention_duration=None,
-            labels=LABELS,
-            enable_message_ordering=False,
-            expiration_policy=None,
-            filter_=None,
-            dead_letter_policy=None,
-            retry_policy=None,
+            request=dict(
+                name=EXPANDED_SUBSCRIPTION,
+                topic=EXPANDED_TOPIC,
+                push_config=None,
+                ack_deadline_seconds=10,
+                retain_acked_messages=None,
+                message_retention_duration=None,
+                labels=LABELS,
+                enable_message_ordering=False,
+                expiration_policy=None,
+                filter=None,
+                dead_letter_policy=None,
+                retry_policy=None,
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert TEST_SUBSCRIPTION == response
 
@@ -208,21 +205,23 @@ class TestPubSubHook(unittest.TestCase):
             'a-different-project', TEST_SUBSCRIPTION
         )
         create_method.assert_called_once_with(
-            name=expected_subscription,
-            topic=EXPANDED_TOPIC,
-            push_config=None,
-            ack_deadline_seconds=10,
-            retain_acked_messages=None,
-            message_retention_duration=None,
-            labels=LABELS,
-            enable_message_ordering=False,
-            expiration_policy=None,
-            filter_=None,
-            dead_letter_policy=None,
-            retry_policy=None,
+            request=dict(
+                name=expected_subscription,
+                topic=EXPANDED_TOPIC,
+                push_config=None,
+                ack_deadline_seconds=10,
+                retain_acked_messages=None,
+                message_retention_duration=None,
+                labels=LABELS,
+                enable_message_ordering=False,
+                expiration_policy=None,
+                filter=None,
+                dead_letter_policy=None,
+                retry_policy=None,
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
         assert TEST_SUBSCRIPTION == response
@@ -232,7 +231,7 @@ class TestPubSubHook(unittest.TestCase):
         self.pubsub_hook.delete_subscription(project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION)
         delete_method = mock_service.delete_subscription
         delete_method.assert_called_once_with(
-            subscription=EXPANDED_SUBSCRIPTION, retry=None, timeout=None, metadata=None
+            request=dict(subscription=EXPANDED_SUBSCRIPTION), retry=None, timeout=None, metadata=()
         )
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
@@ -266,21 +265,23 @@ class TestPubSubHook(unittest.TestCase):
 
         response = self.pubsub_hook.create_subscription(project_id=TEST_PROJECT, topic=TEST_TOPIC)
         create_method.assert_called_once_with(
-            name=expected_name,
-            topic=EXPANDED_TOPIC,
-            push_config=None,
-            ack_deadline_seconds=10,
-            retain_acked_messages=None,
-            message_retention_duration=None,
-            labels=LABELS,
-            enable_message_ordering=False,
-            expiration_policy=None,
-            filter_=None,
-            dead_letter_policy=None,
-            retry_policy=None,
+            request=dict(
+                name=expected_name,
+                topic=EXPANDED_TOPIC,
+                push_config=None,
+                ack_deadline_seconds=10,
+                retain_acked_messages=None,
+                message_retention_duration=None,
+                labels=LABELS,
+                enable_message_ordering=False,
+                expiration_policy=None,
+                filter=None,
+                dead_letter_policy=None,
+                retry_policy=None,
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert 'sub-%s' % TEST_UUID == response
 
@@ -292,21 +293,23 @@ class TestPubSubHook(unittest.TestCase):
             project_id=TEST_PROJECT, topic=TEST_TOPIC, subscription=TEST_SUBSCRIPTION, ack_deadline_secs=30
         )
         create_method.assert_called_once_with(
-            name=EXPANDED_SUBSCRIPTION,
-            topic=EXPANDED_TOPIC,
-            push_config=None,
-            ack_deadline_seconds=30,
-            retain_acked_messages=None,
-            message_retention_duration=None,
-            labels=LABELS,
-            enable_message_ordering=False,
-            expiration_policy=None,
-            filter_=None,
-            dead_letter_policy=None,
-            retry_policy=None,
+            request=dict(
+                name=EXPANDED_SUBSCRIPTION,
+                topic=EXPANDED_TOPIC,
+                push_config=None,
+                ack_deadline_seconds=30,
+                retain_acked_messages=None,
+                message_retention_duration=None,
+                labels=LABELS,
+                enable_message_ordering=False,
+                expiration_policy=None,
+                filter=None,
+                dead_letter_policy=None,
+                retry_policy=None,
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert TEST_SUBSCRIPTION == response
 
@@ -321,21 +324,23 @@ class TestPubSubHook(unittest.TestCase):
             filter_='attributes.domain="com"',
         )
         create_method.assert_called_once_with(
-            name=EXPANDED_SUBSCRIPTION,
-            topic=EXPANDED_TOPIC,
-            push_config=None,
-            ack_deadline_seconds=10,
-            retain_acked_messages=None,
-            message_retention_duration=None,
-            labels=LABELS,
-            enable_message_ordering=False,
-            expiration_policy=None,
-            filter_='attributes.domain="com"',
-            dead_letter_policy=None,
-            retry_policy=None,
+            request=dict(
+                name=EXPANDED_SUBSCRIPTION,
+                topic=EXPANDED_TOPIC,
+                push_config=None,
+                ack_deadline_seconds=10,
+                retain_acked_messages=None,
+                message_retention_duration=None,
+                labels=LABELS,
+                enable_message_ordering=False,
+                expiration_policy=None,
+                filter='attributes.domain="com"',
+                dead_letter_policy=None,
+                retry_policy=None,
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert TEST_SUBSCRIPTION == response
 
@@ -401,12 +406,14 @@ class TestPubSubHook(unittest.TestCase):
             project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=10
         )
         pull_method.assert_called_once_with(
-            subscription=EXPANDED_SUBSCRIPTION,
-            max_messages=10,
-            return_immediately=False,
+            request=dict(
+                subscription=EXPANDED_SUBSCRIPTION,
+                max_messages=10,
+                return_immediately=False,
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert pulled_messages == response
 
@@ -419,12 +426,14 @@ class TestPubSubHook(unittest.TestCase):
             project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=10
         )
         pull_method.assert_called_once_with(
-            subscription=EXPANDED_SUBSCRIPTION,
-            max_messages=10,
-            return_immediately=False,
+            request=dict(
+                subscription=EXPANDED_SUBSCRIPTION,
+                max_messages=10,
+                return_immediately=False,
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert [] == response
 
@@ -445,12 +454,14 @@ class TestPubSubHook(unittest.TestCase):
         with pytest.raises(PubSubException):
             self.pubsub_hook.pull(project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=10)
             pull_method.assert_called_once_with(
-                subscription=EXPANDED_SUBSCRIPTION,
-                max_messages=10,
-                return_immediately=False,
+                request=dict(
+                    subscription=EXPANDED_SUBSCRIPTION,
+                    max_messages=10,
+                    return_immediately=False,
+                ),
                 retry=None,
                 timeout=None,
-                metadata=None,
+                metadata=(),
             )
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
@@ -461,11 +472,13 @@ class TestPubSubHook(unittest.TestCase):
             project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, ack_ids=['1', '2', '3']
         )
         ack_method.assert_called_once_with(
-            subscription=EXPANDED_SUBSCRIPTION,
-            ack_ids=['1', '2', '3'],
+            request=dict(
+                subscription=EXPANDED_SUBSCRIPTION,
+                ack_ids=['1', '2', '3'],
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
@@ -478,11 +491,13 @@ class TestPubSubHook(unittest.TestCase):
             messages=self._generate_messages(3),
         )
         ack_method.assert_called_once_with(
-            subscription=EXPANDED_SUBSCRIPTION,
-            ack_ids=['1', '2', '3'],
+            request=dict(
+                subscription=EXPANDED_SUBSCRIPTION,
+                ack_ids=['1', '2', '3'],
+            ),
             retry=None,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @parameterized.expand(
@@ -504,11 +519,13 @@ class TestPubSubHook(unittest.TestCase):
                 project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, ack_ids=['1', '2', '3']
             )
             ack_method.assert_called_once_with(
-                subscription=EXPANDED_SUBSCRIPTION,
-                ack_ids=['1', '2', '3'],
+                request=dict(
+                    subscription=EXPANDED_SUBSCRIPTION,
+                    ack_ids=['1', '2', '3'],
+                ),
                 retry=None,
                 timeout=None,
-                metadata=None,
+                metadata=(),
             )
 
     @parameterized.expand(
