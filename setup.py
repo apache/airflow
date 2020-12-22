@@ -181,7 +181,8 @@ atlas = [
     'atlasclient>=0.1.2',
 ]
 azure = [
-    'azure-batch>=8.0.0',
+    # Limited to <10.0.0 until merging https://github.com/apache/airflow/pull/12188
+    'azure-batch>=8.0.0,<10.0.0',
     'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
     'azure-identity>=1.3.1',
