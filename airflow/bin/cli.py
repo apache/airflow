@@ -3111,7 +3111,7 @@ DB_COMMANDS = (
     ActionCommand(
         name='upgrade',
         help="Upgrade the metadata database to latest version",
-        func=upgrade_check,
+        func=upgradedb,
         args=(NOT_DEPRECATED,),
     ),
     ActionCommand(
