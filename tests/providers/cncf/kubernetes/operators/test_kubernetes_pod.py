@@ -122,7 +122,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
         context = self.create_context(k)
         k.execute(context=context)
         self.assertEqual(
-            start_mock.call_args[0][0].spec.image_pull_policy,
+            start_mock.call_args[0][0].spec.containers[0].image_pull_policy,
             'Always',
         )
 
