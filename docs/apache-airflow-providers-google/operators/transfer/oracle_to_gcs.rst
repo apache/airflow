@@ -34,7 +34,7 @@ Prerequisite Tasks
 .. _howto/operator:OracleToGCSOperator:
 
 OracleToGCSOperator
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 :class:`~airflow.providers.google.cloud.transfers.oracle_to_gcs.OracleToGCSOperator` allows you to upload
 data from Oracle database to GCS.
