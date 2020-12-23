@@ -139,16 +139,16 @@
         return markLines;
       }
       if (dataKey === 'cur_w') {
-        markLines.push(genMarkLine(dataKey, resultKeys.angle_max, result.angle_max));
-        markLines.push(genMarkLine(dataKey, resultKeys.angle_min, result.angle_min));
-        markLines.push(genMarkLine(dataKey, resultKeys.angle_target, result.angle_target));
+        markLines.push(genMarkLine(dataKey, resultKeys.angle_max, result.angle_max, 'orange'));
+        markLines.push(genMarkLine(dataKey, resultKeys.angle_min, result.angle_min, 'orange'));
+        markLines.push(genMarkLine(dataKey, resultKeys.angle_target, result.angle_target, 'green'));
         markLines.push(genMarkLine(dataKey, resultKeys.measure_angle, result.measure_angle));
         return markLines;
       }
       if (dataKey === 'cur_m') {
-        markLines.push(genMarkLine(dataKey, resultKeys.torque_max, result.torque_max));
-        markLines.push(genMarkLine(dataKey, resultKeys.torque_min, result.torque_min));
-        markLines.push(genMarkLine(dataKey, resultKeys.torque_target, result.torque_target));
+        markLines.push(genMarkLine(dataKey, resultKeys.torque_max, result.torque_max, 'orange'));
+        markLines.push(genMarkLine(dataKey, resultKeys.torque_min, result.torque_min, 'orange'));
+        markLines.push(genMarkLine(dataKey, resultKeys.torque_target, result.torque_target, 'green'));
         markLines.push(genMarkLine(dataKey, resultKeys.measure_torque, result.measure_torque));
         return markLines;
       }
