@@ -32,5 +32,5 @@ if [[ ${old_md5sum} != "${md5sum}" ]]; then
     ./compile_assets.sh
     echo "${md5sum}" > "${MD5SUM_FILE}"
 else
-    echo "No need to compile www assets"
+    echo "No need to recompile www assets"
 fi
