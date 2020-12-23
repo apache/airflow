@@ -40,6 +40,8 @@
           <td class="h-100" style="text-align: center;vertical-align: middle;">
             <div class="d-flex flex-column justify-content-center align-items-center">
               <input id="{{ task.entity_id }}" class="action_check m-2" name="rowid" value="{{ task.entity_id }}"
+                     data-carCode="{{ task.car_code }}"
+                     data-date="{{ task.execution_date }}"
                      type="checkbox">
               <a type="button" class="btn btn-sm btn-default"
                  href="{{url_for('Airflow.view_curve_page',dag_id=task.dag_id,execution_date=task.execution_date,task_id=task.task_id)}}"
@@ -98,12 +100,15 @@
 <script type="text/javascript">
   let selectedEIds = [];
   let curvesData = {};
+  let extraData = {};
 
-  function entityIdSelect(entityId) {
+  function entityIdSelect(entityId, data) {
     const idx = selectedEIds.findIndex(id => id === entityId);
     if (idx < 0) {
       selectedEIds.push(entityId);
+      extraData[entityId] = data;
     }
+    console.log(extraData);
   }
 
   function entityIdUnselect(entityId) {
@@ -118,7 +123,7 @@
       $(ev.currentTarget).parents('tr').find('.action_check').click();
     });
     $('.action_check_all').change((ev) => {
-      const { checked } = ev.currentTarget;
+      const {checked} = ev.currentTarget;
       if (checked) {
         $('.action_check:not(:checked)').click();
       } else {
@@ -126,9 +131,13 @@
       }
     });
     $('.action_check').change((ev) => {
-      const { checked, value } = ev.target;
+      const {checked, value, dataset} = ev.target;
+      const {carcode: carCode, date} = dataset;
       if (checked) {
-        entityIdSelect(value);
+        entityIdSelect(value, {
+          carCode,
+          date
+        });
       } else {
         entityIdUnselect(value);
       }
@@ -154,9 +163,9 @@
     if ((!curvesData) || Object.keys(curvesData).length === 0) {
       return [];
     }
-    const { xKey, yKey } = chartParams;
+    const {xKey, yKey} = chartParams;
     return selectedEIds.map(c => ({
-      name: c,
+      name: extraData[c] && `${extraData[c].carCode}@${extraData[c].date}` || c,
       type: 'line',
       data: genData(c, xKey, yKey),
       cursor: 'pointer',
@@ -169,14 +178,14 @@
   }
 
   function renderChart() {
-    const { xName, yName } = chartParams;
+    const {xName, yName} = chartParams;
     const option = {
       // title: {
       //   text: `${xName}-${yName}图`
       // },
       legend: {
         type: 'scroll',
-        data: selectedEIds
+        data: selectedEIds.map(c => extraData[c] && `${extraData[c].carCode}@${extraData[c].date}`)
       },
       grid: {
         bottom: 100
@@ -250,11 +259,11 @@
         entity_ids: entityIdsStr,
         csrf_token: '{{ csrf_token() }}'
       },
-      headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
+      headers: {'X-CSRFToken': '{{ csrf_token() }}'},
       dataType: 'json',
       contentType: 'application/json'
     }).then((resp) => {
-      const { error, curves } = resp;
+      const {error, curves} = resp;
       if (error) {
         throw new Error(error);
       }
@@ -273,10 +282,15 @@
       });
       const prevData = JSON.parse(window.sessionStorage.getItem('curvesData') || '{}');
       const prevSelectedEIds = JSON.parse(window.sessionStorage.getItem('selectedEIds') || '[]');
+      const prevExtraData = JSON.parse(window.sessionStorage.getItem('extraData') || '{}');
       selectedEIds = [...(new Set([
         ...prevSelectedEIds,
         ...selectedEIds
       ]))];
+      extraData = {
+        ...prevExtraData,
+        ...extraData
+      };
       curvesData = {
         ...prevData,
         ...curvesData,
@@ -284,6 +298,7 @@
       };
       window.sessionStorage.setItem('curvesData', JSON.stringify(curvesData));
       window.sessionStorage.setItem('selectedEIds', JSON.stringify(selectedEIds));
+      window.sessionStorage.setItem('extraData', JSON.stringify(extraData));
       render();
     });
   }
