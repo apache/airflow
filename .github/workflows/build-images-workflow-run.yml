@@ -317,7 +317,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{  matrix.python-version }}
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
         if: steps.defaults.outputs.proceed == 'true'
       - name: >
           Override "scripts/ci" with the "${{ needs.cancel-workflow-runs.outputs.targetBranch }}" branch
