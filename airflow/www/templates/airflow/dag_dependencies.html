@@ -75,9 +75,9 @@ under the License.
   const arrange = "{{ arrange }}";
 
   // Preparation of DagreD3 data structures
-  var g = new dagreD3.graphlib.Graph().setGraph({
-    nodesep: 25,
-    ranksep: 50,
+  let g = new dagreD3.graphlib.Graph().setGraph({
+    nodesep: 15,
+    ranksep: 15,
     rankdir: arrange,
   })
     .setDefaultEdgeLabel(function() { return { lineInterpolate: 'basis' } });
@@ -98,8 +98,8 @@ under the License.
 
   innerSvg.call(render, g);
 
-  Airflow.graph.setUpNodeHighlighting();
-  Airflow.graph.setUpZoomSupport();
+  Airflow.graph.setUpNodeHighlighting(g);
+  Airflow.graph.setUpZoomSupport(g);
 
   d3.select("#searchbox").on("keyup", function(){
     let s = document.getElementById("searchbox").value;

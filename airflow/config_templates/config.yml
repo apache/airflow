@@ -412,6 +412,22 @@
       type: integer
       example: ~
       default: "3"
+    - name: dag_dependencies_trigger
+      description: |
+        Comma-separated list of operator classes for Trigger relationship in DAG Dependencies view.
+        Every operator should have a ``trigger_dag_id`` attribute.
+      version_added: 2.1.0
+      type: string
+      example: ~
+      default: TriggerDagRunOperator
+    - name: dag_dependencies_sensor
+      description: |
+        Comma-separated list of operator classes for Sensor relationship in DAG Dependencies view.
+        Every operator should have an ``external_dag_id`` attribute.
+      version_added: 2.1.0
+      type: string
+      example: ~
+      default: ExternalTaskSensor
 
 - name: logging
   description: ~

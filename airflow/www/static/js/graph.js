@@ -25,7 +25,7 @@ const highlightStrokeWidth = '5px';
 const duration = 500;
 
 
-function setUpZoomSupport() {
+function setUpZoomSupport(g) {
   // Set up zoom support for Graph
   zoom = d3.behavior.zoom().on("zoom", function() {
     innerSvg.attr("transform", "translate(" + d3.event.translate + ")" +
@@ -54,11 +54,11 @@ function setUpZoomSupport() {
   zoom.event(innerSvg);
 }
 
-function setUpNodeHighlighting() {
+function setUpNodeHighlighting(g) {
   d3.selectAll("g.node").on("mouseover", function (d) {
     d3.select(this).selectAll("rect").style("stroke", highlight_color);
-    highlight_nodes(g.predecessors(d), upstream_color, highlightStrokeWidth);
-    highlight_nodes(g.successors(d), downstream_color, highlightStrokeWidth)
+    highlight_nodes(g, g.predecessors(d), upstream_color, highlightStrokeWidth);
+    highlight_nodes(g, g.successors(d), downstream_color, highlightStrokeWidth)
     adjacent_node_names = [d, ...g.predecessors(d), ...g.successors(d)]
     d3.selectAll("g.nodes g.node")
       .filter(x => !adjacent_node_names.includes(x))
@@ -85,7 +85,7 @@ function setUpNodeHighlighting() {
 }
 
 
-function highlight_nodes(nodes, color, stroke_width) {
+function highlight_nodes(g, nodes, color, stroke_width) {
   nodes.forEach (function (nodeid) {
     const my_node = g.node(nodeid).elem
     d3.select(my_node)

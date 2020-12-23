@@ -3826,7 +3826,7 @@ class DagDependenciesView(AirflowBaseView):
 
             for task in dag.tasks:
                 task_node_id = f"t--{dag_id}--{task.task_id}"
-                if task.task_type in ["TriggerDagRunOperator"]:
+                if task.task_type in conf.getlist("core", "dag_dependencies_trigger"):
                     nodes[task_node_id] = self._node_dict(
                         task_node_id, task.task_id, "fill: rgb(255, 239, 235)"
                     )
@@ -3837,7 +3837,7 @@ class DagDependenciesView(AirflowBaseView):
                             {"u": task_node_id, "v": f"d--{task.trigger_dag_id}"},
                         ]
                     )
-                elif task.task_type in ["ExternalTaskSensor"]:
+                elif task.task_type in conf.getlist("core", "dag_dependencies_sensor"):
                     nodes[task_node_id] = self._node_dict(
                         task_node_id, task.task_id, "fill: rgb(230, 241, 242)"
                     )

@@ -216,9 +216,9 @@
           }
         });
 
-        Airflow.graph.setUpNodeHighlighting();
+        Airflow.graph.setUpNodeHighlighting(g);
         updateNodesStates(task_instances);
-        Airflow.graph.setUpZoomSupport();
+        Airflow.graph.setUpZoomSupport(g);
       }
 
       var zoom = null;

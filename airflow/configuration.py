@@ -429,6 +429,9 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
                 f'Current value: "{val}".'
             )
 
+    def getlist(self, section, key, sep=",", **kwargs):
+        return self.get(section, key, **kwargs).split(sep)
+
     def getimport(self, section, key, **kwargs):  # noqa
         """
         Reads options, imports the full qualified name, and returns the object.
