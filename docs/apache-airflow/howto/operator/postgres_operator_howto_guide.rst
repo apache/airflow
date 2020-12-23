@@ -193,5 +193,5 @@ Conclusion
 In this how-to guide we explored the Apache Airflow PostgreOperator. Let's quickly highlight the key takeaways.
 In Airflow-2.0, PostgresOperator class now resides in the ``providers`` package. It is best practice to create subdirectory
 called ``sql`` in your ``dags`` directory where you can store your sql files. This will make your code more elegant and more
-maintainable. And finally, we looked at the different ways you can dynamically pass parameters into our postres operator
+maintainable. And finally, we looked at the different ways you can dynamically pass parameters into our postgres operator
 tasks  using ``parameters`` or ``params`` attribute.
