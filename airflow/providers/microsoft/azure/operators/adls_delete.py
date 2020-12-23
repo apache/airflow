@@ -24,12 +24,15 @@ from airflow.utils.decorators import apply_defaults
 
 class AzureDataLakeStorageDeleteOperator(BaseOperator):
     """
-    Delete file(s) in the specified path.
+    Delete files in the specified path.
+
+        .. seealso::
+            For more information on how to use this operator, take a look at the guide:
+            :ref:`howto/operator:AzureDataLakeStorageDeleteOperator`
 
     :param path: A directory or file to remove
     :type path: str
-    :param recursive: Whether to loop into directories
-        in the location and remove the files
+    :param recursive: Whether to loop into directories in the location and remove the files
     :type recursive: bool
     :param ignore_not_found: Whether to raise error if file to delete is not found
     :type ignore_not_found: bool

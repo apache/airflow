@@ -194,10 +194,10 @@ class AzureDataLakeHook(BaseHook):
     def remove(self, path: str, recursive: bool = False, ignore_not_found: bool = True) -> None:
         """
         Remove files in Azure Data Lake Storage
+
         :param path: A directory or file to remove in ADLS
         :type path: str
-        :param recursive: Whether to loop into directories
-            in the location and remove the files
+        :param recursive: Whether to loop into directories in the location and remove the files
         :type recursive: bool
         :param ignore_not_found: Whether to raise error if file to delete is not found
         :type ignore_not_found: bool
