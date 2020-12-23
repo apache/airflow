@@ -44,29 +44,14 @@ env:
 
 jobs:
 
-  trigger-tests:
-    timeout-minutes: 5
-    name: "Checks if tests should be run"
-    runs-on: ubuntu-20.04
-    outputs:
-      run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
-    steps:
-      - uses: actions/checkout@v2
-      - name: "Check if tests should be run"
-        run: "./scripts/ci/tools/ci_check_if_tests_should_be_run.sh"
-        id: trigger-tests
-
   tests-quarantined:
     timeout-minutes: 80
     name: "Quarantined tests"
     runs-on: ubuntu-20.04
-    continue-on-error: true
-    needs: [trigger-tests]
     strategy:
       matrix:
         python-version: [3.6]
         postgres-version: [9.6]
-      fail-fast: false
     env:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -75,8 +60,6 @@ jobs:
       TEST_TYPE: Quarantined
       NUM_RUNS: 20
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    if: |
-      needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
