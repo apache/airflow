@@ -18,14 +18,15 @@
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-import calendar
 import base64
+import calendar
 from typing import Dict
 import cx_Oracle
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.utils.decorators import apply_defaults
+
 
 class OracleToGCSOperator(BaseSQLToGCSOperator):
     """Copy data from Oracle to Google Cloud Storage in JSON or CSV format.
@@ -52,10 +53,7 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
     }
 
     @apply_defaults
-    def __init__(self, *,
-                 oracle_conn_id='oracle_default',
-                 ensure_utc=False,
-                 **kwargs):
+    def __init__(self, *, oracle_conn_id='oracle_default', ensure_utc=False, **kwargs):
         super().__init__(**kwargs)
         self.ensure_utc = ensure_utc
         self.oracle_conn_id = oracle_conn_id
@@ -66,7 +64,6 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
         """
         oracle = OracleHook(oracle_conn_id=self.oracle_conn_id)
         conn = oracle.get_conn()
-    
         cursor = conn.cursor()
         if self.ensure_utc:
             # Ensure TIMESTAMP results are in UTC

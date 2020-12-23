@@ -32,7 +32,7 @@ GZIP = False
 ROWS = [('mock_row_content_1', 42), ('mock_row_content_2', 43), ('mock_row_content_3', 44)]
 CURSOR_DESCRIPTION = (
     ('some_str', cx_Oracle.DB_TYPE_VARCHAR , None, None, None, None, None),
-    ('some_num',  cx_Oracle.DB_TYPE_NUMBER, None, None, None, None, None),
+    ('some_num', cx_Oracle.DB_TYPE_NUMBER, None, None, None, None, None),
 )
 NDJSON_LINES = [
     b'{"some_num": 42, "some_str": "mock_row_content_1"}\n',
@@ -44,6 +44,7 @@ SCHEMA_JSON = [
     b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, ',
     b'{"mode": "NULLABLE", "name": "some_num", "type": "NUMERIC"}]',
 ]
+
 
 class TestOracleToGoogleCloudStorageOperator(unittest.TestCase):
     def test_init(self):
