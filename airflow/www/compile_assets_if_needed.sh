@@ -27,7 +27,7 @@ md5sum=$(find package.json yarn.lock static/css static/js -type f | sort  | xarg
 old_md5sum=$(cat "${MD5SUM_FILE}" 2>/dev/null || true)
 if [[ ${old_md5sum} != "${md5sum}" ]]; then
     echo
-    echo "The assets need to be compiled because some of the www source files changed"
+    echo "The assets need to be recompiled because some of the www source files changed"
     echo
     ./compile_assets.sh
     echo "${md5sum}" > "${MD5SUM_FILE}"
