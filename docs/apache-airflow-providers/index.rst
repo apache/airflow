@@ -72,10 +72,10 @@ Separate provider packages provide the possibilities that were not available in 
 Extending Airflow Connections and Extra links via Providers
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-Providers, can not only deliver operators, hooks, sensor, transfer operators to communicate with
+Providers can not only deliver operators, hooks, sensor, transfer operators to communicate with
 multitude of external systems, but they can also extend Airflow. Airflow has several extension capabilities
-that can be used by providers. Airflow automatically discovers, which providers add those additional
-capabilities and once you install provider package and re-start Airflow, those are becoming automatically
+that can be used by providers. Airflow automatically discovers which providers add those additional
+capabilities and, once you install provider package and re-start Airflow, those become automatically
 available to Airflow Users.
 
 The capabilities are:
@@ -120,7 +120,7 @@ When you write your own provider, consider following the
 `Naming conventions for provider packages <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages>`_
 
 
-Q&A for Airflow and Providers
+FAQ for Airflow and Providers
 '''''''''''''''''''''''''''''
 
 Upgrading Airflow 2.0 and Providers
