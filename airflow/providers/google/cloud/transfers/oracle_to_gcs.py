@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import date, datetime, timedelta
-from decimal import Decimal
 import base64
 import calendar
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Dict
+
 import cx_Oracle
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
@@ -38,6 +39,7 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
         default timezone.
     :type ensure_utc: bool
     """
+
     ui_color = '#a0e08c'
 
     type_map = {
@@ -59,9 +61,7 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
         self.oracle_conn_id = oracle_conn_id
 
     def query(self):
-        """
-        Queries Oracle and returns a cursor to the results.
-        """
+        """Queries Oracle and returns a cursor to the results."""
         oracle = OracleHook(oracle_conn_id=self.oracle_conn_id)
         conn = oracle.get_conn()
         cursor = conn.cursor()
