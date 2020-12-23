@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 import calendar
 import base64
+from typing import Dict
 import cx_Oracle
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
@@ -56,6 +57,7 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
                  ensure_utc=False,
                  **kwargs):
         super().__init__(**kwargs)
+        self.ensure_utc = ensure_utc
         self.oracle_conn_id = oracle_conn_id
 
     def query(self):
@@ -75,10 +77,10 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
         cursor.execute(self.sql)
         return cursor
 
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         field_type = self.type_map.get(field[1], "STRING")
 
-        field_mode = "NULLABLE" if field[6] or field_type == "TIMESTAMP" else "REQUIRED"
+        field_mode = "NULLABLE" if not field[6] or field_type == "TIMESTAMP" else "REQUIRED"
         return {
             'name': field[0],
             'type': field_type,
