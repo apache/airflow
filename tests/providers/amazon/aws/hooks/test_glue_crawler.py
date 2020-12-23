@@ -31,48 +31,60 @@ mock_role_name = 'test-role'
 mock_crawler_config = {
     'crawler_name': mock_crawler_name,
     'crawler_desc': 'Test glue crawler from Airflow',
-    'glue_db_name': 'test_db',
+    'db_name': 'test_db',
     'iam_role_name': mock_role_name,
-    's3_targets_configuration': [
-        {
-            'Path': 's3://test-glue-crawler/foo/',
-            'Exclusions': [
-                's3://test-glue-crawler/bar/',
-            ],
-            'ConnectionName': 'test-s3-conn',
-        }
-    ],
-    'jdbc_targets_configuration': [
-        {
-            'ConnectionName': 'test-jdbc-conn',
-            'Path': 'test_db/test_table>',
-            'Exclusions': [
-                'string',
-            ],
-        }
-    ],
-    'mongo_targets_configuration': [
-        {'ConnectionName': 'test-mongo-conn', 'Path': 'test_db/test_collection', 'ScanAll': True}
-    ],
-    'dynamo_targets_configuration': [
-        {'Path': 'test_db/test_table', 'scanAll': True | False, 'scanRate': 123.0}
-    ],
-    'glue_catalog_targets_configuration': [
-        {
-            'DatabaseName': 'test_glue_db',
-            'Tables': [
-                'test',
-            ],
-        }
-    ],
-    'cron_schedule': 'cron(12 12 * * ? *)',
+    'targets': {
+        'S3Targets': [
+            {
+                'Path': 's3://test-glue-crawler/foo/',
+                'Exclusions': [
+                    's3://test-glue-crawler/bar/',
+                ],
+                'ConnectionName': 'test-s3-conn',
+            }
+        ],
+        'JdbcTargets': [
+            {
+                'ConnectionName': 'test-jdbc-conn',
+                'Path': 'test_db/test_table>',
+                'Exclusions': [
+                    'string',
+                ],
+            }
+        ],
+        'MongoDBTargets': [
+            {'ConnectionName': 'test-mongo-conn', 'Path': 'test_db/test_collection', 'ScanAll': True}
+        ],
+        'DynamoDBTargets': [
+            {'Path': 'test_db/test_table', 'scanAll': True, 'scanRate': 123.0}
+        ],
+        'CatalogTargets': [
+            {
+                'DatabaseName': 'test_glue_db',
+                'Tables': [
+                    'test',
+                ],
+            }
+        ]
+    }
     'classifiers': 'test-classifier',
     'table_prefix': 'test',
-    'update_behavior': 'LOG',
-    'delete_behavior': 'LOG',
-    'recrawl_behavior': 'CRAWL_EVERYTHING',
+    'schema_change_policy': {
+        'UpdateBehavior': 'UPDATE_IN_DATABASE',
+        'DeleteBehavior': 'DEPRECATE_IN_DATABASE'
+    },
+    'recrawl_policy': {
+        'RecrawlBehavior': 'CRAWL_EVERYTHING'
+    },
     'lineage_settings': 'ENABLE',
-    'json_configuration': 'test',
+    'configuration': """
+    {
+        "Version": 1.0,
+        "CrawlerOutput": {
+            "Partitions": { "AddOrUpdateBehavior": "InheritFromTable" }
+        }
+    }
+    """,
     'security_configuration': 'test',
     'tags': {'test': 'foo'},
 }
