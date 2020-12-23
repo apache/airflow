@@ -102,7 +102,7 @@
   let $errorTagInput = null;
 
   function genData() {
-    const { xKey, yKey } = chartParams;
+    const {xKey, yKey} = chartParams;
     const data = [];
     const xData = curve[xKey];
     const yData = curve[yKey];
@@ -113,7 +113,7 @@
   }
 
   function genMarkLine(dataKey, name, value, color = null) {
-    const { xKey, yKey } = chartParams;
+    const {xKey, yKey} = chartParams;
     let dataAxis = '';
     if (xKey === dataKey) {
       dataAxis = 'xAxis';
@@ -125,14 +125,14 @@
     return {
       name,
       [dataAxis]: value,
-      lineStyle:{
+      lineStyle: {
         color: color
       }
     };
   }
 
   function getMarkLineByDataKey() {
-    const { xKey, yKey } = chartParams;
+    const {xKey, yKey} = chartParams;
     const dataKeys = [xKey, yKey];
     return dataKeys.reduce(function (markLines, dataKey) {
       if (dataKey !== 'cur_w' && dataKey !== 'cur_m') {
@@ -156,7 +156,7 @@
   }
 
   function renderChart() {
-    const { xName, yName } = chartParams;
+    const {xName, yName} = chartParams;
 
     const option = {
       legend: {
@@ -278,11 +278,32 @@
   }
 
   function renderResultDetail() {
-    const { measure_result: measureResult, error_code: errorCode, ...rest } = result;
+    const {
+      measure_result: measureResult,
+      error_code: errorCode,
+      angle_max,
+      angle_min,
+      angle_target,
+      measure_angle,
+      torque_max,
+      torque_min,
+      torque_target,
+      measure_torque,
+      ...rest
+    } = result;
     const $rows = [];
     const isNOK = (measureResult || '').toUpperCase() === 'NOK';
     $rows.push(renderResultTableRow(resultKeys.measure_result || 'measure_result', measureResult, isNOK));
     $rows.push(renderResultTableRow(resultKeys.error_code || 'error_code', parseResultErrorCode(errorCode), isNOK));
+    $rows.push(renderResultTableRow(resultKeys.measure_angle || 'measure_angle', measure_angle));
+    $rows.push(renderResultTableRow(resultKeys.angle_target || 'angle_target', angle_target));
+    $rows.push(renderResultTableRow(resultKeys.angle_max || 'angle_max', angle_max));
+    $rows.push(renderResultTableRow(resultKeys.angle_min || 'angle_min', angle_min));
+    $rows.push(renderResultTableRow(resultKeys.measure_torque || 'measure_torque', measure_torque));
+    $rows.push(renderResultTableRow(resultKeys.torque_target || 'torque_target', torque_target));
+    $rows.push(renderResultTableRow(resultKeys.torque_max || 'torque_max', torque_max));
+    $rows.push(renderResultTableRow(resultKeys.torque_min || 'torque_min', torque_min));
+
     Object.keys(rest).forEach((k) => {
       $rows.push(renderResultTableRow(resultKeys[k] || k, rest[k]));
     });
@@ -300,7 +321,7 @@
         error_tags: errorTagsArr,
         execution_date: '{{task_instance.execution_date}}'
       }),
-      headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
+      headers: {'X-CSRFToken': '{{ csrf_token() }}'},
       dataType: 'json',
       contentType: 'application/json'
     }).then((resp) => {
@@ -308,7 +329,7 @@
       $('#double-check-card').addClass(resultClass);
       $('.double-check-result').html(`${finalState}`)
         .addClass(finalState === 'OK' ? 'text-success' : 'text-danger')
-        .css({ 'font-weight': 'bolder' });
+        .css({'font-weight': 'bolder'});
       $('#doubleCheckModal').modal('hide');
       if (resp && resp.response === 'ok') {
         $('#error-tags').html(errorTagsArr.map(t => `${t}`).map(getErrorTagText).filter(t => !!t).map(t => t.label)
@@ -372,17 +393,17 @@
 
   function renderBaseInfo() {
     const info = [
-      { label: '曲线编号', value: '{{task_instance.entity_id}}' },
+      {label: '曲线编号', value: '{{task_instance.entity_id}}'},
       {
         label: '螺栓编号',
         value: '<a target="_blank" href="' + "{{url_for('VariableModelView.list',_flt_0_key=task_instance.bolt_number,_flt_0_is_curve_template='y')}}" + '">{{task_instance.bolt_number}}</a>'
       },
-      { label: '拧紧时间', value: new Date('{{task_instance.execution_date}}').toLocaleString() },
-      { label: '工段', value: '{{controller.line_code}}' },
-      { label: '工位名称', value: '{{controller.work_center_name}}' },
-      { label: '工位编号', value: '{{controller.work_center_code}}' },
-      { label: '控制器', value: '{{controller.controller_name}}' },
-      { label: '工具序列号', value: '{{result.tool_sn}}' }
+      {label: '拧紧时间', value: new Date('{{task_instance.execution_date}}').toLocaleString()},
+      {label: '工段', value: '{{controller.line_code}}'},
+      {label: '工位名称', value: '{{controller.work_center_name}}'},
+      {label: '工位编号', value: '{{controller.work_center_code}}'},
+      {label: '控制器', value: '{{controller.controller_name}}'},
+      {label: '工具序列号', value: '{{result.tool_sn}}'}
     ];
 
     $('#base-info-content').append(info.map(i => renderBaseInfoRow(i.label, i.value)));
