@@ -293,7 +293,7 @@ def should_use_colors(args) -> bool:
 def suppress_logs_and_warning(f: T) -> T:
     """
     Decorator to suppress logging and warning messages
-    in cli functions
+    in cli functions.
     """
 
     @functools.wraps(f)

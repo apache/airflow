@@ -1020,7 +1020,7 @@ POOLS_COMMANDS = (
         name='import',
         help='Import pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
-        args=(ARG_POOL_IMPORT,),
+        args=(ARG_POOL_IMPORT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='export',
@@ -1040,7 +1040,7 @@ VARIABLES_COMMANDS = (
         name='get',
         help='Get variable',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_get'),
-        args=(ARG_VAR, ARG_JSON, ARG_DEFAULT),
+        args=(ARG_VAR, ARG_JSON, ARG_DEFAULT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='set',
@@ -1269,7 +1269,7 @@ ROLES_COMMANDS = (
         name='create',
         help='Create role',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_create'),
-        args=(ARG_ROLES,),
+        args=(ARG_ROLES, ARG_VERBOSE),
     ),
 )
 
@@ -1443,7 +1443,7 @@ airflow_commands: List[CLICommand] = [
         name='cheat-sheet',
         help="Display cheat sheet",
         func=lazy_load_command('airflow.cli.commands.cheat_sheet_command.cheat_sheet'),
-        args=(),
+        args=(ARG_VERBOSE,),
     ),
     GroupCommand(
         name='connections',
@@ -1490,6 +1490,7 @@ airflow_commands: List[CLICommand] = [
         args=(
             ARG_ANONYMIZE,
             ARG_FILE_IO,
+            ARG_VERBOSE,
         ),
     ),
     ActionCommand(
