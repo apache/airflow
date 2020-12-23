@@ -420,6 +420,8 @@ class Airflow(AirflowBaseView):
         controller_name = ti.controller_name.split('@')[0] if ti.controller_name else ''
         controller = TighteningController.find_controller(controller_name)
         error_tags = ErrorTag.get_all()
+        ENV_CURVE_GRAPH_SHOW_RANGE = os.environ.get('CURVE_GRAPH_SHOW_RANGE')
+        show_range = (ENV_CURVE_GRAPH_SHOW_RANGE == True) or (ENV_CURVE_GRAPH_SHOW_RANGE == 'True')
         can_verify = _has_access('set_final_state_ok', 'TaskInstanceModelView') \
                      and _has_access('set_final_state_nok', 'TaskInstanceModelView')
         return self.render_template('airflow/curve.html', task_instance=ti, result=result,
@@ -429,7 +431,9 @@ class Airflow(AirflowBaseView):
                                     verify_error_map=verify_error_map,
                                     can_verify=can_verify,
                                     controller=controller,
-                                    errorTags=error_tags)
+                                    errorTags=error_tags,
+                                    show_range=show_range
+                                    )
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
     @has_access

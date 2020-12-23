@@ -94,6 +94,7 @@
 <script src="{{ url_for('static', filename='js/select2.min.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
   const result = JSON.parse('{{ result|tojson|safe }}');
+  const showRange = JSON.parse('{{ show_range|tojson|safe }}');
   const curve = JSON.parse('{{ curve|tojson|safe }}');
   const errorTags = JSON.parse('{{ errorTags|tojson|safe }}');
   const resultErrs = JSON.parse('{{ resultErrorMessageMapping|tojson|safe }}');
@@ -132,6 +133,9 @@
   }
 
   function getMarkLineByDataKey() {
+    if (!showRange) {
+      return [];
+    }
     const {xKey, yKey} = chartParams;
     const dataKeys = [xKey, yKey];
     return dataKeys.reduce(function (markLines, dataKey) {
