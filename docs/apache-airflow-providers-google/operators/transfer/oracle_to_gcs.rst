@@ -16,7 +16,7 @@
     under the License.
 
 Oracle To Google Cloud Storage Operator
-======================================
+=======================================
 The `Google Cloud Storage <https://cloud.google.com/storage/>`__ (GCS) service is
 used to store large data from various applications. This page shows how to copy
 data from Oracle to GCS.
