@@ -182,7 +182,7 @@ atlas = [
     'atlasclient>=0.1.2',
 ]
 aws = [
-    'boto3~=1.10,<1.11',  # required by snowflake
+    'boto3~=1.10',
 ]
 azure_blob_storage = [
     'azure-storage>=0.34.0, <0.37.0',
@@ -390,6 +390,7 @@ slack = [
     'websocket-client<0.55.0'
 ]
 snowflake = [
+    'boto3<1.11',
     'snowflake-connector-python>=1.5.2',
     'snowflake-sqlalchemy>=1.1.0',
 ]
