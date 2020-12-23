@@ -434,7 +434,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         with self.dag:
             ret = add_number(2)
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id=DagRunType.MANUAL.value,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -452,7 +452,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         with self.dag:
             ret = add_number(2)
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id=DagRunType.MANUAL.value,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -480,7 +480,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         ret = task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
 
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id=DagRunType.MANUAL.value,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -511,7 +511,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         )
         ret = task(an_int=4, a_date=date(2019, 1, 1), a_templated_string="dag {{dag.dag_id}} ran on {{ds}}.")
         self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id=DagRunType.MANUAL.value,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -601,7 +601,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
             ret = return_dict(test_number)
 
         dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id=DagRunType.MANUAL.value,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -643,7 +643,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
             ret = add_num(bigger_number, XComArg(bigger_number.operator))  # pylint: disable=maybe-no-member
 
         dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id=DagRunType.MANUAL.value,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,

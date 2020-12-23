@@ -1716,16 +1716,16 @@ class DAG(LoggingMixin):
     @provide_session
     def create_dagrun(
         self,
-        state,
-        execution_date=None,
-        run_id=None,
-        start_date=None,
-        external_trigger=False,
-        conf=None,
-        run_type=None,
+        state: State,
+        execution_date: Optional[datetime] = None,
+        run_id: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        external_trigger: Optional[bool] = False,
+        conf: Optional[dict] = None,
+        run_type: Optional[DagRunType] = None,
         session=None,
-        dag_hash=None,
-        creating_job_id=None,
+        dag_hash: Optional[str] = None,
+        creating_job_id: Optional[int] = None,
     ):
         """
         Creates a dag run from this dag including the tasks associated with this dag.

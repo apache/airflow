@@ -50,7 +50,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, with_row_locks
 from airflow.utils.state import State
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunType, EnumString
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -83,7 +83,7 @@ class DagRun(Base, LoggingMixin):
     run_id = Column(String(ID_LEN))
     creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
-    run_type = Column(String(50), nullable=False)
+    run_type = Column(EnumString(50), nullable=False)
     conf = Column(PickleType)
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
@@ -298,7 +298,7 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
         """Generate Run ID based on Run Type and Execution Date"""
-        return f"{run_type}__{execution_date.isoformat()}"
+        return f"{run_type.value}__{execution_date.isoformat()}"
 
     @provide_session
     def get_task_instances(self, state=None, session=None) -> Iterable[TI]:
