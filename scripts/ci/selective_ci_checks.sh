@@ -536,9 +536,10 @@ function calculate_test_types_to_run() {
         fi
         if [[ ${COUNT_CLI_CHANGED_FILES} != "0" ]]; then
             echo
-            echo "Adding CLI to selected files as ${COUNT_CLI_CHANGED_FILES} CLI files changed"
+            echo "Adding CLI and Kubernetes (they depend on CLI) to selected files as ${COUNT_CLI_CHANGED_FILES} CLI files changed"
             echo
             SELECTED_TESTS="${SELECTED_TESTS} CLI"
+            kubernetes_tests_needed="true"
         fi
         if [[ ${COUNT_PROVIDERS_CHANGED_FILES} != "0" ]]; then
             echo
