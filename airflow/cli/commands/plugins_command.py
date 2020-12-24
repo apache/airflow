@@ -49,7 +49,7 @@ def _join_plugins_names(value: Union[List[Any], Any]) -> str:
     return ",".join(_get_name(v) for v in value)
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def dump_plugins(args):
     """Dump plugins information"""
     plugins_manager.ensure_plugins_loaded()

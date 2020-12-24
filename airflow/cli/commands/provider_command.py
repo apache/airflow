@@ -26,7 +26,7 @@ def _remove_rst_syntax(value: str) -> str:
     return re.sub("[`_<>]", "", value.strip(" \n."))
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def provider_get(args):
     """Get a provider info."""
     providers = ProvidersManager().providers
@@ -46,7 +46,7 @@ def provider_get(args):
         raise SystemExit(f"No such provider installed: {args.provider_name}")
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def providers_list(args):
     """Lists all providers at the command line"""
     AirflowConsole().print_as(
@@ -60,7 +60,7 @@ def providers_list(args):
     )
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def hooks_list(args):
     """Lists all hooks at the command line"""
     AirflowConsole().print_as(
@@ -76,7 +76,7 @@ def hooks_list(args):
     )
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def connection_form_widget_list(args):
     """Lists all custom connection form fields at the command line"""
     AirflowConsole().print_as(
@@ -91,7 +91,7 @@ def connection_form_widget_list(args):
     )
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def connection_field_behaviours(args):
     """Lists field behaviours"""
     AirflowConsole().print_as(
@@ -103,7 +103,7 @@ def connection_field_behaviours(args):
     )
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def extra_links_list(args):
     """Lists all extra links at the command line"""
     AirflowConsole().print_as(

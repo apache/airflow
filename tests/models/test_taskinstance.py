@@ -1945,7 +1945,7 @@ class TestTaskInstance(unittest.TestCase):
                 for upstream, downstream in dependencies.items():
                     dag.set_dependency(upstream, downstream)
 
-            scheduler = SchedulerJob()
+            scheduler = SchedulerJob(subdir=os.devnull)
             scheduler.dagbag.bag_dag(dag, root_dag=dag)
 
             dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow', state=State.RUNNING)

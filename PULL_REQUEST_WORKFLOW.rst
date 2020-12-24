@@ -154,7 +154,8 @@ The logic implemented for the changes works as follows:
       modifications to any Python code occurs. Example test of this type is verifying proper structure of
       the project including proper naming of all files.
    b) if any of the Airflow API files changed we enable ``API`` test type
-   c) if any of the Airflow CLI files changed we enable ``CLI`` test type
+   c) if any of the Airflow CLI files changed we enable ``CLI`` test type and Kubernetes tests (the
+      K8S tests depend on CLI changes as helm chart uses CLI to run Airflow).
    d) if any of the Provider files changed we enable ``Providers`` test type
    e) if any of the WWW files changed we enable ``WWW`` test type
    f) if any of the Kubernetes files changed we enable ``Kubernetes`` test type

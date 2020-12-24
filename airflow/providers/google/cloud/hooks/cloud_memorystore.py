@@ -23,10 +23,14 @@ from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
 from google.cloud.memcache_v1beta2 import CloudMemcacheClient
 from google.cloud.memcache_v1beta2.types import cloud_memcache
-from google.cloud.redis_v1 import CloudRedisClient
-from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
-from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, OutputConfig
-from google.protobuf.json_format import ParseDict
+from google.cloud.redis_v1 import (
+    CloudRedisClient,
+    FailoverInstanceRequest,
+    InputConfig,
+    Instance,
+    OutputConfig,
+)
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import version
 from airflow.exceptions import AirflowException
@@ -70,7 +74,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         )
         self._client: Optional[CloudRedisClient] = None
 
-    def get_conn(self):
+    def get_conn(self) -> CloudRedisClient:
         """Retrieves client library object that allow access to Cloud Memorystore service."""
         if not self._client:
             self._client = CloudRedisClient(credentials=self._get_credentials())
@@ -143,35 +147,36 @@ class CloudMemorystoreHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-        parent = CloudRedisClient.location_path(project_id, location)
-        instance_name = CloudRedisClient.instance_path(project_id, location, instance_id)
+        if isinstance(instance, dict):
+            instance = Instance(**instance)
+        elif not isinstance(instance, Instance):
+            raise AirflowException("instance is not instance of Instance type or python dict")
+
+        parent = f"projects/{project_id}/locations/{location}"
+        instance_name = f"projects/{project_id}/locations/{location}/instances/{instance_id}"
         try:
+            self.log.info("Fetching instance: %s", instance_name)
             instance = client.get_instance(
-                name=instance_name, retry=retry, timeout=timeout, metadata=metadata
+                request={'name': instance_name}, retry=retry, timeout=timeout, metadata=metadata or ()
             )
             self.log.info("Instance exists. Skipping creation.")
             return instance
         except NotFound:
             self.log.info("Instance not exists.")
 
-        if isinstance(instance, dict):
-            instance = ParseDict(instance, Instance())
-        elif not isinstance(instance, Instance):
-            raise AirflowException("instance is not instance of Instance type or python dict")
-
         self._append_label(instance, "airflow-version", "v" + version.version)
 
         result = client.create_instance(
-            parent=parent,
-            instance_id=instance_id,
-            instance=instance,
+            request={'parent': parent, 'instance_id': instance_id, 'instance': instance},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance created.")
-        return client.get_instance(name=instance_name, retry=retry, timeout=timeout, metadata=metadata)
+        return client.get_instance(
+            request={'name': instance_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(
@@ -203,15 +208,25 @@ class CloudMemorystoreHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-        name = CloudRedisClient.instance_path(project_id, location, instance)
+        name = f"projects/{project_id}/locations/{location}/instances/{instance}"
         self.log.info("Fetching Instance: %s", name)
-        instance = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata)
+        instance = client.get_instance(
+            request={'name': name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
+        )
 
         if not instance:
             return
 
         self.log.info("Deleting Instance: %s", name)
-        result = client.delete_instance(name=name, retry=retry, timeout=timeout, metadata=metadata)
+        result = client.delete_instance(
+            request={'name': name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
+        )
         result.result()
         self.log.info("Instance deleted: %s", name)
 
@@ -253,10 +268,13 @@ class CloudMemorystoreHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-        name = CloudRedisClient.instance_path(project_id, location, instance)
+        name = f"projects/{project_id}/locations/{location}/instances/{instance}"
         self.log.info("Exporting Instance: %s", name)
         result = client.export_instance(
-            name=name, output_config=output_config, retry=retry, timeout=timeout, metadata=metadata
+            request={'name': name, 'output_config': output_config},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance exported: %s", name)
@@ -297,15 +315,14 @@ class CloudMemorystoreHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-        name = CloudRedisClient.instance_path(project_id, location, instance)
+        name = f"projects/{project_id}/locations/{location}/instances/{instance}"
         self.log.info("Failovering Instance: %s", name)
 
         result = client.failover_instance(
-            name=name,
-            data_protection_mode=data_protection_mode,
+            request={'name': name, 'data_protection_mode': data_protection_mode},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance failovered: %s", name)
@@ -340,8 +357,13 @@ class CloudMemorystoreHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-        name = CloudRedisClient.instance_path(project_id, location, instance)
-        result = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata)
+        name = f"projects/{project_id}/locations/{location}/instances/{instance}"
+        result = client.get_instance(
+            request={'name': name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
+        )
         self.log.info("Fetched Instance: %s", name)
         return result
 
@@ -384,10 +406,13 @@ class CloudMemorystoreHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-        name = CloudRedisClient.instance_path(project_id, location, instance)
+        name = f"projects/{project_id}/locations/{location}/instances/{instance}"
         self.log.info("Importing Instance: %s", name)
         result = client.import_instance(
-            name=name, input_config=input_config, retry=retry, timeout=timeout, metadata=metadata
+            request={'name': name, 'input_config': input_config},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance imported: %s", name)
@@ -428,9 +453,12 @@ class CloudMemorystoreHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-        parent = CloudRedisClient.location_path(project_id, location)
+        parent = f"projects/{project_id}/locations/{location}"
         result = client.list_instances(
-            parent=parent, page_size=page_size, retry=retry, timeout=timeout, metadata=metadata
+            request={'parent': parent, 'page_size': page_size},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         self.log.info("Fetched instances")
         return result
@@ -485,17 +513,20 @@ class CloudMemorystoreHook(GoogleBaseHook):
         client = self.get_conn()
 
         if isinstance(instance, dict):
-            instance = ParseDict(instance, Instance())
+            instance = Instance(**instance)
         elif not isinstance(instance, Instance):
             raise AirflowException("instance is not instance of Instance type or python dict")
 
         if location and instance_id:
-            name = CloudRedisClient.instance_path(project_id, location, instance_id)
+            name = f"projects/{project_id}/locations/{location}/instances/{instance_id}"
             instance.name = name
 
         self.log.info("Updating instances: %s", instance.name)
         result = client.update_instance(
-            update_mask=update_mask, instance=instance, retry=retry, timeout=timeout, metadata=metadata
+            request={'update_mask': update_mask, 'instance': instance},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance updated: %s", instance.name)
@@ -610,7 +641,12 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
 
         self.log.info("Applying update to instance: %s", instance_id)
         result = client.apply_parameters(
-            name=name, node_ids=node_ids, apply_all=apply_all, retry=retry, timeout=timeout, metadata=metadata
+            name=name,
+            node_ids=node_ids,
+            apply_all=apply_all,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance updated: %s", instance_id)
@@ -688,11 +724,16 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             resource=instance,
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance created.")
-        return client.get_instance(name=instance_name, retry=retry, timeout=timeout, metadata=metadata)
+        return client.get_instance(
+            name=instance_name,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(
@@ -727,13 +768,23 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         metadata = metadata or ()
         name = CloudMemcacheClient.instance_path(project_id, location, instance)
         self.log.info("Fetching Instance: %s", name)
-        instance = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata)
+        instance = client.get_instance(
+            name=name,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
+        )
 
         if not instance:
             return
 
         self.log.info("Deleting Instance: %s", name)
-        result = client.delete_instance(name=name, retry=retry, timeout=timeout, metadata=metadata)
+        result = client.delete_instance(
+            name=name,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
+        )
         result.result()
         self.log.info("Instance deleted: %s", name)
 
@@ -808,7 +859,12 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         parent = path_template.expand(
             "projects/{project}/locations/{location}", project=project_id, location=location
         )
-        result = client.list_instances(parent=parent, retry=retry, timeout=timeout, metadata=metadata)
+        result = client.list_instances(
+            parent=parent,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata or (),
+        )
         self.log.info("Fetched instances")
         return result
 
@@ -871,7 +927,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
 
         self.log.info("Updating instances: %s", instance.name)
         result = client.update_instance(
-            update_mask=update_mask, resource=instance, retry=retry, timeout=timeout, metadata=metadata
+            update_mask=update_mask, resource=instance, retry=retry, timeout=timeout, metadata=metadata or ()
         )
         result.result()
         self.log.info("Instance updated: %s", instance.name)
@@ -934,7 +990,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             parameters=parameters,
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Update staged for instance: %s", instance_id)

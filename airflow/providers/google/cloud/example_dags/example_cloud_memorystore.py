@@ -22,7 +22,7 @@ import os
 from urllib.parse import urlparse
 
 from google.cloud.memcache_v1beta2.types import cloud_memcache
-from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest, Instance
+from google.cloud.redis_v1 import FailoverInstanceRequest, Instance
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -161,7 +161,7 @@ with models.DAG(
     set_acl_permission = GCSBucketCreateAclEntryOperator(
         task_id="gcs-set-acl-permission",
         bucket=BUCKET_NAME,
-        entity="user-{{ task_instance.xcom_pull('get-instance')['persistenceIamIdentity']"
+        entity="user-{{ task_instance.xcom_pull('get-instance')['persistence_iam_identity']"
         ".split(':', 2)[1] }}",
         role="OWNER",
     )

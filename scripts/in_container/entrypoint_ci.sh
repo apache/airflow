@@ -75,26 +75,7 @@ if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     echo
     echo "Using already installed airflow version"
     echo
-    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
-        echo
-        echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
-        echo
-        pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
-        yarn install --frozen-lockfile
-        echo
-        popd &>/dev/null || exit 1
-    fi
-    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" ]]; then
-        pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
-        echo
-        echo "Building production version of JavaScript files (Sources mounted from Host)"
-        echo
-        echo
-        yarn run prod
-        echo
-        echo
-        popd &>/dev/null || exit 1
-    fi
+    "${AIRFLOW_SOURCES}/airflow/www/compile_assets_if_needed.sh"
     # Cleanup the logs, tmp when entering the environment
     sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
     sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*

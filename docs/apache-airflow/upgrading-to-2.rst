@@ -325,6 +325,14 @@ the only supported UI.
 
 **Breaking Change in OAuth**
 
+.. note::
+
+    When multiple replicas of the airflow webserver are running they
+    need to share the same *secret_key* to access the same user session. Inject
+    this via any configuration mechanism. The 1.10.14 bridge-release modifies this feature
+    to use randomly generated secret keys instead of an insecure default and may break existing
+    deployments that rely on the default.
+
 The ``flask-ouathlib`` has been replaced with ``authlib`` because ``flask-outhlib`` has
 been deprecated in favor of ``authlib``.
 The Old and New provider configuration keys that have changed are as follows

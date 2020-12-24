@@ -633,6 +633,10 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.mysql_to_gcs
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/mysql_to_gcs.rst
+  - source-integration-name: Oracle
+    target-integration-name: Google Cloud Storage (GCS)
+    python-module: airflow.providers.google.cloud.transfers.oracle_to_gcs
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/oracle_to_gcs.rst
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Google Spreadsheet
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_sheets.rst
