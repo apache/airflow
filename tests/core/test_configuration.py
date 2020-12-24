@@ -513,6 +513,7 @@ AIRFLOW_HOME = /root/airflow
                     },
                 }
             )
+            test_conf.validate()
             return test_conf
 
         with self.assertWarns(FutureWarning):
