@@ -32,6 +32,10 @@ from airflow.utils.decorators import apply_defaults
 class OracleToGCSOperator(BaseSQLToGCSOperator):
     """Copy data from Oracle to Google Cloud Storage in JSON or CSV format.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:OracleToGCSOperator`
+
     :param oracle_conn_id: Reference to a specific Oracle hook.
     :type oracle_conn_id: str
     :param ensure_utc: Ensure TIMESTAMP columns exported as UTC. If set to
