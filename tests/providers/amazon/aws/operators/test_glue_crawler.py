@@ -24,13 +24,12 @@ from airflow.providers.amazon.aws.operators.glue_crawler import AwsGlueCrawlerOp
 
 mock_crawler_name = 'test-crawler'
 mock_role_name = 'test-role'
-
-mock_crawler_config = {
-    'crawler_name': mock_crawler_name,
-    'crawler_desc': 'Test glue crawler from Airflow',
-    'db_name': 'test_db',
-    'iam_role_name': mock_role_name,
-    'targets': {
+mock_config = {
+    'Name': mock_crawler_name,
+    'Description': 'Test glue crawler from Airflow',
+    'DatabaseName': 'test_db',
+    'Role': mock_role_name,
+    'Targets': {
         'S3Targets': [
             {
                 'Path': 's3://test-glue-crawler/foo/',
@@ -52,9 +51,7 @@ mock_crawler_config = {
         'MongoDBTargets': [
             {'ConnectionName': 'test-mongo-conn', 'Path': 'test_db/test_collection', 'ScanAll': True}
         ],
-        'DynamoDBTargets': [
-            {'Path': 'test_db/test_table', 'scanAll': True, 'scanRate': 123.0}
-        ],
+        'DynamoDBTargets': [{'Path': 'test_db/test_table', 'scanAll': True, 'scanRate': 123.0}],
         'CatalogTargets': [
             {
                 'DatabaseName': 'test_glue_db',
@@ -62,19 +59,17 @@ mock_crawler_config = {
                     'test',
                 ],
             }
-        ]
-    }
-    'classifiers': 'test-classifier',
-    'table_prefix': 'test',
-    'schema_change_policy': {
+        ],
+    },
+    'Classifiers': ['test-classifier'],
+    'TablePrefix': 'test',
+    'SchemaChangePolicy': {
         'UpdateBehavior': 'UPDATE_IN_DATABASE',
-        'DeleteBehavior': 'DEPRECATE_IN_DATABASE'
+        'DeleteBehavior': 'DEPRECATE_IN_DATABASE',
     },
-    'recrawl_policy': {
-        'RecrawlBehavior': 'CRAWL_EVERYTHING'
-    },
-    'lineage_settings': 'ENABLE',
-    'configuration': """
+    'RecrawlPolicy': {'RecrawlBehavior': 'CRAWL_EVERYTHING'},
+    'LineageConfiguration': 'ENABLE',
+    'Configuration': """
     {
         "Version": 1.0,
         "CrawlerOutput": {
@@ -82,8 +77,8 @@ mock_crawler_config = {
         }
     }
     """,
-    'security_configuration': 'test',
-    'tags': {'test': 'foo'},
+    'SecurityConfiguration': 'test',
+    'Tags': {'test': 'foo'},
 }
 
 
@@ -93,13 +88,13 @@ class TestAwsGlueCrawlerOperator(unittest.TestCase):
         configuration.load_test_config()
 
         self.glue_hook_mock = glue_hook_mock
-        self.glue = AwsGlueCrawlerOperator(task_id='test_glue_operator', **mock_crawler_config)
+        self.glue = AwsGlueCrawlerOperator(task_id='test_glue_operator', config=mock_config)
 
-    @mock.patch.object(AwsGlueCrawlerHook, 'initialize_crawler')
+    @mock.patch.object(AwsGlueCrawlerHook, 'start_crawler')
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    def test_execute_without_failure(self, mock_get_conn, mock_initialize_crawler):
-        mock_initialize_crawler.return_value = {'Status': 'SUCCEEDED'}
+    def test_execute_without_failure(self, mock_get_conn, mock_start_crawler):
+        mock_start_crawler.return_value = {}
         self.glue.execute(None)
 
-        mock_initialize_crawler.assert_called_once_with({})
+        mock_start_crawler.assert_called_once_with({})
         self.assertEqual(self.glue.crawler_name, mock_crawler_name)

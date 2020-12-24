@@ -43,7 +43,7 @@ class AwsGlueCrawlerSensor(BaseSensorOperator):
     def poke(self, context):
         hook = AwsGlueCrawlerHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Poking for Glue crawler: %s", self.crawler_name)
-        crawler_status = hook.get_crawler_status(crawler_name=self.crawler_name)
+        crawler_status = hook.get_last_crawl_status(crawler_name=self.crawler_name)
         if crawler_status in self.success_statuses:
             self.log.info("Exiting crawler %s", crawler_status)
             return True
