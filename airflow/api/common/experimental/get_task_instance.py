@@ -24,7 +24,7 @@ from airflow.models import TaskInstance
 
 
 def get_task_instance(dag_id: str, task_id: str, execution_date: datetime) -> TaskInstance:
-    """Return the task object identified by the given dag_id and task_id."""
+    """Return the task instance identified by the given dag_id, task_id and execution_date."""
     dag = check_and_get_dag(dag_id, task_id)
 
     dagrun = check_and_get_dagrun(dag=dag, execution_date=execution_date)
