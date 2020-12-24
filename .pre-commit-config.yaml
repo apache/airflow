@@ -571,7 +571,7 @@ repos:
         pass_filenames: true
         require_serial: true
       - id: pylint
-        name: Run pylint
+        name: Run pylint for helm chart tests
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: ^chart/.*\.py$
