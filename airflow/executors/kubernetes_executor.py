@@ -42,7 +42,7 @@ from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.kube_config import KubeConfig
 from airflow.kubernetes.kubernetes_helper_functions import create_pod_id
-from airflow.kubernetes.pod_generator import MAX_POD_ID_LEN, PodGenerator
+from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.models import TaskInstance
 from airflow.models.taskinstance import TaskInstanceKey
@@ -366,24 +366,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
         execution_date = parser.parse(annotations['execution_date'])
 
         return TaskInstanceKey(dag_id, task_id, execution_date, try_number)
-
-    @staticmethod
-    def _make_safe_pod_id(safe_dag_id: str, safe_task_id: str, safe_uuid: str) -> str:
-        r"""
-        Kubernetes pod names must be <= 253 chars and must pass the following regex for
-        validation
-        ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
-
-        :param safe_dag_id: a dag_id with only alphanumeric characters
-        :param safe_task_id: a task_id with only alphanumeric characters
-        :param safe_uuid: a uuid
-        :return: ``str`` valid Pod name of appropriate length
-        """
-        safe_key = safe_dag_id + safe_task_id
-
-        safe_pod_id = safe_key[: MAX_POD_ID_LEN - len(safe_uuid) - 1] + "-" + safe_uuid
-
-        return safe_pod_id
 
     def _flush_watcher_queue(self) -> None:
         self.log.debug('Executor shutting down, watcher_queue approx. size=%d', self.watcher_queue.qsize())
