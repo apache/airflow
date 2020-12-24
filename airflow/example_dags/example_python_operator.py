@@ -43,7 +43,6 @@ with DAG(
         print(ds)
         return 'Whatever you return gets printed in the logs'
 
-
     run_this = PythonOperator(
         task_id='print_the_context',
         python_callable=print_context,
@@ -54,7 +53,6 @@ with DAG(
     def my_sleeping_function(random_base):
         """This is a function that will run within the DAG execution"""
         time.sleep(random_base)
-
 
     # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
     for i in range(5):
@@ -87,7 +85,6 @@ with DAG(
             print(Style.DIM + 'Please wait...', flush=True)
             sleep(10)
         print('Finished')
-
 
     virtualenv_task = PythonVirtualenvOperator(
         task_id="virtualenv_python",

@@ -32,11 +32,7 @@ args = {
 }
 
 with DAG(
-    dag_id=DAG_NAME,
-    default_args=args,
-    start_date=days_ago(2),
-    schedule_interval="@once",
-    tags=['example']
+    dag_id=DAG_NAME, default_args=args, start_date=days_ago(2), schedule_interval="@once", tags=['example']
 ) as dag:
 
     start = DummyOperator(

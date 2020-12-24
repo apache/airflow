@@ -56,7 +56,7 @@ with DAG(
     schedule_interval='*/1 * * * *',
     start_date=days_ago(2),
     default_args=args,
-    tags=['example']
+    tags=['example'],
 ) as dag:
 
     cond = BranchPythonOperator(
