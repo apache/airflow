@@ -20,48 +20,67 @@
 import os
 import sys
 from os.path import dirname
+from pathlib import Path
 from typing import List
+
+from rich import print
 
 AIRFLOW_SOURCES_DIR = os.path.abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir))
 
 sys.path.insert(0, AIRFLOW_SOURCES_DIR)
 # flake8: noqa: F401
 # pylint: disable=wrong-import-position
-from setup import EXTRAS_PROVIDERS_PACKAGES  # noqa
+from setup import ALL_PROVIDERS  # noqa
 
 sys.path.append(AIRFLOW_SOURCES_DIR)
 
+errors: List[str] = []
 
-def get_provider_directory(provider: str):
-    return os.path.join(AIRFLOW_SOURCES_DIR, "airflow", "providers", *provider.split('.'))
+PROVIDERS_DIR = os.path.join(AIRFLOW_SOURCES_DIR, "airflow", "providers")
 
 
-def check_all_providers() -> List[str]:
-    errors: List[str] = []
-    for extra, providers in EXTRAS_PROVIDERS_PACKAGES.items():
-        for provider in providers:
-            provider_directory = get_provider_directory(provider)
-            if not os.path.isdir(provider_directory):
-                errors.append(
-                    f"The {extra} has provider {provider} that has missing {provider_directory} directory"
-                )
-                continue
-            if not os.path.exists(os.path.join(provider_directory, "__init__.py")):
-                errors.append(
-                    f"The {extra} has provider {provider} that has"
-                    f" missing __init__.py in the {provider_directory} directory"
-                )
-            if not os.path.exists(os.path.join(provider_directory, "README.md")):
-                errors.append(
-                    f"The {extra} has provider {provider} that has"
-                    f" missing README.md in the {provider_directory} directory"
-                )
-    return errors
+def get_provider_directory(provider: str) -> str:
+    """Returns provider directory derived from name"""
+    return os.path.join(PROVIDERS_DIR, *provider.split('.'))
+
+
+def check_all_providers_listed_have_directory() -> None:
+    for provider in ALL_PROVIDERS:
+        provider_directory = get_provider_directory(provider)
+        if not os.path.isdir(provider_directory):
+            errors.append(
+                f"The provider {provider} is defined in setup.py: [bold]PROVIDERS_REQUIREMENTS[/] but it "
+                + f"has missing {provider_directory} directory: [red]NOK[/]"
+            )
+            continue
+        if not os.path.exists(os.path.join(provider_directory, "__init__.py")):
+            errors.append(
+                f"The {provider} does not have the __init__.py "
+                + f"file in the {provider_directory} directory [red]NOK[/]"
+            )
+        if not os.path.exists(os.path.join(provider_directory, "provider.yaml")):
+            errors.append(
+                f"The provider {provider} does not have the provider.yaml "
+                + f"in the {provider_directory} directory: [red]NOK[/]"
+            )
+
+
+def check_all_providers_are_listed_in_setup_py() -> None:
+    for path in Path(PROVIDERS_DIR).rglob('provider.yaml'):
+        provider_name = str(path.parent.relative_to(PROVIDERS_DIR)).replace(os.sep, ".")
+        if provider_name not in ALL_PROVIDERS:
+            errors.append(
+                f"The provider {provider_name} is missing in setup.py "
+                + "[bold]PROVIDERS_REQUIREMENTS[/]: [red]NOK[/]"
+            )
 
 
 if __name__ == '__main__':
-    errors = check_all_providers()
+    check_all_providers_listed_have_directory()
+    check_all_providers_are_listed_in_setup_py()
     if errors:
         for message in errors:
             print(message, file=sys.stderr)
         sys.exit(1)
+    else:
+        print("All providers are correctly defined in setup.py [green]OK[/]")

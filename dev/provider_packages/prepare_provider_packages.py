@@ -57,7 +57,7 @@ sys.path.insert(0, SOURCE_DIR_PATH)
 # running the script
 import tests.deprecated_classes  # noqa # isort:skip
 from dev.import_all_classes import import_all_classes  # noqa # isort:skip
-from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
+from setup import PROVIDERS_REQUIREMENTS, PREINSTALLED_PROVIDERS  # noqa # isort:skip
 
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
@@ -287,8 +287,9 @@ def get_install_requirements(provider_package_id: str, backport_packages: bool) 
             else 'apache-airflow>=1.10.12, <2.0.0'
         )
     else:
-        airflow_dependency = 'apache-airflow>=2.0.0a0'
-    install_requires = [airflow_dependency]
+        airflow_dependency = 'apache-airflow>=2.0.0'
+    # Avoid circular dependency for the preinstalled packages
+    install_requires = [airflow_dependency] if provider_package_id not in PREINSTALLED_PROVIDERS else []
     install_requires.extend(dependencies)
     return install_requires
 
@@ -324,12 +325,12 @@ def get_package_extras(provider_package_id: str, backport_packages: bool) -> Dic
     return extras_dict
 
 
-def get_provider_packages():
+def get_provider_packages() -> List[str]:
     """
     Returns all provider packages.
 
     """
-    return list(PROVIDERS_REQUIREMENTS)
+    return list(PROVIDERS_REQUIREMENTS.keys())
 
 
 def usage() -> None:
@@ -795,7 +796,7 @@ def convert_cross_package_dependencies_to_table(
     """
     Converts cross-package dependencies to a markdown table
     :param cross_package_dependencies: list of cross-package dependencies
-    :param base_url: base url to use for links
+    :param backport_packages: whether we are preparing backport packages
     :return: markdown-formatted table
     """
     from tabulate import tabulate
