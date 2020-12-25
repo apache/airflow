@@ -281,11 +281,10 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         return self.awslogs_group and self.awslogs_stream_prefix
 
     def _last_log_event(self):
-        log_events = self._cloudwatch_log_events()
-        if log_events:
-            return deque(log_events, maxlen=1).pop()["message"]
-
-        return None
+        try:
+            return deque(self._cloudwatch_log_events(), maxlen=1).pop()["message"]
+        except IndexError:
+            return None
 
     def _check_success_task(self) -> None:
         if not self.client or not self.arn:
