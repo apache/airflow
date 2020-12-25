@@ -16,32 +16,8 @@
 # under the License.
 import enum
 
-from sqlalchemy.types import String, TypeDecorator
 
-
-class EnumString(TypeDecorator):
-    """
-    Declare db column with this type to make the column compatible with string
-    and string based enum values when building the sqlalchemy ORM query. It can
-    be used just like sqlalchemy.types.String, for example:
-
-    ```
-    class Table(Base):
-        __tablename__ = "t"
-        run_type = Column(EnumString(50), nullable=False)
-    ```
-    """
-
-    impl = String
-
-    def process_bind_param(self, value, dialect):
-        if isinstance(value, enum.Enum):
-            return value.value
-        else:
-            return value
-
-
-class DagRunType(enum.Enum):
+class DagRunType(str, enum.Enum):
     """Class with DagRun types"""
 
     BACKFILL_JOB = "backfill"

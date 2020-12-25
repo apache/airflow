@@ -43,6 +43,7 @@ def test_runtype_enum_escape():
         )
         .filter(
             DagRun.dag_id == dag.dag_id,
+            # make sure enum value can be used in filter queries
             DagRun.run_type == DagRunType.SCHEDULED,
         )
         .all()
@@ -50,6 +51,7 @@ def test_runtype_enum_escape():
     assert len(rows) == 1
     assert rows[0].dag_id == dag.dag_id
     assert rows[0].state == State.RUNNING
+    # make sure value in db is stored as `scheduled`, not `DagRunType.SCHEDULED`
     assert rows[0].run_type == 'scheduled'
 
     session.rollback()
