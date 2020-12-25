@@ -465,6 +465,9 @@ devel = [
     'importlib-resources~=1.4',
     'ipdb',
     'jira',
+    # HACK: Moto is not compatible with newer versions
+    # See: https://github.com/spulec/moto/issues/3535
+    'mock<4.0.3',
     'mongomock',
     'moto',
     'mypy==0.770',
