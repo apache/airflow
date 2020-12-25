@@ -21,7 +21,6 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
-
 value_1 = [1, 2, 3]
 value_2 = {'a': 'b'}
 
