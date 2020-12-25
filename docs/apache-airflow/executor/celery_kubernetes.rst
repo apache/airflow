@@ -28,12 +28,16 @@ An executor is chosen to run a task based on the task's queue.
 ``CeleryKubernetesExecutor`` inherits the scalability of the ``CeleryExecutor`` to
 handle the high load at the peak time and runtime isolation of the ``KubernetesExecutor``.
 
+.. note::
+
+    Celery workers must be configured to use CeleryExecutor, while ``scheduler`` should  should be
+    configured with executor ``CeleryKubernetesExecutor``.
 
 When to use CeleryKubernetesExecutor
 ####################################
 
-The ``CeleryKubernetesExecutor`` should only be used at certain cases, given that
-it requires setting up the ``CeleryExecutor`` and the ``KubernetesExecutor``.
+Using ``CeleryKubernetesExecutor`` can require more configuration than other executors
+simply because you must configure both ``CeleryExecutor`` and ``KubernetesExecutor``.
 
 We recommend considering the ``CeleryKubernetesExecutor`` when your use case meets:
 

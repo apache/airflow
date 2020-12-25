@@ -18,6 +18,7 @@
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
@@ -39,3 +40,23 @@ class WorkerTest(unittest.TestCase):
         assert "test-volume" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
+
+    @parameterized.expand(
+        [
+            ('CeleryExecutor',),
+            ('CeleryKubernetesExecutor',),
+        ]
+    )
+    def test_worker_must_use_celery_executor(self, executor):
+        """
+        When cluster is using CeleryKubernetesExecutor, the workers must still use CeleryExecutor.
+        To accomplish this we inject environment variable.
+        """
+        docs = render_chart(
+            values={
+                "executor": executor,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        query = "spec.template.spec.containers[0].env[?name=='AIRFLOW__CORE__EXECUTOR'].value"
+        assert jmespath.search(query, docs[0]) == ['CeleryExecutor']
