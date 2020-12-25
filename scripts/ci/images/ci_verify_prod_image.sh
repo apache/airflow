@@ -160,6 +160,7 @@ function verify_production_image_features() {
     check_feature "Import: elasticsearch" "python -c 'import elasticsearch,es.elastic, elasticsearch_dsl'"
     check_feature "Import: grpc" "python -c 'import grpc, google.auth, google_auth_httplib2'"
     check_feature "Import: hashicorp" "python -c 'import hvac'"
+    check_feature "Import: ldap" "python -c 'import ldap'"
     for google_import in "${GOOGLE_IMPORTS[@]}"
     do
         check_feature "Import google: ${google_import}" "python -c 'import ${google_import}'"

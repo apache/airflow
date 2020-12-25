@@ -86,6 +86,7 @@ RUN mkdir -pv /usr/share/man/man1 \
            graphviz \
            gosu \
            libffi-dev \
+           libldap2-dev \
            libkrb5-dev \
            libpq-dev \
            libsasl2-2 \
