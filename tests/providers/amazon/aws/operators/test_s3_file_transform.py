@@ -27,6 +27,7 @@ from tempfile import mkdtemp
 from unittest import mock
 
 import boto3
+import pytest
 from moto import mock_s3
 
 from airflow.exceptions import AirflowException
@@ -87,10 +88,10 @@ class TestS3FileTransformOperator(unittest.TestCase):
             task_id="task_id",
         )
 
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             op.execute(None)
 
-        self.assertEqual('Transform script failed: 42', str(e.exception))
+        assert 'Transform script failed: 42' == str(ctx.value)
 
     @mock.patch('subprocess.Popen')
     @mock_s3
@@ -109,7 +110,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
         )
         op.execute(None)
 
-        self.assertEqual(script_args, mock_popen.call_args[0][0][3:])
+        assert script_args == mock_popen.call_args[0][0][3:]
 
     @mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key', return_value="input")
     @mock_s3
@@ -130,7 +131,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
 
         conn = boto3.client('s3')
         result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
-        self.assertEqual(self.content, result['Body'].read())
+        assert self.content == result['Body'].read()
 
     @staticmethod
     def mock_process(mock_popen, return_code=0, process_output=None):

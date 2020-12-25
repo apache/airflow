@@ -21,6 +21,7 @@ import unittest
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
+import pytest
 from jinja2 import StrictUndefined
 
 from airflow.exceptions import AirflowException
@@ -75,8 +76,8 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         )
 
     def test_init(self):
-        self.assertEqual(self.operator.job_flow_id, 'j-8989898989')
-        self.assertEqual(self.operator.aws_conn_id, 'aws_default')
+        assert self.operator.job_flow_id == 'j-8989898989'
+        assert self.operator.aws_conn_id == 'aws_default'
 
     def test_render_template(self):
         ti = TaskInstance(self.operator, DEFAULT_DATE)
@@ -97,7 +98,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
             }
         ]
 
-        self.assertListEqual(self.operator.steps, expected_args)
+        assert self.operator.steps == expected_args
 
     def test_render_template_2(self):
         dag = DAG(dag_id='test_xcom', default_args=self.args)
@@ -178,7 +179,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         with patch('boto3.session.Session', self.boto3_session_mock):
-            self.assertEqual(self.operator.execute(self.mock_context), ['s-2LH3R5GW3A53T'])
+            assert self.operator.execute(self.mock_context) == ['s-2LH3R5GW3A53T']
 
     def test_init_with_cluster_name(self):
         expected_job_flow_id = 'j-1231231234'
@@ -221,6 +222,6 @@ class TestEmrAddStepsOperator(unittest.TestCase):
                 dag=DAG('test_dag_id', default_args=self.args),
             )
 
-            with self.assertRaises(AirflowException) as error:
+            with pytest.raises(AirflowException) as ctx:
                 operator.execute(self.mock_context)
-            self.assertEqual(str(error.exception), f'No cluster found for name: {cluster_name}')
+            assert str(ctx.value) == f'No cluster found for name: {cluster_name}'

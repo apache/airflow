@@ -38,14 +38,14 @@ class TestAwsGlueCatalogPartitionSensor(unittest.TestCase):
     def test_poke(self, mock_check_for_partition):
         mock_check_for_partition.return_value = True
         op = AwsGlueCatalogPartitionSensor(task_id=self.task_id, table_name='tbl')
-        self.assertTrue(op.poke(None))
+        assert op.poke(None)
 
     @mock_glue
     @mock.patch.object(AwsGlueCatalogHook, 'check_for_partition')
     def test_poke_false(self, mock_check_for_partition):
         mock_check_for_partition.return_value = False
         op = AwsGlueCatalogPartitionSensor(task_id=self.task_id, table_name='tbl')
-        self.assertFalse(op.poke(None))
+        assert not op.poke(None)
 
     @mock_glue
     @mock.patch.object(AwsGlueCatalogHook, 'check_for_partition')
@@ -54,8 +54,8 @@ class TestAwsGlueCatalogPartitionSensor(unittest.TestCase):
         op = AwsGlueCatalogPartitionSensor(task_id=self.task_id, table_name=table_name)
         op.poke(None)
 
-        self.assertEqual(op.hook.region_name, None)
-        self.assertEqual(op.hook.aws_conn_id, 'aws_default')
+        assert op.hook.region_name is None
+        assert op.hook.aws_conn_id == 'aws_default'
         mock_check_for_partition.assert_called_once_with('default', table_name, "ds='{{ ds }}'")
 
     @mock_glue
@@ -80,10 +80,10 @@ class TestAwsGlueCatalogPartitionSensor(unittest.TestCase):
         )
         op.poke(None)
 
-        self.assertEqual(op.hook.region_name, region_name)
-        self.assertEqual(op.hook.aws_conn_id, aws_conn_id)
-        self.assertEqual(op.poke_interval, poke_interval)
-        self.assertEqual(op.timeout, timeout)
+        assert op.hook.region_name == region_name
+        assert op.hook.aws_conn_id == aws_conn_id
+        assert op.poke_interval == poke_interval
+        assert op.timeout == timeout
         mock_check_for_partition.assert_called_once_with(database_name, table_name, expression)
 
     @mock_glue

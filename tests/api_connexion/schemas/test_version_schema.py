@@ -35,4 +35,4 @@ class TestVersionInfoSchema(unittest.TestCase):
         current_data = version_info_schema.dump(version_info)
 
         expected_result = {'version': 'VERSION', 'git_version': git_commit}
-        self.assertEqual(expected_result, current_data)
+        assert expected_result == current_data

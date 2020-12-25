@@ -36,7 +36,7 @@ class TestCassandraTableSensor(unittest.TestCase):
         )
         exists = sensor.poke(dict())
 
-        self.assertTrue(exists)
+        assert exists
 
         mock_hook.return_value.table_exists.assert_called_once_with(TEST_CASSANDRA_TABLE)
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
@@ -52,7 +52,7 @@ class TestCassandraTableSensor(unittest.TestCase):
         )
         exists = sensor.poke(dict())
 
-        self.assertFalse(exists)
+        assert not exists
 
         mock_hook.return_value.table_exists.assert_called_once_with(TEST_CASSANDRA_TABLE)
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
@@ -66,7 +66,7 @@ class TestCassandraTableSensor(unittest.TestCase):
         )
         exists = sensor.poke(dict())
 
-        self.assertTrue(exists)
+        assert exists
 
         mock_hook.return_value.table_exists.assert_called_once_with(TEST_CASSANDRA_TABLE_WITH_KEYSPACE)
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)

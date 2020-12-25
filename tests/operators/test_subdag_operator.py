@@ -20,6 +20,7 @@ import unittest
 from unittest import mock
 from unittest.mock import Mock
 
+import pytest
 from parameterized import parameterized
 
 import airflow
@@ -62,9 +63,12 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_bad3 = DAG('bad.bad', default_args=default_args)
 
         SubDagOperator(task_id='test', dag=dag, subdag=subdag_good)
-        self.assertRaises(AirflowException, SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad1)
-        self.assertRaises(AirflowException, SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad2)
-        self.assertRaises(AirflowException, SubDagOperator, task_id='test', dag=dag, subdag=subdag_bad3)
+        with pytest.raises(AirflowException):
+            SubDagOperator(task_id='test', dag=dag, subdag=subdag_bad1)
+        with pytest.raises(AirflowException):
+            SubDagOperator(task_id='test', dag=dag, subdag=subdag_bad2)
+        with pytest.raises(AirflowException):
+            SubDagOperator(task_id='test', dag=dag, subdag=subdag_bad3)
 
     def test_subdag_in_context_manager(self):
         """
@@ -74,8 +78,8 @@ class TestSubDagOperator(unittest.TestCase):
             subdag = DAG('parent.test', default_args=default_args)
             op = SubDagOperator(task_id='test', subdag=subdag)
 
-            self.assertEqual(op.dag, dag)
-            self.assertEqual(op.subdag, subdag)
+            assert op.dag == dag
+            assert op.subdag == subdag
 
     def test_subdag_pools(self):
         """
@@ -93,9 +97,8 @@ class TestSubDagOperator(unittest.TestCase):
 
         DummyOperator(task_id='dummy', dag=subdag, pool='test_pool_1')
 
-        self.assertRaises(
-            AirflowException, SubDagOperator, task_id='child', dag=dag, subdag=subdag, pool='test_pool_1'
-        )
+        with pytest.raises(AirflowException):
+            SubDagOperator(task_id='child', dag=dag, subdag=subdag, pool='test_pool_1')
 
         # recreate dag because failed subdagoperator was already added
         dag = DAG('parent', default_args=default_args)
@@ -124,7 +127,7 @@ class TestSubDagOperator(unittest.TestCase):
 
         mock_session = Mock()
         SubDagOperator(task_id='child', dag=dag, subdag=subdag, pool='test_pool_1', session=mock_session)
-        self.assertFalse(mock_session.query.called)
+        assert not mock_session.query.called
 
         session.delete(pool_1)
         session.delete(pool_10)
@@ -157,7 +160,7 @@ class TestSubDagOperator(unittest.TestCase):
             external_trigger=True,
         )
 
-        self.assertEqual(3, len(subdag_task._get_dagrun.mock_calls))
+        assert 3 == len(subdag_task._get_dagrun.mock_calls)
 
     def test_execute_create_dagrun_with_conf(self):
         """
@@ -187,7 +190,7 @@ class TestSubDagOperator(unittest.TestCase):
             external_trigger=True,
         )
 
-        self.assertEqual(3, len(subdag_task._get_dagrun.mock_calls))
+        assert 3 == len(subdag_task._get_dagrun.mock_calls)
 
     def test_execute_dagrun_failed(self):
         """
@@ -203,7 +206,7 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_task._get_dagrun = Mock()
         subdag_task._get_dagrun.side_effect = [None, self.dag_run_failed, self.dag_run_failed]
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             subdag_task.pre_execute(context={'execution_date': DEFAULT_DATE})
             subdag_task.execute(context={'execution_date': DEFAULT_DATE})
             subdag_task.post_execute(context={'execution_date': DEFAULT_DATE})
@@ -225,7 +228,7 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_task.post_execute(context={'execution_date': DEFAULT_DATE})
 
         subdag.create_dagrun.assert_not_called()
-        self.assertEqual(3, len(subdag_task._get_dagrun.mock_calls))
+        assert 3 == len(subdag_task._get_dagrun.mock_calls)
 
     def test_rerun_failed_subdag(self):
         """
@@ -256,10 +259,10 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_task._reset_dag_run_and_task_instances(sub_dagrun, execution_date=DEFAULT_DATE)
 
         dummy_task_instance.refresh_from_db()
-        self.assertEqual(dummy_task_instance.state, State.NONE)
+        assert dummy_task_instance.state == State.NONE
 
         sub_dagrun.refresh_from_db()
-        self.assertEqual(sub_dagrun.state, State.RUNNING)
+        assert sub_dagrun.state == State.RUNNING
 
     @parameterized.expand(
         [

@@ -129,27 +129,24 @@ class TestDeleteDagRun(TestDagRunEndpoint):
         response = self.client.delete(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1", environ_overrides={'REMOTE_USER': "test"}
         )
-        self.assertEqual(response.status_code, 204)
+        assert response.status_code == 204
         # Check if the Dag Run is deleted from the database
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1", environ_overrides={'REMOTE_USER': "test"}
         )
-        self.assertEqual(response.status_code, 404)
+        assert response.status_code == 404
 
     def test_should_respond_404(self):
         response = self.client.delete(
             "api/v1/dags/INVALID_DAG_RUN/dagRuns/INVALID_DAG_RUN", environ_overrides={'REMOTE_USER': "test"}
         )
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(
-            response.json,
-            {
-                "detail": "DAGRun with DAG ID: 'INVALID_DAG_RUN' and DagRun ID: 'INVALID_DAG_RUN' not found",
-                "status": 404,
-                "title": "Not Found",
-                "type": EXCEPTIONS_LINK_MAP[404],
-            },
-        )
+        assert response.status_code == 404
+        assert response.json == {
+            "detail": "DAGRun with DAG ID: 'INVALID_DAG_RUN' and DagRun ID: 'INVALID_DAG_RUN' not found",
+            "status": 404,
+            "title": "Not Found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        }
 
     @provide_session
     def test_should_raises_401_unauthenticated(self, session):
@@ -361,7 +358,7 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
             "api/v1/dags/TEST_DAG_ID/dagRuns?limit=180", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        self.assertEqual(len(response.json["dag_runs"]), 150)
+        assert len(response.json["dag_runs"]) == 150
 
     def _create_dag_runs(self, count):
         dag_runs = [
@@ -770,7 +767,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
             "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 400
-        self.assertEqual(response.json['detail'], expected_response)
+        assert response.json['detail'] == expected_response
 
     @parameterized.expand(
         [
@@ -818,20 +815,17 @@ class TestPostDagRun(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns", json=request_json, environ_overrides={'REMOTE_USER': "test"}
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            {
-                "conf": {},
-                "dag_id": "TEST_DAG_ID",
-                "dag_run_id": response.json["dag_run_id"],
-                "end_date": None,
-                "execution_date": response.json["execution_date"],
-                "external_trigger": True,
-                "start_date": response.json["start_date"],
-                "state": "running",
-            },
-            response.json,
-        )
+        assert response.status_code == 200
+        assert {
+            "conf": {},
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": response.json["dag_run_id"],
+            "end_date": None,
+            "execution_date": response.json["execution_date"],
+            "external_trigger": True,
+            "start_date": response.json["start_date"],
+            "state": "running",
+        } == response.json
 
     @parameterized.expand(
         [
@@ -847,8 +841,8 @@ class TestPostDagRun(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns", json=data, environ_overrides={'REMOTE_USER': "test"}
         )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json['detail'], expected)
+        assert response.status_code == 400
+        assert response.json['detail'] == expected
 
     def test_response_404(self):
         response = self.client.post(
@@ -856,16 +850,13 @@ class TestPostDagRun(TestDagRunEndpoint):
             json={"dag_run_id": "TEST_DAG_RUN", "execution_date": self.default_time},
             environ_overrides={'REMOTE_USER': "test"},
         )
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(
-            {
-                "detail": "DAG with dag_id: 'TEST_DAG_ID' not found",
-                "status": 404,
-                "title": "DAG not found",
-                "type": EXCEPTIONS_LINK_MAP[404],
-            },
-            response.json,
-        )
+        assert response.status_code == 404
+        assert {
+            "detail": "DAG with dag_id: 'TEST_DAG_ID' not found",
+            "status": 404,
+            "title": "DAG not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
 
     @parameterized.expand(
         [
@@ -903,8 +894,8 @@ class TestPostDagRun(TestDagRunEndpoint):
         session.add(dag_instance)
         session.commit()
         response = self.client.post(url, json=request_json, environ_overrides={'REMOTE_USER': "test"})
-        self.assertEqual(response.status_code, 400, response.data)
-        self.assertEqual(expected_response, response.json)
+        assert response.status_code == 400, response.data
+        assert expected_response == response.json
 
     def test_response_409(self):
         self._create_test_dag_run()
@@ -916,17 +907,14 @@ class TestPostDagRun(TestDagRunEndpoint):
             },
             environ_overrides={'REMOTE_USER': "test"},
         )
-        self.assertEqual(response.status_code, 409, response.data)
-        self.assertEqual(
-            response.json,
-            {
-                "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
-                "DAGRun ID: 'TEST_DAG_RUN_ID_1' already exists",
-                "status": 409,
-                "title": "Conflict",
-                "type": EXCEPTIONS_LINK_MAP[409],
-            },
-        )
+        assert response.status_code == 409, response.data
+        assert response.json == {
+            "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
+            "DAGRun ID: 'TEST_DAG_RUN_ID_1' already exists",
+            "status": 409,
+            "title": "Conflict",
+            "type": EXCEPTIONS_LINK_MAP[409],
+        }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(

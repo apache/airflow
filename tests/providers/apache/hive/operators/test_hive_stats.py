@@ -22,6 +22,8 @@ import unittest
 from collections import OrderedDict
 from unittest.mock import patch
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 from tests.providers.apache.hive import DEFAULT_DATE, DEFAULT_DATE_DS, TestHiveEnvironment
@@ -54,7 +56,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
 
         default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, None)
 
-        self.assertEqual(default_exprs, {(col, 'non_null'): f'COUNT({col})'})
+        assert default_exprs == {(col, 'non_null'): f'COUNT({col})'}
 
     def test_get_default_exprs_excluded_cols(self):
         col = 'excluded_col'
@@ -62,23 +64,20 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
 
         default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, None)
 
-        self.assertEqual(default_exprs, {})
+        assert default_exprs == {}
 
     def test_get_default_exprs_number(self):
         col = 'col'
         for col_type in ['double', 'int', 'bigint', 'float']:
             default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, col_type)
 
-            self.assertEqual(
-                default_exprs,
-                {
-                    (col, 'avg'): f'AVG({col})',
-                    (col, 'max'): f'MAX({col})',
-                    (col, 'min'): f'MIN({col})',
-                    (col, 'non_null'): f'COUNT({col})',
-                    (col, 'sum'): f'SUM({col})',
-                },
-            )
+            assert default_exprs == {
+                (col, 'avg'): f'AVG({col})',
+                (col, 'max'): f'MAX({col})',
+                (col, 'min'): f'MIN({col})',
+                (col, 'non_null'): f'COUNT({col})',
+                (col, 'sum'): f'SUM({col})',
+            }
 
     def test_get_default_exprs_boolean(self):
         col = 'col'
@@ -86,14 +85,11 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
 
         default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, col_type)
 
-        self.assertEqual(
-            default_exprs,
-            {
-                (col, 'false'): f'SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)',
-                (col, 'non_null'): f'COUNT({col})',
-                (col, 'true'): f'SUM(CASE WHEN {col} THEN 1 ELSE 0 END)',
-            },
-        )
+        assert default_exprs == {
+            (col, 'false'): f'SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)',
+            (col, 'non_null'): f'COUNT({col})',
+            (col, 'true'): f'SUM(CASE WHEN {col} THEN 1 ELSE 0 END)',
+        }
 
     def test_get_default_exprs_string(self):
         col = 'col'
@@ -101,14 +97,11 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
 
         default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, col_type)
 
-        self.assertEqual(
-            default_exprs,
-            {
-                (col, 'approx_distinct'): f'APPROX_DISTINCT({col})',
-                (col, 'len'): f'SUM(CAST(LENGTH({col}) AS BIGINT))',
-                (col, 'non_null'): f'COUNT({col})',
-            },
-        )
+        assert default_exprs == {
+            (col, 'approx_distinct'): f'APPROX_DISTINCT({col})',
+            (col, 'len'): f'SUM(CAST(LENGTH({col}) AS BIGINT))',
+            (col, 'non_null'): f'COUNT({col})',
+        }
 
     @patch('airflow.providers.apache.hive.operators.hive_stats.json.dumps')
     @patch('airflow.providers.apache.hive.operators.hive_stats.MySqlHook')
@@ -265,7 +258,8 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         mock_mysql_hook.return_value.get_records.return_value = False
         mock_presto_hook.return_value.get_first.return_value = None
 
-        self.assertRaises(AirflowException, HiveStatsCollectionOperator(**self.kwargs).execute, context={})
+        with pytest.raises(AirflowException):
+            HiveStatsCollectionOperator(**self.kwargs).execute(context={})
 
     @patch('airflow.providers.apache.hive.operators.hive_stats.json.dumps')
     @patch('airflow.providers.apache.hive.operators.hive_stats.MySqlHook')
@@ -334,7 +328,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         raw_stats_select_query = mock_mysql_hook.get_records.call_args_list[0][0][0]
         actual_stats_select_query = re.sub(r'\s{2,}', ' ', raw_stats_select_query).strip()
 
-        self.assertEqual(expected_stats_select_query, actual_stats_select_query)
+        assert expected_stats_select_query == actual_stats_select_query
 
         insert_rows_val = [
             (

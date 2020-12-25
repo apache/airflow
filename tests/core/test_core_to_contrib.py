@@ -19,9 +19,9 @@
 import importlib
 import sys
 from inspect import isabstract
-from typing import Any
 from unittest import TestCase, mock
 
+import pytest
 from parameterized import parameterized
 
 from airflow.models.baseoperator import BaseOperator
@@ -30,20 +30,20 @@ from tests.deprecated_classes import ALL, RENAMED_ALL
 
 class TestMovingCoreToContrib(TestCase):
     @staticmethod
-    def assert_warning(msg: str, warning: Any):
+    def assert_warning(msg: str, warnings):
         error = f"Text '{msg}' not in warnings"
-        assert any(msg in str(w) for w in warning.warnings), error
+        assert any(msg in str(w) for w in warnings), error
 
     def assert_is_subclass(self, clazz, other):
-        self.assertTrue(issubclass(clazz, other), f"{clazz} is not subclass of {other}")
+        assert issubclass(clazz, other), f"{clazz} is not subclass of {other}"
 
     def assert_proper_import(self, old_resource, new_resource):
         new_path, _, _ = new_resource.rpartition(".")
         old_path, _, _ = old_resource.rpartition(".")
-        with self.assertWarns(DeprecationWarning) as warning_msg:
+        with pytest.warns(DeprecationWarning) as warnings:
             # Reload to see deprecation warning each time
             importlib.reload(importlib.import_module(old_path))
-            self.assert_warning(new_path, warning_msg)
+            self.assert_warning(new_path, warnings)
 
     def skip_test_with_mssql_in_py38(self, path_a="", path_b=""):
         py_38 = sys.version_info >= (3, 8)
@@ -75,15 +75,15 @@ class TestMovingCoreToContrib(TestCase):
         self.skip_test_with_mssql_in_py38(new_module, old_module)
         deprecation_warning_msg = "This class is deprecated."
         old_module_class = self.get_class_from_path(old_module)
-        with self.assertWarnsRegex(DeprecationWarning, deprecation_warning_msg) as wrn:
+        with pytest.warns(DeprecationWarning, match=deprecation_warning_msg) as warnings:
             with mock.patch(f"{new_module}.__init__") as init_mock:
                 init_mock.return_value = None
                 klass = old_module_class()
                 if isinstance(klass, BaseOperator):
                     # In case of operators we are validating that proper stacklevel
                     # is used (=3 or =4 if @apply_defaults)
-                    assert len(wrn.warnings) == 1
-                    assert wrn.warnings[0].filename == __file__
+                    assert len(warnings) == 1
+                    assert warnings[0].filename == __file__
                 init_mock.assert_called_once_with()
 
     @parameterized.expand(ALL)

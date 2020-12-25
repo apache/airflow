@@ -68,10 +68,10 @@ class TestAzureDataExplorerQueryOperator(unittest.TestCase):
         self.operator = AzureDataExplorerQueryOperator(dag=self.dag, **MOCK_DATA)
 
     def test_init(self):
-        self.assertEqual(self.operator.task_id, MOCK_DATA['task_id'])
-        self.assertEqual(self.operator.query, MOCK_DATA['query'])
-        self.assertEqual(self.operator.database, MOCK_DATA['database'])
-        self.assertEqual(self.operator.azure_data_explorer_conn_id, 'azure_data_explorer_default')
+        assert self.operator.task_id == MOCK_DATA['task_id']
+        assert self.operator.query == MOCK_DATA['query']
+        assert self.operator.database == MOCK_DATA['database']
+        assert self.operator.azure_data_explorer_conn_id == 'azure_data_explorer_default'
 
     @mock.patch.object(AzureDataExplorerHook, 'run_query', return_value=MockResponse())
     @mock.patch.object(AzureDataExplorerHook, 'get_conn')
@@ -87,4 +87,4 @@ class TestAzureDataExplorerQueryOperator(unittest.TestCase):
         ti = TaskInstance(task=self.operator, execution_date=timezone.utcnow())
         ti.run()
 
-        self.assertEqual(ti.xcom_pull(task_ids=MOCK_DATA['task_id']), str(MOCK_RESULT))
+        assert ti.xcom_pull(task_ids=MOCK_DATA['task_id']) == str(MOCK_RESULT)

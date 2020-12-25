@@ -107,7 +107,7 @@ class TestBackfillJob(unittest.TestCase):
 
         dag_run.refresh_from_db()
 
-        self.assertEqual(State.FAILED, dag_run.state)
+        assert State.FAILED == dag_run.state
 
     def test_dag_run_with_finished_tasks_set_to_success(self):
         dag = self._get_dummy_dag('dummy_dag')
@@ -131,7 +131,7 @@ class TestBackfillJob(unittest.TestCase):
 
         dag_run.refresh_from_db()
 
-        self.assertEqual(State.SUCCESS, dag_run.state)
+        assert State.SUCCESS == dag_run.state
 
     @pytest.mark.xfail(condition=True, reason="This test is flaky")
     @pytest.mark.backend("postgres", "mysql")
@@ -146,7 +146,7 @@ class TestBackfillJob(unittest.TestCase):
         #    target_dag,
         #    dag_runs=DagRun.find(dag_id='example_trigger_target_dag')
         # )
-        self.assertFalse(task_instances_list)
+        assert not task_instances_list
 
         job = BackfillJob(
             dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_first_depends_on_past=True
@@ -159,7 +159,7 @@ class TestBackfillJob(unittest.TestCase):
         #    dag_runs=DagRun.find(dag_id='example_trigger_target_dag')
         # )
 
-        self.assertTrue(task_instances_list)
+        assert task_instances_list
 
     @pytest.mark.backend("postgres", "mysql")
     def test_backfill_multi_dates(self):
@@ -192,21 +192,18 @@ class TestBackfillJob(unittest.TestCase):
             ("run_this_last", DEFAULT_DATE),
             ("run_this_last", end_date),
         ]
-        self.assertListEqual(
-            [
-                ((dag.dag_id, task_id, when, 1), (State.SUCCESS, None))
-                for (task_id, when) in expected_execution_order
-            ],
-            executor.sorted_tasks,
-        )
+        assert [
+            ((dag.dag_id, task_id, when, 1), (State.SUCCESS, None))
+            for (task_id, when) in expected_execution_order
+        ] == executor.sorted_tasks
 
         session = settings.Session()
         drs = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.execution_date).all()
 
-        self.assertTrue(drs[0].execution_date == DEFAULT_DATE)
-        self.assertTrue(drs[0].state == State.SUCCESS)
-        self.assertTrue(drs[1].execution_date == DEFAULT_DATE + datetime.timedelta(days=1))
-        self.assertTrue(drs[1].state == State.SUCCESS)
+        assert drs[0].execution_date == DEFAULT_DATE
+        assert drs[0].state == State.SUCCESS
+        assert drs[1].execution_date == DEFAULT_DATE + datetime.timedelta(days=1)
+        assert drs[1].state == State.SUCCESS
 
         dag.clear()
         session.close()
@@ -271,13 +268,10 @@ class TestBackfillJob(unittest.TestCase):
         )
 
         job.run()
-        self.assertListEqual(
-            [
-                ((dag_id, task_id, DEFAULT_DATE, 1), (State.SUCCESS, None))
-                for task_id in expected_execution_order
-            ],
-            executor.sorted_tasks,
-        )
+        assert [
+            ((dag_id, task_id, DEFAULT_DATE, 1), (State.SUCCESS, None))
+            for task_id in expected_execution_order
+        ] == executor.sorted_tasks
 
     def test_backfill_conf(self):
         dag = self._get_dummy_dag('test_backfill_conf')
@@ -296,7 +290,7 @@ class TestBackfillJob(unittest.TestCase):
 
         dr = DagRun.find(dag_id='test_backfill_conf')
 
-        self.assertEqual(conf_, dr[0].conf)
+        assert conf_ == dr[0].conf
 
     @patch('airflow.jobs.backfill_job.BackfillJob.log')
     def test_backfill_respect_task_concurrency_limit(self, mock_log):
@@ -317,19 +311,19 @@ class TestBackfillJob(unittest.TestCase):
 
         job.run()
 
-        self.assertGreater(len(executor.history), 0)
+        assert len(executor.history) > 0
 
         task_concurrency_limit_reached_at_least_once = False
 
         num_running_task_instances = 0
         for running_task_instances in executor.history:
-            self.assertLessEqual(len(running_task_instances), task_concurrency)
+            assert len(running_task_instances) <= task_concurrency
             num_running_task_instances += len(running_task_instances)
             if len(running_task_instances) == task_concurrency:
                 task_concurrency_limit_reached_at_least_once = True
 
-        self.assertEqual(8, num_running_task_instances)
-        self.assertTrue(task_concurrency_limit_reached_at_least_once)
+        assert 8 == num_running_task_instances
+        assert task_concurrency_limit_reached_at_least_once
 
         times_dag_concurrency_limit_reached_in_debug = self._times_called_with(
             mock_log.debug,
@@ -346,9 +340,9 @@ class TestBackfillJob(unittest.TestCase):
             TaskConcurrencyLimitReached,
         )
 
-        self.assertEqual(0, times_pool_limit_reached_in_debug)
-        self.assertEqual(0, times_dag_concurrency_limit_reached_in_debug)
-        self.assertGreater(times_task_concurrency_limit_reached_in_debug, 0)
+        assert 0 == times_pool_limit_reached_in_debug
+        assert 0 == times_dag_concurrency_limit_reached_in_debug
+        assert times_task_concurrency_limit_reached_in_debug > 0
 
     @patch('airflow.jobs.backfill_job.BackfillJob.log')
     def test_backfill_respect_dag_concurrency_limit(self, mock_log):
@@ -367,20 +361,20 @@ class TestBackfillJob(unittest.TestCase):
 
         job.run()
 
-        self.assertGreater(len(executor.history), 0)
+        assert len(executor.history) > 0
 
         concurrency_limit_reached_at_least_once = False
 
         num_running_task_instances = 0
 
         for running_task_instances in executor.history:
-            self.assertLessEqual(len(running_task_instances), dag.concurrency)
+            assert len(running_task_instances) <= dag.concurrency
             num_running_task_instances += len(running_task_instances)
             if len(running_task_instances) == dag.concurrency:
                 concurrency_limit_reached_at_least_once = True
 
-        self.assertEqual(8, num_running_task_instances)
-        self.assertTrue(concurrency_limit_reached_at_least_once)
+        assert 8 == num_running_task_instances
+        assert concurrency_limit_reached_at_least_once
 
         times_dag_concurrency_limit_reached_in_debug = self._times_called_with(
             mock_log.debug,
@@ -397,9 +391,9 @@ class TestBackfillJob(unittest.TestCase):
             TaskConcurrencyLimitReached,
         )
 
-        self.assertEqual(0, times_pool_limit_reached_in_debug)
-        self.assertEqual(0, times_task_concurrency_limit_reached_in_debug)
-        self.assertGreater(times_dag_concurrency_limit_reached_in_debug, 0)
+        assert 0 == times_pool_limit_reached_in_debug
+        assert 0 == times_task_concurrency_limit_reached_in_debug
+        assert times_dag_concurrency_limit_reached_in_debug > 0
 
     @patch('airflow.jobs.backfill_job.BackfillJob.log')
     def test_backfill_respect_default_pool_limit(self, mock_log):
@@ -419,7 +413,7 @@ class TestBackfillJob(unittest.TestCase):
 
         job.run()
 
-        self.assertGreater(len(executor.history), 0)
+        assert len(executor.history) > 0
 
         default_pool_task_slot_count_reached_at_least_once = False
 
@@ -429,16 +423,13 @@ class TestBackfillJob(unittest.TestCase):
         # parallel per backfill should be less than
         # default_pool slots at any point of time.
         for running_task_instances in executor.history:
-            self.assertLessEqual(
-                len(running_task_instances),
-                default_pool_slots,
-            )
+            assert len(running_task_instances) <= default_pool_slots
             num_running_task_instances += len(running_task_instances)
             if len(running_task_instances) == default_pool_slots:
                 default_pool_task_slot_count_reached_at_least_once = True
 
-        self.assertEqual(8, num_running_task_instances)
-        self.assertTrue(default_pool_task_slot_count_reached_at_least_once)
+        assert 8 == num_running_task_instances
+        assert default_pool_task_slot_count_reached_at_least_once
 
         times_dag_concurrency_limit_reached_in_debug = self._times_called_with(
             mock_log.debug,
@@ -455,9 +446,9 @@ class TestBackfillJob(unittest.TestCase):
             TaskConcurrencyLimitReached,
         )
 
-        self.assertEqual(0, times_dag_concurrency_limit_reached_in_debug)
-        self.assertEqual(0, times_task_concurrency_limit_reached_in_debug)
-        self.assertGreater(times_pool_limit_reached_in_debug, 0)
+        assert 0 == times_dag_concurrency_limit_reached_in_debug
+        assert 0 == times_task_concurrency_limit_reached_in_debug
+        assert times_pool_limit_reached_in_debug > 0
 
     def test_backfill_pool_not_found(self):
         dag = self._get_dummy_dag(
@@ -509,19 +500,19 @@ class TestBackfillJob(unittest.TestCase):
 
         job.run()
 
-        self.assertGreater(len(executor.history), 0)
+        assert len(executor.history) > 0
 
         pool_was_full_at_least_once = False
         num_running_task_instances = 0
 
         for running_task_instances in executor.history:
-            self.assertLessEqual(len(running_task_instances), slots)
+            assert len(running_task_instances) <= slots
             num_running_task_instances += len(running_task_instances)
             if len(running_task_instances) == slots:
                 pool_was_full_at_least_once = True
 
-        self.assertEqual(8, num_running_task_instances)
-        self.assertTrue(pool_was_full_at_least_once)
+        assert 8 == num_running_task_instances
+        assert pool_was_full_at_least_once
 
         times_dag_concurrency_limit_reached_in_debug = self._times_called_with(
             mock_log.debug,
@@ -538,9 +529,9 @@ class TestBackfillJob(unittest.TestCase):
             TaskConcurrencyLimitReached,
         )
 
-        self.assertEqual(0, times_task_concurrency_limit_reached_in_debug)
-        self.assertEqual(0, times_dag_concurrency_limit_reached_in_debug)
-        self.assertGreater(times_pool_limit_reached_in_debug, 0)
+        assert 0 == times_task_concurrency_limit_reached_in_debug
+        assert 0 == times_dag_concurrency_limit_reached_in_debug
+        assert times_pool_limit_reached_in_debug > 0
 
     def test_backfill_run_rescheduled(self):
         dag = DAG(dag_id='test_backfill_run_rescheduled', start_date=DEFAULT_DATE, schedule_interval='@daily')
@@ -577,7 +568,7 @@ class TestBackfillJob(unittest.TestCase):
         job.run()
         ti = TI(task=dag.get_task('test_backfill_run_rescheduled_task-1'), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
     def test_backfill_rerun_failed_tasks(self):
         dag = DAG(dag_id='test_backfill_rerun_failed', start_date=DEFAULT_DATE, schedule_interval='@daily')
@@ -611,7 +602,7 @@ class TestBackfillJob(unittest.TestCase):
         job.run()
         ti = TI(task=dag.get_task('test_backfill_rerun_failed_task-1'), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
     def test_backfill_rerun_upstream_failed_tasks(self):
         dag = DAG(
@@ -648,7 +639,7 @@ class TestBackfillJob(unittest.TestCase):
         job.run()
         ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
     def test_backfill_rerun_failed_tasks_without_flag(self):
         dag = DAG(dag_id='test_backfill_rerun_failed', start_date=DEFAULT_DATE, schedule_interval='@daily')
@@ -680,7 +671,7 @@ class TestBackfillJob(unittest.TestCase):
             rerun_failed_tasks=False,
         )
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             job.run()
 
     def test_backfill_ordered_concurrent_execute(self):
@@ -720,23 +711,19 @@ class TestBackfillJob(unittest.TestCase):
         # test executor history keeps a list
         history = executor.history
 
-        self.assertListEqual(
-            # key[0] is dag id, key[3] is try_number, we don't care about either of those here
-            [sorted([item[-1].key[1:3] for item in batch]) for batch in history],
+        assert [sorted([item[-1].key[1:3] for item in batch]) for batch in history] == [
             [
-                [
-                    ('leave1', date0),
-                    ('leave1', date1),
-                    ('leave1', date2),
-                    ('leave2', date0),
-                    ('leave2', date1),
-                    ('leave2', date2),
-                ],
-                [('upstream_level_1', date0), ('upstream_level_1', date1), ('upstream_level_1', date2)],
-                [('upstream_level_2', date0), ('upstream_level_2', date1), ('upstream_level_2', date2)],
-                [('upstream_level_3', date0), ('upstream_level_3', date1), ('upstream_level_3', date2)],
+                ('leave1', date0),
+                ('leave1', date1),
+                ('leave1', date2),
+                ('leave2', date0),
+                ('leave2', date1),
+                ('leave2', date2),
             ],
-        )
+            [('upstream_level_1', date0), ('upstream_level_1', date1), ('upstream_level_1', date2)],
+            [('upstream_level_2', date0), ('upstream_level_2', date1), ('upstream_level_2', date2)],
+            [('upstream_level_3', date0), ('upstream_level_3', date1), ('upstream_level_3', date2)],
+        ]
 
     def test_backfill_pooled_tasks(self):
         """
@@ -763,7 +750,7 @@ class TestBackfillJob(unittest.TestCase):
             pass
         ti = TI(task=dag.get_task('test_backfill_pooled_task'), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
     def test_backfill_depends_on_past(self):
         """
@@ -774,11 +761,8 @@ class TestBackfillJob(unittest.TestCase):
         run_date = DEFAULT_DATE + datetime.timedelta(days=5)
 
         # backfill should deadlock
-        self.assertRaisesRegex(
-            AirflowException,
-            'BackfillJob is deadlocked',
-            BackfillJob(dag=dag, start_date=run_date, end_date=run_date).run,
-        )
+        with pytest.raises(AirflowException, match='BackfillJob is deadlocked'):
+            BackfillJob(dag=dag, start_date=run_date, end_date=run_date).run()
 
         BackfillJob(
             dag=dag,
@@ -791,7 +775,7 @@ class TestBackfillJob(unittest.TestCase):
         # ti should have succeeded
         ti = TI(dag.tasks[0], run_date)
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
     def test_backfill_depends_on_past_backwards(self):
         """
@@ -814,13 +798,13 @@ class TestBackfillJob(unittest.TestCase):
         ti = TI(dag.get_task('test_dop_task'), end_date)
         ti.refresh_from_db()
         # runs fine forwards
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
         # raises backwards
         expected_msg = 'You cannot backfill backwards because one or more tasks depend_on_past: {}'.format(
             'test_dop_task'
         )
-        with self.assertRaisesRegex(AirflowException, expected_msg):
+        with pytest.raises(AirflowException, match=expected_msg):
             executor = MockExecutor()
             job = BackfillJob(dag=dag, executor=executor, run_backwards=True, **kwargs)
             job.run()
@@ -841,7 +825,7 @@ class TestBackfillJob(unittest.TestCase):
             '0.5',
         ]
         parsed_args = self.parser.parse_args(args)
-        self.assertEqual(0.5, parsed_args.delay_on_limit)
+        assert 0.5 == parsed_args.delay_on_limit
 
     def _get_dag_test_max_active_limits(self, dag_id, max_active_runs=1):
         dag = DAG(
@@ -878,8 +862,8 @@ class TestBackfillJob(unittest.TestCase):
         job.run()
 
         dagruns = DagRun.find(dag_id=dag.dag_id)
-        self.assertEqual(2, len(dagruns))
-        self.assertTrue(all(run.state == State.SUCCESS for run in dagruns))
+        assert 2 == len(dagruns)
+        assert all(run.state == State.SUCCESS for run in dagruns)
 
     def test_backfill_max_limit_check(self):
         dag_id = 'test_backfill_max_limit_check'
@@ -929,8 +913,8 @@ class TestBackfillJob(unittest.TestCase):
                 dag_run_created_cond.wait(timeout=1.5)
                 dagruns = DagRun.find(dag_id=dag_id)
                 dr = dagruns[0]
-                self.assertEqual(1, len(dagruns))
-                self.assertEqual(dr.run_id, run_id)
+                assert 1 == len(dagruns)
+                assert dr.run_id == run_id
 
                 # allow the backfill to execute
                 # by setting the existing dag run to SUCCESS,
@@ -942,8 +926,8 @@ class TestBackfillJob(unittest.TestCase):
                 backfill_job_thread.join()
 
                 dagruns = DagRun.find(dag_id=dag_id)
-                self.assertEqual(3, len(dagruns))  # 2 from backfill + 1 existing
-                self.assertEqual(dagruns[-1].run_id, dr.run_id)
+                assert 3 == len(dagruns)  # 2 from backfill + 1 existing
+                assert dagruns[-1].run_id == dr.run_id
             finally:
                 dag_run_created_cond.release()
 
@@ -971,8 +955,8 @@ class TestBackfillJob(unittest.TestCase):
         dagruns = DagRun.find(dag_id=dag.dag_id)
         # will only be able to run 1 (the existing one) since there's just
         # one dag run slot left given the max_active_runs limit
-        self.assertEqual(1, len(dagruns))
-        self.assertEqual(State.SUCCESS, dagruns[0].state)
+        assert 1 == len(dagruns)
+        assert State.SUCCESS == dagruns[0].state
 
     def test_backfill_max_limit_check_complete_loop(self):
         dag = self._get_dag_test_max_active_limits('test_backfill_max_limit_check_complete_loop')
@@ -990,8 +974,8 @@ class TestBackfillJob(unittest.TestCase):
 
         success_dagruns = len(DagRun.find(dag_id=dag.dag_id, state=State.SUCCESS))
         running_dagruns = len(DagRun.find(dag_id=dag.dag_id, state=State.RUNNING))
-        self.assertEqual(success_expected, success_dagruns)
-        self.assertEqual(0, running_dagruns)  # no dag_runs in running state are left
+        assert success_expected == success_dagruns
+        assert 0 == running_dagruns  # no dag_runs in running state are left
 
     def test_sub_set_subdag(self):
         dag = DAG('test_sub_set_subdag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
@@ -1018,17 +1002,18 @@ class TestBackfillJob(unittest.TestCase):
         job = BackfillJob(dag=sub_dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, executor=executor)
         job.run()
 
-        self.assertRaises(sqlalchemy.orm.exc.NoResultFound, dr.refresh_from_db)
+        with pytest.raises(sqlalchemy.orm.exc.NoResultFound):
+            dr.refresh_from_db()
         # the run_id should have changed, so a refresh won't work
         drs = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
         dr = drs[0]
 
-        self.assertEqual(DagRun.generate_run_id(DagRunType.BACKFILL_JOB, DEFAULT_DATE), dr.run_id)
+        assert DagRun.generate_run_id(DagRunType.BACKFILL_JOB, DEFAULT_DATE) == dr.run_id
         for ti in dr.get_task_instances():
             if ti.task_id == 'leave1' or ti.task_id == 'leave2':
-                self.assertEqual(State.SUCCESS, ti.state)
+                assert State.SUCCESS == ti.state
             else:
-                self.assertEqual(State.NONE, ti.state)
+                assert State.NONE == ti.state
 
     def test_backfill_fill_blanks(self):
         dag = DAG(
@@ -1072,25 +1057,27 @@ class TestBackfillJob(unittest.TestCase):
         session.close()
 
         job = BackfillJob(dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, executor=executor)
-        self.assertRaisesRegex(AirflowException, 'Some task instances failed', job.run)
+        with pytest.raises(AirflowException, match='Some task instances failed'):
+            job.run()
 
-        self.assertRaises(sqlalchemy.orm.exc.NoResultFound, dr.refresh_from_db)
+        with pytest.raises(sqlalchemy.orm.exc.NoResultFound):
+            dr.refresh_from_db()
         # the run_id should have changed, so a refresh won't work
         drs = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
         dr = drs[0]
 
-        self.assertEqual(dr.state, State.FAILED)
+        assert dr.state == State.FAILED
 
         tis = dr.get_task_instances()
         for ti in tis:
             if ti.task_id in (op1.task_id, op4.task_id, op6.task_id):
-                self.assertEqual(ti.state, State.SUCCESS)
+                assert ti.state == State.SUCCESS
             elif ti.task_id == op2.task_id:
-                self.assertEqual(ti.state, State.FAILED)
+                assert ti.state == State.FAILED
             elif ti.task_id == op3.task_id:
-                self.assertEqual(ti.state, State.SKIPPED)
+                assert ti.state == State.SKIPPED
             elif ti.task_id == op5.task_id:
-                self.assertEqual(ti.state, State.UPSTREAM_FAILED)
+                assert ti.state == State.UPSTREAM_FAILED
 
     def test_backfill_execute_subdag(self):
         dag = self.dagbag.get_dag('example_subdag_operator')
@@ -1114,10 +1101,10 @@ class TestBackfillJob(unittest.TestCase):
         subdag_history = history[0]
 
         # check that all 5 task instances of the subdag 'section-1' were executed
-        self.assertEqual(5, len(subdag_history))
+        assert 5 == len(subdag_history)
         for sdh in subdag_history:
             ti = sdh[3]
-            self.assertIn('section-1-task-', ti.task_id)
+            assert 'section-1-task-' in ti.task_id
 
         with create_session() as session:
             successful_subdag_runs = (
@@ -1129,7 +1116,7 @@ class TestBackfillJob(unittest.TestCase):
                 .count()
             )
 
-            self.assertEqual(1, successful_subdag_runs)
+            assert 1 == successful_subdag_runs
 
         subdag.clear()
         dag.clear()
@@ -1150,15 +1137,15 @@ class TestBackfillJob(unittest.TestCase):
 
         ti_subdag = TI(task=dag.get_task('daily_job'), execution_date=DEFAULT_DATE)
         ti_subdag.refresh_from_db()
-        self.assertEqual(ti_subdag.state, State.SUCCESS)
+        assert ti_subdag.state == State.SUCCESS
 
         ti_irrelevant = TI(task=dag.get_task('daily_job_irrelevant'), execution_date=DEFAULT_DATE)
         ti_irrelevant.refresh_from_db()
-        self.assertEqual(ti_irrelevant.state, State.SUCCESS)
+        assert ti_irrelevant.state == State.SUCCESS
 
         ti_downstream = TI(task=dag.get_task('daily_job_downstream'), execution_date=DEFAULT_DATE)
         ti_downstream.refresh_from_db()
-        self.assertEqual(ti_downstream.state, State.SUCCESS)
+        assert ti_downstream.state == State.SUCCESS
 
         sdag = subdag.sub_dag(
             task_ids_or_regex='daily_job_subdag_task', include_downstream=True, include_upstream=False
@@ -1167,13 +1154,13 @@ class TestBackfillJob(unittest.TestCase):
         sdag.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, include_parentdag=True)
 
         ti_subdag.refresh_from_db()
-        self.assertEqual(State.NONE, ti_subdag.state)
+        assert State.NONE == ti_subdag.state
 
         ti_irrelevant.refresh_from_db()
-        self.assertEqual(State.SUCCESS, ti_irrelevant.state)
+        assert State.SUCCESS == ti_irrelevant.state
 
         ti_downstream.refresh_from_db()
-        self.assertEqual(State.NONE, ti_downstream.state)
+        assert State.NONE == ti_downstream.state
 
         subdag.clear()
         dag.clear()
@@ -1213,11 +1200,11 @@ class TestBackfillJob(unittest.TestCase):
                 .first()
             )
 
-            self.assertIsNotNone(instance)
-            self.assertEqual(instance.state, State.SUCCESS)
+            assert instance is not None
+            assert instance.state == State.SUCCESS
 
         removed_task_ti.refresh_from_db()
-        self.assertEqual(removed_task_ti.state, State.REMOVED)
+        assert removed_task_ti.state == State.REMOVED
 
         subdag.clear()
         dag.clear()
@@ -1246,11 +1233,11 @@ class TestBackfillJob(unittest.TestCase):
         ti.set_state(State.SUCCESS, session)
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
-        self.assertTrue(len(ti_status.running) == 0)
-        self.assertTrue(len(ti_status.succeeded) == 1)
-        self.assertTrue(len(ti_status.skipped) == 0)
-        self.assertTrue(len(ti_status.failed) == 0)
-        self.assertTrue(len(ti_status.to_run) == 0)
+        assert len(ti_status.running) == 0
+        assert len(ti_status.succeeded) == 1
+        assert len(ti_status.skipped) == 0
+        assert len(ti_status.failed) == 0
+        assert len(ti_status.to_run) == 0
 
         ti_status.succeeded.clear()
 
@@ -1258,11 +1245,11 @@ class TestBackfillJob(unittest.TestCase):
         ti.set_state(State.SKIPPED, session)
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
-        self.assertTrue(len(ti_status.running) == 0)
-        self.assertTrue(len(ti_status.succeeded) == 0)
-        self.assertTrue(len(ti_status.skipped) == 1)
-        self.assertTrue(len(ti_status.failed) == 0)
-        self.assertTrue(len(ti_status.to_run) == 0)
+        assert len(ti_status.running) == 0
+        assert len(ti_status.succeeded) == 0
+        assert len(ti_status.skipped) == 1
+        assert len(ti_status.failed) == 0
+        assert len(ti_status.to_run) == 0
 
         ti_status.skipped.clear()
 
@@ -1270,11 +1257,11 @@ class TestBackfillJob(unittest.TestCase):
         ti.set_state(State.FAILED, session)
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
-        self.assertTrue(len(ti_status.running) == 0)
-        self.assertTrue(len(ti_status.succeeded) == 0)
-        self.assertTrue(len(ti_status.skipped) == 0)
-        self.assertTrue(len(ti_status.failed) == 1)
-        self.assertTrue(len(ti_status.to_run) == 0)
+        assert len(ti_status.running) == 0
+        assert len(ti_status.succeeded) == 0
+        assert len(ti_status.skipped) == 0
+        assert len(ti_status.failed) == 1
+        assert len(ti_status.to_run) == 0
 
         ti_status.failed.clear()
 
@@ -1282,11 +1269,11 @@ class TestBackfillJob(unittest.TestCase):
         ti.set_state(State.UP_FOR_RETRY, session)
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
-        self.assertTrue(len(ti_status.running) == 0)
-        self.assertTrue(len(ti_status.succeeded) == 0)
-        self.assertTrue(len(ti_status.skipped) == 0)
-        self.assertTrue(len(ti_status.failed) == 0)
-        self.assertTrue(len(ti_status.to_run) == 1)
+        assert len(ti_status.running) == 0
+        assert len(ti_status.succeeded) == 0
+        assert len(ti_status.skipped) == 0
+        assert len(ti_status.failed) == 0
+        assert len(ti_status.to_run) == 1
 
         ti_status.to_run.clear()
 
@@ -1294,11 +1281,11 @@ class TestBackfillJob(unittest.TestCase):
         ti.set_state(State.UP_FOR_RESCHEDULE, session)
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
-        self.assertTrue(len(ti_status.running) == 0)
-        self.assertTrue(len(ti_status.succeeded) == 0)
-        self.assertTrue(len(ti_status.skipped) == 0)
-        self.assertTrue(len(ti_status.failed) == 0)
-        self.assertTrue(len(ti_status.to_run) == 1)
+        assert len(ti_status.running) == 0
+        assert len(ti_status.succeeded) == 0
+        assert len(ti_status.skipped) == 0
+        assert len(ti_status.failed) == 0
+        assert len(ti_status.to_run) == 1
 
         ti_status.to_run.clear()
 
@@ -1306,11 +1293,11 @@ class TestBackfillJob(unittest.TestCase):
         ti.set_state(State.NONE, session)
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
-        self.assertTrue(len(ti_status.running) == 0)
-        self.assertTrue(len(ti_status.succeeded) == 0)
-        self.assertTrue(len(ti_status.skipped) == 0)
-        self.assertTrue(len(ti_status.failed) == 0)
-        self.assertTrue(len(ti_status.to_run) == 1)
+        assert len(ti_status.running) == 0
+        assert len(ti_status.succeeded) == 0
+        assert len(ti_status.skipped) == 0
+        assert len(ti_status.failed) == 0
+        assert len(ti_status.to_run) == 1
 
         ti_status.to_run.clear()
 
@@ -1327,22 +1314,17 @@ class TestBackfillJob(unittest.TestCase):
             return dag
 
         test_dag = get_test_dag_for_backfill()
-        self.assertEqual(
-            [DEFAULT_DATE], test_dag.get_run_dates(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        )
+        assert [DEFAULT_DATE] == test_dag.get_run_dates(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         test_dag = get_test_dag_for_backfill(schedule_interval="@hourly")
-        self.assertEqual(
-            [
-                DEFAULT_DATE - datetime.timedelta(hours=3),
-                DEFAULT_DATE - datetime.timedelta(hours=2),
-                DEFAULT_DATE - datetime.timedelta(hours=1),
-                DEFAULT_DATE,
-            ],
-            test_dag.get_run_dates(
-                start_date=DEFAULT_DATE - datetime.timedelta(hours=3),
-                end_date=DEFAULT_DATE,
-            ),
+        assert [
+            DEFAULT_DATE - datetime.timedelta(hours=3),
+            DEFAULT_DATE - datetime.timedelta(hours=2),
+            DEFAULT_DATE - datetime.timedelta(hours=1),
+            DEFAULT_DATE,
+        ] == test_dag.get_run_dates(
+            start_date=DEFAULT_DATE - datetime.timedelta(hours=3),
+            end_date=DEFAULT_DATE,
         )
 
     def test_backfill_run_backwards(self):
@@ -1369,8 +1351,8 @@ class TestBackfillJob(unittest.TestCase):
         )
 
         queued_times = [ti.queued_dttm for ti in tis]
-        self.assertTrue(queued_times == sorted(queued_times, reverse=True))
-        self.assertTrue(all(ti.state == State.SUCCESS for ti in tis))
+        assert queued_times == sorted(queued_times, reverse=True)
+        assert all(ti.state == State.SUCCESS for ti in tis)
 
         dag.clear()
         session.close()
@@ -1411,7 +1393,7 @@ class TestBackfillJob(unittest.TestCase):
             session.merge(ti2)
             session.commit()
 
-        self.assertEqual(2, job.reset_state_for_orphaned_tasks())
+        assert 2 == job.reset_state_for_orphaned_tasks()
 
         for ti in dr1_tis + dr2_tis:
             ti.refresh_from_db()
@@ -1419,13 +1401,13 @@ class TestBackfillJob(unittest.TestCase):
         # running dagrun should be reset
         for state, ti in zip(states, dr1_tis):
             if state in states_to_reset:
-                self.assertIsNone(ti.state)
+                assert ti.state is None
             else:
-                self.assertEqual(state, ti.state)
+                assert state == ti.state
 
         # otherwise not
         for state, ti in zip(states, dr2_tis):
-            self.assertEqual(state, ti.state)
+            assert state == ti.state
 
         for state, ti in zip(states, dr1_tis):
             ti.state = state
@@ -1435,7 +1417,7 @@ class TestBackfillJob(unittest.TestCase):
 
         # check same for dag_run version
         for state, ti in zip(states, dr2_tis):
-            self.assertEqual(state, ti.state)
+            assert state == ti.state
 
     def test_reset_orphaned_tasks_specified_dagrun(self):
         """Try to reset when we specify a dagrun and ensure nothing else is."""
@@ -1461,11 +1443,11 @@ class TestBackfillJob(unittest.TestCase):
         session.commit()
 
         num_reset_tis = job.reset_state_for_orphaned_tasks(filter_by_dag_run=dr2, session=session)
-        self.assertEqual(1, num_reset_tis)
+        assert 1 == num_reset_tis
         ti1.refresh_from_db(session=session)
         ti2.refresh_from_db(session=session)
-        self.assertEqual(State.SCHEDULED, ti1.state)
-        self.assertEqual(State.NONE, ti2.state)
+        assert State.SCHEDULED == ti1.state
+        assert State.NONE == ti2.state
 
     def test_job_id_is_assigned_to_dag_run(self):
         dag_id = 'test_job_id_is_assigned_to_dag_run'

@@ -53,7 +53,7 @@ class TestComputeEngineHookWithPassedProjectId(unittest.TestCase):
 
         hook = ComputeEngineSSHHook(instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE)
         result = hook.get_conn()
-        self.assertEqual(mock_ssh_client.return_value, result)
+        assert mock_ssh_client.return_value == result
 
         mock_paramiko.RSAKey.generate.assert_called_once_with(2048)
         mock_compute_hook.assert_has_calls(
@@ -112,7 +112,7 @@ class TestComputeEngineHookWithPassedProjectId(unittest.TestCase):
 
         hook = ComputeEngineSSHHook(instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False)
         result = hook.get_conn()
-        self.assertEqual(mock_ssh_client.return_value, result)
+        assert mock_ssh_client.return_value == result
 
         mock_paramiko.RSAKey.generate.assert_called_once_with(2048)
         mock_compute_hook.assert_has_calls(
@@ -173,7 +173,7 @@ class TestComputeEngineHookWithPassedProjectId(unittest.TestCase):
 
         hook = ComputeEngineSSHHook(instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False)
         result = hook.get_conn()
-        self.assertEqual(mock_ssh_client.return_value, result)
+        assert mock_ssh_client.return_value == result
 
         mock_compute_hook.return_value.set_instance_metadata.assert_called_once_with(
             metadata={"items": [{"key": "ssh-keys", "value": f"{TEST_PUB_KEY}\n{TEST_PUB_KEY2}\n"}]},
@@ -201,7 +201,7 @@ class TestComputeEngineHookWithPassedProjectId(unittest.TestCase):
             instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False, use_internal_ip=True
         )
         result = hook.get_conn()
-        self.assertEqual(mock_ssh_client.return_value, result)
+        assert mock_ssh_client.return_value == result
 
         mock_compute_hook.return_value.get_instance_address.assert_called_once_with(
             project_id=TEST_PROJECT_ID, resource_id=TEST_INSTANCE_NAME, use_internal_ip=True, zone=TEST_ZONE
@@ -227,7 +227,7 @@ class TestComputeEngineHookWithPassedProjectId(unittest.TestCase):
             hostname="custom-hostname",
         )
         result = hook.get_conn()
-        self.assertEqual(mock_ssh_client.return_value, result)
+        assert mock_ssh_client.return_value == result
 
         mock_compute_hook.return_value.get_instance_address.assert_not_called()
         mock_ssh_client.return_value.connect.assert_called_once_with(
@@ -252,7 +252,7 @@ class TestComputeEngineHookWithPassedProjectId(unittest.TestCase):
             instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False, use_iap_tunnel=True
         )
         result = hook.get_conn()
-        self.assertEqual(mock_ssh_client.return_value, result)
+        assert mock_ssh_client.return_value == result
 
         mock_ssh_client.return_value.connect.assert_called_once_with(
             hostname=mock.ANY,
@@ -286,7 +286,7 @@ class TestComputeEngineHookWithPassedProjectId(unittest.TestCase):
         hook = ComputeEngineSSHHook(instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE)
         hook.get_conn()
 
-        self.assertEqual(3, mock_ssh_client.return_value.connect.call_count)
+        assert 3 == mock_ssh_client.return_value.connect.call_count
 
     def test_read_configuration_from_connection(self):
         conn = Connection(
@@ -308,17 +308,17 @@ class TestComputeEngineHookWithPassedProjectId(unittest.TestCase):
         with mock.patch.dict("os.environ", AIRFLOW_CONN_GCPSSH=conn_uri):
             hook = ComputeEngineSSHHook(gcp_conn_id="gcpssh")
             hook._load_connection_config()
-        self.assertEqual("conn-instance-name", hook.instance_name)
-        self.assertEqual("conn-host", hook.hostname)
-        self.assertEqual("conn-user", hook.user)
-        self.assertEqual(True, hook.use_internal_ip)
-        self.assertIsInstance(hook.use_internal_ip, bool)
-        self.assertEqual(True, hook.use_iap_tunnel)
-        self.assertIsInstance(hook.use_iap_tunnel, bool)
-        self.assertEqual(False, hook.use_oslogin)
-        self.assertIsInstance(hook.use_oslogin, bool)
-        self.assertEqual(4242, hook.expire_time)
-        self.assertIsInstance(hook.expire_time, int)
+        assert "conn-instance-name" == hook.instance_name
+        assert "conn-host" == hook.hostname
+        assert "conn-user" == hook.user
+        assert hook.use_internal_ip is True
+        assert isinstance(hook.use_internal_ip, bool)
+        assert hook.use_iap_tunnel is True
+        assert isinstance(hook.use_iap_tunnel, bool)
+        assert hook.use_oslogin is False
+        assert isinstance(hook.use_oslogin, bool)
+        assert 4242 == hook.expire_time
+        assert isinstance(hook.expire_time, int)
 
     def test_read_configuration_from_connection_empty_config(self):
         conn = Connection(
@@ -329,14 +329,14 @@ class TestComputeEngineHookWithPassedProjectId(unittest.TestCase):
         with mock.patch.dict("os.environ", AIRFLOW_CONN_GCPSSH=conn_uri):
             hook = ComputeEngineSSHHook(gcp_conn_id="gcpssh")
             hook._load_connection_config()
-        self.assertEqual(None, hook.instance_name)
-        self.assertEqual(None, hook.hostname)
-        self.assertEqual("root", hook.user)
-        self.assertEqual(False, hook.use_internal_ip)
-        self.assertIsInstance(hook.use_internal_ip, bool)
-        self.assertEqual(False, hook.use_iap_tunnel)
-        self.assertIsInstance(hook.use_iap_tunnel, bool)
-        self.assertEqual(False, hook.use_oslogin)
-        self.assertIsInstance(hook.use_oslogin, bool)
-        self.assertEqual(300, hook.expire_time)
-        self.assertIsInstance(hook.expire_time, int)
+        assert None is hook.instance_name
+        assert None is hook.hostname
+        assert "root" == hook.user
+        assert False is hook.use_internal_ip
+        assert isinstance(hook.use_internal_ip, bool)
+        assert False is hook.use_iap_tunnel
+        assert isinstance(hook.use_iap_tunnel, bool)
+        assert False is hook.use_oslogin
+        assert isinstance(hook.use_oslogin, bool)
+        assert 300 == hook.expire_time
+        assert isinstance(hook.expire_time, int)

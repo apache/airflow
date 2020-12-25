@@ -66,7 +66,7 @@ class TestKmsHook(GoogleSystemTest):
             )
             with open(f"{tmp_dir}/mysecret.txt", "rb") as secret_file:
                 secret = secret_file.read()
-            self.assertEqual(secret, b"TEST-SECRET")
+            assert secret == b"TEST-SECRET"
 
     @provide_gcp_context(GCP_KMS_KEY)
     def test_decrypt(self):
@@ -101,4 +101,4 @@ class TestKmsHook(GoogleSystemTest):
                 ),
                 ciphertext=encrypted_secret,
             )
-            self.assertEqual(content, b"TEST-SECRET")
+            assert content == b"TEST-SECRET"

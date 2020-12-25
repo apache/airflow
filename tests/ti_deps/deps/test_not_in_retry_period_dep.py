@@ -41,8 +41,8 @@ class TestNotInRetryPeriodDep(unittest.TestCase):
         Task instances that are in their retry period should fail this dep
         """
         ti = self._get_task_instance(State.UP_FOR_RETRY, end_date=datetime(2016, 1, 1, 15, 30))
-        self.assertTrue(ti.is_premature)
-        self.assertFalse(NotInRetryPeriodDep().is_met(ti=ti))
+        assert ti.is_premature
+        assert not NotInRetryPeriodDep().is_met(ti=ti)
 
     @freeze_time('2016-01-01 15:46')
     def test_retry_period_finished(self):
@@ -50,12 +50,12 @@ class TestNotInRetryPeriodDep(unittest.TestCase):
         Task instance's that have had their retry period elapse should pass this dep
         """
         ti = self._get_task_instance(State.UP_FOR_RETRY, end_date=datetime(2016, 1, 1))
-        self.assertFalse(ti.is_premature)
-        self.assertTrue(NotInRetryPeriodDep().is_met(ti=ti))
+        assert not ti.is_premature
+        assert NotInRetryPeriodDep().is_met(ti=ti)
 
     def test_not_in_retry_period(self):
         """
         Task instance's that are not up for retry can not be in their retry period
         """
         ti = self._get_task_instance(State.SUCCESS)
-        self.assertTrue(NotInRetryPeriodDep().is_met(ti=ti))
+        assert NotInRetryPeriodDep().is_met(ti=ti)

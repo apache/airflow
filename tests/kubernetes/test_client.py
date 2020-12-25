@@ -54,8 +54,8 @@ class TestClient(unittest.TestCase):
 
         _enable_tcp_keepalive()
 
-        self.assertEqual(HTTPConnection.default_socket_options, expected_http_connection_options)
-        self.assertEqual(HTTPSConnection.default_socket_options, expected_https_connection_options)
+        assert HTTPConnection.default_socket_options == expected_http_connection_options
+        assert HTTPSConnection.default_socket_options == expected_https_connection_options
 
     def test_disable_verify_ssl(self):
         configuration = Configuration()

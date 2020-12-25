@@ -201,7 +201,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         manager._file_stats['missing_file.txt'] = DagFileStat(0, 0, None, None, 0)
 
         manager.set_file_paths(['abc.txt'])
-        self.assertDictEqual(manager._processors, {})
+        assert manager._processors == {}
 
     def test_set_file_paths_when_processor_file_path_is_in_new_file_paths(self):
         manager = DagFileProcessorManager(
@@ -222,7 +222,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         manager._processors['abc.txt'] = mock_processor
 
         manager.set_file_paths(['abc.txt'])
-        self.assertDictEqual(manager._processors, {'abc.txt': mock_processor})
+        assert manager._processors == {'abc.txt': mock_processor}
 
     def test_find_zombies(self):
         manager = DagFileProcessorManager(
@@ -259,14 +259,14 @@ class TestDagFileProcessorManager(unittest.TestCase):
             )
             manager._find_zombies()  # pylint: disable=no-value-for-parameter
             requests = manager._callback_to_execute[dag.full_filepath]
-            self.assertEqual(1, len(requests))
-            self.assertEqual(requests[0].full_filepath, dag.full_filepath)
-            self.assertEqual(requests[0].msg, "Detected as zombie")
-            self.assertEqual(requests[0].is_failure_callback, True)
-            self.assertIsInstance(requests[0].simple_task_instance, SimpleTaskInstance)
-            self.assertEqual(ti.dag_id, requests[0].simple_task_instance.dag_id)
-            self.assertEqual(ti.task_id, requests[0].simple_task_instance.task_id)
-            self.assertEqual(ti.execution_date, requests[0].simple_task_instance.execution_date)
+            assert 1 == len(requests)
+            assert requests[0].full_filepath == dag.full_filepath
+            assert requests[0].msg == "Detected as zombie"
+            assert requests[0].is_failure_callback is True
+            assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
+            assert ti.dag_id == requests[0].simple_task_instance.dag_id
+            assert ti.task_id == requests[0].simple_task_instance.task_id
+            assert ti.execution_date == requests[0].simple_task_instance.execution_date
 
             session.query(TI).delete()
             session.query(LJ).delete()
@@ -486,7 +486,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             # Since we are reloading logging config not creating this file,
             # we should expect it to be nonexistent.
 
-            self.assertFalse(os.path.isfile(log_file_loc))
+            assert not os.path.isfile(log_file_loc)
 
     @conf_vars({('core', 'load_examples'): 'False'})
     def test_parse_once(self):
@@ -536,7 +536,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
         processor_agent._process.join()
 
-        self.assertTrue(os.path.isfile(log_file_loc))
+        assert os.path.isfile(log_file_loc)
 
 
 class TestCorrectMaybeZipped(unittest.TestCase):
@@ -547,7 +547,7 @@ class TestCorrectMaybeZipped(unittest.TestCase):
 
         dag_folder = correct_maybe_zipped(path)
 
-        self.assertEqual(dag_folder, path)
+        assert dag_folder == path
 
     @mock.patch("zipfile.is_zipfile")
     def test_correct_maybe_zipped_normal_file_with_zip_in_name(self, mocked_is_zipfile):
@@ -556,7 +556,7 @@ class TestCorrectMaybeZipped(unittest.TestCase):
 
         dag_folder = correct_maybe_zipped(path)
 
-        self.assertEqual(dag_folder, path)
+        assert dag_folder == path
 
     @mock.patch("zipfile.is_zipfile")
     def test_correct_maybe_zipped_archive(self, mocked_is_zipfile):
@@ -567,9 +567,9 @@ class TestCorrectMaybeZipped(unittest.TestCase):
 
         assert mocked_is_zipfile.call_count == 1
         (args, kwargs) = mocked_is_zipfile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
+        assert '/path/to/archive.zip' == args[0]
 
-        self.assertEqual(dag_folder, '/path/to/archive.zip')
+        assert dag_folder == '/path/to/archive.zip'
 
 
 class TestOpenMaybeZipped(unittest.TestCase):

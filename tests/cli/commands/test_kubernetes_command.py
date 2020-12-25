@@ -47,11 +47,11 @@ class TestGenerateDagYamlCommand(unittest.TestCase):
                     ]
                 )
             )
-            self.assertEqual(len(os.listdir(directory)), 1)
+            assert len(os.listdir(directory)) == 1
             out_dir = directory + "/airflow_yaml_output/"
-            self.assertEqual(len(os.listdir(out_dir)), 6)
-            self.assertTrue(os.path.isfile(out_dir + file_name))
-            self.assertGreater(os.stat(out_dir + file_name).st_size, 0)
+            assert len(os.listdir(out_dir)) == 6
+            assert os.path.isfile(out_dir + file_name)
+            assert os.stat(out_dir + file_name).st_size > 0
 
 
 class TestCleanUpPodsCommand(unittest.TestCase):

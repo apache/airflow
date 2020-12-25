@@ -37,7 +37,7 @@ class TestNeo4jHookConn(unittest.TestCase):
         self.neo4j_hook.get_connection.return_value = self.connection
         uri = self.neo4j_hook.get_uri(self.connection)
 
-        self.assertEqual(uri, "bolt://host:7687")
+        assert uri == "bolt://host:7687"
 
     def test_get_uri_bolt_scheme(self):
 
@@ -46,7 +46,7 @@ class TestNeo4jHookConn(unittest.TestCase):
         self.neo4j_hook.get_connection.return_value = self.connection
         uri = self.neo4j_hook.get_uri(self.connection)
 
-        self.assertEqual(uri, "bolt://host:7687")
+        assert uri == "bolt://host:7687"
 
     def test_get_uri_bolt_ssc_scheme(self):
         self.connection.extra = json.dumps({"certs_self_signed": True, "bolt_scheme": True})
@@ -54,7 +54,7 @@ class TestNeo4jHookConn(unittest.TestCase):
         self.neo4j_hook.get_connection.return_value = self.connection
         uri = self.neo4j_hook.get_uri(self.connection)
 
-        self.assertEqual(uri, "bolt+ssc://host:7687")
+        assert uri == "bolt+ssc://host:7687"
 
     def test_get_uri_bolt_trusted_ca_scheme(self):
         self.connection.extra = json.dumps({"certs_trusted_ca": True, "bolt_scheme": True})
@@ -62,4 +62,4 @@ class TestNeo4jHookConn(unittest.TestCase):
         self.neo4j_hook.get_connection.return_value = self.connection
         uri = self.neo4j_hook.get_uri(self.connection)
 
-        self.assertEqual(uri, "bolt+s://host:7687")
+        assert uri == "bolt+s://host:7687"

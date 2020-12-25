@@ -26,6 +26,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 from uuid import UUID
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -148,10 +149,10 @@ class TestFallbackToVariables(unittest.TestCase):
             def test_fn(self, *args, **kwargs):
                 mock_instance(*args, **kwargs)
 
-        with self.assertRaisesRegex(
+        with pytest.raises(
             AirflowException,
-            "The mutually exclusive parameter `project_id` and `project` key in `variables` parameter are "
-            "both present\\. Please remove one\\.",
+            match="The mutually exclusive parameter `project_id` and `project` key in `variables` parameter "
+            "are both present\\. Please remove one\\.",
         ):
             FixtureFallback().test_fn(variables={'project': "TEST"}, project_id="TEST2")
 
@@ -163,8 +164,8 @@ class TestFallbackToVariables(unittest.TestCase):
             def test_fn(self, *args, **kwargs):
                 mock_instance(*args, **kwargs)
 
-        with self.assertRaisesRegex(
-            AirflowException, "You must use keyword arguments in this methods rather than positional"
+        with pytest.raises(
+            AirflowException, match="You must use keyword arguments in this methods rather than positional"
         ):
             FixutureFallback().test_fn({'project': "TEST"}, "TEST2")
 
@@ -190,7 +191,7 @@ class TestDataflowHook(unittest.TestCase):
         mock_build.assert_called_once_with(
             'dataflow', 'v1b3', http=mock_authorize.return_value, cache_discovery=False
         )
-        self.assertEqual(mock_build.return_value, result)
+        assert mock_build.return_value == result
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
@@ -220,7 +221,7 @@ class TestDataflowHook(unittest.TestCase):
             '--staging_location=gs://test/staging',
             f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
-        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
+        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
@@ -254,7 +255,7 @@ class TestDataflowHook(unittest.TestCase):
             '--staging_location=gs://test/staging',
             f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
-        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
+        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
@@ -287,7 +288,7 @@ class TestDataflowHook(unittest.TestCase):
             '--staging_location=gs://test/staging',
             f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
-        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
+        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
@@ -324,7 +325,7 @@ class TestDataflowHook(unittest.TestCase):
             '--staging_location=gs://test/staging',
             f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
-        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
+        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
 
     @parameterized.expand(
         [
@@ -372,7 +373,7 @@ class TestDataflowHook(unittest.TestCase):
             '--staging_location=gs://test/staging',
             f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
-        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
+        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
 
     @parameterized.expand(
         [
@@ -422,7 +423,7 @@ class TestDataflowHook(unittest.TestCase):
             '--staging_location=gs://test/staging',
             f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
-        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
+        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
@@ -437,7 +438,7 @@ class TestDataflowHook(unittest.TestCase):
         dataflow_instance.wait_for_done.return_value = None
         dataflowjob_instance = mock_dataflowjob.return_value
         dataflowjob_instance.wait_for_done.return_value = None
-        with self.assertRaisesRegex(AirflowException, "Invalid method invocation."):
+        with pytest.raises(AirflowException, match="Invalid method invocation."):
             self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
@@ -471,10 +472,7 @@ class TestDataflowHook(unittest.TestCase):
             '--labels={"foo":"bar"}',
             f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
-        self.assertListEqual(
-            sorted(expected_cmd),
-            sorted(mock_dataflow.call_args[1]["cmd"]),
-        )
+        assert sorted(expected_cmd) == sorted(mock_dataflow.call_args[1]["cmd"])
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
@@ -508,7 +506,7 @@ class TestDataflowHook(unittest.TestCase):
             '--labels={"foo":"bar"}',
             f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
-        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
+        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
@@ -541,10 +539,7 @@ class TestDataflowHook(unittest.TestCase):
             '--labels={"foo":"bar"}',
             f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
-        self.assertListEqual(
-            sorted(expected_cmd),
-            sorted(mock_dataflow.call_args[1]["cmd"]),
-        )
+        assert sorted(expected_cmd) == sorted(mock_dataflow.call_args[1]["cmd"])
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
@@ -577,10 +572,7 @@ class TestDataflowHook(unittest.TestCase):
             '--labels={"foo":"bar"}',
             f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
-        self.assertListEqual(
-            sorted(expected_cmd),
-            sorted(mock_dataflow.call_args[1]["cmd"]),
-        )
+        assert sorted(expected_cmd) == sorted(mock_dataflow.call_args[1]["cmd"])
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
@@ -608,7 +600,7 @@ class TestDataflowHook(unittest.TestCase):
             '--labels={"foo":"bar"}',
             f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
         ]
-        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]), sorted(expected_cmd))
+        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
 
     @parameterized.expand(
         [
@@ -628,13 +620,12 @@ class TestDataflowHook(unittest.TestCase):
             job_name=job_name, append_job_name=append_job_name
         )
 
-        self.assertEqual(expected_result, job_name)
+        assert expected_result == job_name
 
     @parameterized.expand([("1dfjob@",), ("dfjob@",), ("df^jo",)])
     def test_build_dataflow_job_name_with_invalid_value(self, job_name):
-        self.assertRaises(
-            ValueError, self.dataflow_hook._build_dataflow_job_name, job_name=job_name, append_job_name=False
-        )
+        with pytest.raises(ValueError):
+            self.dataflow_hook._build_dataflow_job_name(job_name=job_name, append_job_name=False)
 
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
@@ -966,7 +957,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
         mock_controller.return_value.get_jobs.wait_for_done.assrt_called_once_with()
         mock_controller.return_value.get_jobs.assrt_called_once_with()
 
-        self.assertEqual(result, {"id": TEST_JOB_ID})
+        assert result == {"id": TEST_JOB_ID}
 
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
@@ -1037,7 +1028,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             drain_pipeline=False,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
-        self.assertEqual(result, test_job)
+        assert result == test_job
 
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.provide_authorized_gcloud'))
@@ -1046,7 +1037,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
         mock_run.return_value = mock.MagicMock(
             stdout=f"{TEST_JOB_ID}\n".encode(), stderr=f"{TEST_JOB_ID}\n".encode(), returncode=1
         )
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.dataflow_hook.start_sql_job(
                 job_name=TEST_SQL_JOB_NAME,
                 query=TEST_SQL_QUERY,
@@ -1134,7 +1125,7 @@ class TestDataflowJob(unittest.TestCase):
             .return_value.execute.assert_called_once_with(num_retries=20)
         # fmt: on
 
-        self.assertEqual(dataflow_job.get_jobs(), [job, job])
+        assert dataflow_job.get_jobs() == [job, job]
 
     @parameterized.expand(
         [
@@ -1187,7 +1178,7 @@ class TestDataflowJob(unittest.TestCase):
             num_retries=20,
             multiple_jobs=True,
         )
-        with self.assertRaisesRegex(Exception, exception_regex):
+        with pytest.raises(Exception, match=exception_regex):
             dataflow_job.wait_for_done()
 
     def test_dataflow_job_wait_for_multiple_jobs_and_streaming_jobs(self):
@@ -1227,7 +1218,7 @@ class TestDataflowJob(unittest.TestCase):
         )
         dataflow_job.wait_for_done()
 
-        self.assertEqual(1, mock_jobs_list.call_count)
+        assert 1 == mock_jobs_list.call_count
 
     def test_dataflow_job_wait_for_single_jobs(self):
         job = {
@@ -1269,7 +1260,7 @@ class TestDataflowJob(unittest.TestCase):
         self.mock_dataflow.projects.return_value.locations.return_value. \
             jobs.return_value.get.return_value.execute.assert_called_once_with(num_retries=20)
         # fmt: on
-        self.assertEqual(dataflow_job.get_jobs(), [job])
+        assert dataflow_job.get_jobs() == [job]
 
     def test_dataflow_job_is_job_running_with_no_job(self):
         # fmt: off
@@ -1301,7 +1292,7 @@ class TestDataflowJob(unittest.TestCase):
         )
         result = dataflow_job.is_job_running()
 
-        self.assertEqual(False, result)
+        assert result is False
 
     # fmt: off
     @parameterized.expand([
@@ -1337,7 +1328,7 @@ class TestDataflowJob(unittest.TestCase):
             wait_until_finished=wait_until_finished,
         )
         result = dataflow_job._check_dataflow_job_state(job)
-        self.assertEqual(result, expected_result)
+        assert result == expected_result
 
     # fmt: off
     @parameterized.expand([
@@ -1375,7 +1366,7 @@ class TestDataflowJob(unittest.TestCase):
             num_retries=20,
             multiple_jobs=True,
         )
-        with self.assertRaisesRegex(Exception, exception_regex):
+        with pytest.raises(Exception, match=exception_regex):
             dataflow_job._check_dataflow_job_state(job)
 
     def test_dataflow_job_cancel_job(self):
@@ -1582,7 +1573,7 @@ class TestDataflowJob(unittest.TestCase):
         mock_list_next.assert_called_once_with(
             previous_request=mock_list.return_value, previous_response="response_1"
         )
-        self.assertEqual(result, ["response_1"])
+        assert result == ["response_1"]
 
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController._fetch_list_job_messages_responses'))
     def test_fetch_job_messages_by_id(self, mock_fetch_responses):
@@ -1600,7 +1591,7 @@ class TestDataflowJob(unittest.TestCase):
         )
         result = jobs_controller.fetch_job_messages_by_id(TEST_JOB_ID)
         mock_fetch_responses.assert_called_once_with(job_id=TEST_JOB_ID)
-        self.assertEqual(result, ['message_1', 'message_2'])
+        assert result == ['message_1', 'message_2']
 
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController._fetch_list_job_messages_responses'))
     def test_fetch_job_autoscaling_events_by_id(self, mock_fetch_responses):
@@ -1618,7 +1609,7 @@ class TestDataflowJob(unittest.TestCase):
         )
         result = jobs_controller.fetch_job_autoscaling_events_by_id(TEST_JOB_ID)
         mock_fetch_responses.assert_called_once_with(job_id=TEST_JOB_ID)
-        self.assertEqual(result, ['event_1', 'event_2'])
+        assert result == ['event_1', 'event_2']
 
 
 APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG = f""""\
@@ -1700,11 +1691,11 @@ class TestDataflow(unittest.TestCase):
     def test_data_flow_valid_job_id(self, log):
         echos = ";".join([f"echo {shlex.quote(line)}" for line in log.split("\n")])
         cmd = ["bash", "-c", echos]
-        self.assertEqual(_DataflowRunner(cmd).wait_for_done(), TEST_JOB_ID)
+        assert _DataflowRunner(cmd).wait_for_done() == TEST_JOB_ID
 
     def test_data_flow_missing_job_id(self):
         cmd = ['echo', 'unit testing']
-        self.assertEqual(_DataflowRunner(cmd).wait_for_done(), None)
+        assert _DataflowRunner(cmd).wait_for_done() is None
 
     @mock.patch('airflow.providers.google.cloud.hooks.dataflow._DataflowRunner.log')
     @mock.patch('subprocess.Popen')
@@ -1729,4 +1720,5 @@ class TestDataflow(unittest.TestCase):
         mock_popen.return_value = mock_proc
         dataflow = _DataflowRunner(['test', 'cmd'])
         mock_logging.info.assert_called_once_with('Running command: %s', 'test cmd')
-        self.assertRaises(Exception, dataflow.wait_for_done)
+        with pytest.raises(Exception):
+            dataflow.wait_for_done()

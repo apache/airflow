@@ -19,6 +19,7 @@
 import unittest
 from unittest import mock
 
+import pytest
 import telegram
 
 import airflow
@@ -54,38 +55,38 @@ class TestTelegramHook(unittest.TestCase):
         )
 
     def test_should_raise_exception_if_both_connection_or_token_is_not_provided(self):
-        with self.assertRaises(airflow.exceptions.AirflowException) as e:
+        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
             TelegramHook()
 
-        self.assertEqual("Cannot get token: No valid Telegram connection supplied.", str(e.exception))
+        assert "Cannot get token: No valid Telegram connection supplied." == str(ctx.value)
 
     def test_should_raise_exception_if_conn_id_doesnt_exist(self):
-        with self.assertRaises(airflow.exceptions.AirflowNotFoundException) as e:
+        with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:
             TelegramHook(telegram_conn_id='telegram-webhook-non-existent')
 
-        self.assertEqual("The conn_id `telegram-webhook-non-existent` isn't defined", str(e.exception))
+        assert "The conn_id `telegram-webhook-non-existent` isn't defined" == str(ctx.value)
 
     def test_should_raise_exception_if_conn_id_doesnt_contain_token(self):
-        with self.assertRaises(airflow.exceptions.AirflowException) as e:
+        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
             TelegramHook(telegram_conn_id='telegram-webhook-without-token')
 
-        self.assertEqual("Missing token(password) in Telegram connection", str(e.exception))
+        assert "Missing token(password) in Telegram connection" == str(ctx.value)
 
     @mock.patch('airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn')
     def test_should_raise_exception_if_chat_id_is_not_provided_anywhere(self, mock_get_conn):
-        with self.assertRaises(airflow.exceptions.AirflowException) as e:
+        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
             hook = TelegramHook(telegram_conn_id='telegram_default')
             hook.send_message({"text": "test telegram message"})
 
-        self.assertEqual("'chat_id' must be provided for telegram message", str(e.exception))
+        assert "'chat_id' must be provided for telegram message" == str(ctx.value)
 
     @mock.patch('airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn')
     def test_should_raise_exception_if_message_text_is_not_provided(self, mock_get_conn):
-        with self.assertRaises(airflow.exceptions.AirflowException) as e:
+        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
             hook = TelegramHook(telegram_conn_id='telegram_default')
             hook.send_message({"chat_id": -420913222})
 
-        self.assertEqual("'text' must be provided for telegram message", str(e.exception))
+        assert "'text' must be provided for telegram message" == str(ctx.value)
 
     @mock.patch('airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn')
     def test_should_send_message_if_all_parameters_are_correctly_provided(self, mock_get_conn):
@@ -154,12 +155,12 @@ class TestTelegramHook(unittest.TestCase):
 
         mock_get_conn.return_value.send_message.side_effect = side_effect
 
-        with self.assertRaises(Exception) as e:
+        with pytest.raises(Exception) as ctx:
             hook = TelegramHook(telegram_conn_id='telegram-webhook-with-chat_id')
             hook.send_message({"text": "test telegram message"})
 
-        self.assertTrue("RetryError" in str(e.exception))
-        self.assertTrue("state=finished raised TelegramError" in str(e.exception))
+        assert "RetryError" in str(ctx.value)
+        assert "state=finished raised TelegramError" in str(ctx.value)
 
         mock_get_conn.assert_called_once()
         mock_get_conn.return_value.send_message.assert_called_with(
@@ -170,7 +171,7 @@ class TestTelegramHook(unittest.TestCase):
                 'text': 'test telegram message',
             }
         )
-        self.assertEqual(excepted_retry_count, mock_get_conn.return_value.send_message.call_count)
+        assert excepted_retry_count == mock_get_conn.return_value.send_message.call_count
 
     @mock.patch('airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn')
     def test_should_send_message_if_token_is_provided(self, mock_get_conn):

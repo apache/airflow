@@ -19,6 +19,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalToAzureDataLakeStorageOperator
 
@@ -49,9 +51,9 @@ class TestAzureDataLakeStorageUploadOperator(unittest.TestCase):
         operator = LocalToAzureDataLakeStorageOperator(
             task_id=TASK_ID, local_path=BAD_LOCAL_PATH, remote_path=REMOTE_PATH
         )
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             operator.execute(None)
-        self.assertEqual(str(e.exception), "Recursive glob patterns using `**` are not supported")
+        assert str(ctx.value) == "Recursive glob patterns using `**` are not supported"
 
     @mock.patch('airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook')
     def test_extra_options_is_passed(self, mock_hook):

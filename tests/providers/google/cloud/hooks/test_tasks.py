@@ -54,8 +54,8 @@ class TestCloudTasksHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
         )
-        self.assertEqual(mock_client.return_value, result)
-        self.assertEqual(self.hook._client, result)
+        assert mock_client.return_value == result
+        assert self.hook._client == result
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
@@ -69,7 +69,7 @@ class TestCloudTasksHook(unittest.TestCase):
             project_id=PROJECT_ID,
         )
 
-        self.assertIs(result, API_RESPONSE)
+        assert result is API_RESPONSE
 
         get_conn.return_value.create_queue.assert_called_once_with(
             request=dict(parent=FULL_LOCATION_PATH, queue=Queue(name=FULL_QUEUE_PATH)),
@@ -90,7 +90,7 @@ class TestCloudTasksHook(unittest.TestCase):
             project_id=PROJECT_ID,
         )
 
-        self.assertIs(result, API_RESPONSE)
+        assert result is API_RESPONSE
 
         get_conn.return_value.update_queue.assert_called_once_with(
             request=dict(queue=Queue(name=FULL_QUEUE_PATH, state=3), update_mask=None),
@@ -106,7 +106,7 @@ class TestCloudTasksHook(unittest.TestCase):
     def test_get_queue(self, get_conn):
         result = self.hook.get_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
-        self.assertIs(result, API_RESPONSE)
+        assert result is API_RESPONSE
 
         get_conn.return_value.get_queue.assert_called_once_with(
             request=dict(name=FULL_QUEUE_PATH), retry=None, timeout=None, metadata=()
@@ -119,7 +119,7 @@ class TestCloudTasksHook(unittest.TestCase):
     def test_list_queues(self, get_conn):
         result = self.hook.list_queues(location=LOCATION, project_id=PROJECT_ID)
 
-        self.assertEqual(result, [Queue(name=FULL_QUEUE_PATH)])
+        assert result == [Queue(name=FULL_QUEUE_PATH)]
 
         get_conn.return_value.list_queues.assert_called_once_with(
             request=dict(parent=FULL_LOCATION_PATH, filter=None, page_size=None),
@@ -135,7 +135,7 @@ class TestCloudTasksHook(unittest.TestCase):
     def test_delete_queue(self, get_conn):
         result = self.hook.delete_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
-        self.assertEqual(result, None)
+        assert result is None
 
         get_conn.return_value.delete_queue.assert_called_once_with(
             request=dict(name=FULL_QUEUE_PATH), retry=None, timeout=None, metadata=()
@@ -148,7 +148,7 @@ class TestCloudTasksHook(unittest.TestCase):
     def test_purge_queue(self, get_conn):
         result = self.hook.purge_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
-        self.assertEqual(result, Queue(name=FULL_QUEUE_PATH))
+        assert result == Queue(name=FULL_QUEUE_PATH)
 
         get_conn.return_value.purge_queue.assert_called_once_with(
             request=dict(name=FULL_QUEUE_PATH), retry=None, timeout=None, metadata=()
@@ -161,7 +161,7 @@ class TestCloudTasksHook(unittest.TestCase):
     def test_pause_queue(self, get_conn):
         result = self.hook.pause_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
-        self.assertEqual(result, Queue(name=FULL_QUEUE_PATH))
+        assert result == Queue(name=FULL_QUEUE_PATH)
 
         get_conn.return_value.pause_queue.assert_called_once_with(
             request=dict(name=FULL_QUEUE_PATH), retry=None, timeout=None, metadata=()
@@ -174,7 +174,7 @@ class TestCloudTasksHook(unittest.TestCase):
     def test_resume_queue(self, get_conn):
         result = self.hook.resume_queue(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
-        self.assertEqual(result, Queue(name=FULL_QUEUE_PATH))
+        assert result == Queue(name=FULL_QUEUE_PATH)
 
         get_conn.return_value.resume_queue.assert_called_once_with(
             request=dict(name=FULL_QUEUE_PATH), retry=None, timeout=None, metadata=()
@@ -193,7 +193,7 @@ class TestCloudTasksHook(unittest.TestCase):
             task_name=TASK_NAME,
         )
 
-        self.assertEqual(result, Task(name=FULL_TASK_PATH))
+        assert result == Task(name=FULL_TASK_PATH)
 
         get_conn.return_value.create_task.assert_called_once_with(
             request=dict(parent=FULL_QUEUE_PATH, task=Task(name=FULL_TASK_PATH), response_view=None),
@@ -214,7 +214,7 @@ class TestCloudTasksHook(unittest.TestCase):
             project_id=PROJECT_ID,
         )
 
-        self.assertEqual(result, Task(name=FULL_TASK_PATH))
+        assert result == Task(name=FULL_TASK_PATH)
 
         get_conn.return_value.get_task.assert_called_once_with(
             request=dict(name=FULL_TASK_PATH, response_view=None),
@@ -230,7 +230,7 @@ class TestCloudTasksHook(unittest.TestCase):
     def test_list_tasks(self, get_conn):
         result = self.hook.list_tasks(location=LOCATION, queue_name=QUEUE_ID, project_id=PROJECT_ID)
 
-        self.assertEqual(result, [Task(name=FULL_TASK_PATH)])
+        assert result == [Task(name=FULL_TASK_PATH)]
 
         get_conn.return_value.list_tasks.assert_called_once_with(
             request=dict(parent=FULL_QUEUE_PATH, response_view=None, page_size=None),
@@ -251,7 +251,7 @@ class TestCloudTasksHook(unittest.TestCase):
             project_id=PROJECT_ID,
         )
 
-        self.assertEqual(result, None)
+        assert result is None
 
         get_conn.return_value.delete_task.assert_called_once_with(
             request=dict(name=FULL_TASK_PATH), retry=None, timeout=None, metadata=()
@@ -269,7 +269,7 @@ class TestCloudTasksHook(unittest.TestCase):
             project_id=PROJECT_ID,
         )
 
-        self.assertEqual(result, Task(name=FULL_TASK_PATH))
+        assert result == Task(name=FULL_TASK_PATH)
 
         get_conn.return_value.run_task.assert_called_once_with(
             request=dict(name=FULL_TASK_PATH, response_view=None),

@@ -108,7 +108,7 @@ class TestStackdriverListAlertPoliciesOperator(unittest.TestCase):
             timeout=DEFAULT,
             metadata=None,
         )
-        self.assertEqual([{'name': 'test-name'}], result)
+        assert [{'name': 'test-name'}] == result
 
 
 class TestStackdriverEnableAlertPoliciesOperator(unittest.TestCase):
@@ -179,7 +179,7 @@ class TestStackdriverListNotificationChannelsOperator(unittest.TestCase):
             timeout=DEFAULT,
             metadata=None,
         )
-        self.assertEqual([{'name': 'test-123'}], result)
+        assert [{'name': 'test-123'}] == result
 
 
 class TestStackdriverEnableNotificationChannelsOperator(unittest.TestCase):

@@ -114,15 +114,15 @@ class CloudSqlProxySystemTest(GoogleSystemTest):
             project_id=GCP_PROJECT_ID,
             instance_specification='a',
         )
-        with self.assertRaises(AirflowException) as cm:
+        with pytest.raises(AirflowException) as ctx:
             runner.start_proxy()
-        err = cm.exception
-        self.assertIn("The cloud_sql_proxy finished early", str(err))
-        with self.assertRaises(AirflowException) as cm:
+        err = ctx.value
+        assert "The cloud_sql_proxy finished early" in str(err)
+        with pytest.raises(AirflowException) as ctx:
             runner.start_proxy()
-        err = cm.exception
-        self.assertIn("The cloud_sql_proxy finished early", str(err))
-        self.assertIsNone(runner.sql_proxy_process)
+        err = ctx.value
+        assert "The cloud_sql_proxy finished early" in str(err)
+        assert runner.sql_proxy_process is None
 
     def test_start_proxy_with_all_instances(self):
         runner = CloudSqlProxyRunner(
@@ -135,7 +135,7 @@ class CloudSqlProxySystemTest(GoogleSystemTest):
             time.sleep(1)
         finally:
             runner.stop_proxy()
-        self.assertIsNone(runner.sql_proxy_process)
+        assert runner.sql_proxy_process is None
 
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def test_start_proxy_with_all_instances_generated_credential_file(self):
@@ -149,7 +149,7 @@ class CloudSqlProxySystemTest(GoogleSystemTest):
             time.sleep(1)
         finally:
             runner.stop_proxy()
-        self.assertIsNone(runner.sql_proxy_process)
+        assert runner.sql_proxy_process is None
 
     def test_start_proxy_with_all_instances_specific_version(self):
         runner = CloudSqlProxyRunner(
@@ -163,8 +163,8 @@ class CloudSqlProxySystemTest(GoogleSystemTest):
             time.sleep(1)
         finally:
             runner.stop_proxy()
-        self.assertIsNone(runner.sql_proxy_process)
-        self.assertEqual(runner.get_proxy_version(), "1.13")
+        assert runner.sql_proxy_process is None
+        assert runner.get_proxy_version() == "1.13"
 
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def test_run_example_dag_cloudsql_query(self):

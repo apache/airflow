@@ -62,12 +62,12 @@ class TestBaseDask(unittest.TestCase):
                 )
 
         # both tasks should have finished
-        self.assertTrue(success_future.done())
-        self.assertTrue(fail_future.done())
+        assert success_future.done()
+        assert fail_future.done()
 
         # check task exceptions
-        self.assertTrue(success_future.exception() is None)
-        self.assertTrue(fail_future.exception() is not None)
+        assert success_future.exception() is None
+        assert fail_future.exception() is not None
 
 
 class TestDaskExecutor(TestBaseDask):

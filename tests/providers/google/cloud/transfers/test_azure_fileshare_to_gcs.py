@@ -44,13 +44,13 @@ class TestAzureFileShareToGCSOperator(unittest.TestCase):
             google_impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        self.assertEqual(operator.task_id, TASK_ID)
-        self.assertEqual(operator.share_name, AZURE_FILESHARE_SHARE)
-        self.assertEqual(operator.directory_name, AZURE_FILESHARE_DIRECTORY_NAME)
-        self.assertEqual(operator.wasb_conn_id, WASB_CONN_ID)
-        self.assertEqual(operator.gcp_conn_id, GCS_CONN_ID)
-        self.assertEqual(operator.dest_gcs, GCS_PATH_PREFIX)
-        self.assertEqual(operator.google_impersonation_chain, IMPERSONATION_CHAIN)
+        assert operator.task_id == TASK_ID
+        assert operator.share_name == AZURE_FILESHARE_SHARE
+        assert operator.directory_name == AZURE_FILESHARE_DIRECTORY_NAME
+        assert operator.wasb_conn_id == WASB_CONN_ID
+        assert operator.gcp_conn_id == GCS_CONN_ID
+        assert operator.dest_gcs == GCS_PATH_PREFIX
+        assert operator.google_impersonation_chain == IMPERSONATION_CHAIN
 
     @mock.patch('airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook')
     @mock.patch('airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook')
@@ -88,7 +88,7 @@ class TestAzureFileShareToGCSOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
+        assert sorted(MOCK_FILES) == sorted(uploaded_files)
 
     @mock.patch('airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook')
     @mock.patch('airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook')

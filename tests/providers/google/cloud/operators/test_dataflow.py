@@ -106,14 +106,14 @@ class TestDataflowPythonOperator(unittest.TestCase):
 
     def test_init(self):
         """Test DataFlowPythonOperator instance is properly initialized."""
-        self.assertEqual(self.dataflow.task_id, TASK_ID)
-        self.assertEqual(self.dataflow.job_name, JOB_NAME)
-        self.assertEqual(self.dataflow.py_file, PY_FILE)
-        self.assertEqual(self.dataflow.py_options, PY_OPTIONS)
-        self.assertEqual(self.dataflow.py_interpreter, PY_INTERPRETER)
-        self.assertEqual(self.dataflow.poll_sleep, POLL_SLEEP)
-        self.assertEqual(self.dataflow.dataflow_default_options, DEFAULT_OPTIONS_PYTHON)
-        self.assertEqual(self.dataflow.options, EXPECTED_ADDITIONAL_OPTIONS)
+        assert self.dataflow.task_id == TASK_ID
+        assert self.dataflow.job_name == JOB_NAME
+        assert self.dataflow.py_file == PY_FILE
+        assert self.dataflow.py_options == PY_OPTIONS
+        assert self.dataflow.py_interpreter == PY_INTERPRETER
+        assert self.dataflow.poll_sleep == POLL_SLEEP
+        assert self.dataflow.dataflow_default_options == DEFAULT_OPTIONS_PYTHON
+        assert self.dataflow.options == EXPECTED_ADDITIONAL_OPTIONS
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.GCSHook')
@@ -125,7 +125,7 @@ class TestDataflowPythonOperator(unittest.TestCase):
         start_python_hook = dataflow_mock.return_value.start_python_dataflow
         gcs_provide_file = gcs_hook.return_value.provide_file
         self.dataflow.execute(None)
-        self.assertTrue(dataflow_mock.called)
+        assert dataflow_mock.called
         expected_options = {
             'project': 'test',
             'staging_location': 'gs://test/staging',
@@ -145,7 +145,7 @@ class TestDataflowPythonOperator(unittest.TestCase):
             project_id=None,
             location=TEST_LOCATION,
         )
-        self.assertTrue(self.dataflow.py_file.startswith('/tmp/dataflow'))
+        assert self.dataflow.py_file.startswith('/tmp/dataflow')
 
 
 class TestDataflowJavaOperator(unittest.TestCase):
@@ -163,14 +163,14 @@ class TestDataflowJavaOperator(unittest.TestCase):
 
     def test_init(self):
         """Test DataflowTemplateOperator instance is properly initialized."""
-        self.assertEqual(self.dataflow.task_id, TASK_ID)
-        self.assertEqual(self.dataflow.job_name, JOB_NAME)
-        self.assertEqual(self.dataflow.poll_sleep, POLL_SLEEP)
-        self.assertEqual(self.dataflow.dataflow_default_options, DEFAULT_OPTIONS_JAVA)
-        self.assertEqual(self.dataflow.job_class, JOB_CLASS)
-        self.assertEqual(self.dataflow.jar, JAR_FILE)
-        self.assertEqual(self.dataflow.options, EXPECTED_ADDITIONAL_OPTIONS)
-        self.assertEqual(self.dataflow.check_if_running, CheckJobRunning.WaitForRun)
+        assert self.dataflow.task_id == TASK_ID
+        assert self.dataflow.job_name == JOB_NAME
+        assert self.dataflow.poll_sleep == POLL_SLEEP
+        assert self.dataflow.dataflow_default_options == DEFAULT_OPTIONS_JAVA
+        assert self.dataflow.job_class == JOB_CLASS
+        assert self.dataflow.jar == JAR_FILE
+        assert self.dataflow.options == EXPECTED_ADDITIONAL_OPTIONS
+        assert self.dataflow.check_if_running == CheckJobRunning.WaitForRun
 
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.GCSHook')
@@ -183,7 +183,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
         gcs_provide_file = gcs_hook.return_value.provide_file
         self.dataflow.check_if_running = CheckJobRunning.IgnoreJob
         self.dataflow.execute(None)
-        self.assertTrue(dataflow_mock.called)
+        assert dataflow_mock.called
         gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
         start_java_hook.assert_called_once_with(
             job_name=JOB_NAME,
@@ -210,7 +210,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
         gcs_provide_file = gcs_hook.return_value.provide_file
         self.dataflow.check_if_running = True
         self.dataflow.execute(None)
-        self.assertTrue(dataflow_mock.called)
+        assert dataflow_mock.called
         gcs_provide_file.assert_not_called()
         start_java_hook.assert_not_called()
         dataflow_running.assert_called_once_with(
@@ -230,7 +230,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
         gcs_provide_file = gcs_hook.return_value.provide_file
         self.dataflow.check_if_running = True
         self.dataflow.execute(None)
-        self.assertTrue(dataflow_mock.called)
+        assert dataflow_mock.called
         gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
         start_java_hook.assert_called_once_with(
             job_name=JOB_NAME,
@@ -261,7 +261,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
         self.dataflow.multiple_jobs = True
         self.dataflow.check_if_running = True
         self.dataflow.execute(None)
-        self.assertTrue(dataflow_mock.called)
+        assert dataflow_mock.called
         gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
         start_java_hook.assert_called_once_with(
             job_name=JOB_NAME,
@@ -301,7 +301,7 @@ class TestDataflowTemplateOperator(unittest.TestCase):
         """
         start_template_hook = dataflow_mock.return_value.start_template_dataflow
         self.dataflow.execute(None)
-        self.assertTrue(dataflow_mock.called)
+        assert dataflow_mock.called
         expected_options = {
             'project': 'test',
             'stagingLocation': 'gs://test/staging',

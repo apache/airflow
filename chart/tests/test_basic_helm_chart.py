@@ -39,52 +39,47 @@ class TestBaseChartTest(unittest.TestCase):
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
-        self.assertEqual(
-            list_of_kind_names_tuples,
-            [
-                ('ServiceAccount', 'TEST-BASIC-scheduler'),
-                ('ServiceAccount', 'TEST-BASIC-webserver'),
-                ('ServiceAccount', 'TEST-BASIC-worker'),
-                ('Secret', 'TEST-BASIC-postgresql'),
-                ('Secret', 'TEST-BASIC-airflow-metadata'),
-                ('Secret', 'TEST-BASIC-airflow-result-backend'),
-                ('ConfigMap', 'TEST-BASIC-airflow-config'),
-                ('Role', 'TEST-BASIC-pod-launcher-role'),
-                ('Role', 'TEST-BASIC-pod-log-reader-role'),
-                ('RoleBinding', 'TEST-BASIC-pod-launcher-rolebinding'),
-                ('RoleBinding', 'TEST-BASIC-pod-log-reader-rolebinding'),
-                ('Service', 'TEST-BASIC-postgresql-headless'),
-                ('Service', 'TEST-BASIC-postgresql'),
-                ('Service', 'TEST-BASIC-statsd'),
-                ('Service', 'TEST-BASIC-webserver'),
-                ('Deployment', 'TEST-BASIC-scheduler'),
-                ('Deployment', 'TEST-BASIC-statsd'),
-                ('Deployment', 'TEST-BASIC-webserver'),
-                ('StatefulSet', 'TEST-BASIC-postgresql'),
-                ('Secret', 'TEST-BASIC-fernet-key'),
-                ('Job', 'TEST-BASIC-create-user'),
-                ('Job', 'TEST-BASIC-run-airflow-migrations'),
-            ],
-        )
-        self.assertEqual(OBJECT_COUNT_IN_BASIC_DEPLOYMENT, len(k8s_objects))
+        assert list_of_kind_names_tuples == [
+            ('ServiceAccount', 'TEST-BASIC-scheduler'),
+            ('ServiceAccount', 'TEST-BASIC-webserver'),
+            ('ServiceAccount', 'TEST-BASIC-worker'),
+            ('Secret', 'TEST-BASIC-postgresql'),
+            ('Secret', 'TEST-BASIC-airflow-metadata'),
+            ('Secret', 'TEST-BASIC-airflow-result-backend'),
+            ('ConfigMap', 'TEST-BASIC-airflow-config'),
+            ('Role', 'TEST-BASIC-pod-launcher-role'),
+            ('Role', 'TEST-BASIC-pod-log-reader-role'),
+            ('RoleBinding', 'TEST-BASIC-pod-launcher-rolebinding'),
+            ('RoleBinding', 'TEST-BASIC-pod-log-reader-rolebinding'),
+            ('Service', 'TEST-BASIC-postgresql-headless'),
+            ('Service', 'TEST-BASIC-postgresql'),
+            ('Service', 'TEST-BASIC-statsd'),
+            ('Service', 'TEST-BASIC-webserver'),
+            ('Deployment', 'TEST-BASIC-scheduler'),
+            ('Deployment', 'TEST-BASIC-statsd'),
+            ('Deployment', 'TEST-BASIC-webserver'),
+            ('StatefulSet', 'TEST-BASIC-postgresql'),
+            ('Secret', 'TEST-BASIC-fernet-key'),
+            ('Job', 'TEST-BASIC-create-user'),
+            ('Job', 'TEST-BASIC-run-airflow-migrations'),
+        ]
+        assert OBJECT_COUNT_IN_BASIC_DEPLOYMENT == len(k8s_objects)
         for k8s_object in k8s_objects:
             labels = jmespath.search('metadata.labels', k8s_object) or {}
             if 'postgresql' in labels.get('chart'):
                 continue
             k8s_name = k8s_object['kind'] + ":" + k8s_object['metadata']['name']
-            self.assertEqual(
-                'TEST-VALUE',
-                labels.get("TEST-LABEL"),
-                f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}",
-            )
+            assert 'TEST-VALUE' == labels.get(
+                "TEST-LABEL"
+            ), f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}"
 
     def test_basic_deployment_without_default_users(self):
         k8s_objects = render_chart("TEST-BASIC", {"webserver": {'defaultUser': {'enabled': False}}})
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
-        self.assertNotIn(('Job', 'TEST-BASIC-create-user'), list_of_kind_names_tuples)
-        self.assertEqual(OBJECT_COUNT_IN_BASIC_DEPLOYMENT - 1, len(k8s_objects))
+        assert ('Job', 'TEST-BASIC-create-user') not in list_of_kind_names_tuples
+        assert OBJECT_COUNT_IN_BASIC_DEPLOYMENT - 1 == len(k8s_objects)
 
     def test_network_policies_are_valid(self):
         k8s_objects = render_chart(
@@ -109,7 +104,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('NetworkPolicy', 'TEST-BASIC-worker-policy'),
         ]
         for kind_name in expected_kind_names:
-            self.assertIn(kind_name, kind_names_tuples)
+            assert kind_name in kind_names_tuples
 
     def test_chart_is_consistent_with_official_airflow_image(self):
         def get_k8s_objs_with_image(obj: Union[List[Any], Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -137,4 +132,4 @@ class TestBaseChartTest(unittest.TestCase):
             image: str = obj["image"]  # pylint: disable=invalid-sequence-index
             if image.startswith(image_repo):
                 # Make sure that a command is not specified
-                self.assertNotIn("command", obj)
+                assert "command" not in obj

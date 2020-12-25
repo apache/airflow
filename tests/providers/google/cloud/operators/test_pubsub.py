@@ -126,7 +126,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             timeout=None,
             metadata=None,
         )
-        self.assertEqual(response, TEST_SUBSCRIPTION)
+        assert response == TEST_SUBSCRIPTION
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute_different_project_ids(self, mock_hook):
@@ -160,7 +160,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             timeout=None,
             metadata=None,
         )
-        self.assertEqual(response, TEST_SUBSCRIPTION)
+        assert response == TEST_SUBSCRIPTION
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute_no_subscription(self, mock_hook):
@@ -189,7 +189,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             timeout=None,
             metadata=None,
         )
-        self.assertEqual(response, TEST_SUBSCRIPTION)
+        assert response == TEST_SUBSCRIPTION
 
 
 class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
@@ -251,7 +251,7 @@ class TestPubSubPullOperator(unittest.TestCase):
         )
 
         mock_hook.return_value.pull.return_value = []
-        self.assertEqual([], operator.execute({}))
+        assert [] == operator.execute({})
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute_with_ack_messages(self, mock_hook):
@@ -266,7 +266,7 @@ class TestPubSubPullOperator(unittest.TestCase):
         generated_dicts = self._generate_dicts(5)
         mock_hook.return_value.pull.return_value = generated_messages
 
-        self.assertEqual(generated_dicts, operator.execute({}))
+        assert generated_dicts == operator.execute({})
         mock_hook.return_value.acknowledge.assert_called_once_with(
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,

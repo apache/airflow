@@ -145,9 +145,9 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
 
     def test_dag_loaded(self):
         dag = self.dagbag.get_dag(dag_id='hello_world')
-        self.assertDictEqual(self.dagbag.import_errors, {})
-        self.assertIsNotNone(dag)
-        self.assertEqual(len(dag.tasks), 1)
+        assert self.dagbag.import_errors == {}
+        assert dag is not None
+        assert len(dag.tasks) == 1
 
 **Unit test a DAG structure:**
 This is an example test want to verify the structure of a code-generated DAG against a dict object
@@ -157,12 +157,11 @@ This is an example test want to verify the structure of a code-generated DAG aga
  import unittest
  class testClass(unittest.TestCase):
      def assertDagDictEqual(self,source,dag):
-         self.assertEqual(dag.task_dict.keys(),source.keys())
-         for task_id,downstream_list in source.items():
-             self.assertTrue(dag.has_task(task_id), msg="Missing task_id: {} in dag".format(task_id))
+         assert dag.task_dict.keys() == source.keys()
+         for task_id, downstream_list in source.items():
+             assert dag.has_task(task_id)
              task = dag.get_task(task_id)
-             self.assertEqual(task.downstream_task_ids, set(downstream_list),
-                              msg="unexpected downstream link in {}".format(task_id))
+             assert task.downstream_task_ids == set(downstream_list)
      def test_dag(self):
          self.assertDagDictEqual({
            "DummyInstruction_0": ["DummyInstruction_1"],
@@ -193,8 +192,8 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     def test_execute_no_trigger(self):
         self.ti.run(ignore_ti_state=True)
-        self.assertEqual(self.ti.state, State.SUCCESS)
-        #Assert something related to tasks results
+        assert self.ti.state == State.SUCCESS
+        # Assert something related to tasks results
 
 Self-Checks
 ------------
@@ -247,7 +246,7 @@ For variable, use :envvar:`AIRFLOW_VAR_{KEY}`.
 .. code-block:: python
 
     with mock.patch.dict('os.environ', AIRFLOW_VAR_KEY="env-value"):
-        self.assertEqual("env-value", Variable.get("key"))
+        assert "env-value" == Variable.get("key")
 
 For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
 
@@ -260,4 +259,4 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
     )
     conn_uri = conn.get_uri()
     with mock.patch.dict("os.environ", AIRFLOW_CONN_MY_CONN=conn_uri):
-      self.assertEqual("cat", Connection.get("my_conn").login)
+      assert "cat" == Connection.get("my_conn").login

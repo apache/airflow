@@ -85,14 +85,14 @@ class TestSFTPToS3Operator(unittest.TestCase):
             do_xcom_push=True,
             dag=self.dag,
         )
-        self.assertIsNotNone(create_file_task)
+        assert create_file_task is not None
         ti1 = TaskInstance(task=create_file_task, execution_date=timezone.utcnow())
         ti1.run()
 
         # Test for creation of s3 bucket
         conn = boto3.client('s3')
         conn.create_bucket(Bucket=self.s3_bucket)
-        self.assertTrue(self.s3_hook.check_for_bucket(self.s3_bucket))
+        assert self.s3_hook.check_for_bucket(self.s3_bucket)
 
         # get remote file to local
         run_task = SFTPToS3Operator(
@@ -104,19 +104,19 @@ class TestSFTPToS3Operator(unittest.TestCase):
             task_id='test_sftp_to_s3',
             dag=self.dag,
         )
-        self.assertIsNotNone(run_task)
+        assert run_task is not None
 
         run_task.execute(None)
 
         # Check if object was created in s3
         objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
         # there should be object found, and there should only be one object found
-        self.assertEqual(len(objects_in_dest_bucket['Contents']), 1)
+        assert len(objects_in_dest_bucket['Contents']) == 1
 
         # the object found should be consistent with dest_key specified earlier
-        self.assertEqual(objects_in_dest_bucket['Contents'][0]['Key'], self.s3_key)
+        assert objects_in_dest_bucket['Contents'][0]['Key'] == self.s3_key
 
         # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
-        self.assertFalse(self.s3_hook.check_for_bucket(self.s3_bucket))
+        assert not self.s3_hook.check_for_bucket(self.s3_bucket)
