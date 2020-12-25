@@ -178,7 +178,7 @@ atlas = [
     'atlasclient>=0.1.2',
 ]
 azure = [
-    'azure-batch>=8.0.0,<10.0.0',
+    'azure-batch>=8.0.0',
     'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
     'azure-identity>=1.3.1',
@@ -394,6 +394,7 @@ snowflake = [
     'azure-storage-blob',
     'azure-storage-common',
     # snowflake-connector-python is not compatible with newest version.
+    # See: https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L204
     'pyjwt<2',
     # snowflake is not compatible with latest version.
     # This library monkey patches the requests library, so SSL is broken globally.
