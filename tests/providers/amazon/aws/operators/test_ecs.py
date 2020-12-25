@@ -315,7 +315,9 @@ class TestECSOperator(unittest.TestCase):
             self.ecs.arn, 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
         )
 
-    @mock.patch.object(ECSOperator, '_cloudwatch_log_events', return_value=[{"message": "Log output", "timestamp": 1000}])
+    @mock.patch.object(
+        ECSOperator, '_cloudwatch_log_events', return_value=[{"message": "Log output", "timestamp": 1000}]
+    )
     def test_execute_xcom_with_log(self, _):
         self.ecs.do_xcom_push = True
         self.assertEqual(self.ecs.execute(None), "Log output")
@@ -325,7 +327,9 @@ class TestECSOperator(unittest.TestCase):
         self.ecs.do_xcom_push = True
         self.assertEqual(self.ecs.execute(None), None)
 
-    @mock.patch.object(ECSOperator, '_cloudwatch_log_events', return_value=[{"message": "Log output", "timestamp": 1000}])
+    @mock.patch.object(
+        ECSOperator, '_cloudwatch_log_events', return_value=[{"message": "Log output", "timestamp": 1000}]
+    )
     def test_execute_xcom_disabled(self, _):
         self.ecs.do_xcom_push = False
         self.assertEqual(self.ecs.execute(None), None)
