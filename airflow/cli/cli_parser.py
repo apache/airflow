@@ -30,6 +30,7 @@ from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
 from airflow.utils.cli import ColorMode
 from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
@@ -58,11 +59,12 @@ class DefaultHelpParser(argparse.ArgumentParser):
         """Override _check_value and check conditionally added command"""
         executor = conf.get('core', 'EXECUTOR')
         if value == 'celery':
-            if executor != 'CeleryExecutor':
+            if executor != CELERY_EXECUTOR:
                 message = (
-                    f'Celery subcommand works only with CeleryExecutor but your current executor is '
-                    f'{executor}.\nNote: when using CeleryKubernetesExecutor, celery workers must still be '
-                    'configured to use CeleryExecutor.'
+                    f'Celery subcommand works only with f{CELERY_EXECUTOR} but your current executor is '
+                    f'{executor}.'
+                    f'\nNote: when using {CELERY_KUBERNETES_EXECUTOR}, celery workers must still be '
+                    f'configured to use {CELERY_EXECUTOR}.'
                 )
                 raise ArgumentError(action, message)
         if value == 'kubernetes':

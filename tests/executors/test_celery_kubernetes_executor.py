@@ -207,9 +207,9 @@ class TestCeleryKubernetesExecutor:
         k8s_executor_mock.terminate.assert_called_once()
 
     def test_job_id_setter(self):
-        ce = CeleryExecutor()
-        ke = KubernetesExecutor()
-        cke = CeleryKubernetesExecutor(ce, ke)
+        cel_exec = CeleryExecutor()
+        k8s_exec = KubernetesExecutor()
+        cel_k8s_exec = CeleryKubernetesExecutor(cel_exec, k8s_exec)
         job_id = 'this-job-id'
-        cke.job_id = job_id
-        assert ce.job_id == ke.job_id == cke.job_id == job_id
+        cel_k8s_exec.job_id = job_id
+        assert cel_exec.job_id == k8s_exec.job_id == cel_k8s_exec.job_id == job_id
