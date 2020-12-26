@@ -90,6 +90,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'containers': [
                     {
                         'image': 'ubuntu:16.04',
+                        'imagePullPolicy': 'IfNotPresent',
                         'args': ["echo 10"],
                         'command': ["bash", "-cx"],
                         'env': [],
@@ -857,6 +858,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                         'env': [],
                         'envFrom': [],
                         'image': 'apache/airflow:stress-2020.07.10-1.0.4',
+                        'imagePullPolicy': 'IfNotPresent',
                         'name': 'base',
                         'ports': [],
                         'resources': {'limits': {'memory': '200Mi'}, 'requests': {'memory': '100Mi'}},
