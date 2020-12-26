@@ -108,6 +108,7 @@ mypy-helm
 no-providers-in-core-examples
 no-relative-imports
 pre-commit-descriptions
+pre-commit-hook-names
 provide-create-sessions
 providers-init-file
 provider-yamls
