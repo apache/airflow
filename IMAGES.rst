@@ -570,7 +570,7 @@ Image manifests
 ---------------
 
 Together with the main CI images we also build and push image manifests. Those manifests are very small images
-that contain only content of randomly generated file at the 'crucial' part of the CI image building
+that contain only content of randomly generated file at the 'crucial' part of the CI image building.
 This is in order to be able to determine very quickly if the image in the docker registry has changed a
 lot since the last time. Unfortunately docker registry (specifically DockerHub registry) has no anonymous
 way of querying image details via API. You really need to download the image to inspect it.
