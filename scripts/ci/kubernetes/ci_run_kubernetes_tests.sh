@@ -86,7 +86,7 @@ fi
 
 . "${virtualenv_path}/bin/activate"
 
-pip install --upgrade "pip==${PIP_VERSION}" "wheel==${WHEEL_VERSION}"
+pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
 pip install pytest freezegun pytest-cov \
   --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
