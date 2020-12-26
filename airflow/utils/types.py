@@ -24,6 +24,9 @@ class DagRunType(str, enum.Enum):
     SCHEDULED = "scheduled"
     MANUAL = "manual"
 
+    def __str__(self) -> str:  # pylint: disable=invalid-str-returned
+        return self.value
+
     @staticmethod
     def from_run_id(run_id: str) -> "DagRunType":
         """Resolved DagRun type from run_id."""

@@ -22,7 +22,6 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
-    Enum,
     Index,
     Integer,
     PickleType,
@@ -84,7 +83,7 @@ class DagRun(Base, LoggingMixin):
     run_id = Column(String(ID_LEN))
     creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
-    run_type = Column(Enum(DagRunType, native_enum=False, create_constraint=False), nullable=False)
+    run_type = Column(String(50), nullable=False)
     conf = Column(PickleType)
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
