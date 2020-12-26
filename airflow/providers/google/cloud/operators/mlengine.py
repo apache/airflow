@@ -1080,9 +1080,6 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     :param job_id: A unique templated id for the submitted Google MLEngine
         training job. (templated)
     :type job_id: str
-    :param training_args: A list of templated command line arguments to pass to
-        the MLEngine training program. (templated)
-    :type training_args: List[str]
     :param region: The Google Compute Engine region to run the MLEngine training
         job in (templated).
     :type region: str
@@ -1095,6 +1092,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         the training job after installing the packages. This is mutually
         exclusive with a custom image specified via master_config. (templated)
     :type training_python_module: str
+    :param training_args: A list of command-line arguments to pass to the
+        training program. (templated)
+    :type training_args: List[str]
     :param scale_tier: Resource tier for MLEngine training job. (templated)
     :type scale_tier: str
     :param master_type: The type of virtual machine to use for the master
@@ -1151,10 +1151,10 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     template_fields = [
         '_project_id',
         '_job_id',
-        '_training_args',
         '_region',
         '_package_uris',
         '_training_python_module',
+        '_training_args',
         '_scale_tier',
         '_master_type',
         '_master_config',
@@ -1172,10 +1172,10 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self,  # pylint: disable=too-many-arguments
         *,
         job_id: str,
-        training_args: List[str],
         region: str,
         package_uris: List[str] = None,
         training_python_module: str = None,
+        training_args: List[str] = None,
         scale_tier: Optional[str] = None,
         master_type: Optional[str] = None,
         master_config: Optional[Dict] = None,
@@ -1194,10 +1194,10 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         super().__init__(**kwargs)
         self._project_id = project_id
         self._job_id = job_id
-        self._training_args = training_args
         self._region = region
         self._package_uris = package_uris
         self._training_python_module = training_python_module
+        self._training_args = training_args
         self._scale_tier = scale_tier
         self._master_type = master_type
         self._master_config = master_config
@@ -1245,7 +1245,6 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
             'trainingInput': {
                 'scaleTier': self._scale_tier,
                 'region': self._region,
-                'args': self._training_args,
             },
         }
         if self._package_uris:
@@ -1253,6 +1252,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
         if self._training_python_module:
             training_request['trainingInput']['pythonModule'] = self._training_python_module
+
+        if self._training_args:
+            training_request['trainingInput']['args'] = self._training_args
 
         if self._master_type:
             training_request['trainingInput']['masterType'] = self._master_type
