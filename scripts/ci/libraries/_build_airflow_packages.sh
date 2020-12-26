@@ -21,7 +21,7 @@ function build_airflow_packages::build_airflow_packages() {
     rm -rf -- *egg-info*
     rm -rf -- build
 
-    pip install --upgrade "pip==${PIP_VERSION}" "wheel==${WHEEL_VERSION}"
+    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
     local packages=()
 

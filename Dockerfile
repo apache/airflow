@@ -47,7 +47,7 @@ ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 
-ARG PIP_VERSION=20.2.4
+ARG AIRFLOW_PIP_VERSION=20.2.4
 
 ##############################################################################################
 # This is the build image where we build all dependencies
@@ -61,8 +61,8 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 ARG PYTHON_MAJOR_MINOR_VERSION
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 
-ARG PIP_VERSION
-ENV PIP_VERSION=${PIP_VERSION}
+ARG AIRFLOW_PIP_VERSION
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 
 # Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
@@ -171,7 +171,7 @@ RUN if [[ -f /docker-context-files/.pypirc ]]; then \
         cp /docker-context-files/.pypirc /root/.pypirc; \
     fi
 
-RUN pip install --upgrade "pip==${PIP_VERSION}"
+RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
 # builds in case setup.py/setup.cfg changed. This is pure optimisation of CI/Breeze builds.
@@ -323,8 +323,8 @@ ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
-ARG PIP_VERSION
-ENV PIP_VERSION=${PIP_VERSION}
+ARG AIRFLOW_PIP_VERSION
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 
 # Install curl and gnupg2 - needed for many other installation steps
 RUN apt-get update \
@@ -428,7 +428,7 @@ COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoi
 COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 RUN chmod a+x /entrypoint /clean-logs
 
-RUN pip install --upgrade "pip==${PIP_VERSION}"
+RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
