@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,31 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-neo4j
-name: Neo4j
-description: |
-    `Neo4j <https://neo4j.com/>`__
-
-versions:
-  - 1.0.0
-integrations:
-  - integration-name: Neo4j
-    external-doc-url: https://neo4j.com/
-    how-to-guide:
-      - /docs/apache-airflow-providers-neo4j/operators.rst
-    tags: [software]
-
-operators:
-  - integration-name: Neo4j
-    python-modules:
-      - airflow.providers.neo4j.operators.neo4j
-
-hooks:
-  - integration-name: Neo4j
-    python-modules:
-      - airflow.providers.neo4j.hooks.neo4j
-
-hook-class-names:
-  - airflow.providers.neo4j.hooks.neo4j.Neo4jHook

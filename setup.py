@@ -328,6 +328,9 @@ mysql = [
     'mysql-connector-python>=8.0.11, <=8.0.18',
     'mysqlclient>=1.3.6,<1.4',
 ]
+neo4j = [
+    'neo4j>=4.2.1'
+]
 odbc = [
     'pyodbc',
 ]
