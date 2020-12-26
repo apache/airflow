@@ -55,7 +55,7 @@ function in_container_script_start() {
     export OUTPUT_PRINTED_ONLY_ON_ERROR
     readonly OUTPUT_PRINTED_ONLY_ON_ERROR
 
-    if [[ ${VERBOSE=} == "true" ]]; then
+    if [[ ${VERBOSE=} == "true" && ${GITHUB_ACTIONS=} != "true" ]]; then
         echo
         echo "Output is redirected to ${OUTPUT_PRINTED_ONLY_ON_ERROR} and will be printed on error only"
         echo
@@ -165,7 +165,7 @@ function in_container_clear_tmp() {
 }
 
 function in_container_go_to_airflow_sources() {
-    pushd "${AIRFLOW_SOURCES}" &>/dev/null || exit 1
+    pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }
 
 function in_container_basic_sanity_check() {
@@ -261,10 +261,10 @@ function dump_airflow_logs() {
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
     echo "###########################################################################################"
-    pushd "${AIRFLOW_HOME}" || exit 1
+    pushd "${AIRFLOW_HOME}" >/dev/null 2>&1 || exit 1
     tar -czf "${dump_file}" logs
     echo "                   Logs dumped to ${dump_file}"
-    popd || exit 1
+    popd >/dev/null 2>&1 || exit 1
     echo "###########################################################################################"
 }
 
@@ -380,6 +380,7 @@ function setup_provider_packages() {
 }
 
 function verify_suffix_versions_for_package_preparation() {
+    group_start "Verify suffixes"
     TARGET_VERSION_SUFFIX=""
     FILE_VERSION_SUFFIX=""
 
@@ -466,6 +467,7 @@ ${COLOR_RESET}
     fi
     readonly TARGET_VERSION_SUFFIX
     export TARGET_VERSION_SUFFIX
+    group_end
 }
 
 function filename_to_python_module() {
@@ -478,10 +480,7 @@ function filename_to_python_module() {
 }
 
 function import_all_provider_classes() {
-    echo
-    echo Importing all Airflow classes
-    echo
-
+    group_start "Import all Airflow classes"
     # We have to move to a directory where "airflow" is
     unset PYTHONPATH
     # We need to make sure we are not in the airflow checkout, otherwise it will automatically be added to the
@@ -508,6 +507,7 @@ EOF
     done < <(echo "${PROVIDER_PATHS}")
 
     python3 /opt/airflow/dev/import_all_classes.py "${IMPORT_CLASS_PARAMETERS[@]}"
+    group_end
 }
 
 function in_container_set_colors() {
@@ -528,6 +528,26 @@ function in_container_set_colors() {
     export COLOR_YELLOW
     export COLOR_YELLOW_WARNING
 }
+
+# Starts group for Github Actions - makes logs much more readable
+function group_start {
+    if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+        echo "::group::${1}"
+    else
+        echo
+        echo "${1}"
+        echo
+    fi
+}
+
+# Ends group for Github Actions
+function group_end {
+    if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+        echo -e "\033[0m"  # Disable any colors set in the group
+        echo "::endgroup::"
+    fi
+}
+
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}
