@@ -161,7 +161,7 @@ Tasks can also infer multiple outputs by using dict python typing.
 
 .. code-block:: python
 
-    @task
+    @task()
     def identity_dict(x: int, y: int) -> Dict[str, int]:
         return {"x": x, "y": y}
 
