@@ -30,13 +30,13 @@ jobs:
       labelSet: ${{ steps.label-when-reviewed.outputs.labelSet }}
     steps:
       - name: "Get information about the original trigger of the run"
-        uses: potiuk/get-workflow-origin@588cc14f9f1cdf1b8be3db816855e96422204fec  # v1_3
+        uses: apache/airflow-get-workflow-origin@588cc14f9f1cdf1b8be3db816855e96422204fec  # v1_3
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           sourceRunId: ${{ github.event.workflow_run.id }}
       - name: Initiate Selective Build check
-        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+        uses: apache/airflow-checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
         id: selective-build-check
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -86,7 +86,7 @@ jobs:
             ./scripts/ci/selective_ci_checks.sh
           fi
       - name: "Label when approved by committers for PRs that require full tests"
-        uses: TobKed/label-when-approved-action@4c5190fec5661e98d83f50bbd4ef9ebb48bd1194  # v1.3
+        uses: apache/airflow-label-when-approved@4c5190fec5661e98d83f50bbd4ef9ebb48bd1194  # v1.3
         id: label-full-test-prs-when-approved-by-commiters
         if: >
           steps.selective-checks.outputs.run-tests == 'true' &&
@@ -102,7 +102,7 @@ jobs:
             If they don't merge it quickly - please rebase it to the latest master at your convenience,
             or amend the last commit of the PR, and push it with --force-with-lease.
       - name: "Initiate GitHub Check forcing rerun of SH ${{ github.event.pull_request.head.sha }}"
-        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+        uses: apache/airflow-checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
         id: full-test-check
         if: steps.label-full-test-prs-when-approved-by-commiters.outputs.labelSet == 'true'
         with:
@@ -117,7 +117,7 @@ jobs:
             [the run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             "}
       - name: "Label when approved by committers for PRs that do not require full tests"
-        uses: TobKed/label-when-approved-action@4c5190fec5661e98d83f50bbd4ef9ebb48bd1194  # v1.3
+        uses: apache/airflow-label-when-approved@4c5190fec5661e98d83f50bbd4ef9ebb48bd1194  # v1.3
         id: label-simple-test-prs-when-approved-by-commiters
         if: >
           steps.selective-checks.outputs.run-tests == 'true' &&
@@ -134,7 +134,7 @@ jobs:
             'full tests needed'. Then you should rebase to the latest master or amend the last commit
             of the PR, and push it with --force-with-lease.
       - name: "Label when approved by committers for PRs that do not require tests at all"
-        uses: TobKed/label-when-approved-action@4c5190fec5661e98d83f50bbd4ef9ebb48bd1194  # v1.3
+        uses: apache/airflow-label-when-approved@4c5190fec5661e98d83f50bbd4ef9ebb48bd1194  # v1.3
         id: label-no-test-prs-when-approved-by-commiters
         if: steps.selective-checks.outputs.run-tests != 'true'
         with:
@@ -148,7 +148,7 @@ jobs:
             needed and add the 'full tests needed' label. Then you should rebase it to the latest master
             or amend the last commit of the PR, and push it with --force-with-lease.
       - name: Update Selective Build check
-        uses: LouisBrunner/checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+        uses: apache/airflow-checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
         if: always()
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -101,7 +101,7 @@ jobs:
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
     steps:
       - name: "Get information about the PR"
-        uses: potiuk/get-workflow-origin@588cc14f9f1cdf1b8be3db816855e96422204fec  # v1_3
+        uses: apache/airflow-get-workflow-origin@588cc14f9f1cdf1b8be3db816855e96422204fec  # v1_3
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -344,7 +344,7 @@ jobs:
           path: "./files/documentation"
           retention-days: 7
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: apache/airflow-configure-aws-credentials@e97d7fbc8e0e5af69631c13daa0f4b5a8d88165b
         if: >
           github.ref == 'refs/heads/master' && github.repository == 'apache/airflow' &&
           github.event_name == 'push'
@@ -1051,7 +1051,7 @@ jobs:
       - name: "Commit changed constraint files for ${{needs.build-info.outputs.pythonVersions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
       - name: "Push changes"
-        uses: ad-m/github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6  # v0.6.0
+        uses: apache/airflow-github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6  # v0.6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}
@@ -1083,7 +1083,7 @@ jobs:
           echo "Tagging ${BRANCH_NAME}"
           git tag -f nightly-${BRANCH_NAME} HEAD
       - name: "Push tags"
-        uses: ad-m/github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6  # v0.6.0
+        uses: apache/airflow-github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6  # v0.6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tags: true
