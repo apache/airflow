@@ -159,7 +159,9 @@ Here's the list of the :ref:`subpackages <installation:extra_packages>` and what
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | kubernetes          | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor and operator                                                   |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
-| mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators                                                          |
+| mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| neo4j               | ``pip install 'apache-airflow[neo4j]'``             | Neo4j hooks and operators
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 | mssql (deprecated)  | ``pip install 'apache-airflow[microsoft.mssql]'``   | Microsoft SQL Server operators and hook,                                           |
 |                     |                                                     | support as an Airflow backend.  Uses pymssql.                                      |

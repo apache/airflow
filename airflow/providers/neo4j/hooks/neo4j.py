@@ -28,15 +28,8 @@ class Neo4jHook(BaseHook):
     """
     Interact with Neo4j.
 
-    You can specify charset in the extra field of your connection
-    as ``{"charset": "utf8"}``. Also you can choose cursor as
-    ``{"cursor": "SSCursor"}``. Refer to the MySQLdb.cursors for more details.
-
-    Note: For AWS IAM authentication, use iam in the extra connection parameters
-    and set it to true. Leave the password field empty. This will use the
-    "aws_default" connection to get the temporary token unless you override
-    in extras.
-    extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
+    Performs a connection to Neo4j
+    and runs the query.
     """
 
     conn_name_attr = 'neo4j_conn_id'
@@ -49,9 +42,14 @@ class Neo4jHook(BaseHook):
         self.neo4j_conn_id = conn_id
         self.connection = kwargs.pop("connection", None)
         self.client = None
+        self.extras = None
+        self.uri = None
 
     def get_conn(self) -> Neo4jDriver:
-        """"""
+        """
+        Function that initiates a new Neo4j connection
+        with username, password and database schema.
+        """
         self.connection = self.get_connection(self.neo4j_conn_id)
         self.extras = self.connection.extra_dejson.copy()
 
@@ -72,10 +70,17 @@ class Neo4jHook(BaseHook):
         return self.client
 
     def get_uri(self, conn: Connection) -> str:
-        """"""
-
-        use_bolt_scheme = conn.extra_dejson.get('bolt_scheme', False)
-        scheme = 'bolt' if use_bolt_scheme else 'neo4j'
+        """
+        Build the uri based on extras
+        - Default - uses bolt scheme(bolt://)
+        - neo4j_scheme - neo4j://
+        - certs_self_signed - neo4j+ssc://
+        - certs_trusted_ca - neo4j+s://
+        :param conn: connection object.
+        :return: uri
+        """
+        use_neo4j_scheme = conn.extra_dejson.get('neo4j_scheme', False)
+        scheme = 'neo4j' if use_neo4j_scheme else 'bolt'
 
         # Self signed certificates
         ssc = conn.extra_dejson.get('certs_self_signed', False)
@@ -97,6 +102,12 @@ class Neo4jHook(BaseHook):
         )
 
     def run(self, query) -> Result:
+        """
+        Function to create a neo4j session
+        and execute the query in the session.
+        :param query - Neo4j query
+        :return: Result
+        """
         driver = self.get_conn()
         if not self.connection.schema:
             with driver.session() as session:

@@ -17,9 +17,9 @@
 
 
 
-MySQL Connection
+Neo4j Connection
 ================
-The MySQL connection type provides connection to a MySQL database.
+The MySQL connection type provides connection to a Neo4j database.
 
 Configuring the Connection
 --------------------------

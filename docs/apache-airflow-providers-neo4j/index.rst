@@ -26,7 +26,7 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/mysql>
+    Connection types <connections/neo4j>
     Operators <operators>
 
 .. toctree::
@@ -45,4 +45,4 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-mysql/>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-neo4j/>
