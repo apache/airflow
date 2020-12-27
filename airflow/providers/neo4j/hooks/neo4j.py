@@ -27,7 +27,7 @@ from airflow.models import Connection
 
 class Neo4jHook(BaseHook):
     """
-    Interact with MySQL.
+    Interact with Neo4j.
 
     You can specify charset in the extra field of your connection
     as ``{"charset": "utf8"}``. Also you can choose cursor as
@@ -48,7 +48,7 @@ class Neo4jHook(BaseHook):
     def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.neo4j_conn_id = conn_id
-        self.connection = None
+        self.connection = kwargs.pop("connection", None)
         self.client = None
 
     def get_conn(self) -> Neo4jDriver:
@@ -59,11 +59,16 @@ class Neo4jHook(BaseHook):
         self.extras = self.connection.extra_dejson.copy()
 
         self.uri = self.get_uri(self.connection)
+        self.log.info('URI: %s', self.uri)
 
         if self.client is not None:
             return self.client
 
-        self.client = GraphDatabase.driver(self.uri, auth=(self.connection.login, self.connection.password))
+        #if not self.connection.is_encrypted:
+        self.client = GraphDatabase.driver(self.uri, auth=(self.connection.login, self.connection.password),
+                                           encrypted=False)
+        #else:
+        #    self.client = GraphDatabase.driver(self.uri, auth=(self.connection.login, self.connection.password))
 
         return self.client
 
@@ -76,10 +81,10 @@ class Neo4jHook(BaseHook):
         scheme = 'bolt' if use_bolt_scheme else 'neo4j'
 
         # Self signed certificates
-        ssc = conn.extra_dejson.get('ssc', False)
+        ssc = conn.extra_dejson.get('certs_self_signed', False)
 
         # Only certificates signed by CA.
-        trusted_ca = conn.extra_dejson.get('trusted_ca', False)
+        trusted_ca = conn.extra_dejson.get('certs_trusted_ca', False)
         encryption_scheme = ''
 
         if ssc:
@@ -91,11 +96,15 @@ class Neo4jHook(BaseHook):
             scheme=scheme,
             encryption_scheme=encryption_scheme,
             host=conn.host,
-            port='7687' if conn.port is None else f':{conn.port}'
+            port='7687' if conn.port is None else f'{conn.port}'
         )
 
     def run(self, query) -> Result:
-        with self.get_conn().session() as session:
-            result = session.run(query)
-
+        driver = self.get_conn()
+        if not self.connection.schema:
+            with driver.session() as session:
+                result = session.run(query)
+        else:
+            with driver.session(database=self.connection.schema) as session:
+                result = session.run(query)
         return result

@@ -19,38 +19,30 @@
 Example use of Neo4j related operators.
 """
 
-# from airflow import DAG
-# from airflow.providers.mysql.operators.mysql import MySqlOperator
-# from airflow.utils.dates import days_ago
-#
-# default_args = {
-#     'owner': 'airflow',
-# }
-#
-# dag = DAG(
-#     'example_mysql',
-#     default_args=default_args,
-#     start_date=days_ago(2),
-#     tags=['example'],
-# )
-#
-# # [START howto_operator_mysql]
-#
-# drop_table_mysql_task = MySqlOperator(
-#     task_id='create_table_mysql', mysql_conn_id='mysql_conn_id', sql=r"""DROP TABLE table_name;""", dag=dag
-# )
-#
-# # [END howto_operator_mysql]
-#
-# # [START howto_operator_mysql_external_file]
-#
-# mysql_task = MySqlOperator(
-#     task_id='create_table_mysql_external_file',
-#     mysql_conn_id='mysql_conn_id',
-#     sql='/scripts/drop_table.sql',
-#     dag=dag,
-# )
-#
-# # [END howto_operator_mysql_external_file]
-#
-# drop_table_mysql_task >> mysql_task
+from airflow import DAG
+from airflow.providers.neo4j.operators.neo4j import Neo4jOperator
+from airflow.utils.dates import days_ago
+
+default_args = {
+    'owner': 'airflow',
+}
+
+dag = DAG(
+    'example_neo4j',
+    default_args=default_args,
+    start_date=days_ago(2),
+    tags=['example'],
+)
+
+# [START run_query_neo4j_operator]
+
+neo4j_task = Neo4jOperator(
+    task_id='run_neo4j_query',
+    neo4j_conn_id='neo4j_conn_id',
+    sql='MATCH (tom {name: "Tom Hanks"}) RETURN tom',
+    dag=dag,
+)
+
+# [END run_query_neo4j_operator]
+
+neo4j_task

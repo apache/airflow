@@ -73,7 +73,7 @@ class TestNeo4jHookConn(unittest.TestCase):
                 password='password',
                 host='host',
                 schema='schema',
-                extra=json.dumps({"ssc": True,"bolt_scheme": True}),
+                extra=json.dumps({"certs_self_signed": True,"bolt_scheme": True}),
             )
             self.neo4j_hook.get_connection = mock.Mock()
             self.neo4j_hook.get_connection.return_value = self.connection
@@ -88,7 +88,7 @@ class TestNeo4jHookConn(unittest.TestCase):
                 password='password',
                 host='host',
                 schema='schema',
-                extra=json.dumps({"trusted_ca": True,"bolt_scheme": True}),
+                extra=json.dumps({"certs_trusted_ca": True,"bolt_scheme": True}),
             )
             self.neo4j_hook.get_connection = mock.Mock()
             self.neo4j_hook.get_connection.return_value = self.connection

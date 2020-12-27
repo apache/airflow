@@ -451,6 +451,7 @@ all_dbs = (
     + mongo
     + mssql
     + mysql
+    + neo4j
     + pinot
     + postgres
     + presto
@@ -565,6 +566,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "microsoft.winrm": winrm,
     "mongo": mongo,
     "mysql": mysql,
+    "neo4j": neo4j,
     "odbc": odbc,
     "openfaas": [],
     "opsgenie": [],
@@ -655,6 +657,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'mongo': mongo,
     'mssql': mssql,  # TODO: remove this in Airflow 3.0
     'mysql': mysql,
+    'neo4j': neo4j,
     'odbc': odbc,
     'openfaas': [],
     'opsgenie': [],
@@ -713,6 +716,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
         "mongo",
         "microsoft.mssql",
         "mysql",
+        "neo4j",
         "postgres",
         "presto",
         "vertica",
@@ -778,6 +782,7 @@ EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
     'mongo': ["mongo"],
     'mssql': ["microsoft.mssql"],  # TODO: remove this in Airflow 3.0
     'mysql': ["mysql"],
+    'neo4j': ["neo4j"],
     'odbc': ["odbc"],
     'openfaas': ["openfaas"],
     'opsgenie': ["opsgenie"],
