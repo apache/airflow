@@ -22,16 +22,13 @@ from unittest import mock
 from airflow.models import Connection
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
 
+
 class TestNeo4jHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.neo4j_hook = Neo4jHook()
         self.connection = Connection(
-            conn_type='neo4j',
-            login='login',
-            password='password',
-            host='host',
-            schema='schema'
+            conn_type='neo4j', login='login', password='password', host='host', schema='schema'
         )
 
     def test_get_uri_neo4j_scheme(self):
