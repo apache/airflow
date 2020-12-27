@@ -135,11 +135,7 @@ https://github.com/apache/airflow/blob/master/TESTING.rst
 
 # Changes directory to local sources
 function sanity_checks::go_to_airflow_sources {
-    verbosity::print_info
-    pushd "${AIRFLOW_SOURCES}" &>/dev/null || exit 1
-    verbosity::print_info
-    verbosity::print_info "Running in host in $(pwd)"
-    verbosity::print_info
+    pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }
 
 #

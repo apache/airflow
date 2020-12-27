@@ -26,9 +26,9 @@ build_image::login_to_github_registry_if_needed
 
 export AIRFLOW_CI_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
 
-echo
-echo "Waiting for image to appear: ${AIRFLOW_CI_IMAGE_NAME}"
-echo
+start_end::group_start "Waiting for ${AIRFLOW_CI_IMAGE_NAME} image to appear"
 
 push_pull_remove_images::wait_for_github_registry_image \
     "${AIRFLOW_CI_IMAGE_NAME}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+
+start_end::group_end

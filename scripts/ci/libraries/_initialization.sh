@@ -647,7 +647,6 @@ Test variables:
     TEST_TYPE: ${TEST_TYPE}
 
 EOF
-
 }
 
 # Retrieves CI environment variables needed - depending on the CI system we run it in.

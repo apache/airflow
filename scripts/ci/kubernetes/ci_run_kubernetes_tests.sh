@@ -30,69 +30,86 @@ declare -a pytest_args
 
 tests_to_run=()
 
-if [[ $# != 0 ]]; then
-    if [[ $1 == "--help" || $1 == "-h" ]]; then
-        echo
-        echo "Running kubernetes tests"
-        echo
-        echo "    $0                      - runs all kubernetes tests"
-        echo "    $0 TEST [TEST ...]      - runs selected kubernetes tests (from kubernetes_tests folder)"
-        echo "    $0 [-i|--interactive]   - Activates virtual environment ready to run tests and drops you in"
-        echo "    $0 [--help]             - Prints this help message"
-        echo
-        exit
-    elif [[ $1 == "--interactive" || $1 == "-i" ]]; then
-        echo
-        echo "Entering interactive environment for kubernetes testing"
-        echo
-        interactive="true"
-    else
-        tests_to_run=("${@}")
-    fi
-    pytest_args=(
-        "--pythonwarnings=ignore::DeprecationWarning"
-        "--pythonwarnings=ignore::PendingDeprecationWarning"
-    )
-else
-    tests_to_run=("kubernetes_tests")
-    pytest_args=(
-        "--verbosity=1"
-        "--strict-markers"
-        "--durations=100"
-        "--cov=airflow/"
-        "--cov-config=.coveragerc"
-        "--cov-report=xml:files/coverage.xml"
-        "--color=yes"
-        "--maxfail=50"
-        "--pythonwarnings=ignore::DeprecationWarning"
-        "--pythonwarnings=ignore::PendingDeprecationWarning"
+function parse_tests_to_run() {
+    if [[ $# != 0 ]]; then
+        if [[ $1 == "--help" || $1 == "-h" ]]; then
+            echo
+            echo "Running kubernetes tests"
+            echo
+            echo "    $0                      - runs all kubernetes tests"
+            echo "    $0 TEST [TEST ...]      - runs selected kubernetes tests (from kubernetes_tests folder)"
+            echo "    $0 [-i|--interactive]   - Activates virtual environment ready to run tests and drops you in"
+            echo "    $0 [--help]             - Prints this help message"
+            echo
+            exit
+        elif [[ $1 == "--interactive" || $1 == "-i" ]]; then
+            echo
+            echo "Entering interactive environment for kubernetes testing"
+            echo
+            interactive="true"
+        else
+            tests_to_run=("${@}")
+        fi
+        pytest_args=(
+            "--pythonwarnings=ignore::DeprecationWarning"
+            "--pythonwarnings=ignore::PendingDeprecationWarning"
         )
+    else
+        tests_to_run=("kubernetes_tests")
+        pytest_args=(
+            "--verbosity=1"
+            "--strict-markers"
+            "--durations=100"
+            "--cov=airflow/"
+            "--cov-config=.coveragerc"
+            "--cov-report=xml:files/coverage.xml"
+            "--color=yes"
+            "--maxfail=50"
+            "--pythonwarnings=ignore::DeprecationWarning"
+            "--pythonwarnings=ignore::PendingDeprecationWarning"
+            )
 
-fi
+    fi
+}
+
+function create_virtualenv() {
+    start_end::group_start "Creating virtualenv"
+    HOST_PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
+    readonly HOST_PYTHON_VERSION
+
+    local virtualenv_path="${BUILD_CACHE_DIR}/.kubernetes_venv_${HOST_PYTHON_VERSION}"
+
+    if [[ ! -d ${virtualenv_path} ]]; then
+        echo
+        echo "Creating virtualenv at ${virtualenv_path}"
+        echo
+        python3 -m venv "${virtualenv_path}"
+    fi
+
+    . "${virtualenv_path}/bin/activate"
+
+    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
+
+    pip install pytest freezegun pytest-cov \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
+
+    pip install -e ".[kubernetes]" \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
+
+    start_end::group_end
+}
+
+function run_tests() {
+    start_end::group_start "Running K8S tests"
+    pytest "${pytest_args[@]}" "${tests_to_run[@]}"
+    start_end::group_end
+}
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
-HOST_PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
-readonly HOST_PYTHON_VERSION
+parse_tests_to_run "${@}"
 
-virtualenv_path="${BUILD_CACHE_DIR}/.kubernetes_venv_${HOST_PYTHON_VERSION}"
-
-if [[ ! -d ${virtualenv_path} ]]; then
-    echo
-    echo "Creating virtualenv at ${virtualenv_path}"
-    echo
-    python3 -m venv "${virtualenv_path}"
-fi
-
-. "${virtualenv_path}/bin/activate"
-
-pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
-
-pip install pytest freezegun pytest-cov \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
-
-pip install -e ".[kubernetes]" \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
+create_virtualenv
 
 if [[ ${interactive} == "true" ]]; then
     echo
@@ -109,5 +126,5 @@ if [[ ${interactive} == "true" ]]; then
     echo
     exec "${SHELL}"
 else
-    pytest "${pytest_args[@]}" "${tests_to_run[@]}"
+    run_tests
 fi

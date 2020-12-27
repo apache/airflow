@@ -235,11 +235,10 @@ jobs:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
       - name: Cache pre-commit env
         uses: actions/cache@v2
-        env:
-          cache-name: cache-pre-commit-master-no-pylint-v1
         with:
           path: ~/.cache/pre-commit
-          key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          key: pre-commit-no-pylint-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: pre-commit-no-pylint-
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -271,11 +270,10 @@ jobs:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
       - name: Cache pre-commit env
         uses: actions/cache@v2
-        env:
-          cache-name: cache-pre-commit-master-basic-checks-v1
         with:
           path: ~/.cache/pre-commit
-          key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          key: pre-commit-basic-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: pre-commit-no-basic-
       - name: >
           Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v2
@@ -309,11 +307,10 @@ jobs:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
       - name: "Cache pre-commit env"
         uses: actions/cache@v2
-        env:
-          cache-name: cache-pre-commit-master-pylint-v1
         with:
           path: ~/.cache/pre-commit
-          key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          key: pre-commit-pylint-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: pre-commit-pylint-
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
@@ -393,12 +390,12 @@ jobs:
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
       - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
-      - name: "Upload provider package artifacts"
+      - name: "Upload package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
         with:
           name: airflow-backport-packages
-          path: "./files/airflow-packages-*"
+          path: "./dist/apache*"
           retention-days: 7
       - name: "Upload readme artifacts"
         uses: actions/upload-artifact@v2
@@ -442,12 +439,12 @@ jobs:
         run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
       - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
-      - name: "Upload provider package artifacts"
+      - name: "Upload package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
         with:
           name: airflow-provider-packages
-          path: "./files/airflow-packages-*"
+          path: "./dist/apache-*"
           retention-days: 7
       - name: "Upload readme artifacts"
         uses: actions/upload-artifact@v2
@@ -862,24 +859,19 @@ jobs:
           SKIP_BUILDING_PROD_IMAGE: "true"
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
-        env:
-          cache-name: cache-kubernetes-tests-v7-master
         with:
-          path: ".build/.kubernetes_venv*"
-          key: "venv-${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
--${{ hashFiles('setup.cfg') }}\
--${{ needs.build-info.outputs.defaultPythonVersion }}"
+          path: ".build/.kubernetes_venv_ ${{ needs.build-info.outputs.defaultPythonVersion }}"
+          key: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}\
+-${{ hashFiles('setup.py','setup.cfg') }}"
+          restore-keys: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}-"
       - name: "Cache bin folder with tools for kubernetes testing"
         uses: actions/cache@v2
-        env:
-          cache-name: cache-kubernetes-tests-v7-master
         with:
           path: ".build/bin"
-          key: "bin-${{ env.cache-name }}-${{ github.job }}\
--${{ needs.build-info.outputs.defaultPythonVersion }}\
+          key: "bin-${{ matrix.kubernetes-version }}\
 -${{ needs.build-info.outputs.defaultKindVersion }}\
--${{ needs.build-info.outputs.defaultHelmVersion }}\
--${{ matrix.kubernetes-version }}"
+-${{ needs.build-info.outputs.defaultHelmVersion }}"
+          restore-keys: "bin-${{ matrix.kubernetes-version }}"
       - name: "Kubernetes Tests"
         run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
       - name: "Upload KinD logs"

@@ -224,7 +224,7 @@ function breeze::initialize_virtualenv() {
         echo
         "${AIRFLOW_SOURCES}/confirm" "Proceeding with the initialization"
         echo
-        pushd "${AIRFLOW_SOURCES}"
+        pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
         set +e
         # We need to export this one to speed up Cassandra driver installation in virtualenv
         CASS_DRIVER_NO_CYTHON="1" pip install -e ".[devel]" \

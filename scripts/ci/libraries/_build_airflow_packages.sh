@@ -18,6 +18,7 @@
 
 # Build airflow packages
 function build_airflow_packages::build_airflow_packages() {
+    start_end::group_start "Build airflow packages ${PACKAGE_FORMAT}"
     rm -rf -- *egg-info*
     rm -rf -- build
 
@@ -42,4 +43,5 @@ function build_airflow_packages::build_airflow_packages() {
     echo
     echo "Airflow package prepared: ${PACKAGE_FORMAT}"
     echo
+    start_end::group_end
 }
