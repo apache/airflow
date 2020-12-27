@@ -226,8 +226,7 @@ cloudant = [
 crypto = [
     # Cryptography 3.2 for python 2.7 is broken
     # https://github.com/pyca/cryptography/issues/5359#issuecomment-727622403
-    # Snowflake requires <3.0
-    'cryptography>=0.9.3,<3.0; python_version<"3.0"',
+    'cryptography>=0.9.3,<3.2; python_version<"3.0"',
     'cryptography>=0.9.3;python_version>="3.0"',
 ]
 dask = [
@@ -391,6 +390,9 @@ slack = [
 ]
 snowflake = [
     'boto3<1.11',
+    'cryptography>=0.9.3,<3.0;python_version<"3.0"',  # Snowflake requires <3.0
+    'requests>=2.20.0,<2.23.0;python_version<"3.0"',  # Required to keep snowflake happy
+    'requests>=2.20.0,<2.24.0;python_version>="3.0"',  # Required to keep snowflake happy
     'snowflake-connector-python>=1.5.2',
     'snowflake-sqlalchemy>=1.1.0',
 ]
@@ -605,8 +607,6 @@ INSTALL_REQUIREMENTS = [
     'colorlog==4.0.2',
     'configparser>=3.5.0, <3.6.0',
     'croniter>=0.3.17, <0.4',
-    'cryptography>=0.9.3,<3.0; python_version<"3.0"',  # required by snowflake
-    'cryptography>=0.9.3;python_version>="3.0"',
     'dill>=0.2.2, <0.4',
     'email-validator',
     'enum34~=1.1.6;python_version<"3.4"',
@@ -642,8 +642,7 @@ INSTALL_REQUIREMENTS = [
     'python-dateutil>=2.3, <3',
     'python-nvd3~=0.15.0',
     'python-slugify>=3.0.0,<5.0',
-    'requests>=2.20.0, <2.23.0;python_version<"3.0"',  # Required to keep snowflake happy
-    'requests>=2.20.0, <2.24.0;python_version>="3.0"',  # Required to keep snowflake happy
+    'requests>=2.20.0, <3',
     'setproctitle>=1.1.8, <2',
     'sqlalchemy~=1.3',
     'sqlalchemy_jsonfield==0.8.0;python_version<"3.5"',
