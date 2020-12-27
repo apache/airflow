@@ -763,7 +763,7 @@ jobs:
       - name: "Removes unnecessary artifacts"
         run: ls ./coverage-files | grep -v coverage | xargs rm -rf
       - name: "Upload all coverage reports to codecov"
-        uses: codecov/codecov-action@v1
+        uses: apache/airflow-codecov-action@1fc7722ded4708880a5aea49f2bfafb9336f0c8d  # v1.1.1
         with:
           directory: "./coverage-files"
 
