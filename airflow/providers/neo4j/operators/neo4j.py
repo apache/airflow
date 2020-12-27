@@ -21,6 +21,7 @@ from airflow.models import BaseOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
 from airflow.utils.decorators import apply_defaults
 
+
 class Neo4jOperator(BaseOperator):
     """
     Executes sql code in a specific MySQL database

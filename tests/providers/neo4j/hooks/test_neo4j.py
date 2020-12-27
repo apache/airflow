@@ -67,32 +67,31 @@ class TestNeo4jHookConn(unittest.TestCase):
         self.assertEqual(uri, "bolt://host:7687")
 
     def test_get_uri_bolt_ssc_scheme(self):
-            self.connection = Connection(
-                conn_type='neo4j',
-                login='login',
-                password='password',
-                host='host',
-                schema='schema',
-                extra=json.dumps({"certs_self_signed": True,"bolt_scheme": True}),
-            )
-            self.neo4j_hook.get_connection = mock.Mock()
-            self.neo4j_hook.get_connection.return_value = self.connection
-            uri = self.neo4j_hook.get_uri(self.connection)
+        self.connection = Connection(
+            conn_type='neo4j',
+            login='login',
+            password='password',
+            host='host',
+            schema='schema',
+            extra=json.dumps({"certs_self_signed": True, "bolt_scheme": True}),
+        )
+        self.neo4j_hook.get_connection = mock.Mock()
+        self.neo4j_hook.get_connection.return_value = self.connection
+        uri = self.neo4j_hook.get_uri(self.connection)
 
-            self.assertEqual(uri, "bolt+ssc://host:7687")
+        self.assertEqual(uri, "bolt+ssc://host:7687")
 
     def test_get_uri_bolt_trusted_ca_scheme(self):
-            self.connection = Connection(
-                conn_type='neo4j',
-                login='login',
-                password='password',
-                host='host',
-                schema='schema',
-                extra=json.dumps({"certs_trusted_ca": True,"bolt_scheme": True}),
-            )
-            self.neo4j_hook.get_connection = mock.Mock()
-            self.neo4j_hook.get_connection.return_value = self.connection
-            uri = self.neo4j_hook.get_uri(self.connection)
+        self.connection = Connection(
+            conn_type='neo4j',
+            login='login',
+            password='password',
+            host='host',
+            schema='schema',
+            extra=json.dumps({"certs_trusted_ca": True, "bolt_scheme": True}),
+        )
+        self.neo4j_hook.get_connection = mock.Mock()
+        self.neo4j_hook.get_connection.return_value = self.connection
+        uri = self.neo4j_hook.get_uri(self.connection)
 
-            self.assertEqual(uri, "bolt+s://host:7687")
-
+        self.assertEqual(uri, "bolt+s://host:7687")

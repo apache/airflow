@@ -18,8 +18,9 @@
 
 """This module allows to connect to a Neo4j database."""
 
-from airflow.hooks.base import BaseHook
 from neo4j import GraphDatabase, Neo4jDriver, Result
+
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 
 
@@ -50,9 +51,7 @@ class Neo4jHook(BaseHook):
         self.client = None
 
     def get_conn(self) -> Neo4jDriver:
-        """
-
-        """
+        """"""
         self.connection = self.get_connection(self.neo4j_conn_id)
         self.extras = self.connection.extra_dejson.copy()
 
@@ -62,19 +61,18 @@ class Neo4jHook(BaseHook):
         if self.client is not None:
             return self.client
 
-        #if not self.connection.is_encrypted:
-        self.client = GraphDatabase.driver(self.uri, auth=(self.connection.login, self.connection.password),
-                                           encrypted=False)
-        #else:
+        # if not self.connection.is_encrypted:
+        self.client = GraphDatabase.driver(
+            self.uri, auth=(self.connection.login, self.connection.password), encrypted=False
+        )
+        # else:
         #    self.client = GraphDatabase.driver(self.uri, auth=(self.connection.login,
         #    self.connection.password))
 
         return self.client
 
     def get_uri(self, conn: Connection) -> str:
-        """
-
-        """
+        """"""
 
         use_bolt_scheme = conn.extra_dejson.get('bolt_scheme', False)
         scheme = 'bolt' if use_bolt_scheme else 'neo4j'
@@ -95,7 +93,7 @@ class Neo4jHook(BaseHook):
             scheme=scheme,
             encryption_scheme=encryption_scheme,
             host=conn.host,
-            port='7687' if conn.port is None else f'{conn.port}'
+            port='7687' if conn.port is None else f'{conn.port}',
         )
 
     def run(self, query) -> Result:
