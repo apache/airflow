@@ -168,6 +168,7 @@ function initialization::initialize_base_variables() {
         "sendgrid"
         "sftp"
         "slack"
+        "sqlite"
         "ssh"
     )
     export INSTALLED_PROVIDERS
