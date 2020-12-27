@@ -17,8 +17,6 @@
 # under the License.
 
 """This module allows to connect to a Neo4j database."""
-import json
-from typing import Dict, Optional, Tuple
 
 from airflow.hooks.base import BaseHook
 from neo4j import GraphDatabase, Neo4jDriver, Result
@@ -68,7 +66,8 @@ class Neo4jHook(BaseHook):
         self.client = GraphDatabase.driver(self.uri, auth=(self.connection.login, self.connection.password),
                                            encrypted=False)
         #else:
-        #    self.client = GraphDatabase.driver(self.uri, auth=(self.connection.login, self.connection.password))
+        #    self.client = GraphDatabase.driver(self.uri, auth=(self.connection.login,
+        #    self.connection.password))
 
         return self.client
 
