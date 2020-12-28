@@ -38,6 +38,7 @@ RESOURCE_PERMISSION = "Permissions"
 RESOURCE_PERMISSION_VIEW = "Permission Views"  # Refers to a Perm <-> View mapping, not an MVC View.
 RESOURCE_POOL = "Pools"
 RESOURCE_PLUGIN = "Plugins"
+RESOURCE_PROVIDER = "Providers"
 RESOURCE_ROLE = "Roles"
 RESOURCE_SLA_MISS = "SLA Misses"
 RESOURCE_TASK_INSTANCE = "Task Instances"
