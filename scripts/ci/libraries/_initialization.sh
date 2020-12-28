@@ -102,6 +102,9 @@ function initialization::initialize_base_variables() {
     CURRENT_MYSQL_VERSIONS+=("5.7" "8")
     export CURRENT_MYSQL_VERSIONS
 
+    BACKEND=${BACKEND:="sqlite"}
+    export BACKEND
+
     # Default Postgres versions
     export POSTGRES_VERSION=${POSTGRES_VERSION:=${CURRENT_POSTGRES_VERSIONS[0]}}
 
@@ -166,13 +169,14 @@ function initialization::initialize_base_variables() {
         "postgres"
         "redis"
         "sendgrid"
+        "sqlite"
         "sftp"
         "slack"
         "sqlite"
         "ssh"
     )
     export INSTALLED_PROVIDERS
-    export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+    export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
     # default version of PIP USED (This has to be < 20.3 until https://github.com/apache/airflow/issues/12838 is solved)
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="20.2.4"}
@@ -505,7 +509,7 @@ function initialization::initialize_build_image_variables() {
 }
 
 function initialization::set_output_color_variables() {
-    COLOR_BLUE=$'\e[37m'
+    COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
     COLOR_GREEN_OK=$'\e[32mOK.'
     COLOR_RED=$'\e[31m'

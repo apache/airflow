@@ -28,6 +28,7 @@ from airflow import AirflowException
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
     DataprocCreateClusterOperator,
+    DataprocCreateWorkflowTemplateOperator,
     DataprocDeleteClusterOperator,
     DataprocInstantiateInlineWorkflowTemplateOperator,
     DataprocInstantiateWorkflowTemplateOperator,
@@ -114,6 +115,18 @@ TIMEOUT = 120
 RETRY = mock.MagicMock(Retry)
 METADATA = [("key", "value")]
 REQUEST_ID = "request_id_uuid"
+
+WORKFLOW_NAME = "airflow-dataproc-test"
+WORKFLOW_TEMPLATE = {
+    "id": WORKFLOW_NAME,
+    "placement": {
+        "managed_cluster": {
+            "cluster_name": CLUSTER_NAME,
+            "config": CLUSTER,
+        }
+    },
+    "jobs": [{"step_id": "pig_job_1", "pig_job": {}}],
+}
 
 
 def assert_warning(msg: str, warning: Any):
@@ -914,3 +927,29 @@ class TestDataProcPySparkOperator(unittest.TestCase):
         )
         job = op.generate_job()
         self.assertDictEqual(self.job, job)
+
+
+class TestDataprocCreateWorkflowTemplateOperator:
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute(self, mock_hook):
+        op = DataprocCreateWorkflowTemplateOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            template=WORKFLOW_TEMPLATE,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_workflow_template.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            template=WORKFLOW_TEMPLATE,
+        )

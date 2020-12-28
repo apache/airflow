@@ -173,7 +173,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         # Deprecated operator. Ignore it
         'airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator',
         'airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator',
-        'airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator',
         # Deprecated operator. Ignore it
         'airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator',
         # Base operator. Ignore it

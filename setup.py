@@ -272,7 +272,7 @@ google = [
     'google-cloud-spanner>=1.10.0,<2.0.0',
     'google-cloud-speech>=0.36.3,<2.0.0',
     'google-cloud-storage>=1.30,<2.0.0',
-    'google-cloud-tasks>=2.0.0,<3.0.0',
+    'google-cloud-tasks>=1.2.1,<2.0.0',
     'google-cloud-texttospeech>=0.4.0,<2.0.0',
     'google-cloud-translate>=1.5.0,<2.0.0',
     'google-cloud-videointelligence>=1.7.0,<2.0.0',
@@ -317,6 +317,7 @@ kubernetes = [
 kylin = ['kylinpy>=2.6']
 ldap = [
     'ldap3>=2.5.1',
+    'python-ldap',
 ]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
