@@ -22,7 +22,4 @@ build_airflow_packages::build_airflow_packages
 
 cd "${AIRFLOW_SOURCES}/dist" || exit 1
 
-dump_file="/tmp/airflow_$(date +"%Y%m%d-%H%M%S").tar.gz"
-tar -cvzf "${dump_file}" .
-
-echo "Airflow is in dist and also tar-gzipped in ${dump_file}"
+echo "Airflow packages are in dist folder"

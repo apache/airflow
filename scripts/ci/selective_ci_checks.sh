@@ -137,6 +137,7 @@ function output_all_basic_variables() {
 }
 
 function get_changed_files() {
+    start_end::group_start "Get changed files"
     echo
     echo "Incoming commit SHA: ${INCOMING_COMMIT_SHA}"
     echo
@@ -157,6 +158,7 @@ function get_changed_files() {
     echo "${CHANGED_FILES}"
     echo
     readonly CHANGED_FILES
+    start_end::group_end
 }
 
 function run_tests() {
@@ -297,6 +299,7 @@ function count_changed_files() {
 }
 
 function check_if_python_security_scans_should_be_run() {
+    start_end::group_start "Check Python security scans"
     local pattern_array=(
         "^airflow/.*\.py"
         "^setup.py"
@@ -308,9 +311,11 @@ function check_if_python_security_scans_should_be_run() {
     else
         needs_python_scans "true"
     fi
+    start_end::group_end
 }
 
 function check_if_javascript_security_scans_should_be_run() {
+    start_end::group_start "Check Javascript security scans"
     local pattern_array=(
         "^airflow/.*\.js"
         "^airflow/.*\.lock"
@@ -322,9 +327,11 @@ function check_if_javascript_security_scans_should_be_run() {
     else
         needs_javascript_scans "true"
     fi
+    start_end::group_end
 }
 
 function check_if_api_tests_should_be_run() {
+    start_end::group_start "Check API tests"
     local pattern_array=(
         "^airflow/api"
     )
@@ -335,9 +342,11 @@ function check_if_api_tests_should_be_run() {
     else
         needs_api_tests "true"
     fi
+    start_end::group_end
 }
 
 function check_if_api_codegen_should_be_run() {
+    start_end::group_start "Check API codegen"
     local pattern_array=(
         "^airflow/api_connexion/openapi/v1.yaml"
         "^clients/gen"
@@ -349,9 +358,11 @@ function check_if_api_codegen_should_be_run() {
     else
         needs_api_codegen "true"
     fi
+    start_end::group_end
 }
 
 function check_if_helm_tests_should_be_run() {
+    start_end::group_start "Check helm tests"
     local pattern_array=(
         "^chart"
     )
@@ -362,9 +373,11 @@ function check_if_helm_tests_should_be_run() {
     else
         needs_helm_tests "true"
     fi
+    start_end::group_end
 }
 
 function check_if_docs_should_be_generated() {
+    start_end::group_start "Check docs"
     local pattern_array=(
         "^docs"
         "^airflow/.*\.py$"
@@ -378,6 +391,7 @@ function check_if_docs_should_be_generated() {
         image_build_needed="true"
         docs_build_needed="true"
     fi
+    start_end::group_end
 }
 
 AIRFLOW_SOURCES_TRIGGERING_TESTS=(
@@ -389,6 +403,7 @@ AIRFLOW_SOURCES_TRIGGERING_TESTS=(
 readonly AIRFLOW_SOURCES_TRIGGERING_TESTS
 
 function check_if_tests_are_needed_at_all() {
+    start_end::group_start "Check tests are needed"
     local pattern_array=("${AIRFLOW_SOURCES_TRIGGERING_TESTS[@]}")
     show_changed_files
 
@@ -404,9 +419,11 @@ function check_if_tests_are_needed_at_all() {
         image_build_needed="true"
         tests_needed="true"
     fi
+    start_end::group_end
 }
 
 function run_all_tests_if_environment_files_changed() {
+    start_end::group_start "Check if everything should be run"
     local pattern_array=(
         "^.github/workflows/"
         "^Dockerfile"
@@ -420,23 +437,21 @@ function run_all_tests_if_environment_files_changed() {
         echo "Important environment files changed. Running everything"
         set_outputs_run_everything_and_exit
     fi
+    start_end::group_end
 }
 
 function get_count_all_files() {
-    echo
-    echo "Count All airflow source files"
-    echo
+    start_end::group_start "Count all airflow source files"
     local pattern_array=("${AIRFLOW_SOURCES_TRIGGERING_TESTS[@]}")
     show_changed_files
     COUNT_ALL_CHANGED_FILES=$(count_changed_files)
     echo "Files count: ${COUNT_ALL_CHANGED_FILES}"
     readonly COUNT_ALL_CHANGED_FILES
+    start_end::group_end
 }
 
 function get_count_api_files() {
-    echo
-    echo "Count API files"
-    echo
+    start_end::group_start "Count API files"
     local pattern_array=(
         "^airflow/api"
         "^airflow/api_connexion"
@@ -447,12 +462,11 @@ function get_count_api_files() {
     COUNT_API_CHANGED_FILES=$(count_changed_files)
     echo "Files count: ${COUNT_API_CHANGED_FILES}"
     readonly COUNT_API_CHANGED_FILES
+    start_end::group_end
 }
 
 function get_count_cli_files() {
-    echo
-    echo "Count CLI files"
-    echo
+    start_end::group_start "Count CLI files"
     local pattern_array=(
         "^airflow/cli"
         "^tests/cli"
@@ -461,12 +475,11 @@ function get_count_cli_files() {
     COUNT_CLI_CHANGED_FILES=$(count_changed_files)
     echo "Files count: ${COUNT_CLI_CHANGED_FILES}"
     readonly COUNT_CLI_CHANGED_FILES
+    start_end::group_end
 }
 
 function get_count_providers_files() {
-    echo
-    echo "Count Providers files"
-    echo
+    start_end::group_start "Count providers files"
     local pattern_array=(
         "^airflow/providers"
         "^tests/providers"
@@ -475,12 +488,11 @@ function get_count_providers_files() {
     COUNT_PROVIDERS_CHANGED_FILES=$(count_changed_files)
     echo "Files count: ${COUNT_PROVIDERS_CHANGED_FILES}"
     readonly COUNT_PROVIDERS_CHANGED_FILES
+    start_end::group_end
 }
 
 function get_count_www_files() {
-    echo
-    echo "Count WWW files"
-    echo
+    start_end::group_start "Count www files"
     local pattern_array=(
         "^airflow/www"
         "^tests/www"
@@ -489,12 +501,11 @@ function get_count_www_files() {
     COUNT_WWW_CHANGED_FILES=$(count_changed_files)
     echo "Files count: ${COUNT_WWW_CHANGED_FILES}"
     readonly COUNT_WWW_CHANGED_FILES
+    start_end::group_end
 }
 
 function get_count_kubernetes_files() {
-    echo
-    echo "Count Kubernetes files"
-    echo
+    start_end::group_start "Count kubernetes files"
     local pattern_array=(
         "^chart"
         "^kubernetes_tests"
@@ -503,12 +514,11 @@ function get_count_kubernetes_files() {
     COUNT_KUBERNETES_CHANGED_FILES=$(count_changed_files)
     echo "Files count: ${COUNT_KUBERNETES_CHANGED_FILES}"
     readonly COUNT_KUBERNETES_CHANGED_FILES
+    start_end::group_end
 }
 
 function calculate_test_types_to_run() {
-    echo
-    echo "Count Core/Other files"
-    echo
+    start_end::group_start "Count core/other files"
     COUNT_CORE_OTHER_CHANGED_FILES=$((COUNT_ALL_CHANGED_FILES - COUNT_WWW_CHANGED_FILES - COUNT_PROVIDERS_CHANGED_FILES - COUNT_CLI_CHANGED_FILES - COUNT_API_CHANGED_FILES - COUNT_KUBERNETES_CHANGED_FILES))
 
     readonly COUNT_CORE_OTHER_CHANGED_FILES
@@ -555,7 +565,10 @@ function calculate_test_types_to_run() {
         fi
         initialization::ga_output test-types "Always Integration Heisentests ${SELECTED_TESTS}"
     fi
+    start_end::group_end
 }
+
+start_end::group_start "Check if COMMIT_SHA passed"
 
 if (($# < 1)); then
     echo
@@ -572,7 +585,7 @@ else
     INCOMING_COMMIT_SHA="${1}"
     readonly INCOMING_COMMIT_SHA
 fi
-
+start_end::group_end
 
 readonly FULL_TESTS_NEEDED_LABEL
 output_all_basic_variables

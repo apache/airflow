@@ -303,19 +303,17 @@ function push_pull_remove_images::check_if_github_registry_wait_for_image_enable
         echo "GITHUB_REGISTRY_WAIT_FOR_IMAGE =${GITHUB_REGISTRY_WAIT_FOR_IMAGE}"
         echo
         exit 1
-    else
-        echo
-        echo "Both USE_GITHUB_REGISTRY and GITHUB_REGISTRY_WAIT_FOR_IMAGE are set to true. Good!"
     fi
 }
 
 function push_pull_remove_images::check_if_jq_installed() {
+    start_end::group_start "JQ check"
     echo
     echo "Check if jq is installed"
     echo
     command -v jq >/dev/null || (echo "ERROR! You must have 'jq' tool installed!" && exit 1)
-
     echo
     echo "The jq version $(jq --version)"
     echo
+    start_end::group_end
 }

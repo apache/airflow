@@ -22,6 +22,7 @@
 # Depending on "USE_GITHUB_REGISTRY" and "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_ci_image_on_ci() {
     build_images::prepare_ci_build
+    start_end::group_start "Prepare CI mage ${AIRFLOW_CI_IMAGE}"
 
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
@@ -46,7 +47,7 @@ function build_ci_image_on_ci() {
         build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" \
             ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_CI_IMAGE}"
 
-        md5sum::update_all_md5
+        md5sum::update_all_md5_with_group
     else
         build_images::rebuild_ci_image_if_needed
     fi
@@ -57,6 +58,7 @@ function build_ci_image_on_ci() {
     unset FORCE_BUILD
     # Skip the image check entirely for the rest of the script
     export CHECK_IMAGE_FOR_REBUILD="false"
+    start_end::group_end
 }
 
 build_ci_image_on_ci

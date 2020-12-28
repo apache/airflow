@@ -65,7 +65,7 @@ spec:
             - "bash"
             - "-c"
             # Support running against 1.10.x and 2.0.0dev/master
-            - 'airflow create_user "$@" || airflow users create "$@"'
+            - 'airflow users create "$@" || airflow create_user "$@"'
             - --
             - "-r"
             - {{ .Values.webserver.defaultUser.role }}

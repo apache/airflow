@@ -57,7 +57,7 @@ class TestCloudTasksQueueCreate(unittest.TestCase):
 
         result = operator.execute(context=None)
 
-        self.assertEqual({'name': FULL_QUEUE_PATH}, result)
+        self.assertEqual({'name': FULL_QUEUE_PATH, 'state': 0}, result)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -81,7 +81,7 @@ class TestCloudTasksQueueUpdate(unittest.TestCase):
 
         result = operator.execute(context=None)
 
-        self.assertEqual({'name': FULL_QUEUE_PATH}, result)
+        self.assertEqual({'name': FULL_QUEUE_PATH, 'state': 0}, result)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -106,7 +106,7 @@ class TestCloudTasksQueueGet(unittest.TestCase):
 
         result = operator.execute(context=None)
 
-        self.assertEqual({'name': FULL_QUEUE_PATH}, result)
+        self.assertEqual({'name': FULL_QUEUE_PATH, 'state': 0}, result)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -129,7 +129,7 @@ class TestCloudTasksQueuesList(unittest.TestCase):
 
         result = operator.execute(context=None)
 
-        self.assertEqual([{'name': FULL_QUEUE_PATH}], result)
+        self.assertEqual([{'name': FULL_QUEUE_PATH, 'state': 0}], result)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -176,7 +176,7 @@ class TestCloudTasksQueuePurge(unittest.TestCase):
 
         result = operator.execute(context=None)
 
-        self.assertEqual({'name': FULL_QUEUE_PATH}, result)
+        self.assertEqual({'name': FULL_QUEUE_PATH, 'state': 0}, result)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -199,7 +199,7 @@ class TestCloudTasksQueuePause(unittest.TestCase):
 
         result = operator.execute(context=None)
 
-        self.assertEqual({'name': FULL_QUEUE_PATH}, result)
+        self.assertEqual({'name': FULL_QUEUE_PATH, 'state': 0}, result)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -222,7 +222,7 @@ class TestCloudTasksQueueResume(unittest.TestCase):
 
         result = operator.execute(context=None)
 
-        self.assertEqual({'name': FULL_QUEUE_PATH}, result)
+        self.assertEqual({'name': FULL_QUEUE_PATH, 'state': 0}, result)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -247,7 +247,16 @@ class TestCloudTasksTaskCreate(unittest.TestCase):
 
         result = operator.execute(context=None)
 
-        self.assertEqual({'appEngineHttpRequest': {}}, result)
+        self.assertEqual(
+            {
+                'app_engine_http_request': {'body': '', 'headers': {}, 'http_method': 0, 'relative_uri': ''},
+                'dispatch_count': 0,
+                'name': '',
+                'response_count': 0,
+                'view': 0,
+            },
+            result,
+        )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -275,7 +284,16 @@ class TestCloudTasksTaskGet(unittest.TestCase):
 
         result = operator.execute(context=None)
 
-        self.assertEqual({'appEngineHttpRequest': {}}, result)
+        self.assertEqual(
+            {
+                'app_engine_http_request': {'body': '', 'headers': {}, 'http_method': 0, 'relative_uri': ''},
+                'dispatch_count': 0,
+                'name': '',
+                'response_count': 0,
+                'view': 0,
+            },
+            result,
+        )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -300,7 +318,23 @@ class TestCloudTasksTasksList(unittest.TestCase):
 
         result = operator.execute(context=None)
 
-        self.assertEqual([{'appEngineHttpRequest': {}}], result)
+        self.assertEqual(
+            [
+                {
+                    'app_engine_http_request': {
+                        'body': '',
+                        'headers': {},
+                        'http_method': 0,
+                        'relative_uri': '',
+                    },
+                    'dispatch_count': 0,
+                    'name': '',
+                    'response_count': 0,
+                    'view': 0,
+                }
+            ],
+            result,
+        )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -353,7 +387,16 @@ class TestCloudTasksTaskRun(unittest.TestCase):
 
         result = operator.execute(context=None)
 
-        self.assertEqual({'appEngineHttpRequest': {}}, result)
+        self.assertEqual(
+            {
+                'app_engine_http_request': {'body': '', 'headers': {}, 'http_method': 0, 'relative_uri': ''},
+                'dispatch_count': 0,
+                'name': '',
+                'response_count': 0,
+                'view': 0,
+            },
+            result,
+        )
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,

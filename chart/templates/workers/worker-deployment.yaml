@@ -115,7 +115,7 @@ spec:
         - name: worker
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["bash", "-c", "airflow worker || airflow celery worker"]
+          args: ["bash", "-c", "airflow celery worker || airflow worker"]
           resources:
 {{ toYaml .Values.workers.resources | indent 12 }}
           ports:

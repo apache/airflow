@@ -168,6 +168,7 @@ function initialization::initialize_base_variables() {
         "sendgrid"
         "sftp"
         "slack"
+        "sqlite"
         "ssh"
     )
     export INSTALLED_PROVIDERS
@@ -647,7 +648,6 @@ Test variables:
     TEST_TYPE: ${TEST_TYPE}
 
 EOF
-
 }
 
 # Retrieves CI environment variables needed - depending on the CI system we run it in.

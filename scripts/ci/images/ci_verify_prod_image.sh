@@ -19,16 +19,13 @@
 . "$(dirname "${BASH_SOURCE[0]}")/../libraries/_script_init.sh"
 
 function verify_prod_image_has_airflow_and_providers() {
-    echo
-    echo "Verify prod image"
-    echo
-
+    start_end::group_start "Verify prod image: ${AIRFLOW_PROD_IMAGE}"
     echo
     echo "Checking if Providers are installed"
     echo
 
     all_providers_installed_in_image=$(
-        docker run --rm --entrypoint /bin/bash apache/airflow:master-python3.6 \
+        docker run --rm --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" \
             -c "airflow providers list --output table"
     )
 
@@ -52,13 +49,11 @@ function verify_prod_image_has_airflow_and_providers() {
         echo "${COLOR_RED_ERROR} Some expected providers are not installed!${COLOR_RESET}"
         echo
     fi
+    start_end::group_end
 }
 
 function verify_prod_image_dependencies() {
-
-    echo
-    echo "Checking if Airflow dependencies are non-conflicting in ${AIRFLOW_PROD_IMAGE} image."
-    echo
+    start_end::group_start "Checking if Airflow dependencies are non-conflicting in ${AIRFLOW_PROD_IMAGE} image."
 
     set +e
     docker run --rm --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'pip check'
@@ -75,17 +70,15 @@ function verify_prod_image_dependencies() {
         echo
     fi
     set -e
-
+    start_end::group_end
 }
 
 function pull_prod_image() {
     local image_name_with_tag="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-
-    echo
-    echo "Pulling the ${image_name_with_tag} image."
-    echo
+    start_end::group_start "Pulling the ${image_name_with_tag} image."
 
     push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" "${image_name_with_tag}"
+    start_end::group_end
 }
 
 build_images::prepare_prod_build

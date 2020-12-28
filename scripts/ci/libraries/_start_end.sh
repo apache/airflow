@@ -16,6 +16,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Starts group for Github Actions - makes logs much more readable
+function start_end::group_start {
+    if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+        echo "::group::${1}"
+    else
+        echo
+        echo "${1}"
+        echo
+    fi
+}
+
+# Ends group for Github Actions
+function start_end::group_end {
+    if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+        echo -e "\033[0m"  # Disable any colors set in the group
+        echo "::endgroup::"
+    fi
+}
+
+
 #
 # Starts the script.
 # If VERBOSE_COMMANDS variable is set to true, it enables verbose output of commands executed
@@ -45,6 +65,7 @@ function start_end::script_start {
 }
 
 function start_end::dump_container_logs() {
+    start_end::group_start "Dumping container logs ${container}"
     local container="${1}"
     local dump_file
     dump_file=${AIRFLOW_SOURCES}/files/container_logs_${container}_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log
@@ -54,6 +75,7 @@ function start_end::dump_container_logs() {
     docker logs "${container}" > "${dump_file}"
     echo "                   Container ${container} logs dumped to ${dump_file}"
     echo "###########################################################################################"
+    start_end::group_end
 }
 
 

@@ -27,6 +27,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from enum import Enum
 from os import listdir
@@ -64,6 +65,25 @@ from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
 logger = logging.getLogger(__name__)  # noqa
 
 PY3 = sys.version_info[0] == 3
+
+
+@contextmanager
+def with_group(title):
+    """
+    If used in GitHub Action, creates an expandable group in the GitHub Action log.
+    Otherwise, display simple text groups.
+
+    For more information, see:
+    https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
+    """
+    if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
+        print("#" * 20, title, "#" * 20)
+        yield
+        return
+    print(f"::group::{title}")
+    yield
+    print("\033[0m")
+    print("::endgroup::")
 
 
 class EntityType(Enum):
@@ -1405,25 +1425,27 @@ def update_release_notes_for_packages(
             provider_ids = get_all_providers()
     total = 0
     bad = 0
-    print()
-    print("Generating README files and checking if entities are correctly named.")
-    print()
-    print("Providers to generate:")
-    for provider_id in provider_ids:
-        print(provider_id)
-    print()
+    with with_group("Generating README summary"):
+        print()
+        print("Generating README files and checking if entities are correctly named.")
+        print()
+        print("Providers to generate:")
+        for provider_id in provider_ids:
+            print(provider_id)
+        print()
     for package in provider_ids:
-        inc_total, inc_bad = update_generated_files_for_package(
-            package,
-            release_version,
-            version_suffix,
-            imported_classes,
-            backport_packages,
-            update_release_notes=True,
-            update_setup=False,
-        )
-        total += inc_total
-        bad += inc_bad
+        with with_group(f"Update generated files for package {package}"):
+            inc_total, inc_bad = update_generated_files_for_package(
+                package,
+                release_version,
+                version_suffix,
+                imported_classes,
+                backport_packages,
+                update_release_notes=True,
+                update_setup=False,
+            )
+            total += inc_total
+            bad += inc_bad
     if bad == 0:
         print()
         print(f"All good! All {total} entities are properly named")
@@ -1596,7 +1618,7 @@ ERROR! Wrong first param: {sys.argv[1]}
     verify_provider_package(_provider_package)
     del sys.argv[1]
     package_format = os.environ.get("PACKAGE_FORMAT", "wheel")
-    print(f"Building backport package: {_provider_package} in format ${package_format}")
+    print(f"Building provider package: {_provider_package} in format ${package_format}")
     copy_readme_and_changelog(_provider_package, BACKPORT_PACKAGES)
     command = ["python3", "setup.py"]
     if suffix != "":
