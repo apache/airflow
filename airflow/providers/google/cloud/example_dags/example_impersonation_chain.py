@@ -40,7 +40,7 @@ DATA_SAMPLE_GCS_URL = os.environ.get(
     "GCP_BIGQUERY_DATA_GCS_URL",
     "gs://cloud-samples-data/bigquery/us-states/us-states.csv",
 )
-IMPERSONATION_CHAIN = "impersonated_account@your_project_id.iam.gserviceaccount.com"
+IMPERSONATION_CHAIN = f"impersonated_account@{PROJECT_ID}.iam.gserviceaccount.com"
 
 DATA_SAMPLE_GCS_URL_PARTS = urlparse(DATA_SAMPLE_GCS_URL)
 DATA_SAMPLE_GCS_BUCKET_NAME = DATA_SAMPLE_GCS_URL_PARTS.netloc
