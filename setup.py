@@ -317,6 +317,7 @@ kubernetes = [
 kylin = ['kylinpy>=2.6']
 ldap = [
     'ldap3>=2.5.1',
+    'python-ldap',
 ]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',

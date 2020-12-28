@@ -34,7 +34,7 @@
 #                        much smaller.
 #
 ARG AIRFLOW_VERSION="2.0.0.dev0"
-ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -91,6 +91,7 @@ ARG DEV_APT_DEPS="\
      ldap-utils \
      libffi-dev \
      libkrb5-dev \
+     libldap2-dev \
      libpq-dev \
      libsasl2-2 \
      libsasl2-dev \
@@ -347,6 +348,7 @@ ARG RUNTIME_APT_DEPS="\
        krb5-user \
        ldap-utils \
        libffi6 \
+       libldap-2.4-2 \
        libsasl2-2 \
        libsasl2-modules \
        libssl1.1 \

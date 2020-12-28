@@ -1326,7 +1326,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
                  virtualenv
 
   --image-tag TAG
@@ -1914,7 +1914,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
                  virtualenv
 
   --image-tag TAG
@@ -2436,7 +2436,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
                  virtualenv
 
   --image-tag TAG
