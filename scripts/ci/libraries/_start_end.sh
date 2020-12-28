@@ -89,11 +89,16 @@ function start_end::script_end {
     #shellcheck disable=2181
     local exit_code=$?
     if [[ ${exit_code} != 0 ]]; then
+        # Finish previous group so that output can be written
         # Cat output log in case we exit with error but only if we do not PRINT_INFO_FROM_SCRIPTS
         # Because it will be printed immediately by "tee"
         if [[ -f "${OUTPUT_LOG}" && ${PRINT_INFO_FROM_SCRIPTS} == "false" ]]; then
             cat "${OUTPUT_LOG}"
         fi
+        start_end::group_end
+        echo
+        echo "${COLOR_RED_ERROR} The previous step completed with error. Please take a look at output above ${COLOR_RESET}"
+        echo
         if [[ ${CI} == "true" ]]; then
             local container
             for container in $(docker ps --format '{{.Names}}')
