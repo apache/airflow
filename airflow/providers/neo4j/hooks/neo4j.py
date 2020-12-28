@@ -59,13 +59,11 @@ class Neo4jHook(BaseHook):
         if self.client is not None:
             return self.client
 
-        # if not self.connection.is_encrypted:
+        is_encrypted = self.connection.extra_dejson.get('encrypted', False)
+
         self.client = GraphDatabase.driver(
-            self.uri, auth=(self.connection.login, self.connection.password), encrypted=False
+            self.uri, auth=(self.connection.login, self.connection.password), encrypted=is_encrypted
         )
-        # else:
-        #    self.client = GraphDatabase.driver(self.uri, auth=(self.connection.login,
-        #    self.connection.password))
 
         return self.client
 

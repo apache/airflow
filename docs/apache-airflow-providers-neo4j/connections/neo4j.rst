@@ -41,32 +41,23 @@ Extra (optional)
 
     The following extras are supported:
 
-      * ``charset``: specify charset of the connection
-      * ``cursor``: one of ``sscursor``, ``dictcursor``, ``ssdictcursor`` . Specifies cursor class to be
-        used
-      * ``local_infile``: controls MySQL's LOCAL capability (permitting local data loading by
-        clients). See `MySQLdb docs <https://mysqlclient.readthedocs.io/user_guide.html>`_
-        for details.
-      * ``unix_socket``: UNIX socket used instead of the default socket.
-      * ``ssl``: Dictionary of SSL parameters that control connecting using SSL. Those
-        parameters are server specific and should contain ``ca``, ``cert``, ``key``, ``capath``,
-        ``cipher`` parameters. See
-        `MySQLdb docs <https://mysqlclient.readthedocs.io/user_guide.html>`_ for details.
-        Note that to be useful in URL notation, this parameter might also be
-        a string where the SSL dictionary is a string-encoded JSON dictionary.
+        - Default - uses bolt scheme(bolt://)
+        - neo4j_scheme - neo4j://
+        - certs_self_signed - neo4j+ssc://
+        - certs_trusted_ca - neo4j+s://
+
+      * ``encrypted``: Sets encrypted=True/False for GraphDatabase.driver, Set to True for Neo4j Aura.
+      * ``neo4j_scheme``: Specifies the scheme to neo4j://, default is bolt://
+      * ``certs_self_signed``: Sets the URI scheme to support self-signed certificates(neo4j+ssc://)
+      * ``certs_trusted_ca``: Sets the URI scheme to support only trusted CA(neo4j+s://)
 
       Example "extras" field:
 
       .. code-block:: json
 
          {
-            "charset": "utf8",
-            "cursor": "sscursor",
-            "local_infile": true,
-            "unix_socket": "/var/socket",
-            "ssl": {
-              "cert": "/tmp/client-cert.pem",
-              "ca": "/tmp/server-ca.pem'",
-              "key": "/tmp/client-key.pem"
-            }
+            "encrypted": true,
+            "neo4j_scheme": true,
+            "certs_self_signed": true,
+            "certs_trusted_ca": false
          }
