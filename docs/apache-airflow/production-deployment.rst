@@ -98,14 +98,15 @@ Some configurations such as the Airflow Backend connection URI can be derived fr
 Scheduler Uptime
 ================
 
-Airflow users have for a long time been affected by a
-`core Airflow bug <https://issues.apache.org/jira/browse/AIRFLOW-401>`_
-that causes the scheduler to hang without a trace.
+Airflow users occasionally report instances of the scheduler hanging without a trace, for example in these issues:
 
-Until fully resolved, you can mitigate this issue via a few short-term workarounds:
+* `Scheduler gets stuck without a trace <https://github.com/apache/airflow/issues/7935>`_
+* `Scheduler stopping frequently <https://github.com/apache/airflow/issues/13243>`_
 
-* Set a reasonable run_duration setting in your ``airflow.cfg``. `Example config <https://github.com/astronomer/airflow-chart/blob/63bc503c67e2cd599df0b6f831d470d09bad7ee7/templates/configmap.yaml#L44>`_.
-* Add an ``exec`` style health check to your helm charts on the scheduler deployment to fail if the scheduler has not heartbeat in a while. `Example health check definition <https://github.com/astronomer/helm.astronomer.io/pull/200/files>`_.
+Strategies for mitigation:
+
+* When running on kubernetes, use a ``livenessProbe`` on the scheduler deployment to fail if the scheduler has not heartbeat in a while.
+  `Example: <https://github.com/apache/airflow/blob/190066cf201e5b0442bbbd6df74efecae523ee76/chart/templates/scheduler/scheduler-deployment.yaml#L118-L136>`_.
 
 Production Container Images
 ===========================
