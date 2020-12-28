@@ -102,6 +102,9 @@ function initialization::initialize_base_variables() {
     CURRENT_MYSQL_VERSIONS+=("5.7" "8")
     export CURRENT_MYSQL_VERSIONS
 
+    BACKEND=${BACKEND:="sqlite"}
+    export BACKEND
+
     # Default Postgres versions
     export POSTGRES_VERSION=${POSTGRES_VERSION:=${CURRENT_POSTGRES_VERSIONS[0]}}
 
@@ -166,6 +169,7 @@ function initialization::initialize_base_variables() {
         "postgres"
         "redis"
         "sendgrid"
+        "sqlite"
         "sftp"
         "slack"
         "sqlite"
@@ -505,7 +509,7 @@ function initialization::initialize_build_image_variables() {
 }
 
 function initialization::set_output_color_variables() {
-    COLOR_BLUE=$'\e[37m'
+    COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
     COLOR_GREEN_OK=$'\e[32mOK.'
     COLOR_RED=$'\e[31m'

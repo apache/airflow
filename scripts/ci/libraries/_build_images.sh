@@ -966,7 +966,7 @@ In case 2) - Follow the steps below:
 
 * run locally the image that is failing with Breeze:
 
-    ./breeze ${1}--github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} --python ${PYTHON_MAJOR_MINOR_VERSION}
+    ./breeze ${1}--github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND="sqlite"} --python ${PYTHON_MAJOR_MINOR_VERSION}
 
 * your setup.py and setup.cfg will be mounted to the container. You will be able to iterate with
   different setup.py versions.

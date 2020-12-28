@@ -39,7 +39,6 @@ function verbosity::restore_exit_on_error_status() {
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
 # printed before execution
 function docker {
-    start_end::group_start "Running docker "
     verbosity::store_exit_on_error_status
     if [[ ${VERBOSE:="false"} == "true" && \
         # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
@@ -48,7 +47,6 @@ function docker {
         ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
         >&2 echo "docker" "${@}"
     fi
-    start_end::group_end
     if [[ ${PRINT_INFO_FROM_SCRIPTS} == "false" ]]; then
         ${DOCKER_BINARY_PATH} "${@}" >>"${OUTPUT_LOG}" 2>&1
     else
