@@ -30,8 +30,12 @@ function runs::run_docs() {
 # Downloads packages from PIP
 function runs::run_pip_download() {
     start_end::group_start "PIP download"
-    pip_download_command="pip download -d /dist '.[${INSTALLED_EXTRAS}]' --constraint 'https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt'"
-
+    if [[ ${UPGRADE_TO_NEWER_DEPENDENCIES} ]]; then
+        pip_download_command="pip download -d /dist '.[${INSTALLED_EXTRAS}]'"
+    else
+        pip_download_command="pip download -d /dist '.[${INSTALLED_EXTRAS}]' --constraint
+'https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt'"
+    fi
     # Download all dependencies needed
     docker run --rm --entrypoint /bin/bash \
         "${EXTRA_DOCKER_FLAGS[@]}" \

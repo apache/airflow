@@ -68,7 +68,7 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
-      upgradeToLatestConstraints: ${{ steps.selective-checks.outputs.upgrade-to-latest-constraints }}
+      upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       pythonVersionsListAsString: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
@@ -165,7 +165,7 @@ jobs:
     if: needs.build-info.outputs.image-build == 'true'
     env:
       BACKEND: sqlite
-      UPGRADE_TO_LATEST_CONSTRAINTS: ${{ needs.build-info.outputs.upgradeToLatestConstraints }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -772,7 +772,7 @@ jobs:
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
-      UPGRADE_TO_LATEST_CONSTRAINTS: ${{ needs.build-info.outputs.upgradeToLatestConstraints }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
     if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"

@@ -539,7 +539,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | to install airflow from such pre-vetted  |
 |                                          |                                          | packages rather than from PyPI. For this |
 |                                          |                                          | to work, also set ``INSTALL_FROM_PYPI``  |
-|                                          |                                          | to false.                                |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to true, the dependencies are     |
+|                                          |                                          | upgraded to newer versions matching      |
+|                                          |                                          | setup.py before installation.            |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which    |
 |                                          |                                          | airflow is installed.                    |

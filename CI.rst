@@ -247,7 +247,7 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                        Image build variables                                                       |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``UPGRADE_TO_LATEST_CONSTRAINTS``       |    false    |    false    |    false   | Determines whether the build should             |
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false    |    false   | Determines whether the build should             |
 |                                         |             |             |     (x)    | attempt to upgrade all                          |
 |                                         |             |             |            | PIP dependencies to latest ones matching        |
 |                                         |             |             |            | ``setup.py`` limits. This tries to replicate    |
