@@ -21,11 +21,13 @@ This module contains a CloudTasksHook
 which allows you to connect to Google Cloud Tasks service,
 performing actions to queues or tasks.
 """
+
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
-from google.cloud.tasks_v2 import CloudTasksClient, enums
-from google.cloud.tasks_v2.types import FieldMask, Queue, Task
+from google.cloud.tasks_v2 import CloudTasksClient
+from google.cloud.tasks_v2.types import Queue, Task
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -120,20 +122,19 @@ class CloudTasksHook(GoogleBaseHook):
         client = self.get_conn()
 
         if queue_name:
-            full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
+            full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
             if isinstance(task_queue, Queue):
                 task_queue.name = full_queue_name
             elif isinstance(task_queue, dict):
                 task_queue['name'] = full_queue_name
             else:
                 raise AirflowException('Unable to set queue_name.')
-        full_location_path = CloudTasksClient.location_path(project_id, location)
+        full_location_path = f"projects/{project_id}/locations/{location}"
         return client.create_queue(
-            parent=full_location_path,
-            queue=task_queue,
+            request={'parent': full_location_path, 'queue': task_queue},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -167,7 +168,7 @@ class CloudTasksHook(GoogleBaseHook):
         :param update_mask: A mast used to specify which fields of the queue are being updated.
             If empty, then all fields will be updated.
             If a dict is provided, it must be of the same form as the protobuf message.
-        :type update_mask: dict or google.cloud.tasks_v2.types.FieldMask
+        :type update_mask: dict or google.protobuf.field_mask_pb2.FieldMask
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -182,7 +183,7 @@ class CloudTasksHook(GoogleBaseHook):
         client = self.get_conn()
 
         if queue_name and location:
-            full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
+            full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
             if isinstance(task_queue, Queue):
                 task_queue.name = full_queue_name
             elif isinstance(task_queue, dict):
@@ -190,11 +191,10 @@ class CloudTasksHook(GoogleBaseHook):
             else:
                 raise AirflowException('Unable to set queue_name.')
         return client.update_queue(
-            queue=task_queue,
-            update_mask=update_mask,
+            request={'queue': task_queue, 'update_mask': update_mask},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -230,8 +230,10 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
-        return client.get_queue(name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata)
+        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        return client.get_queue(
+            request={'name': full_queue_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_queues(
@@ -270,14 +272,12 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_location_path = CloudTasksClient.location_path(project_id, location)
+        full_location_path = f"projects/{project_id}/locations/{location}"
         queues = client.list_queues(
-            parent=full_location_path,
-            filter_=results_filter,
-            page_size=page_size,
+            request={'parent': full_location_path, 'filter': results_filter, 'page_size': page_size},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         return list(queues)
 
@@ -313,8 +313,10 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
-        client.delete_queue(name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata)
+        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        client.delete_queue(
+            request={'name': full_queue_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def purge_queue(
@@ -349,8 +351,10 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
-        return client.purge_queue(name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata)
+        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        return client.purge_queue(
+            request={'name': full_queue_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def pause_queue(
@@ -385,8 +389,10 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
-        return client.pause_queue(name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata)
+        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        return client.pause_queue(
+            request={'name': full_queue_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def resume_queue(
@@ -421,8 +427,10 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
-        return client.resume_queue(name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata)
+        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
+        return client.resume_queue(
+            request={'name': full_queue_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_task(
@@ -432,7 +440,7 @@ class CloudTasksHook(GoogleBaseHook):
         task: Union[Dict, Task],
         project_id: str,
         task_name: Optional[str] = None,
-        response_view: Optional[enums.Task.View] = None,
+        response_view: Optional = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -455,7 +463,7 @@ class CloudTasksHook(GoogleBaseHook):
         :type task_name: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.enums.Task.View
+        :type response_view: google.cloud.tasks_v2.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -470,21 +478,21 @@ class CloudTasksHook(GoogleBaseHook):
         client = self.get_conn()
 
         if task_name:
-            full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
+            full_task_name = (
+                f"projects/{project_id}/locations/{location}/queues/{queue_name}/tasks/{task_name}"
+            )
             if isinstance(task, Task):
                 task.name = full_task_name
             elif isinstance(task, dict):
                 task['name'] = full_task_name
             else:
                 raise AirflowException('Unable to set task_name.')
-        full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
+        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
         return client.create_task(
-            parent=full_queue_name,
-            task=task,
-            response_view=response_view,
+            request={'parent': full_queue_name, 'task': task, 'response_view': response_view},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -494,7 +502,7 @@ class CloudTasksHook(GoogleBaseHook):
         queue_name: str,
         task_name: str,
         project_id: str,
-        response_view: Optional[enums.Task.View] = None,
+        response_view: Optional = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -513,7 +521,7 @@ class CloudTasksHook(GoogleBaseHook):
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.enums.Task.View
+        :type response_view: google.cloud.tasks_v2.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -527,13 +535,12 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
+        full_task_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}/tasks/{task_name}"
         return client.get_task(
-            name=full_task_name,
-            response_view=response_view,
+            request={'name': full_task_name, 'response_view': response_view},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -542,7 +549,7 @@ class CloudTasksHook(GoogleBaseHook):
         location: str,
         queue_name: str,
         project_id: str,
-        response_view: Optional[enums.Task.View] = None,
+        response_view: Optional = None,
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -560,7 +567,7 @@ class CloudTasksHook(GoogleBaseHook):
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.enums.Task.View
+        :type response_view: google.cloud.tasks_v2.Task.View
         :param page_size: (Optional) The maximum number of resources contained in the
             underlying API response.
         :type page_size: int
@@ -576,14 +583,12 @@ class CloudTasksHook(GoogleBaseHook):
         :rtype: list[google.cloud.tasks_v2.types.Task]
         """
         client = self.get_conn()
-        full_queue_name = CloudTasksClient.queue_path(project_id, location, queue_name)
+        full_queue_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}"
         tasks = client.list_tasks(
-            parent=full_queue_name,
-            response_view=response_view,
-            page_size=page_size,
+            request={'parent': full_queue_name, 'response_view': response_view, 'page_size': page_size},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         return list(tasks)
 
@@ -622,8 +627,10 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
-        client.delete_task(name=full_task_name, retry=retry, timeout=timeout, metadata=metadata)
+        full_task_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}/tasks/{task_name}"
+        client.delete_task(
+            request={'name': full_task_name}, retry=retry, timeout=timeout, metadata=metadata or ()
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def run_task(
@@ -632,7 +639,7 @@ class CloudTasksHook(GoogleBaseHook):
         queue_name: str,
         task_name: str,
         project_id: str,
-        response_view: Optional[enums.Task.View] = None,
+        response_view: Optional = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -651,7 +658,7 @@ class CloudTasksHook(GoogleBaseHook):
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.enums.Task.View
+        :type response_view: google.cloud.tasks_v2.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -665,11 +672,10 @@ class CloudTasksHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        full_task_name = CloudTasksClient.task_path(project_id, location, queue_name, task_name)
+        full_task_name = f"projects/{project_id}/locations/{location}/queues/{queue_name}/tasks/{task_name}"
         return client.run_task(
-            name=full_task_name,
-            response_view=response_view,
+            request={'name': full_task_name, 'response_view': response_view},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
