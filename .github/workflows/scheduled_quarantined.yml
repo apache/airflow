@@ -30,7 +30,7 @@ env:
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
   VERBOSE: "true"
-  UPGRADE_TO_LATEST_CONSTRAINTS: false
+  UPGRADE_TO_NEWER_DEPENDENCIES: false
   PYTHON_MAJOR_MINOR_VERSION: 3.6
   USE_GITHUB_REGISTRY: "true"
   # Since we run this build on schedule, it might be that the image has never been pushed

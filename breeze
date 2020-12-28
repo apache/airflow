@@ -1146,6 +1146,12 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
+        --upgrade-to-newer-dependencies)
+            export UPGRADE_TO_NEWER_DEPENDENCIES="true"
+            echo "Upgrade packages to latest versions."
+            echo
+            shift
+            ;;
         --package-format)
             export PACKAGE_FORMAT="${2}"
             echo "Selected package type: ${PACKAGE_FORMAT}"
@@ -1224,7 +1230,7 @@ function breeze::parse_arguments() {
             command_to_run="perform_generate_constraints"
             export FORCE_ANSWER_TO_QUESTIONS="yes"
             export FORCE_BUILD_IMAGES="true"
-            export UPGRADE_TO_LATEST_CONSTRAINTS="true"
+            export UPGRADE_TO_NEWER_DEPENDENCIES="true"
             shift
             ;;
         prepare-airflow-packages)
@@ -2284,6 +2290,10 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
         If specified it will look for packages placed in dist folder and it will install the
         packages after installing Airflow. This is useful for testing provider
         packages.
+
+--upgrade-to-newer-dependencies
+        Upgrades PIP packages to latest versions available without looking at the constraints.
+
 "
 }
 

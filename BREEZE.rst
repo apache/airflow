@@ -1303,6 +1303,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           packages after installing Airflow. This is useful for testing provider
           packages.
 
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
+
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
 
@@ -2405,6 +2408,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified it will look for packages placed in dist folder and it will install the
           packages after installing Airflow. This is useful for testing provider
           packages.
+
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
 
   ****************************************************************************************************
    Credentials
