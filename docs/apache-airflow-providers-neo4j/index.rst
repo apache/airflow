@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-mysql``
+``apache-airflow-providers-neo4j``
 ==================================
 
 Content
@@ -27,22 +27,4 @@ Content
     :caption: Guides
 
     Connection types <connections/neo4j>
-    Operators <operators>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: References
-
-    Python API <_api/airflow/providers/mysql/index>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Resources
-
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/mysql/example_dags>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Resources
-
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-neo4j/>
+    Operators <operators/neo4j>

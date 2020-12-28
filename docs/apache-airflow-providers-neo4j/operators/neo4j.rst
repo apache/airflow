@@ -48,10 +48,3 @@ the connection metadata is structured as follows:
      - Neo4j user password
    * - Port: int
      - Neo4j port
-
-An example usage of the MySqlOperator is as follows:
-
-.. exampleinclude:: /../../airflow/providers/mysql/example_dags/example_neo4j.py
-    :language: python
-    :start-after: [START howto_operator_mysql]
-    :end-before: [END howto_operator_mysql]
