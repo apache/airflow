@@ -57,13 +57,13 @@ class WasbHook(BaseHook):
     conn_type = 'wasb'
     hook_name = 'Azure Blob Storage'
 
-    def __init__(self, wasb_conn_id: str = default_conn_name) -> None:
+    def __init__(self, wasb_conn_id: str = default_conn_name, public_read: bool = False) -> None:
         super().__init__()
         self.conn_id = wasb_conn_id
         self.public_read = public_read
         self.connection = self.get_conn()
 
-    def get_conn(self) -> BlobServiceClient:
+    def get_conn(self) -> BlobServiceClient:  # pylint: disable=too-many-return-statements
         """Return the BlobServiceClient object."""
         conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson or {}
@@ -73,6 +73,7 @@ class WasbHook(BaseHook):
             # more info
             # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
             return BlobServiceClient(account_url=conn.host)
+
         if extra.get('connection_string'):
             # connection_string auth takes priority
             return BlobServiceClient.from_connection_string(extra.get('connection_string'))
@@ -89,11 +90,12 @@ class WasbHook(BaseHook):
         if sas_token and sas_token.startswith('https'):
             return BlobServiceClient(account_url=extra.get('sas_token'))
         if sas_token and not sas_token.startswith('https'):
-            return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/"+sas_token)
+            return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/" + sas_token)
         if conn.login:
             # Fall back to old auth
-            return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/",
-                                     credential=conn.password, **extra)
+            return BlobServiceClient(
+                account_url=f"https://{conn.login}.blob.core.windows.net/", credential=conn.password, **extra
+            )
         else:
             raise AirflowException('Unknown connection type')
 
