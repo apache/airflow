@@ -396,6 +396,8 @@ snowflake = [
     # snowflake-connector-python is not compatible with newest version.
     # See: https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L204
     'pyjwt<2',
+    # TO-REMOVE: Checking if this can pip resolve dependencies.
+    'PyJWT<2',
     # snowflake is not compatible with latest version.
     # This library monkey patches the requests library, so SSL is broken globally.
     # See: https://github.com/snowflakedb/snowflake-connector-python/issues/324
