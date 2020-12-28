@@ -1567,7 +1567,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
     """
 
     template_fields = ("location", "template")
-    template_fields_renderers = {"template", "json"}
+    template_fields_renderers = {"template": "json"}
 
     def __init__(
         self,
