@@ -320,6 +320,7 @@ mongo = [
     'dnspython>=1.13.0,<2.0.0',
     'pymongo>=3.6.0',
 ]
+neo4j = ['neo4j>=4.2.1']
 mssql = [
     'pymssql~=2.1,>=2.1.5',
 ]
@@ -540,6 +541,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'microsoft.mssql': mssql,
     'microsoft.winrm': winrm,
     'mongo': mongo,
+    'neo4j': neo4j,
     'mysql': mysql,
     'odbc': odbc,
     'openfaas': [],
@@ -661,6 +663,7 @@ ALL_DB_PROVIDERS = [
     'microsoft.mssql',
     'mongo',
     'mysql',
+    'neo4j',
     'postgres',
     'presto',
     'vertica',
