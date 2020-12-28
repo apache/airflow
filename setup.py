@@ -327,7 +327,6 @@ mysql = [
     'mysql-connector-python>=8.0.11, <=8.0.18',
     'mysqlclient>=1.3.6,<1.4',
 ]
-neo4j = ['neo4j>=4.2.1']
 odbc = [
     'pyodbc',
 ]
@@ -438,23 +437,9 @@ zendesk = [
 ]
 # End dependencies group
 
-    cassandra
-    + cloudant
-    + druid
-    + exasol
-    + hdfs
-    + hive
-    + mongo
-    + mssql
-    + mysql
-    + neo4j
-    + pinot
-    + postgres
-    + presto
-    + vertica
-)
-
 ############################################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from this list, please make sure that you also increase
 # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
 ############################################################################################################
 devel = [
@@ -517,71 +502,6 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 # This should be done with appropriate comment explaining why the requirement was added.
 ############################################################################################################
 
-# Those are requirements that each provider package has
-PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
-    "amazon": amazon,
-    "apache.cassandra": cassandra,
-    "apache.druid": druid,
-    "apache.hdfs": hdfs,
-    "apache.hive": hive,
-    "apache.kylin": kylin,
-    "apache.livy": [],
-    "apache.pig": [],
-    "apache.pinot": pinot,
-    "apache.spark": spark,
-    "apache.sqoop": [],
-    "celery": celery,
-    "cloudant": cloudant,
-    "cncf.kubernetes": kubernetes,
-    "databricks": databricks,
-    "datadog": datadog,
-    "dingding": [],
-    "discord": [],
-    "docker": docker,
-    "elasticsearch": elasticsearch,
-    "exasol": exasol,
-    "facebook": facebook,
-    "ftp": [],
-    "google": google,
-    "grpc": grpc,
-    "hashicorp": hashicorp,
-    "http": [],
-    "imap": [],
-    "jdbc": jdbc,
-    "jenkins": jenkins,
-    "jira": jira,
-    "microsoft.azure": azure,
-    "microsoft.mssql": mssql,
-    "microsoft.winrm": winrm,
-    "mongo": mongo,
-    "mysql": mysql,
-    "neo4j": neo4j,
-    "odbc": odbc,
-    "openfaas": [],
-    "opsgenie": [],
-    "oracle": oracle,
-    "pagerduty": pagerduty,
-    "papermill": papermill,
-    "plexus": plexus,
-    "postgres": postgres,
-    "presto": presto,
-    "qubole": qubole,
-    "redis": redis,
-    "salesforce": salesforce,
-    "samba": samba,
-    "segment": segment,
-    "sendgrid": sendgrid,
-    "sftp": ssh,
-    "singularity": singularity,
-    "slack": slack,
-    "snowflake": snowflake,
-    "sqlite": [],
-    "ssh": ssh,
-    "telegram": telegram,
-    "vertica": vertica,
-    "yandex": yandex,
-    "zendesk": zendesk,
-}
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
@@ -621,7 +541,6 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'microsoft.winrm': winrm,
     'mongo': mongo,
     'mysql': mysql,
-    'neo4j': neo4j,
     'odbc': odbc,
     'openfaas': [],
     'opsgenie': [],
@@ -649,129 +568,8 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'zendesk': zendesk,
 }
 
-# But for aliases and some special aliases (like all_dbs) the list might be longer.
-EXTRAS_PROVIDERS_PACKAGES: Dict[str, Iterable[str]] = {
-    'all': list(PROVIDERS_REQUIREMENTS.keys()),
-    # this is not 100% accurate with devel_ci and devel_all definition, but we really want
-    # to have all providers when devel_ci extra is installed!
-    'devel_ci': list(PROVIDERS_REQUIREMENTS.keys()),
-    'devel_all': list(PROVIDERS_REQUIREMENTS.keys()),
-    'all_dbs': [
-        "apache.cassandra",
-        "apache.druid",
-        "apache.hdfs",
-        "apache.hive",
-        "apache.pinot",
-        "cloudant",
-        "exasol",
-        "mongo",
-        "microsoft.mssql",
-        "mysql",
-        "neo4j",
-        "postgres",
-        "presto",
-        "vertica",
-    ],
-    'amazon': ["amazon"],
-    'apache.atlas': [],
-    'apache.beam': [],
-    "apache.cassandra": ["apache.cassandra"],
-    "apache.druid": ["apache.druid"],
-    "apache.hdfs": ["apache.hdfs"],
-    "apache.hive": ["apache.hive"],
-    "apache.kylin": ["apache.kylin"],
-    "apache.livy": ["apache.livy"],
-    "apache.pig": ["apache.pig"],
-    "apache.pinot": ["apache.pinot"],
-    "apache.spark": ["apache.spark"],
-    "apache.sqoop": ["apache.sqoop"],
-    "apache.webhdfs": ["apache.hdfs"],
-    'async': [],
-    'atlas': [],  # TODO: remove this in Airflow 3.0
-    'aws': ["amazon"],  # TODO: remove this in Airflow 3.0
-    'azure': ["microsoft.azure"],  # TODO: remove this in Airflow 3.0
-    'cassandra': ["apache.cassandra"],  # TODO: remove this in Airflow 3.0
-    'celery': ["celery"],
-    'cgroups': [],
-    'cloudant': ["cloudant"],
-    'cncf.kubernetes': ["cncf.kubernetes"],
-    'crypto': [],  # TODO: remove this in Airflow 3.0
-    'dask': [],
-    'databricks': ["databricks"],
-    'datadog': ["datadog"],
-    'devel': ["cncf.kubernetes", "mysql"],
-    'devel_hadoop': ["apache.hdfs", "apache.hive", "presto"],
-    'dingding': ["dingding"],
-    'discord': ["discord"],
-    'doc': [],
-    'docker': ["docker"],
-    'druid': ["apache.druid"],  # TODO: remove this in Airflow 3.0
-    'elasticsearch': ["elasticsearch"],
-    'exasol': ["exasol"],
-    'facebook': ["facebook"],
-    'ftp': ["ftp"],
-    'gcp': ["google"],  # TODO: remove this in Airflow 3.0
-    'gcp_api': ["google"],  # TODO: remove this in Airflow 3.0
-    'github_enterprise': [],
-    'google': ["google"],
-    'google_auth': [],
-    'grpc': ["grpc"],
-    'hashicorp': ["hashicorp"],
-    'hdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 3.0
-    'hive': ["apache.hive"],  # TODO: remove this in Airflow 3.0
-    'http': ["http"],
-    'imap': ["imap"],
-    'jdbc': ["jdbc"],
-    'jenkins': ["jenkins"],
-    'jira': ["jira"],
-    'kerberos': [],
-    'kubernetes': ["cncf.kubernetes"],  # TODO: remove this in Airflow 3.0
-    'ldap': [],
-    "microsoft.azure": ["microsoft.azure"],
-    "microsoft.mssql": ["microsoft.mssql"],
-    "microsoft.winrm": ["microsoft.winrm"],
-    'mongo': ["mongo"],
-    'mssql': ["microsoft.mssql"],  # TODO: remove this in Airflow 3.0
-    'mysql': ["mysql"],
-    'neo4j': ["neo4j"],
-    'odbc': ["odbc"],
-    'openfaas': ["openfaas"],
-    'opsgenie': ["opsgenie"],
-    'oracle': ["oracle"],
-    'pagerduty': ["pagerduty"],
-    'papermill': ["papermill"],
-    'password': [],
-    'pinot': ["apache.pinot"],  # TODO: remove this in Airflow 3.0
-    'plexus': ["plexus"],
-    'postgres': ["postgres"],
-    'presto': ["presto"],
-    'qds': ["qubole"],  # TODO: remove this in Airflow 3.0
-    'qubole': ["qubole"],
-    'rabbitmq': [],
-    'redis': ["redis"],
-    's3': ["amazon"],  # TODO: remove this in Airflow 3.0
-    'salesforce': ["salesforce"],
-    'samba': ["samba"],
-    'segment': ["segment"],
-    'sendgrid': ["sendgrid"],
-    'sentry': [],
-    'sftp': ["sftp"],
-    'singularity': ["singularity"],
-    'slack': ["slack"],
-    'snowflake': ["snowflake"],
-    'spark': ["apache.spark"],
-    'sqlite': ["sqlite"],
-    'ssh': ["ssh"],
-    'statsd': [],
-    'tableau': [],
-    'telegram': ["telegram"],
-    'vertica': ["vertica"],
-    'virtualenv': [],
-    'webhdfs': ["apache.hdfs"],  # TODO: remove this in Airflow 3.0
-    'winrm': ["microsoft.winrm"],  # TODO: remove this in Airflow 3.0
-    'yandex': ["yandex"],
-    'zendesk': ["zendesk"],
 
+# Those are all extras which do not have own 'providers'
 EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'apache.atlas': atlas,
     'apache.beam': apache_beam,
@@ -791,6 +589,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'virtualenv': virtualenv,
 }
 
+# Add extras for all providers. For all providers the extras name = providers name
 for provider_name, provider_requirement in PROVIDERS_REQUIREMENTS.items():
     EXTRAS_REQUIREMENTS[provider_name] = provider_requirement
 
