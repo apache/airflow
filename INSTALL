@@ -71,7 +71,7 @@ pip install -e . \
 # You can also install Airflow with extras specified. The list of available extras:
 # START EXTRAS HERE
 
-all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
+all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
 apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop,
 apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes,
 crypto, dask, databricks, datadog, dingding, discord, docker, druid, elasticsearch, exasol,
