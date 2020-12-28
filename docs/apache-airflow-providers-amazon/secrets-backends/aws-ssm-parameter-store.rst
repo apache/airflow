@@ -58,6 +58,14 @@ Optionally you can supply a profile name to reference aws profile, e.g. defined 
 The value of the SSM parameter must be the :ref:`connection URI representation <generating_connection_uri>`
 of the connection object.
 
+In some cases, URI's you will need stored in Secrets Manager may not be intuitive, for example when using HTTP / HTTPS or SPARK, you may need URI's that will look like this:
+
+http://https%3A%2F%2Fexample.com
+
+spark://spark%3A%2F%2Fspark-master-0.spark-master.spark.svc.cluster.local:7077
+
+This is a known situation, where schema and protocol parts of the URI are indepentent and in some cases, need to be specified explicitely.
+
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""
 
