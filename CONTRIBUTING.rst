@@ -621,16 +621,6 @@ This is the full list of those extras:
 all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
 apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop,
 apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes,
-<<<<<<< HEAD
-crypto, dask, databricks, datadog, dingding, discord, docker, druid, elasticsearch, exasol,
-facebook, ftp, gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive,
-http, imap, jdbc, jenkins, jira, kerberos, kubernetes, ldap, microsoft.azure, microsoft.mssql,
-microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, papermill,
-password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba,
-segment, sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau,
-telegram, vertica, virtualenv, webhdfs, winrm, yandex, zendesk, all, devel, devel_hadoop, doc,
-devel_all, devel_ci
-=======
 crypto, dask, databricks, datadog, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc,
 docker, druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github_enterprise, google,
 google_auth, grpc, hashicorp, hdfs, hive, http, imap, jdbc, jenkins, jira, kerberos, kubernetes,
@@ -639,7 +629,6 @@ opsgenie, oracle, pagerduty, papermill, password, pinot, plexus, postgres, prest
 rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,
 snowflake, spark, sqlite, ssh, statsd, tableau, telegram, vertica, virtualenv, webhdfs, winrm,
 yandex, zendesk
->>>>>>> 0d214575a144356a8a83a462d6d9fb68bf4999c7
 
   .. END EXTRAS HERE
 
