@@ -239,6 +239,7 @@ repos:
         files: ^setup.py$|^setup.cfg$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
+        additional_dependencies: ['rich']
       - id: setup-extra-packages
         name: Checks setup extra packages
         description: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
@@ -482,6 +483,7 @@ repos:
         files: "setup.py|^airflow/providers/.*.py"
         pass_filenames: false
         require_serial: true
+        additional_dependencies: ['rich']
       - id: markdownlint
         name: Run markdownlint
         description: "Checks the style of Markdown files."
