@@ -19,7 +19,7 @@
 
 Neo4j Connection
 ================
-The MySQL connection type provides connection to a Neo4j database.
+The Neo4j connection type provides connection to a Neo4j database.
 
 Configuring the Connection
 --------------------------
@@ -36,10 +36,10 @@ Password (required)
     Specify the password to connect.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in MySQL
-    connection. Note that you can choose the client to connect to the database by setting the ``client`` extra field.
+    Specify the extra parameters (as json dictionary) that can be used in Neo4j
+    connection.
 
-    For ``mysqlclient`` (default) the following extras are supported:
+    The following extras are supported:
 
       * ``charset``: specify charset of the connection
       * ``cursor``: one of ``sscursor``, ``dictcursor``, ``ssdictcursor`` . Specifies cursor class to be
