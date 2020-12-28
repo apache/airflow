@@ -1559,19 +1559,10 @@ if __name__ == "__main__":
     suffix = ""
 
     provider_names = get_provider_packages()
-    help_text = textwrap.dedent(
-        """
-                Available packages:
-
-                """
-    )
-    out = ""
-    for package in provider_names:
-        out += f"{package} "
+    help_text = "Available packages:\n"
+    out = " ".join(provider_names)
     out_array = textwrap.wrap(out, 80)
-
-    for text in out_array:
-        help_text += f"{text}\n"
+    help_text += "\n".join(out_array)
 
     parser = argparse.ArgumentParser(description=help_text, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument(
