@@ -523,26 +523,30 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         fake_schema = FakeFieldSchema('ds')
         FakePartition = namedtuple('FakePartition', ['values'])
         fake_partition = FakePartition(['2015-01-01'])
-        FakePartitionDetails = namedtuple('FakePartitionDetails',
-                                          ['partitionKey', 'partitionValue', 'details'])
-        fake_partition_details = \
-            FakePartitionDetails(partitionKey=fake_schema.name,
-                                 partitionValue=fake_partition.values,
-                                 details={'totalSize': 5000,
-                                          'numRows': 30})
+        FakePartitionDetails = namedtuple(
+            'FakePartitionDetails',
+            ['partitionKey', 'partitionValue', 'details']
+        )
+        fake_partition_details = FakePartitionDetails(
+            partitionKey=fake_schema.name,
+            partitionValue=fake_partition.values,
+            details={'totalSize': 5000, 'numRows': 30}
+        )
 
-        self.hook.metastore.__enter__().get_partition_by_name = \
-            mock.MagicMock(return_value=fake_partition_details.details)
-        specific_named_partition = \
-            self.hook.get_partition_by_name(db_name=self.database,
-                                            tbl_name=self.table, part_name='ds=2015-01-01')
-        self.assertEqual(specific_named_partition.get('totalSize'),
-                         5000)
+        self.hook.metastore.__enter__().get_partition_by_name = mock.MagicMock(
+            return_value=fake_partition_details.details
+        )
+        specific_named_partition = self.hook.get_partition_by_name(
+            db_name=self.database,
+            tbl_name=self.table,
+            part_name='ds=2015-01-01'
+        )
+        self.assertEqual(specific_named_partition.get('totalSize'), 5000)
         self.assertEqual(specific_named_partition.get('numRows'), 30)
 
-        self.hook.metastore.__enter__().get_partition_by_name.assert_called_with(dbname=self.database,
-                                                                                 tbl_name=self.table,
-                                                                                 part_name='ds=2015-01-01')
+        self.hook.metastore.__enter__().get_partition_by_name.assert_called_with(
+            dbname=self.database, tbl_name=self.table, part_name='ds=2015-01-01'
+        )
 
     def test_table_exists(self):
         # Test with existent table.
