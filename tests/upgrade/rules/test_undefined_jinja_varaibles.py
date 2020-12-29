@@ -19,7 +19,6 @@ from tempfile import mkdtemp
 from unittest import TestCase
 
 import jinja2
-import pytest
 
 from airflow import DAG
 from airflow.models import DagBag
@@ -156,7 +155,6 @@ class TestUndefinedJinjaVariablesRule(TestCase):
 
         assert len(messages) == 0
 
-    @pytest.mark.quarantined
     def test_invalid_check(self):
         dagbag = DagBag(dag_folder=self.empty_dir, include_examples=False)
         dagbag.dags[self.invalid_dag.dag_id] = self.invalid_dag
