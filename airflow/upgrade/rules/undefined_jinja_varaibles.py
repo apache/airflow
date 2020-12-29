@@ -48,9 +48,6 @@ The user should do either of the following to fix this -
         if isinstance(rendered_content, six.string_types):
             return set(re.findall(r"{{(.*?)}}", rendered_content))
 
-        elif isinstance(rendered_content, (int, float, bool)):
-            return set()
-
         elif isinstance(rendered_content, (tuple, list, set)):
             debug_error_messages = set()
             for element in rendered_content:
@@ -63,10 +60,14 @@ The user should do either of the following to fix this -
                 debug_error_messages.update(self._check_rendered_content(value))
             return debug_error_messages
 
-        else:
+        elif hasattr(rendered_content, "template_fields"):
             if seen_oids is None:
                 seen_oids = set()
             return self._nested_check_rendered(rendered_content, seen_oids)
+
+        else:
+            # Rendered content is not actually rendered
+            return set()
 
     def _nested_check_rendered(self, rendered_content, seen_oids):
         debug_error_messages = set()
