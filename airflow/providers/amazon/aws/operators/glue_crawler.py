@@ -29,16 +29,14 @@ class AwsGlueCrawlerOperator(BaseOperator):
     service that manages a catalog of metadata tables that contain the inferred
     schema, format and data types of data stores within the AWS cloud.
 
+    :param config: Configurations for the AWS Glue crawler
+    :type config: dict
     :param aws_conn_id: aws connection to use
-    :type aws_conn_id: str
+    :type aws_conn_id: Optional[str]
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
-    :type poll_interval: int
-    :param config = Configurations for the AWS Glue crawler
-    :type config = Optional[dict]
+    :type poll_interval: Optional[int]
     """
 
-    template_fields = ()
-    template_ext = ()
     ui_color = '#ededed'
 
     @apply_defaults

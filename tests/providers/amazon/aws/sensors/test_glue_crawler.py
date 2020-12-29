@@ -25,36 +25,25 @@ from airflow.providers.amazon.aws.sensors.glue_crawler import AwsGlueCrawlerSens
 
 class TestAwsGlueCrawlerSensor(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-
-    @mock.patch.object(AwsGlueCrawlerHook, 'get_conn')
-    @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler_state')
-    def test_poke(self, mock_get_crawler_state, mock_conn):
-        mock_conn.return_value.get_crawler_state()
-        mock_get_crawler_state.return_value = 'SUCCEEDED'
-        op = AwsGlueCrawlerSensor(
+        self.sensor = AwsGlueCrawlerSensor(
             task_id='test_glue_crawler_sensor',
             crawler_name='aws_test_glue_crawler',
             poke_interval=1,
             timeout=5,
             aws_conn_id='aws_default',
         )
-        self.assertTrue(op.poke(None))
 
-    @mock.patch.object(AwsGlueCrawlerHook, 'get_conn')
-    @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler_state')
-    def test_poke_false(self, mock_get_crawler_state, mock_conn):
-        mock_conn.return_value.get_crawler_run()
-        mock_get_crawler_state.return_value = 'RUNNING'
-        op = AwsGlueCrawlerSensor(
-            task_id='test_glue_crawler_sensor',
-            crawler_name='aws_test_glue_Crawler',
-            poke_interval=1,
-            timeout=5,
-            aws_conn_id='aws_default',
-        )
-        self.assertFalse(op.poke(None))
+    @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler_state', side_effect=("SUCCEEDED",))
+    def test_poke_success(self, mock_get_crawler_state):
+        self.assertFalse(self.sensor.poke(None))
 
+    @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler_state', side_effect=("FAILED",))
+    def test_poke_fail(self, mock_get_crawler_state):
+        self.assertFalse(self.sensor.poke(None))
+
+    @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler_state', side_effect=("CANCELLED",))
+    def test_poke_cancel(self, mock_get_crawler_state):
+        self.assertFalse(self.sensor.poke(None))
 
 if __name__ == '__main__':
     unittest.main()

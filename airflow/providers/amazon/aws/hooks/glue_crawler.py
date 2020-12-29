@@ -30,7 +30,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
     :type poll_interval: int
     :param config = Configurations for the AWS Glue crawler
-    :type config = Optional[dict]
+    :type config = dict
     """
 
     def __init__(self, poll_interval, *args, **kwargs):
@@ -47,13 +47,8 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         """:return: iam role for crawler execution"""
         iam_client = self.get_client_type('iam', self.region_name)
 
-        try:
-            glue_execution_role = iam_client.get_role(RoleName=role_name)
-            self.log.info("Iam Role Name: %s", role_name)
-            return glue_execution_role
-        except Exception as general_error:
-            self.log.error("Failed to create aws glue crawler, error: %s", general_error)
-            raise
+        glue_execution_role = iam_client.get_role(RoleName=role_name)
+        return role_name
 
     def get_or_create_crawler(self, config) -> str:
         """
@@ -65,35 +60,24 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         """
         self.get_iam_execution_role(config["Role"])
 
+        crawler_name = config["Name"]
         try:
-            self.glue_client.get_crawler(**config)
-            self.log.info("Crawler already exists")
-            try:
-                self.glue_client.update_crawler(**config)
-                return config["Name"]
-            except Exception as general_error:
-                self.log.error("Failed to update aws glue crawler, error: %s", general_error)
-                raise
+            self.glue_client.get_crawler(Name=crawler_name)
+            self.log.info("Crawler %s already exists; updating crawler", crawler_name)
+            self.glue_client.update_crawler(**config)
         except self.glue_client.exceptions.EntityNotFoundException:
             self.log.info("Creating AWS Glue crawler")
-            try:
-                self.glue_client.create_crawler(**config)
-                return config["Name"]
-            except Exception as general_error:
-                self.log.error("Failed to create aws glue crawler, error: %s", general_error)
-                raise
+            self.glue_client.create_crawler(**config)
+        return crawler_name
 
     def start_crawler(self, crawler_name: str) -> str:
         """
         Triggers the AWS Glue crawler
         :return: Empty dictionary
         """
-        try:
-            crawler_run = self.glue_client.start_crawler(Name=crawler_name)
-            return crawler_run
-        except Exception as general_error:
-            self.log.error("Failed to run aws glue crawler, error: %s", general_error)
-            raise
+        
+        crawler_run = self.glue_client.start_crawler(Name=crawler_name)
+        return crawler_run
 
     def get_crawler_state(self, crawler_name: str) -> str:
         """

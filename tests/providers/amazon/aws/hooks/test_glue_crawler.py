@@ -89,9 +89,9 @@ mock_config = {
 
 
 class TestAwsGlueCrawlerHook(unittest.TestCase):
-    @cached_property
-    def setUp(self):
-        self.hook = AwsGlueCrawlerHook(aws_conn_id="aws_default", poll_interval=5)
+    @classmethod
+    def setUpClass(cls):
+        cls.hook = AwsGlueCrawlerHook(aws_conn_id="aws_default", poll_interval=5)
 
     @unittest.skipIf(mock_iam is None, 'mock_iam package not present')
     @mock_iam
@@ -112,14 +112,13 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
         )
         iam_role = self.hook.get_iam_execution_role(role_name=mock_role_name)
 
-        self.assertIsNotNone(iam_role)
+        self.assertEqual(iam_role, mock_role_name)
 
-    @mock.patch.object(AwsGlueCrawlerHook, "get_iam_execution_role")
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    def test_get_or_create_crawler(self, mock_get_conn, mock_get_iam_execution_role):
-        mock_get_iam_execution_role.return_value = mock.MagicMock(Role={'RoleName': mock_role_name})
+    @mock.patch.object(AwsGlueCrawlerHook, "get_or_create_crawler")
+    def test_get_or_create_crawler(self, mock_get_conn, mock_get_or_create_crawler):
 
-        mock_glue_crawler = mock_get_conn.return_value.get_crawler()['Crawler']['Name']
+        mock_glue_crawler = mock_get_conn.return_value.get_crawler(Name=mock_crawler_name).return_value['Crawler']['Name']
         glue_crawler = self.hook.get_or_create_crawler(config=mock_config)
 
         self.assertEqual(glue_crawler, mock_glue_crawler)
@@ -135,7 +134,7 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
         mock_crawler_run_state = mock_completion.return_value
         glue_crawler_run_state = self.hook.wait_for_crawler_completion(crawler_name=mock_crawler_name)
 
-        self.assertEqual(glue_crawler_run_state, mock_crawler_run_state, msg='Mocks but be equal')
+        self.assertEqual(glue_crawler_run_state, mock_crawler_run_state)
 
 
 if __name__ == '__main__':
