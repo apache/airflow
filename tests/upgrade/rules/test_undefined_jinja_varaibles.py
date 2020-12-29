@@ -66,6 +66,12 @@ class TestUndefinedJinjaVariablesRule(TestCase):
                 "float": "{{ params.float }}",
                 "string": "{{ params.string }}",
                 "boolean": "{{ params.boolean }}",
+                "integer_direct": 1,
+                "float_direct": 1.0,
+                "string_direct": "test_string",
+                "boolean_direct": True,
+                "none_direct": None,
+                "object_direct": object(),
             },
             params={
                 "integer": 1,
