@@ -529,7 +529,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         fake_partition = FakePartition(['2015-01-01'])
         FakePartitionDetails = namedtuple('FakePartitionDetails', ['partitionKey', 'partitionValue', 'details'])
         fake_partition_details = FakePartitionDetails(
-            [fake_schema.name, fake_partition.values, {'totalSize': 5000, 'numRows': 30}])
+            partitionKey=fake_schema.name, partitionValue=fake_partition.values, details={'totalSize': 5000, 'numRows': 30})
 
         self.hook.metastore.__enter__().get_partition_by_name = mock.MagicMock(return_value=fake_partition_details)
         specific_named_partition = self.hook.get_partition_by_name(db_name=self.database, tbl_name=self.table,
