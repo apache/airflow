@@ -99,6 +99,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
 
         mock_tempfile.return_value = mock_file
 
+        # Test CSV
         operator = DummySQLToGCSOperator(
             sql=SQL,
             bucket=BUCKET,
@@ -109,7 +110,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             export_format="csv",
             gzip=True,
             schema=SCHEMA,
-            google_cloud_storage_conn_id='google_cloud_default',
+            gcp_conn_id='google_cloud_default',
         )
         operator.execute(context=dict())
 
@@ -140,6 +141,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
 
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
 
+        # Test JSON
         operator = DummySQLToGCSOperator(
             sql=SQL, bucket=BUCKET, filename=FILENAME, task_id=TASK_ID, export_format="json", schema=SCHEMA
         )
@@ -158,6 +160,37 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         )
         mock_flush.assert_called_once()
         mock_upload.assert_called_once_with(BUCKET, FILENAME, TMP_FILE_NAME, mime_type=APP_JSON, gzip=False)
+        mock_close.assert_called_once()
+
+        mock_query.reset_mock()
+        mock_flush.reset_mock()
+        mock_upload.reset_mock()
+        mock_close.reset_mock()
+        cursor_mock.reset_mock()
+
+        cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
+
+        # Test parquet
+        operator = DummySQLToGCSOperator(
+            sql=SQL, bucket=BUCKET, filename=FILENAME, task_id=TASK_ID, export_format="parquet", schema=SCHEMA
+        )
+        operator.execute(context=dict())
+
+        mock_query.assert_called_once()
+        mock_write.assert_has_calls(
+            [
+                mock.call(OUTPUT_DATA),
+                mock.call(b"\n"),
+                mock.call(OUTPUT_DATA),
+                mock.call(b"\n"),
+                mock.call(OUTPUT_DATA),
+                mock.call(b"\n"),
+            ]
+        )
+        mock_flush.assert_called_once()
+        mock_upload.assert_called_once_with(
+            BUCKET, FILENAME, TMP_FILE_NAME, mime_type='application/octet-stream', gzip=False
+        )
         mock_close.assert_called_once()
 
         # Test null marker
