@@ -77,7 +77,6 @@ class TestHiveCliHook(unittest.TestCase):
                 'AIRFLOW_CTX_DAG_EMAIL': 'test@airflow.com',
             },
         ):
-
             hook = MockHiveCliHook()
             hook.run_cli("SHOW DATABASES")
 
@@ -192,7 +191,6 @@ class TestHiveCliHook(unittest.TestCase):
                 dag_run_id_ctx_var_name: 'test_dag_run_id',
             },
         ):
-
             hook = MockHiveCliHook()
             mock_popen.return_value = MockSubProcess(output=mock_output)
 
@@ -425,7 +423,6 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         metastore.get_partitions_by_filter.assert_called_with(self.database, self.table, missing_partition, 1)
 
     def test_check_for_named_partition(self):
-
         # Check for existing partition.
 
         partition = f"{self.partition_by}={DEFAULT_DATE_DS}"
@@ -449,7 +446,6 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         )
 
     def test_get_table(self):
-
         self.hook.metastore.__enter__().get_table = mock.MagicMock()
         self.hook.get_table(db=self.database, table_name=self.table)
         self.hook.metastore.__enter__().get_table.assert_called_with(
@@ -527,19 +523,26 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         fake_schema = FakeFieldSchema('ds')
         FakePartition = namedtuple('FakePartition', ['values'])
         fake_partition = FakePartition(['2015-01-01'])
-        FakePartitionDetails = namedtuple('FakePartitionDetails', ['partitionKey', 'partitionValue', 'details'])
-        fake_partition_details = FakePartitionDetails(
-            partitionKey=fake_schema.name, partitionValue=fake_partition.values, details={'totalSize': 5000, 'numRows': 30})
+        FakePartitionDetails = namedtuple('FakePartitionDetails',
+                                          ['partitionKey', 'partitionValue', 'details'])
+        fake_partition_details = \
+            FakePartitionDetails(partitionKey=fake_schema.name,
+                                 partitionValue=fake_partition.values,
+                                 details={'totalSize': 5000,
+                                          'numRows': 30})
 
-        self.hook.metastore.__enter__().get_partition_by_name = mock.MagicMock(return_value=fake_partition_details)
-        specific_named_partition = self.hook.get_partition_by_name(db_name=self.database, tbl_name=self.table,
-                                                                   part_name='ds=2015-01-01')
-        self.assertEqual(specific_named_partition.get('totalSize'), 5000)
+        self.hook.metastore.__enter__().get_partition_by_name = \
+            mock.MagicMock(return_value=fake_partition_details.details)
+        specific_named_partition = \
+            self.hook.get_partition_by_name(db_name=self.database,
+                                            tbl_name=self.table, part_name='ds=2015-01-01')
+        self.assertEqual(specific_named_partition.get('totalSize'),
+                         5000)
         self.assertEqual(specific_named_partition.get('numRows'), 30)
 
-        self.hook.metastore.__enter__().get_partition_by_name.assert_called_with(
-            dbname=self.database, tbl_name=self.table, part_name='ds=2015-01-01'
-        )
+        self.hook.metastore.__enter__().get_partition_by_name.assert_called_with(dbname=self.database,
+                                                                                 tbl_name=self.table,
+                                                                                 part_name='ds=2015-01-01')
 
     def test_table_exists(self):
         # Test with existent table.
