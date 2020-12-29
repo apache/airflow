@@ -157,6 +157,7 @@ Currently, **officially** using Airflow:
 1. [Farfetch](https://github.com/farfetch) [[@davidmarques78](https://github.com/davidmarques78)]
 1. [Fathom Health](https://www.fathomhealth.co/)
 1. [Firestone Inventing](https://www.hsmap.com/) [[@zihengCat](https://github.com/zihengCat)]
+1. [Fleek Fashion](https://www.fleekfashion.app/) [[@ghodouss](https://github.com/ghodoussG)]
 1. [Flipp](https://www.flipp.com) [[@sethwilsonwishabi](https://github.com/sethwilsonwishabi)]
 1. [Format](https://www.format.com) [[@format](https://github.com/4ormat) & [@jasonicarter](https://github.com/jasonicarter)]
 1. [FreeNow](https://free-now.com) [[@freenowtech](https://github.com/freenowtech)]
