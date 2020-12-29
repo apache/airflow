@@ -20,7 +20,9 @@ from unittest import TestCase
 from tempfile import NamedTemporaryFile
 from tests.compat import mock
 
-from airflow.upgrade.rules.airflow_macro_plugin_removed import AirflowMacroPluginRemovedRule
+from airflow.upgrade.rules.airflow_macro_plugin_removed import (
+    AirflowMacroPluginRemovedRule,
+)
 
 
 @contextmanager
@@ -66,3 +68,13 @@ class TestAirflowMacroPluginRemovedRule(TestCase):
                 "{} (line {})".format(base_message, line_number) for line_number in [1, 2]
             ]
             assert expected_messages == msgs
+
+    def test_bad_file_failure(self, mock_list_files):
+        # Write a binary file
+        with NamedTemporaryFile("wb+") as temp_file:
+            mock_list_files.return_value = [temp_file.name]
+            temp_file.write(b"{\x03\xff\x00d")
+            temp_file.flush()
+
+            rule = AirflowMacroPluginRemovedRule()
+            self.assertRaises(Exception, rule.check)
