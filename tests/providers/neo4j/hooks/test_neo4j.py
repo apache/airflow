@@ -37,7 +37,7 @@ class TestNeo4jHookConn(unittest.TestCase):
         self.neo4j_hook.get_connection.return_value = self.connection
         uri = self.neo4j_hook.get_uri(self.connection)
 
-        self.assertEqual(uri, "neo4j://host:7687")
+        self.assertEqual(uri, "bolt://host:7687")
 
     def test_get_uri_bolt_scheme(self):
 
