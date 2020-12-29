@@ -66,6 +66,8 @@ spark://spark%3A%2F%2Fspark-master-0.spark-master.spark.svc.cluster.local:7077
 
 This is a known situation, where schema and protocol parts of the URI are indepentent and in some cases, need to be specified explicitely.
 
+See https://github.com/apache/airflow/pull/10256 and https://github.com/apache/airflow/issues/10913 for more detailed discussion that led to this documentation update. This may get resolved in the future.
+
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""
 
