@@ -223,7 +223,7 @@ additional apt dev and runtime dependencies.
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
     --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
@@ -256,7 +256,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
     --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
@@ -336,13 +336,13 @@ or
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
     --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
     --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
     --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="true" \
-    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-1-10.txt"
+    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-2-0.txt"
 
 
 Customizing & extending the image together
@@ -650,7 +650,7 @@ of 2.0 currently):
   docker build .
 
 This builds the production image in version 3.7 with default extras from 2.0.0 tag and
-constraints taken from constraints-1-10-12 branch in GitHub.
+constraints taken from constraints-2-0 branch in GitHub.
 
 .. code-block:: bash
 
@@ -658,7 +658,7 @@ constraints taken from constraints-1-10-12 branch in GitHub.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/2.0.0.tar.gz#egg=apache-airflow" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty"
@@ -709,7 +709,7 @@ additional apt dev and runtime dependencies.
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
     --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \

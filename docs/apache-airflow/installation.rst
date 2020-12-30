@@ -33,7 +33,7 @@ not work or will produce unusable Airflow installation.
 
 In order to have repeatable installation, however, starting from **Airflow 1.10.10** and updated in
 **Airflow 1.10.13** we also keep a set of "known-to-be-working" constraint files in the
-``constraints-master`` and ``constraints-1-10`` orphan branches.
+``constraints-master``, ``constraints-2-0`` and ``constraints-1-10`` orphan branches.
 Those "known-to-be-working" constraints are per major/minor python version. You can use them as constraint
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
 and python versions in the URL.
