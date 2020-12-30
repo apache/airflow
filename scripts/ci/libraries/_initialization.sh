@@ -225,7 +225,7 @@ function initialization::initialize_dockerhub_variables() {
 
 # Determine available integrations
 function initialization::initialize_available_integrations() {
-    export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
+    export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap pinot presto rabbitmq redis"
 }
 
 # Needs to be declared outside of function for MacOS
