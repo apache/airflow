@@ -1414,11 +1414,13 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             else:
                 try:
                     dag = current_app.dag_bag.get_dag(dag_id)
+
+                    doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
                     default_conf = json.dumps(dag.params, indent=4)
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
             return self.render_template(
-                'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=default_conf
+                'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=default_conf, doc_md=doc_md
             )
 
         dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
