@@ -1538,11 +1538,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Generates pinned constraint files from setup.py. Those files are generated in files folder
         - separate files for different python version. Those constraint files when pushed to orphan
-        constraints-master, constraints-2-0 and constraints-1-10 branches are used to generate repeatable
-        CI builds as well as run repeatable production image builds. You can use those constraints
-        to predictably install released Airflow versions. This is mainly used to test the constraint
-        generation - constraints are pushed to the orphan branches by a successful scheduled
-        CRON job in CI automatically.
+        constraints-master, constraints-2-0 and constraints-1-10 branches are used to generate
+        repeatable CI builds as well as run repeatable production image builds. You can use those
+        constraints to predictably install released Airflow versions. This is mainly used to test
+        the constraint generation - constraints are pushed to the orphan branches by a
+        successful scheduled CRON job in CI automatically.
 
   Flags:
 
