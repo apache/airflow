@@ -170,10 +170,9 @@ class S3KeySizeSensor(S3KeySensor):
         check_fn = self.check_fn if self.check_fn_user is None else self.check_fn_user
         return check_fn(s3_objects)
 
-    def get_files(self, s3_hook: S3Hook) -> List:
+    def get_files(self, s3_hook: S3Hook, delimiter: Optional[str] = '/') -> List:
         """Gets a list of files in the bucket"""
         prefix = self.bucket_key
-        delimiter = '/'
         config = {
             'PageSize': None,
             'MaxItems': None,
@@ -183,7 +182,7 @@ class S3KeySizeSensor(S3KeySensor):
 
         paginator = s3_hook.get_conn().get_paginator('list_objects_v2')
         response = paginator.paginate(
-            Bucket=self.bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+            Bucket=self.bucket_name, Prefix=prefix, Delimiter='/', PaginationConfig=config
         )
         keys = []
         for page in response:
@@ -192,6 +191,12 @@ class S3KeySizeSensor(S3KeySensor):
                 keys = keys + _temp
         return keys
 
-    def check_fn(self, data: List) -> bool:
-        """Default function for checking that S3 Objects have size more than 0"""
-        return all(f.get('Size', 0) > 0 for f in data if isinstance(f, dict))
+    def check_fn(self, data: List, object_min_size: Optional[Union[int,float]] = 0) -> bool:
+        """Default function for checking that S3 Objects have size more than 0
+
+        :param data: List of the objects in S3 bucket.
+        :type data: list
+        :param object_min_size: Checks if the objects sizes are greater then this value.
+        :type object_min_size: int
+        """
+        return all(f.get('Size', 0) > object_min_size for f in data if isinstance(f, dict))
