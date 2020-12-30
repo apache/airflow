@@ -801,7 +801,7 @@ Generating constraints
 ----------------------
 
 Whenever setup.py gets modified, the CI master job will re-generate constraint files. Those constraint
-files are stored in separated orphan branches: ``constraints-master``, ``constraint-2-0`` and ``constraint-1-10``.
+files are stored in separated orphan branches: ``constraints-master``, ``constraints-2-0`` and ``constraints-1-10``.
 They are stored separately for each python version. Those are
 constraint files as described in detail in the
 `<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
@@ -1538,7 +1538,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Generates pinned constraint files from setup.py. Those files are generated in files folder
         - separate files for different python version. Those constraint files when pushed to orphan
-        constraint-master, constraint-2-0 and constraint-1-10 branches are used to generate repeatable
+        constraints-master, constraints-2-0 and constraints-1-10 branches are used to generate repeatable
         CI builds as well as run repeatable production image builds. You can use those constraints
         to predictably install released Airflow versions. This is mainly used to test the constraint
         generation - constraints are pushed to the orphan branches by a successful scheduled
