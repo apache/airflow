@@ -85,7 +85,7 @@ class OpenFaasHook(BaseHook):
         """
         url = self.get_conn().host + self.INVOKE_FUNCTION + self.function_name
         self.log.info("Invoking function synchronously %s", url)
-        response = requests.post(url, json=body)
+        response = requests.post(url, body)
         if response.ok:
             self.log.info("Invoked %s", self.function_name)
             self.log.info("Response code %s", response.status_code)
