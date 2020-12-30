@@ -118,7 +118,9 @@ class AwsGlueCrawlerHook(AwsBaseHook):
                 self.log.info("State: %s", crawler_state)
                 crawler_status = self.get_last_crawl_status(crawler_name)
                 if crawler_status in failed_status:
-                    raise AirflowException("Status: %s", crawler_status)
+                    raise AirflowException(
+                        f"Status: {crawler_status}"
+                    )  # pylint: disable=raising-format-tuple
                 else:
                     metrics = self.get_crawler_metrics(crawler_name)
                     self.log.info("Status: %s", crawler_status)
