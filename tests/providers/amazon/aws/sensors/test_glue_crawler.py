@@ -18,7 +18,6 @@
 import unittest
 from unittest import mock
 
-from airflow import configuration
 from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
 from airflow.providers.amazon.aws.sensors.glue_crawler import AwsGlueCrawlerSensor
 
@@ -44,6 +43,7 @@ class TestAwsGlueCrawlerSensor(unittest.TestCase):
     @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler_state', side_effect=("CANCELLED",))
     def test_poke_cancel(self, mock_get_crawler_state):
         self.assertFalse(self.sensor.poke(None))
+
 
 if __name__ == '__main__':
     unittest.main()

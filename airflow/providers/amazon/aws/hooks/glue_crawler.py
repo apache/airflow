@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import time
+from time import sleep
 
 from cached_property import cached_property
 
@@ -58,7 +58,6 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         :type config = dict
         :return: Name of the crawler
         """
-
         crawler_name = config["Name"]
         try:
             self.glue_client.get_crawler(Name=crawler_name)
@@ -75,7 +74,6 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         Triggers the AWS Glue crawler
         :return: Empty dictionary
         """
-        
         crawler = self.glue_client.start_crawler(Name=crawler_name)
         return crawler
 
@@ -122,13 +120,13 @@ class AwsGlueCrawlerHook(AwsBaseHook):
                 if crawler_status in failed_status:
                     raise AirflowException("Status: %s", crawler_status)
                 else:
-                    self.log.info("Status: %s", crawler_status)
                     metrics = self.get_crawler_metrics(crawler_name)
-                    print('Last Runtime Duration (seconds): ', metrics['LastRuntimeSeconds'])
-                    print('Median Runtime Duration (seconds): ', metrics['MedianRuntimeSeconds'])
-                    print('Tables Created: ', metrics['TablesCreated'])
-                    print('Tables Updated: ', metrics['TablesUpdated'])
-                    print('Tables Deleted: ', metrics['TablesDeleted'])
+                    self.log.info("Status: %s", crawler_status)
+                    self.log.info("Last Runtime Duration (seconds): %s", metrics['LastRuntimeSeconds'])
+                    self.log.info("Median Runtime Duration (seconds): %s", metrics['MedianRuntimeSeconds'])
+                    self.log.info("Tables Created: %s", metrics['TablesCreated'])
+                    self.log.info("Tables Updated: %s", metrics['TablesUpdated'])
+                    self.log.info("Tables Deleted: %s", metrics['TablesDeleted'])
 
                     return crawler_status
 
@@ -136,7 +134,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
                 self.log.info("Polling for AWS Glue crawler: %s ", crawler_name)
                 self.log.info("State: %s", crawler_state)
 
-                time.sleep(self.poll_interval)
+                sleep(self.poll_interval)
 
                 metrics = self.get_crawler_metrics(crawler_name)
                 time_left = int(metrics['TimeLeftSeconds'])

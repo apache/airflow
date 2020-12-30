@@ -30,7 +30,6 @@ class AwsGlueCrawlerSensor(BaseSensorOperator):
     :type crawler_name: str
     """
 
-
     @apply_defaults
     def __init__(self, *, crawler_name: str, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)

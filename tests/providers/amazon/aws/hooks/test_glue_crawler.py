@@ -116,7 +116,9 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
     @mock.patch.object(AwsGlueCrawlerHook, "get_or_create_crawler")
     def test_get_or_create_crawler(self, mock_get_conn, mock_get_or_create_crawler):
 
-        mock_glue_crawler = mock_get_conn.return_value.get_crawler(Name=mock_crawler_name).return_value['Crawler']['Name']
+        mock_glue_crawler = mock_get_conn.return_value.get_crawler(Name=mock_crawler_name).return_value[
+            'Crawler'
+        ]['Name']
         glue_crawler = self.hook.get_or_create_crawler(config=mock_config)
 
         self.assertEqual(glue_crawler, mock_glue_crawler)
