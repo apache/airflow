@@ -801,7 +801,7 @@ Generating constraints
 ----------------------
 
 Whenever setup.py gets modified, the CI master job will re-generate constraint files. Those constraint
-files are stored in separated orphan branches: ``constraints-master`` and ``constraint-1-10``.
+files are stored in separated orphan branches: ``constraints-master``, ``constraints-2-0`` and ``constraints-1-10``.
 They are stored separately for each python version. Those are
 constraint files as described in detail in the
 `<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
@@ -1283,7 +1283,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
+                 2.0.0 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and
@@ -1538,11 +1538,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Generates pinned constraint files from setup.py. Those files are generated in files folder
         - separate files for different python version. Those constraint files when pushed to orphan
-        constraint-master and constraint-1-10 branches are used to generate repeatable
-        CI builds as well as run repeatable production image builds. You can use those constraints
-        to predictably install released Airflow versions. This is mainly used to test the constraint
-        generation - constraints are pushed to the orphan branches by a successful scheduled
-        CRON job in CI automatically.
+        constraints-master, constraints-2-0 and constraints-1-10 branches are used to generate
+        repeatable CI builds as well as run repeatable production image builds. You can use those
+        constraints to predictably install released Airflow versions. This is mainly used to test
+        the constraint generation - constraints are pushed to the orphan branches by a
+        successful scheduled CRON job in CI automatically.
 
   Flags:
 
@@ -2389,7 +2389,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
+                 2.0.0 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and

@@ -51,6 +51,7 @@ _breeze_allowed_package_formats="wheel sdist both"
 }
 
 _breeze_allowed_install_airflow_versions=$(cat <<-EOF
+2.0.0
 1.10.14
 1.10.12
 1.10.11
