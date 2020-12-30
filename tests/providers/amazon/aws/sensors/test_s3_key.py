@@ -125,26 +125,46 @@ class TestS3KeySensor(unittest.TestCase):
 
 class TestS3KeySizeSensor(unittest.TestCase):
     @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
-    def test_poke(self, mock_hook):
+    def test_poke_check_for_key_false(self, mock_hook):
         op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
 
         mock_check_for_key = mock_hook.return_value.check_for_key
         mock_check_for_key.return_value = False
         self.assertFalse(op.poke(None))
-
         mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
-        mock_hook.return_value.check_for_key.return_value = True
-        self.assertFalse(op.poke(None))
 
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
+    def test_poke_get_files_false(self, mock_hook):
+        op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
+
+        mock_check_for_key = mock_hook.return_value.check_for_key
+        mock_hook.return_value.check_for_key.return_value = True
+        mock_get_files = mock.Mock()
+        mock_get_files.return_value = False
+        self.assertFalse(op.poke(None))
+        mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
+
+    @parameterized.expand(
+        [
+            [{"Contents": [{"Size": 0}, {"Size": 0}]}, False],
+            [{"Contents": [{"Size": 0}]}, False],
+            [{"Contents": []}, False],
+            [{"Contents": [{"Size": 10}]}, True],
+            [{"Contents": [{"Size": 10}, {"Size": 0}]}, True],
+            [{"Contents": [{"Size": 10}, {"Size": 10}]}, True],
+        ]
+    )
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
+    def test_poke(self, mock_hook, paginate_return_value, poke_return_value):
+        op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
+
+        mock_check_for_key = mock_hook.return_value.check_for_key
+        mock_hook.return_value.check_for_key.return_value = True
         mock_paginator = mock.Mock()
         mock_paginator.paginate.return_value = []
         mock_conn = mock.Mock()
         mock_conn.return_value.get_paginator.return_value = mock_paginator
         mock_hook.return_value.get_conn = mock_conn
-        mock_paginator.paginate.return_value = [{"Contents": [{"Size": 0}]}]
-        self.assertFalse(op.poke(None))
-
-        mock_paginator.paginate.return_value = [{"Contents": [{"Size": 10}]}]
-        self.assertTrue(op.poke(None))
-        mock_check_for_key.return_value = False
-        self.assertFalse(op.poke(None))
+        mock_paginator.paginate.return_value = paginate_return_value
+        self.assertIs(op.poke(None), poke_return_value)
+        mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
