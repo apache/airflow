@@ -29,7 +29,7 @@ from setuptools import Command, Distribution, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
-version = '2.0.0'
+version = '2.1.0.dev0'
 
 my_dir = dirname(__file__)
 
@@ -346,7 +346,7 @@ password = [
     'flask-bcrypt>=0.7.1',
 ]
 pinot = [
-    'pinotdb==0.1.1',
+    'pinotdb>=0.1.1,<1.0.0',
 ]
 plexus = [
     'arrow>=0.16.0',
@@ -398,7 +398,10 @@ snowflake = [
     # This library monkey patches the requests library, so SSL is broken globally.
     # See: https://github.com/snowflakedb/snowflake-connector-python/issues/324
     'requests<2.24.0',
-    'snowflake-connector-python>=1.5.2',
+    # Newest version drop support for old version of azure-storage-blob
+    # Until #12188 is solved at least we need to limit maximum version.
+    # https://github.com/apache/airflow/pull/12188
+    'snowflake-connector-python>=1.5.2,<=2.3.6',
     'snowflake-sqlalchemy>=1.1.0',
 ]
 spark = [
@@ -461,6 +464,9 @@ devel = [
     'importlib-resources~=1.4',
     'ipdb',
     'jira',
+    # HACK: Moto is not compatible with newer versions
+    # See: https://github.com/spulec/moto/issues/3535
+    'mock<4.0.3',
     'mongomock',
     'moto',
     'mypy==0.770',
