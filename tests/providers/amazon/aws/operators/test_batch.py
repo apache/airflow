@@ -63,6 +63,7 @@ class TestAwsBatchOperator(unittest.TestCase):
             array_properties=None,
             aws_conn_id='airflow_test',
             region_name="eu-west-1",
+            tags={},
         )
         self.client_mock = self.get_client_type_mock.return_value
         self.assertEqual(self.batch.hook.client, self.client_mock)  # setup client property
@@ -91,6 +92,7 @@ class TestAwsBatchOperator(unittest.TestCase):
         self.assertEqual(self.batch.hook.region_name, "eu-west-1")
         self.assertEqual(self.batch.hook.aws_conn_id, "airflow_test")
         self.assertEqual(self.batch.hook.client, self.client_mock)
+        self.assertEqual(self.batch.tags, {})
 
         self.get_client_type_mock.assert_called_once_with("batch", region_name="eu-west-1")
 
