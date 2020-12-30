@@ -95,7 +95,7 @@ class TestCeleryKubernetesExecutor:
 
     @parameterized.expand(
         [
-            ('non-kubernetes-queue',),
+            ('any-other-queue',),
             (KUBERNETES_QUEUE,),
         ]
     )
