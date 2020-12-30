@@ -33,6 +33,7 @@ integrations:
 
 operators:
   - integration-name: SQLite
+
     python-modules:
       - airflow.providers.sqlite.operators.sqlite
 
