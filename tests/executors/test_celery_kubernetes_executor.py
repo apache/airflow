@@ -66,7 +66,7 @@ class TestCeleryKubernetesExecutor:
 
     @parameterized.expand(
         [
-            ('other-queue',),
+            ('any-other-queue',),
             (KUBERNETES_QUEUE,),
         ]
     )
@@ -142,8 +142,11 @@ class TestCeleryKubernetesExecutor:
 
         celery_executor_mock.has_task.return_value = celery_has
         k8s_executor_mock.has_task.return_value = k8s_has
-
-        assert cke.has_task(None) == cke_has
+        ti = mock.MagicMock()
+        assert cke.has_task(ti) == cke_has
+        celery_executor_mock.has_task.assert_called_once_with(ti)
+        if not celery_has:
+            k8s_executor_mock.has_task.assert_called_once_with(ti)
 
     @parameterized.expand([(1, 0), (0, 1), (2, 1)])
     def test_adopt_tasks(self, num_k8s, num_celery):
