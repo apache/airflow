@@ -61,14 +61,14 @@ and python versions in the URL.
 
 .. code-block:: bash
 
-    AIRFLOW_VERSION=1.10.14
+    AIRFLOW_VERSION=2.0.0
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.6.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
-    Please note that with respect to Python 3 support, Airflow 1.10.14 has been
+    Please note that with respect to Python 3 support, Airflow 2.0.0 has been
     tested with Python 3.6, 3.7, and 3.8, but does not yet support Python 3.9.
 
 2. Installing with extras (for example postgres, google)
@@ -84,7 +84,7 @@ and python versions in the URL.
 
 .. code-block:: bash
 
-    AIRFLOW_VERSION=1.10.14
+    AIRFLOW_VERSION=2.0.0
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
@@ -102,8 +102,8 @@ As of Airflow 2.0 we agreed to certain rules we follow for Python support. They 
 release schedule of Python, nicely summarized in the
 `Python Developer's Guide <https://devguide.python.org/#status-of-python-branches>`_
 
-1. We finish support for python versions when they reach EOL (For python 3.6 it means that we will remove it
-   from being supported on 23.12.2021).
+1. We end support for Python versions when they reach EOL (For Python 3.6 it means that we will stop supporting it
+   on 23.12.2021).
 
 2. The "oldest" supported version of Python is the default one. "Default" is only meaningful in terms of
    "smoke tests" in CI PRs which are run using this default version.

@@ -150,15 +150,15 @@ of extras. In order to install Airflow you need to either downgrade pip to versi
 
 
 ```bash
-pip install apache-airflow==1.10.14 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
+pip install apache-airflow==2.0.0 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
-pip install apache-airflow[postgres,google]==1.10.14 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
+pip install apache-airflow[postgres,google]==2.0.0 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 ```
 
 For information on installing backport providers check [/docs/backport-providers.rst][/docs/backport-providers.rst].
