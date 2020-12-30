@@ -18,7 +18,7 @@
 
 
 SQLite Connection
-================
+=================
 The SQLite connection type provides connection to a SQLite database.
 
 Configuring the Connection

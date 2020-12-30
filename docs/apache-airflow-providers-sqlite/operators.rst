@@ -14,10 +14,13 @@
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
+
 .. _howto/operator:SqliteOperator:
 
 SqliteOperator
-=================
+==============
 
 Use the :class:`~airflow.providers.sqlite.operators.SqliteOperator` to execute
 Sqlite commands in a `Sqlite <https://sqlite.org/lang.html>`__ database.
@@ -48,14 +51,14 @@ the connection metadata is structured as follows:
 
 An example usage of the SqliteOperator is as follows:
 
-.. exampleinclude:: /../airflow/providers/sqlite/example_dags/example_sqlite.py
+.. exampleinclude:: /../../airflow/providers/sqlite/example_dags/example_sqlite.py
     :language: python
     :start-after: [START howto_operator_sqlite]
     :end-before: [END howto_operator_sqlite]
 
 You can also use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
 
-.. exampleinclude:: /../airflow/providers/sqlite/example_dags/example_sqlite.py
+.. exampleinclude:: /../../airflow/providers/sqlite/example_dags/example_sqlite.py
     :language: python
     :start-after: [START howto_operator_sqlite_external_file]
     :end-before: [END howto_operator_sqlite_external_file]
