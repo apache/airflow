@@ -26,6 +26,10 @@ class Neo4jOperator(BaseOperator):
     """
     Executes sql code in a specific Neo4j database
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:Neo4jOperator`
+
     :param sql: the sql code to be executed. Can receive a str representing a
         sql statement, a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
