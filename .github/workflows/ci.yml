@@ -105,6 +105,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: >
           Event: ${{ github.event_name }}
           Repo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
@@ -126,6 +128,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
+          persist-credentials: false
         if: github.event_name  == 'pull_request'
       - name: Selective checks
         id: selective-checks
@@ -155,6 +158,8 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -192,6 +197,8 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
@@ -207,13 +214,15 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     env:
-      SKIP: "pylint,identity"
+      SKIP: "identity"
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -250,6 +259,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -267,6 +278,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
+          persist-credentials: false
       - name: "Static checks: basic checks only"
         run: |
           ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
@@ -282,6 +294,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
@@ -311,6 +325,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -367,6 +383,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -422,6 +440,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -474,6 +494,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -531,6 +553,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -618,6 +642,8 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -649,6 +675,8 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
@@ -683,6 +711,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -762,6 +792,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -800,6 +832,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -830,6 +864,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -867,6 +903,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh
@@ -875,6 +913,7 @@ jobs:
         with:
           path: "repo"
           ref: ${{ steps.constraints-branch.outputs.branch }}
+          persist-credentials: false
       - name: "Get all artifacts (constraints)"
         uses: actions/download-artifact@v2
         with:
