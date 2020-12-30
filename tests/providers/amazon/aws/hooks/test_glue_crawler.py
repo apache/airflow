@@ -19,8 +19,6 @@ import json
 import unittest
 from unittest import mock
 
-from cached_property import cached_property
-
 from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
 
 try:
@@ -131,10 +129,10 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
         mock_get_or_create_crawler.Name = mock.Mock(Name=mock_crawler_name)
         mock_get_conn.return_value.start_crawler(crawler_name=mock_crawler_name)
 
-        mock_crawler_run_state = mock_completion.return_value
-        glue_crawler_run_state = self.hook.wait_for_crawler_completion(crawler_name=mock_crawler_name)
+        mock_crawler_state = mock_completion.return_value
+        glue_crawler_state = self.hook.wait_for_crawler_completion(crawler_name=mock_crawler_name)
 
-        self.assertEqual(glue_crawler_run_state, mock_crawler_run_state)
+        self.assertEqual(glue_crawler_state, mock_crawler_state)
 
 
 if __name__ == '__main__':

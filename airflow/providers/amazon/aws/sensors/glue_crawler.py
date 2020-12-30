@@ -30,21 +30,20 @@ class AwsGlueCrawlerSensor(BaseSensorOperator):
     :type crawler_name: str
     """
 
-    template_fields = 'crawler_name'
 
     @apply_defaults
     def __init__(self, *, crawler_name: str, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.crawler_name = crawler_name
         self.aws_conn_id = aws_conn_id
-        success_statuses = ('SUCCEEDED')
-        errored_statuses = ('FAILED', 'CANCELLED')
+        self.success_statuses = 'SUCCEEDED'
+        self.errored_statuses = ('FAILED', 'CANCELLED')
 
     def poke(self, context):
         hook = AwsGlueCrawlerHook(aws_conn_id=self.aws_conn_id, poll_interval=5)
         self.log.info("Poking for Glue crawler: %s", self.crawler_name)
         crawler_status = hook.get_last_crawl_status(crawler_name=self.crawler_name)
-        if crawler_status in self.success_statuses:
+        if crawler_status == self.success_statuses:
             self.log.info("Crawler status: %s", crawler_status)
             return True
         elif crawler_status in self.errored_statuses:

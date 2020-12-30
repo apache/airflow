@@ -48,7 +48,7 @@ class AwsGlueCrawlerOperator(BaseOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.aws_conn_id = (aws_conn_id,)
+        self.aws_conn_id = aws_conn_id
         self.poll_interval = poll_interval
         self.config = config
 
