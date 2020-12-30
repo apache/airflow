@@ -187,7 +187,7 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       pythonVersions: ${{ steps.selective-checks.python-versions }}
-      upgradeToLatestConstraints: ${{ steps.selective-checks.outputs.upgrade-to-latest-constraints }}
+      upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
@@ -253,7 +253,7 @@ jobs:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.workflow_run.id }}
-      UPGRADE_TO_LATEST_CONSTRAINTS: ${{ needs.build-info.outputs.upgradeToLatestConstraints }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
     steps:
       - name: >

@@ -46,24 +46,24 @@ if [[ ${PR_LABELS=} == *"upgrade to newer dependencies"* ]]; then
     echo
     echo "Found the right PR labels in '${PR_LABELS=}': 'upgrade to newer dependencies''"
     echo
-    UPGRADE_TO_LATEST_CONSTRAINTS_LABEL="true"
+    UPGRADE_TO_NEWER_DEPENDENCIES_LABEL="true"
 else
     echo
     echo "Did not find the right PR labels in '${PR_LABELS=}': 'upgrade to newer dependencies'"
     echo
-    UPGRADE_TO_LATEST_CONSTRAINTS_LABEL="false"
+    UPGRADE_TO_NEWER_DEPENDENCIES_LABEL="false"
 fi
 
 function output_all_basic_variables() {
-    if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS_LABEL}" == "true" ||
+    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES_LABEL}" == "true" ||
             ${EVENT_NAME} == 'push' || ${EVENT_NAME} == "scheduled" ]]; then
         # Trigger upgrading to latest constraints where label is set or when
         # SHA of the merge commit triggers rebuilding layer in the docker image
         # Each build that upgrades to latest constraints will get truly latest constraints, not those
         # Cached in the image this way
-        initialization::ga_output upgrade-to-latest-constraints "${INCOMING_COMMIT_SHA}"
+        initialization::ga_output upgrade-to-newer-dependencies "${INCOMING_COMMIT_SHA}"
     else
-        initialization::ga_output upgrade-to-latest-constraints "false"
+        initialization::ga_output upgrade-to-newer-dependencies "false"
     fi
 
     if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then

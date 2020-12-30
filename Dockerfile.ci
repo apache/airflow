@@ -311,8 +311,8 @@ COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
-ARG UPGRADE_TO_LATEST_CONSTRAINTS="false"
-ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
+ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
@@ -321,7 +321,7 @@ ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
 RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" != "false" ]]; then \
+        if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
             pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
             pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
         else \

@@ -362,7 +362,7 @@ function initialization::initialize_image_build_variables() {
 
     # By default we are not upgrading to latest version of constraints when building Docker CI image
     # This will only be done in cron jobs
-    export UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS:="false"}
+    export UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES:="false"}
 
     # Checks if the image should be rebuilt
     export CHECK_IMAGE_FOR_REBUILD="${CHECK_IMAGE_FOR_REBUILD:="true"}"
@@ -615,7 +615,7 @@ Verbosity variables:
 
 Image build variables:
 
-    UPGRADE_TO_LATEST_CONSTRAINTS: ${UPGRADE_TO_LATEST_CONSTRAINTS}
+    UPGRADE_TO_NEWER_DEPENDENCIES: ${UPGRADE_TO_NEWER_DEPENDENCIES}
     CHECK_IMAGE_FOR_REBUILD: ${CHECK_IMAGE_FOR_REBUILD}
 
 

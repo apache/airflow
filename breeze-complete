@@ -167,7 +167,7 @@ additional-extras: additional-python-deps: disable-pypi-when-building skip-insta
 dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-command: additional-dev-apt-env:
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
-install-packages-from-dist no-rbac-ui package-format:
+install-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies
 test-type:
 preserve-volumes
 "

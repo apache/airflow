@@ -124,14 +124,14 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND}
 ARG ADDITIONAL_DEV_APT_COMMAND="echo"
 ENV ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
-ARG ADDITIONAL_DEV_ENV_VARS=""
+ARG ADDITIONAL_DEV_APT_ENV=""
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && export ${ADDITIONAL_DEV_ENV_VARS?} \
+    && export ${ADDITIONAL_DEV_APT_ENV?} \
     && bash -o pipefail -e -u -x -c "${DEV_APT_COMMAND}" \
     && bash -o pipefail -e -u -x -c "${ADDITIONAL_DEV_APT_COMMAND}" \
     && apt-get update \
@@ -242,6 +242,9 @@ ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 ARG INSTALL_PROVIDERS_FROM_SOURCES="false"
 ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
+ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
+
 WORKDIR /opt/airflow
 
 # remove mysql from extras if client is not installed
@@ -249,11 +252,20 @@ RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
     fi; \
     if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        pip install --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
-            --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
+            pip install --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+                --upgrade --upgrade-strategy eager; \
+        else \
+            pip install --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        fi; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
+            pip install --user ${ADDITIONAL_PYTHON_DEPS} --upgrade --upgrade-strategy eager; \
+        else \
+            pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        fi; \
     fi; \
     if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
         if ls /docker-context-files/*.{whl,tar.gz} 1> /dev/null 2>&1; then \
@@ -373,14 +385,14 @@ ENV RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND}
 ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ENV ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND}
 
-ARG ADDITIONAL_RUNTIME_ENV_VARS=""
+ARG ADDITIONAL_RUNTIME_APT_ENV=""
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && export ${ADDITIONAL_RUNTIME_ENV_VARS?} \
+    && export ${ADDITIONAL_RUNTIME_APT_ENV?} \
     && bash -o pipefail -e -u -x -c "${RUNTIME_APT_COMMAND}" \
     && bash -o pipefail -e -u -x -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
     && apt-get update \
