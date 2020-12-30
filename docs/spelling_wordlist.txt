@@ -250,6 +250,7 @@ NaN
 Naik
 Namenode
 Namespace
+Neo4j
 Nextdoor
 Nones
 NotFound
@@ -987,6 +988,7 @@ navbar
 nd
 ndjson
 neighbours
+neo4j
 neq
 networkUri
 nginx
