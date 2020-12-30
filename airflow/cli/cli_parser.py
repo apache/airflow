@@ -721,13 +721,13 @@ DAGS_COMMANDS = (
         name='list',
         help="List all the DAGs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dags'),
-        args=(ARG_SUBDIR, ARG_OUTPUT),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='report',
         help='Show DagBag loading report',
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_report'),
-        args=(ARG_SUBDIR, ARG_OUTPUT),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='list-runs',
@@ -740,13 +740,21 @@ DAGS_COMMANDS = (
             "all the dagruns that were executed after this date. "
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dag_runs'),
-        args=(ARG_DAG_ID_OPT, ARG_NO_BACKFILL, ARG_STATE, ARG_OUTPUT, ARG_START_DATE, ARG_END_DATE),
+        args=(
+            ARG_DAG_ID_OPT,
+            ARG_NO_BACKFILL,
+            ARG_STATE,
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+            ARG_START_DATE,
+            ARG_END_DATE,
+        ),
     ),
     ActionCommand(
         name='list-jobs',
         help="List the jobs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
-        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT),
+        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='state',
@@ -980,7 +988,7 @@ TASKS_COMMANDS = (
         name='states-for-dag-run',
         help="Get the status of all task instances in a dag run",
         func=lazy_load_command('airflow.cli.commands.task_command.task_states_for_dag_run'),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_OUTPUT),
+        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 POOLS_COMMANDS = (
@@ -988,42 +996,31 @@ POOLS_COMMANDS = (
         name='list',
         help='List pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='get',
         help='Get pool size',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_get'),
-        args=(
-            ARG_POOL_NAME,
-            ARG_OUTPUT,
-        ),
+        args=(ARG_POOL_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='set',
         help='Configure pool',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_set'),
-        args=(
-            ARG_POOL_NAME,
-            ARG_POOL_SLOTS,
-            ARG_POOL_DESCRIPTION,
-            ARG_OUTPUT,
-        ),
+        args=(ARG_POOL_NAME, ARG_POOL_SLOTS, ARG_POOL_DESCRIPTION, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='delete',
         help='Delete pool',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_delete'),
-        args=(
-            ARG_POOL_NAME,
-            ARG_OUTPUT,
-        ),
+        args=(ARG_POOL_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='import',
         help='Import pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
-        args=(ARG_POOL_IMPORT,),
+        args=(ARG_POOL_IMPORT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='export',
@@ -1037,13 +1034,13 @@ VARIABLES_COMMANDS = (
         name='list',
         help='List variables',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='get',
         help='Get variable',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_get'),
-        args=(ARG_VAR, ARG_JSON, ARG_DEFAULT),
+        args=(ARG_VAR, ARG_JSON, ARG_DEFAULT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='set',
@@ -1114,13 +1111,13 @@ CONNECTIONS_COMMANDS = (
         name='get',
         help='Get a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_get'),
-        args=(ARG_CONN_ID, ARG_COLOR, ARG_OUTPUT),
+        args=(ARG_CONN_ID, ARG_COLOR, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='list',
         help='List connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
-        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_CONN_ID_FILTER),
     ),
     ActionCommand(
         name='add',
@@ -1161,37 +1158,40 @@ PROVIDERS_COMMANDS = (
         name='list',
         help='List installed providers',
         func=lazy_load_command('airflow.cli.commands.provider_command.providers_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='get',
         help='Get detailed information about a provider',
         func=lazy_load_command('airflow.cli.commands.provider_command.provider_get'),
-        args=(ARG_OUTPUT, ARG_FULL, ARG_COLOR, ARG_PROVIDER_NAME),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_FULL, ARG_COLOR, ARG_PROVIDER_NAME),
     ),
     ActionCommand(
         name='links',
         help='List extra links registered by the providers',
         func=lazy_load_command('airflow.cli.commands.provider_command.extra_links_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='widgets',
         help='Get information about registered connection form widgets',
         func=lazy_load_command('airflow.cli.commands.provider_command.connection_form_widget_list'),
-        args=(ARG_OUTPUT,),
+        args=(
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name='hooks',
         help='List registered provider hooks',
         func=lazy_load_command('airflow.cli.commands.provider_command.hooks_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='behaviours',
         help='Get information about registered connection types with custom behaviours',
         func=lazy_load_command('airflow.cli.commands.provider_command.connection_field_behaviours'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 
@@ -1200,7 +1200,7 @@ USERS_COMMANDS = (
         name='list',
         help='List users',
         func=lazy_load_command('airflow.cli.commands.user_command.users_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='create',
@@ -1263,13 +1263,13 @@ ROLES_COMMANDS = (
         name='list',
         help='List roles',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='create',
         help='Create role',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_create'),
-        args=(ARG_ROLES,),
+        args=(ARG_ROLES, ARG_VERBOSE),
     ),
 )
 
@@ -1443,7 +1443,7 @@ airflow_commands: List[CLICommand] = [
         name='cheat-sheet',
         help="Display cheat sheet",
         func=lazy_load_command('airflow.cli.commands.cheat_sheet_command.cheat_sheet'),
-        args=(),
+        args=(ARG_VERBOSE,),
     ),
     GroupCommand(
         name='connections',
@@ -1490,13 +1490,14 @@ airflow_commands: List[CLICommand] = [
         args=(
             ARG_ANONYMIZE,
             ARG_FILE_IO,
+            ARG_VERBOSE,
         ),
     ),
     ActionCommand(
         name='plugins',
         help='Dump information about loaded plugins',
         func=lazy_load_command('airflow.cli.commands.plugins_command.dump_plugins'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     GroupCommand(
         name="celery",

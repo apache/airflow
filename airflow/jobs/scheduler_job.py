@@ -480,6 +480,7 @@ class DagFileProcessor(LoggingMixin):
             <pre><code>{task_list}\n<code></pre>
             Blocking tasks:
             <pre><code>{blocking_task_list}<code></pre>
+            Airflow Webserver URL: {conf.get(section='webserver', key='base_url')}
             """
 
             tasks_missed_sla = []
@@ -733,7 +734,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.max_tis_per_query: int = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent: Optional[DagFileProcessorAgent] = None
 
-        self.dagbag = DagBag(read_dags_from_db=True)
+        self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True)
 
     def register_signals(self) -> None:
         """Register signals that stop child processes"""

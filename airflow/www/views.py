@@ -3525,10 +3525,14 @@ class TaskInstanceModelView(AirflowModelView):
         'queued_dttm',
         'try_number',
         'pool',
+        'queued_by_job_id',
+        'external_executor_id',
         'log_url',
     ]
 
-    order_columns = [item for item in list_columns if item not in ['try_number', 'log_url']]
+    order_columns = [
+        item for item in list_columns if item not in ['try_number', 'log_url', 'external_executor_id']
+    ]
 
     search_columns = [
         'state',

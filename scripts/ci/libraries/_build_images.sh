@@ -408,13 +408,14 @@ function build_images::get_docker_image_names() {
 function build_image::login_to_github_registry_if_needed() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
         if [[ -n ${GITHUB_TOKEN=} ]]; then
+            start_end::group_start "Login to GitHub registry"
             echo "${GITHUB_TOKEN}" | docker login \
                 --username "${GITHUB_USERNAME:-apache}" \
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
+            start_end::group_end
         fi
     fi
-
 }
 
 # Prepares all variables needed by the CI build. Depending on the configuration used (python version
@@ -514,6 +515,13 @@ function build_images::rebuild_ci_image_if_needed() {
         verbosity::print_info
     fi
 }
+
+function build_images::rebuild_ci_image_if_needed_with_group() {
+    start_end::group_start "Check if CI image build is needed"
+    build_images::rebuild_ci_image_if_needed
+    start_end::group_end
+}
+
 
 # Interactive version of confirming the ci image that is used in pre-commits
 # it displays additional information - what the user should do in order to bring the local images
@@ -651,7 +659,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV}" \
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
-        --build-arg UPGRADE_TO_LATEST_CONSTRAINTS="${UPGRADE_TO_LATEST_CONSTRAINTS}" \
+        --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${additional_dev_args[@]}" \
@@ -786,6 +794,7 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
+        --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
@@ -816,6 +825,7 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
+        --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
@@ -838,20 +848,25 @@ function build_images::build_prod_images() {
     fi
 }
 
+function build_images::build_prod_images_with_group() {
+    start_end::group_start "Build PROD images ${AIRFLOW_PROD_BUILD_IMAGE}"
+    build_images::build_prod_images
+    start_end::group_end
+}
+
 # Waits for image tag to appear in GitHub Registry, pulls it and tags with the target tag
 # Parameters:
 #  $1 - image name to wait for
 #  $2 - suffix of the image to wait for
 #  $3, $4, ... - target tags to tag the image with
 function build_images::wait_for_image_tag() {
+
     IMAGE_NAME="${1}"
     IMAGE_SUFFIX=${2}
     shift 2
 
     IMAGE_TO_WAIT_FOR="${IMAGE_NAME}${IMAGE_SUFFIX}"
-    echo
-    echo "Waiting for image ${IMAGE_TO_WAIT_FOR}"
-    echo
+    start_end::group_start "Wait for image tag ${IMAGE_TO_WAIT_FOR}"
     while true; do
         set +e
         docker pull "${IMAGE_TO_WAIT_FOR}" 2>/dev/null >/dev/null
@@ -878,6 +893,7 @@ function build_images::wait_for_image_tag() {
             break
         fi
     done
+    start_end::group_end
 }
 
 # We use pulled docker image cache by default for CI images to speed up the builds
@@ -904,12 +920,7 @@ function build_images::build_prod_images_from_packages() {
     rm -f "${AIRFLOW_SOURCES}/dist/"*.{whl,tar.gz}
     rm -f "${AIRFLOW_SOURCES}/docker-context-files/"*.{whl,tar.gz}
 
-    pip_download_command="pip download -d /dist '.[${INSTALLED_EXTRAS}]' --constraint 'https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt'"
-
-    # Download all dependencies needed
-    docker run --rm --entrypoint /bin/bash \
-        "${EXTRA_DOCKER_FLAGS[@]}" \
-        "${AIRFLOW_CI_IMAGE}" -c "${pip_download_command}"
+    runs::run_pip_download
 
     # Remove all downloaded apache airflow packages
     rm -f "${AIRFLOW_SOURCES}/dist/"apache_airflow*.whl
@@ -927,7 +938,7 @@ function build_images::build_prod_images_from_packages() {
     build_airflow_packages::build_airflow_packages
 
     mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
-    build_images::build_prod_images
+    build_images::build_prod_images_with_group
 }
 
 # Useful information for people who stumble upon a pip check failure
@@ -957,7 +968,7 @@ In case 2) - Follow the steps below:
 
 * run locally the image that is failing with Breeze:
 
-    ./breeze ${1}--github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} --python ${PYTHON_MAJOR_MINOR_VERSION}
+    ./breeze ${1}--github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND="sqlite"} --python ${PYTHON_MAJOR_MINOR_VERSION}
 
 * your setup.py and setup.cfg will be mounted to the container. You will be able to iterate with
   different setup.py versions.

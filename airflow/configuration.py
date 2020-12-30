@@ -199,7 +199,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
 
         self.is_validated = False
 
-    def _validate(self):
+    def validate(self):
 
         self._validate_config_dependencies()
 
@@ -452,11 +452,9 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
 
     def read(self, filenames, encoding=None):
         super().read(filenames=filenames, encoding=encoding)
-        self._validate()
 
     def read_dict(self, dictionary, source='<dict>'):
         super().read_dict(dictionary=dictionary, source=source)
-        self._validate()
 
     def has_option(self, section, option):
         try:
@@ -993,3 +991,5 @@ def initialize_secrets_backends() -> List[BaseSecretsBackend]:
 
 
 secrets_backend_list = initialize_secrets_backends()
+
+conf.validate()

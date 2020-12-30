@@ -102,6 +102,9 @@ function initialization::initialize_base_variables() {
     CURRENT_MYSQL_VERSIONS+=("5.7" "8")
     export CURRENT_MYSQL_VERSIONS
 
+    BACKEND=${BACKEND:="sqlite"}
+    export BACKEND
+
     # Default Postgres versions
     export POSTGRES_VERSION=${POSTGRES_VERSION:=${CURRENT_POSTGRES_VERSIONS[0]}}
 
@@ -149,7 +152,7 @@ function initialization::initialize_base_variables() {
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
 
-    export INSTALLED_PROVIDERS=(
+    INSTALLED_PROVIDERS+=(
         "amazon"
         "celery"
         "cncf.kubernetes"
@@ -166,18 +169,18 @@ function initialization::initialize_base_variables() {
         "postgres"
         "redis"
         "sendgrid"
+        "sqlite"
         "sftp"
         "slack"
+        "sqlite"
         "ssh"
     )
-    readonly INSTALLED_PROVIDERS
-
-    export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
-    readonly INSTALLED_EXTRAS
+    export INSTALLED_PROVIDERS
+    export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
     # default version of PIP USED (This has to be < 20.3 until https://github.com/apache/airflow/issues/12838 is solved)
-    PIP_VERSION=${PIP_VERSION:="20.2.4"}
-    export PIP_VERSION
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="20.2.4"}
+    export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
     WHEEL_VERSION=${WHEEL_VERSION:="0.36.1"}
@@ -222,7 +225,7 @@ function initialization::initialize_dockerhub_variables() {
 
 # Determine available integrations
 function initialization::initialize_available_integrations() {
-    export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
+    export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap pinot presto rabbitmq redis"
 }
 
 # Needs to be declared outside of function for MacOS
@@ -359,7 +362,7 @@ function initialization::initialize_image_build_variables() {
 
     # By default we are not upgrading to latest version of constraints when building Docker CI image
     # This will only be done in cron jobs
-    export UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS:="false"}
+    export UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES:="false"}
 
     # Checks if the image should be rebuilt
     export CHECK_IMAGE_FOR_REBUILD="${CHECK_IMAGE_FOR_REBUILD:="true"}"
@@ -506,7 +509,7 @@ function initialization::initialize_build_image_variables() {
 }
 
 function initialization::set_output_color_variables() {
-    COLOR_BLUE=$'\e[37m'
+    COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
     COLOR_GREEN_OK=$'\e[32mOK.'
     COLOR_RED=$'\e[31m'
@@ -612,7 +615,7 @@ Verbosity variables:
 
 Image build variables:
 
-    UPGRADE_TO_LATEST_CONSTRAINTS: ${UPGRADE_TO_LATEST_CONSTRAINTS}
+    UPGRADE_TO_NEWER_DEPENDENCIES: ${UPGRADE_TO_NEWER_DEPENDENCIES}
     CHECK_IMAGE_FOR_REBUILD: ${CHECK_IMAGE_FOR_REBUILD}
 
 
@@ -649,7 +652,6 @@ Test variables:
     TEST_TYPE: ${TEST_TYPE}
 
 EOF
-
 }
 
 # Retrieves CI environment variables needed - depending on the CI system we run it in.
@@ -798,6 +800,17 @@ function initialization::make_constants_read_only() {
     readonly LOCAL_IMAGE_BUILD_CACHE_HASH_FILE
     readonly REMOTE_IMAGE_BUILD_CACHE_HASH_FILE
 
+    readonly INSTALLED_EXTRAS
+    readonly INSTALLED_PROVIDERS
+
+    readonly CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
+    readonly CURRENT_KUBERNETES_VERSIONS
+    readonly CURRENT_KUBERNETES_MODES
+    readonly CURRENT_POSTGRES_VERSIONS
+    readonly CURRENT_MYSQL_VERSIONS
+    readonly CURRENT_KIND_VERSIONS
+    readonly CURRENT_HELM_VERSIONS
+    readonly ALL_PYTHON_MAJOR_MINOR_VERSIONS
 }
 
 # converts parameters to json array

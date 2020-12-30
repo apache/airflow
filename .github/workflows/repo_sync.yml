@@ -25,6 +25,8 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@master
+        with:
+          persist-credentials: false
       - name: repo-sync
         uses: repo-sync/github-sync@v2
         with:

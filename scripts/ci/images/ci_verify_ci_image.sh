@@ -19,11 +19,7 @@
 . "$(dirname "${BASH_SOURCE[0]}")/../libraries/_script_init.sh"
 
 function verify_ci_image_dependencies() {
-
-    echo
-    echo "Checking if Airflow dependencies are non-conflicting in ${AIRFLOW_CI_IMAGE} image."
-    echo
-
+    start_end::group_start "Checking if Airflow dependencies are non-conflicting in ${AIRFLOW_CI_IMAGE} image."
     set +e
     docker run --rm --entrypoint /bin/bash "${AIRFLOW_CI_IMAGE}" -c 'pip check'
     local res=$?
@@ -37,16 +33,17 @@ function verify_ci_image_dependencies() {
         echo
     fi
     set -e
+    start_end::group_end
     exit ${res}
 }
 
 function pull_ci_image() {
     local image_name_with_tag="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-    echo
-    echo "Pulling the ${image_name_with_tag} image."
-    echo
+    start_end::group_start "Pulling ${image_name_with_tag} image"
 
     push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_CI_IMAGE}" "${image_name_with_tag}"
+    start_end::group_end
+
 }
 
 

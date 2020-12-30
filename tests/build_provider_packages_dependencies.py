@@ -45,7 +45,7 @@ dependencies: Dict[str, List[str]] = defaultdict(list)
 def find_provider(provider_elements: List[str]) -> Optional[str]:
     """
     Finds provider name from the list of elements provided. It looks the providers up
-    in PROVIDERS_DEPENDENCIES map taken from the provider's package setup.
+    in PROVIDERS_REQUIREMENTS dict taken from the setup.py.
 
     :param provider_elements: array of elements of the path (split)
     :return: provider name or None if no provider could be found
@@ -182,7 +182,7 @@ def parse_arguments():
         description='Checks if dependencies between packages are handled correctly.'
     )
     parser.add_argument(
-        "-f", "--provider-dependencies-file", help="Stores dependencies between providers in the file"
+        "-f", "--provider-dependencies-file", help="Stores dependencies between providers in the file(.json)"
     )
     parser.add_argument(
         "-d", "--documentation-file", help="Updates package documentation in the file specified (.rst)"

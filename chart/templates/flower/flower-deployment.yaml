@@ -68,7 +68,7 @@ spec:
         - name: flower
           image: {{ template "flower_image" . }}
           imagePullPolicy: {{ .Values.images.flower.pullPolicy }}
-          args: ["bash", "-c", "airflow flower || airflow celery flower"]
+          args: ["bash", "-c", "airflow celery flower || airflow flower"]
           resources:
 {{ toYaml .Values.flower.resources | indent 12 }}
           volumeMounts:

@@ -25,7 +25,7 @@
 
 _breeze_allowed_python_major_minor_versions="2.7 3.5 3.6 3.7 3.8"
 _breeze_allowed_backends="sqlite mysql postgres"
-_breeze_allowed_integrations="cassandra kerberos mongo openldap presto rabbitmq redis all"
+_breeze_allowed_integrations="cassandra kerberos mongo openldap pinot presto rabbitmq redis all"
 _breeze_allowed_kubernetes_modes="image"
 _breeze_allowed_kubernetes_versions="v1.18.6 v1.17.5 v1.16.9"
 _breeze_allowed_helm_versions="v3.2.4"
@@ -51,6 +51,7 @@ _breeze_allowed_package_formats="wheel sdist both"
 }
 
 _breeze_allowed_install_airflow_versions=$(cat <<-EOF
+2.0.0
 1.10.14
 1.10.12
 1.10.11
@@ -108,6 +109,7 @@ mypy-helm
 no-providers-in-core-examples
 no-relative-imports
 pre-commit-descriptions
+pre-commit-hook-names
 provide-create-sessions
 providers-init-file
 provider-yamls
@@ -166,7 +168,7 @@ additional-extras: additional-python-deps: disable-pypi-when-building skip-insta
 dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-command: additional-dev-apt-env:
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
-install-packages-from-dist no-rbac-ui package-format:
+install-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies
 test-type:
 preserve-volumes
 "

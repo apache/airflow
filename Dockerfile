@@ -34,7 +34,7 @@
 #                        much smaller.
 #
 ARG AIRFLOW_VERSION="2.0.0.dev0"
-ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -47,7 +47,7 @@ ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 
-ARG PIP_VERSION=20.2.4
+ARG AIRFLOW_PIP_VERSION=20.2.4
 
 ##############################################################################################
 # This is the build image where we build all dependencies
@@ -61,8 +61,8 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 ARG PYTHON_MAJOR_MINOR_VERSION
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 
-ARG PIP_VERSION
-ENV PIP_VERSION=${PIP_VERSION}
+ARG AIRFLOW_PIP_VERSION
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 
 # Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
@@ -91,6 +91,7 @@ ARG DEV_APT_DEPS="\
      ldap-utils \
      libffi-dev \
      libkrb5-dev \
+     libldap2-dev \
      libpq-dev \
      libsasl2-2 \
      libsasl2-dev \
@@ -123,14 +124,14 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND}
 ARG ADDITIONAL_DEV_APT_COMMAND="echo"
 ENV ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
-ARG ADDITIONAL_DEV_ENV_VARS=""
+ARG ADDITIONAL_DEV_APT_ENV=""
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && export ${ADDITIONAL_DEV_ENV_VARS?} \
+    && export ${ADDITIONAL_DEV_APT_ENV?} \
     && bash -o pipefail -e -u -x -c "${DEV_APT_COMMAND}" \
     && bash -o pipefail -e -u -x -c "${ADDITIONAL_DEV_APT_COMMAND}" \
     && apt-get update \
@@ -171,7 +172,7 @@ RUN if [[ -f /docker-context-files/.pypirc ]]; then \
         cp /docker-context-files/.pypirc /root/.pypirc; \
     fi
 
-RUN pip install --upgrade "pip==${PIP_VERSION}"
+RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
 # builds in case setup.py/setup.cfg changed. This is pure optimisation of CI/Breeze builds.
@@ -241,6 +242,9 @@ ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 ARG INSTALL_PROVIDERS_FROM_SOURCES="false"
 ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
+ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
+
 WORKDIR /opt/airflow
 
 # remove mysql from extras if client is not installed
@@ -248,11 +252,20 @@ RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
     fi; \
     if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        pip install --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
-            --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
+            pip install --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+                --upgrade --upgrade-strategy eager; \
+        else \
+            pip install --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        fi; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
+            pip install --user ${ADDITIONAL_PYTHON_DEPS} --upgrade --upgrade-strategy eager; \
+        else \
+            pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        fi; \
     fi; \
     if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
         if ls /docker-context-files/*.{whl,tar.gz} 1> /dev/null 2>&1; then \
@@ -323,8 +336,8 @@ ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
-ARG PIP_VERSION
-ENV PIP_VERSION=${PIP_VERSION}
+ARG AIRFLOW_PIP_VERSION
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 
 # Install curl and gnupg2 - needed for many other installation steps
 RUN apt-get update \
@@ -347,6 +360,7 @@ ARG RUNTIME_APT_DEPS="\
        krb5-user \
        ldap-utils \
        libffi6 \
+       libldap-2.4-2 \
        libsasl2-2 \
        libsasl2-modules \
        libssl1.1 \
@@ -371,14 +385,14 @@ ENV RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND}
 ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ENV ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND}
 
-ARG ADDITIONAL_RUNTIME_ENV_VARS=""
+ARG ADDITIONAL_RUNTIME_APT_ENV=""
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && export ${ADDITIONAL_RUNTIME_ENV_VARS?} \
+    && export ${ADDITIONAL_RUNTIME_APT_ENV?} \
     && bash -o pipefail -e -u -x -c "${RUNTIME_APT_COMMAND}" \
     && bash -o pipefail -e -u -x -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
     && apt-get update \
@@ -428,7 +442,7 @@ COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoi
 COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 RUN chmod a+x /entrypoint /clean-logs
 
-RUN pip install --upgrade "pip==${PIP_VERSION}"
+RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
