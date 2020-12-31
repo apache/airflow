@@ -668,13 +668,12 @@ config:
     default_queue: celery
   scheduler:
     scheduler_heartbeat_sec: 5
-    # For Airflow 1.10, backward compatibility
+    # statsd params included for Airflow 1.10 backward compatibility; moved to [metrics] in 2.0
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
     statsd_port: 9125
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
-    # Restart Scheduler every 41460 seconds (11 hours 31 minutes)
-    # The odd time is chosen so it is not always restarting on the same "hour" boundary
+    # `run_duration` included for Airflow 1.10 backward compatibility; removed in 2.0.
     run_duration: 41460
   elasticsearch:
     json_format: 'True'

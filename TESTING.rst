@@ -279,6 +279,8 @@ The following integrations are available:
      - Integration required for MongoDB hooks
    * - openldap
      - Integration required for OpenLDAP hooks
+   * - pinot
+     - Integration required for Apache Pinot hooks
    * - presto
      - Integration required for Presto hooks
    * - rabbitmq

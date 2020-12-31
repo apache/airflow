@@ -133,7 +133,7 @@ produce unusable Airflow installation.
 
 In order to have repeatable installation, however, introduced in **Airflow 1.10.10** and updated in
 **Airflow 1.10.12** we also keep a set of "known-to-be-working" constraint files in the
-orphan `constraints-master` and `constraints-1-10` branches. We keep those "known-to-be-working"
+orphan `constraints-master`, `constraints-2-0` and `constraints-1-10` branches. We keep those "known-to-be-working"
 constraints files separately per major/minor python version.
 You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
 correct Airflow tag/version/branch and python versions in the URL.
@@ -143,22 +143,22 @@ correct Airflow tag/version/branch and python versions in the URL.
 NOTE!!!
 
 On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
 of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
 `pip install --upgrade pip==20.2.4` or, in case you use Pip 20.3, you need to add option
 `--use-deprecated legacy-resolver` to your pip install command.
 
 
 ```bash
-pip install apache-airflow==1.10.14 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
+pip install apache-airflow==2.0.0 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
-pip install apache-airflow[postgres,google]==1.10.14 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
+pip install apache-airflow[postgres,google]==2.0.0 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 ```
 
 For information on installing backport providers check [/docs/backport-providers.rst][/docs/backport-providers.rst].

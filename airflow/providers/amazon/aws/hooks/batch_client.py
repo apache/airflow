@@ -106,6 +106,7 @@ class AwsBatchProtocol(Protocol):
         arrayProperties: Dict,
         parameters: Dict,
         containerOverrides: Dict,
+        tags: Dict,
     ) -> Dict:
         """
         Submit a batch job
@@ -127,6 +128,9 @@ class AwsBatchProtocol(Protocol):
 
         :param containerOverrides: the same parameter that boto3 will receive
         :type containerOverrides: Dict
+
+        :param tags: the same parameter that boto3 will receive
+        :type tags: Dict
 
         :return: an API response
         :rtype: Dict

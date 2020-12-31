@@ -27,10 +27,13 @@ versions:
 integrations:
   - integration-name: SQLite
     external-doc-url: https://www.sqlite.org/index.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-sqlite/operators.rst
     tags: [software]
 
 operators:
   - integration-name: SQLite
+
     python-modules:
       - airflow.providers.sqlite.operators.sqlite
 

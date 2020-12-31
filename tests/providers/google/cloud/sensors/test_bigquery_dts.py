@@ -19,6 +19,8 @@
 import unittest
 from unittest import mock
 
+from google.cloud.bigquery_datatransfer_v1 import TransferState
+
 from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 
 TRANSFER_CONFIG_ID = "config_id"
@@ -27,20 +29,45 @@ PROJECT_ID = "project_id"
 
 
 class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
-    @mock.patch("airflow.providers.google.cloud.sensors.bigquery_dts.BiqQueryDataTransferServiceHook")
     @mock.patch(
-        "airflow.providers.google.cloud.sensors.bigquery_dts.MessageToDict",
-        return_value={"state": "success"},
+        "airflow.providers.google.cloud.sensors.bigquery_dts.BiqQueryDataTransferServiceHook",
+        **{'return_value.get_transfer_run.return_value.state': TransferState.FAILED},
     )
-    def test_poke(self, mock_msg_to_dict, mock_hook):
+    def test_poke_returns_false(self, mock_hook):
         op = BigQueryDataTransferServiceTransferRunSensor(
             transfer_config_id=TRANSFER_CONFIG_ID,
             run_id=RUN_ID,
             task_id="id",
             project_id=PROJECT_ID,
-            expected_statuses={"success"},
+            expected_statuses={"SUCCEEDED"},
         )
-        op.poke(None)
+        result = op.poke({})
+
+        self.assertEqual(result, False)
+        mock_hook.return_value.get_transfer_run.assert_called_once_with(
+            transfer_config_id=TRANSFER_CONFIG_ID,
+            run_id=RUN_ID,
+            project_id=PROJECT_ID,
+            metadata=None,
+            retry=None,
+            timeout=None,
+        )
+
+    @mock.patch(
+        "airflow.providers.google.cloud.sensors.bigquery_dts.BiqQueryDataTransferServiceHook",
+        **{'return_value.get_transfer_run.return_value.state': TransferState.SUCCEEDED},
+    )
+    def test_poke_returns_true(self, mock_hook):
+        op = BigQueryDataTransferServiceTransferRunSensor(
+            transfer_config_id=TRANSFER_CONFIG_ID,
+            run_id=RUN_ID,
+            task_id="id",
+            project_id=PROJECT_ID,
+            expected_statuses={"SUCCEEDED"},
+        )
+        result = op.poke({})
+
+        self.assertEqual(result, True)
         mock_hook.return_value.get_transfer_run.assert_called_once_with(
             transfer_config_id=TRANSFER_CONFIG_ID,
             run_id=RUN_ID,

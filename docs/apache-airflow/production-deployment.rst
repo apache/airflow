@@ -98,14 +98,15 @@ Some configurations such as the Airflow Backend connection URI can be derived fr
 Scheduler Uptime
 ================
 
-Airflow users have for a long time been affected by a
-`core Airflow bug <https://issues.apache.org/jira/browse/AIRFLOW-401>`_
-that causes the scheduler to hang without a trace.
+Airflow users occasionally report instances of the scheduler hanging without a trace, for example in these issues:
 
-Until fully resolved, you can mitigate this issue via a few short-term workarounds:
+* `Scheduler gets stuck without a trace <https://github.com/apache/airflow/issues/7935>`_
+* `Scheduler stopping frequently <https://github.com/apache/airflow/issues/13243>`_
 
-* Set a reasonable run_duration setting in your ``airflow.cfg``. `Example config <https://github.com/astronomer/airflow-chart/blob/63bc503c67e2cd599df0b6f831d470d09bad7ee7/templates/configmap.yaml#L44>`_.
-* Add an ``exec`` style health check to your helm charts on the scheduler deployment to fail if the scheduler has not heartbeat in a while. `Example health check definition <https://github.com/astronomer/helm.astronomer.io/pull/200/files>`_.
+Strategies for mitigation:
+
+* When running on kubernetes, use a ``livenessProbe`` on the scheduler deployment to fail if the scheduler has not heartbeat in a while.
+  `Example: <https://github.com/apache/airflow/blob/190066cf201e5b0442bbbd6df74efecae523ee76/chart/templates/scheduler/scheduler-deployment.yaml#L118-L136>`_.
 
 Production Container Images
 ===========================
@@ -151,7 +152,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.14
+  FROM apache/airflow:2.0.0
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -168,7 +169,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.14
+  FROM apache/airflow:2.0.0
   RUN pip install --no-cache-dir --user my-awesome-pip-dependency-to-add
 
 
@@ -179,7 +180,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.14
+  FROM apache/airflow:2.0.0
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -212,7 +213,7 @@ in the `<#production-image-build-arguments>`_ chapter below.
 
 Here just a few examples are presented which should give you general understanding of what you can customize.
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.14 PyPI package and
+This builds the production image in version 3.7 with additional airflow extras from 2.0.0 PyPI package and
 additional apt dev and runtime dependencies.
 
 .. code-block:: bash
@@ -221,9 +222,9 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
@@ -238,7 +239,7 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 .. code-block:: bash
 
   ./breeze build-image \
-      --production-image  --python 3.7 --install-airflow-version=1.10.14 \
+      --production-image  --python 3.7 --install-airflow-version=2.0.0 \
       --additional-extras=jdbc --additional-python-deps="pandas" \
       --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
 
@@ -254,9 +255,9 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
@@ -309,12 +310,12 @@ Preparing the constraint files and wheel files:
 
   rm docker-context-files/*.whl docker-context-files/*.txt
 
-  curl -Lo "docker-context-files/constraints-1-10.txt" \
-    https://raw.githubusercontent.com/apache/airflow/constraints-1-10/constraints-3.7.txt
+  curl -Lo "docker-context-files/constraints-2-0.txt" \
+    https://raw.githubusercontent.com/apache/airflow/constraints-2-0/constraints-3.7.txt
 
   pip download --dest docker-context-files \
-    --constraint docker-context-files/constraints-1-10.txt  \
-    apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv]==1.10.14
+    --constraint docker-context-files/constraints-2-0.txt  \
+    apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv]==2.0.0
 
 
 Building the image (after copying the files downloaded to the "docker-context-files" directory:
@@ -322,9 +323,9 @@ Building the image (after copying the files downloaded to the "docker-context-fi
 .. code-block:: bash
 
   ./breeze build-image \
-      --production-image --python 3.7 --install-airflow-version=1.10.14 \
+      --production-image --python 3.7 --install-airflow-version=2.0.0 \
       --disable-mysql-client-installation --disable-pip-cache --install-from-local-files-when-building \
-      --constraints-location="/docker-context-files/constraints-1-10.txt"
+      --constraints-location="/docker-context-files/constraints-2-0.txt"
 
 or
 
@@ -334,15 +335,15 @@ or
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
     --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
     --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="true" \
-    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-1-10.txt"
+    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-2-0.txt"
 
 
 Customizing & extending the image together
@@ -624,13 +625,13 @@ production image. There are three types of build:
 |                                   |                        | Only used when ``INSTALL_FROM_PYPI`` is set to ``true``.                          |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 | ``AIRFLOW_INSTALL_VERSION``       |                        | Optional - might be used for package installation of different Airflow version    |
-|                                   |                        | for example"==1.10.14". For consistency, you should also set``AIRFLOW_VERSION``   |
+|                                   |                        | for example"==2.0.0". For consistency, you should also set``AIRFLOW_VERSION``     |
 |                                   |                        | to the same value AIRFLOW_VERSION is embedded as label in the image created.      |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE`` | ``constraints-master`` | Reference (branch or tag) from GitHub where constraints file is taken from.       |
 |                                   |                        | It can be ``constraints-master`` but also can be``constraints-1-10`` for          |
 |                                   |                        | 1.10.*  installations. In case of building specific version                       |
-|                                   |                        | you want to point it to specific tag, for example ``constraints-1.10.14``         |
+|                                   |                        | you want to point it to specific tag, for example ``constraints-2.0.0``           |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 | ``AIRFLOW_WWW``                   | ``www``                | In case of Airflow 2.0 it should be "www", in case of Airflow 1.10                |
 |                                   |                        | series it should be "www_rbac".                                                   |
@@ -649,22 +650,22 @@ of 2.0 currently):
 
   docker build .
 
-This builds the production image in version 3.7 with default extras from 1.10.14 tag and
-constraints taken from constraints-1-10-12 branch in GitHub.
+This builds the production image in version 3.7 with default extras from 2.0.0 tag and
+constraints taken from constraints-2-0 branch in GitHub.
 
 .. code-block:: bash
 
   docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/1.10.14.tar.gz#egg=apache-airflow" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/2.0.0.tar.gz#egg=apache-airflow" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty"
 
-This builds the production image in version 3.7 with default extras from 1.10.14 PyPI package and
-constraints taken from 1.10.14 tag in GitHub and pre-installed pip dependencies from the top
+This builds the production image in version 3.7 with default extras from 2.0.0 PyPI package and
+constraints taken from 2.0.0 tag in GitHub and pre-installed pip dependencies from the top
 of v1-10-test branch.
 
 .. code-block:: bash
@@ -673,15 +674,15 @@ of v1-10-test branch.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.14" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2.0.0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty"
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.14 PyPI package and
-additional python dependencies and pre-installed pip dependencies from 1.10.14 tagged constraints.
+This builds the production image in version 3.7 with additional airflow extras from 2.0.0 PyPI package and
+additional python dependencies and pre-installed pip dependencies from 2.0.0 tagged constraints.
 
 .. code-block:: bash
 
@@ -689,16 +690,16 @@ additional python dependencies and pre-installed pip dependencies from 1.10.14 t
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.14" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2.0.0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
     --build-arg ADDITIONAL_PYTHON_DEPS="sshtunnel oauth2client"
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.14 PyPI package and
+This builds the production image in version 3.7 with additional airflow extras from 2.0.0 PyPI package and
 additional apt dev and runtime dependencies.
 
 .. code-block:: bash
@@ -707,9 +708,9 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
