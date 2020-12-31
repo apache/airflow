@@ -31,6 +31,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: References
+
+    Python API <_api/airflow/providers/neo4j/index>
+
+.. toctree::
+    :maxdepth: 1
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/neo4j/example_dags>
