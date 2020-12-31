@@ -91,7 +91,7 @@ class OpenFaasHook(BaseHook):
         else:
             self.log.error("Response status %d", response.status_code)
             raise AirflowException('failed to invoke function')
-        
+
     def update_function(self, body: Dict[str, Any]) -> None:
         """Update OpenFaaS function"""
         url = self.get_conn().host + self.UPDATE_FUNCTION
