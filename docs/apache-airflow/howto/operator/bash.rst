@@ -27,6 +27,7 @@ commands in a `Bash <https://www.gnu.org/software/bash/>`__ shell.
 
 .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_bash]
     :end-before: [END howto_operator_bash]
 
@@ -38,6 +39,7 @@ You can use :ref:`Jinja templates <jinja-templating>` to parameterize the
 
 .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_bash_template]
     :end-before: [END howto_operator_bash_template]
 
