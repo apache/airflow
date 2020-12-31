@@ -30,7 +30,9 @@ from airflow.hooks.dbapi import DbApiHook
 class SnowflakeHook(DbApiHook):
     """
     Interact with Snowflake.
-    get_sqlalchemy_engine() depends on snowflake-sqlalchemy
+    get_sqlalchemy_engine() depends on snowflake-sqlalchemy.
+
+    The method get_pandas_df has an additional functionality for getting the column names as lowercase.
     """
 
     conn_name_attr = 'snowflake_conn_id'
@@ -66,8 +68,6 @@ class SnowflakeHook(DbApiHook):
         schema = conn.schema or ''
         authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
         session_parameters = conn.extra_dejson.get('session_parameters')
-        lowercase_columns = conn.extra_dejson.get('lowercase_columns')
-        self.lowercase_columns = lowercase_columns if lowercase_columns else None
 
         conn_config = {
             "user": conn.login,
@@ -147,12 +147,13 @@ class SnowflakeHook(DbApiHook):
     def get_autocommit(self, conn):
         return getattr(conn, 'autocommit_mode', False)
 
-    def get_pandas_df(self, sql, parameters=None, **kwargs):
+    def get_pandas_df(self, sql, parameters=None, lowercase_columns=False, **kwargs):
         """
-        overrides DbApiHook get_pandas_df for allowing df columns to be lowercase
+        Overrides DbApiHook get_pandas_df for allowing df columns to be lowercase. For that, you have to set the
+        argument lowercase_columns to True.
         """
         df = super().get_pandas_df(sql, parameters, **kwargs)
-        if self.lowercase_columns:
+        if lowercase_columns:
             df.columns = df.columns.str.lower()
 
         return df
