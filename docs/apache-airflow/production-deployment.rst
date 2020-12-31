@@ -624,13 +624,13 @@ production image. There are three types of build:
 |                                   |                        | Only used when ``INSTALL_FROM_PYPI`` is set to ``true``.                          |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 | ``AIRFLOW_INSTALL_VERSION``       |                        | Optional - might be used for package installation of different Airflow version    |
-|                                   |                        | for example"==2.0.0". For consistency, you should also set``AIRFLOW_VERSION``   |
+|                                   |                        | for example"==2.0.0". For consistency, you should also set``AIRFLOW_VERSION``     |
 |                                   |                        | to the same value AIRFLOW_VERSION is embedded as label in the image created.      |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE`` | ``constraints-master`` | Reference (branch or tag) from GitHub where constraints file is taken from.       |
 |                                   |                        | It can be ``constraints-master`` but also can be``constraints-1-10`` for          |
 |                                   |                        | 1.10.*  installations. In case of building specific version                       |
-|                                   |                        | you want to point it to specific tag, for example ``constraints-2.0.0``         |
+|                                   |                        | you want to point it to specific tag, for example ``constraints-2.0.0``           |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 | ``AIRFLOW_WWW``                   | ``www``                | In case of Airflow 2.0 it should be "www", in case of Airflow 1.10                |
 |                                   |                        | series it should be "www_rbac".                                                   |
