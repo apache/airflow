@@ -123,6 +123,7 @@ class TestAwsBatchOperator(unittest.TestCase):
             jobDefinition="hello-world",
             arrayProperties={},
             parameters={},
+            tags={},
         )
 
         self.assertEqual(self.batch.job_id, JOB_ID)
@@ -142,6 +143,7 @@ class TestAwsBatchOperator(unittest.TestCase):
             jobDefinition="hello-world",
             arrayProperties={},
             parameters={},
+            tags={},
         )
 
     @mock.patch.object(AwsBatchClientHook, "check_job_success")
