@@ -56,7 +56,7 @@ An example usage of the SqliteOperator is as follows:
     :start-after: [START howto_operator_sqlite]
     :end-before: [END howto_operator_sqlite]
 
-You can also use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
+Furthermore, you can use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
 
 .. exampleinclude:: /../../airflow/providers/sqlite/example_dags/example_sqlite.py
     :language: python
