@@ -90,7 +90,6 @@ class OpenFaasHook(BaseHook):
             self.log.info("Invoked %s", self.function_name)
             self.log.info("Response code %s", response.status_code)
             self.log.info("Response %s", response.text)
-            return (response.status_code,response.text)
         else:
             self.log.error("Response status %d", response.status_code)
             raise AirflowException('failed to invoke function')
