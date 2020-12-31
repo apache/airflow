@@ -219,6 +219,7 @@ Example ``myproviderpackage/somemodule.py``:
 **How do provider packages work under the hood?**
 
 At the end, there will be (at least) three components to your airflow installation with custom connection types:
+
 * The installation itself (ideally you have a ``venv`` where you installed airflow with ``pip install apache-airflow``)
 * The ``apache-airflow`` package
 * Your own ``myproviderpackage`` package that is independent of ``apache-airflow`` or your airflow installation, which
@@ -227,6 +228,7 @@ At the end, there will be (at least) three components to your airflow installati
 
 In the ``myproviderpackage`` package you need to add the entry point and provide the appropriate metadata as described above.
 If you have done that, airflow does the following at runtime:
+
 * loop through ALL packages installed in your environment / ``venv``
 * for each package, if the package's ``setup.cfg`` has a section ``[options.entry_points]``, and if that section has a value
   for ``apache_airflow_provider``, then get the value for ``provider_info``, e.g. ``myproviderpackage.somemodule:get_provider_info``
