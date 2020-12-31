@@ -988,6 +988,7 @@ navbar
 nd
 ndjson
 neighbours
+neo
 neo4j
 neq
 networkUri
@@ -1218,6 +1219,7 @@ sqlsensor
 sqoop
 src
 srv
+ssc
 ssd
 sshHook
 sshtunnel
