@@ -38,12 +38,79 @@ from airflow.utils.curve import trigger_training_dag, get_curve_entity_ids, get_
 from flask import g, Blueprint, jsonify, request, url_for
 import json
 from airflow.api.common.experimental.mark_tasks import modify_task_instance
+import os
+from airflow.utils.db import provide_session
+from airflow.models import TaskInstance
+import datetime
+from random import choices
+import pendulum
+import math
 
 _log = LoggingMixin().log
 
 requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
+
+ANALYSIS_NOK_RESULTS = True if os.environ.get('ANALYSIS_NOK_RESULTS', 'False') == 'True' else False
+
+FILTER_MISMATCHES = True if os.environ.get('FILTER_MISMATCHES', 'False') == 'True' else False
+
+MISMATCH_RATE_RELAXATION_FACTOR = float(os.environ.get('MISMATCH_RATE_RELAXATION_FACTOR', '1'))
+MISMATCH_RATE_RELAXATION_THRESHOLD = float(os.environ.get('MISMATCH_RATE_RELAXATION_THRESHOLD', '0.001'))
+
+
+def is_mismatch(measure_result, curve_mode):
+    analysis_result = 'OK' if curve_mode is 0 else 'NOK'
+    return analysis_result != measure_result
+
+
+@provide_session
+def get_bolt_recent_mismatch_rate(dag_id, task_id, execution_date, session=None):
+    tis = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.execution_date == pendulum.parse(execution_date),
+        TaskInstance.task_id == task_id)
+    ti = list(tis.all())[0]
+    delta = datetime.timedelta(days=2)
+    min_date = timezone.utcnow() - delta
+    bolt_number = ti.bolt_number
+    bolt_tis = session.query(TaskInstance).filter(
+        TaskInstance.bolt_number == bolt_number,
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.task_id == task_id,
+        TaskInstance.execution_date > min_date
+    ).count()
+    bolt_mismatch_tis = session.query(TaskInstance).filter(
+        TaskInstance.bolt_number == bolt_number,
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.task_id == task_id,
+        TaskInstance.execution_date > min_date,
+        TaskInstance.measure_result != TaskInstance.result
+    ).count()
+    _log.info('bolt:{},bolt_tis:{},bolt_mismatch_tis:{}'.format(bolt_number, bolt_tis, bolt_mismatch_tis))
+    return bolt_mismatch_tis / (bolt_tis + 1), bolt_tis
+
+
+def mismatch_relaxation(mismatch_rate, count) -> bool:
+    if mismatch_rate < MISMATCH_RATE_RELAXATION_THRESHOLD:
+        return False
+    weight = MISMATCH_RATE_RELAXATION_FACTOR * (mismatch_rate - MISMATCH_RATE_RELAXATION_THRESHOLD) / (
+        mismatch_rate + MISMATCH_RATE_RELAXATION_THRESHOLD) * math.log(count, 2)
+    _log.info('weight: {}'.format(weight))
+    return choices([True, False], weights=[weight, 1])[0]
+
+
+def filter_mismatches(measure_result, curve_mode, dag_id, task_id, execution_date):
+    if not is_mismatch(measure_result, curve_mode):
+        _log.info('not mismatch')
+        return curve_mode
+    _log.info('is mismatch')
+    mismatch_rate, count = get_bolt_recent_mismatch_rate(dag_id, task_id, execution_date)
+    _log.info('mismatch_rate:{}, count:{}'.format(mismatch_rate, count))
+    if mismatch_relaxation(mismatch_rate, count):
+        return 0 if measure_result == 'OK' else 1
+    return curve_mode
 
 
 @csrf.exempt
@@ -58,8 +125,15 @@ def put_anaylysis_result():
         entity_id = data.get('entity_id')
         measure_result = data.get('measure_result')
         curve_mode = int(data.get('result'))  # OK, NOK
+
+        if FILTER_MISMATCHES:
+            curve_mode = filter_mismatches(measure_result, curve_mode, dag_id, task_id, execution_date)
+
         verify_error = int(data.get('verify_error'))  # OK, NOK
         rresult = 'OK' if curve_mode is 0 else 'NOK'
+
+        if (not ANALYSIS_NOK_RESULTS) and measure_result == 'NOK':
+            rresult = 'NOK'
 
         def modifier(ti):
             ti.result = rresult
