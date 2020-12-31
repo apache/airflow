@@ -345,7 +345,9 @@ password = [
     'flask-bcrypt>=0.7.1',
 ]
 pinot = [
-    'pinotdb>=0.1.1,<1.0.0',
+    # pinotdb v0.1.1 may still work with older versions of Apache Pinot, but we've confirmed that it
+    # causes a problem with newer versions.
+    'pinotdb>0.1.2,<1.0.0',
 ]
 plexus = [
     'arrow>=0.16.0',
