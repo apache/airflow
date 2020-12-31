@@ -115,7 +115,6 @@ class TestOpenFaasHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         self.assertEqual(self.hook.invoke_async_function({}), None)
 
-        
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
     def test_invoke_async_function_false(self, mock_get_connection, m):
