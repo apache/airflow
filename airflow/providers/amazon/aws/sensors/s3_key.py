@@ -191,7 +191,7 @@ class S3KeySizeSensor(S3KeySensor):
                 keys = keys + _temp
         return keys
 
-    def check_fn(self, data: List, object_min_size: Optional[Union[int,float]] = 0) -> bool:
+    def check_fn(self, data: List, object_min_size: Optional[Union[int, float]] = 0) -> bool:
         """Default function for checking that S3 Objects have size more than 0
 
         :param data: List of the objects in S3 bucket.
