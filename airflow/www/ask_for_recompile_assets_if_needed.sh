@@ -23,14 +23,18 @@ cd "$( dirname "${BASH_SOURCE[0]}" )"
 MD5SUM_FILE="static/dist/sum.md5"
 readonly MD5SUM_FILE
 
-md5sum=$(find package.json yarn.lock static/css static/js -type f | sort  | xargs md5sum)
+YELLOW='\033[1;33m'
+NO_COLOR='\033[0m'
+
+md5sum=$(find package.json yarn.lock static/css static/js -type f | sort | xargs md5sum)
 old_md5sum=$(cat "${MD5SUM_FILE}" 2>/dev/null || true)
 if [[ ${old_md5sum} != "${md5sum}" ]]; then
     echo
-    echo "The assets need to be recompiled because some of the www source files changed"
-    echo
-    ./compile_assets.sh
-    echo "${md5sum}" > "${MD5SUM_FILE}"
+    echo "${YELLOW}WARNING: It seems that the generated assets files do not match the content of the sources.${NO_COLOR}"
+    echo "To recompile assets, run:"
+    echo ""
+    echo "   ./airflow/www/compile_assets.sh"
+    echo ""
 else
     echo "No need to recompile www assets"
 fi

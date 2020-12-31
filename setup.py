@@ -251,7 +251,7 @@ google = [
     'google-auth>=1.0.0,<2.0.0',
     'google-auth-httplib2>=0.0.1',
     'google-cloud-automl>=0.4.0,<2.0.0',
-    'google-cloud-bigquery-datatransfer>=0.4.0,<2.0.0',
+    'google-cloud-bigquery-datatransfer>=3.0.0,<4.0.0',
     'google-cloud-bigtable>=1.0.0,<2.0.0',
     'google-cloud-container>=0.1.1,<2.0.0',
     'google-cloud-datacatalog>=1.0.0,<2.0.0',
@@ -346,7 +346,9 @@ password = [
     'flask-bcrypt>=0.7.1',
 ]
 pinot = [
-    'pinotdb>=0.1.1,<1.0.0',
+    # pinotdb v0.1.1 may still work with older versions of Apache Pinot, but we've confirmed that it
+    # causes a problem with newer versions.
+    'pinotdb>0.1.2,<1.0.0',
 ]
 plexus = [
     'arrow>=0.16.0',
