@@ -80,9 +80,7 @@ class OpenFaasHook(BaseHook):
             raise AirflowException('failed to invoke function')
 
     def invoke_function(self, body: Dict[str, Any]) -> None:
-        """
-        Invoking function synchronously, will block until function completes and returns
-        """
+        """Invoking function synchronously, will block until function completes and returns"""
         url = self.get_conn().host + self.INVOKE_FUNCTION + self.function_name
         self.log.info("Invoking function synchronously %s", url)
         response = requests.post(url, body)
