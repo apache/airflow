@@ -204,7 +204,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             csv_writer = self._configure_csv_file(tmp_file_handle, schema)
         if self.export_format == 'parquet':
             parquet_schema = self._convert_parquet_schema(cursor)
-            # parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
+            parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
 
         for row in cursor:
             # Convert datetime objects to utc seconds, and decimals to floats.
@@ -219,9 +219,8 @@ class BaseSQLToGCSOperator(BaseOperator):
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
                 row_pydic = {col: [value] for col, value in zip(schema, row)}
-                tbl = pa.Table.from_pydict(row_pydic)
-                with pq.ParquetWriter(tmp_file_handle, parquet_schema) as parquet_writer:
-                    parquet_writer.write_table(tbl)
+                tbl = pa.Table.from_pydict(row_pydic, parquet_schema)
+                parquet_writer.write_table(tbl)
             else:
                 row_dict = dict(zip(schema, row))
 
@@ -246,6 +245,8 @@ class BaseSQLToGCSOperator(BaseOperator):
                 self.log.info("Current file count: %d", len(files_to_upload))
                 if self.export_format == 'csv':
                     csv_writer = self._configure_csv_file(tmp_file_handle, schema)
+                if self.export_format == 'parquet':
+                    parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
         return files_to_upload
 
     def _configure_csv_file(self, file_handle, schema):
@@ -255,6 +256,10 @@ class BaseSQLToGCSOperator(BaseOperator):
         csv_writer = csv.writer(file_handle, encoding='utf-8', delimiter=self.field_delimiter)
         csv_writer.writerow(schema)
         return csv_writer
+
+    def _configure_parquet_file(self, file_handle, parquet_schema):
+        parquet_writer = pq.ParquetWriter(file_handle.name, parquet_schema)
+        return parquet_writer
 
     def _convert_parquet_schema(self, cursor):
         type_map = {
@@ -270,7 +275,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             'TIMESTAMP': pa.timestamp('s'),
         }
 
-        columns = [field[0] for field in cursor]
+        columns = [field[0] for field in cursor.description]
         bq_types = [self.field_to_bigquery(field) for field in cursor.description]
         pq_types = [type_map.get(bq_type, pa.string()) for bq_type in bq_types]
         parquet_schema = pa.schema(zip(columns, pq_types))
