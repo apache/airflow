@@ -51,6 +51,10 @@ if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
     tmux select-pane -t 2
     tmux send-keys 'airflow webserver' C-m
 
+    tmux select-pane -t 0
+    tmux split-window -h
+    tmux send-keys 'cd airflow/www/; yarn dev' C-m
+
     # Attach Session, on the Main window
     tmux select-pane -t 0
     tmux send-keys "./scripts/in_container/run_tmux_welcome.sh" C-m
