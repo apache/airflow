@@ -277,7 +277,6 @@ pendulum==2.1.2
 pep562==1.0
 pexpect==4.8.0
 pickleshare==0.7.5
-pinotdb==0.1.1
 pipdeptree==1.0.0
 pluggy==0.13.1
 portalocker==1.7.1
