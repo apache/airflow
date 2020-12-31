@@ -344,9 +344,9 @@ RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} != "true" ]]; then \
 # commands so as otherwise it copies the _contents_ of static/ in to www/
 COPY airflow/www/webpack.config.js ${AIRFLOW_SOURCES}/airflow/www/
 COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
-
+COPY airflow/www/compile_assets.sh ${AIRFLOW_SOURCES}/airflow/www/compile_assets.sh
 # Package JS/css for production
-RUN yarn --cwd airflow/www run prod
+RUN airflow/www/compile_assets.sh
 
 COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint

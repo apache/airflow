@@ -51,6 +51,8 @@ jobs:
             "}
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: >
           Event: ${{ steps.source-run-info.outputs.sourceEvent }}
           Repo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
@@ -68,9 +70,12 @@ jobs:
         with:
           ref: ${{ steps.source-run-info.outputs.targetCommitSha }}
           fetch-depth: 2
+          persist-credentials: false
       # checkout the master version again, to use the right script in master workflow
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: Selective checks
         id: selective-checks
         env:
