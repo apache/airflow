@@ -31,7 +31,7 @@ verify_suffix_versions_for_package_preparation
 echo
 echo "Installing remaining packages from 'all' extras"
 echo
-pip install -e ".[devel_all]"
+pip install ".[devel_all]"
 
 cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
 

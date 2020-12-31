@@ -42,30 +42,21 @@ else
     FULL_TESTS_NEEDED_LABEL="false"
 fi
 
-if [[ ${PR_LABELS=} == *"upgrade to newer dependencies"* ]]; then
-    echo
-    echo "Found the right PR labels in '${PR_LABELS=}': 'upgrade to newer dependencies''"
-    echo
-    UPGRADE_TO_NEWER_DEPENDENCIES_LABEL="true"
-else
-    echo
-    echo "Did not find the right PR labels in '${PR_LABELS=}': 'upgrade to newer dependencies'"
-    echo
-    UPGRADE_TO_NEWER_DEPENDENCIES_LABEL="false"
-fi
-
-function output_all_basic_variables() {
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES_LABEL}" == "true" ||
+function check_upgrade_to_newer_dependencies() {
+    # shellcheck disable=SC2153
+    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" == "true" ||
             ${EVENT_NAME} == 'push' || ${EVENT_NAME} == "scheduled" ]]; then
         # Trigger upgrading to latest constraints where label is set or when
         # SHA of the merge commit triggers rebuilding layer in the docker image
         # Each build that upgrades to latest constraints will get truly latest constraints, not those
         # Cached in the image this way
-        initialization::ga_output upgrade-to-newer-dependencies "${INCOMING_COMMIT_SHA}"
+        upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
     else
-        initialization::ga_output upgrade-to-newer-dependencies "false"
+        upgrade_to_newer_dependencies="false"
     fi
+}
 
+function output_all_basic_variables() {
     if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
         initialization::ga_output python-versions \
             "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
@@ -205,6 +196,11 @@ function set_basic_checks_only() {
     initialization::ga_output basic-checks-only "${@}"
 }
 
+function set_upgrade_to_newer_dependencies() {
+    initialization::ga_output upgrade-to-newer-dependencies "${@}"
+}
+
+
 ALL_TESTS="Always Core Other API CLI Providers WWW Integration Heisentests"
 readonly ALL_TESTS
 
@@ -220,6 +216,7 @@ function set_outputs_run_everything_and_exit() {
     set_basic_checks_only "false"
     set_docs_build "true"
     set_image_build "true"
+    set_upgrade_to_newer_dependencies "${INCOMING_COMMIT_SHA}"
     exit
 }
 
@@ -244,6 +241,7 @@ function set_output_skip_all_tests_and_docs_and_exit() {
     set_basic_checks_only "true"
     set_docs_build "false"
     set_image_build "false"
+    set_upgrade_to_newer_dependencies "false"
     exit
 }
 
@@ -259,6 +257,7 @@ function set_output_skip_tests_but_build_images_and_exit() {
     set_basic_checks_only "false"
     set_docs_build "true"
     set_image_build "true"
+    set_upgrade_to_newer_dependencies "${upgrade_to_newer_dependencies}"
     exit
 }
 
@@ -313,6 +312,21 @@ function check_if_python_security_scans_should_be_run() {
     fi
     start_end::group_end
 }
+
+function check_if_setup_files_changed() {
+    start_end::group_start "Check Python security scans"
+    local pattern_array=(
+        "^setup.cfg"
+        "^setup.py"
+    )
+    show_changed_files
+
+    if [[ $(count_changed_files) != "0" ]]; then
+        upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
+    fi
+    start_end::group_end
+}
+
 
 function check_if_javascript_security_scans_should_be_run() {
     start_end::group_start "Check Javascript security scans"
@@ -609,6 +623,7 @@ else
 fi
 start_end::group_end
 
+check_upgrade_to_newer_dependencies
 readonly FULL_TESTS_NEEDED_LABEL
 output_all_basic_variables
 
@@ -619,6 +634,7 @@ kubernetes_tests_needed="false"
 
 get_changed_files
 run_all_tests_if_environment_files_changed
+check_if_setup_files_changed
 check_if_any_py_files_changed
 check_if_docs_should_be_generated
 check_if_helm_tests_should_be_run
@@ -644,3 +660,4 @@ fi
 set_docs_build "${docs_build_needed}"
 run_tests "${tests_needed}"
 run_kubernetes_tests "${kubernetes_tests_needed}"
+set_upgrade_to_newer_dependencies "${upgrade_to_newer_dependencies}"

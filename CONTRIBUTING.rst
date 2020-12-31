@@ -391,11 +391,6 @@ Step 4: Prepare PR
        the "full tests needed" label is set for your PR. Additional check is set that prevents from
        accidental merging of the request until full matrix of tests succeeds for the PR.
 
-     * when your change has "upgrade to newer dependencies" label set, constraints will be automatically
-       upgraded to latest constraints matching your setup.py. This is useful in case you want to force
-       upgrade to a latest version of dependencies. You can ask committers to set the label for you
-       when you need it in your PR.
-
    More details about the PR workflow be found in `PULL_REQUEST_WORKFLOW.rst <PULL_REQUEST_WORKFLOW.rst>`_.
 
 

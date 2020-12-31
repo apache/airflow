@@ -1299,6 +1299,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image.
           This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
+  --installation-method INSTALLATION_METHOD
+          Method of installing airflow - either from the sources ('.') or from package
+          'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
@@ -1309,6 +1315,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --upgrade-to-newer-dependencies
           Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  --continue-on-pip-check-failure
+          Continue even if 'pip check' fails.
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -2410,6 +2419,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image.
           This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
+  --installation-method INSTALLATION_METHOD
+          Method of installing airflow - either from the sources ('.') or from package
+          'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
@@ -2420,6 +2435,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --upgrade-to-newer-dependencies
           Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  --continue-on-pip-check-failure
+          Continue even if 'pip check' fails.
 
   ****************************************************************************************************
    Credentials
