@@ -1204,6 +1204,7 @@ sourceUploadUrl
 sparkApplication
 sparkcmd
 sparksql
+Fspark
 spegno
 spotahome
 sql
