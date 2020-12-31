@@ -24,7 +24,7 @@ jobs:
     if: github.repository != 'apache/airflow'
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
         with:
           persist-credentials: false
       - name: repo-sync
