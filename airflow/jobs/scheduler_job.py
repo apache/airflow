@@ -1499,12 +1499,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
             query = (
                 session.query(
-                    TI.dag_id,
-                    TI.execution_date,
+                    DR.dag_id,
+                    DR.execution_date,
                 )
                 .filter(
-                    TI.dag_id.in_(list({dag_run.dag_id for dag_run in dag_runs})),
-                    TI.state.notin_(list(State.finished) + [State.REMOVED]),
+                    DR.dag_id.in_(list({dag_run.dag_id for dag_run in dag_runs})),
+                    DR.state.in_([State.RUNNING]),
                 )
                 .group_by(TI.dag_id, TI.execution_date)
             )
