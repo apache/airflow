@@ -43,9 +43,10 @@ PROCESS_TIMEOUT = 4 * 60
 class AirflowDocsBuilder:
     """Documentation builder for Airflow."""
 
-    def __init__(self, package_name: str, for_production: bool):
+    def __init__(self, package_name: str, for_production: bool, verbose: bool):
         self.package_name = package_name
         self.for_production = for_production
+        self.verbose = verbose
 
     @property
     def _doctree_dir(self) -> str:
@@ -118,13 +119,19 @@ class AirflowDocsBuilder:
                 tmp_dir,
             ]
             print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
-            print("The output is hidden until an error occurs.")
+            if not self.verbose:
+                print("The output is hidden until an error occurs.")
             env = os.environ.copy()
             env['AIRFLOW_PACKAGE_NAME'] = self.package_name
             if self.for_production:
                 env['AIRFLOW_FOR_PRODUCTION'] = 'true'
             completed_proc = run(  # pylint: disable=subprocess-run-check
-                build_cmd, cwd=self._src_dir, env=env, stdout=output, stderr=output, timeout=PROCESS_TIMEOUT
+                build_cmd,
+                cwd=self._src_dir,
+                env=env,
+                stdout=output if not self.verbose else None,
+                stderr=output if not self.verbose else None,
+                timeout=PROCESS_TIMEOUT,
             )
             if completed_proc.returncode != 0:
                 output.seek(0)
@@ -170,7 +177,8 @@ class AirflowDocsBuilder:
                 self._build_dir,  # path to output directory
             ]
             print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
-            print("The output is hidden until an error occurs.")
+            if not self.verbose:
+                print("The output is hidden until an error occurs.")
 
             env = os.environ.copy()
             env['AIRFLOW_PACKAGE_NAME'] = self.package_name
@@ -178,10 +186,16 @@ class AirflowDocsBuilder:
                 env['AIRFLOW_FOR_PRODUCTION'] = 'true'
 
             completed_proc = run(  # pylint: disable=subprocess-run-check
-                build_cmd, cwd=self._src_dir, env=env, stdout=output, stderr=output, timeout=PROCESS_TIMEOUT
+                build_cmd,
+                cwd=self._src_dir,
+                env=env,
+                stdout=output if not self.verbose else None,
+                stderr=output if not self.verbose else None,
+                timeout=PROCESS_TIMEOUT,
             )
             if completed_proc.returncode != 0:
-                print(completed_proc.stdout.decode())
+                output.seek(0)
+                print(output.read().decode())
                 build_errors.append(
                     DocBuildError(
                         file_path=None,
