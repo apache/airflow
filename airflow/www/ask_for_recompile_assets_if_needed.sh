@@ -30,7 +30,7 @@ md5sum=$(find package.json yarn.lock static/css static/js -type f | sort | xargs
 old_md5sum=$(cat "${MD5SUM_FILE}" 2>/dev/null || true)
 if [[ ${old_md5sum} != "${md5sum}" ]]; then
     echo
-    echo "${YELLOW}WARNING: It seems that the generated assets files do not match the content of the sources.${NO_COLOR}"
+    echo -e "${YELLOW}WARNING: It seems that the generated assets files do not match the content of the sources.${NO_COLOR}"
     echo "To recompile assets, run:"
     echo ""
     echo "   ./airflow/www/compile_assets.sh"
