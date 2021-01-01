@@ -39,13 +39,16 @@ class AwsGlueCrawlerSensor(BaseSensorOperator):
         self.errored_statuses = ('FAILED', 'CANCELLED')
 
     def poke(self, context):
-        hook = AwsGlueCrawlerHook(aws_conn_id=self.aws_conn_id, poll_interval=5)
-        self.log.info("Poking for Glue crawler: %s", self.crawler_name)
-        crawler_status = hook.get_last_crawl_status(crawler_name=self.crawler_name)
-        if crawler_status == self.success_statuses:
-            self.log.info("Crawler status: %s", crawler_status)
-            return True
-        elif crawler_status in self.errored_statuses:
-            raise AirflowException(f"Crawler status {crawler_status}")
-        else:
-            return False
+        hook = AwsGlueCrawlerHook(aws_conn_id=self.aws_conn_id)
+        self.log.info("Poking for AWS Glue crawler: %s", self.crawler_name)
+        crawler_state = hook.get_crawler_state(self.crawler_name)
+        if crawler_state == 'READY':
+            self.log.info("State: %s", crawler_state)
+            crawler_status = hook.get_last_crawl_status(crawler_name=self.crawler_name)
+            if crawler_status == self.success_statuses:
+                self.log.info("Status: %s", crawler_status)
+                return True
+            elif crawler_status in self.errored_statuses:
+                raise AirflowException(f"Status: {crawler_status}")
+            else:
+                return False

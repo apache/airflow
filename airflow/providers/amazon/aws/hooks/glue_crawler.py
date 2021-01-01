@@ -27,14 +27,11 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class AwsGlueCrawlerHook(AwsBaseHook):
     """
     Interacts with AWS Glue Crawler
-    :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
-    :type poll_interval: int
     :param config = Configurations for the AWS Glue crawler
     :type config = dict
     """
 
-    def __init__(self, poll_interval, *args, **kwargs):
-        self.poll_interval = poll_interval
+    def __init__(self, *args, **kwargs):
         kwargs['client_type'] = 'glue'
         super().__init__(*args, **kwargs)
 
@@ -43,14 +40,22 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         """:return: AWS Glue client"""
         return self.get_conn()
 
-    def get_iam_execution_role(self, role_name) -> str:
-        """:return: iam role for crawler execution"""
+    def check_iam_role(self, role_name: str) -> str:
+        """
+        Checks if the input IAM role name is a 
+        valid pre-existing role within the caller's AWS account.
+        Is needed because the current Boto3 (<=1.16.46) 
+        glue client create_crawler() method misleadingly catches 
+        non-existing role as a role trust policy error. 
+        :param role_name = IAM role name
+        :type role_name = str
+        :return: IAM role name
+        """
         iam_client = self.get_client_type('iam', self.region_name)
 
         iam_client.get_role(RoleName=role_name)
-        return role_name
 
-    def get_or_create_crawler(self, config) -> str:
+    def get_or_create_crawler(self, config: dict) -> str:
         """
         Creates the crawler if the crawler doesn't exists and returns the crawler name
 
@@ -58,18 +63,22 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         :type config = dict
         :return: Name of the crawler
         """
-        crawler_name = config["Name"]
+        crawler_name = config['Name']
         try:
             self.glue_client.get_crawler(Name=crawler_name)
             self.log.info("Crawler %s already exists; updating crawler", crawler_name)
             self.glue_client.update_crawler(**config)
         except self.glue_client.exceptions.EntityNotFoundException:
-            self.get_iam_execution_role(config["Role"])
             self.log.info("Creating AWS Glue crawler %s", crawler_name)
-            self.glue_client.create_crawler(**config)
+            try:
+                self.glue_client.create_crawler(**config)
+            except self.glue_client.exceptions.InvalidInputException as general_error:
+                check_iam_execution_role(config['Role'])
+                raise AirflowException(general_error)
+
         return crawler_name
 
-    def start_crawler(self, crawler_name: str) -> str:
+    def start_crawler(self, crawler_name: str) -> dict:
         """
         Triggers the AWS Glue crawler
         :return: Empty dictionary
@@ -101,14 +110,16 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         last_crawl_status = crawler['Crawler']['LastCrawl']['Status']
         return last_crawl_status
 
-    def wait_for_crawler_completion(self, crawler_name: str) -> str:
+    def wait_for_crawler_completion(self, crawler_name: str, poll_interval: int = 5) -> str:
         """
-        Waits until Glue crawler completes or
-        fails and returns the final state if finished.
-        Raises AirflowException when the crawler failed
+        Waits until Glue crawler completes and
+        returns the status of the latest crawl run.
+        Raises AirflowException if the crawler fails or is cancelled.
         :param crawler_name: unique crawler name per AWS account
         :type crawler_name: str
-        :return: Dict of crawler's status
+        :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
+        :type poll_interval: int
+        :return: Crawler's status
         """
         failed_status = ['FAILED', 'CANCELLED']
 
@@ -136,18 +147,17 @@ class AwsGlueCrawlerHook(AwsBaseHook):
                 self.log.info("Polling for AWS Glue crawler: %s ", crawler_name)
                 self.log.info("State: %s", crawler_state)
 
-                sleep(self.poll_interval)
-
                 metrics = self.get_crawler_metrics(crawler_name)
                 time_left = int(metrics['TimeLeftSeconds'])
 
                 if time_left > 0:
-                    print('Estimated Time Left (seconds): ', time_left)
-                    self.poll_interval = time_left
+                    self.log.info("Estimated Time Left (seconds): %s", time_left)                    
                 else:
-                    print('Crawler should finish soon')
+                    self.log.info("Crawler should finish soon")
 
-    def get_crawler_metrics(self, crawler_name: str) -> str:
+                sleep(poll_interval)
+
+    def get_crawler_metrics(self, crawler_name: str) -> dict:
         """
         Returns metrics associated with the crawler
         :return: Dictionary of the crawler metrics

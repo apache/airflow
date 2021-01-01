@@ -91,27 +91,6 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
     def setUpClass(cls):
         cls.hook = AwsGlueCrawlerHook(aws_conn_id="aws_default", poll_interval=5)
 
-    @unittest.skipIf(mock_iam is None, 'mock_iam package not present')
-    @mock_iam
-    def test_get_iam_execution_role(self):
-        iam_role = self.hook.get_client_type('iam').create_role(
-            Path="/",
-            RoleName=mock_role_name,
-            AssumeRolePolicyDocument=json.dumps(
-                {
-                    "Version": "2012-10-17",
-                    "Statement": {
-                        "Effect": "Allow",
-                        "Principal": {"Service": "glue.amazonaws.com"},
-                        "Action": "sts:AssumeRole",
-                    },
-                }
-            ),
-        )
-        iam_role = self.hook.get_iam_execution_role(role_name=mock_role_name)
-
-        self.assertEqual(iam_role, mock_role_name)
-
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
     @mock.patch.object(AwsGlueCrawlerHook, "get_or_create_crawler")
     def test_get_or_create_crawler(self, mock_get_conn, mock_get_or_create_crawler):
