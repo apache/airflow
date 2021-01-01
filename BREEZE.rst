@@ -340,9 +340,9 @@ chose which backend database should be used with ``--backend`` flag and python v
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
 tmux session with four panes:
 
-   - one to monitor the scheduler
+   - one to monitor the scheduler,
    - one for the webserver,
-   - one monitors and compiles Javascript files
+   - one monitors and compiles Javascript files,
    - one with a shell for additional commands.
 
 Managing Prod environment (with ``--production-image`` flag):
