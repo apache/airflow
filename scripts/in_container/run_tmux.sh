@@ -25,7 +25,7 @@ if [[ ${BACKEND} != "sqlite"  ]]; then
     export AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
 fi
 
-#this is because I run docker in WSL - Hi Bill!
+#this is because I run docker in WSL - Hi Nadella!
 export TMUX_TMPDIR=~/.tmux/tmp
 if [ -e ~/.tmux/tmp ]; then
     rm -rf ~/.tmux/tmp
@@ -53,11 +53,11 @@ tmux send-keys 'airflow webserver' C-m
 
 tmux select-pane -t 0
 tmux split-window -h
-tmux send-keys 'cd airflow/www/; yarn dev' C-m
+tmux send-keys 'cd /opt/airflow/airflow/www/; yarn dev' C-m
 
 # Attach Session, on the Main window
 tmux select-pane -t 0
-tmux send-keys "./scripts/in_container/run_tmux_welcome.sh" C-m
+tmux send-keys "/opt/airflow/scripts/in_container/run_tmux_welcome.sh" C-m
 
 tmux attach-session -t "${TMUX_SESSION}":0
 rm /usr/local/bin/stop_airflow
