@@ -67,5 +67,14 @@ with DAG(
     # [END howto_operator_bash_template]
     also_run_this >> run_this_last
 
+# [START howto_operator_bash_skip]
+this_will_skip = BashOperator(
+    task_id='this_will_skip',
+    bash_command='echo "hello world"; exit 255;',
+    dag=dag,
+)
+# [END howto_operator_bash_skip]
+this_will_skip >> run_this_last
+
 if __name__ == "__main__":
     dag.cli()

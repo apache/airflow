@@ -23,10 +23,12 @@ from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
 from typing import Dict, Optional
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
+
+EXIT_CODE_SKIP = 255
 
 
 class BashOperator(BaseOperator):
@@ -51,16 +53,33 @@ class BashOperator(BaseOperator):
     :param output_encoding: Output encoding of bash command
     :type output_encoding: str
 
-    On execution of this operator the task will be up for retry
-    when exception is raised. However, if a sub-command exits with non-zero
-    value Airflow will not recognize it as failure unless the whole shell exits
-    with a failure. The easiest way of achieving this is to prefix the command
-    with ``set -e;``
-    Example:
+    Airflow will evaluate the exit code of the bash command.  In general, a non-zero exit code will result in
+    task failure and zero will result in task success.  Exit code ``255`` will throw an
+    :class:`airflow.exceptions.AirflowSkipException`, which will leave the task in ``skipped`` state.
 
-    .. code-block:: python
+    .. list-table::
+       :widths: 25 25
+       :header-rows: 1
 
-        bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
+       * - Exit code range
+         - Behavior
+       * - 0
+         - success
+       * - 1-249
+         - raise :class:`airflow.exceptions.AirflowException`
+       * - 255
+         - raise :class:`airflow.exceptions.AirflowSkipException`
+
+    .. note::
+
+        Airflow will not recognize a non-zero exit code unless the whole shell exit with a non-zero exit
+        code.  This can be an issue if the non-zero exit arises from a sub-command.  The easiest way of
+        addressing this is to prefix the command with ``set -e;``
+
+        Example:
+        .. code-block:: python
+
+            bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
 
     .. note::
 
@@ -176,7 +195,9 @@ class BashOperator(BaseOperator):
 
             self.log.info('Command exited with return code %s', self.sub_process.returncode)
 
-            if self.sub_process.returncode != 0:
+            if self.sub_process.returncode == EXIT_CODE_SKIP:
+                raise AirflowSkipException(f"Bash returned exit code {EXIT_CODE_SKIP}. Skipping task")
+            elif self.sub_process.returncode != 0:
                 raise AirflowException('Bash command failed. The command returned a non-zero exit code.')
 
         return line
