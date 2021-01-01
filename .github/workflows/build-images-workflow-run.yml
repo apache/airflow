@@ -198,6 +198,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: >
           Event: ${{ needs.cancel-workflow-runs.outputs.sourceEvent }}
           Repo: ${{ needs.cancel-workflow-runs.outputs.sourceHeadRepo }}
@@ -215,10 +217,13 @@ jobs:
         with:
           ref: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
           fetch-depth: 2
+          persist-credentials: false
         if: needs.cancel-workflow-runs.outputs.sourceEvent  == 'pull_request'
       # checkout the master version again, to use the right script in master workflow
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: Selective checks
         id: selective-checks
         env:
@@ -270,6 +275,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
+          persist-credentials: false
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
@@ -313,6 +319,7 @@ jobs:
         with:
           path: "main-airflow"
           ref: "${{ needs.cancel-workflow-runs.outputs.targetBranch }}"
+          persist-credentials: false
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2

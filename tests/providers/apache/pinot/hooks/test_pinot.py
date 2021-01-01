@@ -23,6 +23,8 @@ import subprocess
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook, PinotDbApiHook
 
@@ -264,3 +266,13 @@ class TestPinotDbApiHook(unittest.TestCase):
         self.assertEqual(column, df.columns[0])
         for i in range(len(result_sets)):  # pylint: disable=consider-using-enumerate
             self.assertEqual(result_sets[i][0], df.values.tolist()[i][0])
+
+
+class TestPinotDbApiHookIntegration(unittest.TestCase):
+    @pytest.mark.integration("pinot")
+    @mock.patch.dict('os.environ', AIRFLOW_CONN_PINOT_BROKER_DEFAULT="pinot://pinot:8000/")
+    def test_should_return_records(self):
+        hook = PinotDbApiHook()
+        sql = "select playerName from baseballStats  ORDER BY playerName limit 5"
+        records = hook.get_records(sql)
+        self.assertEqual([["A. Harry"], ["A. Harry"], ["Aaron"], ["Aaron Albert"], ["Aaron Albert"]], records)

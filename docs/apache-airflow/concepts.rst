@@ -469,54 +469,32 @@ Operators are only loaded by Airflow if they are assigned to a DAG.
 Sensors
 -------
 
-``Sensor`` is an Operator that waits (polls) for a certain time, file, database row, S3 key, , another DAG/task, etc...
+``Sensor`` is an Operator that waits (polls) for a certain time, file, database row, S3 key, another DAG/task, etc...
 
 There are currently 3 different modes for how a sensor operates:
 
-+--------------------+-----------------------+-----------------------+
-| Schedule Mode      | Description           | Use case              |
-+====================+=======================+=======================+
-| ``poke`` (default) | The sensor is taking  | Use this mode if the  |
-|                    | up a worker slot for  | expected runtime of   |
-|                    | its whole execution   | the sensor is short   |
-|                    | time and sleeps       | or if a short poke    |
-|                    | between pokes.        | interval is required. |
-|                    |                       | Note that the sensor  |
-|                    |                       | will hold onto a      |
-|                    |                       | worker slot and a     |
-|                    |                       | pool slot for the     |
-|                    |                       | duration of the       |
-|                    |                       | sensor's runtime in   |
-|                    |                       | this mode.            |
-+--------------------+-----------------------+-----------------------+
-| ``reschedule``     | The sensor task frees | Use this mode if the  |
-|                    | the worker slot when  | time before the       |
-|                    | the criteria is not   | criteria is met is    |
-|                    | yet met and it's      | expected to be quite  |
-|                    | rescheduled at a      | long. The poke        |
-|                    | later time.           | interval should be    |
-|                    |                       | more than one minute  |
-|                    |                       | to prevent too much   |
-|                    |                       | load on the           |
-|                    |                       | scheduler.            |
-+--------------------+-----------------------+-----------------------+
-| ``smart sensor``   | smart sensor is a     | Use this mode if you  |
-|                    | service (run by a     | have a large amount   |
-|                    | builtin DAG) which    | of sensor tasks       |
-|                    | consolidate the       | running in your       |
-|                    | execution of sensors  | airflow cluster. This |
-|                    | in batches. Instead   | can largely reduce    |
-|                    | of holding a long     | airflow’s             |
-|                    | running process for   | infrastructure cost   |
-|                    | each sensor and       | and improve cluster   |
-|                    | poking periodically,  | stability - reduce    |
-|                    | a sensor will only    | meta database load.   |
-|                    | store poke context at |                       |
-|                    | ``sensor_instance``   |                       |
-|                    | table and then exits  |                       |
-|                    | with a 'sensing'      |                       |
-|                    | state.                |                       |
-+--------------------+-----------------------+-----------------------+
+
+.. list-table::
+   :header-rows: 1
+
+   * - Schedule Mode
+     - Description
+     - Use case
+   * - ``poke`` (default)
+     - The sensor is taking up a worker slot for its whole execution time and sleeps between pokes.
+     - Use this mode if the expected runtime of the sensor is short or if a short poke interval is required.
+       Note that the sensor will hold onto a worker slot and a pool slot for the duration of the sensor's
+       runtime in this mode.
+   * - ``reschedule``
+     - The sensor task frees the worker slot when the criteria is not yet met and it's rescheduled at a later time.
+     - Use this mode if the time before the criteria is met is expected to be quite long.
+       The poke interval should be more than one minute to prevent too much load on the scheduler.
+   * - ``smart sensor``
+     - smart sensor is a service (run by a builtin DAG) which consolidate the execution of sensors in batches.
+       Instead of holding a long running process for each sensor and poking periodically, a sensor will only
+       store poke context at ``sensor_instance`` table and then exits with a 'sensing' state.
+     - Use this mode if you have a large amount of sensor tasks running in your airflow cluster.
+       This can largely reduce airflow’s infrastructure cost and improve cluster stability - reduce meta database load.
 
 How to use:
 
@@ -525,7 +503,7 @@ i.e. ``S3KeySensor(task_id='check-bucket', mode='reschedule', ...)``.
 
 For ``smart sensor``, you need to configure it in ``airflow.cfg``, for example:
 
-.. code-block::
+.. code-block:: ini
 
     [smart_sensor]
     use_smart_sensor = true

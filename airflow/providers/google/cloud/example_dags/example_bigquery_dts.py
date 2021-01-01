@@ -22,9 +22,6 @@ Example Airflow DAG that creates and deletes Bigquery data transfer configuratio
 import os
 import time
 
-from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
-from google.protobuf.json_format import ParseDict
-
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator,
@@ -55,16 +52,13 @@ PARAMS = {
     "file_format": "CSV",
 }
 
-TRANSFER_CONFIG = ParseDict(
-    {
-        "destination_dataset_id": GCP_DTS_BQ_DATASET,
-        "display_name": "GCS Test Config",
-        "data_source_id": "google_cloud_storage",
-        "schedule_options": schedule_options,
-        "params": PARAMS,
-    },
-    TransferConfig(),
-)
+TRANSFER_CONFIG = {
+    "destination_dataset_id": GCP_DTS_BQ_DATASET,
+    "display_name": "GCS Test Config",
+    "data_source_id": "google_cloud_storage",
+    "schedule_options": schedule_options,
+    "params": PARAMS,
+}
 
 # [END howto_bigquery_dts_create_args]
 
