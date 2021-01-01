@@ -137,23 +137,23 @@ if [[ -n ${BACKEND=} ]]; then
     check_db_backend 20
     echo "-----------------------------------------------------------------------------------------------"
 fi
-check_integration "Kerberos" "kerberos" "nc -zvv kdc-server-example-com 88" 30
-check_integration "MongoDB" "mongo" "nc -zvv mongo 27017" 20
-check_integration "Redis" "redis" "nc -zvv redis 6379" 20
-check_integration "RabbitMQ" "rabbitmq" "nc -zvv rabbitmq 5672" 20
-check_integration "Cassandra" "cassandra" "nc -zvv cassandra 9042" 20
-check_integration "OpenLDAP" "openldap" "nc -zvv openldap 389" 20
-check_integration "Presto (HTTP)" "presto" "nc -zvv presto 8080" 40
-check_integration "Presto (HTTPS)" "presto" "nc -zvv presto 7778" 40
+check_integration "Kerberos" "kerberos" "nc -zvv kdc-server-example-com 88" 60
+check_integration "MongoDB" "mongo" "nc -zvv mongo 27017" 40
+check_integration "Redis" "redis" "nc -zvv redis 6379" 40
+check_integration "RabbitMQ" "rabbitmq" "nc -zvv rabbitmq 5672" 40
+check_integration "Cassandra" "cassandra" "nc -zvv cassandra 9042" 40
+check_integration "OpenLDAP" "openldap" "nc -zvv openldap 389" 40
+check_integration "Presto (HTTP)" "presto" "nc -zvv presto 8080" 80
+check_integration "Presto (HTTPS)" "presto" "nc -zvv presto 7778" 80
 check_integration "Presto (API)" "presto" \
-    "curl --max-time 1 http://presto:8080/v1/info/ | grep '\"starting\":false'" 20
-check_integration "Pinot (HTTP)" "pinot" "nc -zvv pinot 9000" 40
+    "curl --max-time 1 http://presto:8080/v1/info/ | grep '\"starting\":false'" 40
+check_integration "Pinot (HTTP)" "pinot" "nc -zvv pinot 9000" 80
 CMD="curl --max-time 1 -X GET 'http://pinot:9000/health' -H 'accept: text/plain' | grep OK"
-check_integration "Presto (Controller API)" "pinot" "${CMD}" 20
+check_integration "Presto (Controller API)" "pinot" "${CMD}" 40
 CMD="curl --max-time 1 -X GET 'http://pinot:9000/pinot-controller/admin' -H 'accept: text/plain' | grep GOOD"
-check_integration "Presto (Controller API)" "pinot" "${CMD}" 20
+check_integration "Presto (Controller API)" "pinot" "${CMD}" 40
 CMD="curl --max-time 1 -X GET 'http://pinot:8000/health' -H 'accept: text/plain' | grep OK"
-check_integration "Presto (Broker API)" "pinot" "${CMD}" 20
+check_integration "Presto (Broker API)" "pinot" "${CMD}" 40
 
 echo "-----------------------------------------------------------------------------------------------"
 
