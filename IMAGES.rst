@@ -449,10 +449,27 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | package. It has no effect when           |
 |                                          |                                          | installing from PyPI or GitHub repo.     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow and it's         |
-|                                          |                                          | dependencies are installed from locally  |
-|                                          |                                          | downloaded .whl files placed in the      |
-|                                          |                                          | ``docker-context-files``.                |
+| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow, providers and   |
+|                                          |                                          | all dependencies are installed from      |
+|                                          |                                          | from locally built/downloaded            |
+|                                          |                                          | .whl and .tar.gz files placed in the     |
+|                                          |                                          | ``docker-context-files``. In certain     |
+|                                          |                                          | corporate environments, this is required |
+|                                          |                                          | to install airflow from such pre-vetted  |
+|                                          |                                          | packages rather than from PyPI. For this |
+|                                          |                                          | to work, also set ``INSTALL_FROM_PYPI``. |
+|                                          |                                          | Note that packages starting with         |
+|                                          |                                          | ``apache?airflow`` glob are treated      |
+|                                          |                                          | differently than other packages. All     |
+|                                          |                                          | ``apache?airflow`` packages are          |
+|                                          |                                          | installed with dependencies limited by   |
+|                                          |                                          | airflow constraints. All other packages  |
+|                                          |                                          | are installed without dependencies       |
+|                                          |                                          | 'as-is'. If you wish to install airflow  |
+|                                          |                                          | via 'pip download' with all dependencies |
+|                                          |                                          | downloaded, you have to rename the       |
+|                                          |                                          | apache airflow and provider packages to  |
+|                                          |                                          | not start with ``apache?airflow`` glob.  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | ``all``                                  | extras to install                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
