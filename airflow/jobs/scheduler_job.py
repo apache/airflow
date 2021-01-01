@@ -1480,40 +1480,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
             dag_runs = DagRun.next_dagruns_to_examine(session)
 
-            # Bulk fetch the currently active dag runs for the dags we are
-            # examining, rather than making one query per DagRun
-
-            # TODO: This query is probably horribly inefficient (though there is an
-            # index on (dag_id,state)). It is to deal with the case when a user
-            # clears more than max_active_runs older tasks -- we don't want the
-            # scheduler to suddenly go and start running tasks from all of the
-            # runs. (AIRFLOW-137/GH #1442)
-            #
-            # The longer term fix would be to have `clear` do this, and put DagRuns
-            # in to the queued state, then take DRs out of queued before creating
-            # any new ones
-
-            # Build up a set of execution_dates that are "active" for a given
-            # dag_id -- only tasks from those runs will be scheduled.
-            active_runs_by_dag_id = defaultdict(set)
-
-            query = (
-                session.query(
-                    DR.dag_id,
-                    DR.execution_date,
-                )
-                .filter(
-                    DR.dag_id.in_(list({dag_run.dag_id for dag_run in dag_runs})),
-                    DR.state.in_([State.RUNNING]),
-                )
-                .group_by(TI.dag_id, TI.execution_date)
-            )
-
-            for dag_id, execution_date in query:
-                active_runs_by_dag_id[dag_id].add(execution_date)
-
             for dag_run in dag_runs:
-                self._schedule_dag_run(dag_run, active_runs_by_dag_id.get(dag_run.dag_id, set()), session)
+                self._schedule_dag_run(dag_run, session)
 
             guard.commit()
 
@@ -1611,7 +1579,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     def _schedule_dag_run(
         self,
         dag_run: DagRun,
-        currently_active_runs: Set[datetime.datetime],
         session: Session,
     ) -> int:
         """
@@ -1621,7 +1588,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         used to ask this for all dag runs in the batch, to avoid an n+1 query.
 
         :param dag_run: The DagRun to schedule
-        :param currently_active_runs: Number of currently active runs of this DAG
         :return: Number of tasks scheduled
         """
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
@@ -1659,19 +1625,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
             self.log.error("Execution date is in future: %s", dag_run.execution_date)
             return 0
-
-        if dag.max_active_runs:
-            if (
-                len(currently_active_runs) >= dag.max_active_runs
-                and dag_run.execution_date not in currently_active_runs
-            ):
-                self.log.info(
-                    "DAG %s already has %d active runs, not queuing any tasks for run %s",
-                    dag.dag_id,
-                    len(currently_active_runs),
-                    dag_run.execution_date,
-                )
-                return 0
 
         self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session)
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
