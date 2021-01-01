@@ -148,15 +148,12 @@ check_integration "Presto (HTTPS)" "presto" "nc -zvv presto 7778" 40
 check_integration "Presto (API)" "presto" \
     "curl --max-time 1 http://presto:8080/v1/info/ | grep '\"starting\":false'" 20
 check_integration "Pinot (HTTP)" "pinot" "nc -zvv pinot 9000" 40
-check_integration "Presto (Controller API)" "pinot" \
-    "curl --max-time 1 -X GET 'http://pinot:9000/health' " \
-    "-H 'accept: text/plain' | grep OK" 20
-check_integration "Presto (Controller API)" "pinot" \
-    "curl --max-time 1 -X GET 'http://pinot:9000/pinot-controller/admin' " \
-    "-H 'accept: text/plain' | grep GOOD" 20
-check_integration "Presto (Broker API)" "pinot" \
-    "curl --max-time 1 -X GET 'http://pinot:8000/health' " \
-    "-H 'accept: text/plain' | grep OK" 20
+CMD="curl --max-time 1 -X GET 'http://pinot:9000/health' -H 'accept: text/plain' | grep OK"
+check_integration "Presto (Controller API)" "pinot" "${CMD}" 20
+CMD="curl --max-time 1 -X GET 'http://pinot:9000/pinot-controller/admin' -H 'accept: text/plain' | grep GOOD"
+check_integration "Presto (Controller API)" "pinot" "${CMD}" 20
+CMD="curl --max-time 1 -X GET 'http://pinot:8000/health' -H 'accept: text/plain' | grep OK"
+check_integration "Presto (Broker API)" "pinot" "${CMD}" 20
 
 echo "-----------------------------------------------------------------------------------------------"
 
