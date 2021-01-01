@@ -33,6 +33,7 @@ FUNCTION_NAME = "function_name"
 class TestOpenFaasHook(unittest.TestCase):
     GET_FUNCTION = "/system/function/"
     INVOKE_ASYNC_FUNCTION = "/async-function/"
+    INVOKE_FUNCTION = "/function/"
     DEPLOY_FUNCTION = "/system/functions"
     UPDATE_FUNCTION = "/system/functions"
 
