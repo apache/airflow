@@ -151,7 +151,7 @@ google-auth-httplib2==0.0.4
 google-auth-oauthlib==0.4.2
 google-auth==1.24.0
 google-cloud-automl==1.0.1
-google-cloud-bigquery-datatransfer==1.1.1
+google-cloud-bigquery-datatransfer==3.0.0
 google-cloud-bigquery-storage==2.1.0
 google-cloud-bigquery==2.6.1
 google-cloud-bigtable==1.6.1
