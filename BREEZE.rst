@@ -2180,6 +2180,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         'breeze static-check all -- --from-ref $(git merge-base master HEAD) --to-ref HEAD'
 
+        To check all files that are in the HEAD commit run:
+
+        'breeze static-check mypy -- --from-ref HEAD^ --to-ref HEAD'
+
+
         You can see all the options by adding --help EXTRA_ARG:
 
         'breeze static-check mypy -- --help'
