@@ -23,6 +23,12 @@ Contributions
 Contributions are welcome and are greatly appreciated! Every little bit helps,
 and credit will always be given.
 
+New Contributor
+---------------
+If you are a new contributor, please follow the `Contributors Quick Start <https://github.com/apache/airflow/blob/master
+/CONTRIBUTORS_QUICK_START.rst>`__ guide to get a gentle step-by-step introduction to setting up the development
+environment and making your first contribution.
+
 Get Mentoring Support
 ---------------------
 
