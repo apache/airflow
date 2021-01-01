@@ -42,11 +42,11 @@ class AwsGlueCrawlerHook(AwsBaseHook):
 
     def check_iam_role(self, role_name: str) -> str:
         """
-        Checks if the input IAM role name is a 
+        Checks if the input IAM role name is a
         valid pre-existing role within the caller's AWS account.
-        Is needed because the current Boto3 (<=1.16.46) 
-        glue client create_crawler() method misleadingly catches 
-        non-existing role as a role trust policy error. 
+        Is needed because the current Boto3 (<=1.16.46)
+        glue client create_crawler() method misleadingly catches
+        non-existing role as a role trust policy error.
         :param role_name = IAM role name
         :type role_name = str
         :return: IAM role name
@@ -73,7 +73,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
             try:
                 self.glue_client.create_crawler(**config)
             except self.glue_client.exceptions.InvalidInputException as general_error:
-                check_iam_execution_role(config['Role'])
+                self.check_iam_role(config['Role'])
                 raise AirflowException(general_error)
 
         return crawler_name
@@ -151,7 +151,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
                 time_left = int(metrics['TimeLeftSeconds'])
 
                 if time_left > 0:
-                    self.log.info("Estimated Time Left (seconds): %s", time_left)                    
+                    self.log.info("Estimated Time Left (seconds): %s", time_left)
                 else:
                     self.log.info("Crawler should finish soon")
 
