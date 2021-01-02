@@ -1478,7 +1478,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 guard.commit()
                 # END: create dagruns
 
-            dag_runs = list(DagRun.next_dagruns_to_examine(session))
+            dag_runs = DagRun.next_dagruns_to_examine(session)
 
             # Bulk fetch the currently active dag runs for the dags we are
             # examining, rather than making one query per DagRun
