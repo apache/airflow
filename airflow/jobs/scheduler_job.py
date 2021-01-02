@@ -1515,8 +1515,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             )
 
             for dag_id, execution_date in query:
-                active_runs = len(active_runs_by_dag_id[dag_id])
-                if dags[dag_id].max_active_runs and active_runs < dags[dag_id].max_active_runs:
+                if (
+                    dags[dag_id].max_active_runs
+                    and len(active_runs_by_dag_id[dag_id]) < dags[dag_id].max_active_runs
+                ):
                     active_runs_by_dag_id[dag_id].add(execution_date)
 
             for dag_run in dag_runs:
