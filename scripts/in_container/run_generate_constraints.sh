@@ -28,7 +28,7 @@ mkdir -pv "${CONSTRAINTS_DIR}"
 CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 readonly CONSTRAINTS_LOCATION
 
-curl "${CONSTRAINTS_LOCATION}" --output "${LATEST_CONSTRAINT_FILE}"
+curl curl --connect-timeout 60  --max-time 60 "${CONSTRAINTS_LOCATION}" --output "${LATEST_CONSTRAINT_FILE}"
 
 echo
 echo "Freezing constraints to ${CURRENT_CONSTRAINT_FILE}"
