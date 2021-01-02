@@ -18,9 +18,8 @@
 
 export INSTALL_FROM_PYPI="false"
 export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
-export INSTALL_PROVIDERS_FROM_SOURCES="false"
 export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
-export DOCKER_CACHE="local"
+export DOCKER_CACHE="pulled"
 export VERBOSE="true"
 
 
@@ -41,7 +40,7 @@ function build_prod_images_on_ci() {
             ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_IMAGE}"
 
     else
-        build_images::build_prod_images_from_packages
+        build_images::build_prod_images_from_locally_built_airflow_packages
     fi
 
 

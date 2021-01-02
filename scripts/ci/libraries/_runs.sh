@@ -27,22 +27,6 @@ function runs::run_docs() {
     start_end::group_end
 }
 
-# Downloads packages from PIP
-function runs::run_pip_download() {
-    start_end::group_start "PIP download"
-    if [[ ${UPGRADE_TO_NEWER_DEPENDENCIES} ]]; then
-        pip_download_command="pip download -d /dist '.[${INSTALLED_EXTRAS}]'"
-    else
-        pip_download_command="pip download -d /dist '.[${INSTALLED_EXTRAS}]' --constraint
-'https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt'"
-    fi
-    # Download all dependencies needed
-    docker run --rm --entrypoint /bin/bash \
-        "${EXTRA_DOCKER_FLAGS[@]}" \
-        "${AIRFLOW_CI_IMAGE}" -c "${pip_download_command}"
-    start_end::group_end
-}
-
 # Docker command to generate constraint files.
 function runs::run_generate_constraints() {
     start_end::group_start "Run generate constraints"
