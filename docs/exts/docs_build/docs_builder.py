@@ -43,10 +43,9 @@ PROCESS_TIMEOUT = 4 * 60
 class AirflowDocsBuilder:
     """Documentation builder for Airflow."""
 
-    def __init__(self, package_name: str, for_production: bool, verbose: bool):
+    def __init__(self, package_name: str, for_production: bool):
         self.package_name = package_name
         self.for_production = for_production
-        self.verbose = verbose
 
     @property
     def _doctree_dir(self) -> str:
@@ -100,7 +99,7 @@ class AirflowDocsBuilder:
         os.makedirs(api_dir, exist_ok=True)
         os.makedirs(self._build_dir, exist_ok=True)
 
-    def check_spelling(self):
+    def check_spelling(self, verbose):
         """Checks spelling."""
         spelling_errors = []
         with TemporaryDirectory() as tmp_dir, NamedTemporaryFile() as output:
@@ -119,7 +118,7 @@ class AirflowDocsBuilder:
                 tmp_dir,
             ]
             print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
-            if not self.verbose:
+            if not verbose:
                 print("The output is hidden until an error occurs.")
             env = os.environ.copy()
             env['AIRFLOW_PACKAGE_NAME'] = self.package_name
@@ -129,8 +128,8 @@ class AirflowDocsBuilder:
                 build_cmd,
                 cwd=self._src_dir,
                 env=env,
-                stdout=output if not self.verbose else None,
-                stderr=output if not self.verbose else None,
+                stdout=output if not verbose else None,
+                stderr=output if not verbose else None,
                 timeout=PROCESS_TIMEOUT,
             )
             if completed_proc.returncode != 0:
@@ -157,7 +156,7 @@ class AirflowDocsBuilder:
                 spelling_errors.extend(parse_spelling_warnings(warning_text, self._src_dir))
         return spelling_errors
 
-    def build_sphinx_docs(self) -> List[DocBuildError]:
+    def build_sphinx_docs(self, verbose) -> List[DocBuildError]:
         """Build Sphinx documentation"""
         build_errors = []
         with NamedTemporaryFile() as tmp_file, NamedTemporaryFile() as output:
@@ -177,7 +176,7 @@ class AirflowDocsBuilder:
                 self._build_dir,  # path to output directory
             ]
             print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
-            if not self.verbose:
+            if not verbose:
                 print("The output is hidden until an error occurs.")
 
             env = os.environ.copy()
@@ -189,8 +188,8 @@ class AirflowDocsBuilder:
                 build_cmd,
                 cwd=self._src_dir,
                 env=env,
-                stdout=output if not self.verbose else None,
-                stderr=output if not self.verbose else None,
+                stdout=output if not verbose else None,
+                stderr=output if not verbose else None,
                 timeout=PROCESS_TIMEOUT,
             )
             if completed_proc.returncode != 0:
