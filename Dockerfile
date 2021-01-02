@@ -265,20 +265,37 @@ RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
         fi; \
     fi; \
     if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        reinstalling_apache_airflow_packages=$(ls /docker-context-files/apache?airflow*.{whl,tar.gz} 2>/dev/null || true); \
-        # We want to install apache airflow packages with constraints \
-        if [[ "${reinstalling_apache_airflow_packages}" != "" ]]; then \
+        # We want to install apache airflow package with extras - that's why it is a separate step \
+        # But we should still install them with all dependencies \
+        reinstalling_apache_airflow_package=$(ls /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true); \
+        if [[ "${reinstalling_apache_airflow_package}" != "" ]]; then \
             if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
                 pip install --force-reinstall --upgrade --upgrade-strategy eager \
-                    --user ${reinstalling_apache_airflow_packages}; \
+                    --user "${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]"; \
                 pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
             else \
+                # We want to install apache airflow package with constraints \
                 pip install --force-reinstall --upgrade --upgrade-strategy only-if-needed \
-                    --user ${reinstalling_apache_airflow_packages} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+                    --user "${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]" --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
                 pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
             fi; \
         fi ; \
-        # All the others we want to reinstall as-is, without dependencies \
+        reinstalling_apache_airflow_providers_packages=$(ls /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true); \
+        # We want to install apache airflow package with extras - that's why it is a separate step \
+        # But we should still install them with all dependencies \
+        if [[ "${reinstalling_apache_airflow_providers_packages}" != "" ]]; then \
+            if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
+                pip install --force-reinstall --upgrade --upgrade-strategy eager \
+                    --user ${reinstalling_apache_airflow_providers_packages}; \
+                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+            else \
+                # We want to install apache airflow provider packages with constraints \
+                pip install --force-reinstall --upgrade --upgrade-strategy only-if-needed \
+                    --user ${reinstalling_apache_airflow_providers_packages} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+            fi; \
+        fi ; \
+        # All the other packages we want to reinstall as-is, without dependencies \
         reinstalling_other_packages=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
             grep -v apache_airflow | grep -v apache-airflow || true); \
         if [[ "${reinstalling_other_packages}" != "" ]]; then \
@@ -287,8 +304,11 @@ RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
-            pip install --user ${ADDITIONAL_PYTHON_DEPS} --upgrade --upgrade-strategy eager; \
-            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+            pip install --user ${ADDITIONAL_PYTHON_DEPS} \
+                ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+                --upgrade --upgrade-strategy eager; \
+             pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+              pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}; \
         else \
             pip install --user ${ADDITIONAL_PYTHON_DEPS} --upgrade --upgrade-strategy only-if-needed \
                 --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
