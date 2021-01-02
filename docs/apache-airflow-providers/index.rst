@@ -179,6 +179,9 @@ Creating your own providers
 You do not need to do anything special besides creating the ``apache_airflow_provider`` entry point
 returning properly formatted meta-data (dictionary with ``extra-links`` and ``hook-class-names`` fields).
 
+Anyone who runs airflow in an environment that has your Python package installed will be able to use the
+package as a provider package.
+
 **What do I need to do to turn a package into a provider?**
 
 You need to do the following to turn an existing Python package into a provider (see below for examples):
@@ -189,9 +192,9 @@ You need to do the following to turn an existing Python package into a provider 
   dictionary that contains all meta-data about your provider package; see also ``provider.yaml``
   files in the community managed provider packages as examples
 
-Example ``setup.cfg``: cfg
+Example ``setup.cfg``:
 
-.. code-block::
+.. code-block:: cfg
 
   [options.entry_points]
   # the function get_provider_info is defined in myproviderpackage.somemodule
@@ -213,6 +216,32 @@ Example ``myproviderpackage/somemodule.py``:
           'versions': ["1.0.0"],
       }
 
+**How do provider packages work under the hood?**
+
+When running airflow with your provider package, there will be (at least) three components to your airflow installation:
+
+* The installation itself (for example, a ``venv`` where you installed airflow with ``pip install apache-airflow``)
+  together with the related files (e.g. ``dags`` folder)
+* The ``apache-airflow`` package
+* Your own ``myproviderpackage`` package that is independent of ``apache-airflow`` or your airflow installation, which
+  can be a local Python package (that you install via ``pip pip install -e /path/to/my-package``), a normal pip package
+  (``pip install myproviderpackage``), or any other type of Python package
+
+In the ``myproviderpackage`` package you need to add the entry point and provide the appropriate metadata as described above.
+If you have done that, airflow does the following at runtime:
+
+* Loop through ALL packages installed in your environment / ``venv``
+* For each package, if the package's ``setup.cfg`` has a section ``[options.entry_points]``, and if that section has a value
+  for ``apache_airflow_provider``, then get the value for ``provider_info``, e.g. ``myproviderpackage.somemodule:get_provider_info``
+* That value works like an import statement: ``myproviderpackage.somemodule:get_provider_info`` translates to something like
+  ``from myproviderpackage.somemodule import get_provider_info``, and the ``get_provider_info`` that is being imported should be a
+  callable, i.e. a function
+* This function should return a dictionary with metadata
+* If you have custom connection types as part of your package, that metadata will including a field called ``hook-class-names``
+  which should be a list of strings of your custom hooks - those strings should also be in an import-like format, e.g.
+  ``myproviderpackage.hooks.source.SourceHook`` means that there is a class ``SourceHook`` in ``myproviderpackage/hooks/source.py``
+  - airflow then imports these hooks and looks for the functions ``get_ui_field_behaviour`` and ``get_connection_form_widgets``
+  (both optional) as well as the attributes ``conn_type`` and ``hook_name`` to create the custom connection type in the airflow UI
 
 **Should I name my provider specifically or should it be created in ``airflow.providers`` package?**
 

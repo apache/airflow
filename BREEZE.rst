@@ -338,8 +338,12 @@ start integrations (separate Docker images) if specified as extra ``--integratio
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
-tmux session with three panes (one to monitor the scheduler, one for the webserver and one with a shell
-for additional commands.
+tmux session with four panes:
+
+   - one to monitor the scheduler,
+   - one for the webserver,
+   - one monitors and compiles Javascript files,
+   - one with a shell for additional commands.
 
 Managing Prod environment (with ``--production-image`` flag):
 
@@ -2175,6 +2179,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
         To check all files that differ between you current branch and master run:
 
         'breeze static-check all -- --from-ref $(git merge-base master HEAD) --to-ref HEAD'
+
+        To check all files that are in the HEAD commit run:
+
+        'breeze static-check mypy -- --from-ref HEAD^ --to-ref HEAD'
+
 
         You can see all the options by adding --help EXTRA_ARG:
 
