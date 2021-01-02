@@ -60,13 +60,15 @@ of the connection object.
 
 In some cases, URI's you will need stored in Secrets Manager may not be intuitive, for example when using HTTP / HTTPS or SPARK, you may need URI's that will look like this:
 
-http://https%3A%2F%2Fexample.com
+.. code-block:: ini
 
-spark://spark%3A%2F%2Fspark-master-0.spark-master.spark:7077
+    http://https%3A%2F%2Fexample.com
+
+    spark://spark%3A%2F%2Fspark-master-0.spark-master.spark:7077
 
 This is a known situation, where schema and protocol parts of the URI are independent and in some cases, need to be specified explicitly.
 
-See https://github.com/apache/airflow/pull/10256 and https://github.com/apache/airflow/issues/10913 for more detailed discussion that led to this documentation update. This may get resolved in the future.
+See Github issue `#10256 <https://github.com/apache/airflow/pull/10256>`__ and `#10913 <https://github.com/apache/airflow/issues/10913>`__ for more detailed discussion that led to this documentation update. This may get resolved in the future.
 
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""
