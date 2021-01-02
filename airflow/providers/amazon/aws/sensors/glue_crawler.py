@@ -48,7 +48,7 @@ class AwsGlueCrawlerSensor(BaseSensorOperator):
             if crawler_status == self.success_statuses:
                 self.log.info("Status: %s", crawler_status)
                 return True
-            elif crawler_status in self.errored_statuses:
-                raise AirflowException(f"Status: {crawler_status}")
             else:
-                return False
+                raise AirflowException(f"Status: {crawler_status}")
+        else:
+            return False

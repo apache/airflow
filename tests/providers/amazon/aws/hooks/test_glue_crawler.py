@@ -20,11 +20,6 @@ from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
 
-try:
-    from moto import mock_iam
-except ImportError:
-    mock_iam = None
-
 mock_crawler_name = 'test-crawler'
 mock_role_name = 'test-role'
 mock_config = {
