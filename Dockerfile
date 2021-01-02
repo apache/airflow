@@ -265,33 +265,24 @@ RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
         fi; \
     fi; \
     if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        # We want to install apache airflow package with extras - that's why it is a separate step \
-        # But we should still install them with all dependencies \
         reinstalling_apache_airflow_package=$(ls /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true); \
         if [[ "${reinstalling_apache_airflow_package}" != "" ]]; then \
-            if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
-                pip install --force-reinstall --upgrade --upgrade-strategy eager \
-                    --user "${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]"; \
-                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-            else \
-                # We want to install apache airflow package with constraints \
-                pip install --force-reinstall --upgrade --upgrade-strategy only-if-needed \
-                    --user "${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]" --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-            fi; \
-        fi ; \
+            # install airflow with extras \
+            reinstalling_apache_airflow_package="${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]"; \
+        fi; \
         reinstalling_apache_airflow_providers_packages=$(ls /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true); \
-        # We want to install apache airflow package with extras - that's why it is a separate step \
-        # But we should still install them with all dependencies \
-        if [[ "${reinstalling_apache_airflow_providers_packages}" != "" ]]; then \
+        if [[ ${reinstalling_apache_airflow_package} != "" || \
+              ${reinstalling_apache_airflow_providers_packages} == "" ]]; then \
             if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
                 pip install --force-reinstall --upgrade --upgrade-strategy eager \
-                    --user ${reinstalling_apache_airflow_providers_packages}; \
+                    --user ${reinstalling_apache_airflow_package} \
+                           ${reinstalling_apache_airflow_providers_packages}; \
                 pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
             else \
-                # We want to install apache airflow provider packages with constraints \
                 pip install --force-reinstall --upgrade --upgrade-strategy only-if-needed \
-                    --user ${reinstalling_apache_airflow_providers_packages} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+                    --user ${reinstalling_apache_airflow_package} \
+                           ${reinstalling_apache_airflow_providers_packages} \
+                    --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
                 pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
             fi; \
         fi ; \
