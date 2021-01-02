@@ -929,7 +929,7 @@ jobs:
 
   push-prod-images-to-github-registry:
     timeout-minutes: 10
-    name: "Push PROD images"
+    name: "Push PROD images as cache to GitHub Registry"
     runs-on: ubuntu-20.04
     needs:
       - build-info
@@ -965,14 +965,19 @@ jobs:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+      - name:
+          "Prepare PROD image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+        env:
+          # Since we are going to push both final image and build image segment, we need to pull the
+          # build image, in case we are pulling from registry rather than building.
+          WAIT_FOR_PROD_BUILD_IMAGE: "true"
       - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
 
   push-ci-images-to-github-registry:
     timeout-minutes: 10
-    name: "Push CI images"
+    name: "Push CI images as cache to GitHub Registry"
     runs-on: ubuntu-20.04
     needs:
       - build-info
