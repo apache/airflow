@@ -86,7 +86,7 @@ function install_provider_packages() {
     if [[ ${PACKAGE_FORMAT} == "wheel" ]]; then
         install_all_provider_packages_from_wheels
     elif [[ ${PACKAGE_FORMAT} == "sdist" ]]; then
-        install_all_provider_packages_from_tar_gz_files
+        install_all_provider_packages_from_sdist
     else
         echo
         echo "${COLOR_RED_ERROR} Wrong package format ${PACKAGE_FORMAT}. Should be wheel or sdist${COLOR_RESET}"

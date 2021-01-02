@@ -648,7 +648,7 @@ Airflow 2.0 is split into core and providers. They are delivered as separate pac
 
 In Airflow 1.10 all those providers were installed together within one single package and when you installed
 airflow locally, from sources, they were also installed. In Airflow 2.0, providers are separated out,
-and not installed together with the core, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment
+and not packaged together with the core, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment
 variable to ``true``.
 
 In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
@@ -711,6 +711,95 @@ snowflake                  slack
 ========================== ===========================
 
   .. END PACKAGE DEPENDENCIES HERE
+
+
+Developing community managed provider packages
+----------------------------------------------
+
+While you can develop your own providers, Apache Airflow has 60+ providers that are managed by the community.
+They are part of the same repository as Apache Airflow (we use ``monorepo`` approach where different
+parts of the system are developed in the same repository but then they are packaged and released separately).
+All the community-managed providers are in 'airflow/providers' folder and they are all sub-packages of
+'airflow.providers' package. All the providers are available as ``apache-airflow-providers-<PROVIDER_ID>``
+packages.
+
+The capabilities of the community-managed providers are the same as the third-party ones. When
+the providers are installed from PyPI, they provide the entry-point containing the metadata as described
+in the previous chapter. However when they are locally developed, together with Airflow, the mechanism
+of discovery of the providers is based on ``provider.yaml`` file that is placed in the top-folder of
+the provider. Similarly as in case of the ``provider.yaml`` file is compliant with the
+`json-schema specification <https://github.com/apache/airflow/blob/master/airflow/provider.yaml.schema.json>`_.
+Thanks to that mechanism, you can develop community managed providers in a seamless way directly from
+Airflow sources, without preparing and releasing them as packages. This is achieved by:
+
+* When Airflow is installed locally in editable mode (``pip install -e``) the provider packages installed
+  from PyPI are uninstalled and the provider discovery mechanism finds the providers in the Airflow
+  sources by searching for provider.yaml files.
+
+* When you want to install Airflow from sources you can set ``INSTALL_PROVIDERS_FROM_SOURCES`` variable
+  to ``true`` and then the providers will not be installed from PyPI packages, but they will be installed
+  from local sources as part of the ``apache-airflow`` package, but additionally the ``provider.yaml`` files
+  are copied together with the sources, so that capabilities and names of the providers can be discovered.
+  This mode is especially useful when you are developing a new provider, that cannot be installed from
+  PyPI and you want to check if it installs cleanly.
+
+Regardless if you plan to contribute your provider, when you are developing your own, custom providers,
+you can use the above functionality to make your development easier. You can add your provider
+as a sub-folder of the ``airflow.providers`` package, add the ``provider.yaml`` file and install airflow
+in development mode - then capabilities of your provider will be discovered by airflow and you will see
+the provider among other providers in ``airflow providers`` command output.
+
+Documentation for the community managed providers
+-------------------------------------------------
+
+When you are developing a community-managed provider, you are supposed to make sure it is well tested
+and documented. Part of the documentation is ``provider.yaml`` file ``integration`` information and
+``version`` information. This information is stripped-out from provider info available at runtime,
+however it is used to automatically generate documentation for the provider.
+
+If you have pre-commits installed, pre-commit will warn you and let you know what changes need to be
+done in the ``provider.yaml`` file when you add a new Operator, Hooks, Sensor or Transfer. You can
+also take a look at the other ``provider.yaml`` files as examples.
+
+Well documented provider contains those:
+
+* index.rst with references to packages, API used and example dags
+* configuration reference
+* class documentation generated from PyDoc in the code
+* example dags
+* how-to guides
+
+You can see for example ``google`` provider which has very comprehensive documentation:
+
+* `Documentation <docs/apache-airflow-providers-google>`_
+* `Example DAGs <airflow/providers/google/cloud/example_dags>`_
+
+Part of the documentation are example dags. We are using the example dags for various purposes in
+providers:
+
+* showing real examples of how your provider classes (Operators/Sensors/Transfers) can be used
+* snippets of the examples are embedded in the documentation via ``exampleinclude::`` directive
+* examples are executable as system tests
+
+Testing the community managed providers
+---------------------------------------
+
+We have high requirements when it comes to testing the community managed providers. We have to be sure
+that we have enough coverage and ways to tests for regressions before the community accepts such
+providers.
+
+* Unit tests have to be comprehensive and they should tests for possible regressions and edge cases
+  not only "green path"
+
+* Integration tests where 'local' integration with a component is possible (for example tests with
+  MySQL/Postgres DB/Presto/Kerberos all have integration tests which run with real, dockerised components
+
+* System Tests which provide end-to-end testing, usually testing together several operators, sensors,
+  transfers connecting to a real external system
+
+You can read more about out approach for tests in `TESTING.rst <TESTING.rst>`_ but here
+are some highlights.
+
 
 Backport providers
 ------------------

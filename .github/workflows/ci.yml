@@ -409,6 +409,8 @@ jobs:
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
       - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        env:
+          INSTALL_PROVIDERS_FROM_SOURCES: "false"
       - name: "Upload package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
@@ -460,6 +462,8 @@ jobs:
         run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
       - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        env:
+          INSTALL_PROVIDERS_FROM_SOURCES: "false"
       - name: "Upload package artifacts"
         uses: actions/upload-artifact@v2
         if: always()

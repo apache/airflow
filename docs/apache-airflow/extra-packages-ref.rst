@@ -37,7 +37,7 @@ can be reported by some tools (even if it is harmless).
   have ``INSTALL_PROVIDERS_FROM_SOURCES`` environment variable to ``true`` before running ``pip install``
   command. Contributors need to set it, if they are installing Airflow locally, and want to develop
   providers directly via Airflow sources. This variable is automatically set in ``Breeze``
-  development environment.
+  development environment. Setting this variable is not needed in editable mode (``pip install -e``).
 
 **Fundamentals:**
 
