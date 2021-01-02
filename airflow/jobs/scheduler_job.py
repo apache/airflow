@@ -1511,7 +1511,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     DR.dag_id.in_(list(dags.keys())),
                     DR.state.in_([State.RUNNING]),
                 )
-                .order_by(DR.dag_id, DR.execution_date)
+                .order_by(DR.execution_date)
             )
 
             for dag_id, execution_date in query:
