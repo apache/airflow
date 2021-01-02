@@ -115,19 +115,31 @@ def _get_parser():
         action='store_true',
         help='Builds documentation for official release i.e. all links point to stable version',
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest='verbose',
+        action='store_true',
+        help=(
+            'Increases the verbosity of the script i.e. always displays a full log of '
+            'the build process, not just when it encounters errors'
+        ),
+    )
 
     return parser
 
 
 def build_docs_for_packages(
-    current_packages: List[str], docs_only: bool, spellcheck_only: bool, for_production: bool
+    current_packages: List[str], docs_only: bool, spellcheck_only: bool, for_production: bool, verbose: bool
 ) -> Tuple[Dict[str, List[DocBuildError]], Dict[str, List[SpellingError]]]:
     """Builds documentation for single package and returns errors"""
     all_build_errors: Dict[str, List[DocBuildError]] = defaultdict(list)
     all_spelling_errors: Dict[str, List[SpellingError]] = defaultdict(list)
     for package_no, package_name in enumerate(current_packages, start=1):
         print("#" * 20, f"[{package_no}/{len(current_packages)}] {package_name}", "#" * 20)
-        builder = AirflowDocsBuilder(package_name=package_name, for_production=for_production)
+        builder = AirflowDocsBuilder(
+            package_name=package_name, for_production=for_production, verbose=verbose
+        )
         builder.clean_files()
         if not docs_only:
             with with_group(f"Check spelling: {package_name}"):
@@ -215,6 +227,7 @@ def main():
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         for_production=for_production,
+        verbose=args.verbose,
     )
     if package_build_errors:
         all_build_errors.update(package_build_errors)
@@ -237,6 +250,7 @@ def main():
             docs_only=docs_only,
             spellcheck_only=spellcheck_only,
             for_production=for_production,
+            verbose=args.verbose,
         )
         if package_build_errors:
             all_build_errors.update(package_build_errors)
