@@ -1202,7 +1202,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             raise AirflowException(
                 "Tried to create relationships between tasks that don't have "
                 "DAGs yet. Set the DAG for at least one "
-                "task  and try again: {}".format([self] + task_list)
+                "task and try again: {}".format([self] + task_list)
             )
 
         if dag and not self.has_dag():

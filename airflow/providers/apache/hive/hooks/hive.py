@@ -486,7 +486,7 @@ class HiveMetastoreHook(BaseHook):
         self.metastore = self.get_metastore_client()
 
     def __getstate__(self) -> Dict[str, Any]:
-        # This is for pickling to work despite the thirft hive client not
+        # This is for pickling to work despite the thrift hive client not
         # being pickable
         state = dict(self.__dict__)
         del state['metastore']
