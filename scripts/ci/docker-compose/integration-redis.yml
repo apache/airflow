@@ -20,14 +20,24 @@ services:
   redis:
     image: redis:5.0.1
     volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - /dev/urandom:/dev/rando
+      - m   # Required to get non-blocking entropy source
       - redis-db-volume:/data/presto
     ports:
       - "${REDIS_HOST_PORT}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 30s
+      retries: 50
+    restart: always
+
   airflow:
     environment:
       - INTEGRATION_REDIS=true
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+
 volumes:
   redis-db-volume:
