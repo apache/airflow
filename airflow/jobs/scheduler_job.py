@@ -1489,13 +1489,17 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # clears more than max_active_runs older tasks -- we don't want the
             # scheduler to suddenly go and start running tasks from all of the
             # runs. (AIRFLOW-137/GH #1442)
+            # We should also execute the DagRuns in the order of execution_date,
+            # as that is the expected behavior when executing over time.
+            # Therefore, execute the first max_active_runs DagRuns ordered by
+            # execution_date.
 
             # Build up a set of execution_dates that are "active" for a given
             # dag_id -- only tasks from those runs will be scheduled.
             active_runs_by_dag_id = defaultdict(set)
-            max_active_runs_by_dag = {
-                dag_run.dag_id: self.dagbag.get_dag(dag_run.dag_id, session=session).max_active_runs
-                for dag_run in dag_runs
+            dags = {
+                dag_id: self.dagbag.get_dag(dag_id, session=session)
+                for dag_id in {dag_run.dag_id for dag_run in dag_runs}
             }
 
             query = (
@@ -1504,21 +1508,19 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     DR.execution_date,
                 )
                 .filter(
-                    DR.dag_id.in_(list(max_active_runs_by_dag.keys())),
-                    DR.state.nin_([State.RUNNING]),
+                    DR.dag_id.in_(list(dags.keys())),
+                    DR.state.in_([State.RUNNING]),
                 )
                 .order_by(DR.dag_id, DR.execution_date)
             )
 
             for dag_id, execution_date in query:
-                if (
-                    max_active_runs_by_dag[dag_id]
-                    and len(active_runs_by_dag_id[dag_id]) < max_active_runs_by_dag[dag_id]
-                ):
+                active_runs = len(active_runs_by_dag_id[dag_id])
+                if dags[dag_id].max_active_runs and active_runs < dags[dag_id].max_active_runs:
                     active_runs_by_dag_id[dag_id].add(execution_date)
 
             for dag_run in dag_runs:
-                self._schedule_dag_run(dag_run, active_runs_by_dag_id.get(dag_run.dag_id, set()), session)
+                self._schedule_dag_run(dag_run, active_runs_by_dag_id[dag_run.dag_id], session)
 
             guard.commit()
 
