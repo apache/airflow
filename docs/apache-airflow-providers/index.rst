@@ -218,25 +218,26 @@ Example ``myproviderpackage/somemodule.py``:
 
 **How do provider packages work under the hood?**
 
-At the end, there will be (at least) three components to your airflow installation with custom connection types:
+When running airflow with your provider package, there will be (at least) three components to your airflow installation:
 
-* The installation itself (ideally you have a ``venv`` where you installed airflow with ``pip install apache-airflow``)
+* The installation itself (for example, a ``venv`` where you installed airflow with ``pip install apache-airflow``)
+  together with the related files (e.g. ``dags`` folder)
 * The ``apache-airflow`` package
 * Your own ``myproviderpackage`` package that is independent of ``apache-airflow`` or your airflow installation, which
-  can be a local Python package (that you install via ``pip pip install -e /path/to/my-package``) or a normal pip package
-  (``pip install myproviderpackage``) (or any other type of Python package)
+  can be a local Python package (that you install via ``pip pip install -e /path/to/my-package``), a normal pip package
+  (``pip install myproviderpackage``), or any other type of Python package
 
 In the ``myproviderpackage`` package you need to add the entry point and provide the appropriate metadata as described above.
 If you have done that, airflow does the following at runtime:
 
-* loop through ALL packages installed in your environment / ``venv``
-* for each package, if the package's ``setup.cfg`` has a section ``[options.entry_points]``, and if that section has a value
+* Loop through ALL packages installed in your environment / ``venv``
+* For each package, if the package's ``setup.cfg`` has a section ``[options.entry_points]``, and if that section has a value
   for ``apache_airflow_provider``, then get the value for ``provider_info``, e.g. ``myproviderpackage.somemodule:get_provider_info``
-* that value works like an import statement: myproviderpackage.somemodule:get_provider_info translates to something like
-  ``from myproviderpackage.somemodule import get_provider_info``, and the get_provider_info that is being imported should be a
+* That value works like an import statement: ``myproviderpackage.somemodule:get_provider_info`` translates to something like
+  ``from myproviderpackage.somemodule import get_provider_info``, and the ``get_provider_info`` that is being imported should be a
   callable, i.e. a function
-* this function should return a dictionary with metadata
-* if you have custom connection types as part of your package, that metadata will including a field called ``hook-class-names``,
+* This function should return a dictionary with metadata
+* If you have custom connection types as part of your package, that metadata will including a field called ``hook-class-names``
   which should be a list of strings of your custom hooks - those strings should also be in an import-like format, e.g.
   ``myproviderpackage.hooks.source.SourceHook`` means that there is a class ``SourceHook`` in ``myproviderpackage/hooks/source.py``
   - airflow then imports these hooks and looks for the functions ``get_ui_field_behaviour`` and ``get_connection_form_widgets``

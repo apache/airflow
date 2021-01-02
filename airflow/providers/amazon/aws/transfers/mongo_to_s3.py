@@ -38,7 +38,7 @@ class MongoToS3Operator(BaseOperator):
                 to perform transformations unique to those operators needs
     """
 
-    template_fields = ['s3_key', 'mongo_query']
+    template_fields = ['s3_key', 'mongo_query', 'mongo_collection']
     # pylint: disable=too-many-instance-attributes
 
     @apply_defaults

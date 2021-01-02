@@ -62,6 +62,7 @@ if [[ ${GITHUB_ACTIONS:="false"} == "false" ]]; then
     # Create links for useful CLI tools
     # shellcheck source=scripts/in_container/run_cli_tool.sh
     source <(bash scripts/in_container/run_cli_tool.sh)
+    ln -s '/opt/airflow/scripts/in_container/run_tmux.sh' /usr/bin/run_tmux
 fi
 
 if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
@@ -195,10 +196,14 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 # shellcheck source=scripts/in_container/run_init_script.sh
 . "${IN_CONTAINER_DIR}/run_init_script.sh"
 
-# shellcheck source=scripts/in_container/run_tmux.sh
-. "${IN_CONTAINER_DIR}/run_tmux.sh"
-
 cd "${AIRFLOW_SOURCES}"
+
+if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+    export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
+    export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+    # shellcheck source=scripts/in_container/run_tmux.sh
+    exec /bin/bash "${IN_CONTAINER_DIR}/run_tmux.sh"
+fi
 
 set +u
 # If we do not want to run tests, we simply drop into bash
