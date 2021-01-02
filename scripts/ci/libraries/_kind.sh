@@ -49,7 +49,7 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo
         echo "Downloading Kind version ${KIND_VERSION}"
         repeats::run_with_retry 4 \
-            "curl curl --connect-timeout 60  --max-time 180 --fail --location '${KIND_URL}' --output '${KIND_BINARY_PATH}'"
+            "curl --connect-timeout 60  --max-time 180 --fail --location '${KIND_URL}' --output '${KIND_BINARY_PATH}'"
         chmod a+x "${KIND_BINARY_PATH}"
     else
         echo "Kind version ok"
@@ -65,7 +65,7 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo
         echo "Downloading Kubectl version ${KUBECTL_VERSION}"
         repeats::run_with_retry 4 \
-            "curl curl --connect-timeout 60 --max-time 180 --fail --location '${KUBECTL_URL}' --output '${KUBECTL_BINARY_PATH}'"
+            "curl --connect-timeout 60 --max-time 180 --fail --location '${KUBECTL_URL}' --output '${KUBECTL_BINARY_PATH}'"
         chmod a+x "${KUBECTL_BINARY_PATH}"
     else
         echo "Kubectl version ok"
@@ -81,7 +81,7 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo
         echo "Downloading Helm version ${HELM_VERSION}"
         repeats::run_with_retry 4 \
-            "curl curl --connect-timeout 60  --max-time 180 --location '${HELM_URL}' | tar -xvz -O '${SYSTEM}-amd64/helm' >'${HELM_BINARY_PATH}'"
+            "curl --connect-timeout 60  --max-time 180 --location '${HELM_URL}' | tar -xvz -O '${SYSTEM}-amd64/helm' >'${HELM_BINARY_PATH}'"
         chmod a+x "${HELM_BINARY_PATH}"
     else
         echo "Helm version ok"
@@ -289,7 +289,7 @@ function kind::wait_for_webserver_healthy() {
     num_tries=0
     set +e
     sleep "${SLEEP_TIME_FOR_HEALTH_CHECK}"
-    while ! curl curl --connect-timeout 60  --max-time 60 "http://localhost:${FORWARDED_PORT_NUMBER}/health" -s | grep -q healthy; do
+    while ! curl --connect-timeout 60  --max-time 60 "http://localhost:${FORWARDED_PORT_NUMBER}/health" -s | grep -q healthy; do
         echo
         echo "Sleeping ${SLEEP_TIME_FOR_HEALTH_CHECK} while waiting for webserver being ready"
         echo

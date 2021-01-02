@@ -44,7 +44,7 @@ GITHUB_TOKEN=${GITHUB_TOKEN}
 readonly GITHUB_TOKEN
 
 function github_api_call() {
-    curl curl --connect-timeout 60 --max-time 60 \
+    curl --connect-timeout 60 --max-time 60 \
         --silent --location --user "${GITHUB_USER}:${GITHUB_TOKEN}" "$@"
 }
 
