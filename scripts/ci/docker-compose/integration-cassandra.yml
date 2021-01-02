@@ -23,7 +23,7 @@ services:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - cassandra-db-volume:/var/lib/cassandra
     healthcheck:
-      test: ["CMD-SHELL", "[ $$(nodetool statusgossip) = running ]"]
+      test: "[ $$(nodetool statusgossip) = running ]"
       interval: 30s
       timeout: 30s
       retries: 50

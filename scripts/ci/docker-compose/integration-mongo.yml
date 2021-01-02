@@ -23,7 +23,7 @@ services:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - mongo-db-volume:/data/db
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongo mongo:27017/test --quiet
+      test: echo 'db.runCommand("ping").ok' | mongo localhost:27017/test --quiet
       interval: 30s
       timeout: 30s
       retries: 50
