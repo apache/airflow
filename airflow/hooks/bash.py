@@ -37,8 +37,15 @@ class BashHook(BaseHook):
 
     def run_command(self, command, env: Optional[Dict[str, str]] = None, output_encoding: str = 'utf-8'):
         """
-        Execute the bash command in a temporary directory
-        which will be cleaned afterwards
+        Execute the bash command in a temporary directory which will be cleaned afterwards
+
+        If ``env`` is not supplied, ``os.environ`` is passed
+
+        :param command: the bash command to run
+        :param env: Optional dict containing environment variables to be made available to the shell
+            environment in which ``command`` will be executed.  If omitted, ``os.environ`` will be used.
+        :param output_encoding: encoding to use for decoding stdout
+        :return: last line of stdout
         """
         self.log.info('Tmp dir root location: \n %s', gettempdir())
 
@@ -58,7 +65,7 @@ class BashHook(BaseHook):
                 stdout=PIPE,
                 stderr=STDOUT,
                 cwd=tmp_dir,
-                env=env,
+                env=env or os.environ,
                 preexec_fn=pre_exec,
             )
 

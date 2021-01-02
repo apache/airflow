@@ -18,7 +18,6 @@
 
 import unittest
 from datetime import datetime, timedelta
-from subprocess import PIPE, STDOUT
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
@@ -40,8 +39,7 @@ INTERVAL = timedelta(hours=12)
 class TestBashOperator(unittest.TestCase):
     def test_echo_env_variables(self):
         """
-        Test that env variables are exported correctly to the
-        task bash environment.
+        Test that env variables are exported correctly to the task bash environment.
         """
         now = datetime.utcnow()
         now = now.replace(tzinfo=timezone.utc)
