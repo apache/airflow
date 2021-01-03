@@ -520,8 +520,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             )
 
     def __eq__(self, other):
-        if type(self) is type(other) and self.task_id == other.task_id:
-            return all(self.__dict__.get(c, None) == other.__dict__.get(c, None) for c in self._comps)
+        if type(self) is type(other):
+            # Use getattr() instead of __dict__ as __dict__ doesn't return
+            # correct values for properties.
+            return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
         return False
 
     def __ne__(self, other):
