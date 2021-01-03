@@ -43,6 +43,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 120
+    restart: always
 
     ports:
       - "${MYSQL_HOST_PORT}:3306"
