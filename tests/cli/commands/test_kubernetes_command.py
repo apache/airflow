@@ -49,7 +49,7 @@ class TestGenerateDagYamlCommand(unittest.TestCase):
             )
             assert len(os.listdir(directory)) == 1
             out_dir = directory + "/airflow_yaml_output/"
-            assert len(os.listdir(out_dir)) == 6
+            assert len(os.listdir(out_dir)) == 7
             assert os.path.isfile(out_dir + file_name)
             assert os.stat(out_dir + file_name).st_size > 0
 
