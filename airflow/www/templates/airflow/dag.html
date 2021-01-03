@@ -47,7 +47,7 @@
         <span class="text-muted">SUBDAG:</span> {{ dag.dag_id }}
       {% else %}
         {% set can_edit = appbuilder.sm.can_edit_dag(dag.dag_id) %}
-        {% if appbuilder.sm.can_edit_dag(dag.dag_id) %}
+        {% if can_edit %}
           {% set switch_tooltip = 'Pause/Unpause DAG' %}
         {% else %}
           {% set switch_tooltip = 'DAG is Paused' if dag.is_paused else 'DAG is Active' %}

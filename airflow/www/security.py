@@ -22,9 +22,7 @@ from typing import Optional, Sequence, Set, Tuple
 from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
-from flask_appbuilder.security.sqla.models import PermissionView, Role, User
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
 
 from airflow import models
 from airflow.exceptions import AirflowException
@@ -216,8 +214,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if user is None:
             user = g.user
         if user.is_anonymous:
-            public_role = current_app.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
-            return [current_app.appbuilder.sm.find_role(public_role)] if public_role else []
+            return [current_app.appbuilder.sm.get_public_role()]
         return user.roles
 
     def get_all_permissions_views(self):
@@ -230,7 +227,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         return perms_views
 
     def get_readable_dags(self, user):
-        """Gets the DAGs readable by authenticated user."""
+        """Gets the DAGs readable by user."""
         return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
 
     def get_editable_dags(self, user):
@@ -238,7 +235,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
 
     def get_readable_dag_ids(self, user) -> Set[str]:
-        """Gets the DAG IDs readable by authenticated user."""
+        """Gets the DAG IDs readable by user."""
         return {dag.dag_id for dag in self.get_readable_dags(user)}
 
     def get_editable_dag_ids(self, user) -> Set[str]:
@@ -246,7 +243,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         return {dag.dag_id for dag in self.get_editable_dags(user)}
 
     def get_accessible_dag_ids(self, user) -> Set[str]:
-        """Gets the DAG IDs editable or readable by authenticated user."""
+        """Gets the DAG IDs editable or readable by authenticated or anonymous user."""
         accessible_dags = self.get_accessible_dags(
             [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ], user
         )
@@ -254,22 +251,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     @provide_session
     def get_accessible_dags(self, user_actions, user, session=None):
-        """Generic function to get readable or writable DAGs for authenticated user."""
-        if user.is_anonymous:
-            return set()
-
-        user_query = (
-            session.query(User)
-            .options(
-                joinedload(User.roles)
-                .subqueryload(Role.permissions)
-                .options(joinedload(PermissionView.permission), joinedload(PermissionView.view_menu))
-            )
-            .filter(User.id == user.id)
-            .first()
-        )
+        """Generic function to get readable or writable DAGs for user, even for anonymous users."""
+        user_roles = self.get_user_roles(user)
         resources = set()
-        for role in user_query.roles:
+
+        for role in user_roles:
             for permission in role.permissions:
                 action = permission.permission.name
                 if action not in user_actions:
@@ -309,6 +295,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG edit access."""
         if not user:
             user = g.user
+            user.roles = self.get_user_roles(user)
         prefixed_dag_id = self.prefixed_dag_id(dag_id)
 
         return self._has_view_access(

@@ -98,7 +98,16 @@ class TestSecurity(unittest.TestCase):
 
     @classmethod
     def delete_roles(cls):
-        for role_name in ['team-a', 'MyRole1', 'MyRole5', 'Test_Role', 'MyRole3', 'MyRole2']:
+        for role_name in [
+            'MyRole1',
+            'MyRole2',
+            'MyRole3',
+            'MyRole4',
+            'MyRole5',
+            'MyRole6',
+            'Test_Role',
+            'team-a',
+        ]:
             fab_utils.delete_role(cls.app, role_name)
 
     def expect_user_is_in_role(self, user, rolename):
@@ -248,6 +257,53 @@ class TestSecurity(unittest.TestCase):
 
             mock_get_user_roles.return_value = []
             assert len(self.security_manager.get_all_permissions_views()) == 0
+
+    def test_get_accessible_dags_return_empty_if_role_has_no_permission(self):
+        role_name = 'MyRole4'
+        dag_id = 'dag_id'
+
+        self.app.config['AUTH_ROLE_PUBLIC'] = role_name
+
+        with self.app.app_context():
+            user = mock.MagicMock()
+            user.is_anonymous = True
+
+            self.security_manager.add_role(role_name)
+
+            dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            self.session.add(dag_model)
+            self.session.commit()
+
+            accessible_dags = self.security_manager.get_accessible_dags(
+                [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ], user
+            )
+            self.assertEqual({dag.dag_id for dag in accessible_dags}, set())
+
+    def test_get_accessible_dags(self):
+        role_name = 'MyRole6'
+        permission_action = [permissions.ACTION_CAN_READ]
+        dag_id = 'dag_id'
+
+        self.app.config['AUTH_ROLE_PUBLIC'] = role_name
+
+        with self.app.app_context():
+            user = mock.MagicMock()
+            user.is_anonymous = True
+
+            dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            self.session.add(dag_model)
+            self.session.commit()
+
+            self.security_manager.add_role(role_name)
+
+            self.security_manager.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+                dag_id, access_control={role_name: permission_action}
+            )
+
+            accessible_dags = self.security_manager.get_accessible_dags(
+                [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ], user
+            )
+            self.assertEqual({dag.dag_id for dag in accessible_dags}, {'dag_id'})
 
     def test_get_accessible_dag_ids(self):
         role_name = 'MyRole1'
