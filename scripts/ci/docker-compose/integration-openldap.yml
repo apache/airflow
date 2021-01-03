@@ -29,8 +29,8 @@ services:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - openldap-db-volume:/var/lib/ldap
     healthcheck:
-      test: 'true'
-      interval: 30s
+      test: 'ss -ltp | grep 389'
+      interval: 5s
       timeout: 30s
       retries: 50
     restart: always

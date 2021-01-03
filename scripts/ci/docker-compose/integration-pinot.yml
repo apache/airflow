@@ -26,7 +26,7 @@ services:
     command: QuickStart -type batch
     healthcheck:
       test: curl -f http://localhost:8000/health
-      interval: 30s
+      interval: 5s
       timeout: 30s
       retries: 50
     restart: always

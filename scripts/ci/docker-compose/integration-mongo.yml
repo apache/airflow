@@ -24,7 +24,7 @@ services:
       - mongo-db-volume:/data/db
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongo localhost:27017/test --quiet
-      interval: 30s
+      interval: 5s
       timeout: 30s
       retries: 50
     restart: always

@@ -39,7 +39,7 @@ services:
     ports:
       - "${POSTGRES_HOST_PORT}:5432"
     healthcheck:
-      test: "psql -h localhost -U postgres -c 'select 1' airflow"
+      test: ["CMD", "psql", "-h", "localhost", "-U", "postgres", "-c", "select 1", "airflow"]
       interval: 10s
       timeout: 10s
       retries: 5

@@ -27,8 +27,8 @@ services:
       example.com:
         ipv4_address: 10.5.0.3
     healthcheck:
-      test: curl --fail --max-time 1 http://localhost:8080/v1/info/ | grep '"starting":false'
-      interval: 30s
+      test: curl --fail http://localhost:8080/v1/info/ | grep '"starting":false'
+      interval: 5s
       timeout: 30s
       retries: 50
     restart: always

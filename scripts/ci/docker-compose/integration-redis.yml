@@ -26,7 +26,7 @@ services:
       - "${REDIS_HOST_PORT}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
+      interval: 5s
       timeout: 30s
       retries: 50
     restart: always

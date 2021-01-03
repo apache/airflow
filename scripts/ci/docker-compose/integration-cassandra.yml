@@ -24,7 +24,7 @@ services:
       - cassandra-db-volume:/var/lib/cassandra
     healthcheck:
       test: "[ $$(nodetool statusgossip) = running ]"
-      interval: 30s
+      interval: 5s
       timeout: 30s
       retries: 50
     restart: always

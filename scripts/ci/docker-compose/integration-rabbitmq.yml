@@ -24,7 +24,7 @@ services:
       - rabbitmq-db-volume:/var/lib/rabbitmq
     healthcheck:
       test: rabbitmq-diagnostics -q ping
-      interval: 30s
+      interval: 5s
       timeout: 30s
       retries: 50
     restart: always
