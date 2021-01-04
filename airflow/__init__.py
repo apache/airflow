@@ -69,6 +69,11 @@ if not settings.LAZY_LOAD_PLUGINS:
 
     plugins_manager.ensure_plugins_loaded()
 
+if not settings.LAZY_LOAD_PROVIDERS:
+    from airflow import providers_manager
+
+    providers_manager.ProvidersManager().initialize_providers_manager()
+
 
 # This is never executed, but tricks static analyzers (PyDev, PyCharm,
 # pylint, etc.) into knowing the types of these symbols, and what

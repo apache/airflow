@@ -41,7 +41,12 @@ class AzureContainerInstanceHook(AzureBaseHook):
     :type conn_id: str
     """
 
-    def __init__(self, conn_id: str = 'azure_default') -> None:
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'azure_default'
+    conn_type = 'azure_container_instances'
+    hook_name = 'Azure Container Instance'
+
+    def __init__(self, conn_id: str = default_conn_name) -> None:
         super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=conn_id)
         self.connection = self.get_conn()
 

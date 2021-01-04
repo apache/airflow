@@ -21,7 +21,7 @@ from datetime import datetime
 
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import helpers
 from airflow.utils.helpers import build_airflow_url_with_query, merge_dicts
 from tests.test_utils.config import conf_vars

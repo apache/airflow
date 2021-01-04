@@ -28,7 +28,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagBag, DagModel, TaskInstance as TI, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.stats import Stats
 from airflow.utils import timezone

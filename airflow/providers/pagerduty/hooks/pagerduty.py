@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional
 import pdpyras
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class PagerdutyHook(BaseHook):

@@ -30,34 +30,53 @@ function build_images::add_build_args_for_remote_install() {
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE}"
         )
+    else
+        if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]([0-9]*) ]]; then
+            # All types of references/versions match this regexp for 1.10 series
+            # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} matches last
+            # minor digit of version and it's length is 0 for v1_10_test, 1 for 1.10.9 and 2 for 1.10.10+
+            AIRFLOW_MINOR_VERSION_NUMBER=${BASH_REMATCH[1]}
+            if [[ ${#AIRFLOW_MINOR_VERSION_NUMBER} == "0" ]]; then
+                # For v1_10_* branches use constraints-1-10 branch
+                EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                    "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-1-10"
+                )
+            else
+                EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                    # For specified minor version of 1.10 or v1 branch use specific reference constraints
+                    "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}"
+                )
+            fi
+        elif  [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
+            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                # For specified minor version of 2.0 or v2 branch use specific reference constraints
+                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}"
+            )
+        else
+            # For all other we just get the default constraint branch coming from the _initialization.sh
+            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
+            )
+        fi
     fi
     if [[ "${AIRFLOW_CONSTRAINTS_LOCATION}" != "" ]]; then
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"
         )
     fi
-    if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]([0-9]*) ]]; then
-        # All types of references/versions match this regexp for 1.10 series
-        # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} matches last
-        # minor digit of version and it's length is 0 for v1_10_test, 1 for 1.10.9 and 2 for 1.10.10+
-        AIRFLOW_MINOR_VERSION_NUMBER=${BASH_REMATCH[1]}
-        if [[ ${#AIRFLOW_MINOR_VERSION_NUMBER} == "0" ]]; then
-            # For v1_10_* branches use constraints-1-10 branch
-            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-1-10"
-            )
-        else
-            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                # For specified minor version of 1.10 use specific reference constraints
-                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}"
-            )
-        fi
+    # Depending on the version built, we choose the right branch for preloading the packages from
+    # If we run build for v1-10-test builds we should choose v1-10-test, for v2-0-test we choose v2-0-test
+    # all other builds when you choose a specific version (1.0 or 2.0 series) should choose stable branch
+    # to preload. For all other builds we use the default branch defined in _initialization.sh
+    if [[ ${AIRFLOW_VERSION} == 'v1-10-test' ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v1-10-test"
+    elif [[ ${AIRFLOW_VERSION} =~ v?1.* ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v1-10-stable"
+    elif [[ ${AIRFLOW_VERSION} == 'v2-0-test' ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-test"
+    elif [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-stable"
     else
-        # For all other (master, 2.0+) we just get the default constraint branch
-        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-            "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
-        )
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING=${DEFAULT_BRANCH}
     fi
 }
@@ -100,7 +119,7 @@ function build_images::forget_last_answer() {
 function build_images::confirm_via_terminal() {
     echo >"${DETECTED_TERMINAL}"
     echo >"${DETECTED_TERMINAL}"
-    echo "Make sure that you rebased to latest master before rebuilding!" >"${DETECTED_TERMINAL}"
+    echo "${COLOR_YELLOW_WARNING}Make sure that you rebased to latest master before rebuilding!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
     echo >"${DETECTED_TERMINAL}"
     # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
     # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
@@ -122,7 +141,7 @@ function build_images::confirm_image_rebuild() {
     fi
     if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
         # set variable from last answered response given in the same pre-commit run - so that it can be
-        # answered in teh first pre-commit check (build) and then used in another (pylint/mypy/flake8 etc).
+        # answered in the first pre-commit check (build) and then used in another (pylint/mypy/flake8 etc).
         # shellcheck disable=SC1090
         source "${LAST_FORCE_ANSWER_FILE}"
     fi
@@ -151,7 +170,7 @@ function build_images::confirm_image_rebuild() {
     elif [[ -t 0 ]]; then
         echo
         echo
-        echo "Make sure that you rebased to latest master before rebuilding!"
+        echo "${COLOR_YELLOW_WARNING}Make sure that you rebased to latest master before rebuilding!${COLOR_RESET}"
         echo
         # Check if this script is run interactively with stdin open and terminal attached
         "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
@@ -389,13 +408,14 @@ function build_images::get_docker_image_names() {
 function build_image::login_to_github_registry_if_needed() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
         if [[ -n ${GITHUB_TOKEN=} ]]; then
+            start_end::group_start "Login to GitHub registry"
             echo "${GITHUB_TOKEN}" | docker login \
                 --username "${GITHUB_USERNAME:-apache}" \
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
+            start_end::group_end
         fi
     fi
-
 }
 
 # Prepares all variables needed by the CI build. Depending on the configuration used (python version
@@ -495,6 +515,13 @@ function build_images::rebuild_ci_image_if_needed() {
         verbosity::print_info
     fi
 }
+
+function build_images::rebuild_ci_image_if_needed_with_group() {
+    start_end::group_start "Check if CI image build is needed"
+    build_images::rebuild_ci_image_if_needed
+    start_end::group_end
+}
+
 
 # Interactive version of confirming the ci image that is used in pre-commits
 # it displays additional information - what the user should do in order to bring the local images
@@ -632,7 +659,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV}" \
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
-        --build-arg UPGRADE_TO_LATEST_CONSTRAINTS="${UPGRADE_TO_LATEST_CONSTRAINTS}" \
+        --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${additional_dev_args[@]}" \
@@ -663,23 +690,18 @@ function build_images::prepare_prod_build() {
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
         # When --install-airflow-reference is used then the image is build from GitHub tag
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
-            "--build-arg" "AIRFLOW_INSTALL_SOURCES=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
+            "--build-arg" "AIRFLOW_INSTALLATION_METHOD=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
         )
         export AIRFLOW_VERSION="${INSTALL_AIRFLOW_REFERENCE}"
         build_images::add_build_args_for_remote_install
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         # When --install-airflow-version is used then the image is build from PIP package
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
-            "--build-arg" "AIRFLOW_INSTALL_SOURCES=apache-airflow"
+            "--build-arg" "AIRFLOW_INSTALLATION_METHOD=apache-airflow"
             "--build-arg" "AIRFLOW_INSTALL_VERSION===${INSTALL_AIRFLOW_VERSION}"
             "--build-arg" "AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION}"
         )
         export AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
-        if [[ ${AIRFLOW_VERSION} == "1.10.2" || ${AIRFLOW_VERSION} == "1.10.1" ]]; then
-            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                "--build-arg" "SLUGIFY_USES_TEXT_UNIDECODE=yes"
-            )
-        fi
         build_images::add_build_args_for_remote_install
     else
         # When no airflow version/reference is specified, production image is built from local sources
@@ -772,6 +794,7 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
+        --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
@@ -802,6 +825,7 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES}" \
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
+        --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
@@ -824,20 +848,25 @@ function build_images::build_prod_images() {
     fi
 }
 
+function build_images::build_prod_images_with_group() {
+    start_end::group_start "Build PROD images ${AIRFLOW_PROD_BUILD_IMAGE}"
+    build_images::build_prod_images
+    start_end::group_end
+}
+
 # Waits for image tag to appear in GitHub Registry, pulls it and tags with the target tag
 # Parameters:
 #  $1 - image name to wait for
 #  $2 - suffix of the image to wait for
 #  $3, $4, ... - target tags to tag the image with
 function build_images::wait_for_image_tag() {
+
     IMAGE_NAME="${1}"
     IMAGE_SUFFIX=${2}
     shift 2
 
     IMAGE_TO_WAIT_FOR="${IMAGE_NAME}${IMAGE_SUFFIX}"
-    echo
-    echo "Waiting for image ${IMAGE_TO_WAIT_FOR}"
-    echo
+    start_end::group_start "Wait for image tag ${IMAGE_TO_WAIT_FOR}"
     while true; do
         set +e
         docker pull "${IMAGE_TO_WAIT_FOR}" 2>/dev/null >/dev/null
@@ -864,6 +893,7 @@ function build_images::wait_for_image_tag() {
             break
         fi
     done
+    start_end::group_end
 }
 
 # We use pulled docker image cache by default for CI images to speed up the builds
@@ -882,6 +912,43 @@ function build_images::determine_docker_cache_strategy() {
     verbosity::print_info
 }
 
+
+function build_image::assert_variable() {
+    local variable_name="${1}"
+    local expected_value="${2}"
+    local variable_value=${!variable_name}
+    if [[ ${variable_value} != "${expected_value}" ]]; then
+        echo
+        echo  "${COLOR_RED_ERROR}: Variable ${variable_name}: expected_value: '${expected_value}' but was '${variable_value}'!${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+}
+
+function build_images::build_prod_images_from_locally_built_airflow_packages() {
+    # We do not install from PyPI
+    build_image::assert_variable INSTALL_FROM_PYPI "false"
+    # But then we reinstall airflow and providers from prepared packages in the docker context files
+    build_image::assert_variable INSTALL_FROM_DOCKER_CONTEXT_FILES "true"
+    # But we install everything from scratch to make a "clean" installation in case any dependencies got removed
+    build_image::assert_variable AIRFLOW_PRE_CACHED_PIP_PACKAGES "false"
+
+    # Cleanup dist and docker-context-files folders
+    mkdir -pv "${AIRFLOW_SOURCES}/dist"
+    mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
+    rm -f "${AIRFLOW_SOURCES}/dist/"*.{whl,tar.gz}
+    rm -f "${AIRFLOW_SOURCES}/docker-context-files/"*.{whl,tar.gz}
+
+    # Build necessary provider packages
+    runs::run_prepare_provider_packages "${INSTALLED_PROVIDERS[@]}"
+    mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
+
+    # Build apache airflow packages
+    build_airflow_packages::build_airflow_packages
+    mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
+
+    build_images::build_prod_images_with_group
+}
 
 # Useful information for people who stumble upon a pip check failure
 function build_images::inform_about_pip_check() {
@@ -910,7 +977,7 @@ In case 2) - Follow the steps below:
 
 * run locally the image that is failing with Breeze:
 
-    ./breeze ${1}--github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} --python ${PYTHON_MAJOR_MINOR_VERSION}
+    ./breeze ${1}--github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND="sqlite"} --python ${PYTHON_MAJOR_MINOR_VERSION}
 
 * your setup.py and setup.cfg will be mounted to the container. You will be able to iterate with
   different setup.py versions.

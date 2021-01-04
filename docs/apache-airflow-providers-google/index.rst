@@ -43,3 +43,4 @@ Content
     :caption: Resources
 
     Example DAGs <example-dags>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-google/>

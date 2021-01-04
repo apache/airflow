@@ -69,16 +69,17 @@ similar from a run to the next, this allows for clarity around
 unit of work and continuity.
 
 
-Content
--------
 .. toctree::
-    :maxdepth: 1
+    :hidden:
+    :caption: Content
 
     Home <self>
     project
     license
     start
     installation
+    upgrading-to-2
+    upgrade-check
     tutorial
     tutorial_taskflow_api
     howto/index
@@ -97,16 +98,16 @@ Content
     lineage
     dag-serialization
     modules_management
-    backport-providers
     smart-sensor
     changelog
     best-practices
     production-deployment
+    backport-providers
     faq
     privacy_notice
 
 .. toctree::
-    :maxdepth: 1
+    :hidden:
     :caption: References
 
     Operators and hooks <operators-and-hooks-ref>

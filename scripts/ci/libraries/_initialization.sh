@@ -26,6 +26,7 @@ CURRENT_MYSQL_VERSIONS=()
 CURRENT_KIND_VERSIONS=()
 CURRENT_HELM_VERSIONS=()
 ALL_PYTHON_MAJOR_MINOR_VERSIONS=()
+INSTALLED_PROVIDERS=()
 
 # Creates directories for Breeze
 function initialization::create_directories() {
@@ -101,6 +102,9 @@ function initialization::initialize_base_variables() {
     CURRENT_MYSQL_VERSIONS+=("5.7" "8")
     export CURRENT_MYSQL_VERSIONS
 
+    BACKEND=${BACKEND:="sqlite"}
+    export BACKEND
+
     # Default Postgres versions
     export POSTGRES_VERSION=${POSTGRES_VERSION:=${CURRENT_POSTGRES_VERSIONS[0]}}
 
@@ -148,11 +152,51 @@ function initialization::initialize_base_variables() {
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
 
-    PIP_VERSION="20.2.4"
-    export PIP_VERSION
+    INSTALLED_PROVIDERS+=(
+        "amazon"
+        "celery"
+        "cncf.kubernetes"
+        "docker"
+        "elasticsearch"
+        "ftp"
+        "grpc"
+        "hashicorp"
+        "http"
+        "imap"
+        "google"
+        "microsoft.azure"
+        "mysql"
+        "postgres"
+        "redis"
+        "sendgrid"
+        "sqlite"
+        "sftp"
+        "slack"
+        "sqlite"
+        "ssh"
+    )
+    export INSTALLED_PROVIDERS
+    export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    WHEEL_VERSION="0.35.1"
+    # default version of PIP USED (This has to be < 20.3 until https://github.com/apache/airflow/issues/12838 is solved)
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="20.2.4"}
+    export AIRFLOW_PIP_VERSION
+
+    # We also pin version of wheel used to get consistent builds
+    WHEEL_VERSION=${WHEEL_VERSION:="0.36.1"}
     export WHEEL_VERSION
+
+    # Sources by default are installed from local sources when using breeze/ci
+    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="."}
+    export AIRFLOW_SOURCES_FROM
+
+    # They are copied to /opt/airflow by default (breeze and ci)
+    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/opt/airflow"}
+    export AIRFLOW_SOURCES_TO
+
+    # And installed from there (breeze and ci)
+    AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION:="."}
+    export AIRFLOW_INSTALL_VERSION
 }
 
 # Determine current branch
@@ -181,7 +225,7 @@ function initialization::initialize_dockerhub_variables() {
 
 # Determine available integrations
 function initialization::initialize_available_integrations() {
-    export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
+    export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap pinot presto rabbitmq redis"
 }
 
 # Needs to be declared outside of function for MacOS
@@ -235,7 +279,7 @@ function initialization::initialize_mount_variables() {
         "-v" "${AIRFLOW_SOURCES}/files:/files"
         "-v" "${AIRFLOW_SOURCES}/dist:/dist"
         "--rm"
-        "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env"
+        "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env"
     )
     export EXTRA_DOCKER_FLAGS
 }
@@ -318,7 +362,7 @@ function initialization::initialize_image_build_variables() {
 
     # By default we are not upgrading to latest version of constraints when building Docker CI image
     # This will only be done in cron jobs
-    export UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS:="false"}
+    export UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES:="false"}
 
     # Checks if the image should be rebuilt
     export CHECK_IMAGE_FOR_REBUILD="${CHECK_IMAGE_FOR_REBUILD:="true"}"
@@ -384,8 +428,6 @@ function initialization::initialize_provider_package_building() {
 
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
-    # By default we assume the kubernetes cluster is not being started
-    export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
     # Currently supported versions of Kubernetes
     CURRENT_KUBERNETES_VERSIONS+=("v1.18.6" "v1.17.5" "v1.16.9")
     export CURRENT_KUBERNETES_VERSIONS
@@ -467,7 +509,7 @@ function initialization::initialize_build_image_variables() {
 }
 
 function initialization::set_output_color_variables() {
-    COLOR_BLUE=$'\e[37m'
+    COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
     COLOR_GREEN_OK=$'\e[32mOK.'
     COLOR_RED=$'\e[31m'
@@ -573,7 +615,7 @@ Verbosity variables:
 
 Image build variables:
 
-    UPGRADE_TO_LATEST_CONSTRAINTS: ${UPGRADE_TO_LATEST_CONSTRAINTS}
+    UPGRADE_TO_NEWER_DEPENDENCIES: ${UPGRADE_TO_NEWER_DEPENDENCIES}
     CHECK_IMAGE_FOR_REBUILD: ${CHECK_IMAGE_FOR_REBUILD}
 
 
@@ -610,7 +652,6 @@ Test variables:
     TEST_TYPE: ${TEST_TYPE}
 
 EOF
-
 }
 
 # Retrieves CI environment variables needed - depending on the CI system we run it in.
@@ -659,7 +700,6 @@ function initialization::make_constants_read_only() {
     readonly HOST_HOME
     readonly HOST_OS
 
-    readonly ENABLE_KIND_CLUSTER
     readonly KUBERNETES_MODE
     readonly KUBERNETES_VERSION
     readonly KIND_VERSION
@@ -760,6 +800,17 @@ function initialization::make_constants_read_only() {
     readonly LOCAL_IMAGE_BUILD_CACHE_HASH_FILE
     readonly REMOTE_IMAGE_BUILD_CACHE_HASH_FILE
 
+    readonly INSTALLED_EXTRAS
+    readonly INSTALLED_PROVIDERS
+
+    readonly CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
+    readonly CURRENT_KUBERNETES_VERSIONS
+    readonly CURRENT_KUBERNETES_MODES
+    readonly CURRENT_POSTGRES_VERSIONS
+    readonly CURRENT_MYSQL_VERSIONS
+    readonly CURRENT_KIND_VERSIONS
+    readonly CURRENT_HELM_VERSIONS
+    readonly ALL_PYTHON_MAJOR_MINOR_VERSIONS
 }
 
 # converts parameters to json array

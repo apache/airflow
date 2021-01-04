@@ -16,12 +16,13 @@
 # under the License.
 
 import io
+import json
 import unittest
 from contextlib import redirect_stdout
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import plugins_command
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.plugins_manager import AirflowPlugin
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
@@ -43,17 +44,27 @@ class TestPluginsCommand(unittest.TestCase):
     @mock_plugin_manager(plugins=[])
     def test_should_display_no_plugins(self):
         with redirect_stdout(io.StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(['plugins']))
+            plugins_command.dump_plugins(self.parser.parse_args(['plugins', '--output=json']))
             stdout = temp_stdout.getvalue()
         self.assertIn('No plugins loaded', stdout)
 
     @mock_plugin_manager(plugins=[TestPlugin])
     def test_should_display_one_plugins(self):
         with redirect_stdout(io.StringIO()) as temp_stdout:
-            plugins_command.dump_plugins(self.parser.parse_args(['plugins']))
+            plugins_command.dump_plugins(self.parser.parse_args(['plugins', '--output=json']))
             stdout = temp_stdout.getvalue()
-        print(stdout)
-        self.assertIn('Plugins directory:', stdout)
-        self.assertIn("Loaded plugins: 1", stdout)
-        self.assertIn('test-plugin-cli', stdout)
-        self.assertIn('PluginHook', stdout)
+        info = json.loads(stdout)
+        assert info == [
+            {
+                'name': TestPlugin.name,
+                'source': None,
+                'hooks': [PluginHook.__name__],
+                'executors': [],
+                'macros': [],
+                'flask_blueprints': [],
+                'appbuilder_views': [],
+                'appbuilder_menu_items': [],
+                'global_operator_extra_links': [],
+                'operator_extra_links': [],
+            }
+        ]

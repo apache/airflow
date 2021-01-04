@@ -30,7 +30,7 @@
 
 .dags-table-body {
   margin: 0 1px;
-  overflow-x: scroll;
+  overflow-x: auto;
 }
 
 .dags-table-more {

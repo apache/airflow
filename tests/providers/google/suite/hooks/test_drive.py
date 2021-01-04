@@ -26,7 +26,7 @@ from tests.providers.google.cloud.utils.base_gcp_mock import GCP_CONNECTION_WITH
 class TestGoogleDriveHook(unittest.TestCase):
     def setUp(self):
         self.patcher_get_connection = mock.patch(
-            "airflow.hooks.base_hook.BaseHook.get_connection", return_value=GCP_CONNECTION_WITH_PROJECT_ID
+            "airflow.hooks.base.BaseHook.get_connection", return_value=GCP_CONNECTION_WITH_PROJECT_ID
         )
         self.patcher_get_connection.start()
         self.gdrive_hook = GoogleDriveHook(gcp_conn_id="test")

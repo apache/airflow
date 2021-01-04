@@ -161,3 +161,35 @@ The following config settings can be used to control aspects of the Scheduler HA
   Should the scheduler issue ``SELECT ... FOR UPDATE`` in relevant queries.
   If this is set to False then you should not run more than a single
   scheduler at once
+
+- :ref:`config:scheduler__pool_metrics_interval`
+
+  How often (in seconds) should pool usage stats be sent to statsd (if
+  statsd_on is enabled). This is a *relatively* expensive query to compute
+  this, so this should be set to match the same period as your statsd roll-up
+  period.
+
+- :ref:`config:scheduler__clean_tis_without_dagrun_interval`
+
+  How often should each scheduler run a check to "clean up" TaskInstance rows
+  that are found to no longer have a matching DagRun row.
+
+  In normal operation the scheduler won't do this, it is only possible to do
+  this by deleting rows via the UI, or directly in the DB. You can set this
+  lower if this check is not important to you -- tasks will be left in what
+  ever state they are until the cleanup happens, at which point they will be
+  set to failed.
+
+- :ref:`config:scheduler__orphaned_tasks_check_interval`
+
+  How often (in seconds) should the scheduler check for orphaned tasks or dead
+  SchedulerJobs.
+
+  This setting controls how a dead scheduler will be noticed and the tasks it
+  was "supervising" get picked up by another scheduler. (The tasks will stay
+  running, so there is no harm in not detecting this for a while.)
+
+  When a SchedulerJob is detected as "dead" (as determined by
+  :ref:`config:scheduler__scheduler_health_check_threshold`) any running or
+  queued tasks that were launched by the dead process will be "adopted" and
+  monitored by this scheduler instead.

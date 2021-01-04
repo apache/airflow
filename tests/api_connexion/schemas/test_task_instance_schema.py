@@ -28,7 +28,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_schema,
 )
 from airflow.models import DAG, SlaMiss, TaskInstance as TI
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime

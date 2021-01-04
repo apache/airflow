@@ -19,7 +19,7 @@
 
 import pymssql
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class MsSqlHook(DbApiHook):
@@ -28,6 +28,7 @@ class MsSqlHook(DbApiHook):
     conn_name_attr = 'mssql_conn_id'
     default_conn_name = 'mssql_default'
     conn_type = 'mssql'
+    hook_name = 'Microsoft SQL Server'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:

@@ -55,15 +55,15 @@ The following code shows how to add extra links to an operator:
             self.log.info("Hello World!")
 
 You can also add a global operator extra link that will be available to
-all the operators through an airflow plugin. Learn more about it in the
-:ref:`plugin example <plugin-example>`.
+all the operators through an airflow plugin or through airflow providers. You can learn more about it in the
+:ref:`plugin example <plugin-example>` and in :doc:`apache-airflow-providers:index`.
 
 
 Add or override Links to Existing Operators
 -------------------------------------------
 
 You can also add (or override) an extra link to an existing operators
-through an Airflow plugin.
+through an Airflow plugin or custom provider.
 
 For example, the following Airflow plugin will add an Operator Link on all
 tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator` operator.
@@ -130,3 +130,23 @@ Console, but if we wanted to change that link we could:
     class AirflowExtraLinkPlugin(AirflowPlugin):
         name = "extra_link_plugin"
         operator_extra_links = [BigQueryConsoleLink(), ]
+
+
+**Adding Operator Links via Providers**
+
+As explained in :doc:`apache-airflow-providers:index`, when you create your own Airflow Provider, you can
+specify the list of operators that provide extra link capability. This happens by including the operator
+class name in the ``provider-info`` information stored in your Provider's package meta-data:
+
+Example meta-data required in your provider-info dictionary (this is part of the meta-data returned
+by ``apache-airflow-providers-google`` provider currently:
+
+.. code-block:: yaml
+
+    extra-links:
+      - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
+      - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink
+      - airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink
+
+
+You can include as many operators with extra links as you want.

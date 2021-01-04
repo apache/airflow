@@ -24,7 +24,7 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -103,6 +103,19 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                          Some distros may use spark2-submit.
     :type spark_binary: str
     """
+
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'spark_default'
+    conn_type = 'spark'
+    hook_name = 'Spark'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema', 'login', 'password'],
+            "relabeling": {},
+        }
 
     # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(

@@ -394,13 +394,22 @@
       type: boolean
       example: ~
       default: "True"
+    - name: lazy_discover_providers
+      description: |
+        By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
+        Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
+        loaded from module.
+      version_added: 2.0.0
+      type: boolean
+      example: ~
+      default: "True"
     - name: max_db_retries
       description: |
         Number of times the code should be retried in case of DB Operational Errors.
         Not all transactions will be retried as it can cause undesired state.
         Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
       version_added: ~
-      type: int
+      type: integer
       example: ~
       default: "3"
 
@@ -690,6 +699,22 @@
 - name: api
   description: ~
   options:
+    - name: enable_experimental_api
+      description: |
+        Enables the deprecated experimental API. Please note that these APIs do not have access control.
+        The authenticated user has full access.
+
+        .. warning::
+
+          This `Experimental REST API <https://airflow.readthedocs.io/en/latest/rest-api-ref.html>`__ is
+          deprecated since version 2.0. Please consider using
+          `the Stable REST API <https://airflow.readthedocs.io/en/latest/stable-rest-api-ref.html>`__.
+          For more information on migration, see
+          `UPDATING.md <https://github.com/apache/airflow/blob/master/UPDATING.md>`_
+      version_added: 2.0.0
+      type: boolean
+      example: ~
+      default: "False"
     - name: auth_backend
       description: |
         How to authenticate users of the API. See
@@ -714,12 +739,14 @@
         If no limit is supplied, the OpenApi spec default is used.
       type: integer
       example: ~
+      version_added: ~
       default: "100"
     - name: google_oauth2_audience
       description: The intended audience for JWT token credentials used for authorization.
         This value must match on the client and server sides.
         If empty, audience will not be tested.
       type: string
+      version_added: ~
       example: project-id-random-value.apps.googleusercontent.com
       default: ""
     - name: google_key_path
@@ -729,6 +756,7 @@
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
       type: string
+      version_added: ~
       example: /files/service-account-json
       default: ""
 - name: lineage
@@ -1029,21 +1057,21 @@
       description: |
         Time interval (in secs) to wait before next log fetching.
       version_added: 1.10.8
-      type: int
+      type: integer
       example: ~
       default: "2"
     - name: log_auto_tailing_offset
       description: |
         Distance away from page bottom to enable auto tailing.
       version_added: 1.10.8
-      type: int
+      type: integer
       example: ~
       default: "30"
     - name: log_animation_speed
       description: |
         Animation speed for auto tailing log display.
       version_added: 1.10.8
-      type: int
+      type: integer
       example: ~
       default: "1000"
     - name: hide_paused_dags_by_default
@@ -1181,7 +1209,7 @@
         The UI cookie lifetime in minutes. User will be logged out from UI after
         ``session_lifetime_minutes`` of non-activity
       version_added: 1.10.13
-      type: int
+      type: integer
       example: ~
       default: "43200"
 
@@ -1263,13 +1291,13 @@
     - name: smtp_timeout
       description: ~
       version_added: ~
-      type: int
+      type: integer
       example: ~
       default: "30"
     - name: smtp_retry_limit
       description: ~
       version_added: ~
-      type: int
+      type: integer
       example: ~
       default: "5"
 - name: sentry
@@ -1300,9 +1328,10 @@
     - name: kubernetes_queue
       description: |
         Define when to send a task to ``KubernetesExecutor`` when using ``CeleryKubernetesExecutor``.
-        When the queue of a task is ``kubernetes_queue``, the task is executed via ``KubernetesExecutor``,
+        When the queue of a task is the value of ``kubernetes_queue`` (default ``kubernetes``),
+        the task is executed via ``KubernetesExecutor``,
         otherwise via ``CeleryExecutor``
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "kubernetes"
@@ -1350,7 +1379,7 @@
         claimed blocked tasks.
         https://docs.celeryproject.org/en/stable/userguide/optimizing.html#prefetch-limits
       version_added: ~
-      type: int
+      type: integer
       example: "1"
       default: ~
     - name: worker_log_server_port
@@ -1505,7 +1534,7 @@
         Time in seconds after which Adopted tasks are cleared by CeleryExecutor. This is helpful to clear
         stalled tasks.
       version_added: 2.0.0
-      type: int
+      type: integer
       example: ~
       default: "600"
     - name: task_publish_max_retries
@@ -1513,7 +1542,7 @@
         The Maximum number of retries for publishing task messages to the broker when failing
         due to ``AirflowTaskTimeout`` error before giving up and marking Task as failed.
       version_added: 2.0.0
-      type: int
+      type: integer
       example: ~
       default: "3"
     - name: worker_precheck
@@ -1585,7 +1614,7 @@
       type: string
       example: ~
       default: "5"
-    - name: clean_tis_without_dagrun
+    - name: clean_tis_without_dagrun_interval
       description: |
         How often (in seconds) to check and tidy up 'running' TaskInstancess
         that no longer have a matching DagRun
@@ -1747,7 +1776,7 @@
       description: |
         The scheduler can run multiple processes in parallel to parse dags.
         This defines how many processes will run.
-      version_added: ~
+      version_added: 1.10.14
       type: string
       example: ~
       default: "2"
@@ -2020,7 +2049,7 @@
         When the `enable_tcp_keepalive` option is enabled, TCP probes a connection that has
         been idle for `tcp_keep_idle` seconds.
       version_added: ~
-      type: int
+      type: integer
       example: ~
       default: "120"
     - name: tcp_keep_intvl
@@ -2028,7 +2057,7 @@
         When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
         to a keepalive probe, TCP retransmits the probe after `tcp_keep_intvl` seconds.
       version_added: ~
-      type: int
+      type: integer
       example: ~
       default: "30"
     - name: tcp_keep_cnt
@@ -2037,7 +2066,7 @@
         to a keepalive probe, TCP retransmits the probe `tcp_keep_cnt number` of times before
         a connection is considered to be broken.
       version_added: ~
-      type: int
+      type: integer
       example: ~
       default: "6"
 - name: smart_sensor
@@ -2047,7 +2076,7 @@
       description: |
         When `use_smart_sensor` is True, Airflow redirects multiple qualified sensor tasks to
         smart sensor task.
-      version_added: ~
+      version_added: 2.0.0
       type: boolean
       example: ~
       default: "False"
@@ -2055,21 +2084,21 @@
       description: |
         `shard_code_upper_limit` is the upper limit of `shard_code` value. The `shard_code` is generated
         by `hashcode % shard_code_upper_limit`.
-      version_added: ~
-      type: int
+      version_added: 2.0.0
+      type: integer
       example: ~
       default: "10000"
     - name: shards
       description: |
         The number of running smart sensor processes for each service.
       version_added: ~
-      type: int
+      type: integer
       example: ~
       default: "5"
     - name: sensors_enabled
       description: |
         comma separated sensor classes support in smart_sensor.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "NamedHivePartitionSensor"

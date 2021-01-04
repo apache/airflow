@@ -41,7 +41,7 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     statsd_port = 8125
     statsd_prefix = airflow
 
-If you want to avoid send all the available metrics to StatsD, you can configure an allow list of prefixes to send only
+If you want to avoid sending all the available metrics to StatsD, you can configure an allow list of prefixes to send only
 the metrics that start with the elements of the list:
 
 .. code-block:: ini

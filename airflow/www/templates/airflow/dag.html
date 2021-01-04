@@ -40,13 +40,22 @@
       <span class="material-icons" aria-hidden="true">keyboard_arrow_up</span>
       DAG: {{ dag.parent_dag.dag_id }}</a>
   {% endif %}
+
   <div>
     <h3 class="pull-left">
       {% if dag.parent_dag is defined and dag.parent_dag %}
         <span class="text-muted">SUBDAG:</span> {{ dag.dag_id }}
       {% else %}
-        <label class="switch-label js-tooltip" title="Pause/Unpause DAG">
-          <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }}>
+        {% set can_edit = appbuilder.sm.can_edit_dag(dag.dag_id) %}
+        {% if appbuilder.sm.can_edit_dag(dag.dag_id) %}
+          {% set switch_tooltip = 'Pause/Unpause DAG' %}
+        {% else %}
+          {% set switch_tooltip = 'DAG is Paused' if dag.is_paused else 'DAG is Active' %}
+        {% endif %}
+        <label class="switch-label{{' disabled' if not can_edit else ''  }} js-tooltip" title="{{ switch_tooltip }}">
+          <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
+                 type="checkbox"{{ " checked" if not dag.is_paused else "" }}
+                 {{ " disabled" if not can_edit else "" }}>
           <span class="switch" aria-hidden="true"></span>
         </label>
         <span class="text-muted">DAG:</span> {{ dag.dag_id }}

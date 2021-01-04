@@ -22,7 +22,7 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 integrations:
   - integration-name: Databricks
     external-doc-url: https://databricks.com/
@@ -38,3 +38,6 @@ hooks:
   - integration-name: Databricks
     python-modules:
       - airflow.providers.databricks.hooks.databricks
+
+hook-class-names:
+  - airflow.providers.databricks.hooks.databricks.DatabricksHook

@@ -27,6 +27,8 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+from contextlib import contextmanager
+from copy import deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
 from os import listdir
@@ -34,6 +36,8 @@ from os.path import dirname
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
+import jsonpath_ng
+import jsonschema
 import yaml
 from packaging.version import Version
 
@@ -49,6 +53,11 @@ PROVIDERS_PATH = os.path.join(AIRFLOW_PATH, "providers")
 TARGET_PROVIDER_PACKAGES_PATH = os.path.join(SOURCE_DIR_PATH, "provider_packages")
 GENERATED_AIRFLOW_PATH = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "airflow")
 GENERATED_PROVIDERS_PATH = os.path.join(GENERATED_AIRFLOW_PATH, "providers")
+
+PROVIDER_2_0_0_DATA_SCHEMA_PATH = os.path.join(
+    SOURCE_DIR_PATH, "airflow", "deprecated_schemas", "provider-2.0.0.yaml.schema.json"
+)
+
 sys.path.insert(0, SOURCE_DIR_PATH)
 
 # those imports need to come after the above sys.path.insert to make sure that Airflow
@@ -56,7 +65,7 @@ sys.path.insert(0, SOURCE_DIR_PATH)
 # running the script
 import tests.deprecated_classes  # noqa # isort:skip
 from dev.import_all_classes import import_all_classes  # noqa # isort:skip
-from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
+from setup import PROVIDERS_REQUIREMENTS, PREINSTALLED_PROVIDERS  # noqa # isort:skip
 
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
@@ -64,6 +73,25 @@ from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
 logger = logging.getLogger(__name__)  # noqa
 
 PY3 = sys.version_info[0] == 3
+
+
+@contextmanager
+def with_group(title):
+    """
+    If used in GitHub Action, creates an expandable group in the GitHub Action log.
+    Otherwise, display simple text groups.
+
+    For more information, see:
+    https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
+    """
+    if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
+        print("#" * 20, title, "#" * 20)
+        yield
+        return
+    print(f"::group::{title}")
+    yield
+    print("\033[0m")
+    print("::endgroup::")
 
 
 class EntityType(Enum):
@@ -267,8 +295,9 @@ def get_install_requirements(provider_package_id: str, backport_packages: bool) 
             else 'apache-airflow>=1.10.12, <2.0.0'
         )
     else:
-        airflow_dependency = 'apache-airflow>=2.0.0a0'
-    install_requires = [airflow_dependency]
+        airflow_dependency = 'apache-airflow>=2.0.0'
+    # Avoid circular dependency for the preinstalled packages
+    install_requires = [airflow_dependency] if provider_package_id not in PREINSTALLED_PROVIDERS else []
     install_requires.extend(dependencies)
     return install_requires
 
@@ -304,12 +333,12 @@ def get_package_extras(provider_package_id: str, backport_packages: bool) -> Dic
     return extras_dict
 
 
-def get_provider_packages():
+def get_provider_packages() -> List[str]:
     """
     Returns all provider packages.
 
     """
-    return list(PROVIDERS_REQUIREMENTS)
+    return list(PROVIDERS_REQUIREMENTS.keys())
 
 
 def usage() -> None:
@@ -619,10 +648,10 @@ def get_package_class_summary(
     :param imported_classes: entities imported_from providers
     :return: dictionary of objects usable as context for JINJA2 templates - or None if there are some errors
     """
-    from airflow.hooks.base_hook import BaseHook
+    from airflow.hooks.base import BaseHook
     from airflow.models.baseoperator import BaseOperator
     from airflow.secrets import BaseSecretsBackend
-    from airflow.sensors.base_sensor_operator import BaseSensorOperator
+    from airflow.sensors.base import BaseSensorOperator
 
     all_verified_entities: Dict[EntityType, VerifiedEntities] = {
         EntityType.Operators: find_all_entities(
@@ -775,7 +804,7 @@ def convert_cross_package_dependencies_to_table(
     """
     Converts cross-package dependencies to a markdown table
     :param cross_package_dependencies: list of cross-package dependencies
-    :param base_url: base url to use for links
+    :param backport_packages: whether we are preparing backport packages
     :return: markdown-formatted table
     """
     from tabulate import tabulate
@@ -948,7 +977,7 @@ def check_if_release_version_ok(
             if backport_packages:
                 current_release_version = (datetime.today() + timedelta(days=5)).strftime('%Y.%m.%d')
             else:
-                current_release_version = "0.0.1"  # TODO: replace with maintained version
+                current_release_version = "1.0.0"  # TODO: replace with maintained version
     if previous_release_version:
         if Version(current_release_version) < Version(previous_release_version):
             print(
@@ -1134,12 +1163,56 @@ def get_package_pip_name(provider_package_id: str, backport_packages: bool):
         return f"apache-airflow-providers-{provider_package_id.replace('.', '-')}"
 
 
-def get_provider_info(provider_package_id: str):
+def validate_provider_info_with_2_0_0_schema(provider_info: Dict[str, Any]) -> None:
+    """
+    Validates provider info against 2.0.0 schema.
+    :param provider_info: provider info to validate
+    """
+
+    def _load_schema() -> Dict[str, Any]:
+        with open(PROVIDER_2_0_0_DATA_SCHEMA_PATH) as schema_file:
+            content = json.load(schema_file)
+        return content
+
+    schema = _load_schema()
+    try:
+        jsonschema.validate(provider_info, schema=schema)
+    except jsonschema.ValidationError as e:
+        raise Exception(
+            "Error when validating schema. The schema must be Airflow 2.0.0 compatible. "
+            "If you added any fields please remove them via 'remove_extra_fields' method.",
+            e,
+        )
+
+
+def remove_logo_field(original_provider_info: Dict[str, Any]):
+    updated_provider_info = deepcopy(original_provider_info)
+    expression = jsonpath_ng.parse("integrations..logo")
+    updated_provider_info = expression.filter(lambda x: True, updated_provider_info)
+    return updated_provider_info
+
+
+def remove_extra_fields(provider_info: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    In Airflow 2.0.0 we set 'additionalProperties" to 'false' in provider's schema, which makes the schema
+    non future-compatible. While we changed tho additionalProperties to 'true' in 2.0.1, we have to
+    make sure that the returned provider_info when preparing package is compatible with the older version
+    of the schema and remove all the newly added fields until we deprecate (possibly even yank) 2.0.0
+    and make provider packages depend on Airflow >=2.0.1.
+    """
+    provider_info = remove_logo_field(provider_info)
+    return provider_info
+
+
+def get_provider_info(provider_package_id: str) -> Dict[str, Any]:
     provider_yaml_file_name = os.path.join(get_source_package_path(provider_package_id), "provider.yaml")
     if not os.path.exists(provider_yaml_file_name):
         raise Exception(f"The provider.yaml file is missing: {provider_yaml_file_name}")
     with open(provider_yaml_file_name) as provider_file:
-        return yaml.safe_load(provider_file.read())
+        provider_info = yaml.safe_load(provider_file.read())
+    stripped_provider_info = remove_extra_fields(provider_info)
+    validate_provider_info_with_2_0_0_schema(stripped_provider_info)
+    return stripped_provider_info
 
 
 def update_generated_files_for_package(
@@ -1405,25 +1478,27 @@ def update_release_notes_for_packages(
             provider_ids = get_all_providers()
     total = 0
     bad = 0
-    print()
-    print("Generating README files and checking if entities are correctly named.")
-    print()
-    print("Providers to generate:")
-    for provider_id in provider_ids:
-        print(provider_id)
-    print()
+    with with_group("Generating README summary"):
+        print()
+        print("Generating README files and checking if entities are correctly named.")
+        print()
+        print("Providers to generate:")
+        for provider_id in provider_ids:
+            print(provider_id)
+        print()
     for package in provider_ids:
-        inc_total, inc_bad = update_generated_files_for_package(
-            package,
-            release_version,
-            version_suffix,
-            imported_classes,
-            backport_packages,
-            update_release_notes=True,
-            update_setup=False,
-        )
-        total += inc_total
-        bad += inc_bad
+        with with_group(f"Update generated files for package {package}"):
+            inc_total, inc_bad = update_generated_files_for_package(
+                package,
+                release_version,
+                version_suffix,
+                imported_classes,
+                backport_packages,
+                update_release_notes=True,
+                update_setup=False,
+            )
+            total += inc_total
+            bad += inc_bad
     if bad == 0:
         print()
         print(f"All good! All {total} entities are properly named")
@@ -1596,9 +1671,11 @@ ERROR! Wrong first param: {sys.argv[1]}
     verify_provider_package(_provider_package)
     del sys.argv[1]
     package_format = os.environ.get("PACKAGE_FORMAT", "wheel")
-    print(f"Building backport package: {_provider_package} in format ${package_format}")
+    print(f"Building provider package: {_provider_package} in format ${package_format}")
     copy_readme_and_changelog(_provider_package, BACKPORT_PACKAGES)
-    command = ["python3", "setup.py", "--version-suffix-for-pypi", suffix]
+    command = ["python3", "setup.py"]
+    if suffix != "":
+        command.extend(['egg_info', '--tag-build', suffix])
     if package_format in ['sdist', 'both']:
         command.append("sdist")
     if package_format in ['wheel', 'both']:

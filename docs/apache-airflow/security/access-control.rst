@@ -91,8 +91,9 @@ Custom Roles
 DAG Level Role
 ^^^^^^^^^^^^^^
 ``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
-is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
-allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.
+is treated as a ``View`` which has two permissions associated with it (``can_read`` and ``can_edit``. ``can_dag_read`` and ``can_dag_edit`` are deprecated since 2.0.0).
+There is a special view called ``DAGs`` (it was called ``all_dags`` in versions 1.10.*) which
+allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``DAGs`` view.
 
 .. image:: /img/add-role.png
 .. image:: /img/new-role.png

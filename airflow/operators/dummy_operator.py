@@ -15,25 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.operators.dummy`."""
 
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+import warnings
 
+# pylint: disable=unused-import
+from airflow.operators.dummy import DummyOperator  # noqa
 
-class DummyOperator(BaseOperator):
-    """
-    Operator that does literally nothing. It can be used to group tasks in a
-    DAG.
-
-    The task is evaluated by the scheduler but never processed by the executor.
-    """
-
-    ui_color = '#e8f7e4'
-    inherits_from_dummy_operator = True
-
-    @apply_defaults
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-
-    def execute(self, context):
-        pass
+warnings.warn(
+    "This module is deprecated. Please use `airflow.operators.dummy`.", DeprecationWarning, stacklevel=2
+)

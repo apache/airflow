@@ -24,6 +24,18 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    Logging for Tasks <logging>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/elasticsearch/index>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
+
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-elasticsearch/>

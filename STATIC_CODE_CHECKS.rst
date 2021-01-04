@@ -72,8 +72,6 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-hooks-apply``                 Checks which hooks are applicable to the repository.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``check-hooks-apply``                 Checks which hooks are applicable to the repository.
------------------------------------ ---------------------------------------------------------------- ------------
 ``check-integrations``                Checks if integration list is synchronized in code.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-merge-conflicts``             Checks that merge conflicts are not being committed.
@@ -108,6 +106,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``helm-lint``                         Verifies if helm lint passes for the chart
 ----------------------------------- ---------------------------------------------------------------- ------------
+``identity``                          Prints inputs to the static check hooks for troubleshooting
+----------------------------------- ---------------------------------------------------------------- ------------
 ``incorrect-use-of-LoggingMixin``     Checks if LoggingMixin is properly imported.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``insert-license``                    Adds licenses for most file types.
@@ -133,6 +133,8 @@ require Breeze Docker images to be installed locally:
 ``mypy-helm``                         Runs mypy.                                                           *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pre-commit-descriptions``           Check if all pre-commits are described in docs.
+----------------------------------- ---------------------------------------------------------------- ------------
+``pre-commit-hook-names``             Check that hook names are not overly long.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``provide-create-sessions``           Make sure provide-session and create-session imports are OK.
 ----------------------------------- ---------------------------------------------------------------- ------------

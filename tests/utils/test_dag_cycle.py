@@ -19,7 +19,7 @@ import unittest
 
 from airflow import DAG
 from airflow.exceptions import AirflowDagCycleException
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils.dag_cycle_tester import test_cycle as _test_cycle  # to avoid being a test function
 from tests.models import DEFAULT_DATE
 

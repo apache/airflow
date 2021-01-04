@@ -25,7 +25,7 @@ from azure.kusto.data.request import ClientRequestProperties, KustoClient, Kusto
 from azure.kusto.data.response import KustoResponseDataSetV2
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureDataExplorerHook(BaseHook):
@@ -78,7 +78,12 @@ class AzureDataExplorerHook(BaseHook):
     :type azure_data_explorer_conn_id: str
     """
 
-    def __init__(self, azure_data_explorer_conn_id: str = 'azure_data_explorer_default') -> None:
+    conn_name_attr = 'azure_data_explorer_conn_id'
+    default_conn_name = 'azure_data_explorer_default'
+    conn_type = 'azure_data_explorer'
+    hook_name = 'Azure Data Explorer'
+
+    def __init__(self, azure_data_explorer_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_data_explorer_conn_id
         self.connection = self.get_conn()

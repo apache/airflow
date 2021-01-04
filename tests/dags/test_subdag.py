@@ -24,8 +24,8 @@ A DAG with subdag for testing purpose.
 from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.subdag_operator import SubDagOperator
+from airflow.operators.dummy import DummyOperator
+from airflow.operators.subdag import SubDagOperator
 
 DAG_NAME = 'test_subdag_operator'
 

@@ -29,6 +29,7 @@ Content
     Connection types <connections/azure>
     Operators <operators/index>
     Secrets backends <secrets-backends/azure-key-vault>
+    Logging for Tasks <logging>
 
 .. toctree::
     :maxdepth: 1
@@ -41,3 +42,4 @@ Content
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/microsoft/azure/example_dags>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-azure/>

@@ -28,6 +28,7 @@ Content
     Connection types <connections/aws>
     Operators <operators/index>
     Secrets backends <secrets-backends/index>
+    Logging for Tasks <logging/index>
 
 .. toctree::
     :maxdepth: 1
@@ -40,3 +41,4 @@ Content
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/amazon/aws/example_dags>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-amazon/>

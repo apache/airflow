@@ -36,7 +36,7 @@ from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 
 if TYPE_CHECKING:
-    from airflow.hooks.base_hook import BaseHook
+    from airflow.hooks.base import BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -401,6 +401,7 @@ def integrate_macros_plugins() -> None:
     global plugins
     global macros_modules
     # pylint: enable=global-statement
+    from airflow import macros
 
     if macros_modules is not None:
         return
@@ -423,3 +424,6 @@ def integrate_macros_plugins() -> None:
         if macros_module:
             macros_modules.append(macros_module)
             sys.modules[macros_module.__name__] = macros_module  # pylint: disable=no-member
+            # Register the newly created module on airflow.macros such that it
+            # can be accessed when rendering templates.
+            setattr(macros, plugin.name, macros_module)

@@ -21,7 +21,7 @@ from typing import Optional
 
 from zdesk import RateLimitError, Zendesk, ZendeskError
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class ZendeskHook(BaseHook):

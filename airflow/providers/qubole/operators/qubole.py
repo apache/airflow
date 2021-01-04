@@ -20,7 +20,7 @@ import re
 from datetime import datetime
 from typing import Iterable, Optional
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.qubole.hooks.qubole import (

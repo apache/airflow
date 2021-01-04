@@ -338,8 +338,12 @@ start integrations (separate Docker images) if specified as extra ``--integratio
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
-tmux session with three panes (one to monitor the scheduler, one for the webserver and one with a shell
-for additional commands.
+tmux session with four panes:
+
+   - one to monitor the scheduler,
+   - one for the webserver,
+   - one monitors and compiles Javascript files,
+   - one with a shell for additional commands.
 
 Managing Prod environment (with ``--production-image`` flag):
 
@@ -751,6 +755,14 @@ The above will run mypy check for all files.
       </a>
     </div>
 
+If you want ever need to get a list of the files that will be checked (for troubleshooting when playing with the
+``--from-ref`` and ``--to-ref``
+
+.. code-block:: bash
+
+     breeze static-check identity --verbose # currently staged files
+     breeze static-check identity --verbose -- --from-ref $(git merge-base master HEAD) --to-ref HEAD #  branch updates
+
 Building the Documentation
 --------------------------
 
@@ -793,7 +805,7 @@ Generating constraints
 ----------------------
 
 Whenever setup.py gets modified, the CI master job will re-generate constraint files. Those constraint
-files are stored in separated orphan branches: ``constraints-master`` and ``constraint-1-10``.
+files are stored in separated orphan branches: ``constraints-master``, ``constraints-2-0`` and ``constraints-1-10``.
 They are stored separately for each python version. Those are
 constraint files as described in detail in the
 `<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
@@ -1235,7 +1247,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         is generated ('docs/_build') are also mounted to the container - this way results of
         the documentation build is available in the host.
 
-        The possible extra args are: --docs-only, --spellcheck-only, --package, --help
+        The possible extra args are: --docs-only, --spellcheck-only, --package-filter, --help
 
 
   ####################################################################################################
@@ -1275,8 +1287,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3
-                 1.10.2 none wheel
+                 2.0.0 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and
@@ -1295,6 +1306,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified it will look for packages placed in dist folder and it will install the
           packages after installing Airflow. This is useful for testing provider
           packages.
+
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1319,7 +1333,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
                  virtualenv
 
   --image-tag TAG
@@ -1528,11 +1542,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Generates pinned constraint files from setup.py. Those files are generated in files folder
         - separate files for different python version. Those constraint files when pushed to orphan
-        constraint-master and constraint-1-10 branches are used to generate repeatable
-        CI builds as well as run repeatable production image builds. You can use those constraints
-        to predictably install released Airflow versions. This is mainly used to test the constraint
-        generation - constraints are pushed to the orphan branches by a successful scheduled
-        CRON job in CI automatically.
+        constraints-master, constraints-2-0 and constraints-1-10 branches are used to generate
+        repeatable CI builds as well as run repeatable production image builds. You can use those
+        constraints to predictably install released Airflow versions. This is mainly used to test
+        the constraint generation - constraints are pushed to the orphan branches by a
+        successful scheduled CRON job in CI automatically.
 
   Flags:
 
@@ -1907,7 +1921,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
                  virtualenv
 
   --image-tag TAG
@@ -2145,15 +2159,15 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-executables-have-shebangs check-hooks-apply check-integrations
                  check-merge-conflict check-xml consistent-pylint daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
-                 fix-encoding-pragma flake8 forbid-tabs helm-lint incorrect-use-of-LoggingMixin
-                 insert-license isort json-schema language-matters lint-dockerfile lint-openapi
-                 markdownlint mermaid mixed-line-ending mypy mypy-helm no-providers-in-core-examples
-                 no-relative-imports pre-commit-descriptions provide-create-sessions
-                 providers-init-file provider-yamls pydevd pydocstyle pylint pylint-tests
-                 python-no-log-warn pyupgrade restrict-start_date rst-backticks setup-order
-                 setup-extra-packages shellcheck sort-in-the-wild stylelint trailing-whitespace
-                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 version-sync yamllint
+                 fix-encoding-pragma flake8 forbid-tabs helm-lint identity
+                 incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
+                 lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
+                 no-providers-in-core-examples no-relative-imports pre-commit-descriptions
+                 pre-commit-hook-names provide-create-sessions providers-init-file provider-yamls
+                 pydevd pydocstyle pylint pylint-tests python-no-log-warn pyupgrade
+                 restrict-start_date rst-backticks setup-order setup-extra-packages shellcheck
+                 sort-in-the-wild stylelint trailing-whitespace update-breeze-file update-extras
+                 update-local-yml-file update-setup-cfg-file version-sync yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -2165,6 +2179,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
         To check all files that differ between you current branch and master run:
 
         'breeze static-check all -- --from-ref $(git merge-base master HEAD) --to-ref HEAD'
+
+        To check all files that are in the HEAD commit run:
+
+        'breeze static-check mypy -- --from-ref HEAD^ --to-ref HEAD'
+
 
         You can see all the options by adding --help EXTRA_ARG:
 
@@ -2291,7 +2310,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           start all integrations. Selected integrations are not saved for future execution.
           One of:
 
-                 cassandra kerberos mongo openldap presto rabbitmq redis all
+                 cassandra kerberos mongo openldap pinot presto rabbitmq redis all
 
   --init-script INIT_SCRIPT_FILE
           Initialization script name - Sourced from files/airflow-breeze-config. Default value
@@ -2379,8 +2398,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.13 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3
-                 1.10.2 none wheel
+                 2.0.0 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and
@@ -2399,6 +2417,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified it will look for packages placed in dist folder and it will install the
           packages after installing Airflow. This is useful for testing provider
           packages.
+
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
 
   ****************************************************************************************************
    Credentials
@@ -2430,7 +2451,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
                  virtualenv
 
   --image-tag TAG

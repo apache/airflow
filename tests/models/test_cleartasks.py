@@ -21,7 +21,7 @@ import unittest
 
 from airflow import settings
 from airflow.models import DAG, TaskInstance as TI, clear_task_instances
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType

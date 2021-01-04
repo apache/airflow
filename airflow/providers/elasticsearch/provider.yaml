@@ -22,7 +22,7 @@ description: |
     `Elasticsearch <https://https//www.elastic.co/elasticsearch>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 integrations:
   - integration-name: Elasticsearch
     external-doc-url: https://www.elastic.co/elasticsearch

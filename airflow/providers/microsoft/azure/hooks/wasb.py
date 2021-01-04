@@ -37,7 +37,7 @@ except ImportError:
     BlockBlobService = None
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class WasbHook(BaseHook):
@@ -57,6 +57,7 @@ class WasbHook(BaseHook):
     conn_name_attr = 'wasb_conn_id'
     default_conn_name = 'wasb_default'
     conn_type = 'wasb'
+    hook_name = 'Azure Blob Storage'
 
     def __init__(self, wasb_conn_id: str = default_conn_name) -> None:
         super().__init__()

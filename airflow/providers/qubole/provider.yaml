@@ -22,7 +22,7 @@ description: |
     `Qubole <https://www.qubole.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Qubole
@@ -45,6 +45,9 @@ hooks:
     python-modules:
       - airflow.providers.qubole.hooks.qubole
       - airflow.providers.qubole.hooks.qubole_check
+
+hook-class-names:
+  - airflow.providers.qubole.hooks.qubole.QuboleHook
 
 extra-links:
   - airflow.providers.qubole.operators.qubole.QDSLink

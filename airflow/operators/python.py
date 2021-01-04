@@ -254,7 +254,7 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
 def task(
-    python_callable: Optional[Callable] = None, multiple_outputs: bool = False, **kwargs
+    python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
 ) -> Callable[[T], T]:
     """
     Python operator decorator. Wraps a function into an Airflow operator.
@@ -269,6 +269,12 @@ def task(
     :type multiple_outputs: bool
 
     """
+    # try to infer from  type annotation
+    if python_callable and multiple_outputs is None:
+        sig = signature(python_callable).return_annotation
+        ttype = getattr(sig, "__origin__", None)
+
+        multiple_outputs = sig != inspect.Signature.empty and ttype in (dict, Dict)
 
     def wrapper(f: T):
         """
@@ -364,7 +370,8 @@ class PythonVirtualenvOperator(PythonOperator):
     string_args). In addition, one can pass stuff through op_args and op_kwargs, and one
     can use a return value.
     Note that if your virtualenv runs in a different Python major version than Airflow,
-    you cannot use return values, op_args, or op_kwargs. You can use string_args though.
+    you cannot use return values, op_args, op_kwargs, or use any macros that are being provided to
+    Airflow through plugins. You can use string_args though.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

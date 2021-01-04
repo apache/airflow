@@ -29,7 +29,7 @@ from parameterized import parameterized
 
 from airflow.configuration import conf
 from airflow.models import DAG, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -250,6 +250,31 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.write_stdout = True
         self.es_task_handler.json_format = True
         self.es_task_handler.set_context(self.ti)
+
+    def test_read_with_json_format(self):
+        ts = pendulum.now()
+        formatter = logging.Formatter('[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s')
+        self.es_task_handler.formatter = formatter
+        self.es_task_handler.json_format = True
+
+        self.body = {
+            'message': self.test_message,
+            'log_id': f'{self.DAG_ID}-{self.TASK_ID}-2016_01_01T00_00_00_000000-1',
+            'offset': 1,
+            'asctime': '2020-12-24 19:25:00,962',
+            'filename': 'taskinstance.py',
+            'lineno': 851,
+            'levelname': 'INFO',
+        }
+        self.es_task_handler.set_context(self.ti)
+        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
+
+        logs, _ = self.es_task_handler.read(
+            self.ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+        )
+        self.assertEqual(
+            "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff", logs[0][0][1]
+        )
 
     def test_close(self):
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')

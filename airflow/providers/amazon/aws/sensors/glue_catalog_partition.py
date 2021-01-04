@@ -18,7 +18,7 @@
 from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

@@ -20,7 +20,7 @@
 import json
 from typing import Dict, Optional, Tuple
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
 
 
@@ -42,6 +42,7 @@ class MySqlHook(DbApiHook):
     conn_name_attr = 'mysql_conn_id'
     default_conn_name = 'mysql_default'
     conn_type = 'mysql'
+    hook_name = 'MySQL'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:

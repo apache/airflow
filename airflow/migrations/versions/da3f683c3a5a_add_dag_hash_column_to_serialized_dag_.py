@@ -19,7 +19,7 @@
 """Add dag_hash Column to serialized_dag table
 
 Revision ID: da3f683c3a5a
-Revises: 8d48763f6d53
+Revises: a66efa278eea
 Create Date: 2020-08-07 20:52:09.178296
 
 """
@@ -29,7 +29,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'da3f683c3a5a'
-down_revision = '8d48763f6d53'
+down_revision = 'a66efa278eea'
 branch_labels = None
 depends_on = None
 
