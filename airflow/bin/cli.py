@@ -1090,13 +1090,13 @@ class GunicornMonitor(LoggingMixin):
             num_workers_running = self._get_num_workers_running()
             if num_workers_running < self.num_workers_expected:
                 new_worker_count = min(
-                    num_workers_running - self.worker_refresh_batch_size, self.worker_refresh_batch_size
+                    self.num_workers_expected - num_workers_running, self.worker_refresh_batch_size
                 )
-                self.log.debug(
+                self.log.info(
                     '[%d / %d] Spawning %d workers',
                     num_ready_workers_running, num_workers_running, new_worker_count
                 )
-                self._spawn_new_workers(num_workers_running)
+                self._spawn_new_workers(new_worker_count)
             return
 
         # Now the number of running and expected worker should be equal
