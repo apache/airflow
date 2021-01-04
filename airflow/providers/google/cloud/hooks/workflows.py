@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
@@ -34,7 +34,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class WorkflowsHook(GoogleBaseHook):
     """
-    Hook for Google Cloud Dataproc APIs.
+    Hook for Google GCP APIs.
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
@@ -71,7 +71,7 @@ class WorkflowsHook(GoogleBaseHook):
         :type workflow_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
-        :param location: Required. The Cloud Dataproc region in which to handle the request.
+        :param location: Required. The GCP region in which to handle the request.
         :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -82,6 +82,7 @@ class WorkflowsHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
+        metadata = metadata or ()
         client = self.get_workflows_client()
         parent = f"projects/{project_id}/locations/{location}"
         return client.create_workflow(
@@ -108,7 +109,7 @@ class WorkflowsHook(GoogleBaseHook):
         :type workflow_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
-        :param location: Required. The Cloud Dataproc region in which to handle the request.
+        :param location: Required. The GCP region in which to handle the request.
         :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -119,13 +120,14 @@ class WorkflowsHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
+        metadata = metadata or ()
         client = self.get_workflows_client()
         name = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}"
         return client.get_workflow(request={"name": name}, retry=retry, timeout=timeout, metadata=metadata)
 
     def update_workflow(
         self,
-        workflow: Dict,
+        workflow: Union[Dict, Workflow],
         update_mask: Optional[FieldMask] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -153,6 +155,7 @@ class WorkflowsHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
+        metadata = metadata or ()
         client = self.get_workflows_client()
         return client.update_workflow(
             request={"workflow": workflow, "update_mask": update_mask},
@@ -180,7 +183,7 @@ class WorkflowsHook(GoogleBaseHook):
         :type workflow_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
-        :param location: Required. The Cloud Dataproc region in which to handle the request.
+        :param location: Required. The GCP region in which to handle the request.
         :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -191,6 +194,7 @@ class WorkflowsHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
+        metadata = metadata or ()
         client = self.get_workflows_client()
         name = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}"
         return client.delete_workflow(request={"name": name}, retry=retry, timeout=timeout, metadata=metadata)
@@ -219,7 +223,7 @@ class WorkflowsHook(GoogleBaseHook):
         :type order_by: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
-        :param location: Required. The Cloud Dataproc region in which to handle the request.
+        :param location: Required. The GCP region in which to handle the request.
         :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -230,6 +234,7 @@ class WorkflowsHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
+        metadata = metadata or ()
         client = self.get_workflows_client()
         parent = f"projects/{project_id}/locations/{location}"
         return client.list_workflows(
@@ -260,7 +265,7 @@ class WorkflowsHook(GoogleBaseHook):
         :type workflow_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
-        :param location: Required. The Cloud Dataproc region in which to handle the request.
+        :param location: Required. The GCP region in which to handle the request.
         :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -271,6 +276,7 @@ class WorkflowsHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
+        metadata = metadata or ()
         client = self.get_executions_client()
         parent = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}"
         return client.create_execution(
@@ -300,7 +306,7 @@ class WorkflowsHook(GoogleBaseHook):
         :type execution_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
-        :param location: Required. The Cloud Dataproc region in which to handle the request.
+        :param location: Required. The GCP region in which to handle the request.
         :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -311,6 +317,7 @@ class WorkflowsHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
+        metadata = metadata or ()
         client = self.get_executions_client()
         name = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}/executions/{execution_id}"
         return client.get_execution(request={"name": name}, retry=retry, timeout=timeout, metadata=metadata)
@@ -335,7 +342,7 @@ class WorkflowsHook(GoogleBaseHook):
         :type execution_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
-        :param location: Required. The Cloud Dataproc region in which to handle the request.
+        :param location: Required. The GCP region in which to handle the request.
         :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -346,6 +353,7 @@ class WorkflowsHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
+        metadata = metadata or ()
         client = self.get_executions_client()
         name = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}/executions/{execution_id}"
         return client.cancel_execution(
@@ -373,7 +381,7 @@ class WorkflowsHook(GoogleBaseHook):
         :type workflow_id: str
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
         :type project_id: str
-        :param location: Required. The Cloud Dataproc region in which to handle the request.
+        :param location: Required. The GCP region in which to handle the request.
         :type location: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
@@ -384,6 +392,7 @@ class WorkflowsHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
+        metadata = metadata or ()
         client = self.get_executions_client()
         parent = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}"
         return client.list_executions(

@@ -18,8 +18,10 @@ import hashlib
 import json
 import re
 import uuid
+from datetime import datetime, timedelta
 from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.exceptions import AlreadyExists
 from google.api_core.retry import Retry
 
 # pylint: disable=no-name-in-module
@@ -46,7 +48,7 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
     :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :type project_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :param location: Required. The GCP region in which to handle the request.
     :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -67,7 +69,7 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
         workflow: Dict,
         workflow_id: str,
         location: str,
-        project_id: str,
+        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -109,18 +111,30 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
 
     def execute(self, context):
         hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        workflow_id = self._workflow_id(context)
+
         self.log.info("Creating workflow")
-        operation = hook.create_workflow(
-            workflow=self.workflow,
-            workflow_id=self._workflow_id(context),
-            location=self.location,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        operation.result()
-        return Workflow.to_dict(operation)
+        try:
+            workflow = hook.create_workflow(
+                workflow=self.workflow,
+                workflow_id=workflow_id,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            workflow.result()
+        except AlreadyExists:
+            workflow = hook.get_workflow(
+                workflow_id=workflow_id,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        return Workflow.to_dict(workflow)
 
 
 class WorkflowsUpdateWorkflowOperator(BaseOperator):
@@ -132,8 +146,12 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
     update operation. In that case, such revision will be
     used in new workflow executions.
 
-    :param workflow: Required. Workflow to be created.
-    :type workflow: Dict
+    :param workflow_id: Required. The ID of the workflow to be updated.
+    :type workflow_id: str
+    :param location: Required. The GCP region in which to handle the request.
+    :type location: str
+    :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
+    :type project_id: str
     :param update_mask: List of fields to be updated. If not present,
         the entire workflow will be updated.
     :type update_mask: FieldMask
@@ -147,13 +165,15 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow")
+    template_fields = ("workflow_id",)
     template_fields_renderers = {"workflow": "json"}
 
     def __init__(
         self,
         *,
-        workflow: Dict,
+        workflow_id: str,
+        location: str,
+        project_id: Optional[str] = None,
         update_mask: Optional[FieldMask] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -164,7 +184,9 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
 
-        self.workflow = workflow
+        self.workflow_id = workflow_id
+        self.location = location
+        self.project_id = project_id
         self.update_mask = update_mask
         self.retry = retry
         self.timeout = timeout
@@ -174,9 +196,18 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
 
     def execute(self, context):
         hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+
+        workflow = hook.get_workflow(
+            workflow_id=self.workflow_id,
+            project_id=self.project_id,
+            location=self.location,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
         self.log.info("Updating workflow")
         operation = hook.update_workflow(
-            workflow=self.workflow,
+            workflow=workflow,
             update_mask=self.update_mask,
             retry=self.retry,
             timeout=self.timeout,
@@ -196,7 +227,7 @@ class WorkflowsDeleteWorkflowOperator(BaseOperator):
     :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :type project_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :param location: Required. The GCP region in which to handle the request.
     :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -215,7 +246,7 @@ class WorkflowsDeleteWorkflowOperator(BaseOperator):
         *,
         workflow_id: str,
         location: str,
-        project_id: str,
+        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -262,7 +293,7 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
     :type order_by: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :type project_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :param location: Required. The GCP region in which to handle the request.
     :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -280,7 +311,7 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
         self,
         *,
         location: str,
-        project_id: str,
+        project_id: Optional[str] = None,
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -325,7 +356,7 @@ class WorkflowsGetWorkflowOperator(BaseOperator):
     :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :type project_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :param location: Required. The GCP region in which to handle the request.
     :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -344,7 +375,7 @@ class WorkflowsGetWorkflowOperator(BaseOperator):
         *,
         workflow_id: str,
         location: str,
-        project_id: str,
+        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -388,7 +419,7 @@ class WorkflowExecutionsCreateExecutionOperator(BaseOperator):
     :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :type project_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :param location: Required. The GCP region in which to handle the request.
     :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -409,7 +440,7 @@ class WorkflowExecutionsCreateExecutionOperator(BaseOperator):
         workflow_id: str,
         execution: Dict,
         location: str,
-        project_id: str,
+        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -441,6 +472,8 @@ class WorkflowExecutionsCreateExecutionOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        execution_id = execution.name.split("/")[-1]
+        self.xcom_push(context, key="execution_id", value=execution_id)
         return Execution.to_dict(execution)
 
 
@@ -454,7 +487,7 @@ class WorkflowExecutionsCancelExecutionOperator(BaseOperator):
     :type execution_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :type project_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :param location: Required. The GCP region in which to handle the request.
     :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -474,7 +507,7 @@ class WorkflowExecutionsCancelExecutionOperator(BaseOperator):
         workflow_id: str,
         execution_id: str,
         location: str,
-        project_id: str,
+        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -519,9 +552,12 @@ class WorkflowExecutionsListExecutionsOperator(BaseOperator):
 
     :param workflow_id: Required. The ID of the workflow to be created.
     :type workflow_id: str
+    :param start_date_filter: If passed only executions older that this date will be returned.
+        By default operators return executions from last 60 minutes
+    :type start_date_filter: datetime
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :type project_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :param location: Required. The GCP region in which to handle the request.
     :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -540,7 +576,8 @@ class WorkflowExecutionsListExecutionsOperator(BaseOperator):
         *,
         workflow_id: str,
         location: str,
-        project_id: str,
+        start_date_filter: Optional[datetime] = None,
+        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -552,6 +589,7 @@ class WorkflowExecutionsListExecutionsOperator(BaseOperator):
 
         self.workflow_id = workflow_id
         self.location = location
+        self.start_date_filter = start_date_filter or datetime.now() - timedelta(minutes=60)
         self.project_id = project_id
         self.retry = retry
         self.timeout = timeout
@@ -570,7 +608,9 @@ class WorkflowExecutionsListExecutionsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return [Execution.to_dict(e) for e in execution_iter]
+        return [
+            Execution.to_dict(e) for e in execution_iter if e.start_time.ToDatetime() > self.start_date_filter
+        ]
 
 
 class WorkflowExecutionsGetExecutionOperator(BaseOperator):
@@ -583,7 +623,7 @@ class WorkflowExecutionsGetExecutionOperator(BaseOperator):
     :type execution_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :type project_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :param location: Required. The GCP region in which to handle the request.
     :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
@@ -603,7 +643,7 @@ class WorkflowExecutionsGetExecutionOperator(BaseOperator):
         workflow_id: str,
         execution_id: str,
         location: str,
-        project_id: str,
+        project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,

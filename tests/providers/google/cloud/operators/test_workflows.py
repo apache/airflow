@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import datetime
 from unittest import mock
 
 from airflow.providers.google.cloud.operators.workflows import (
@@ -88,7 +88,7 @@ class TestWorkflowsUpdateWorkflowOperator:
     def test_execute(self, mock_hook, mock_object):
         op = WorkflowsUpdateWorkflowOperator(
             task_id="test_task",
-            workflow=WORKFLOW,
+            workflow_id=WORKFLOW_ID,
             location=LOCATION,
             project_id=PROJECT_ID,
             update_mask=UPDATE_MASK,
@@ -105,10 +105,17 @@ class TestWorkflowsUpdateWorkflowOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        mock_hook.return_value.update_workflow.assert_called_once_with(
-            workflow=WORKFLOW,
+        mock_hook.return_value.get_workflow.assert_called_once_with(
+            workflow_id=WORKFLOW_ID,
             location=LOCATION,
             project_id=PROJECT_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+        mock_hook.return_value.update_workflow.assert_called_once_with(
+            workflow=mock_hook.return_value.get_workflow.return_value,
             update_mask=UPDATE_MASK,
             retry=RETRY,
             timeout=TIMEOUT,
@@ -227,7 +234,9 @@ class TestWorkflowsGetWorkflowOperator:
 class TestWorkflowExecutionsCreateExecutionOperator:
     @mock.patch(BASE_PATH.format("Execution"))
     @mock.patch(BASE_PATH.format("WorkflowsHook"))
-    def test_execute(self, mock_hook, mock_object):
+    @mock.patch(BASE_PATH.format("WorkflowExecutionsCreateExecutionOperator.xcom_push"))
+    def test_execute(self, mock_xcom, mock_hook, mock_object):
+        mock_hook.return_value.create_execution.return_value.name = "name/execution_id"
         op = WorkflowExecutionsCreateExecutionOperator(
             task_id="test_task",
             workflow_id=WORKFLOW_ID,
@@ -256,7 +265,7 @@ class TestWorkflowExecutionsCreateExecutionOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-
+        mock_xcom.assert_called_once_with({}, key="execution_id", value="execution_id")
         assert result == mock_object.to_dict.return_value
 
 
@@ -300,7 +309,11 @@ class TestWorkflowExecutionsListExecutionsOperator:
     @mock.patch(BASE_PATH.format("Execution"))
     @mock.patch(BASE_PATH.format("WorkflowsHook"))
     def test_execute(self, mock_hook, mock_object):
-        mock_hook.return_value.list_executions.return_value = [mock.MagicMixin()]
+        execution_mock = mock.MagicMock()
+        execution_mock.start_time.ToDatetime.return_value = datetime.datetime.now() + datetime.timedelta(
+            minutes=5
+        )
+        mock_hook.return_value.list_executions.return_value = [execution_mock]
 
         op = WorkflowExecutionsListExecutionsOperator(
             task_id="test_task",
