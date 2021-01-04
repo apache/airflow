@@ -47,7 +47,7 @@ GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
 GCP_AUTOML_DATASET_BUCKET = os.environ.get(
     "GCP_AUTOML_DATASET_BUCKET", "gs://cloud-ml-tables-data/bank-marketing.csv"
 )
-TARGET = os.environ.get("GCP_AUTOML_TARGET", "Class")
+TARGET = os.environ.get("GCP_AUTOML_TARGET", "Deposit")
 
 # Example values
 MODEL_ID = "TBL123456"
@@ -78,7 +78,7 @@ def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
     for column in columns_specs:
         if column["displayName"] == column_name:
             return extract_object_id(column)
-    return ""
+    raise Exception(f"Unknown target column: {column_name}")
 
 
 # Example DAG to create dataset, train model_id and deploy it.
