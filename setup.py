@@ -589,13 +589,13 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'google_auth': flask_oauth,
     'kerberos': kerberos,
     'ldap': ldap,
+    'mesos': mesos,
     'password': password,
     'rabbitmq': rabbitmq,
     'sentry': sentry,
     'statsd': statsd,
     'tableau': tableau,
     'virtualenv': virtualenv,
-    'mesos': mesos,
 }
 
 # Add extras for all providers. For all providers the extras name = providers name
