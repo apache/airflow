@@ -33,5 +33,4 @@ determine what actually executes when your DAG runs.
 
     bash
     python
-    postgres_operator_howto_guide
     external_task_sensor

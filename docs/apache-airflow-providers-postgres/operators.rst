@@ -27,10 +27,7 @@ workflow. Airflow is essentially a graph (Directed Acyclic Graph) made up of tas
 A task defined or implemented by a operator is a unit of work in your data pipeline.
 
 The purpose of Postgres Operator is to define tasks involving interactions with the PostgreSQL database.
-In ``Airflow-1.10.X``, the ``PostgresOperator`` class is in the ``postgres_operator`` module housed in the ``operators`` package.
-
-However, in ``Airflow-2.0``, the ``PostgresOperator`` class now resides at ``airflow.providers.postgres.operator.postgres``.
-You will get a deprecation warning if you try to import the ``postgres_operator`` module.
+ In ``Airflow-2.0``, the ``PostgresOperator`` class resides at ``airflow.providers.postgres.operator.postgres``.
 
 Under the hood, the ``PostgresOperator`` class delegates its heavy lifting to the ``PostgresHook`` class.
 
@@ -48,9 +45,8 @@ The code snippets below are based on Airflow-2.0
 .. code-block:: python
 
     import datetime
-
     from airflow import DAG
-    from airflow.providers.postgres.operator.postgres import PostgresOperator
+    from airflow.providers.postgres.operators.postgres import PostgresOperator
 
 
     default_args = {
@@ -59,7 +55,7 @@ The code snippets below are based on Airflow-2.0
                     }
 
 
-    with DAG(dag_id="postgres_dag", schedule_interval="@once", default_args=default_args, catchup=False) as dag:
+    with DAG(dag_id="postgres_operator_dag", schedule_interval="@once", default_args=default_args, catchup=False) as dag:
         create_pet_table = PostgresOperator(
                                             "create_pet_table",
                                             postgres_conn_id = "postgres_default",
@@ -133,16 +129,16 @@ Fetching records from your postgres database table can be as simple as:
 
 .. code-block:: python
 
-  get_pets = PostgresOperator(
-                              "get_pets",
+  get_all_pets = PostgresOperator(
+                              "get_all_pets",
                               postgres_conn_id = "postgres_default",
                               sql = "SELECT * FROM pet;"
                               )
 
 
 
-Passing Parameters into your PostgresOperator
----------------------------------------------
+Passing Parameters into PostgresOperator
+----------------------------------------
 
 PostgresOperator provides ``parameters`` attribute which makes it possible to dynamically inject values into your
 SQL requests during runtime. The BaseOperator class has the ``params`` attribute which is available to the PostgresOperator
@@ -154,11 +150,11 @@ To find the owner of the pet called 'Lester':
 .. code-block:: python
 
   get_birth_date = PostgresOperator(
-                                "populate_pet_table",
+                                "get_birth_date",
                                 postgres_conn_id = "postgres_default",
-                                sql = "SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC %(start_date)s AND %(end_date)s",
+                                sql = "SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC %(begin_date)s AND %(end_date)s",
                                 parameters = {
-                                              'start_date': '2020-01-01',
+                                              'begin_date': '2020-01-01',
                                               'end_date': '2020-12-31'
                                               }
                                 )
@@ -169,7 +165,7 @@ by creating a sql file.
 ::
 
   -- dags/sql/birth_date.sql
-  SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC {{ params.start_date }} AND {{ params.end_date }};
+  SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC {{ params.begin_date }} AND {{ params.end_date }};
 
 And this time we will use the ``params`` attribute which we get for free from the parent ``BaseOperator``
 class.
@@ -177,14 +173,64 @@ class.
 .. code-block:: python
 
   get_birth_date = PostgresOperator(
-                                "populate_pet_table",
+                                "get_birth_date",
                                 postgres_conn_id = "postgres_default",
                                 sql = "sql/birth_date.sql",
                                 params = {
-                                           'start_date': '2020-01-01',
+                                           'begin_date': '2020-01-01',
                                             'end_date': '2020-12-31'
                                           }
                                 )
+
+The complete postgresOperator DAG
+---------------------------------
+
+When we put everything together, our DAG should look like this:
+
+.. code-block:: python
+
+    import datetime
+    from airflow import DAG
+    from airflow.providers.postgres.operators.postgres import PostgresOperator
+
+
+    default_args = {
+                    "start_date": datetime.datetime(2020, 2, 2),
+                    "owner": "airflow"
+                    }
+
+
+    with DAG(dag_id="postgres_operator_dag", schedule_interval="@once", default_args=default_args, catchup=False) as dag:
+        create_pet_table = PostgresOperator(
+                                            "create_pet_table",
+                                            postgres_conn_id = "postgres_default",
+                                            sql = "sql/pet_schema.sql"
+                                            )
+
+        populate_pet_table = PostgresOperator(
+                                            "populate_pet_table",
+                                            postgres_conn_id = "postgres_default",
+                                            sql = "sql/pet_schema.sql"
+                                              )
+
+        get_all_pets = PostgresOperator(
+                                            "get_all_pets",
+                                            postgres_conn_id = "postgres_default",
+                                            sql = "SELECT * FROM pet;"
+                                              )
+
+        get_birth_date = PostgresOperator(
+                                            "get_birth_date",
+                                            postgres_conn_id = "postgres_default",
+                                            sql = "sql/birth_date.sql",
+                                            params = {
+                                                       'begin_date': '2020-01-01',
+                                                        'end_date': '2020-12-31'
+                                                      }
+                                          )
+
+        create_pet_table >> populate_pet_table >> get_all_pets >> get_birth_date
+
 
 
 Conclusion
