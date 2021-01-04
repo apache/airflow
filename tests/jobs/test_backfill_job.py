@@ -165,7 +165,7 @@ class TestBackfillJob(unittest.TestCase):
 
     @pytest.mark.backend("postgres", "mysql")
     def test_backfill_multi_dates(self):
-        dag = self.dagbag.get_dag('example_bash_operator')
+        dag = self.dagbag.get_dag('miscellaneous_test_dag')
 
         end_date = DEFAULT_DATE + datetime.timedelta(days=1)
 
