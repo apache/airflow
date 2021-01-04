@@ -22,6 +22,7 @@ from subprocess import PIPE, STDOUT
 from tempfile import TemporaryDirectory
 from unittest import mock
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
