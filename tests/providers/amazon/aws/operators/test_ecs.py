@@ -348,5 +348,5 @@ class TestECSOperator(unittest.TestCase):
         self.ecs.do_xcom_push = False
         self.assertEqual(
             self.ecs.execute(None),
-            mock_cloudwatch_log_events.return_value[0]['message']
+            None
         )
