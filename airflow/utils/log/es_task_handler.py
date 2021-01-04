@@ -153,9 +153,23 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # If we hit the end of the log, remove the actual end_of_log message
         # to prevent it from showing in the UI.
         i = len(logs) if not metadata['end_of_log'] else len(logs) - 1
-        message = '\n'.join([log.message for log in logs[0:i]])
+        message = '\n'.join([self._format_msg(log) for log in logs[0:i]])
 
         return message, metadata
+
+    def _format_msg(self, log_line):
+        """Format ES Record to match settings.LOG_FORMAT when used with json_format"""
+        # Using formatter._style.format makes it future proof i.e.
+        # if we change the formatter style from '%' to '{' or '$', this will still work
+        if self.json_format:
+            try:
+                # pylint: disable=protected-access
+                return self.formatter._style.format(_ESJsonLogFmt(**log_line.to_dict()))
+            except Exception:  # noqa pylint: disable=broad-except
+                pass
+
+        # Just a safe-guard to preserve backwards-compatibility
+        return log_line.message
 
     def es_read(self, log_id, offset, metadata):
         """
@@ -203,12 +217,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.mark_end_on_close = not ti.raw
 
         if self.json_format:
-            self.formatter = JSONFormatter(json_fields=self.json_fields, extras={
-                'dag_id': str(ti.dag_id),
-                'task_id': str(ti.task_id),
-                'execution_date': self._clean_execution_date(ti.execution_date),
-                'try_number': str(ti.try_number)
-            })
+            self.formatter = JSONFormatter(
+                fmt=self.formatter._fmt,  # pylint: disable=protected-access
+                json_fields=self.json_fields,
+                extras={
+                    'dag_id': str(ti.dag_id),
+                    'task_id': str(ti.task_id),
+                    'execution_date': self._clean_execution_date(ti.execution_date),
+                    'try_number': str(ti.try_number)
+                },
+            )
 
         if self.write_stdout:
             if self.context_set:
@@ -257,3 +275,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         super(ElasticsearchTaskHandler, self).close()
 
         self.closed = True
+
+
+class _ESJsonLogFmt:
+    """Helper class to read ES Logs and re-format it to match settings.LOG_FORMAT"""
+
+    # A separate class is needed because 'self.formatter._style.format' uses '.__dict__'
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
