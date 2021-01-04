@@ -24,7 +24,7 @@
       }
     }
   },
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "hidden_fields",
     "relabeling"

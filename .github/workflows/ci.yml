@@ -387,7 +387,7 @@ jobs:
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
-      VERSION_SUFFIX_FOR_PYPI: "rc1"
+      VERSION_SUFFIX_FOR_PYPI: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
     if: needs.build-info.outputs.image-build == 'true'
     steps:
@@ -433,7 +433,7 @@ jobs:
       INSTALL_AIRFLOW_VERSION: "${{ matrix.package-format }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      VERSION_SUFFIX_FOR_PYPI: "rc1"
+      VERSION_SUFFIX_FOR_PYPI: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
     strategy:
       matrix:
@@ -474,6 +474,41 @@ jobs:
           name: airflow-provider-readmes
           path: "./files/airflow-readme-*"
           retention-days: 7
+
+  test-provider-packages-released-airflow:
+    timeout-minutes: 30
+    name: "Test Provider packages with 2.0.0 version ${{ matrix.package-format }}"
+    runs-on: ubuntu-20.04
+    needs: [build-info, ci-images]
+    env:
+      INSTALL_AIRFLOW_VERSION: "2.0.0"
+      AIRFLOW_EXTRAS: "all"
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      VERSION_SUFFIX_FOR_PYPI: "dev"
+      PACKAGE_FORMAT: ${{ matrix.package-format }}
+    strategy:
+      matrix:
+        package-format: ['wheel', 'sdist']
+    if: needs.build-info.outputs.image-build == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Prepare provider readmes"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider packages: ${{ matrix.package-format }}"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
+      - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
 
   tests-helm:
     timeout-minutes: 20
@@ -941,6 +976,7 @@ jobs:
       - tests-kubernetes
       - prepare-backport-provider-packages
       - prepare-provider-packages
+      - test-provider-packages-released-airflow
       - prod-images
       - verify-prod-images
       - docs

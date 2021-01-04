@@ -28,6 +28,7 @@ import sys
 import tempfile
 import textwrap
 from contextlib import contextmanager
+from copy import deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
 from os import listdir
@@ -35,6 +36,8 @@ from os.path import dirname
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
+import jsonpath_ng
+import jsonschema
 import yaml
 from packaging.version import Version
 
@@ -50,6 +53,11 @@ PROVIDERS_PATH = os.path.join(AIRFLOW_PATH, "providers")
 TARGET_PROVIDER_PACKAGES_PATH = os.path.join(SOURCE_DIR_PATH, "provider_packages")
 GENERATED_AIRFLOW_PATH = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "airflow")
 GENERATED_PROVIDERS_PATH = os.path.join(GENERATED_AIRFLOW_PATH, "providers")
+
+PROVIDER_2_0_0_DATA_SCHEMA_PATH = os.path.join(
+    SOURCE_DIR_PATH, "airflow", "deprecated_schemas", "provider-2.0.0.yaml.schema.json"
+)
+
 sys.path.insert(0, SOURCE_DIR_PATH)
 
 # those imports need to come after the above sys.path.insert to make sure that Airflow
@@ -1155,12 +1163,56 @@ def get_package_pip_name(provider_package_id: str, backport_packages: bool):
         return f"apache-airflow-providers-{provider_package_id.replace('.', '-')}"
 
 
-def get_provider_info(provider_package_id: str):
+def validate_provider_info_with_2_0_0_schema(provider_info: Dict[str, Any]) -> None:
+    """
+    Validates provider info against 2.0.0 schema.
+    :param provider_info: provider info to validate
+    """
+
+    def _load_schema() -> Dict[str, Any]:
+        with open(PROVIDER_2_0_0_DATA_SCHEMA_PATH) as schema_file:
+            content = json.load(schema_file)
+        return content
+
+    schema = _load_schema()
+    try:
+        jsonschema.validate(provider_info, schema=schema)
+    except jsonschema.ValidationError as e:
+        raise Exception(
+            "Error when validating schema. The schema must be Airflow 2.0.0 compatible. "
+            "If you added any fields please remove them via 'remove_extra_fields' method.",
+            e,
+        )
+
+
+def remove_logo_field(original_provider_info: Dict[str, Any]):
+    updated_provider_info = deepcopy(original_provider_info)
+    expression = jsonpath_ng.parse("integrations..logo")
+    updated_provider_info = expression.filter(lambda x: True, updated_provider_info)
+    return updated_provider_info
+
+
+def remove_extra_fields(provider_info: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    In Airflow 2.0.0 we set 'additionalProperties" to 'false' in provider's schema, which makes the schema
+    non future-compatible. While we changed tho additionalProperties to 'true' in 2.0.1, we have to
+    make sure that the returned provider_info when preparing package is compatible with the older version
+    of the schema and remove all the newly added fields until we deprecate (possibly even yank) 2.0.0
+    and make provider packages depend on Airflow >=2.0.1.
+    """
+    provider_info = remove_logo_field(provider_info)
+    return provider_info
+
+
+def get_provider_info(provider_package_id: str) -> Dict[str, Any]:
     provider_yaml_file_name = os.path.join(get_source_package_path(provider_package_id), "provider.yaml")
     if not os.path.exists(provider_yaml_file_name):
         raise Exception(f"The provider.yaml file is missing: {provider_yaml_file_name}")
     with open(provider_yaml_file_name) as provider_file:
-        return yaml.safe_load(provider_file.read())
+        provider_info = yaml.safe_load(provider_file.read())
+    stripped_provider_info = remove_extra_fields(provider_info)
+    validate_provider_info_with_2_0_0_schema(stripped_provider_info)
+    return stripped_provider_info
 
 
 def update_generated_files_for_package(
