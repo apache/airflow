@@ -162,6 +162,15 @@ info:
     Note that with *Postman*, you can also generate code snippets by selecting a request and clicking on
     the **Code** button.
 
+    ## Enabling CORS
+
+    [Cross-origin resource sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
+    is a browser security feature that restricts HTTP requests that are
+    initiated from scripts running in the browser.
+
+    For details on enabling/configuring CORS, see
+    [Enabling CORS](https://airflow.apache.org/docs/apache-airflow/stable/security/api.html).
+
     # Authentication
 
     To be able to meet the requirements of many organizations, Airflow supports many authentication methods,
