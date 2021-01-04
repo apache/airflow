@@ -28,13 +28,11 @@ class ClsRedisConnection(ClsEntity):
         self.end = False
         self.poke_interval = 5
 
-    
     @property
     def redis(self):
         if not self._redis:
             raise Exception('请先初始化redis连接')
         return self._redis
-
 
     @property
     def pubsub(self):
@@ -76,6 +74,16 @@ class ClsRedisConnection(ClsEntity):
                 channel = gen_template_key(key)
                 p.set(channel, value=val)
             p.execute()
+
+    def remove_templates(self, template_keys: list):
+        with self.pipeline as p:
+            _logger.info(template_keys)
+            p.delete(*template_keys)
+            p.execute()
+
+    def read_template_keys(self):
+        template_keys = self.redis.keys(gen_template_key('*'))
+        return template_keys
 
     def run(self):
         self.set_signal_handler()
