@@ -25,9 +25,7 @@ from airflow.utils.timezone import datetime
 DAG_ID = "example_kafka_dag"
 dag_start_date = datetime(2015, 6, 1, hour=20, tzinfo=None)
 default_args = {
-    'owner': '@Ferg_In',
     'depends_on_past': False,
-    'email': ['dferguson992@gmail.com'],
     'provide_context': True,
     'retries': 3,
     'retry_delay': timedelta(minutes=5),
