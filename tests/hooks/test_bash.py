@@ -65,7 +65,7 @@ class TestBashOperator(unittest.TestCase):
     def test_return_value(self):
         hook = BashHook()
         return_value = hook.run_command(command='echo "stdout"')
-        self.assertEqual(return_value, 'stdout')
+        assert return_value == 'stdout'
 
     def test_raise_exception_on_non_zero_exit_code(self):
         hook = BashHook()
