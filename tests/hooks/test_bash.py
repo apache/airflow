@@ -69,8 +69,8 @@ class TestBashOperator(unittest.TestCase):
 
     def test_raise_exception_on_non_zero_exit_code(self):
         hook = BashHook()
-        with self.assertRaisesRegex(
-            AirflowException, "Bash command failed\\. The command returned a non-zero exit code\\."
+        with pytest.raises(
+            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
         ):
             hook.run_command(command='exit 42')
 
