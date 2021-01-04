@@ -292,6 +292,7 @@ hdfs = [
 hive = [
     'hmsclient>=0.1.0',
     'pyhive[hive]>=0.6.0',
+    'thrift>=0.9.2',
 ]
 jdbc = [
     'jaydebeapi>=1.1.1',
