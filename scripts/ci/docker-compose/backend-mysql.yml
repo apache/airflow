@@ -42,7 +42,7 @@ services:
       test: ["CMD", "mysql", "-h", "localhost", "-P", "3306", "-u", "root", "-e", "SELECT 1"]
       interval: 10s
       timeout: 10s
-      retries: 120
+      retries: 5
     restart: always
 
     ports:
