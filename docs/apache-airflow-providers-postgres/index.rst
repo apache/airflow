@@ -26,7 +26,7 @@ Content
     :caption: Guides
 
     Connection types <connections/postgres>
-    PostgresOperator types <operators>
+    PostgresOperator types <operators/postgres_operator_howto_guide>
 
 
 .. toctree::
