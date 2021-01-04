@@ -234,9 +234,10 @@ Prerequisites
 General prerequisites that we look for in all candidates:
 
 1.  Consistent contribution over last few months
-2.  Visibility on discussions on the dev mailing list and/or the Slack channel
+2.  Visibility on discussions on the dev mailing list, Slack channels or Github issues/discussions
 3.  Helped to improve community of Airflow to be stronger
-4.  Understands contributor/committer guidelines : Contributors' Guide
+4.  Understands contributor/committer guidelines:
+    `Contributors' Guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__
 
 
 Code contribution
@@ -246,9 +247,16 @@ Code contribution
     upgrade paths or deprecation policies
 2.  Testing Release Candidates to help the release cycle
 3.  Proposed and led to completion Airflow Improvement Proposal(s)
-4.  Demonstrates an understanding of Airflow Core, API, Docker image, Helm chart, dev tools or certain
-    Providers or has displayed a holistic understanding of a particular part and made contributions towards a more
-    strategic goal
+4.  Demonstrates an understanding of one of the following areas or has displayed a holistic understanding
+    of a particular part and made contributions towards a more strategic goal
+
+    - Airflow Core
+    - API
+    - Docker Image
+    - Helm Chart
+    - Dev Tools (Breeze / CI)
+    - Certain Providers
+
 5.  Has made a significant improvement or added an integration with services/technologies important to the Airflow
     Ecosystem
 
