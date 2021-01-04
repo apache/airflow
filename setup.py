@@ -453,7 +453,6 @@ devel = [
     'blinker',
     'bowler',
     'click~=7.1',
-    'contextdecorator;python_version<"3.4"',
     'coverage',
     'docutils',
     'flake8>=3.6.0',
