@@ -320,18 +320,12 @@ class TestECSOperator(unittest.TestCase):
     )
     def test_execute_xcom_with_log(self, mock_cloudwatch_log_events):
         self.ecs.do_xcom_push = True
-        self.assertEqual(
-            self.ecs.execute(None),
-            mock_cloudwatch_log_events.return_value[0]['message']
-        )
+        self.assertEqual(self.ecs.execute(None), mock_cloudwatch_log_events.return_value[0]['message'])
 
     @mock.patch.object(ECSOperator, '_cloudwatch_log_events', return_value=[])
     def test_execute_xcom_with_no_log(self, mock_cloudwatch_log_events):
         self.ecs.do_xcom_push = True
-        self.assertEqual(
-            self.ecs.execute(None),
-            mock_cloudwatch_log_events.return_value[0]['message']
-        )
+        self.assertEqual(self.ecs.execute(None), mock_cloudwatch_log_events.return_value[0]['message'])
 
     @mock.patch.object(
         ECSOperator, '_cloudwatch_log_events', return_value=[{"message": "Log output", "timestamp": 1000}]
