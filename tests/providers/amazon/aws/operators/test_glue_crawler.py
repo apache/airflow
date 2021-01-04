@@ -18,7 +18,7 @@
 import unittest
 from unittest import mock
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
 from airflow.providers.amazon.aws.operators.glue_crawler import AwsGlueCrawlerOperator
 
@@ -85,10 +85,10 @@ mock_config = {
 class TestAwsGlueCrawlerOperator(unittest.TestCase):
     @mock.patch('airflow.providers.amazon.aws.hooks.glue_crawler.AwsGlueCrawlerHook')
     def setUp(self, glue_hook_mock):
-        configuration.load_test_config()
+        conf.load_test_config()
 
         self.glue_hook_mock = glue_hook_mock
-        self.glue = AwsGlueCrawlerOperator(task_id='test_glue_operator', config=mock_config)
+        self.glue = AwsGlueCrawlerOperator(task_id='test_glue_crawler_operator', config=mock_config)
 
     @mock.patch.object(AwsGlueCrawlerHook, 'start_crawler')
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")

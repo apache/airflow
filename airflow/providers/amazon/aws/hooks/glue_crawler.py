@@ -55,28 +55,28 @@ class AwsGlueCrawlerHook(AwsBaseHook):
 
         iam_client.get_role(RoleName=role_name)
 
-    def get_or_create_crawler(self, config: dict) -> str:
+    def get_or_create_crawler(self, **crawler_kwargs) -> str:
         """
         Creates the crawler if the crawler doesn't exists and returns the crawler name
 
-        :param config = Configurations for the AWS Glue crawler
-        :type config = dict
+        :param crawler_kwargs = Keyword args that define the configurations used to create/update the crawler
+        :type crawler_kwargs = any
         :return: Name of the crawler
         """
-        crawler_name = config['Name']
+        crawler_name = crawler_kwargs['Name']
         try:
-            self.glue_client.get_crawler(Name=crawler_name)
+            glue_response = self.glue_client.get_crawler(Name=crawler_name)
             self.log.info("Crawler %s already exists; updating crawler", crawler_name)
-            self.glue_client.update_crawler(**config)
+            self.glue_client.update_crawler(**crawler_kwargs)
+            return glue_response['Crawler']['Name']
         except self.glue_client.exceptions.EntityNotFoundException:
             self.log.info("Creating AWS Glue crawler %s", crawler_name)
             try:
-                self.glue_client.create_crawler(**config)
+                glue_response = self.glue_client.create_crawler(**crawler_kwargs)
+                return glue_response['Crawler']['Name']
             except self.glue_client.exceptions.InvalidInputException as general_error:
-                self.check_iam_role(config['Role'])
+                self.check_iam_role(crawler_kwargs['Role'])
                 raise AirflowException(general_error)
-
-        return crawler_name
 
     def start_crawler(self, crawler_name: str) -> dict:
         """

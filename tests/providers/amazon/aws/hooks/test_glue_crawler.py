@@ -83,31 +83,31 @@ mock_config = {
 class TestAwsGlueCrawlerHook(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.hook = AwsGlueCrawlerHook(aws_conn_id="aws_default", poll_interval=5)
+        cls.hook = AwsGlueCrawlerHook(aws_conn_id="aws_default")
+
+    def test_init(self):
+        self.assertEqual(self.hook.aws_conn_id, "aws_default")
 
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    @mock.patch.object(AwsGlueCrawlerHook, "get_or_create_crawler")
-    def test_get_or_create_crawler(self, mock_get_conn, mock_get_or_create_crawler):
+    def test_get_or_create_crawler(self, mock_get_conn):
 
-        mock_glue_crawler = mock_get_conn.return_value.get_crawler(Name=mock_crawler_name).return_value[
-            'Crawler'
-        ]['Name']
-        glue_crawler = self.hook.get_or_create_crawler(config=mock_config)
+        mock_crawler = mock_get_conn.return_value.get_crawler(Name=mock_crawler_name)['Crawler']['Name']
+        glue_crawler = self.hook.get_or_create_crawler(**mock_config)
 
-        self.assertEqual(glue_crawler, mock_glue_crawler)
+        self.assertEqual(glue_crawler, mock_crawler)
 
-    @mock.patch.object(AwsGlueCrawlerHook, "wait_for_crawler_completion")
-    @mock.patch.object(AwsGlueCrawlerHook, "get_or_create_crawler")
+    @mock.patch.object(AwsGlueCrawlerHook, "wait_for_crawler_completion", autospec=True)
+    @mock.patch.object(AwsGlueCrawlerHook, "get_or_create_crawler", autospec=True)
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    def test_start_crawler(self, mock_get_conn, mock_get_or_create_crawler, mock_completion):
+    def test_start_crawler(self, mock_get_conn, mock_get_or_create_crawler, mock_wait_for_completion):
 
         mock_get_or_create_crawler.Name = mock.Mock(Name=mock_crawler_name)
         mock_get_conn.return_value.start_crawler(crawler_name=mock_crawler_name)
 
-        mock_crawler_state = mock_completion.return_value
-        glue_crawler_state = self.hook.wait_for_crawler_completion(crawler_name=mock_crawler_name)
+        mock_crawler_status = mock_wait_for_completion.return_value
+        glue_crawler_status = self.hook.wait_for_crawler_completion(crawler_name=mock_crawler_name)
 
-        self.assertEqual(glue_crawler_state, mock_crawler_state)
+        self.assertEqual(glue_crawler_status, mock_crawler_status)
 
 
 if __name__ == '__main__':

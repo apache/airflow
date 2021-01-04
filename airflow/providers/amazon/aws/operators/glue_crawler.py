@@ -66,6 +66,6 @@ class AwsGlueCrawlerOperator(BaseOperator):
         self.log.info("Triggering AWS Glue Crawler")
         self.hook.start_crawler(crawler_name)
         self.log.info("Waiting for AWS Glue Crawler")
-        self.hook.wait_for_crawler_completion(crawler_name)
+        self.hook.wait_for_crawler_completion(crawler_name=crawler_name, poll_interval=self.poll_interval)
 
         return crawler_name
