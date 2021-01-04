@@ -182,7 +182,7 @@ class S3KeySizeSensor(S3KeySensor):
 
         paginator = s3_hook.get_conn().get_paginator('list_objects_v2')
         response = paginator.paginate(
-            Bucket=self.bucket_name, Prefix=prefix, Delimiter='/', PaginationConfig=config
+            Bucket=self.bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
         keys = []
         for page in response:
