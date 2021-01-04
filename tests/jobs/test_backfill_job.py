@@ -230,7 +230,7 @@ class TestBackfillJob(unittest.TestCase):
                 ),
             ],
             [
-                "example_bash_operator",
+                "miscellaneous_test_dag",
                 ("runme_0", "runme_1", "runme_2", "also_run_this", "run_after_loop", "run_this_last"),
             ],
             [

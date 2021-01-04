@@ -47,7 +47,7 @@ class TestMarkTasks(unittest.TestCase):
         models.DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
         dagbag = models.DagBag(include_examples=True, read_dags_from_db=True)
         dagbag.collect_dags_from_db()
-        cls.dag1 = dagbag.dags['example_bash_operator']
+        cls.dag1 = dagbag.dags['miscellaneous_test_dag']
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
         cls.dag2.sync_to_db()
@@ -377,13 +377,12 @@ class TestMarkDAGRun(unittest.TestCase):
         'also_run_this': State.QUEUED,
         'run_after_loop': State.RUNNING,
         'run_this_last': State.FAILED,
-        'this_will_skip': State.RUNNING,
     }
 
     @classmethod
     def setUpClass(cls):
         dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
-        cls.dag1 = dagbag.dags['example_bash_operator']
+        cls.dag1 = dagbag.dags['miscellaneous_test_dag']
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
         cls.dag2.sync_to_db()
