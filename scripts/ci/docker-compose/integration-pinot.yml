@@ -24,9 +24,16 @@ services:
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
     command: QuickStart -type batch
+    healthcheck:
+      test: curl -f http://localhost:8000/health
+      interval: 5s
+      timeout: 30s
+      retries: 50
+    restart: always
 
   airflow:
     environment:
       - INTEGRATION_PINOT=true
     depends_on:
-      - pinot
+      pinot:
+        condition: service_healthy

@@ -37,7 +37,19 @@ services:
         /opt/kerberos-utils/create_service.sh krb5-machine-example-com airflow
         /root/kerberos-keytabs/airflow.keytab;
         /opt/kerberos-utils/create_service.sh presto HTTP /root/kerberos-keytabs/presto.keytab;
-
+    healthcheck:
+      test: |-
+        python -c "
+        import socket;
+        import sys;
+        a_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
+        result_of_check = a_socket.connect_ex(('127.0.0.1', 88));
+        sys.exit(result_of_check);
+        "
+      interval: 5s
+      timeout: 30s
+      retries: 50
+    restart: always
 
   airflow:
     hostname: krb5-machine-example-com
@@ -48,7 +60,9 @@ services:
       default: {}
 
     depends_on:
-      - kdc-server-example-com
+      kdc-server-example-com:
+        condition: service_healthy
+
     volumes:
       - kerberos-keytabs:/root/kerberos-keytabs
       - ../dockerfiles/krb5-kdc-server/krb5.conf:/etc/krb5.conf:ro
