@@ -20,7 +20,7 @@
 
 from airflow import DAG
 from airflow.exceptions import AirflowSkipException
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils.dates import days_ago
 
 args = {

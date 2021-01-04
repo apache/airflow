@@ -116,7 +116,12 @@ def _run_task_by_local_task_job(args, ti):
         ignore_ti_state=args.force,
         pool=args.pool,
     )
-    run_job.run()
+    try:
+        run_job.run()
+
+    finally:
+        if args.shut_down_logging:
+            logging.shutdown()
 
 
 RAW_TASK_UNSUPPORTED_OPTION = [
@@ -309,7 +314,7 @@ def _guess_debugger():
 
 
 @cli_utils.action_logging
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def task_states_for_dag_run(args):
     """Get the status of all task instances in a DagRun"""
     with create_session() as session:

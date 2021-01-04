@@ -24,7 +24,7 @@ from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.utils import timezone
 
@@ -40,6 +40,7 @@ class AzureBatchHook(BaseHook):
     conn_name_attr = 'azure_batch_conn_id'
     default_conn_name = 'azure_batch_default'
     conn_type = 'azure_batch'
+    hook_name = 'Azure Batch Service'
 
     def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
         super().__init__()

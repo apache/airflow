@@ -24,7 +24,7 @@ from airflow.api_connexion.schemas.event_log_schema import (
     event_log_schema,
 )
 from airflow.models import Log, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 

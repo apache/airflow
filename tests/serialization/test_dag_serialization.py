@@ -32,7 +32,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 from parameterized import parameterized
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
@@ -900,7 +900,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         """
         Test TaskGroup serialization/deserialization.
         """
-        from airflow.operators.dummy_operator import DummyOperator
+        from airflow.operators.dummy import DummyOperator
         from airflow.utils.task_group import TaskGroup
 
         execution_date = datetime(2020, 1, 1)
@@ -951,7 +951,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         ]
     )
     def test_serialize_sensor(self, mode, expect_custom_deps):
-        from airflow.sensors.base_sensor_operator import BaseSensorOperator
+        from airflow.sensors.base import BaseSensorOperator
 
         class DummySensor(BaseSensorOperator):
             def poke(self, context):

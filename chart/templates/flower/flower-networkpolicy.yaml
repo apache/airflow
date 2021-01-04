@@ -18,7 +18,8 @@
 ################################
 ## Airflow Flower NetworkPolicy
 #################################
-{{- if (and .Values.networkPolicies.enabled (eq .Values.executor "CeleryExecutor")) }}
+{{- $celery_executors := list "CeleryExecutor" "CeleryKubernetesExecutor"}}
+{{- if and .Values.networkPolicies.enabled (has .Values.executor $celery_executors) }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

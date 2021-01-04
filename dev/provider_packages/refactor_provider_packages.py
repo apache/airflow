@@ -139,8 +139,19 @@ class RefactorBackportPackages:
 
         """
         changes = [
+            ("airflow.hooks.base", "airflow.hooks.base_hook"),
+            ("airflow.hooks.dbapi", "airflow.hooks.dbapi_hook"),
             ("airflow.operators.bash", "airflow.operators.bash_operator"),
+            ("airflow.operators.branch", "airflow.operators.branch_operator"),
+            ("airflow.operators.dummy", "airflow.operators.dummy_operator"),
             ("airflow.operators.python", "airflow.operators.python_operator"),
+            ("airflow.operators.trigger_dagrun", "airflow.operators.dagrun_operator"),
+            ("airflow.sensors.base", "airflow.sensors.base_sensor_operator"),
+            ("airflow.sensors.date_time", "airflow.sensors.date_time_sensor"),
+            ("airflow.sensors.external_task", "airflow.sensors.external_task_sensor"),
+            ("airflow.sensors.sql", "airflow.sensors.sql_sensor"),
+            ("airflow.sensors.time_delta", "airflow.sensors.time_delta_sensor"),
+            ("airflow.sensors.weekday", "airflow.contrib.sensors.weekday_sensor"),
             ("airflow.utils.session", "airflow.utils.db"),
         ]
         for new, old in changes:

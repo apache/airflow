@@ -65,7 +65,7 @@ class TestMongoToS3Operator(unittest.TestCase):
         self.assertEqual(self.mock_operator.s3_key, S3_KEY)
 
     def test_template_field_overrides(self):
-        self.assertEqual(self.mock_operator.template_fields, ['s3_key', 'mongo_query'])
+        self.assertEqual(self.mock_operator.template_fields, ['s3_key', 'mongo_query', 'mongo_collection'])
 
     def test_render_template(self):
         ti = TaskInstance(self.mock_operator, DEFAULT_DATE)

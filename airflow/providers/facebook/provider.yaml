@@ -22,7 +22,7 @@ description: |
     `Facebook Ads <http://business.facebook.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 integrations:
   - integration-name: Facebook Ads
     external-doc-url: http://business.facebook.com
@@ -32,3 +32,6 @@ hooks:
   - integration-name: Facebook Ads
     python-modules:
       - airflow.providers.facebook.ads.hooks.ads
+
+hook-class-names:
+  - airflow.providers.facebook.ads.hooks.ads.FacebookAdsReportingHook

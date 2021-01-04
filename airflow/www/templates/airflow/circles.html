@@ -18,7 +18,7 @@
 #}
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title>Airflow 404 = lots of circles</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
@@ -29,10 +29,9 @@
         <h1>Airflow 404 = lots of circles</h1>
         <p>{{ hostname }}</p>
     </div>
-    <div
-            id="div_svg"
-            class="centered text-center"
-            style="border: 1px solid #ccc;padding:0;margin:0;">
+    <div id="div_svg"
+         class="centered text-center"
+         style="border: 1px solid #ccc;padding:0;margin:0;">
         <svg id="circles-svg"></svg>
 
     </div>

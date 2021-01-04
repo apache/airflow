@@ -23,6 +23,7 @@
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
+  - [\[Optional\] - Manually prepare production Docker Image](#%5Coptional%5C---manually-prepare-production-docker-image)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
   - [SVN check](#svn-check)
@@ -35,6 +36,8 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Update CHANGELOG.md](#update-changelogmd)
+  - [\[Optional\] - Manually prepare production Docker Image](#%5Coptional%5C---manually-prepare-production-docker-image-1)
+  - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
 
@@ -111,18 +114,12 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py2.py3-none-any.whl
     ```
 
-- Push Tags
-
-    ```shell script
-    git push origin ${VERSION}
-    ```
-
-- Tag & Push latest constraints files
+- Tag & Push latest constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
     git checkout constraints-1-10
-    git tag -s "constraints-${VERSION%rc?}"
-    git push origin "constraints-${VERSION%rc?}"
+    git tag -s "constraints-${VERSION}"
+    git push origin "constraints-${VERSION}"
     ```
 
 - Push the artifacts to ASF dev dist repo
@@ -145,14 +142,17 @@ svn commit -m "Add artifacts for Airflow ${VERSION}"
 ## Prepare PyPI convenience "snapshot" packages
 
 At this point we have the artefact that we vote on, but as a convenience to developers we also want to
-publish "snapshots" of the RC builds to pypi for installing via pip. To do this we need to
+publish "snapshots" of the RC builds to pypi for installing via pip. Also those packages
+are used to build the production docker image in DockerHub, so we need to upload the packages
+before we push the tag to GitHub. Pushing the tag to GitHub automatically triggers image building in
+DockerHub.
 
-- Edit the `setup.py` to include the RC suffix.
+To do this we need to
 
 - Build the package:
 
     ```shell script
-    python setup.py compile_assets sdist bdist_wheel
+    python setup.py compile_assets egg_info --tag-build "$(sed -e "s/^[0-9.]*//" <<<"$VERSION")" sdist bdist_wheel
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -176,10 +176,53 @@ https://test.pypi.org/project/apache-airflow/#files
 - Again, confirm that the package is available here:
 https://pypi.python.org/pypi/apache-airflow
 
-- Throw away the change - we don't want to commit this: `git checkout setup.py`
-
 It is important to stress that this snapshot should not be named "release", and it
 is not supposed to be used by and advertised to the end-users who do not read the devlist.
+
+- Push Tag for the release candidate
+
+    This step should only be done now and not before, because it triggers an automated build of
+    the production docker image, using the packages that are currently released in PyPI
+    (both airflow and latest provider packages).
+
+    ```shell script
+    git push origin ${VERSION}
+    ```
+
+## \[Optional\] - Manually prepare production Docker Image
+
+Production Docker images should be automatically built in 2-3 hours after the release tag has been
+pushed. If this did not happen - please login to DockerHub and check the status of builds:
+[Build Timeline](https://hub.docker.com/repository/docker/apache/airflow/timeline)
+
+In case you need, you can also build and push the images manually:
+
+Airflow 2+:
+
+```shell script
+export DOCKER_REPO=docker.io/apache/airflow
+for python_version in "3.6" "3.7" "3.8"
+(
+  export DOCKER_TAG=${VERSION}-python${python_version}
+  ./scripts/ci/images/ci_build_dockerhub.sh
+)
+```
+
+This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean".
+
+Airflow 1.10:
+
+```shell script
+for python_version in "2.7" "3.5" "3.6" "3.7" "3.8"
+do
+    ./breeze build-image --production-image --python ${python_version} \
+        --image-tag apache/airflow:${VERSION}-python${python_version} --build-cache-local
+    docker push apache/airflow:${VERSION}-python${python_version}
+done
+docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
+docker push apache/airflow:${VERSION}
+```
+
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
@@ -249,6 +292,7 @@ Changes since 1.10.2rc2:
 Cheers,
 <your name>
 ```
+
 
 # Verify the release candidate by PMCs
 
@@ -335,7 +379,7 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify `basename $i .asc`
+   echo "Checking $i"; gpg --verify $i
 done
 ```
 
@@ -481,7 +525,7 @@ You need to migrate the RC artifacts that passed to this repository:
 https://dist.apache.org/repos/dist/release/airflow/
 (The migration should include renaming the files so that they no longer have the RC number in their filenames.)
 
-The best way of doing this is to svn cp  between the two repos (this avoids having to upload the binaries again, and gives a clearer history in the svn commit logs):
+The best way of doing this is to svn cp between the two repos (this avoids having to upload the binaries again, and gives a clearer history in the svn commit logs):
 
 ```shell script
 # First clone the repo
@@ -515,13 +559,13 @@ At this point we release an official package:
 - Build the package:
 
     ```shell script
-    python setup.py compile_assets sdist bdist_wheel`
+    python setup.py compile_assets sdist bdist_wheel
     ```
 
 - Verify the artifacts that would be uploaded:
 
     ```shell script
-    twine check dist/*`
+    twine check dist/*
     ```
 
 - Upload the package to PyPi's test environment:
@@ -550,6 +594,96 @@ At this point we release an official package:
     ```
 
 - Update CHANGELOG.md with the details, and commit it.
+
+- Re-Tag & Push the constraints files with the final release version.
+
+    ```shell script
+    git checkout constraints-${RC}
+    git tag -s "constraints-${VERSION}"
+    git push origin "constraints-${VERSION}"
+    ```
+
+- Push Tag for the final version
+
+    This step should only be done now and not before, because it triggers an automated build of
+    the production docker image, using the packages that are currently released in PyPI
+    (both airflow and latest provider packages).
+
+    ```shell script
+    git push origin ${VERSION}
+    ```
+
+## \[Optional\] - Manually prepare production Docker Image
+
+Production Docker images should be automatically built in 2-3 hours after the release tag has been
+pushed. If this did not happen - please login to DockerHub and check the status of builds:
+[Build Timeline](https://hub.docker.com/repository/docker/apache/airflow/timeline)
+
+In case you need, you can also build and push the images manually:
+
+Airflow 2+:
+
+```shell script
+export DOCKER_REPO=docker.io/apache/airflow
+for python_version in "3.6" "3.7" "3.8"
+(
+  export DOCKER_TAG=${VERSION}-python${python_version}
+  ./scripts/ci/images/ci_build_dockerhub.sh
+)
+```
+
+This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean".
+
+
+Airflow 1.10:
+
+```shell script
+for python_version in "2.7" "3.5" "3.6" "3.7" "3.8"
+do
+    ./breeze build-image --production-image --python ${python_version} \
+        --image-tag apache/airflow:${VERSION}-python${python_version} --build-cache-local
+    docker push apache/airflow:${VERSION}-python${python_version}
+done
+docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
+docker push apache/airflow:${VERSION}
+```
+
+## Publish documentation
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the released versions is published in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code and build tools are available in the `apache/airflow` repository, so you have to coordinate between the two repositories to be able to build the documentation.
+
+Documentation for providers can be found in the ``/docs/apache-airflow`` directory.
+
+- First, copy the airflow-site repository and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
+
+    ```shell script
+    git clone https://github.com/apache/airflow-site.git airflow-site
+    cd airflow-site
+    export AIRFLOW_SITE_DIRECTORY="$(pwd)"
+    ```
+
+- Then you can go to the directory and build the necessary documentation packages
+
+    ```shell script
+    cd "${AIRFLOW_REPO_ROOT}"
+    ./breeze build-docs -- --package-filter apache-airflow --for-production
+    ```
+
+- Now you can preview the documentation.
+
+    ```shell script
+    ./docs/start_doc_server.sh
+    ```
+
+- Copy the documentation to the ``airflow-site`` repository, create commit and push changes.
+
+    ```shell script
+    ./docs/publish_docs.py --package apache-airflow
+    cd "${AIRFLOW_SITE_DIRECTORY}"
+    git commit -m "Add documentation for Apache Airflow ${VERSION}"
+    git push
+    ```
 
 ## Notify developers of release
 
@@ -583,7 +717,7 @@ https://pypi.python.org/pypi/apache-airflow
 
 The documentation is available on:
 https://airflow.apache.org/
-https://airflow.apache.org/docs/${VERSION}/
+https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
 Find the CHANGELOG here for more details:
 

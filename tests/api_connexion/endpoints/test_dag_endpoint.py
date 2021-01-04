@@ -26,7 +26,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.configuration import conf
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.www import app

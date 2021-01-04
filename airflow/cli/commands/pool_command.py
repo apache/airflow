@@ -39,7 +39,7 @@ def _show_pools(pools, output):
     )
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def pool_list(args):
     """Displays info of all the pools"""
     api_client = get_current_api_client()
@@ -47,7 +47,7 @@ def pool_list(args):
     _show_pools(pools=pools, output=args.output)
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def pool_get(args):
     """Displays pool info by a given name"""
     api_client = get_current_api_client()
@@ -59,7 +59,7 @@ def pool_get(args):
 
 
 @cli_utils.action_logging
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def pool_set(args):
     """Creates new pool with a given name and slots"""
     api_client = get_current_api_client()
@@ -68,7 +68,7 @@ def pool_set(args):
 
 
 @cli_utils.action_logging
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def pool_delete(args):
     """Deletes pool by a given name"""
     api_client = get_current_api_client()
@@ -80,7 +80,7 @@ def pool_delete(args):
 
 
 @cli_utils.action_logging
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def pool_import(args):
     """Imports pools from the file"""
     if not os.path.exists(args.file):

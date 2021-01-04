@@ -34,7 +34,7 @@
 #                        much smaller.
 #
 ARG AIRFLOW_VERSION="2.0.0.dev0"
-ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -47,7 +47,7 @@ ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 
-ARG PIP_VERSION=20.2.4
+ARG AIRFLOW_PIP_VERSION=20.2.4
 
 ##############################################################################################
 # This is the build image where we build all dependencies
@@ -61,8 +61,8 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 ARG PYTHON_MAJOR_MINOR_VERSION
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 
-ARG PIP_VERSION
-ENV PIP_VERSION=${PIP_VERSION}
+ARG AIRFLOW_PIP_VERSION
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 
 # Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
@@ -91,6 +91,7 @@ ARG DEV_APT_DEPS="\
      ldap-utils \
      libffi-dev \
      libkrb5-dev \
+     libldap2-dev \
      libpq-dev \
      libsasl2-2 \
      libsasl2-dev \
@@ -123,14 +124,14 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND}
 ARG ADDITIONAL_DEV_APT_COMMAND="echo"
 ENV ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
-ARG ADDITIONAL_DEV_ENV_VARS=""
+ARG ADDITIONAL_DEV_APT_ENV=""
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && export ${ADDITIONAL_DEV_ENV_VARS?} \
+    && export ${ADDITIONAL_DEV_APT_ENV?} \
     && bash -o pipefail -e -u -x -c "${DEV_APT_COMMAND}" \
     && bash -o pipefail -e -u -x -c "${ADDITIONAL_DEV_APT_COMMAND}" \
     && apt-get update \
@@ -144,9 +145,10 @@ RUN mkdir -pv /usr/share/man/man1 \
 ARG INSTALL_MYSQL_CLIENT="true"
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT}
 
-COPY scripts/docker scripts/docker
+COPY scripts/docker /scripts/docker
 COPY docker-context-files /docker-context-files
-
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/install_mysql.sh
 RUN ./scripts/docker/install_mysql.sh dev
 
 ARG AIRFLOW_REPO=apache/airflow
@@ -166,14 +168,16 @@ ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 ENV PATH=${PATH}:/root/.local/bin
 RUN mkdir -p /root/.local/bin
 
-ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
-ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
-
 RUN if [[ -f /docker-context-files/.pypirc ]]; then \
         cp /docker-context-files/.pypirc /root/.pypirc; \
     fi
 
-RUN pip install --upgrade "pip==${PIP_VERSION}"
+RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+
+# By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
+# builds in case setup.py/setup.cfg changed. This is pure optimisation of CI/Breeze builds.
+ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 
 # In case of Production build image segment we want to pre-install master version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
@@ -187,10 +191,13 @@ RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
           && pip uninstall --yes apache-airflow; \
     fi
 
-ARG AIRFLOW_SOURCES_FROM="."
+# By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
+# but in case of breeze/CI builds we use latest sources and we override those
+# those SOURCES_FROM/TO with "." and "/opt/airflow" respectively
+ARG AIRFLOW_SOURCES_FROM="empty"
 ENV AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}
 
-ARG AIRFLOW_SOURCES_TO="/opt/airflow"
+ARG AIRFLOW_SOURCES_TO="/empty"
 ENV AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}
 
 COPY ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
@@ -198,47 +205,106 @@ COPY ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 ARG CASS_DRIVER_BUILD_CONCURRENCY
 ENV CASS_DRIVER_BUILD_CONCURRENCY=${CASS_DRIVER_BUILD_CONCURRENCY}
 
+# This is airflow version that is put in the label of the image build
 ARG AIRFLOW_VERSION
 ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 
 ARG ADDITIONAL_PYTHON_DEPS=""
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS}
 
-ARG AIRFLOW_INSTALL_SOURCES="."
-ENV AIRFLOW_INSTALL_SOURCES=${AIRFLOW_INSTALL_SOURCES}
+# Determines the way airflow is installed. By default we install airflow from PyPI `apache-airflow` package
+# But it also can be `.` from local installation or GitHub URL pointing to specific branch or tag
+# Of Airflow. Note That for local source installation you need to have local sources of
+# Airflow checked out together with the Dockerfile and AIRFLOW_SOURCES_FROM and AIRFLOW_SOURCES_TO
+# set to "." and "/opt/airflow" respectively.
+ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
+ENV AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
+# By default latest released version of airflow is installed (when empty) but this value can be overridden
+# and we can install specific version of airflow this way.
 ARG AIRFLOW_INSTALL_VERSION=""
 ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 
+# We can seet this value to true in case we want to install .whl .tar.gz packages placed in the
+# docker-context-files folder. This can be done for both - additional packages you want to install
+# and for airflow as well (you have to set INSTALL_FROM_PYPI to false in this case)
 ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
 ENV INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES}
 
+# By default we install latest airflow from PyPI. You can set it to false if you want to install
+# Airflow from the .whl or .tar.gz packages placed in `docker-context-files` folder.
 ARG INSTALL_FROM_PYPI="true"
 ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 
-ARG SLUGIFY_USES_TEXT_UNIDECODE=""
-ENV SLUGIFY_USES_TEXT_UNIDECODE=${SLUGIFY_USES_TEXT_UNIDECODE}
-
-ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
+# By default we install providers from PyPI but in case of Breze build we want to install providers
+# from local sources without the neeed of preparing provider packages upfront. This value is
+# automatically overridden by Breeze scripts.
+ARG INSTALL_PROVIDERS_FROM_SOURCES="false"
 ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
+
+ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
 WORKDIR /opt/airflow
 
-# remove mysql from extras if client is not installed
+# hadolint ignore=SC2086, SC2010
 RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
+        # Remove mysql from extras if client is not installed \
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
     fi; \
     if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
-            --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-    fi; \
-    if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
+            pip install --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+                --upgrade --upgrade-strategy eager; \
+            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+        else \
+            pip install --upgrade --upgrade-strategy only-if-needed \
+                --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+        fi; \
     fi; \
     if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \
-            pip install --user --no-deps /docker-context-files/*.{whl,tar.gz}; \
+        reinstalling_apache_airflow_package=$(ls /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true); \
+        if [[ "${reinstalling_apache_airflow_package}" != "" ]]; then \
+            # install airflow with extras \
+            reinstalling_apache_airflow_package="${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]"; \
+        fi; \
+        reinstalling_apache_airflow_providers_packages=$(ls /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true); \
+        if [[ ${reinstalling_apache_airflow_package} != "" || \
+              ${reinstalling_apache_airflow_providers_packages} == "" ]]; then \
+            if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
+                pip install --force-reinstall --upgrade --upgrade-strategy eager \
+                    --user ${reinstalling_apache_airflow_package} \
+                           ${reinstalling_apache_airflow_providers_packages}; \
+                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+            else \
+                pip install --force-reinstall --upgrade --upgrade-strategy only-if-needed \
+                    --user ${reinstalling_apache_airflow_package} \
+                           ${reinstalling_apache_airflow_providers_packages} \
+                    --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+            fi; \
         fi ; \
+        # All the other packages we want to reinstall as-is, without dependencies \
+        reinstalling_other_packages=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
+            grep -v apache_airflow | grep -v apache-airflow || true); \
+        if [[ "${reinstalling_other_packages}" != "" ]]; then \
+            pip install --force-reinstall --user --no-deps ${reinstalling_other_packages}; \
+        fi; \
+    fi; \
+    if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
+        if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
+            pip install --user ${ADDITIONAL_PYTHON_DEPS} \
+                ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+                --upgrade --upgrade-strategy eager; \
+             pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+              pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}; \
+        else \
+            pip install --user ${ADDITIONAL_PYTHON_DEPS} --upgrade --upgrade-strategy only-if-needed \
+                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+        fi; \
     fi; \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true
@@ -260,19 +326,21 @@ RUN AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/s
 RUN find /root/.local -executable -print0 | xargs --null chmod g+x && \
     find /root/.local -print0 | xargs --null chmod g+rw
 
-LABEL org.apache.airflow.distro="debian"
-LABEL org.apache.airflow.distro.version="buster"
-LABEL org.apache.airflow.module="airflow"
-LABEL org.apache.airflow.component="airflow"
-LABEL org.apache.airflow.image="airflow-build-image"
 
 ARG BUILD_ID
 ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
-LABEL org.apache.airflow.buildImage.buildId=${BUILD_ID}
-LABEL org.apache.airflow.buildImage.commitSha=${COMMIT_SHA}
+
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow-build-image" \
+  org.apache.airflow.version="${AIRFLOW_VERSION}" \
+  org.apache.airflow.buildImage.buildId=${BUILD_ID} \
+  org.apache.airflow.buildImage.commitSha=${COMMIT_SHA}
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
@@ -284,13 +352,13 @@ SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 ARG AIRFLOW_UID
 ARG AIRFLOW_GID
 
-LABEL org.apache.airflow.distro="debian"
-LABEL org.apache.airflow.distro.version="buster"
-LABEL org.apache.airflow.module="airflow"
-LABEL org.apache.airflow.component="airflow"
-LABEL org.apache.airflow.image="airflow"
-LABEL org.apache.airflow.uid="${AIRFLOW_UID}"
-LABEL org.apache.airflow.gid="${AIRFLOW_GID}"
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow" \
+  org.apache.airflow.uid="${AIRFLOW_UID}" \
+  org.apache.airflow.gid="${AIRFLOW_GID}"
 
 ARG PYTHON_BASE_IMAGE
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
@@ -302,8 +370,8 @@ ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
-ARG PIP_VERSION
-ENV PIP_VERSION=${PIP_VERSION}
+ARG AIRFLOW_PIP_VERSION
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 
 # Install curl and gnupg2 - needed for many other installation steps
 RUN apt-get update \
@@ -326,6 +394,7 @@ ARG RUNTIME_APT_DEPS="\
        krb5-user \
        ldap-utils \
        libffi6 \
+       libldap-2.4-2 \
        libsasl2-2 \
        libsasl2-modules \
        libssl1.1 \
@@ -350,14 +419,14 @@ ENV RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND}
 ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ENV ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND}
 
-ARG ADDITIONAL_RUNTIME_ENV_VARS=""
+ARG ADDITIONAL_RUNTIME_APT_ENV=""
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && export ${ADDITIONAL_RUNTIME_ENV_VARS?} \
+    && export ${ADDITIONAL_RUNTIME_APT_ENV?} \
     && bash -o pipefail -e -u -x -c "${RUNTIME_APT_COMMAND}" \
     && bash -o pipefail -e -u -x -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
     && apt-get update \
@@ -371,7 +440,9 @@ RUN mkdir -pv /usr/share/man/man1 \
 ARG INSTALL_MYSQL_CLIENT="true"
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT}
 
-COPY scripts/docker scripts/docker
+COPY scripts/docker /scripts/docker
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/install_mysql.sh
 RUN ./scripts/docker/install_mysql.sh prod
 
 ENV AIRFLOW_UID=${AIRFLOW_UID}
@@ -390,7 +461,7 @@ RUN addgroup --gid "${AIRFLOW_GID}" "airflow" && \
 ARG AIRFLOW_HOME
 ENV AIRFLOW_HOME=${AIRFLOW_HOME}
 
-# Make Airflow files belong to the root group and are accessible. This is to accomodate the guidelines from
+# Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
 # OpenShift https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html
 RUN mkdir -pv "${AIRFLOW_HOME}"; \
     mkdir -pv "${AIRFLOW_HOME}/dags"; \
@@ -405,7 +476,7 @@ COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoi
 COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 RUN chmod a+x /entrypoint /clean-logs
 
-RUN pip install --upgrade "pip==${PIP_VERSION}"
+RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
@@ -425,15 +496,16 @@ ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
-LABEL org.apache.airflow.distro="debian"
-LABEL org.apache.airflow.distro.version="buster"
-LABEL org.apache.airflow.module="airflow"
-LABEL org.apache.airflow.component="airflow"
-LABEL org.apache.airflow.image="airflow"
-LABEL org.apache.airflow.uid="${AIRFLOW_UID}"
-LABEL org.apache.airflow.gid="${AIRFLOW_GID}"
-LABEL org.apache.airflow.mainImage.buildId=${BUILD_ID}
-LABEL org.apache.airflow.mainImage.commitSha=${COMMIT_SHA}
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow" \
+  org.apache.airflow.version="${AIRFLOW_VERSION}" \
+  org.apache.airflow.uid="${AIRFLOW_UID}" \
+  org.apache.airflow.gid="${AIRFLOW_GID}" \
+  org.apache.airflow.mainImage.buildId=${BUILD_ID} \
+  org.apache.airflow.mainImage.commitSha=${COMMIT_SHA}
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD ["--help"]

@@ -22,7 +22,7 @@ description: |
     `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: SSH File Transfer Protocol (SFTP)
@@ -43,3 +43,6 @@ hooks:
   - integration-name: SSH File Transfer Protocol (SFTP)
     python-modules:
       - airflow.providers.sftp.hooks.sftp
+
+hook-class-names:
+  - airflow.providers.sftp.hooks.sftp.SFTPHook

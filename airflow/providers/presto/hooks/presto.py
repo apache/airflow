@@ -24,7 +24,7 @@ from prestodb.transaction import IsolationLevel
 
 from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
 
 
@@ -56,6 +56,7 @@ class PrestoHook(DbApiHook):
     conn_name_attr = 'presto_conn_id'
     default_conn_name = 'presto_default'
     conn_type = 'presto'
+    hook_name = 'Presto'
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""

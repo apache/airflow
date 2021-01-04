@@ -22,15 +22,18 @@ description: |
     `SQLite <https://www.sqlite.org/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: SQLite
     external-doc-url: https://www.sqlite.org/index.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-sqlite/operators.rst
     tags: [software]
 
 operators:
   - integration-name: SQLite
+
     python-modules:
       - airflow.providers.sqlite.operators.sqlite
 

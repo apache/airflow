@@ -21,13 +21,18 @@ from distutils.util import strtobool
 
 import jenkins
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class JenkinsHook(BaseHook):
     """Hook to manage connection to jenkins server"""
 
-    def __init__(self, conn_id: str = 'jenkins_default') -> None:
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'jenkins_default'
+    conn_type = 'jenkins'
+    hook_name = 'Jenkins'
+
+    def __init__(self, conn_id: str = default_conn_name) -> None:
         super().__init__()
         connection = self.get_connection(conn_id)
         self.connection = connection

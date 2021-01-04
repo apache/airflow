@@ -55,7 +55,7 @@ function in_container_script_start() {
     export OUTPUT_PRINTED_ONLY_ON_ERROR
     readonly OUTPUT_PRINTED_ONLY_ON_ERROR
 
-    if [[ ${VERBOSE=} == "true" ]]; then
+    if [[ ${VERBOSE=} == "true" && ${GITHUB_ACTIONS=} != "true" ]]; then
         echo
         echo "Output is redirected to ${OUTPUT_PRINTED_ONLY_ON_ERROR} and will be printed on error only"
         echo
@@ -165,7 +165,7 @@ function in_container_clear_tmp() {
 }
 
 function in_container_go_to_airflow_sources() {
-    pushd "${AIRFLOW_SOURCES}" &>/dev/null || exit 1
+    pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }
 
 function in_container_basic_sanity_check() {
@@ -261,10 +261,10 @@ function dump_airflow_logs() {
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
     echo "###########################################################################################"
-    pushd "${AIRFLOW_HOME}" || exit 1
+    pushd "${AIRFLOW_HOME}" >/dev/null 2>&1 || exit 1
     tar -czf "${dump_file}" logs
     echo "                   Logs dumped to ${dump_file}"
-    popd || exit 1
+    popd >/dev/null 2>&1 || exit 1
     echo "###########################################################################################"
 }
 
@@ -272,13 +272,30 @@ function install_airflow_from_wheel() {
     local extras
     extras="${1}"
     local airflow_package
-    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache_airflow-*.whl')
+    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache_airflow-[0-9]*.whl')
     echo
     echo "Found package: ${airflow_package}. Installing."
     echo
     if [[ -z "${airflow_package}" ]]; then
         >&2 echo
         >&2 echo "ERROR! Could not find airflow wheel package to install in dist"
+        >&2 echo
+        exit 4
+    fi
+    pip install "${airflow_package}${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+}
+
+function install_airflow_from_sdist() {
+    local extras
+    extras="${1}"
+    local airflow_package
+    airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache-airflow-[0-9]*.tar.gz')
+    echo
+    echo "Found package: ${airflow_package}. Installing."
+    echo
+    if [[ -z "${airflow_package}" ]]; then
+        >&2 echo
+        >&2 echo "ERROR! Could not find airflow sdist package to install in dist"
         >&2 echo
         exit 4
     fi
@@ -316,25 +333,15 @@ function uninstall_airflow_and_providers() {
     uninstall_airflow
 }
 
-function install_all_airflow_dependencies() {
-    echo
-    echo "Installing dependencies from 'all' extras"
-    echo
-    pip install ".[all]" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
-}
-
 function install_released_airflow_version() {
     local version="${1}"
     local extras="${2}"
     echo
-    echo "Installing released ${1} version of airflow with extras ${2}"
+    echo "Installing released ${version} version of airflow with extras ${extras}"
     echo
 
-    if [[ ${version} == "1.10.2" || ${version} == "1.10.1" ]]; then
-        export SLUGIFY_USES_TEXT_UNIDECODE=yes
-    fi
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow${extras}==${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install --upgrade "apache-airflow${extras}==${version}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
 function install_all_provider_packages_from_wheels() {
@@ -373,6 +380,7 @@ function setup_provider_packages() {
 }
 
 function verify_suffix_versions_for_package_preparation() {
+    group_start "Verify suffixes"
     TARGET_VERSION_SUFFIX=""
     FILE_VERSION_SUFFIX=""
 
@@ -393,10 +401,14 @@ function verify_suffix_versions_for_package_preparation() {
     fi
 
     if [[ ${VERSION_SUFFIX_FOR_SVN} =~ ^rc ]]; then
+        echo """
+${COLOR_YELLOW_WARNING} The version suffix for SVN is used only for file names.
+         The version inside the packages has no version suffix.
+         This way we can just rename files when they graduate to final release.
+${COLOR_RESET}
+"""
         echo
-        echo "${COLOR_RED_ERROR} The version suffix for SVN is used only for file names in RC version  ${COLOR_RESET}"
-        echo
-        echo "This suffix is only added to the files '${VERSION_SUFFIX_FOR_SVN}' "
+        echo "This suffix is added '${VERSION_SUFFIX_FOR_SVN}' "
         echo
         FILE_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_SVN}
         VERSION_SUFFIX_FOR_SVN=""
@@ -455,6 +467,7 @@ function verify_suffix_versions_for_package_preparation() {
     fi
     readonly TARGET_VERSION_SUFFIX
     export TARGET_VERSION_SUFFIX
+    group_end
 }
 
 function filename_to_python_module() {
@@ -467,10 +480,7 @@ function filename_to_python_module() {
 }
 
 function import_all_provider_classes() {
-    echo
-    echo Importing all Airflow classes
-    echo
-
+    group_start "Import all Airflow classes"
     # We have to move to a directory where "airflow" is
     unset PYTHONPATH
     # We need to make sure we are not in the airflow checkout, otherwise it will automatically be added to the
@@ -497,6 +507,7 @@ EOF
     done < <(echo "${PROVIDER_PATHS}")
 
     python3 /opt/airflow/dev/import_all_classes.py "${IMPORT_CLASS_PARAMETERS[@]}"
+    group_end
 }
 
 function in_container_set_colors() {
@@ -517,6 +528,26 @@ function in_container_set_colors() {
     export COLOR_YELLOW
     export COLOR_YELLOW_WARNING
 }
+
+# Starts group for Github Actions - makes logs much more readable
+function group_start {
+    if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+        echo "::group::${1}"
+    else
+        echo
+        echo "${1}"
+        echo
+    fi
+}
+
+# Ends group for Github Actions
+function group_end {
+    if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+        echo -e "\033[0m"  # Disable any colors set in the group
+        echo "::endgroup::"
+    fi
+}
+
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}

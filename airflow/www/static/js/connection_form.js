@@ -20,60 +20,11 @@
  * Created by janomar on 23/07/15.
  */
 
+function decode(str) {
+  return new DOMParser().parseFromString(str, "text/html").documentElement.textContent
+}
+
 $(document).ready(function () {
-  var config = {
-    jdbc: {
-      hidden_fields: ['port', 'schema', 'extra'],
-      relabeling: {'host': 'Connection URL'},
-    },
-    google_cloud_platform: {
-      hidden_fields: ['host', 'schema', 'login', 'password', 'port', 'extra'],
-      relabeling: {},
-    },
-    cloudant: {
-      hidden_fields: ['port', 'extra'],
-      relabeling: {
-        'host': 'Account',
-        'login': 'Username (or API Key)',
-        'schema': 'Database'
-      }
-    },
-    docker: {
-      hidden_fields: ['port', 'schema'],
-      relabeling: {
-        'host': 'Registry URL',
-        'login': 'Username',
-      },
-    },
-    qubole: {
-      hidden_fields: ['login', 'schema', 'port', 'extra'],
-      relabeling: {
-        'host': 'API Endpoint',
-        'password': 'Auth Token',
-      },
-      placeholders: {
-        'host': 'https://<env>.qubole.com/api'
-      }
-    },
-    kubernetes: {
-      hidden_fields: ['host', 'schema', 'login', 'password', 'port', 'extra'],
-      relabeling: {},
-    },
-    ssh: {
-      hidden_fields: ['schema'],
-      relabeling: {
-        'login': 'Username',
-      }
-    },
-    yandexcloud: {
-      hidden_fields: ['host', 'schema', 'login', 'password', 'port', 'extra'],
-      relabeling: {},
-    },
-    spark: {
-      hidden_fields: ['schema', 'login', 'password'],
-      relabeling: {},
-    },
-  };
 
   function connTypeChange(connectionType) {
     $(".hide").removeClass("hide");
@@ -87,7 +38,7 @@ $(document).ready(function () {
       $(this).text($(this).attr("orig_text"));
     });
     $(".form-control").each(function(){$(this).attr('placeholder', '')});
-
+    let config = JSON.parse(decode($("#field_behaviours").text()))
     if (config[connectionType] != undefined) {
       $.each(config[connectionType].hidden_fields, function (i, field) {
         $("#" + field).parent().parent().addClass('hide')

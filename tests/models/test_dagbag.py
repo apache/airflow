@@ -319,8 +319,8 @@ class TestDagBag(unittest.TestCase):
             import datetime  # pylint: disable=redefined-outer-name,reimported
 
             from airflow.models import DAG
-            from airflow.operators.dummy_operator import DummyOperator
-            from airflow.operators.subdag_operator import SubDagOperator
+            from airflow.operators.dummy import DummyOperator
+            from airflow.operators.subdag import SubDagOperator
 
             dag_name = 'master'
             default_args = {'owner': 'owner1', 'start_date': datetime.datetime(2016, 1, 1)}
@@ -370,8 +370,8 @@ class TestDagBag(unittest.TestCase):
             import datetime  # pylint: disable=redefined-outer-name,reimported
 
             from airflow.models import DAG
-            from airflow.operators.dummy_operator import DummyOperator
-            from airflow.operators.subdag_operator import SubDagOperator
+            from airflow.operators.dummy import DummyOperator
+            from airflow.operators.subdag import SubDagOperator
 
             dag_name = 'master'
             default_args = {'owner': 'owner1', 'start_date': datetime.datetime(2016, 1, 1)}
@@ -460,7 +460,7 @@ class TestDagBag(unittest.TestCase):
             import datetime  # pylint: disable=redefined-outer-name,reimported
 
             from airflow.models import DAG
-            from airflow.operators.dummy_operator import DummyOperator
+            from airflow.operators.dummy import DummyOperator
 
             dag_name = 'cycle_dag'
             default_args = {'owner': 'owner1', 'start_date': datetime.datetime(2016, 1, 1)}
@@ -490,8 +490,8 @@ class TestDagBag(unittest.TestCase):
             import datetime  # pylint: disable=redefined-outer-name,reimported
 
             from airflow.models import DAG
-            from airflow.operators.dummy_operator import DummyOperator
-            from airflow.operators.subdag_operator import SubDagOperator
+            from airflow.operators.dummy import DummyOperator
+            from airflow.operators.subdag import SubDagOperator
 
             dag_name = 'nested_cycle'
             default_args = {'owner': 'owner1', 'start_date': datetime.datetime(2016, 1, 1)}

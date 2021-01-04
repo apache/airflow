@@ -21,7 +21,7 @@ from datetime import timedelta
 
 from airflow.configuration import conf
 from airflow.models import DAG
-from airflow.sensors.smart_sensor_operator import SmartSensorOperator
+from airflow.sensors.smart_sensor import SmartSensorOperator
 from airflow.utils.dates import days_ago
 
 args = {

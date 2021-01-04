@@ -1,3 +1,37 @@
+Airflow 1.10.14, 2020-12-10
+----------------------------
+
+Bug Fixes
+"""""""""
+
+- BugFix: Tasks with ``depends_on_past`` or ``task_concurrency`` are stuck (#12663)
+- Fix issue with empty Resources in executor_config (#12633)
+- Fix: Deprecated config ``force_log_out_after`` was not used (#12661)
+- Fix empty asctime field in JSON formatted logs (#10515)
+- [AIRFLOW-2809] Fix security issue regarding Flask SECRET_KEY (#3651)
+- [AIRFLOW-2884] Fix Flask SECRET_KEY security issue in www_rbac (#3729)
+- [AIRFLOW-2886] Generate random Flask SECRET_KEY in default config (#3738)
+- Add missing comma in setup.py (#12790)
+- Bugfix: Unable to import Airflow plugins on Python 3.8 (#12859)
+- Fix setup.py missing comma in ``setup_requires`` (#12880)
+- Don't emit first_task_scheduling_delay metric for only-once dags (#12835)
+
+Improvements
+""""""""""""
+
+- Update setup.py to get non-conflicting set of dependencies (#12636)
+- Rename ``[scheduler] max_threads`` to ``[scheduler] parsing_processes`` (#12605)
+- Add metric for scheduling delay between first run task & expected start time (#9544)
+- Add new-style 2.0 command names for Airflow 1.10.x (#12725)
+- Add Kubernetes cleanup-pods CLI command for Helm Chart (#11802)
+- Don't let webserver run with dangerous config (#12747)
+- Replace pkg_resources with ``importlib.metadata`` to avoid VersionConflict errors (#12694)
+
+Doc only changes
+""""""""""""""""
+
+- Clarified information about supported Databases
+
 Airflow 1.10.13, 2020-11-25
 ----------------------------
 
@@ -910,7 +944,7 @@ Misc/Internal
 - [AIRFLOW-XXX] Remove executable permission from file
 - [AIRFLOW-XXX] Group AWS & Azure dependencies (old ``[emr]`` etc. extra still work)
 - [AIRFLOW-5487] Fix unused warning var (#6111)
-- [AIRFLOW-5925] Relax funcsigs and psutil version requirements (#6580)
+- [AIRFLOW-5925] Relax ``funcsigs`` and psutil version requirements (#6580)
 - [AIRFLOW-5740] Fix Transient failure in Slack test (#6407)
 - [AIRFLOW-6058] Running tests with pytest (#6472)
 - [AIRFLOW-6066] Added pre-commit checks for accidental debug stmts (#6662)
@@ -3543,7 +3577,7 @@ Airflow 1.8.1, 2017-05-09
 - [AIRFLOW-806] UI should properly ignore DAG doc when it is None
 - [AIRFLOW-794] Consistent access to DAGS_FOLDER and SQL_ALCHEMY_CONN
 - [AIRFLOW-785] ImportError if cgroupspy is not installed
-- [AIRFLOW-784] Cannot install with funcsigs > 1.0.0
+- [AIRFLOW-784] Cannot install with ``funcsigs`` > 1.0.0
 - [AIRFLOW-780] The UI no longer shows broken DAGs
 - [AIRFLOW-777] dag_is_running is initialized to True instead of False
 - [AIRFLOW-719] Skipped operations make DAG finish prematurely
@@ -3607,7 +3641,7 @@ Airflow 1.8.0, 2017-03-12
 - [AIRFLOW-776] Add missing cgroups devel dependency
 - [AIRFLOW-777] Fix expression to check if a DagRun is in running state
 - [AIRFLOW-785] Don't import CgroupTaskRunner at global scope
-- [AIRFLOW-784] Pin funcsigs to 1.0.0
+- [AIRFLOW-784] Pin ``funcsigs`` to 1.0.0
 - [AIRFLOW-624] Fix setup.py to not import airflow.version as version
 - [AIRFLOW-779] Task should fail with specific message when deleted
 - [AIRFLOW-778] Fix completely broken MetastorePartitionSensor

@@ -20,7 +20,7 @@ import unittest
 from airflow.lineage import AUTO
 from airflow.lineage.entities import File
 from airflow.models import DAG, TaskInstance as TI
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -93,7 +93,7 @@ class TestLineage(unittest.TestCase):
 
     def test_lineage_render(self):
         # tests inlets / outlets are rendered if they are added
-        # after initalization
+        # after initialization
         dag = DAG(dag_id='test_lineage_render', start_date=DEFAULT_DATE)
 
         with dag:

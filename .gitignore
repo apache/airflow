@@ -87,9 +87,9 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-docs/_api/
+docs/_doctrees/
+docs/_inventory_cache/
 docs/*/_api/
-docs/_doctrees
 
 # PyBuilder
 target/

@@ -562,6 +562,9 @@
             } else if(task_group_tips.has(task_id)) {
               const tt = group_tooltip(task_id, tis)
               taskTip.show(tt, evt.target);
+            } else if (task_id in tasks) {
+              const tt = taskNoInstanceTooltip(task_id, tasks[task_id]);
+              taskTip.show(tt, evt.target)
             }
           };
           elem.onmouseout = taskTip.hide;

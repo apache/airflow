@@ -65,7 +65,7 @@ HAS_CREDENTIALS = OAUTH_TOKEN != 'my_oauth_token'
 @unittest.skipIf(yandexcloud is None, 'Skipping Yandex.Cloud hook test: no yandexcloud module')
 class TestYandexCloudDataprocHook(unittest.TestCase):
     def _init_hook(self):
-        with patch('airflow.hooks.base_hook.BaseHook.get_connection') as get_connection_mock:
+        with patch('airflow.hooks.base.BaseHook.get_connection') as get_connection_mock:
             get_connection_mock.return_value = self.connection
             self.hook = DataprocHook()
 

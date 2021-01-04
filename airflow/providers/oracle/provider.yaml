@@ -17,12 +17,12 @@
 
 ---
 package-name: apache-airflow-providers-oracle
-name: Orcle
+name: Oracle
 description: |
     `Oracle <https://www.oracle.com/en/database/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 integrations:
   - integration-name: Oracle
     external-doc-url: https://www.oracle.com/en/database/

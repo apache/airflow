@@ -783,7 +783,7 @@ pre code {
 }
 .pre-scrollable {
   max-height: 340px;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 .container {
   margin-right: auto;
@@ -5133,7 +5133,7 @@ button.close {
   top: -9999px;
   width: 50px;
   height: 50px;
-  overflow: scroll;
+  overflow: auto;
 }
 
 @media (min-width: 768px) {

@@ -24,10 +24,10 @@ from glob import glob
 from importlib import import_module
 
 import airflow
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.secrets import BaseSecretsBackend
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 
 if __name__ != "__main__":
     raise Exception(

@@ -27,7 +27,7 @@ import re
 from typing import Any, Iterable, List, Optional, Tuple
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -45,6 +45,7 @@ class ImapHook(BaseHook):
     conn_name_attr = 'imap_conn_id'
     default_conn_name = 'imap_default'
     conn_type = 'imap'
+    hook_name = 'IMAP'
 
     def __init__(self, imap_conn_id: str = default_conn_name) -> None:
         super().__init__()

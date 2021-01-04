@@ -20,7 +20,7 @@ from typing import Any, Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 try:
     from snakebite.client import AutoConfigClient, Client, HAClient, Namenode  # pylint: disable=syntax-error
@@ -45,6 +45,11 @@ class HDFSHook(BaseHook):
     :param autoconfig: use snakebite's automatically configured client
     :type autoconfig: bool
     """
+
+    conn_name_attr = 'hdfs_conn_id'
+    default_conn_name = 'hdfs_default'
+    conn_type = 'hdfs'
+    hook_name = 'HDFS'
 
     def __init__(
         self, hdfs_conn_id: str = 'hdfs_default', proxy_user: Optional[str] = None, autoconfig: bool = False

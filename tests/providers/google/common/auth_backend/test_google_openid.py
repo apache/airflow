@@ -30,7 +30,10 @@ from tests.test_utils.db import clear_db_pools
 class TestGoogleOpenID(unittest.TestCase):
     def setUp(self) -> None:
         with conf_vars(
-            {("api", "auth_backend"): "airflow.providers.google.common.auth_backend.google_openid"}
+            {
+                ("api", "auth_backend"): "airflow.providers.google.common.auth_backend.google_openid",
+                ('api', 'enable_experimental_api'): 'true',
+            }
         ):
             self.app = create_app(testing=True)
 

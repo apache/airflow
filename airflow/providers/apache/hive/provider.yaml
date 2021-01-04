@@ -22,11 +22,12 @@ description: |
     `Apache Hive <https://hive.apache.org/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Apache Hive
     external-doc-url: https://hive.apache.org/
+    logo: /integration-logos/apache/hive.png
     tags: [apache]
 
 operators:
@@ -70,3 +71,4 @@ transfers:
 hook-class-names:
   - airflow.providers.apache.hive.hooks.hive.HiveCliHook
   - airflow.providers.apache.hive.hooks.hive.HiveServer2Hook
+  - airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook

@@ -30,8 +30,8 @@ import unicodecsv as csv
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.base import BaseHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
@@ -81,6 +81,7 @@ class HiveCliHook(BaseHook):
     conn_name_attr = 'hive_cli_conn_id'
     default_conn_name = 'hive_cli_default'
     conn_type = 'hive_cli'
+    hook_name = 'Hive Client Wrapper'
 
     def __init__(
         self,
@@ -474,13 +475,18 @@ class HiveMetastoreHook(BaseHook):
     # java short max val
     MAX_PART_COUNT = 32767
 
-    def __init__(self, metastore_conn_id: str = 'metastore_default') -> None:
+    conn_name_attr = 'metastore_conn_id'
+    default_conn_name = 'metastore_default'
+    conn_type = 'hive_metastore'
+    hook_name = 'Hive Metastore Thrift'
+
+    def __init__(self, metastore_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = metastore_conn_id
         self.metastore = self.get_metastore_client()
 
     def __getstate__(self) -> Dict[str, Any]:
-        # This is for pickling to work despite the thirft hive client not
+        # This is for pickling to work despite the thrift hive client not
         # being pickable
         state = dict(self.__dict__)
         del state['metastore']
@@ -814,11 +820,13 @@ class HiveServer2Hook(DbApiHook):
     conn_name_attr = 'hiveserver2_conn_id'
     default_conn_name = 'hiveserver2_default'
     conn_type = 'hiveserver2'
+    hook_name = 'Hive Server 2 Thrift'
     supports_autocommit = False
 
     def get_conn(self, schema: Optional[str] = None) -> Any:
         """Returns a Hive connection object."""
         username: Optional[str] = None
+        password: Optional[str] = None
         # pylint: disable=no-member
         db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
 
@@ -839,6 +847,10 @@ class HiveServer2Hook(DbApiHook):
             )
             auth_mechanism = 'KERBEROS'
 
+        # Password should be set if and only if in LDAP or CUSTOM mode
+        if auth_mechanism in ('LDAP', 'CUSTOM'):
+            password = db.password
+
         from pyhive.hive import connect
 
         return connect(
@@ -847,7 +859,7 @@ class HiveServer2Hook(DbApiHook):
             auth=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             username=db.login or username,
-            password=db.password,
+            password=password,
             database=schema or db.schema or 'default',
         )
 

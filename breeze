@@ -58,7 +58,6 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    SCREEN_WIDTH
 #    MOUNT_LOCAL_SOURCES
 #    FORCE_PULL_IMAGES
-#    ENABLE_KIND_CLUSTER
 #    FORWARD_CREDENTIALS
 #    DB_RESET
 #    START_AIRFLOW
@@ -100,9 +99,6 @@ function breeze::setup_default_breeze_constants() {
     # By default we only pull images if we do not have them locally.
     # This can be overridden by '--force-pull-images' flag
     export FORCE_PULL_IMAGES="false"
-
-    # Do not enable Kind Kubernetes cluster by default
-    export ENABLE_KIND_CLUSTER="false"
 
     # Forward common host credentials to docker (gcloud, aws etc.).
     export FORWARD_CREDENTIALS="false"
@@ -228,7 +224,7 @@ function breeze::initialize_virtualenv() {
         echo
         "${AIRFLOW_SOURCES}/confirm" "Proceeding with the initialization"
         echo
-        pushd "${AIRFLOW_SOURCES}"
+        pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
         set +e
         # We need to export this one to speed up Cassandra driver installation in virtualenv
         CASS_DRIVER_NO_CYTHON="1" pip install -e ".[devel]" \
@@ -591,6 +587,8 @@ export BACKEND="${BACKEND}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
 export WEBSERVER_HOST_PORT="${WEBSERVER_HOST_PORT}"
+export FLOWER_HOST_PORT="${FLOWER_HOST_PORT}"
+export REDIS_HOST_PORT="${REDIS_HOST_PORT}"
 export POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT}"
 export POSTGRES_VERSION="${POSTGRES_VERSION}"
 export MYSQL_HOST_PORT="${MYSQL_HOST_PORT}"
@@ -829,7 +827,9 @@ function breeze::parse_arguments() {
             INSTALL_AIRFLOW_VERSION="${2}"
             # Reference is mutually exclusive with version
             INSTALL_AIRFLOW_REFERENCE=""
-            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION}"
+            # Skip mounting local sources when airflow is installed from remote
+            INSTALL_PROVIDERS_FROM_SOURCES="false"
+            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION} and skip mounting sources"
             echo
             shift 2
             ;;
@@ -837,6 +837,8 @@ function breeze::parse_arguments() {
             INSTALL_AIRFLOW_REFERENCE="${2}"
             # Reference is mutually exclusive with version
             INSTALL_AIRFLOW_VERSION=""
+            # Skip mounting local sources when airflow is installed from remote
+            INSTALL_PROVIDERS_FROM_SOURCES="false"
             echo "Installs Airflow from reference: ${INSTALL_AIRFLOW_REFERENCE}"
             echo
             shift 2
@@ -1146,6 +1148,12 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
+        --upgrade-to-newer-dependencies)
+            export UPGRADE_TO_NEWER_DEPENDENCIES="true"
+            echo "Upgrade packages to latest versions."
+            echo
+            shift
+            ;;
         --package-format)
             export PACKAGE_FORMAT="${2}"
             echo "Selected package type: ${PACKAGE_FORMAT}"
@@ -1224,7 +1232,7 @@ function breeze::parse_arguments() {
             command_to_run="perform_generate_constraints"
             export FORCE_ANSWER_TO_QUESTIONS="yes"
             export FORCE_BUILD_IMAGES="true"
-            export UPGRADE_TO_LATEST_CONSTRAINTS="true"
+            export UPGRADE_TO_NEWER_DEPENDENCIES="true"
             shift
             ;;
         prepare-airflow-packages)
@@ -1605,7 +1613,7 @@ ${CMDNAME} build-docs [-- <EXTRA_ARGS>]
       is generated ('docs/_build') are also mounted to the container - this way results of
       the documentation build is available in the host.
 
-      The possible extra args are: --docs-only, --spellcheck-only, --package, --help
+      The possible extra args are: --docs-only, --spellcheck-only, --package-filter, --help
 "
     readonly DETAILED_USAGE_BUILD_DOCS
     export DETAILED_USAGE_BUILD_IMAGE="
@@ -1701,11 +1709,11 @@ ${CMDNAME} generate-constraints [FLAGS]
 
       Generates pinned constraint files from setup.py. Those files are generated in files folder
       - separate files for different python version. Those constraint files when pushed to orphan
-      constraint-master and constraint-1-10 branches are used to generate repeatable
-      CI builds as well as run repeatable production image builds. You can use those constraints
-      to predictably install released Airflow versions. This is mainly used to test the constraint
-      generation - constraints are pushed to the orphan branches by a successful scheduled
-      CRON job in CI automatically.
+      constraints-master, constraints-2-0 and constraints-1-10 branches are used to generate
+      repeatable CI builds as well as run repeatable production image builds. You can use those
+      constraints to predictably install released Airflow versions. This is mainly used to test
+      the constraint generation - constraints are pushed to the orphan branches by a
+      successful scheduled CRON job in CI automatically.
 
 Flags:
 $(breeze::flag_airflow_variants)
@@ -1901,6 +1909,11 @@ ${FORMATTED_STATIC_CHECKS}
       To check all files that differ between you current branch and master run:
 
       '${CMDNAME} static-check all -- --from-ref \$(git merge-base master HEAD) --to-ref HEAD'
+
+      To check all files that are in the HEAD commit run:
+
+      '${CMDNAME} static-check mypy -- --from-ref HEAD^ --to-ref HEAD'
+
 
       You can see all the options by adding --help EXTRA_ARG:
 
@@ -2284,6 +2297,10 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
         If specified it will look for packages placed in dist folder and it will install the
         packages after installing Airflow. This is useful for testing provider
         packages.
+
+--upgrade-to-newer-dependencies
+        Upgrades PIP packages to latest versions available without looking at the constraints.
+
 "
 }
 
@@ -2853,15 +2870,19 @@ function breeze::check_and_save_all_params() {
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
         if [[ ${INSTALL_AIRFLOW_REFERENCE=} == *1_10* ]]; then
             export BRANCH_NAME="v1-10-test"
+        elif [[ ${INSTALL_AIRFLOW_REFERENCE=} == *2_0* ]]; then
+            export BRANCH_NAME="v2-0-test"
         fi
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         if [[ ${INSTALL_AIRFLOW_VERSION=} == *1.10* ]]; then
             export BRANCH_NAME="v1-10-test"
+        elif [[ ${INSTALL_AIRFLOW_VERSION=} == *2.0* ]]; then
+            export BRANCH_NAME="v2-0-test"
         fi
     fi
 
     if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ]]; then
-        if [[ ${BRANCH_NAME} == "master" ]]; then
+        if [[ ${BRANCH_NAME} == "master" || ${BRANCH_NAME} == "v2-0-test" ]]; then
             echo
             echo  "${COLOR_RED_ERROR} The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*  ${COLOR_RESET}"
             echo

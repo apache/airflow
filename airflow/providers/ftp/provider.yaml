@@ -22,7 +22,7 @@ description: |
     `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: File Transfer Protocol (FTP)
@@ -38,3 +38,6 @@ hooks:
   - integration-name: File Transfer Protocol (FTP)
     python-modules:
       - airflow.providers.ftp.hooks.ftp
+
+hook-class-names:
+  - airflow.providers.ftp.hooks.ftp.FTPHook

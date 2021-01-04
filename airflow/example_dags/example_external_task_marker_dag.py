@@ -40,8 +40,8 @@ interval till one of the following will happen:
 import datetime
 
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.external_task_sensor import ExternalTaskMarker, ExternalTaskSensor
+from airflow.operators.dummy import DummyOperator
+from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 
 start_date = datetime.datetime(2015, 1, 1)
 

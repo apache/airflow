@@ -28,6 +28,7 @@ if [[ ${PACKAGE_FORMAT} != "wheel" && ${PACKAGE_FORMAT} != "sdist" ]]; then
 fi
 
 function run_test_package_import_all_classes() {
+    # Groups are added internally
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         -v "${AIRFLOW_SOURCES}/setup.py:/airflow_sources/setup.py:cached" \
@@ -42,6 +43,6 @@ function run_test_package_import_all_classes() {
 
 build_images::prepare_ci_build
 
-build_images::rebuild_ci_image_if_needed
+build_images::rebuild_ci_image_if_needed_with_group
 
 run_test_package_import_all_classes

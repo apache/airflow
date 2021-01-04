@@ -21,6 +21,24 @@ AIRFLOW_COMMAND="${1}"
 
 set -euo pipefail
 
+# We want to avoid misleading messages and perform only forward lookup of the service IP address.
+# Netcat when run without -n performs both forward and reverse lookup and fails if the reverse
+# lookup name does not match the original name even if the host is reachable via IP. This happens
+# randomly with docker-compose in Github Actions.
+# Since we are not using reverse lookup elsewhere, we can perform forward lookup in python
+# And use the IP in NC and add '-n' switch to disable any DNS use.
+# Even if this message might be harmless, it might hide the real reason for the problem
+# Which is the long time needed to start some services, seeing this message might be totally misleading
+# when you try to analyse the problem, that's why it's best to avoid it,
+function run_nc() {
+    local host=${1}
+    local port=${2}
+    local ip
+    ip=$(python -c "import socket; print(socket.gethostbyname('${host}'))")
+
+    nc -zvvn "${ip}" "${port}"
+}
+
 function verify_db_connection {
     DB_URL="${1}"
 
@@ -61,7 +79,7 @@ function verify_db_connection {
         while true
         do
             set +e
-            LAST_CHECK_RESULT=$(nc -zvv "${DB_HOST}" "${DB_PORT}" >/dev/null 2>&1)
+            LAST_CHECK_RESULT=$(run_nc "${DB_HOST}" "${DB_PORT}" >/dev/null 2>&1)
             RES=$?
             set -e
             if [[ ${RES} == 0 ]]; then
@@ -111,6 +129,7 @@ else
     verify_db_connection "${AIRFLOW__CORE__SQL_ALCHEMY_CONN}"
 fi
 
+
 # The Bash and python commands still should verify the basic connections so they are run after the
 # DB check but before the broker check
 if [[ ${AIRFLOW_COMMAND} == "bash" ]]; then
@@ -125,7 +144,7 @@ elif [[ ${AIRFLOW_COMMAND} == "airflow" ]]; then
 fi
 
 # Note: the broker backend configuration concerns only a subset of Airflow components
-if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|worker|flower)$ ]]; then
+if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery|worker|flower)$ ]]; then
     if [[ -n "${AIRFLOW__CELERY__BROKER_URL_CMD=}" ]]; then
         verify_db_connection "$(eval "$AIRFLOW__CELERY__BROKER_URL_CMD")"
     else
@@ -136,6 +155,4 @@ if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|worker|flower)$ ]]; then
     fi
 fi
 
-
-# Run the command
-exec airflow "${@}"
+exec "airflow" "${@}"

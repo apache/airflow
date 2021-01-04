@@ -24,7 +24,7 @@ from freezegun import freeze_time
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.latest_only import LatestOnlyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session

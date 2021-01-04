@@ -33,7 +33,7 @@ not work or will produce unusable Airflow installation.
 
 In order to have repeatable installation, however, starting from **Airflow 1.10.10** and updated in
 **Airflow 1.10.13** we also keep a set of "known-to-be-working" constraint files in the
-``constraints-master`` and ``constraints-1-10`` orphan branches.
+``constraints-master``, ``constraints-2-0`` and ``constraints-1-10`` orphan branches.
 Those "known-to-be-working" constraints are per major/minor python version. You can use them as constraint
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
 and python versions in the URL.
@@ -53,35 +53,38 @@ and python versions in the URL.
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
    ``--use-deprecated legacy-resolver`` to your pip install command.
 
 
 .. code-block:: bash
 
-    AIRFLOW_VERSION=1.10.13
+    AIRFLOW_VERSION=2.0.0
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-1.10.13/constraints-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.6.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
+
+Please note that with respect to Python 3 support, Airflow 2.0.0 has been
+tested with Python 3.6, 3.7, and 3.8, but does not yet support Python 3.9.
 
 2. Installing with extras (for example postgres, google)
 
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
    ``--use-deprecated legacy-resolver`` to your pip install command.
 
 
 .. code-block:: bash
 
-    AIRFLOW_VERSION=1.10.13
+    AIRFLOW_VERSION=2.0.0
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
@@ -91,6 +94,23 @@ has a corresponding ``apache-airflow-providers-amazon`` providers package to be 
 Airflow with such extras, the necessary provider packages are installed automatically (latest versions from
 PyPI for those packages). However you can freely upgrade and install provider packages independently from
 the main Airflow installation.
+
+Python versions support
+'''''''''''''''''''''''
+
+As of Airflow 2.0 we agreed to certain rules we follow for Python support. They are based on the official
+release schedule of Python, nicely summarized in the
+`Python Developer's Guide <https://devguide.python.org/#status-of-python-branches>`_
+
+1. We end support for Python versions when they reach EOL (For Python 3.6 it means that we will stop supporting it
+   on 23.12.2021).
+
+2. The "oldest" supported version of Python is the default one. "Default" is only meaningful in terms of
+   "smoke tests" in CI PRs which are run using this default version.
+
+3. We support a new version of Python after it is officially released, as soon as we manage to make
+   it works in our CI pipeline (which might not be immediate) and release a new version of Airflow
+   (non-Patch version) based on this CI set-up.
 
 
 Requirements
@@ -149,9 +169,12 @@ Unlike Apache Airflow 1.10, the Airflow 2.0 is delivered in multiple, separate, 
 The core of Airflow scheduling system is delivered as ``apache-airflow`` package and there are around
 60 providers packages which can be installed separately as so called "Airflow Provider packages".
 The default Airflow installation doesn't have many integrations and you have to install them yourself.
-For more information, see: :doc:`apache-airflow-providers:index`
+
+You can even develop and install your own providers for Airflow. For more information,
+see: :doc:`apache-airflow-providers:index`
 
 For the list of the provider packages and what they enable, see: :doc:`apache-airflow-providers:packages-ref`.
+
 
 Initializing Airflow Database
 '''''''''''''''''''''''''''''

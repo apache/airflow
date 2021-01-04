@@ -42,13 +42,13 @@ log = logging.getLogger(__name__)
 class Anonymizer(Protocol):
     """Anonymizer protocol."""
 
-    def process_path(self, value):
+    def process_path(self, value) -> str:
         """Remove pii from paths"""
 
-    def process_username(self, value):
+    def process_username(self, value) -> str:
         """Remove pii from username"""
 
-    def process_url(self, value):
+    def process_url(self, value) -> str:
         """Remove pii from URL"""
 
 
@@ -413,7 +413,7 @@ def _send_report_to_fileio(info):
         print(str(ex))
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def show_info(args):
     """Show information related to Airflow, system and other."""
     # Enforce anonymization, when file_io upload is tuned on.

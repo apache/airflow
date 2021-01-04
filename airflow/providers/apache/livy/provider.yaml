@@ -22,7 +22,7 @@ description: |
     `Apache Livy <https://livy.apache.org/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 integrations:
   - integration-name: Apache Livy
     external-doc-url: https://livy.apache.org/
@@ -42,3 +42,6 @@ hooks:
   - integration-name: Apache Livy
     python-modules:
       - airflow.providers.apache.livy.hooks.livy
+
+hook-class-names:
+  - airflow.providers.apache.livy.hooks.livy.LivyHook

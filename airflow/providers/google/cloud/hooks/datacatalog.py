@@ -537,7 +537,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-        name = DataCatalogClient.field_path(project_id, location, tag_template, field)
+        name = DataCatalogClient.tag_template_field_path(project_id, location, tag_template, field)
 
         self.log.info('Deleting a tag template field: name=%s', name)
         client.delete_tag_template_field(
@@ -818,7 +818,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
             result = client.lookup_entry(
                 sql_resource=sql_resource, retry=retry, timeout=timeout, metadata=metadata
             )
-        self.log.info('Received entry. name=%s.', result.name)
+        self.log.info('Received entry. name=%s', result.name)
 
         return result
 
@@ -860,7 +860,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
-        name = DataCatalogClient.field_path(project_id, location, tag_template, field)
+        name = DataCatalogClient.tag_template_field_path(project_id, location, tag_template, field)
 
         self.log.info(
             'Renaming field: old_name=%s, new_tag_template_field_id=%s', name, new_tag_template_field_id
@@ -1018,10 +1018,12 @@ class CloudDataCatalogHook(GoogleBaseHook):
                 "You must provide all the parameters (project_id, location, entry_group, entry_id) "
                 "contained in the name, or do not specify any parameters and pass the name on the object "
             )
-
         name = entry.name if isinstance(entry, Entry) else entry["name"]
         self.log.info("Updating entry: name=%s", name)
 
+        # HACK: google-cloud-datacatalog has a problem with dictionaries for update methods.
+        if isinstance(entry, dict):
+            entry = Entry(**entry)
         result = client.update_entry(
             entry=entry, update_mask=update_mask, retry=retry, timeout=timeout, metadata=metadata
         )
@@ -1096,6 +1098,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         name = tag.name if isinstance(tag, Tag) else tag["name"]
         self.log.info("Updating tag: name=%s", name)
 
+        # HACK: google-cloud-datacatalog has a problem with dictionaries for update methods.
+        if isinstance(tag, dict):
+            tag = Tag(**tag)
         result = client.update_tag(
             tag=tag, update_mask=update_mask, retry=retry, timeout=timeout, metadata=metadata
         )
@@ -1170,6 +1175,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         name = tag_template.name if isinstance(tag_template, TagTemplate) else tag_template["name"]
         self.log.info("Updating tag template: name=%s", name)
 
+        # HACK: google-cloud-datacatalog has a problem with dictionaries for update methods.
+        if isinstance(tag_template, dict):
+            tag_template = TagTemplate(**tag_template)
         result = client.update_tag_template(
             tag_template=tag_template,
             update_mask=update_mask,
@@ -1238,7 +1246,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         """
         client = self.get_conn()
         if project_id and location and tag_template and tag_template_field_id:
-            tag_template_field_name = DataCatalogClient.field_path(
+            tag_template_field_name = DataCatalogClient.tag_template_field_path(
                 project_id, location, tag_template, tag_template_field_id
             )
 

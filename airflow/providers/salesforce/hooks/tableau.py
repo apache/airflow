@@ -20,7 +20,7 @@ from typing import Any, Optional
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
 from tableauserverclient.server import Auth
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class TableauJobFinishCode(Enum):
@@ -54,6 +54,7 @@ class TableauHook(BaseHook):
     conn_name_attr = 'tableau_conn_id'
     default_conn_name = 'tableau_default'
     conn_type = 'tableau'
+    hook_name = 'Tableau'
 
     def __init__(self, site_id: Optional[str] = None, tableau_conn_id: str = default_conn_name) -> None:
         super().__init__()

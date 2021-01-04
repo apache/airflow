@@ -23,6 +23,12 @@ Contributions
 Contributions are welcome and are greatly appreciated! Every little bit helps,
 and credit will always be given.
 
+New Contributor
+---------------
+If you are a new contributor, please follow the `Contributors Quick Start <https://github.com/apache/airflow/blob/master
+/CONTRIBUTORS_QUICK_START.rst>`__ guide to get a gentle step-by-step introduction to setting up the development
+environment and making your first contribution.
+
 Get Mentoring Support
 ---------------------
 
@@ -134,6 +140,70 @@ The key aspects of a committer are:
 * Quality of the commits
 * Visibility in community discussions (dev mailing list, Slack and GitHub)
 * Testing Release Candidates
+
+Guidelines for promoting Committers to Airflow PMC
+---------------------------------------------------
+
+To become a PMC member the committers should meet all **general prerequisites**.
+Apart from that the person should demonstrate distinct **community involvement** or **code contributions**.
+
+Guidelines from ASF are listed at
+`ASF: New Candidates for Committership <http://community.apache.org/newcommitter.html#guidelines-for-assessing-new-candidates-for-committership>`__.
+
+Prerequisites
+^^^^^^^^^^^^^^
+
+* Has been a committer for at least 3 months
+* Is still active community member (Visible on mailing list or reviewing PRs at the minimum)
+
+Community involvement
+^^^^^^^^^^^^^^^^^^^^^^
+
+* Visibility on discussions on the dev mailing list
+* Spreading the word for "Airflow" either:
+
+  * Talks at meetups, conferences, etc
+  * Creating content like videos, blogs, etc
+
+* Growing the community:
+
+  * Mentors new members/contributors
+  * Answers users/contributors via Github issues, dev list or slack
+
+Code contribution
+^^^^^^^^^^^^^^^^^^
+
+* Consistent voting on RCs for at least past 3 releases lifecycles
+* Engagement in Airflow Improvements Proposals either:
+
+  * Has been actively voting on AIPs
+  * Has been proposing and leading their implementation
+
+* Actively involved in code contributions:
+
+  * Code reviews
+  * Merging pull requests
+  * Fixing bugs and implementing improvements
+
+
+Only a current PMC member can nominate a current committer to be part of PMC.
+
+If the vote fails or PMC members needs more evidence, then one of the PMC Member (who is not the Proposer)
+can become the Mentor and guide the proposed candidates on how they can become a PMC member.
+
+1.  Candidate Proposer
+
+    This is the person who launches the DISCUSS thread & makes the case for a PMC promotion
+
+2.  Candidate Mentor
+
+    If the committee does not have enough information, requires more time, or requires more evidence of
+    candidate's eligibility, a mentor, who is not the proposer, is selected to help mentor the candidate
+    The mentor should try to remain impartial -- his/her goal is to provide the missing evidence and to
+    try to coach/mentor the candidate to success.
+
+    In order to re-raise a candidate vote, both Proposer and Mentor must be in favor. Again,
+    the mentor must try to remain impartial and cannot be the Proposer.
 
 
 Contributors
@@ -535,9 +605,9 @@ Airflow dependencies
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
    ``--use-deprecated legacy-resolver`` to your pip install command.
 
 
@@ -554,17 +624,17 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 
-all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
+all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
 apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop,
 apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes,
-crypto, dask, databricks, datadog, dingding, discord, docker, druid, elasticsearch, exasol,
-facebook, ftp, gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive,
-http, imap, jdbc, jenkins, jira, kerberos, kubernetes, ldap, mesos, microsoft.azure,
-microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, openfaas, opsgenie, oracle, pagerduty,
-papermill, password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce,
-samba, segment, sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd,
-tableau, telegram, vertica, virtualenv, webhdfs, winrm, yandex, zendesk, all, devel, devel_hadoop,
-doc, devel_all, devel_ci
+crypto, dask, databricks, datadog, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc,
+docker, druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github_enterprise, google,
+google_auth, grpc, hashicorp, hdfs, hive, http, imap, jdbc, jenkins, jira, kerberos, kubernetes,
+ldap, mesos, microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, openfaas,
+opsgenie, oracle, pagerduty, papermill, password, pinot, plexus, postgres, presto, qds, qubole,
+rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,
+snowflake, spark, sqlite, ssh, statsd, tableau, telegram, vertica, virtualenv, webhdfs, winrm,
+yandex, zendesk
 
   .. END EXTRAS HERE
 
@@ -628,7 +698,7 @@ apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
 apache.livy                http
 dingding                   http
 discord                    http
-google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,postgres,presto,salesforce,sftp,ssh
+google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,salesforce,sftp,ssh
 hashicorp                  google
 microsoft.azure            google,oracle
 microsoft.mssql            odbc
@@ -679,9 +749,9 @@ Pinned constraint files
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
    ``--use-deprecated legacy-resolver`` to your pip install command.
 
 
@@ -692,7 +762,7 @@ when installing ``apache-airflow``, you might need to provide additional constra
 example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
 
 However we now have ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files generated
-automatically and committed to orphan ``constraints-master`` and ``constraint-1-10`` branches based on
+automatically and committed to orphan ``constraints-master``, ``constraints-2-0` and ``constraints-1-10`` branches based on
 the set of all latest working and tested dependency versions. Those
 ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files can be used as
 constraints file when installing Apache Airflow - either from the sources:
@@ -1275,6 +1345,6 @@ and slightly modified and consensus reached in October 2020:
 
 Resources & Links
 =================
-- `Airflow’s official documentation <http://airflow.apache.org/>`__
+- `Airflow’s official documentation <https://airflow.apache.org/>`__
 
 - `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`__
