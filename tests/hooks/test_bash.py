@@ -63,10 +63,18 @@ class TestBashOperator(unittest.TestCase):
             actual = dict([x.split('=') for x in tmp_file.read_text().splitlines()])
             assert actual == expected
 
-    def test_return_value(self):
+    @parameterized.expand(
+        [
+            ('test-val', 'test-val'),
+            ('test-val\ntest-val\n', ''),
+            ('test-val\ntest-val', 'test-val'),
+            ('', ''),
+        ]
+    )
+    def test_return_value(self, val, expected):
         hook = BashHook()
-        return_value = hook.run_command(command='echo "stdout"')
-        assert return_value == 'stdout'
+        return_value = hook.run_command(command=f'echo "{val}"')
+        assert return_value == expected
 
     def test_raise_exception_on_non_zero_exit_code(self):
         hook = BashHook()
