@@ -127,7 +127,6 @@ class TestS3KeySizeSensor(unittest.TestCase):
     @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook.check_for_key', return_value=False)
     def test_poke_check_for_key_false(self, mock_check_for_key):
         op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
-
         self.assertFalse(op.poke(None))
         mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
 
