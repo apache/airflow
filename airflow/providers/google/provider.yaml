@@ -190,6 +190,8 @@ integrations:
     tags: [gcp]
   - integration-name: Google Dataflow
     external-doc-url: https://cloud.google.com/dataflow/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/dataflow.rst
     logo: /integration-logos/gcp/Cloud-Dataflow.png
     tags: [gcp]
   - integration-name: Google Data Fusion

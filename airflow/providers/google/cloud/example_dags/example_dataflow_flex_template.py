@@ -44,6 +44,7 @@ with models.DAG(
     start_date=days_ago(1),
     schedule_interval=None,  # Override to match your needs
 ) as dag_flex_template:
+    # [START howto_operator_start_template_job]
     start_flex_template = DataflowStartFlexTemplateOperator(
         task_id="start_flex_template_streaming_beam_sql",
         body={
@@ -59,3 +60,4 @@ with models.DAG(
         do_xcom_push=True,
         location=BQ_FLEX_TEMPLATE_LOCATION,
     )
+    # [END howto_operator_start_template_job]
