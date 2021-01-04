@@ -78,7 +78,8 @@ class ClsRedisConnection(ClsEntity):
     def remove_templates(self, template_keys: list):
         with self.pipeline as p:
             _logger.info(template_keys)
-            p.delete(*template_keys)
+            for key in template_keys:
+                p.delete(key)
             p.execute()
 
     def read_template_keys(self):
