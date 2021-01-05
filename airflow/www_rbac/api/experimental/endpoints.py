@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+import base64
+
 import airflow.api
 
 from airflow.api.common.experimental import pool as pool_api
@@ -43,6 +46,15 @@ _log = LoggingMixin().log
 requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
+
+
+def _get_user_from_header():
+    header = request.headers.get("Authorization")
+    if header:
+        userpass = ''.join(header.split()[1:])
+        return base64.b64decode(userpass).decode("utf-8").split(":")[0]
+    else:
+        return 'anonymous'
 
 
 @csrf.exempt
@@ -80,12 +92,25 @@ def trigger_dag(dag_id):
             response.status_code = 400
 
             return response
+    else:
+        # set this here so that we can log it
+        execution_date = timezone.utcnow()
 
     replace_microseconds = (execution_date is None)
     if 'replace_microseconds' in data:
         replace_microseconds = to_boolean(data['replace_microseconds'])
 
     try:
+        with create_session() as session:
+            session.add(models.Log(
+                'api_trigger_dag',
+                task_instance=None,
+                owner=_get_user_from_header(),
+                dag_id=dag_id,
+                execution_date=execution_date,
+                extra=str(list(data.items()))
+            ))
+            session.commit()
         dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
     except AirflowException as err:
         _log.error(err)
@@ -93,8 +118,7 @@ def trigger_dag(dag_id):
         response.status_code = err.status_code
         return response
 
-    if getattr(g, 'user', None):
-        _log.info("User {} created {}".format(g.user, dr))
+    _log.info("User {} created {}".format(_get_user_from_header(), dr))
 
     response = jsonify(message="Created {}".format(dr), execution_date=dr.execution_date.isoformat())
     return response
@@ -281,15 +305,25 @@ def cancel_dag_run(dag_id):
     run_id = data['run_id']
 
     try:
-       dr = _cancel_dag_run(dag_id, run_id)
+        with create_session() as session:
+            dr = models.DagRun.find(dag_id=dag_id, run_id=run_id)[0]
+            session.add(models.Log(
+                'api_cancel_dagrun',
+                task_instance=None,
+                owner=_get_user_from_header(),
+                dag_id=dag_id,
+                execution_date=dr.execution_date,
+                extra=str(list(data.items()))
+            ))
+            session.commit()
+        dr = _cancel_dag_run(dag_id, run_id)
     except AirflowException as err:
         _log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
 
-    if getattr(g, 'user', None):
-        _log.info("User {} canceled {}".format(g.user, dr))
+    _log.info("User {} canceled {}".format(_get_user_from_header(), dr))
 
     response = jsonify(message="Cancelled {}".format(dr))
     return response
@@ -314,15 +348,25 @@ def clear_dag_run(dag_id):
     run_id = data['run_id']
 
     try:
-       dr = _clear_dag_run(dag_id, run_id)
+        with create_session() as session:
+            dr = models.DagRun.find(dag_id=dag_id, run_id=run_id)[0]
+            session.add(models.Log(
+                'api_clear_dagrun',
+                task_instance=None,
+                owner=_get_user_from_header(),
+                dag_id=dag_id,
+                execution_date=dr.execution_date,
+                extra=str(list(data.items()))
+            ))
+            session.commit()
+        dr = _clear_dag_run(dag_id, run_id)
     except AirflowException as err:
         _log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
 
-    if getattr(g, 'user', None):
-        _log.info("User {} cleared {}".format(g.user, dr))
+    _log.info("User {} cleared {}".format(_get_user_from_header(), dr))
 
     response = jsonify(message="Cleared {}".format(dr))
     return response

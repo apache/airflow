@@ -460,7 +460,6 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.4',
-            'enum34~=1.1.6;python_version<"3.4"',
             'flask>=1.1.0, <2.0',
             'flask-admin==1.5.4',
             'flask-appbuilder>=1.12.2, <2.0.0;python_version<"3.6"',
@@ -488,7 +487,7 @@ def do_setup():
             'python-dateutil>=2.3, <3',
             'requests>=2.20.0, <3',
             'setproctitle>=1.1.8, <2',
-            'sqlalchemy~=1.3',
+            'sqlalchemy==1.3.15',  # pinning due to https://github.com/apache/airflow/issues/8211
             'sqlalchemy_jsonfield==0.8.0;python_version<"3.5"',
             'sqlalchemy_jsonfield~=0.9;python_version>="3.5"',
             'tabulate>=0.7.5, <0.9',

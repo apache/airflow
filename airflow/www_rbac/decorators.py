@@ -19,10 +19,10 @@
 
 import gzip
 import functools
-import pendulum
 from io import BytesIO as IO
 from flask import after_this_request, flash, redirect, request, url_for, g
 from airflow.models import Log
+from airflow.www_rbac import utils as wwwutils
 from airflow.utils.db import create_session
 
 
@@ -32,27 +32,7 @@ def action_logging(f):
     """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-
-        with create_session() as session:
-            if g.user.is_anonymous:
-                user = 'anonymous'
-            else:
-                user = g.user.username
-
-            log = Log(
-                event=f.__name__,
-                task_instance=None,
-                owner=user,
-                extra=str(list(request.values.items())),
-                task_id=request.values.get('task_id'),
-                dag_id=request.values.get('dag_id'))
-
-            if 'execution_date' in request.values:
-                log.execution_date = pendulum.parse(
-                    request.values.get('execution_date'))
-
-            session.add(log)
-
+        wwwutils.log_request(f.__name__, args, kwargs)
         return f(*args, **kwargs)
 
     return wrapper
