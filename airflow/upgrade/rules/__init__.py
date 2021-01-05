@@ -31,4 +31,6 @@ def get_rules():
             bases = [b.__name__ for b in cls.__bases__]
             if cls.__name__ != "BaseRule" and "BaseRule" in bases:
                 rule_classes.append(cls)
-    return rule_classes
+    # Sort rules alphabetically by class name, while maintaining that the airflow version
+    # check should remain first
+    return rule_classes[:1] + sorted(rule_classes[1:], key=lambda r: r.__name__)
