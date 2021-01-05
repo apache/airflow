@@ -500,11 +500,7 @@ repos:
           - https://json-schema.org/draft-07/schema
         language: python
         pass_filenames: true
-        files: >
-          (?x)
-          ^airflow/provider.yaml.schema.json$|
-          ^airflow/config_templates/config.yml.schema.json$|
-          ^airflow/serialization/schema.json$
+        files: .*\.schema\.json$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
