@@ -36,7 +36,6 @@ class TestBaseRule:
 
         # Version check should still be first
         assert rule_classes[0] == VersionCheckRule
-        print(rule_classes)
         # The former rule is defined in a file alphabetically before the latter rule,
         # but it should appear later in the list since the classes are sorted alphabetically
         unique_rule_index = rule_classes.index(UniqueConnIdRule)
