@@ -83,15 +83,14 @@ Apache Airflow is tested with:
 | Python       | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
 | MySQL        | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
-| SQLite       | latest stable             | latest stable            | latest stable              |
+| SQLite       | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
 | Kubernetes   | 1.16.9, 1.17.5, 1.18.6    | 1.16.9, 1.17.5, 1.18.6   | 1.16.9, 1.17.5, 1.18.6     |
 
-**Note:** MariaDB and MySQL 5.x are unable to or have limitations with
-running multiple schedulers -- please see the "Scheduler" docs.
+**Note:** MySQL 5.x versions are unable to or have limitations with
+running multiple schedulers -- please see the "Scheduler" docs. MariaDB is not tested/recommended.
 
 **Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
-using the latest stable version of SQLite for local development. Some older versions
-of SQLite might not work well, however anything at or above 3.27.2 should work fine.
+using the latest stable version of SQLite for local development.
 
 ## Support for Python versions
 

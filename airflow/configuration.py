@@ -30,6 +30,7 @@ from collections import OrderedDict
 
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
+from distutils.version import StrictVersion
 from json.decoder import JSONDecodeError
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -230,10 +231,15 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             'SequentialExecutor',
         )
         is_sqlite = "sqlite" in self.get('core', 'sql_alchemy_conn')
-        if is_executor_without_sqlite_support and is_sqlite:
-            raise AirflowConfigException(
-                "error: cannot use sqlite with the {}".format(self.get('core', 'executor'))
-            )
+        if is_sqlite and is_executor_without_sqlite_support:
+            raise AirflowConfigException(f"error: cannot use sqlite with the {self.get('core', 'executor')}")
+        if is_sqlite:
+            import sqlite3
+
+            # Some of the features in storing rendered fields require sqlite version >= 3.15.0
+            min_sqlite_version = '3.15.0'
+            if StrictVersion(sqlite3.sqlite_version) < StrictVersion(min_sqlite_version):
+                raise AirflowConfigException(f"error: cannot use sqlite version < {min_sqlite_version}")
 
         if self.has_option('core', 'mp_start_method'):
             mp_start_method = self.get('core', 'mp_start_method')
