@@ -182,8 +182,8 @@ class.
                                           }
                                 )
 
-The complete postgresOperator DAG
----------------------------------
+The complete Postgres Operator DAG
+----------------------------------
 
 When we put everything together, our DAG should look like this:
 
