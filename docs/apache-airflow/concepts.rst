@@ -1121,6 +1121,33 @@ This animated gif shows the UI interactions. TaskGroups are expanded or collapse
 .. image:: img/task_group.gif
 
 
+TaskGroup can be created using ``@taskgroup decorator``, it takes one mandatory argument ``group_id`` which is same as constructor of TaskGroup class, if not given it copies function name as ``group_id``. It works exactly same as creating TaskGroup using context manager ``with TaskGroup('groupid') as section:``.
+
+.. code-block:: python
+
+  @task
+  def task_1(value):
+      return f'[ Task1 {value} ]'
+
+
+  @task
+  def task_2(value):
+      print(f'[ Task2 {value} ]')
+
+
+  @taskgroup
+  def section_1(value):
+      return task_2(task_1(value))
+
+
+Here is an example of how to use taskgroup decorator :
+
+.. exampleinclude:: /../airflow/example_dags/example_task_group_decorator.py
+    :language: python
+    :start-after: [START task_group_decorator_usage]
+    :end-before: [END task_group_decorator_usage]
+
+
 SLAs
 ====
 

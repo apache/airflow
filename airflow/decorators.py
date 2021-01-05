@@ -17,3 +17,4 @@
 
 from airflow.models.dag import dag  # noqa # pylint: disable=unused-import
 from airflow.operators.python import task  # noqa # pylint: disable=unused-import
+from airflow.utils.task_group import taskgroup  # noqa # pylint: disable=unused-import

@@ -19,11 +19,25 @@
 A TaskGroup is a collection of closely related tasks on the same DAG that should be grouped
 together when the DAG is displayed graphically.
 """
-
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set, Union
+import functools
+import re
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import TaskMixin
+from airflow.utils.decorators import signature
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -42,7 +56,7 @@ class TaskGroup(TaskMixin):
     :param prefix_group_id: If set to True, child task_id and group_id will be prefixed with
         this TaskGroup's group_id. If set to False, child task_id and group_id are not prefixed.
         Default is True.
-    :type prefix_group_id: bool
+    :type prerfix_group_id: bool
     :param parent_group: The parent TaskGroup of this TaskGroup. parent_group is set to None
         for the root TaskGroup.
     :type parent_group: TaskGroup
@@ -95,8 +109,23 @@ class TaskGroup(TaskMixin):
             self.used_group_ids = self._parent_group.used_group_ids
 
         self._group_id = group_id
-        if self.group_id in self.used_group_ids:
-            raise DuplicateTaskIdFound(f"group_id '{self.group_id}' has already been added to the DAG")
+        # if given group_id already used assign suffix by incrementing largest used suffix integer
+        # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
+        if group_id in self.used_group_ids:
+            base = re.split(r'__\d+$', group_id)[0]
+            print([(i, type(i)) for i in self.used_group_ids])
+            suffixes = sorted(
+                [
+                    int(re.split(r'^.+__', used_group_id)[1])
+                    for used_group_id in self.used_group_ids
+                    if used_group_id is not None and re.match(rf'^{base}__\d+$', used_group_id)
+                ]
+            )
+            if not suffixes:
+                self._group_id += '__1'
+            else:
+                self._group_id = f'{base}__{suffixes[-1] + 1}'
+
         self.used_group_ids.add(self.group_id)
         self.used_group_ids.add(self.downstream_join_id)
         self.used_group_ids.add(self.upstream_join_id)
@@ -344,3 +373,53 @@ class TaskGroupContext:
                 return dag.task_group
 
         return cls._context_managed_task_group
+
+
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+
+
+def taskgroup(python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs) -> Callable[[T], T]:
+    """
+    Python TaskGroup decorator. Wraps a function into an Airflow TaskGroup.
+    Accepts kwargs for operator TaskGroup. Can be used to parametrize TaskGroup.
+
+    :param python_callable: Function to decorate
+    :param tg_args: Arguments for TaskGroup object
+    :type tg_args: list
+    :param tg_kwargs: Kwargs for TaskGroup object.
+    :type tg_kwargs: dict
+    """
+
+    def wrapper(f: T):
+
+        # Setting group_id as function name if not given in kwarg group_id
+        if len(tg_args) == 0 and 'group_id' not in tg_kwargs.keys():
+            tg_kwargs['group_id'] = f.__name__
+
+        # Get dag initializer signature and bind it to validate that task_group_args,
+        # and task_group_kwargs are correct
+        task_group_sig = signature(TaskGroup.__init__)
+        task_group_bound_args = task_group_sig.bind_partial(*tg_args, **tg_kwargs)
+
+        @functools.wraps(f)
+        def factory(*args, **kwargs):
+            # Generate signature for decorated function and bind the arguments when called
+            # we do this to extract parameters so we can annotate them on the DAG object.
+            # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
+            f_sig = signature(f).bind(*args, **kwargs)
+            # Apply defaults to capture default values if set.
+            f_sig.apply_defaults()
+
+            # Initialize TaskGroup with bound arguments
+            with TaskGroup(*task_group_bound_args.args, **task_group_bound_args.kwargs) as tg_obj:
+                # Invoke function to run Tasks inside the TaskGroup
+                f(**f_sig.arguments)
+
+            # Return task_group object such that it's accessible in Globals.
+            return tg_obj
+
+        return cast(T, factory)
+
+    if callable(python_callable):
+        return wrapper(python_callable)
+    return wrapper
