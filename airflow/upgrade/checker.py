@@ -46,7 +46,7 @@ def list_checks():
     print("Upgrade Checks:")
     for rule in ALL_RULES:
         rule_name = rule.__class__.__name__
-        print("- {} [{}]".format(rule.title, rule_name))
+        print("- {}: {}".format(rule_name, rule.title))
     print()
 
 
