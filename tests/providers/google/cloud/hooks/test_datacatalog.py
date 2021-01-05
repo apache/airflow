@@ -21,7 +21,6 @@ from typing import Dict, Sequence, Tuple
 from unittest import TestCase, mock
 
 from google.api_core.retry import Retry
-from google.cloud.datacatalog_v1beta1 import CreateTagRequest, CreateTagTemplateRequest
 from google.cloud.datacatalog_v1beta1.types import Entry, Tag, TagTemplate
 
 from airflow import AirflowException
@@ -38,7 +37,7 @@ TEST_ENTRY_ID: str = "test-entry-id"
 TEST_ENTRY: Dict = {}
 TEST_RETRY: Retry = Retry()
 TEST_TIMEOUT: float = 4
-TEST_METADATA: Sequence[Tuple[str, str]] = ()
+TEST_METADATA: Sequence[Tuple[str, str]] = []
 TEST_ENTRY_GROUP_ID: str = "test-entry-group-id"
 TEST_ENTRY_GROUP: Dict = {}
 TEST_TAG: Dict = {}
@@ -102,7 +101,7 @@ class TestCloudDataCatalog(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.lookup_entry.assert_called_once_with(
-            request=dict(linked_resource=TEST_LINKED_RESOURCE),
+            linked_resource=TEST_LINKED_RESOURCE,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -118,10 +117,7 @@ class TestCloudDataCatalog(TestCase):
             sql_resource=TEST_SQL_RESOURCE, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
         )
         mock_get_conn.return_value.lookup_entry.assert_called_once_with(
-            request=dict(sql_resource=TEST_SQL_RESOURCE),
-            retry=TEST_RETRY,
-            timeout=TEST_TIMEOUT,
-            metadata=TEST_METADATA,
+            sql_resource=TEST_SQL_RESOURCE, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
         )
 
     @mock.patch(
@@ -151,9 +147,10 @@ class TestCloudDataCatalog(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.search_catalog.assert_called_once_with(
-            request=dict(
-                scope=TEST_SCOPE, query=TEST_QUERY, page_size=TEST_PAGE_SIZE, order_by=TEST_ORDER_BY
-            ),
+            scope=TEST_SCOPE,
+            query=TEST_QUERY,
+            page_size=TEST_PAGE_SIZE,
+            order_by=TEST_ORDER_BY,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -186,11 +183,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_entry.assert_called_once_with(
-            request=dict(
-                parent=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_1),
-                entry_id=TEST_ENTRY_ID,
-                entry=TEST_ENTRY,
-            ),
+            parent=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_1),
+            entry_id=TEST_ENTRY_ID,
+            entry=TEST_ENTRY,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -211,11 +206,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_entry_group.assert_called_once_with(
-            request=dict(
-                parent=TEST_LOCATION_PATH.format(TEST_PROJECT_ID_1),
-                entry_group_id=TEST_ENTRY_GROUP_ID,
-                entry_group=TEST_ENTRY_GROUP,
-            ),
+            parent=TEST_LOCATION_PATH.format(TEST_PROJECT_ID_1),
+            entry_group_id=TEST_ENTRY_GROUP_ID,
+            entry_group=TEST_ENTRY_GROUP,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -238,10 +231,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_tag.assert_called_once_with(
-            request=CreateTagRequest(
-                parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
-                tag=Tag(template=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1)),
-            ),
+            parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
+            tag={"template": TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1)},
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -264,10 +255,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_tag.assert_called_once_with(
-            request=CreateTagRequest(
-                parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
-                tag=Tag(template=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1)),
-            ),
+            parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
+            tag=Tag(template=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1)),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -288,11 +277,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_tag_template.assert_called_once_with(
-            request=CreateTagTemplateRequest(
-                parent=TEST_LOCATION_PATH.format(TEST_PROJECT_ID_1),
-                tag_template_id=TEST_TAG_TEMPLATE_ID,
-                tag_template=TEST_TAG_TEMPLATE,
-            ),
+            parent=TEST_LOCATION_PATH.format(TEST_PROJECT_ID_1),
+            tag_template_id=TEST_TAG_TEMPLATE_ID,
+            tag_template=TEST_TAG_TEMPLATE,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -314,11 +301,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_tag_template_field.assert_called_once_with(
-            request=dict(
-                parent=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1),
-                tag_template_field_id=TEST_TAG_TEMPLATE_FIELD_ID,
-                tag_template_field=TEST_TAG_TEMPLATE_FIELD,
-            ),
+            parent=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1),
+            tag_template_field_id=TEST_TAG_TEMPLATE_FIELD_ID,
+            tag_template_field=TEST_TAG_TEMPLATE_FIELD,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -339,9 +324,7 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_entry.assert_called_once_with(
-            request=dict(
-                name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
-            ),
+            name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -361,9 +344,7 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_entry_group.assert_called_once_with(
-            request=dict(
-                name=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_1),
-            ),
+            name=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_1),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -385,9 +366,7 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_tag.assert_called_once_with(
-            request=dict(
-                name=TEST_TAG_PATH.format(TEST_PROJECT_ID_1),
-            ),
+            name=TEST_TAG_PATH.format(TEST_PROJECT_ID_1),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -408,7 +387,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_tag_template.assert_called_once_with(
-            request=dict(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1), force=TEST_FORCE),
+            name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1),
+            force=TEST_FORCE,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -430,10 +410,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_tag_template_field.assert_called_once_with(
-            request=dict(
-                name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_1),
-                force=TEST_FORCE,
-            ),
+            name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_1),
+            force=TEST_FORCE,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -454,9 +432,7 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_entry.assert_called_once_with(
-            request=dict(
-                name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
-            ),
+            name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -477,10 +453,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_entry_group.assert_called_once_with(
-            request=dict(
-                name=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_1),
-                read_mask=TEST_READ_MASK,
-            ),
+            name=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_1),
+            read_mask=TEST_READ_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -500,9 +474,7 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_tag_template.assert_called_once_with(
-            request=dict(
-                name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1),
-            ),
+            name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -524,10 +496,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.list_tags.assert_called_once_with(
-            request=dict(
-                parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
-                page_size=TEST_PAGE_SIZE,
-            ),
+            parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
+            page_size=TEST_PAGE_SIZE,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -553,10 +523,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.list_tags.assert_called_once_with(
-            request=dict(
-                parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
-                page_size=100,
-            ),
+            parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1),
+            page_size=100,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -579,10 +547,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.rename_tag_template_field.assert_called_once_with(
-            request=dict(
-                name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_1),
-                new_tag_template_field_id=TEST_NEW_TAG_TEMPLATE_FIELD_ID,
-            ),
+            name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_1),
+            new_tag_template_field_id=TEST_NEW_TAG_TEMPLATE_FIELD_ID,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -605,10 +571,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_entry.assert_called_once_with(
-            request=dict(
-                entry=Entry(name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1)),
-                update_mask=TEST_UPDATE_MASK,
-            ),
+            entry=Entry(name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_1)),
+            update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -632,7 +596,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag.assert_called_once_with(
-            request=dict(tag=Tag(name=TEST_TAG_PATH.format(TEST_PROJECT_ID_1)), update_mask=TEST_UPDATE_MASK),
+            tag=Tag(name=TEST_TAG_PATH.format(TEST_PROJECT_ID_1)),
+            update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -654,10 +619,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag_template.assert_called_once_with(
-            request=dict(
-                tag_template=TagTemplate(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1)),
-                update_mask=TEST_UPDATE_MASK,
-            ),
+            tag_template=TagTemplate(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_1)),
+            update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -680,11 +643,9 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag_template_field.assert_called_once_with(
-            request=dict(
-                name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_1),
-                tag_template_field=TEST_TAG_TEMPLATE_FIELD,
-                update_mask=TEST_UPDATE_MASK,
-            ),
+            name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_1),
+            tag_template_field=TEST_TAG_TEMPLATE_FIELD,
+            update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -718,11 +679,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_entry.assert_called_once_with(
-            request=dict(
-                parent=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_2),
-                entry_id=TEST_ENTRY_ID,
-                entry=TEST_ENTRY,
-            ),
+            parent=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_2),
+            entry_id=TEST_ENTRY_ID,
+            entry=TEST_ENTRY,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -744,11 +703,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_entry_group.assert_called_once_with(
-            request=dict(
-                parent=TEST_LOCATION_PATH.format(TEST_PROJECT_ID_2),
-                entry_group_id=TEST_ENTRY_GROUP_ID,
-                entry_group=TEST_ENTRY_GROUP,
-            ),
+            parent=TEST_LOCATION_PATH.format(TEST_PROJECT_ID_2),
+            entry_group_id=TEST_ENTRY_GROUP_ID,
+            entry_group=TEST_ENTRY_GROUP,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -772,10 +729,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_tag.assert_called_once_with(
-            request=CreateTagRequest(
-                parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2),
-                tag=Tag(template=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2)),
-            ),
+            parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2),
+            tag={"template": TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2)},
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -799,10 +754,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_tag.assert_called_once_with(
-            request=CreateTagRequest(
-                parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2),
-                tag=Tag(template=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2)),
-            ),
+            parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2),
+            tag=Tag(template=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2)),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -824,11 +777,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_tag_template.assert_called_once_with(
-            request=CreateTagTemplateRequest(
-                parent=TEST_LOCATION_PATH.format(TEST_PROJECT_ID_2),
-                tag_template_id=TEST_TAG_TEMPLATE_ID,
-                tag_template=TEST_TAG_TEMPLATE,
-            ),
+            parent=TEST_LOCATION_PATH.format(TEST_PROJECT_ID_2),
+            tag_template_id=TEST_TAG_TEMPLATE_ID,
+            tag_template=TEST_TAG_TEMPLATE,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -851,11 +802,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.create_tag_template_field.assert_called_once_with(
-            request=dict(
-                parent=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2),
-                tag_template_field_id=TEST_TAG_TEMPLATE_FIELD_ID,
-                tag_template_field=TEST_TAG_TEMPLATE_FIELD,
-            ),
+            parent=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2),
+            tag_template_field_id=TEST_TAG_TEMPLATE_FIELD_ID,
+            tag_template_field=TEST_TAG_TEMPLATE_FIELD,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -877,7 +826,7 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_entry.assert_called_once_with(
-            request=dict(name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2)),
+            name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -898,7 +847,7 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_entry_group.assert_called_once_with(
-            request=dict(name=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_2)),
+            name=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_2),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -921,7 +870,7 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_tag.assert_called_once_with(
-            request=dict(name=TEST_TAG_PATH.format(TEST_PROJECT_ID_2)),
+            name=TEST_TAG_PATH.format(TEST_PROJECT_ID_2),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -943,7 +892,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_tag_template.assert_called_once_with(
-            request=dict(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2), force=TEST_FORCE),
+            name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2),
+            force=TEST_FORCE,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -966,7 +916,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_tag_template_field.assert_called_once_with(
-            request=dict(name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_2), force=TEST_FORCE),
+            name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_2),
+            force=TEST_FORCE,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -988,7 +939,7 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_entry.assert_called_once_with(
-            request=dict(name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2)),
+            name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -1010,10 +961,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_entry_group.assert_called_once_with(
-            request=dict(
-                name=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_2),
-                read_mask=TEST_READ_MASK,
-            ),
+            name=TEST_ENTRY_GROUP_PATH.format(TEST_PROJECT_ID_2),
+            read_mask=TEST_READ_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -1034,7 +983,7 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_tag_template.assert_called_once_with(
-            request=dict(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2)),
+            name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -1057,7 +1006,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.list_tags.assert_called_once_with(
-            request=dict(parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2), page_size=TEST_PAGE_SIZE),
+            parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2),
+            page_size=TEST_PAGE_SIZE,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -1084,7 +1034,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.list_tags.assert_called_once_with(
-            request=dict(parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2), page_size=100),
+            parent=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2),
+            page_size=100,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -1108,10 +1059,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.rename_tag_template_field.assert_called_once_with(
-            request=dict(
-                name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_2),
-                new_tag_template_field_id=TEST_NEW_TAG_TEMPLATE_FIELD_ID,
-            ),
+            name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_2),
+            new_tag_template_field_id=TEST_NEW_TAG_TEMPLATE_FIELD_ID,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -1135,9 +1084,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_entry.assert_called_once_with(
-            request=dict(
-                entry=Entry(name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2)), update_mask=TEST_UPDATE_MASK
-            ),
+            entry=Entry(name=TEST_ENTRY_PATH.format(TEST_PROJECT_ID_2)),
+            update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -1162,7 +1110,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag.assert_called_once_with(
-            request=dict(tag=Tag(name=TEST_TAG_PATH.format(TEST_PROJECT_ID_2)), update_mask=TEST_UPDATE_MASK),
+            tag=Tag(name=TEST_TAG_PATH.format(TEST_PROJECT_ID_2)),
+            update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -1185,10 +1134,8 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag_template.assert_called_once_with(
-            request=dict(
-                tag_template=TagTemplate(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2)),
-                update_mask=TEST_UPDATE_MASK,
-            ),
+            tag_template=TagTemplate(name=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2)),
+            update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -1212,11 +1159,9 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_tag_template_field.assert_called_once_with(
-            request=dict(
-                name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_2),
-                tag_template_field=TEST_TAG_TEMPLATE_FIELD,
-                update_mask=TEST_UPDATE_MASK,
-            ),
+            name=TEST_TAG_TEMPLATE_FIELD_PATH.format(TEST_PROJECT_ID_2),
+            tag_template_field=TEST_TAG_TEMPLATE_FIELD,
+            update_mask=TEST_UPDATE_MASK,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,

@@ -19,16 +19,17 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
-from google.cloud.datacatalog_v1beta1 import DataCatalogClient, SearchCatalogResult
+from google.cloud.datacatalog_v1beta1 import DataCatalogClient
 from google.cloud.datacatalog_v1beta1.types import (
     Entry,
     EntryGroup,
+    FieldMask,
     SearchCatalogRequest,
     Tag,
     TagTemplate,
     TagTemplateField,
 )
-from google.protobuf.field_mask_pb2 import FieldMask
+from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
@@ -152,7 +153,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         _, _, entry_id = result.name.rpartition("/")
         self.log.info("Current entry_id ID: %s", entry_id)
         context["task_instance"].xcom_push(key="entry_id", value=entry_id)
-        return Entry.to_dict(result)
+        return MessageToDict(result)
 
 
 class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
@@ -267,7 +268,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         _, _, entry_group_id = result.name.rpartition("/")
         self.log.info("Current entry group ID: %s", entry_group_id)
         context["task_instance"].xcom_push(key="entry_group_id", value=entry_group_id)
-        return EntryGroup.to_dict(result)
+        return MessageToDict(result)
 
 
 class CloudDataCatalogCreateTagOperator(BaseOperator):
@@ -403,7 +404,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         _, _, tag_id = tag.name.rpartition("/")
         self.log.info("Current Tag ID: %s", tag_id)
         context["task_instance"].xcom_push(key="tag_id", value=tag_id)
-        return Tag.to_dict(tag)
+        return MessageToDict(tag)
 
 
 class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
@@ -515,7 +516,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         _, _, tag_template = result.name.rpartition("/")
         self.log.info("Current Tag ID: %s", tag_template)
         context["task_instance"].xcom_push(key="tag_template_id", value=tag_template)
-        return TagTemplate.to_dict(result)
+        return MessageToDict(result)
 
 
 class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
@@ -637,7 +638,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
 
         self.log.info("Current Tag ID: %s", self.tag_template_field_id)
         context["task_instance"].xcom_push(key="tag_template_field_id", value=self.tag_template_field_id)
-        return TagTemplateField.to_dict(result)
+        return MessageToDict(result)
 
 
 class CloudDataCatalogDeleteEntryOperator(BaseOperator):
@@ -1215,7 +1216,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return Entry.to_dict(result)
+        return MessageToDict(result)
 
 
 class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
@@ -1233,8 +1234,8 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
     :param read_mask: The fields to return. If not set or empty, all fields are returned.
 
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.protobuf.field_mask_pb2.FieldMask`
-    :type read_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
+        :class:`~google.cloud.datacatalog_v1beta1.types.FieldMask`
+    :type read_mask: Union[Dict, google.cloud.datacatalog_v1beta1.types.FieldMask]
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
     :type project_id: Optional[str]
@@ -1311,7 +1312,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return EntryGroup.to_dict(result)
+        return MessageToDict(result)
 
 
 class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
@@ -1398,7 +1399,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return TagTemplate.to_dict(result)
+        return MessageToDict(result)
 
 
 class CloudDataCatalogListTagsOperator(BaseOperator):
@@ -1500,7 +1501,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return [Tag.to_dict(item) for item in result]
+        return [MessageToDict(item) for item in result]
 
 
 class CloudDataCatalogLookupEntryOperator(BaseOperator):
@@ -1588,7 +1589,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return Entry.to_dict(result)
+        return MessageToDict(result)
 
 
 class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
@@ -1808,7 +1809,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return [SearchCatalogResult.to_dict(item) for item in result]
+        return [MessageToDict(item) for item in result]
 
 
 class CloudDataCatalogUpdateEntryOperator(BaseOperator):
@@ -1828,8 +1829,8 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         updated.
 
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.protobuf.field_mask_pb2.FieldMask`
-    :type update_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
+        :class:`~google.cloud.datacatalog_v1beta1.types.FieldMask`
+    :type update_mask: Union[Dict, google.cloud.datacatalog_v1beta1.types.FieldMask]
     :param location: Required. The location of the entry to update.
     :type location: str
     :param entry_group: The entry group ID for the entry that is being updated.
@@ -1939,8 +1940,8 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         updated. Currently the only modifiable field is the field ``fields``.
 
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.protobuf.field_mask_pb2.FieldMask`
-    :type update_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
+        :class:`~google.cloud.datacatalog_v1beta1.types.FieldMask`
+    :type update_mask: Union[Dict, google.cloud.datacatalog_v1beta1.types.FieldMask]
     :param location: Required. The location of the tag to rename.
     :type location: str
     :param entry_group: The entry group ID for the tag that is being updated.
@@ -2059,8 +2060,8 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         If absent or empty, all of the allowed fields above will be updated.
 
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.protobuf.field_mask_pb2.FieldMask`
-    :type update_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
+        :class:`~google.cloud.datacatalog_v1beta1.types.FieldMask`
+    :type update_mask: Union[Dict, google.cloud.datacatalog_v1beta1.types.FieldMask]
     :param location: Required. The location of the tag template to rename.
     :type location: str
     :param tag_template_id: Optional. The tag template ID for the entry that is being updated.
@@ -2171,8 +2172,8 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         Therefore, enum values can only be added, existing enum values cannot be deleted nor renamed.
 
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.protobuf.field_mask_pb2.FieldMask`
-    :type update_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
+        :class:`~google.cloud.datacatalog_v1beta1.types.FieldMask`
+    :type update_mask: Union[Dict, google.cloud.datacatalog_v1beta1.types.FieldMask]
     :param tag_template_field_name: Optional. The name of the tag template field to rename.
     :type tag_template_field_name: str
     :param location: Optional. The location of the tag to rename.
