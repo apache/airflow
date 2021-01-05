@@ -215,6 +215,7 @@ jmespath==0.10.0
 json-merge-patch==0.2
 jsondiff==1.2.0
 jsonpatch==1.28
+jsonpath-ng==1.5.2
 jsonpickle==1.4.2
 jsonpointer==2.0
 jsonschema==3.2.0
@@ -279,6 +280,7 @@ pickleshare==0.7.5
 pinotdb==0.3.3
 pipdeptree==2.0.0
 pluggy==0.13.1
+ply==3.11
 portalocker==1.7.1
 pre-commit==2.9.3
 presto-python-client==0.7.0
