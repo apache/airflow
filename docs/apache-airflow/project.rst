@@ -68,6 +68,7 @@ Committers
 - @saguziel (Alex Guziel)
 - @sekikn (Kengo Seki)
 - @turbaszek (Tomasz Urbaszek)
+- @vikramkoka (Vikram Koka)
 - @XD-DENG (Xiaodong Deng)
 - @zhongjiajie (Jiajie Zhong)
 
