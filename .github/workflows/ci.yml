@@ -107,6 +107,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: >
           Event: ${{ github.event_name }}
           Repo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
@@ -128,6 +130,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
+          persist-credentials: false
         if: github.event_name  == 'pull_request'
       - name: Selective checks
         id: selective-checks
@@ -154,6 +157,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 2
+          persist-credentials: false
       - name: "Generate client codegen diff"
         run: ./scripts/ci/openapi/client_codegen_diff.sh
 
@@ -170,6 +174,8 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -207,6 +213,8 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
@@ -229,6 +237,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -264,6 +274,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -280,6 +292,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
+          persist-credentials: false
       - name: "Static checks: basic checks only"
         run: |
           ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
@@ -301,6 +314,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -329,6 +344,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
@@ -370,12 +387,14 @@ jobs:
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
-      VERSION_SUFFIX_FOR_PYPI: "rc1"
+      VERSION_SUFFIX_FOR_PYPI: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
     if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -414,7 +433,7 @@ jobs:
       INSTALL_AIRFLOW_VERSION: "${{ matrix.package-format }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      VERSION_SUFFIX_FOR_PYPI: "rc1"
+      VERSION_SUFFIX_FOR_PYPI: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
     strategy:
       matrix:
@@ -423,6 +442,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -454,6 +475,41 @@ jobs:
           path: "./files/airflow-readme-*"
           retention-days: 7
 
+  test-provider-packages-released-airflow:
+    timeout-minutes: 30
+    name: "Test Provider packages with 2.0.0 version ${{ matrix.package-format }}"
+    runs-on: ubuntu-20.04
+    needs: [build-info, ci-images]
+    env:
+      INSTALL_AIRFLOW_VERSION: "2.0.0"
+      AIRFLOW_EXTRAS: "all"
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      VERSION_SUFFIX_FOR_PYPI: "dev"
+      PACKAGE_FORMAT: ${{ matrix.package-format }}
+    strategy:
+      matrix:
+        package-format: ['wheel', 'sdist']
+    if: needs.build-info.outputs.image-build == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Prepare provider readmes"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider packages: ${{ matrix.package-format }}"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
+      - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+
   tests-helm:
     timeout-minutes: 20
     name: "Python unit tests for helm chart"
@@ -471,6 +527,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -527,6 +585,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -582,6 +642,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -634,6 +696,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -691,6 +755,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -778,6 +844,8 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -809,6 +877,8 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
@@ -843,6 +913,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -892,7 +964,7 @@ jobs:
 
   push-prod-images-to-github-registry:
     timeout-minutes: 10
-    name: "Push PROD images"
+    name: "Push PROD images as cache to GitHub Registry"
     runs-on: ubuntu-20.04
     needs:
       - build-info
@@ -904,6 +976,7 @@ jobs:
       - tests-kubernetes
       - prepare-backport-provider-packages
       - prepare-provider-packages
+      - test-provider-packages-released-airflow
       - prod-images
       - verify-prod-images
       - docs
@@ -920,20 +993,27 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+      - name:
+          "Prepare PROD image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+        env:
+          # Since we are going to push both final image and build image segment, we need to pull the
+          # build image, in case we are pulling from registry rather than building.
+          WAIT_FOR_PROD_BUILD_IMAGE: "true"
       - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
 
   push-ci-images-to-github-registry:
     timeout-minutes: 10
-    name: "Push CI images"
+    name: "Push CI images as cache to GitHub Registry"
     runs-on: ubuntu-20.04
     needs:
       - build-info
@@ -960,6 +1040,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -990,6 +1072,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -1028,6 +1112,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh
@@ -1036,6 +1122,7 @@ jobs:
         with:
           path: "repo"
           ref: ${{ steps.constraints-branch.outputs.branch }}
+          persist-credentials: false
       - name: "Get all artifacts (constraints)"
         uses: actions/download-artifact@v2
         with:
@@ -1067,6 +1154,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Tag commit"

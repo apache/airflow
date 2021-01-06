@@ -59,6 +59,23 @@ class TestPluginsRBAC(unittest.TestCase):
         self.assertEqual(link.name, v_appbuilder_package['category'])
         self.assertEqual(link.childs[0].name, v_appbuilder_package['name'])
 
+    def test_flaskappbuilder_nomenu_views(self):
+        from tests.plugins.test_plugin import v_nomenu_appbuilder_package
+
+        class AirflowNoMenuViewsPlugin(AirflowPlugin):
+            appbuilder_views = [v_nomenu_appbuilder_package]
+
+        appbuilder_class_name = str(v_nomenu_appbuilder_package['view'].__class__.__name__)
+
+        with mock_plugin_manager(plugins=[AirflowNoMenuViewsPlugin()]):
+            appbuilder = application.create_app(testing=True).appbuilder  # pylint: disable=no-member
+
+            plugin_views = [
+                view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name
+            ]
+
+            self.assertTrue(len(plugin_views) == 1)
+
     def test_flaskappbuilder_menu_links(self):
         from tests.plugins.test_plugin import appbuilder_mitem
 

@@ -51,7 +51,7 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (3.5 or 3.6)
+* Python (One of: 3.6, 3.7, 3.8)
 * MySQL
 * libxml
 
@@ -64,7 +64,7 @@ Extra Packages
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
    ``--use-deprecated legacy-resolver`` to your pip install command.
@@ -99,7 +99,7 @@ Creating a Local virtualenv
 
 To use your IDE for Airflow development and testing, you need to configure a virtual
 environment. Ideally you should set up virtualenv for all Python versions that Airflow
-supports (3.5, 3.6).
+supports (3.6, 3.7, 3.8).
 
 To create and initialize the local virtualenv:
 
@@ -127,7 +127,7 @@ To create and initialize the local virtualenv:
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
    ``--use-deprecated legacy-resolver`` to your pip install command.

@@ -83,13 +83,14 @@ Apache Airflow is tested with:
 | Python       | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
 | MySQL        | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
-| SQLite       | latest stable             | latest stable            | latest stable              |
+| SQLite       | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
 | Kubernetes   | 1.16.9, 1.17.5, 1.18.6    | 1.16.9, 1.17.5, 1.18.6   | 1.16.9, 1.17.5, 1.18.6     |
 
-**Note:** MariaDB and MySQL 5.x are unable to or have limitations with
-running multiple schedulers -- please see the "Scheduler" docs.
+**Note:** MySQL 5.x versions are unable to or have limitations with
+running multiple schedulers -- please see the "Scheduler" docs. MariaDB is not tested/recommended.
 
-**Note:** SQLite is used in Airflow tests. Do not use it in production.
+**Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
+using the latest stable version of SQLite for local development.
 
 ## Support for Python versions
 
@@ -133,7 +134,7 @@ produce unusable Airflow installation.
 
 In order to have repeatable installation, however, introduced in **Airflow 1.10.10** and updated in
 **Airflow 1.10.12** we also keep a set of "known-to-be-working" constraint files in the
-orphan `constraints-master` and `constraints-1-10` branches. We keep those "known-to-be-working"
+orphan `constraints-master`, `constraints-2-0` and `constraints-1-10` branches. We keep those "known-to-be-working"
 constraints files separately per major/minor python version.
 You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
 correct Airflow tag/version/branch and python versions in the URL.
@@ -143,22 +144,22 @@ correct Airflow tag/version/branch and python versions in the URL.
 NOTE!!!
 
 On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
 of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
 `pip install --upgrade pip==20.2.4` or, in case you use Pip 20.3, you need to add option
 `--use-deprecated legacy-resolver` to your pip install command.
 
 
 ```bash
-pip install apache-airflow==1.10.14 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
+pip install apache-airflow==2.0.0 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
-pip install apache-airflow[postgres,google]==1.10.14 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
+pip install apache-airflow[postgres,google]==2.0.0 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 ```
 
 For information on installing backport providers check [/docs/backport-providers.rst][/docs/backport-providers.rst].

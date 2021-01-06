@@ -136,17 +136,19 @@ The logic implemented for the changes works as follows:
    files), then we again run all tests and checks. Those are cases where the logic of the checks changed
    or the environment for the checks changed so we want to make sure to check everything.
 
-4) If any of docs changed: we need to have CI image so we enable image building
+4) If any of py files changed: we need to have CI image and run full static checks so we enable image building
 
-5) If any of chart files changed, we need to run helm tests so we enable helm unit tests
+5) If any of docs changed: we need to have CI image so we enable image building
 
-6) If any of API files changed, we need to run API tests so we enable them
+6) If any of chart files changed, we need to run helm tests so we enable helm unit tests
 
-7) If any of the relevant source files that trigger the tests have changed at all. Those are airflow
+7) If any of API files changed, we need to run API tests so we enable them
+
+8) If any of the relevant source files that trigger the tests have changed at all. Those are airflow
    sources, chart, tests and kubernetes_tests. If any of those files changed, we enable tests and we
    enable image building, because the CI images are needed to run tests.
 
-8) Then we determine which types of the tests should be run. We count all the changed files in the
+9) Then we determine which types of the tests should be run. We count all the changed files in the
    relevant airflow sources (airflow, chart, tests, kubernetes_tests) first and then we count how many
    files changed in different packages:
 
@@ -166,11 +168,11 @@ The logic implemented for the changes works as follows:
    h) In all cases where tests are enabled we also add Heisentests, Integration and - depending on
       the backend used = Postgres or MySQL types of tests.
 
-9) Quarantined tests are always run when tests are run - we need to run them often to observe how
-   often they fail so that we can decide to move them out of quarantine. Details about the
-   Quarantined tests are described in `TESTING.rst <TESTING.rst>`_
+10) Quarantined tests are always run when tests are run - we need to run them often to observe how
+    often they fail so that we can decide to move them out of quarantine. Details about the
+    Quarantined tests are described in `TESTING.rst <TESTING.rst>`_
 
-10) There is a special case of static checks. In case the above logic determines that the CI image
+11) There is a special case of static checks. In case the above logic determines that the CI image
     needs to be build, we run long and more comprehensive version of static checks - including Pylint,
     MyPy, Flake8. And those tests are run on all files, no matter how many files changed.
     In case the image is not built, we run only simpler set of changes - the longer static checks

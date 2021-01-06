@@ -30,6 +30,8 @@ def sync_perm(args):
     # Add missing permissions for all the Base Views
     appbuilder.add_permissions(update_perms=True)
     print('Updating permission on all DAG views')
-    dags = DagBag(read_dags_from_db=True).dags.values()
+    dagbag = DagBag(read_dags_from_db=True)
+    dagbag.collect_dags_from_db()
+    dags = dagbag.dags.values()
     for dag in dags:
         appbuilder.sm.sync_perm_for_dag(dag.dag_id, dag.access_control)

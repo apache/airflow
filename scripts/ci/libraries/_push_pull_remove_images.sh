@@ -279,7 +279,8 @@ function push_pull_remove_images::wait_for_github_registry_image() {
 
     GITHUB_API_CALL="${github_api_endpoint}/${image_name_in_github_registry}/manifests/${image_tag_in_github_registry}"
     while true; do
-        curl -X GET "${GITHUB_API_CALL}" -u "${GITHUB_USERNAME}:${GITHUB_TOKEN}" 2>/dev/null > "${OUTPUT_LOG}"
+        curl --connect-timeout 60  --max-time 60 \
+            -X GET "${GITHUB_API_CALL}" -u "${GITHUB_USERNAME}:${GITHUB_TOKEN}" 2>/dev/null > "${OUTPUT_LOG}"
         local digest
         digest=$(jq '.config.digest' < "${OUTPUT_LOG}")
         echo -n "."

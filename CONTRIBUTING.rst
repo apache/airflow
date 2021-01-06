@@ -23,6 +23,12 @@ Contributions
 Contributions are welcome and are greatly appreciated! Every little bit helps,
 and credit will always be given.
 
+New Contributor
+---------------
+If you are a new contributor, please follow the `Contributors Quick Start <https://github.com/apache/airflow/blob/master
+/CONTRIBUTORS_QUICK_START.rst>`__ guide to get a gentle step-by-step introduction to setting up the development
+environment and making your first contribution.
+
 Get Mentoring Support
 ---------------------
 
@@ -599,7 +605,7 @@ Airflow dependencies
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
    ``--use-deprecated legacy-resolver`` to your pip install command.
@@ -743,7 +749,7 @@ Pinned constraint files
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
    ``--use-deprecated legacy-resolver`` to your pip install command.
@@ -756,7 +762,7 @@ when installing ``apache-airflow``, you might need to provide additional constra
 example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
 
 However we now have ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files generated
-automatically and committed to orphan ``constraints-master`` and ``constraint-1-10`` branches based on
+automatically and committed to orphan ``constraints-master``, ``constraints-2-0` and ``constraints-1-10`` branches based on
 the set of all latest working and tested dependency versions. Those
 ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files can be used as
 constraints file when installing Apache Airflow - either from the sources:

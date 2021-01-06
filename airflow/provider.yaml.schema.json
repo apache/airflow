@@ -68,7 +68,7 @@
             "maxItems": 1
           }
         },
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "integration-name",
           "external-doc-url",
@@ -93,7 +93,7 @@
             }
           }
         },
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "integration-name",
           "python-modules"
@@ -121,7 +121,7 @@
           "integration-name",
           "python-modules"
         ],
-        "additionalProperties": false
+        "additionalProperties": true
       }
     },
     "hooks": {
@@ -141,7 +141,7 @@
             }
           }
         },
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "integration-name",
           "python-modules"
@@ -170,7 +170,7 @@
             "description": "List of python modules containing the transfers."
           }
         },
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "source-integration-name",
           "target-integration-name",
@@ -193,7 +193,7 @@
       }
     }
   },
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "name",
     "package-name",
