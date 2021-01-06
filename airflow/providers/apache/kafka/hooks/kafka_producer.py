@@ -52,7 +52,7 @@ class KafkaProducerHook(BaseHook):
             host = _conn.host or self.DEFAULT_HOST
             port = _conn.port or self.DEFAULT_PORT
 
-            self.server = f"""{host}:{port}"""
+            self.server = f"{host}:{port}"
             self.producer = KafkaProducer(bootstrap_servers=self.server, **service_options)
         return self.producer
 
