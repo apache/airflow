@@ -2233,3 +2233,10 @@
       type: string
       example: ~
       default: "/var/run/docker.sock"
+    - name: command_shell
+      description: |
+        Command Shell will tell mesos how to execute the command of the container.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
