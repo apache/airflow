@@ -819,6 +819,11 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('section-1-task-1', resp)
 
+    def test_tree_compression(self):
+        url = 'tree?dag_id=example_bash_operator'
+        resp = self.client.get(url, headers=[('Accept-Encoding', 'br')])
+        self.assertEqual(resp.headers['Content-Encoding'], 'br')
+
     def test_duration(self):
         url = 'duration?days=30&dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)

@@ -93,7 +93,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
-from airflow.www.decorators import action_logging, gzipped
+from airflow.www.decorators import action_logging, compressed
 from airflow.www.forms import (
     ConnectionForm,
     DagRunEditForm,
@@ -1840,7 +1840,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         ]
     )
-    @gzipped  # pylint: disable=too-many-locals
+    @compressed  # pylint: disable=too-many-locals
     @action_logging  # pylint: disable=too-many-locals
     def tree(self):
         """Get Dag as tree."""
@@ -2004,7 +2004,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         ]
     )
-    @gzipped
+    @compressed
     @action_logging
     @provide_session
     def graph(self, session=None):

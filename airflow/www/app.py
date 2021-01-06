@@ -30,6 +30,7 @@ from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
+from airflow.www.extensions.init_compressor import init_compress
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
@@ -104,6 +105,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
     Cache(app=flask_app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
+    init_compress(flask_app)
     init_flash_views(flask_app)
 
     configure_logging()
