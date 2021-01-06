@@ -269,7 +269,7 @@ class MesosExecutor(BaseExecutor):
 
         framework_name = get_framework_name()
         framework_id = None
-        framework_role = conf.get('mesos', 'FRAMEWORK_ROLE', fallback="Marathon")
+        framework_role = conf.get('mesos', 'FRAMEWORK_ROLE', fallback="marathon")
 
         task_cpu = conf.getint('mesos', 'TASK_CPU', fallback=1)
         task_memory = conf.getint('mesos', 'TASK_MEMORY', fallback=256)
