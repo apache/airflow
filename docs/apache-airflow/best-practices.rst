@@ -90,13 +90,13 @@ This can result in a lot of open connections.
 
 The best way of using variables is via a Jinja template, which will delay reading the value until the task execution. The template syntax to do this is:
 
-.. code-block:: jinja
+.. code-block::
 
     {{ var.value.<variable_name> }}
 
 or if you need to deserialize a json object from the variable :
 
-.. code-block:: jinja
+.. code-block::
 
     {{ var.json.<variable_name> }}
 
