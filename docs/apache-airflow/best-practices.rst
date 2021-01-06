@@ -90,13 +90,13 @@ This can result in a lot of open connections.
 
 The best way of using variables is via a Jinja template, which will delay reading the value until the task execution. The template syntax to do this is:
 
-.. code-block::
+.. code-block:: jinja
 
     {{ var.value.<variable_name> }}
 
 or if you need to deserialize a json object from the variable :
 
-.. code-block::
+.. code-block:: jinja
 
     {{ var.json.<variable_name> }}
 
@@ -118,7 +118,7 @@ DAG Loader Test
 This test should ensure that your DAG does not contain a piece of code that raises error while loading.
 No additional code needs to be written by the user to run this test.
 
-.. code-block::
+.. code-block:: bash
 
  python your-dag-file.py
 
@@ -133,7 +133,7 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
 
 **Unit test for loading a DAG:**
 
-.. code-block::
+.. code-block:: python
 
  from airflow.models import DagBag
  import unittest
@@ -152,7 +152,7 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
 **Unit test a DAG structure:**
 This is an example test want to verify the structure of a code-generated DAG against a dict object
 
-.. code-block::
+.. code-block:: python
 
  import unittest
  class testClass(unittest.TestCase):
@@ -173,7 +173,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
 **Unit test for custom operator:**
 
-.. code-block::
+.. code-block:: python
 
  import unittest
  from airflow.utils.state import State
@@ -206,16 +206,16 @@ make sure that the partition is created in S3 and perform some simple checks to 
 
 Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.providers.http.sensors.http.HttpSensor`.
 
-.. code-block::
+.. code-block:: python
 
- task = PushToS3(...)
- check = S3KeySensor(
-    task_id='check_parquet_exists',
-    bucket_key="s3://bucket/key/foo.parquet",
-    poke_interval=0,
-    timeout=0
- )
- task >> check
+   task = PushToS3(...)
+   check = S3KeySensor(
+      task_id='check_parquet_exists',
+      bucket_key="s3://bucket/key/foo.parquet",
+      poke_interval=0,
+      timeout=0
+   )
+   task >> check
 
 
 
@@ -228,11 +228,36 @@ Do not hard code values inside the DAG and then change them manually according t
 
 You can use environment variables to parameterize the DAG.
 
-.. code-block::
+.. code-block:: python
 
- import os
+   import os
 
- dest = os.environ.get(
-    "MY_DAG_DEST_PATH",
-    "s3://default-target/path/"
- )
+   dest = os.environ.get(
+      "MY_DAG_DEST_PATH",
+      "s3://default-target/path/"
+   )
+
+Mocking variables and connections
+=================================
+
+You can set an environment variable to configure variables or connections to limit interaction with the database.
+
+For variable, use :envvar:`AIRFLOW_VAR_{KEY}`.
+
+.. code-block:: python
+
+    with mock.patch.dict('os.environ', AIRFLOW_VAR_KEY="env-value"):
+        self.assertEqual("env-value", Variable.get("key"))
+
+For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
+
+.. code-block:: python
+
+    conn = Connection(
+        conn_type="gcpssh",
+        login="cat",
+        host="conn-host",
+    )
+    conn_uri = conn.get_uri()
+    with mock.patch.dict("os.environ", AIRFLOW_CONN_MY_CONN=conn_uri):
+      self.assertEqual("cat", Connection.get("my_conn").login)
