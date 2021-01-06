@@ -76,7 +76,7 @@ def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
     Using column name returns spec of the column.
     """
     for column in columns_specs:
-        if column["displayName"] == column_name:
+        if column["display_name"] == column_name:
             return extract_object_id(column)
     raise Exception(f"Unknown target column: {column_name}")
 
