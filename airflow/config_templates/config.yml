@@ -2186,7 +2186,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "avhost/docker-airflow"
+      default: ""
     - name: docker_volume_driver
       description: |
         Docker Volume Driver to mount the volumes to the docker_image_slave
