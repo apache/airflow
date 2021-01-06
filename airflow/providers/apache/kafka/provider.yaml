@@ -21,7 +21,7 @@ description: |
     `Apache Kafka <http://kafka.apache.org/>`__.
 
 versions:
-  - 2.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Apache Kafka
