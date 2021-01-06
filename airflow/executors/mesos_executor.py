@@ -326,7 +326,7 @@ class MesosExecutor(BaseExecutor):
             if not conf.get('mesos', 'DEFAULT_SECRET'):
                 self.log.error("Expecting authentication secret in the environment")
                 raise AirflowException("mesos.default_secret not provided in authenticated mode")
-            self.client.principal = conf.get('mesos', 'DEFAULT_PRINCIPAL')
+            self.client.principal = conf.get('mesos', 'DEFAULT_PRINCIPAL').replace('"', '')
             self.client.secret = conf.get('mesos', 'DEFAULT_SECRET')
 
         driver = AirflowMesosScheduler(self, self.task_queue, self.result_queue, task_cpu, task_memory)
