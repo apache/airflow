@@ -29,8 +29,9 @@ class KafkaProducerHook(BaseHook):
 
     def __init__(self, conn_id):
         """
-            Initializes an instance of the Kafka Producer Hook class.
-        :param conn_id
+        Initializes an instance of the Kafka Producer Hook class.
+        
+        :param conn_id:
             The airflow connection ID to use.
         """
         super().__init__(None)
