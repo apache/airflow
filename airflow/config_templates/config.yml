@@ -2069,6 +2069,13 @@
       type: integer
       example: ~
       default: "6"
+    - name: verify_ssl
+      description: |
+        Set this to false to skip verifying SSL certificate of Kubernetes python client.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
 - name: smart_sensor
   description: ~
   options:

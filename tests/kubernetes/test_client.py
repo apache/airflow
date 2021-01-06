@@ -19,9 +19,15 @@ import socket
 import unittest
 from unittest import mock
 
+from kubernetes.client import Configuration
 from urllib3.connection import HTTPConnection, HTTPSConnection
 
-from airflow.kubernetes.kube_client import RefreshConfiguration, _enable_tcp_keepalive, get_kube_client
+from airflow.kubernetes.kube_client import (
+    RefreshConfiguration,
+    _disable_verify_ssl,
+    _enable_tcp_keepalive,
+    get_kube_client,
+)
 
 
 class TestClient(unittest.TestCase):
@@ -50,3 +56,12 @@ class TestClient(unittest.TestCase):
 
         self.assertEqual(HTTPConnection.default_socket_options, expected_http_connection_options)
         self.assertEqual(HTTPSConnection.default_socket_options, expected_https_connection_options)
+
+    def test_disable_verify_ssl(self):
+        configuration = Configuration()
+        self.assertTrue(configuration.verify_ssl)
+
+        _disable_verify_ssl()
+
+        configuration = Configuration()
+        self.assertFalse(configuration.verify_ssl)
