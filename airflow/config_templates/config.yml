@@ -2119,6 +2119,13 @@
       type: string
       example: ~
       default: "Airflow"
+    - name: framework_role
+      description: |
+        The framework role under which Airflow will get resources from Mesos
+      version_added: ~
+      type: string
+      example: ~
+      default: "marathon"
     - name: task_cpu
       description: |
         Number of cpu cores required for running one task instance using

@@ -65,17 +65,13 @@ class AirflowMesosScheduler(MesosClient):
             self.log.error("Expecting docker image for  mesos executor")
             raise AirflowException("mesos.slave_docker_image not provided for mesos executor")
 
-        self.mesos_slave_docker_image = conf.get('mesos', 'DOCKER_IMAGE_SLAVE').replace('"', '')
-        self.mesos_docker_volume_driver = conf.get('mesos', 'DOCKER_VOLUME_DRIVER').replace('"', '')
-        self.mesos_docker_volume_dag_name = conf.get('mesos', 'DOCKER_VOLUME_DAG_NAME').replace('"', '')
-        self.mesos_docker_volume_dag_container_path = conf.get(
-            'mesos', 'DOCKER_VOLUME_DAG_CONTAINER_PATH'
-        ).replace('"', '')
-        self.mesos_docker_volume_logs_name = conf.get('mesos', 'DOCKER_VOLUME_LOGS_NAME').replace('"', '')
-        self.mesos_docker_volume_logs_container_path = conf.get(
-            'mesos', 'DOCKER_VOLUME_LOGS_CONTAINER_PATH'
-        ).replace('"', '')
-        self.mesos_docker_sock = conf.get('mesos', 'DOCKER_SOCK').replace('"', '')
+        self.mesos_slave_docker_image = conf.get('mesos', 'DOCKER_IMAGE_SLAVE')
+        self.mesos_docker_volume_driver = conf.get('mesos', 'DOCKER_VOLUME_DRIVER')
+        self.mesos_docker_volume_dag_name = conf.get('mesos', 'DOCKER_VOLUME_DAG_NAME')
+        self.mesos_docker_volume_dag_container_path = conf.get('mesos', 'DOCKER_VOLUME_DAG_CONTAINER_PATH')
+        self.mesos_docker_volume_logs_name = conf.get('mesos', 'DOCKER_VOLUME_LOGS_NAME')
+        self.mesos_docker_volume_logs_container_path = conf.get('mesos', 'DOCKER_VOLUME_LOGS_CONTAINER_PATH')
+        self.mesos_docker_sock = conf.get('mesos', 'DOCKER_SOCK')
         self.core_sql_alchemy_conn = conf.get('core', 'SQL_ALCHEMY_CONN')
         self.core_fernet_key = conf.get('core', 'FERNET_KEY')
         self.command_shell = conf.get('mesos', 'COMMAND_SHELL')
@@ -273,6 +269,7 @@ class MesosExecutor(BaseExecutor):
 
         framework_name = get_framework_name()
         framework_id = None
+        framework_role = conf.get('mesos', 'FRAMEWORK_ROLE', fallback="Marathon")
 
         task_cpu = conf.getint('mesos', 'TASK_CPU', fallback=1)
         task_memory = conf.getint('mesos', 'TASK_MEMORY', fallback=256)
@@ -311,8 +308,12 @@ class MesosExecutor(BaseExecutor):
         master_urls = "https://" + master
 
         self.client = MesosClient(
-            mesos_urls=master_urls.split(','), frameworkName=framework_name, frameworkId=None
+            mesos_urls=master_urls.split(','),
+            frameworkName=framework_name,
+            frameworkId=None,
         )
+
+        self.client.set_role(framework_role)
 
         if framework_failover_timeout:
             self.client.set_failover_timeout(framework_failover_timeout)
@@ -326,7 +327,7 @@ class MesosExecutor(BaseExecutor):
             if not conf.get('mesos', 'DEFAULT_SECRET'):
                 self.log.error("Expecting authentication secret in the environment")
                 raise AirflowException("mesos.default_secret not provided in authenticated mode")
-            self.client.principal = conf.get('mesos', 'DEFAULT_PRINCIPAL').replace('"', '')
+            self.client.principal = conf.get('mesos', 'DEFAULT_PRINCIPAL')
             self.client.secret = conf.get('mesos', 'DEFAULT_SECRET')
 
         driver = AirflowMesosScheduler(self, self.task_queue, self.result_queue, task_cpu, task_memory)
