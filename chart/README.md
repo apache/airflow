@@ -32,6 +32,10 @@ cluster using the [Helm](https://helm.sh) package manager.
 - Helm 2.11+ or Helm 3.0+
 - PV provisioner support in the underlying infrastructure
 
+## Configuring Airflow
+
+All Airflow configuation parameters (equivalent of `airflow.cfg`) are stored in [values.yaml](https://github.com/apache/airflow/blob/master/chart/values.yaml). You may wish to consult these prior to Chart installation.
+
 ## Installing the Chart
 
 To install this repository from source (using helm 3)
