@@ -377,32 +377,29 @@ class _DataflowJobsController(LoggingMixin):
         :rtype: bool
         :raise: Exception
         """
-        if 'type' in job:
-            if self._wait_until_finished is None:
-                wait_for_running = job['type'] == DataflowJobType.JOB_TYPE_STREAMING
-            else:
-                wait_for_running = not self._wait_until_finished
-
-            if job['currentState'] == DataflowJobStatus.JOB_STATE_DONE:
-                return True
-            elif job['currentState'] == DataflowJobStatus.JOB_STATE_FAILED:
-                raise Exception("Google Cloud Dataflow job {} has failed.".format(job['name']))
-            elif job['currentState'] == DataflowJobStatus.JOB_STATE_CANCELLED:
-                raise Exception("Google Cloud Dataflow job {} was cancelled.".format(job['name']))
-            elif job['currentState'] == DataflowJobStatus.JOB_STATE_DRAINED:
-                raise Exception("Google Cloud Dataflow job {} was drained.".format(job['name']))
-            elif job['currentState'] == DataflowJobStatus.JOB_STATE_UPDATED:
-                raise Exception("Google Cloud Dataflow job {} was updated.".format(job['name']))
-            elif job['currentState'] == DataflowJobStatus.JOB_STATE_RUNNING and wait_for_running:
-                return True
-            elif job['currentState'] in DataflowJobStatus.AWAITING_STATES:
-                return self._wait_until_finished is False
-            self.log.debug("Current job: %s", str(job))
-            raise Exception(
-                "Google Cloud Dataflow job {} was unknown state: {}".format(job["name"], job["currentState"])
-            )
+        if self._wait_until_finished is None:
+            wait_for_running = job.get('type', '') == DataflowJobType.JOB_TYPE_STREAMING
         else:
-            return False
+            wait_for_running = not self._wait_until_finished
+
+        if job['currentState'] == DataflowJobStatus.JOB_STATE_DONE:
+            return True
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_FAILED:
+            raise Exception("Google Cloud Dataflow job {} has failed.".format(job['name']))
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_CANCELLED:
+            raise Exception("Google Cloud Dataflow job {} was cancelled.".format(job['name']))
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_DRAINED:
+            raise Exception("Google Cloud Dataflow job {} was drained.".format(job['name']))
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_UPDATED:
+            raise Exception("Google Cloud Dataflow job {} was updated.".format(job['name']))
+        elif job['currentState'] == DataflowJobStatus.JOB_STATE_RUNNING and wait_for_running:
+            return True
+        elif job['currentState'] in DataflowJobStatus.AWAITING_STATES:
+            return self._wait_until_finished is False
+        self.log.debug("Current job: %s", str(job))
+        raise Exception(
+            "Google Cloud Dataflow job {} was unknown state: {}".format(job["name"], job["currentState"])
+        )
 
     def wait_for_done(self) -> None:
         """Helper method to wait for result of submitted job."""
