@@ -46,7 +46,7 @@ class KafkaConsumerHook(BaseHook):
         :return:
             A Kafka Consumer object.
         """
-        if not self._conn:
+        if not self.consumer:
             conn = self.get_connection(self.conn_id)
             service_options = conn.extra_dejson
             host = conn.host or self.DEFAULT_HOST
