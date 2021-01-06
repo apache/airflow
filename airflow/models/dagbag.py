@@ -90,7 +90,7 @@ class DagBag(LoggingMixin):
         include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
         include_smart_sensor: bool = conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-        read_dags_from_db: bool = False,
+        read_dags_from_db: bool = conf.getboolean('core', 'STORE_DAG_CODE'),
         store_serialized_dags: Optional[bool] = None,
     ):
         # Avoid circular import
