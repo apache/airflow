@@ -256,7 +256,7 @@ function set_output_skip_tests_but_build_images_and_exit() {
     run_tests "false"
     run_kubernetes_tests "false"
     set_test_types ""
-    set_basic_checks_only "true"
+    set_basic_checks_only "false"
     set_docs_build "true"
     set_image_build "true"
     exit
@@ -393,6 +393,24 @@ function check_if_docs_should_be_generated() {
     fi
     start_end::group_end
 }
+
+
+ANY_PY_FILES_CHANGED=(
+    "\.py$"
+)
+readonly ANY_PY_FILES_CHANGED
+
+function check_if_any_py_files_changed() {
+    start_end::group_start "Check if any Python files changed"
+    local pattern_array=("${ANY_PY_FILES_CHANGED[@]}")
+    show_changed_files
+
+    if [[ $(count_changed_files) != "0" ]]; then
+        image_build_needed="true"
+    fi
+    start_end::group_end
+}
+
 
 AIRFLOW_SOURCES_TRIGGERING_TESTS=(
     "^airflow"
@@ -597,6 +615,7 @@ kubernetes_tests_needed="false"
 
 get_changed_files
 run_all_tests_if_environment_files_changed
+check_if_any_py_files_changed
 check_if_docs_should_be_generated
 check_if_helm_tests_should_be_run
 check_if_api_tests_should_be_run

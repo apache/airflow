@@ -42,10 +42,6 @@
               "type": "string"
             }
           },
-          "logo": {
-            "description": "Path to the logo for the integration. The path must start with '/integration-logos/'",
-            "type": "string"
-          },
           "tags": {
             "description": "List of tags describing the integration. While we're using RST, only one tag is supported per integration.",
             "type": "array",
@@ -68,7 +64,7 @@
             "maxItems": 1
           }
         },
-        "additionalProperties": true,
+        "additionalProperties": false,
         "required": [
           "integration-name",
           "external-doc-url",
@@ -93,7 +89,7 @@
             }
           }
         },
-        "additionalProperties": true,
+        "additionalProperties": false,
         "required": [
           "integration-name",
           "python-modules"
@@ -121,7 +117,7 @@
           "integration-name",
           "python-modules"
         ],
-        "additionalProperties": true
+        "additionalProperties": false
       }
     },
     "hooks": {
@@ -141,7 +137,7 @@
             }
           }
         },
-        "additionalProperties": true,
+        "additionalProperties": false,
         "required": [
           "integration-name",
           "python-modules"
@@ -170,7 +166,7 @@
             "description": "List of python modules containing the transfers."
           }
         },
-        "additionalProperties": true,
+        "additionalProperties": false,
         "required": [
           "source-integration-name",
           "target-integration-name",
@@ -193,7 +189,7 @@
       }
     }
   },
-  "additionalProperties": true,
+  "additionalProperties": false,
   "required": [
     "name",
     "package-name",

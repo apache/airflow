@@ -913,31 +913,40 @@ function build_images::determine_docker_cache_strategy() {
 }
 
 
-function build_images::build_prod_images_from_packages() {
+function build_image::assert_variable() {
+    local variable_name="${1}"
+    local expected_value="${2}"
+    local variable_value=${!variable_name}
+    if [[ ${variable_value} != "${expected_value}" ]]; then
+        echo
+        echo  "${COLOR_RED_ERROR}: Variable ${variable_name}: expected_value: '${expected_value}' but was '${variable_value}'!${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+}
+
+function build_images::build_prod_images_from_locally_built_airflow_packages() {
+    # We do not install from PyPI
+    build_image::assert_variable INSTALL_FROM_PYPI "false"
+    # But then we reinstall airflow and providers from prepared packages in the docker context files
+    build_image::assert_variable INSTALL_FROM_DOCKER_CONTEXT_FILES "true"
+    # But we install everything from scratch to make a "clean" installation in case any dependencies got removed
+    build_image::assert_variable AIRFLOW_PRE_CACHED_PIP_PACKAGES "false"
+
     # Cleanup dist and docker-context-files folders
     mkdir -pv "${AIRFLOW_SOURCES}/dist"
     mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
     rm -f "${AIRFLOW_SOURCES}/dist/"*.{whl,tar.gz}
     rm -f "${AIRFLOW_SOURCES}/docker-context-files/"*.{whl,tar.gz}
 
-    runs::run_pip_download
-
-    # Remove all downloaded apache airflow packages
-    rm -f "${AIRFLOW_SOURCES}/dist/"apache_airflow*.whl
-    rm -f "${AIRFLOW_SOURCES}/dist/"apache-airflow*.tar.gz
-
-    # Remove all downloaded apache airflow packages
-    mv -f "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
-
     # Build necessary provider packages
     runs::run_prepare_provider_packages "${INSTALLED_PROVIDERS[@]}"
-
     mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
 
     # Build apache airflow packages
     build_airflow_packages::build_airflow_packages
-
     mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
+
     build_images::build_prod_images_with_group
 }
 

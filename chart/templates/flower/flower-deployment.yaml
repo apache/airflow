@@ -112,6 +112,7 @@ spec:
                   key: basicAuth
             {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "custom_airflow_environment" . | indent 10 }}
       volumes:
         - name: config
           configMap:

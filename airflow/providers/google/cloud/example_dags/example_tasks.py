@@ -29,7 +29,7 @@ from google.cloud.tasks_v2.types import Queue
 from google.protobuf import timestamp_pb2
 
 from airflow import models
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksQueueCreateOperator,
     CloudTasksQueueDeleteOperator,

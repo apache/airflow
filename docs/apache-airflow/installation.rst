@@ -21,6 +21,28 @@ Installation
 
 .. contents:: :local:
 
+
+Prerequisites
+-------------
+
+Airflow is tested with:
+
+* Python: 3.6, 3.7, 3.8
+
+* Databases:
+
+  * PostgreSQL:  9.6, 10, 11, 12, 13
+  * MySQL: 5.7, 8
+  * SQLite: 3.15.0+
+
+* Kubernetes: 1.16.9, 1.17.5, 1.18.6
+
+**Note:** MySQL 5.x versions are unable to or have limitations with
+running multiple schedulers -- please see the "Scheduler" docs. MariaDB is not tested/recommended.
+
+**Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
+using the latest stable version of SQLite for local development.
+
 Getting Airflow
 '''''''''''''''
 
@@ -68,8 +90,8 @@ and python versions in the URL.
     # For example: https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.6.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
-    Please note that with respect to Python 3 support, Airflow 2.0.0 has been
-    tested with Python 3.6, 3.7, and 3.8, but does not yet support Python 3.9.
+Please note that with respect to Python 3 support, Airflow 2.0.0 has been
+tested with Python 3.6, 3.7, and 3.8, but does not yet support Python 3.9.
 
 2. Installing with extras (for example postgres, google)
 

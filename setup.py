@@ -454,7 +454,6 @@ devel = [
     'blinker',
     'bowler',
     'click~=7.1',
-    'contextdecorator;python_version<"3.4"',
     'coverage',
     'docutils',
     'flake8>=3.6.0',
@@ -466,6 +465,7 @@ devel = [
     'importlib-resources~=1.4',
     'ipdb',
     'jira',
+    'jsonpath-ng',
     # HACK: Moto is not compatible with newer versions
     # See: https://github.com/spulec/moto/issues/3535
     'mock<4.0.3',

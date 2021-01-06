@@ -876,11 +876,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         self.log.info('Inserting %s row(s) into table %s:%s.%s', len(rows), project_id, dataset_id, table_id)
 
-        table = self._resolve_table_reference(
-            table_resource={}, project_id=project_id, dataset_id=dataset_id, table_id=table_id
-        )
-        errors = self.get_client().insert_rows(
-            table=Table.from_api_repr(table),
+        table_ref = TableReference(dataset_ref=DatasetReference(project_id, dataset_id), table_id=table_id)
+        bq_client = self.get_client(project_id=project_id)
+        table = bq_client.get_table(table_ref)
+        errors = bq_client.insert_rows(
+            table=table,
             rows=rows,
             ignore_unknown_values=ignore_unknown_values,
             skip_invalid_rows=skip_invalid_rows,

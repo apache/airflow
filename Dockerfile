@@ -247,30 +247,64 @@ ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
 WORKDIR /opt/airflow
 
-# remove mysql from extras if client is not installed
+# hadolint ignore=SC2086, SC2010
 RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
+        # Remove mysql from extras if client is not installed \
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
     fi; \
     if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
             pip install --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
                 --upgrade --upgrade-strategy eager; \
+            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
         else \
-            pip install --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+            pip install --upgrade --upgrade-strategy only-if-needed \
+                --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
                 --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+        fi; \
+    fi; \
+    if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
+        reinstalling_apache_airflow_package=$(ls /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true); \
+        if [[ "${reinstalling_apache_airflow_package}" != "" ]]; then \
+            # install airflow with extras \
+            reinstalling_apache_airflow_package="${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]"; \
+        fi; \
+        reinstalling_apache_airflow_providers_packages=$(ls /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true); \
+        if [[ ${reinstalling_apache_airflow_package} != "" || \
+              ${reinstalling_apache_airflow_providers_packages} == "" ]]; then \
+            if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
+                pip install --force-reinstall --upgrade --upgrade-strategy eager \
+                    --user ${reinstalling_apache_airflow_package} \
+                           ${reinstalling_apache_airflow_providers_packages}; \
+                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+            else \
+                pip install --force-reinstall --upgrade --upgrade-strategy only-if-needed \
+                    --user ${reinstalling_apache_airflow_package} \
+                           ${reinstalling_apache_airflow_providers_packages} \
+                    --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+            fi; \
+        fi ; \
+        # All the other packages we want to reinstall as-is, without dependencies \
+        reinstalling_other_packages=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
+            grep -v apache_airflow | grep -v apache-airflow || true); \
+        if [[ "${reinstalling_other_packages}" != "" ]]; then \
+            pip install --force-reinstall --user --no-deps ${reinstalling_other_packages}; \
         fi; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
-            pip install --user ${ADDITIONAL_PYTHON_DEPS} --upgrade --upgrade-strategy eager; \
+            pip install --user ${ADDITIONAL_PYTHON_DEPS} \
+                ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+                --upgrade --upgrade-strategy eager; \
+             pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+              pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}; \
         else \
-            pip install --user ${ADDITIONAL_PYTHON_DEPS} --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+            pip install --user ${ADDITIONAL_PYTHON_DEPS} --upgrade --upgrade-strategy only-if-needed \
+                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
         fi; \
-    fi; \
-    if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        if ls /docker-context-files/*.{whl,tar.gz} 1> /dev/null 2>&1; then \
-            pip install --user --no-deps /docker-context-files/*.{whl,tar.gz}; \
-        fi ; \
     fi; \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true

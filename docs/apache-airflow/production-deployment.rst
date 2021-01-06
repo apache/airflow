@@ -317,8 +317,19 @@ Preparing the constraint files and wheel files:
     --constraint docker-context-files/constraints-2-0.txt  \
     apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv]==2.0.0
 
+Since apache-airflow .whl packages are treated differently by the docker image, you need to rename the
+downloaded apache-airflow* files, for example:
 
-Building the image (after copying the files downloaded to the "docker-context-files" directory:
+.. code-block:: bash
+
+   pushd docker-context-files
+   for file in apache?airflow*
+   do
+     mv ${file} _${file}
+   done
+   popd
+
+Building the image:
 
 .. code-block:: bash
 
@@ -539,7 +550,19 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | corporate environments, this is required |
 |                                          |                                          | to install airflow from such pre-vetted  |
 |                                          |                                          | packages rather than from PyPI. For this |
-|                                          |                                          | to work, also set ``INSTALL_FROM_PYPI``  |
+|                                          |                                          | to work, also set ``INSTALL_FROM_PYPI``. |
+|                                          |                                          | Note that packages starting with         |
+|                                          |                                          | ``apache?airflow`` glob are treated      |
+|                                          |                                          | differently than other packages. All     |
+|                                          |                                          | ``apache?airflow`` packages are          |
+|                                          |                                          | installed with dependencies limited by   |
+|                                          |                                          | airflow constraints. All other packages  |
+|                                          |                                          | are installed without dependencies       |
+|                                          |                                          | 'as-is'. If you wish to install airflow  |
+|                                          |                                          | via 'pip download' with all dependencies |
+|                                          |                                          | downloaded, you have to rename the       |
+|                                          |                                          | apache airflow and provider packages to  |
+|                                          |                                          | not start with ``apache?airflow`` glob.  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to true, the dependencies are     |
 |                                          |                                          | upgraded to newer versions matching      |

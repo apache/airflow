@@ -75,6 +75,8 @@ class PluginTestAppBuilderBaseView(AppBuilderBaseView):
 v_appbuilder_view = PluginTestAppBuilderBaseView()
 v_appbuilder_package = {"name": "Test View", "category": "Test Plugin", "view": v_appbuilder_view}
 
+v_nomenu_appbuilder_package = {"view": v_appbuilder_view}
+
 # Creating a flask appbuilder Menu Item
 appbuilder_mitem = {
     "name": "Google",

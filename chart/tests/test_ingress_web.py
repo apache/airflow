@@ -14,26 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "2.2"
-services:
-  pinot:
-    image: apachepinot/pinot:latest
-    ports:
-      - "9080:9080"
-    volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-    command: QuickStart -type batch
-    healthcheck:
-      test: curl -f http://localhost:8000/health
-      interval: 5s
-      timeout: 30s
-      retries: 50
-    restart: always
 
-  airflow:
-    environment:
-      - INTEGRATION_PINOT=true
-    depends_on:
-      pinot:
-        condition: service_healthy
+import unittest
+
+import jmespath
+
+from tests.helm_template_generator import render_chart
+
+
+class IngressWebTest(unittest.TestCase):
+    def test_should_pass_validation_with_just_ingress_enabled(self):
+        render_chart(
+            values={"ingress": {"enabled": True}},
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )  # checks that no validation exception is raised
+
+    def test_should_allow_more_than_one_annotation(self):
+        docs = render_chart(
+            values={"ingress": {"enabled": True, "web": {"annotations": {"aa": "bb", "cc": "dd"}}}},
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )
+        self.assertEqual({"aa": "bb", "cc": "dd"}, jmespath.search("metadata.annotations", docs[0]))

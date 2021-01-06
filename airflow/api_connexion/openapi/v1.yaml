@@ -22,7 +22,7 @@ info:
   description: |
     # Overview
 
-    To facilitate management, the Apache Airflow supports a range of REST API endpoints across its
+    To facilitate management, Apache Airflow supports a range of REST API endpoints across its
     objects.
     This section provides an overview of the API design, methods, and supported use cases.
 
@@ -57,7 +57,7 @@ info:
 
     ### Read
 
-    An HTTP `GET` request can be used to read a resource or to list a number of resources.
+    The HTTP `GET` request can be used to read a resource or to list a number of resources.
 
     A resource's `id` can be submitted in the request parameters to read a specific resource.
     The response usually returns a `200 OK` response code upon success, with the resource's metadata in
@@ -181,7 +181,7 @@ info:
     # Errors
 
     We follow the error response format proposed in [RFC 7807](https://tools.ietf.org/html/rfc7807)
-    also known as Problem Details for HTTP APIs.  As with our normal API responses,
+    also known as Problem Details for HTTP APIs. As with our normal API responses,
     your client must be prepared to gracefully handle additional members of the response.
 
     ## Unauthenticated

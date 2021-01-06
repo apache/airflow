@@ -115,12 +115,22 @@ def _get_parser():
         action='store_true',
         help='Builds documentation for official release i.e. all links point to stable version',
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest='verbose',
+        action='store_true',
+        help=(
+            'Increases the verbosity of the script i.e. always displays a full log of '
+            'the build process, not just when it encounters errors'
+        ),
+    )
 
     return parser
 
 
 def build_docs_for_packages(
-    current_packages: List[str], docs_only: bool, spellcheck_only: bool, for_production: bool
+    current_packages: List[str], docs_only: bool, spellcheck_only: bool, for_production: bool, verbose: bool
 ) -> Tuple[Dict[str, List[DocBuildError]], Dict[str, List[SpellingError]]]:
     """Builds documentation for single package and returns errors"""
     all_build_errors: Dict[str, List[DocBuildError]] = defaultdict(list)
@@ -131,13 +141,13 @@ def build_docs_for_packages(
         builder.clean_files()
         if not docs_only:
             with with_group(f"Check spelling: {package_name}"):
-                spelling_errors = builder.check_spelling()
+                spelling_errors = builder.check_spelling(verbose=verbose)
             if spelling_errors:
                 all_spelling_errors[package_name].extend(spelling_errors)
 
         if not spellcheck_only:
             with with_group(f"Building docs: {package_name}"):
-                docs_errors = builder.build_sphinx_docs()
+                docs_errors = builder.build_sphinx_docs(verbose=verbose)
             if docs_errors:
                 all_build_errors[package_name].extend(docs_errors)
 
@@ -215,6 +225,7 @@ def main():
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         for_production=for_production,
+        verbose=args.verbose,
     )
     if package_build_errors:
         all_build_errors.update(package_build_errors)
@@ -237,6 +248,7 @@ def main():
             docs_only=docs_only,
             spellcheck_only=spellcheck_only,
             for_production=for_production,
+            verbose=args.verbose,
         )
         if package_build_errors:
             all_build_errors.update(package_build_errors)

@@ -192,10 +192,23 @@ definitions in Airflow.
         def test(self):
             return self.render("test_plugin/test.html", content="Hello galaxy!")
 
+    # Creating a flask appbuilder BaseView
+    class TestAppBuilderBaseNoMenuView(AppBuilderBaseView):
+        default_view = "test"
+
+        @expose("/")
+        def test(self):
+            return self.render("test_plugin/test.html", content="Hello galaxy!")
+
     v_appbuilder_view = TestAppBuilderBaseView()
     v_appbuilder_package = {"name": "Test View",
                             "category": "Test Plugin",
                             "view": v_appbuilder_view}
+
+    v_appbuilder_nomenu_view = TestAppBuilderBaseNoMenuView()
+    v_appbuilder_nomenu_package = {
+        "view": v_appbuilder_nomenu_view
+    }
 
     # Creating a flask appbuilder Menu Item
     appbuilder_mitem = {"name": "Google",
@@ -233,7 +246,7 @@ definitions in Airflow.
         hooks = [PluginHook]
         macros = [plugin_macro]
         flask_blueprints = [bp]
-        appbuilder_views = [v_appbuilder_package]
+        appbuilder_views = [v_appbuilder_package, v_appbuilder_nomenu_package]
         appbuilder_menu_items = [appbuilder_mitem]
         global_operator_extra_links = [GoogleLink(),]
         operator_extra_links = [S3LogLink(), ]
@@ -245,6 +258,9 @@ Note on role based views
 Airflow 1.10 introduced role based views using FlaskAppBuilder. You can configure which UI is used by setting
 ``rbac = True``. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
 the fields ``appbuilder_views`` and ``appbuilder_menu_items`` were added to the ``AirflowTestPlugin`` class.
+
+``appbuilder_views`` supports both views-with-menu and views-without-menu - to add a view with menu link, add a "name"
+key in view's package dictionary, otherwise the view is added to flask appbuilder without menu item.
 
 Exclude views from CSRF protection
 ----------------------------------
