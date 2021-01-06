@@ -1409,13 +1409,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ''
+
+            dag = current_app.dag_bag.get_dag(dag_id)
+            doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
+
             if request_conf:
                 default_conf = request_conf
             else:
                 try:
-                    dag = current_app.dag_bag.get_dag(dag_id)
-
-                    doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
                     default_conf = json.dumps(dag.params, indent=4)
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
