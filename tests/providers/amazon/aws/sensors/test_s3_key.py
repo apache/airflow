@@ -144,12 +144,12 @@ class TestS3KeySizeSensor(unittest.TestCase):
             [{"Contents": [{"Size": 0}]}, False],
             [{"Contents": []}, False],
             [{"Contents": [{"Size": 10}]}, True],
-            [{"Contents": [{"Size": 10}, {"Size": 0}]}, True],
+            [{"Contents": [{"Size": 10}, {"Size": 0}]}, False],
             [{"Contents": [{"Size": 10}, {"Size": 10}]}, True],
         ]
     )
     @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
-    def test_poke(self, mock_hook, paginate_return_value, poke_return_value):
+    def test_poke(self, paginate_return_value, poke_return_value, mock_hook):
         op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
 
         mock_check_for_key = mock_hook.return_value.check_for_key
@@ -159,6 +159,6 @@ class TestS3KeySizeSensor(unittest.TestCase):
         mock_conn = mock.Mock()
         mock_conn.return_value.get_paginator.return_value = mock_paginator
         mock_hook.return_value.get_conn = mock_conn
-        mock_paginator.paginate.return_value = paginate_return_value
+        mock_paginator.paginate.return_value = [paginate_return_value]
         self.assertIs(op.poke(None), poke_return_value)
         mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
