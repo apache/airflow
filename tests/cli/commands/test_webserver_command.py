@@ -71,9 +71,20 @@ class TestGunicornMonitor(unittest.TestCase):
 
     @mock.patch('airflow.cli.commands.webserver_command.sleep')
     def test_should_start_new_workers_when_missing(self, mock_sleep):
-        self.monitor._get_num_ready_workers_running.return_value = 2
-        self.monitor._get_num_workers_running.return_value = 2
+        self.monitor._get_num_ready_workers_running.return_value = 3
+        self.monitor._get_num_workers_running.return_value = 3
         self.monitor._check_workers()
+        # missing one worker, starting just 1
+        self.monitor._spawn_new_workers.assert_called_once_with(1)  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+    @mock.patch('airflow.cli.commands.webserver_command.sleep')
+    def test_should_start_new_batch_when_missing_many_workers(self, mock_sleep):
+        self.monitor._get_num_ready_workers_running.return_value = 1
+        self.monitor._get_num_workers_running.return_value = 1
+        self.monitor._check_workers()
+        # missing 3 workers, but starting single batch (2)
         self.monitor._spawn_new_workers.assert_called_once_with(2)  # pylint: disable=no-member
         self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
         self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
@@ -230,14 +241,16 @@ class TestCliWebServer(unittest.TestCase):
     def _check_processes(self, ignore_running=False):
         # Confirm that webserver hasn't been launched.
         # pgrep returns exit status 1 if no process matched.
+        # Use more specific regexps (^) to avoid matching pytest run when running specific method.
+        # For instance, we want to be able to do: pytest -k 'gunicorn'
         exit_code_pgrep_webserver = subprocess.Popen(["pgrep", "-c", "-f", "airflow webserver"]).wait()
-        exit_code_pgrep_gunicorn = subprocess.Popen(["pgrep", "-c", "-f", "gunicorn"]).wait()
+        exit_code_pgrep_gunicorn = subprocess.Popen(["pgrep", "-c", "-f", "^gunicorn"]).wait()
         if exit_code_pgrep_webserver != 1 or exit_code_pgrep_gunicorn != 1:
             subprocess.Popen(["ps", "-ax"]).wait()
             if exit_code_pgrep_webserver != 1:
                 subprocess.Popen(["pkill", "-9", "-f", "airflow webserver"]).wait()
             if exit_code_pgrep_gunicorn != 1:
-                subprocess.Popen(["pkill", "-9", "-f", "gunicorn"]).wait()
+                subprocess.Popen(["pkill", "-9", "-f", "^gunicorn"]).wait()
             if not ignore_running:
                 raise AssertionError(
                     "Background processes are running that prevent the test from passing successfully."
