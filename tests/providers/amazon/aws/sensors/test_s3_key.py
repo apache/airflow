@@ -130,13 +130,13 @@ class TestS3KeySizeSensor(unittest.TestCase):
         self.assertFalse(op.poke(None))
         mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
 
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook.get_files', return_value=True)
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3KeySizeSensor.get_files', return_value=[])
     @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook.check_for_key', return_value=True)
     def test_poke_get_files_false(self, mock_check_for_key, mock_get_files):
         op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file')
         self.assertFalse(op.poke(None))
         mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
-        mock_get_files.assert_called_once_with(op.get_hook())
+        mock_get_files.assert_called_once_with(s3_hook=op.get_hook())
 
     @parameterized.expand(
         [
