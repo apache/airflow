@@ -23,6 +23,7 @@ retrieve data from it, and write that data to a file for other uses.
 .. note:: this hook also relies on the simple_salesforce package:
       https://github.com/simple-salesforce/simple-salesforce
 """
+import json
 import logging
 import time
 from typing import Iterable, List, Optional
@@ -54,6 +55,14 @@ class SalesforceHook(BaseHook):
         For sandbox mode, add `{"domain":"test"}` in the `Extras` field
 
     """
+
+    type_map = {
+        'boolean': 'BOOLEAN',
+        'datetime': 'TIMESTAMP',
+        'double': 'FLOAT',
+        'date': 'DATE',
+        'int': 'INTEGER',
+    }
 
     def __init__(self, conn_id: str) -> None:
         super().__init__()
@@ -131,7 +140,7 @@ class SalesforceHook(BaseHook):
 
         return [field['name'] for field in obj_description['fields']]
 
-    def get_object_from_salesforce(self, obj: str, fields: Iterable[str]) -> dict:
+    def get_object_from_salesforce(self, obj: str, fields: Iterable[str] = '', **kwargs) -> dict:
         """
         Get all instances of the `object` from Salesforce.
         For each model, only get the fields specified in fields.
@@ -146,6 +155,9 @@ class SalesforceHook(BaseHook):
         :return: all instances of the object from Salesforce.
         :rtype: dict
         """
+        if not fields:
+            fields = self.get_available_fields(obj)
+
         query = "SELECT {} FROM {}".format(",".join(fields), obj)
 
         self.log.info(
@@ -153,7 +165,7 @@ class SalesforceHook(BaseHook):
             query if len(query) < 30 else " ... ".join([query[:15], query[-15:]]),
         )
 
-        return self.make_query(query)
+        return self.make_query(query, **kwargs)
 
     @classmethod
     def _to_timestamp(cls, column: pd.Series) -> pd.Series:
@@ -336,3 +348,43 @@ class SalesforceHook(BaseHook):
             df["time_fetched_from_salesforce"] = fetched_time
 
         return df
+
+    def write_schema_to_file(self, schema_file_name: str, obj: str, record_time_added: bool):
+        """
+        Export BigQuery schema to file
+
+        Write a JSON schema file with data types inferred from the Salesforce client.
+
+        :param schema_file_name: file name of the schema file (e.g schema.JSON)
+        :type schema_file_name: str
+        :param obj: Salesforce object name (e.g. Contact, Asset)
+        :type obj: str
+        :param record_time_added: Wheter to add a time_fetched_from_salesforce column
+        :type record_time_added: bool
+        """
+        descriptions = self.describe_object(obj)
+        fields = [field['name'] for field in descriptions['fields']]
+
+        data_types = [field['type'] for field in descriptions['fields']]
+        field_types = [self.type_map.get(data_type, "STRING") for data_type in data_types]
+
+        if record_time_added:
+            fields.append('time_fetched_from_salesforce')
+            field_types.append('TIMESTAMP')
+
+        schema = []
+
+        for field, field_type in zip(fields, field_types):
+            obj = {
+                'name': field,
+                'type': field_type,
+                'mode': 'NULLABLE',
+            }
+            schema.append(obj)
+
+        json_strings = json.dumps(schema)
+
+        with open(schema_file_name, 'w', enconding='utf-8') as f:
+            f.write(json_strings)
+
+        return schema
