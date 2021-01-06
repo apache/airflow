@@ -46,7 +46,7 @@ class KafkaProducerHook(BaseHook):
         :return:
             A Kafka Producer object.
         """
-        if not self._conn:
+        if not self.producer:
             _conn = self.get_connection(self.conn_id)
             service_options = _conn.extra_dejson
             host = _conn.host or self.DEFAULT_HOST
