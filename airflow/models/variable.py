@@ -17,6 +17,8 @@
 # under the License.
 
 import json
+import logging
+import os
 from typing import Any, Optional
 
 from cryptography.fernet import InvalidToken as InvalidFernetToken
@@ -29,6 +31,8 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
+
+log = logging.getLogger()
 
 
 class Variable(Base, LoggingMixin):
@@ -143,6 +147,14 @@ class Variable(Base, LoggingMixin):
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Sessions
         """
+        env_var_name = "AIRFLOW_VAR_" + key.upper()
+        if env_var_name in os.environ:
+            log.warning(
+                "You have the environment variable %s defined, which takes precedence over reading "
+                "from the database. The value will be saved, but to read it you have to delete "
+                "the environment variable.",
+                env_var_name,
+            )
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:
