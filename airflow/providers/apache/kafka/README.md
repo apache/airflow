@@ -50,12 +50,6 @@ You can install this package on top of an existing airflow 2.* installation via
 |:-----------------|:-------------------|
 | kafka | &gt;=1.3.5   |
 
-# Provider classes summary
-
-In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apache.kafka` provider
-are in the `airflow.providers.apache.kafka` package. You can read more about the naming conventions used
-in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
-
 
 ## Sensors
 
