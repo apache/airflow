@@ -455,6 +455,10 @@ function run_all_tests_if_environment_files_changed() {
         echo "Important environment files changed. Running everything"
         set_outputs_run_everything_and_exit
     fi
+    if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
+        echo "Full tests requested by label on PR. Running everything"
+        set_outputs_run_everything_and_exit
+    fi
     start_end::group_end
 }
 
