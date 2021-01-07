@@ -117,6 +117,7 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
         self._hook_context = None
 
 
+# TODO(xinbinhuang): refactor to reduce levels of inheritance
 # pylint: disable=too-many-ancestors
 class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator, QuboleOperator):
     """
