@@ -207,7 +207,7 @@ How to reduce airflow dag scheduling latency in production?
 
 - ``parsing_processes``: Scheduler will spawn multiple threads in parallel to parse dags.
   This is controlled by ``parsing_processes`` with default value of 2.
-  User should increase this value to a larger value (e.g numbers of cpus where scheduler runs + 1) in production.
+  User should increase this value to a larger value (e.g numbers of cpus where scheduler runs - 1) in production.
 - If you're using Airflow 1.10.x, consider moving to Airflow 2, which has reduced dag scheduling latency dramatically,
   and allows for running multiple schedulers.
 
