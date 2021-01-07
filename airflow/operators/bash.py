@@ -28,7 +28,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
-EXIT_CODE_SKIP = 255
+EXIT_CODE_SKIP = 127
 
 
 class BashOperator(BaseOperator):
