@@ -71,7 +71,7 @@ config:
     expose_config: 'False'   # <<<<<<<<<< BY DEFAULT THIS IS 'True' BUT WE CHANGE IT TO 'False' PRIOR TO INSTALLING THE CHART
 ```
 
-Generally speaking, it is useful to familiarize ones self with the Airflow configuration prior to installing and deploying the service.
+Generally speaking, it is useful to familiarize oneself with the Airflow configuration prior to installing and deploying the service.
 
 ## Installing the Chart
 
