@@ -138,19 +138,16 @@ class PodLauncher(LoggingMixin):
             if timestamp:
                 return pendulum.parse(timestamp)
             # If there were no logs, return the last log time
-            else:
-                return last_log_time
+            return last_log_time
         except ProtocolError as protocol_error:
             _, protocol_exception = protocol_error.args  # pylint: disable=unbalanced-tuple-unpacking
             # When no logs are fetched, an IncompleteRead is thrown trying
             # to decode the stream
             if str(protocol_exception) == "IncompleteRead(0 bytes read)":
                 self.log.info("The pod has not logged since the logs were last fetched")
-
                 return last_log_time
             # If the exception is not about an empty stream we raise it
-            else:
-                raise protocol_error
+            raise protocol_error
 
     def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
         """
