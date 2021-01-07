@@ -223,7 +223,7 @@ doc = [
     'sphinxcontrib-spelling==5.2.1',
 ]
 docker = [
-    'docker~=3.0',
+    'docker>=4.3',
 ]
 druid = [
     'pydruid>=0.4.1',

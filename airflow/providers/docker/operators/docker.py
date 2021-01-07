@@ -123,6 +123,9 @@ class DockerOperator(BaseOperator):
     :type tty: bool
     :param cap_add: Include container capabilities
     :type cap_add: list[str]
+    :param device_requests: device requests to docker runtime when creating Docker container.
+        eg. ``[docker.types.DeviceRequest(count=-1, capabilities=[['gpu']])]``
+    :type device_requests: list[any]
     """
 
     template_fields = ('command', 'environment', 'container_name')
@@ -166,6 +169,7 @@ class DockerOperator(BaseOperator):
         tty: bool = False,
         cap_add: Optional[Iterable[str]] = None,
         extra_hosts: Optional[Dict[str, str]] = None,
+        device_requests: Optional[List[any]] = None,
         **kwargs,
     ) -> None:
 
@@ -200,6 +204,8 @@ class DockerOperator(BaseOperator):
         self.tty = tty
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
+        self.device_requests = device_requests or []
+
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
@@ -243,6 +249,7 @@ class DockerOperator(BaseOperator):
                     mem_limit=self.mem_limit,
                     cap_add=self.cap_add,
                     extra_hosts=self.extra_hosts,
+                    device_requests=self.device_requests
                 ),
                 image=self.image,
                 user=self.user,
