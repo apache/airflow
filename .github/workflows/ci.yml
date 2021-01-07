@@ -186,7 +186,7 @@ jobs:
         if: needs.build-info.outputs.waitForImage == 'true'
       - name: >
           Wait for CI images
-          ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+          ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
         env:
           CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
             ${{needs.build-info.outputs.pythonVersionsListAsString}}
@@ -856,7 +856,7 @@ jobs:
         if: needs.build-info.outputs.waitForImage == 'true'
       - name: >
           Wait for PROD images
-          ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+          ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
         env:
           CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
             ${{needs.build-info.outputs.pythonVersionsListAsString}}
