@@ -72,6 +72,7 @@ class MongoToS3Operator(BaseOperator):
         mongo_db: Optional[str] = None,
         replace: bool = False,
         allow_disk_use: bool = False,
+        compression: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -92,6 +93,7 @@ class MongoToS3Operator(BaseOperator):
         self.s3_key = s3_key
         self.replace = replace
         self.allow_disk_use = allow_disk_use
+        self.compression = compression
 
     def execute(self, context) -> bool:
         """Is written to depend on transform method"""
@@ -118,7 +120,11 @@ class MongoToS3Operator(BaseOperator):
         docs_str = self._stringify(self.transform(results))
 
         s3_conn.load_string(
-            string_data=docs_str, key=self.s3_key, bucket_name=self.s3_bucket, replace=self.replace
+            string_data=docs_str,
+            key=self.s3_key,
+            bucket_name=self.s3_bucket,
+            replace=self.replace,
+            compression=self.compression,
         )
 
     @staticmethod
