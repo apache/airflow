@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from http.client import IncompleteRead
 from unittest import mock
 
+from kubernetes.client.models.v1_pod import V1Pod
 from requests.exceptions import BaseHTTPError
+from urllib3.exceptions import ProtocolError
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.pod_launcher import PodLauncher
@@ -188,3 +191,18 @@ class TestPodLauncher(unittest.TestCase):
             Exception,
             self.pod_launcher.parse_log_line('2020-10-08T14:16:17.793417674ZInvalid message\n'),
         )
+
+    def test_handle_empty_stream(self):
+        """Logs are fetched as a stream which can occasionally return b''.
+        Reading from the empty stream raises an IncompleteRead(0 bytes read) which should be caught.
+
+        Issue: https://github.com/apache/airflow/issues/12136.
+        """
+        self.pod_launcher.read_pod_logs = mock.Mock(
+            side_effect=ProtocolError("Connection broken: IncompleteRead(0 bytes read)", IncompleteRead(""))
+        )
+        self.pod_launcher.read_pod = mock.MagicMock()
+
+        self.pod_launcher.monitor_pod(V1Pod(), get_logs=True)
+
+        self.pod_launcher.read_pod_logs.assert_called_once()
