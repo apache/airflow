@@ -20,8 +20,8 @@ from typing import Dict, Optional
 
 from cached_property import cached_property
 
-from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.hooks.bash import BashHook, EXIT_CODE_SKIP
+from airflow.exceptions import AirflowException
+from airflow.hooks.subprocess import SubprocessHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -142,9 +142,9 @@ class BashOperator(BaseOperator):
         self.sub_process = None
 
     @cached_property
-    def bash_hook(self):
-        """Returns hook for running bash commands"""
-        return BashHook()
+    def subprocess_hook(self):
+        """Returns hook for running the bash command"""
+        return SubprocessHook()
 
     def get_env(self, context):
         """Builds the set of environment variables to be exposed for the bash command"""
@@ -160,13 +160,13 @@ class BashOperator(BaseOperator):
         env.update(airflow_context_vars)
         return env
 
-    def execute(self, context=None):
+    def execute(self, context):
         env = self.get_env(context)
-        return self.bash_hook.run_command(
-            command=self.bash_command,
+        return self.subprocess_hook.run_command(
+            command=['bash', '-c', self.bash_command],
             env=env,
             output_encoding=self.output_encoding,
         )
 
     def on_kill(self) -> None:
-        self.bash_hook.send_sigterm()
+        self.subprocess_hook.send_sigterm()

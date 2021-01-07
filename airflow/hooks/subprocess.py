@@ -19,7 +19,7 @@ import os
 import signal
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from airflow import AirflowException
 from airflow.exceptions import AirflowSkipException
@@ -28,20 +28,22 @@ from airflow.hooks.base import BaseHook
 EXIT_CODE_SKIP = 127
 
 
-class BashHook(BaseHook):
-    """Hook for running bash commands"""
+class SubprocessHook(BaseHook):
+    """Hook for running processes with the ``subprocess`` module"""
 
     def __init__(self) -> None:
         self.sub_process = None
         super().__init__()
 
-    def run_command(self, command: List[str], env: Optional[Dict[str, str]] = None, output_encoding: str = 'utf-8'):
+    def run_command(
+        self, command: List[str], env: Optional[Dict[str, str]] = None, output_encoding: str = 'utf-8'
+    ):
         """
-        Execute the bash command in a temporary directory which will be cleaned afterwards
+        Execute the command in a temporary directory which will be cleaned afterwards
 
         If ``env`` is not supplied, ``os.environ`` is passed
 
-        :param command: the bash command to run
+        :param command: the command to run
         :param env: Optional dict containing environment variables to be made available to the shell
             environment in which ``command`` will be executed.  If omitted, ``os.environ`` will be used.
         :param output_encoding: encoding to use for decoding stdout
@@ -61,11 +63,11 @@ class BashHook(BaseHook):
             self.log.info('Running command: %s', command)
 
             self.sub_process = Popen(  # pylint: disable=subprocess-popen-preexec-fn
-               command,
+                command,
                 stdout=PIPE,
                 stderr=STDOUT,
                 cwd=tmp_dir,
-                env=env or os.environ,
+                env=env if env or env == {} else os.environ,
                 preexec_fn=pre_exec,
             )
 
@@ -87,7 +89,7 @@ class BashHook(BaseHook):
         return line
 
     def send_sigterm(self):
-        """Sends sigterm signal to ``self.subprocess`` if one exists."""
-        self.log.info('Sending SIGTERM signal to bash process group')
+        """Sends SIGTERM signal to ``self.sub_process`` if one exists."""
+        self.log.info('Sending SIGTERM signal to process group')
         if self.sub_process and hasattr(self.sub_process, 'pid'):
             os.killpg(os.getpgid(self.sub_process.pid), signal.SIGTERM)

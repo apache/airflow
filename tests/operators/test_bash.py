@@ -95,7 +95,7 @@ class TestBashOperator(unittest.TestCase):
     def test_raise_exception_on_non_zero_exit_code(self):
         bash_operator = BashOperator(bash_command='exit 42', task_id='test_return_value', dag=None)
         with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
+            AirflowException, match="Process failed\\. The command returned a non-zero exit code\\."
         ):
             bash_operator.execute(context={})
 

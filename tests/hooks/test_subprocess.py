@@ -26,27 +26,28 @@ import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.bash import BashHook
+from airflow.hooks.subprocess import SubprocessHook
 
-OS_ENV_KEY = 'BASH_ENV_TEST'
+OS_ENV_KEY = 'SUBPROCESS_ENV_TEST'
 OS_ENV_VAL = 'this-is-from-os-environ'
 
 
-class TestBashOperator(unittest.TestCase):
+class TestSubprocessHook(unittest.TestCase):
     @parameterized.expand(
         [
             ('with env', {'ABC': '123', 'AAA': '456'}, {'ABC': '123', 'AAA': '456', OS_ENV_KEY: ''}),
+            ('empty env', {}, {OS_ENV_KEY: ''}),
             ('no env', None, {OS_ENV_KEY: OS_ENV_VAL}),
         ]
     )
     def test_env(self, name, env, expected):
         """
-        Test that env variables are exported correctly to the bash environment.
-        When ``env`` is not provided, ``os.environ`` should be passed to ``Popen``.
+        Test that env variables are exported correctly to the command environment.
+        When ``env`` is ``None``, ``os.environ`` should be passed to ``Popen``.
         Otherwise, the variables in ``env`` should be available, and ``os.environ`` should not.
         """
         print(f"test_name: {name}")
-        hook = BashHook()
+        hook = SubprocessHook()
 
         def build_cmd(keys, filename):
             """
@@ -59,7 +60,7 @@ class TestBashOperator(unittest.TestCase):
         with TemporaryDirectory() as tmp_dir, mock.patch.dict('os.environ', {OS_ENV_KEY: OS_ENV_VAL}):
             tmp_file = Path(tmp_dir, 'test.txt')
             command = build_cmd(env and env.keys() or [], tmp_file.as_posix())
-            hook.run_command(command=command, env=env)
+            hook.run_command(command=['bash', '-c', command], env=env)
             actual = dict([x.split('=') for x in tmp_file.read_text().splitlines()])
             assert actual == expected
 
@@ -72,32 +73,32 @@ class TestBashOperator(unittest.TestCase):
         ]
     )
     def test_return_value(self, val, expected):
-        hook = BashHook()
-        return_value = hook.run_command(command=f'echo "{val}"')
+        hook = SubprocessHook()
+        return_value = hook.run_command(command=['bash', '-c', f'echo "{val}"'])
         assert return_value == expected
 
     def test_raise_exception_on_non_zero_exit_code(self):
-        hook = BashHook()
+        hook = SubprocessHook()
         with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
+            AirflowException, match="Process failed\\. The command returned a non-zero exit code\\."
         ):
-            hook.run_command(command='exit 42')
+            hook.run_command(command=['bash', '-c', 'exit 42'])
 
     @mock.patch.dict('os.environ', clear=True)
     @mock.patch(
-        "airflow.hooks.bash.TemporaryDirectory",
+        "airflow.hooks.subprocess.TemporaryDirectory",
         **{'return_value.__enter__.return_value': '/tmp/airflowtmpcatcat'},  # type: ignore
     )
     @mock.patch(
-        "airflow.hooks.bash.Popen",
+        "airflow.hooks.subprocess.Popen",
         **{  # type: ignore
             'return_value.stdout.readline.side_effect': [b'BAR', b'BAZ'],
             'return_value.returncode': 0,
         },
     )
     def test_should_exec_subprocess(self, mock_popen, mock_temporary_directory):
-        hook = BashHook()
-        hook.run_command(command='echo "stdout"')
+        hook = SubprocessHook()
+        hook.run_command(command=['bash', '-c', 'echo "stdout"'])
 
         mock_popen.assert_called_once_with(
             ['bash', '-c', 'echo "stdout"'],
