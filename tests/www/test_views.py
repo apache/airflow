@@ -2794,7 +2794,8 @@ class TestTriggerDag(TestBase):
         expected_dag_conf = json.dumps(expected_conf, indent=4).replace("\"", "&#34;")
 
         self.check_content_in_response(
-            f'<textarea class="form-control" name="conf">{expected_dag_conf}</textarea>', resp
+            f'<textarea class="form-control" name="conf" id="json">{expected_dag_conf}</textarea>',
+            resp,
         )
 
     def test_trigger_endpoint_uses_existing_dagbag(self):
