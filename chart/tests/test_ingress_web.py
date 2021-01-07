@@ -15,31 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-package-name: apache-airflow-providers-postgres
-name: PostgreSQL
-description: |
-  `PostgreSQL <https://www.postgresql.org/>`__
+import unittest
 
-versions:
-  - 1.0.0
+import jmespath
 
-integrations:
-  - integration-name: PostgreSQL
-    external-doc-url: https://www.postgresql.org/
-    how-to-guide:
-      - /docs/apache-airflow-providers-postgres/operators/postgres_operator_howto_guide.rst
-    tags: [software]
+from tests.helm_template_generator import render_chart
 
-operators:
-  - integration-name: PostgreSQL
-    python-modules:
-      - airflow.providers.postgres.operators.postgres
 
-hooks:
-  - integration-name: PostgreSQL
-    python-modules:
-      - airflow.providers.postgres.hooks.postgres
+class IngressWebTest(unittest.TestCase):
+    def test_should_pass_validation_with_just_ingress_enabled(self):
+        render_chart(
+            values={"ingress": {"enabled": True}},
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )  # checks that no validation exception is raised
 
-hook-class-names:
-  - airflow.providers.postgres.hooks.postgres.PostgresHook
+    def test_should_allow_more_than_one_annotation(self):
+        docs = render_chart(
+            values={"ingress": {"enabled": True, "web": {"annotations": {"aa": "bb", "cc": "dd"}}}},
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )
+        self.assertEqual({"aa": "bb", "cc": "dd"}, jmespath.search("metadata.annotations", docs[0]))

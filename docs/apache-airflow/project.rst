@@ -51,7 +51,6 @@ Committers
 - @hiteshs (Hitesh Shah)
 - @houqp (Qingping Hou)
 - @jghoman (Jakob Homan)
-- @jlowin (Jeremiah Lowin)
 - @jmcarp (Joshua Carp)
 - @joygao (Joy Gao)
 - @kaxil (Kaxil Naik)
@@ -68,6 +67,7 @@ Committers
 - @saguziel (Alex Guziel)
 - @sekikn (Kengo Seki)
 - @turbaszek (Tomasz Urbaszek)
+- @vikramkoka (Vikram Koka)
 - @XD-DENG (Xiaodong Deng)
 - @zhongjiajie (Jiajie Zhong)
 

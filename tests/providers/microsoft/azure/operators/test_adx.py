@@ -20,6 +20,8 @@
 import unittest
 from unittest import mock
 
+from azure.kusto.data._models import KustoResultTable
+
 from airflow.models import DAG, TaskInstance
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.providers.microsoft.azure.operators.adx import AzureDataExplorerQueryOperator
@@ -36,19 +38,22 @@ MOCK_DATA = {
     'options': {'option1': 'option_value'},
 }
 
-MOCK_RESULT = {
-    'name': 'getschema',
-    'kind': 'PrimaryResult',
-    'data': [
-        {'ColumnName': 'Source', 'ColumnOrdinal': 0, 'DataType': 'System.String', 'ColumnType': 'string'},
-        {
-            'ColumnName': 'Timestamp',
-            'ColumnOrdinal': 1,
-            'DataType': 'System.DateTime',
-            'ColumnType': 'datetime',
-        },
-    ],
-}
+MOCK_RESULT = KustoResultTable(
+    json_table={
+        'TableName': 'getschema',
+        "TableId": 1,
+        'TableKind': 'PrimaryResult',
+        'Columns': [
+            {"ColumnName": "Source", "ColumnType": "string", 'DataType': 'System.String'},
+            {
+                "ColumnName": "Timestamp",
+                "ColumnType": "datetime",
+                'DataType': 'System.DateTime',
+            },
+        ],
+        "Rows": [["hi", "2017-01-01T01:01:01.0000003Z"], ["hello", "2017-01-01T01:01:01.0000003Z"]],
+    }
+)
 
 
 class MockResponse:
@@ -82,4 +87,4 @@ class TestAzureDataExplorerQueryOperator(unittest.TestCase):
         ti = TaskInstance(task=self.operator, execution_date=timezone.utcnow())
         ti.run()
 
-        self.assertEqual(ti.xcom_pull(task_ids=MOCK_DATA['task_id']), MOCK_RESULT)
+        self.assertEqual(ti.xcom_pull(task_ids=MOCK_DATA['task_id']), str(MOCK_RESULT))
