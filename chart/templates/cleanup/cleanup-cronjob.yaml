@@ -19,6 +19,9 @@
 ## Airflow Cleanup Pods CronJob
 #################################
 {{- if .Values.cleanup.enabled }}
+{{- $nodeSelector := or .Values.cleanup.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.cleanup.affinity .Values.affinity }}
+{{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
@@ -46,11 +49,11 @@ spec:
         spec:
           restartPolicy: Never
           nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 12 }}
+{{ toYaml $nodeSelector | indent 12 }}
           affinity:
-{{ toYaml .Values.affinity | indent 12 }}
+{{ toYaml $affinity | indent 12 }}
           tolerations:
-{{ toYaml .Values.tolerations | indent 12 }}
+{{ toYaml $tolerations | indent 12 }}
           serviceAccountName: {{ .Release.Name }}-cleanup
           {{- if or .Values.registry.secretName .Values.registry.connection }}
           imagePullSecrets:

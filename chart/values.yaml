@@ -349,6 +349,11 @@ workers:
   extraVolumes: []
   extraVolumeMounts: []
 
+  # Select certain nodes for airflow worker pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
 # Airflow scheduler settings
 scheduler:
   # Airflow 2.0 allows users to run multiple schedulers,
@@ -384,6 +389,11 @@ scheduler:
   # Mount additional volumes into scheduler.
   extraVolumes: []
   extraVolumeMounts: []
+
+  # Select certain nodes for airflow scheduler pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
 
 # Airflow webserver settings
 webserver:
@@ -449,6 +459,11 @@ webserver:
   # Annotations to add to webserver kubernetes service account.
   serviceAccountAnnotations: {}
 
+  # Select certain nodes for airflow webserver pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
 # Flower settings
 flower:
   # Additional network policies as needed
@@ -471,6 +486,11 @@ flower:
   service:
     type: ClusterIP
 
+  # Select certain nodes for airflow flower pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
 # Statsd settings
 statsd:
   enabled: true
@@ -486,6 +506,11 @@ statsd:
 
   service:
     extraAnnotations: {}
+
+  # Select certain nodes for statsd pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
 
 # Pgbouncer settings
 pgbouncer:
@@ -541,6 +566,11 @@ pgbouncer:
     cert: ~
     key: ~
 
+  # Select certain nodes for pgbouncer pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
 redis:
   terminationGracePeriodSeconds: 600
 
@@ -571,6 +601,11 @@ redis:
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
+
+  # Select certain nodes for redis pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
 
 # Auth secret for a private registry
 # This is used if pulling airflow images from a private registry
@@ -623,6 +658,11 @@ cleanup:
   enabled: false
   # Run every 15 minutes
   schedule: "*/15 * * * *"
+
+  # Select certain nodes for airflow cleanup pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
 
 # Configuration for postgresql subchart
 # Not recommended for production

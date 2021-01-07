@@ -19,6 +19,9 @@
 ## Airflow Redis StatefulSet
 #################################
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+{{- $nodeSelector := or .Values.redis.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.redis.affinity .Values.affinity }}
+{{- $tolerations := or .Values.redis.tolerations .Values.tolerations }}
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
@@ -54,11 +57,11 @@ spec:
       {{- end }}
     spec:
       nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
+{{ toYaml $nodeSelector | indent 8 }}
       affinity:
-{{ toYaml .Values.affinity | indent 8 }}
+{{ toYaml $affinity | indent 8 }}
       tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
+{{ toYaml $tolerations | indent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
