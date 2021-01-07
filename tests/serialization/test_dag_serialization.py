@@ -32,7 +32,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 from parameterized import parameterized
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
@@ -86,6 +86,7 @@ serialized_simple_dag_ground_truth = {
                 "retry_delay": 300.0,
                 "_downstream_task_ids": [],
                 "_inlets": [],
+                "_is_dummy": False,
                 "_outlets": [],
                 "ui_color": "#f0ede4",
                 "ui_fgcolor": "#000",
@@ -112,6 +113,7 @@ serialized_simple_dag_ground_truth = {
                 "retry_delay": 300.0,
                 "_downstream_task_ids": [],
                 "_inlets": [],
+                "_is_dummy": False,
                 "_outlets": [],
                 "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
                 "ui_color": "#fff",
@@ -432,7 +434,6 @@ class TestStringifiedDAGs(unittest.TestCase):
         ]
     )
     def test_deserialization_start_date(self, dag_start_date, task_start_date, expected_task_start_date):
-
         dag = DAG(dag_id='simple_dag', start_date=dag_start_date)
         BaseOperator(task_id='simple_task', dag=dag, start_date=task_start_date)
 
@@ -447,6 +448,12 @@ class TestStringifiedDAGs(unittest.TestCase):
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
         self.assertEqual(simple_task.start_date, expected_task_start_date)
+
+    def test_deserialization_with_dag_context(self):
+        with DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1, tzinfo=timezone.utc)) as dag:
+            BaseOperator(task_id='simple_task')
+            # should not raise RuntimeError: dictionary changed size during iteration
+            SerializedDAG.to_dict(dag)
 
     @parameterized.expand(
         [
@@ -893,7 +900,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         """
         Test TaskGroup serialization/deserialization.
         """
-        from airflow.operators.dummy_operator import DummyOperator
+        from airflow.operators.dummy import DummyOperator
         from airflow.utils.task_group import TaskGroup
 
         execution_date = datetime(2020, 1, 1)
@@ -936,6 +943,32 @@ class TestStringifiedDAGs(unittest.TestCase):
                 check_task_group(child)
 
         check_task_group(serialized_dag.task_group)
+
+    @parameterized.expand(
+        [
+            ("poke", False),
+            ("reschedule", True),
+        ]
+    )
+    def test_serialize_sensor(self, mode, expect_custom_deps):
+        from airflow.sensors.base import BaseSensorOperator
+
+        class DummySensor(BaseSensorOperator):
+            def poke(self, context):
+                return False
+
+        op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)
+
+        blob = SerializedBaseOperator.serialize_operator(op)
+
+        if expect_custom_deps:
+            assert "deps" in blob
+        else:
+            assert "deps" not in blob
+
+        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+
+        assert op.deps == serialized_op.deps
 
 
 def test_kubernetes_optional():

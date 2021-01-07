@@ -20,8 +20,10 @@ import os
 import unittest
 from unittest import mock
 
+from botocore.exceptions import ClientError
+
 from airflow.models import DAG, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State
@@ -216,5 +218,5 @@ class TestS3TaskHandler(unittest.TestCase):
         self.assertFalse(self.s3_task_handler.upload_on_close)
         self.s3_task_handler.close()
 
-        with self.assertRaises(self.conn.exceptions.NoSuchKey):
+        with self.assertRaises(ClientError):
             boto3.resource('s3').Object('bucket', self.remote_log_key).get()  # pylint: disable=no-member

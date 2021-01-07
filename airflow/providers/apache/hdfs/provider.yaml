@@ -17,19 +17,22 @@
 
 ---
 package-name: apache-airflow-providers-apache-hdfs
+name: Apache HDFS
 description: |
     `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
     and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Hadoop Distributed File System (HDFS)
     external-doc-url: https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html
+    logo: /integration-logos/apache/hadoop.png
     tags: [apache]
   - integration-name: WebHDFS
     external-doc-url: https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html
+    logo: /integration-logos/apache/hadoop.png
     tags: [apache]
 
 sensors:
@@ -47,3 +50,6 @@ hooks:
   - integration-name: WebHDFS
     python-modules:
       - airflow.providers.apache.hdfs.hooks.webhdfs
+
+hook-class-names:
+  - airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook

@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Setup.py for the Provider packages of Airflow project."""
+import argparse
 import collections
 import importlib
 import json
@@ -27,6 +28,8 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+from contextlib import contextmanager
+from copy import deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
 from os import listdir
@@ -34,6 +37,9 @@ from os.path import dirname
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
+import jsonpath_ng
+import jsonschema
+import yaml
 from packaging.version import Version
 
 PROVIDER_TEMPLATE_PREFIX = "PROVIDER_"
@@ -48,6 +54,11 @@ PROVIDERS_PATH = os.path.join(AIRFLOW_PATH, "providers")
 TARGET_PROVIDER_PACKAGES_PATH = os.path.join(SOURCE_DIR_PATH, "provider_packages")
 GENERATED_AIRFLOW_PATH = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "airflow")
 GENERATED_PROVIDERS_PATH = os.path.join(GENERATED_AIRFLOW_PATH, "providers")
+
+PROVIDER_2_0_0_DATA_SCHEMA_PATH = os.path.join(
+    SOURCE_DIR_PATH, "airflow", "deprecated_schemas", "provider-2.0.0.yaml.schema.json"
+)
+
 sys.path.insert(0, SOURCE_DIR_PATH)
 
 # those imports need to come after the above sys.path.insert to make sure that Airflow
@@ -55,7 +66,7 @@ sys.path.insert(0, SOURCE_DIR_PATH)
 # running the script
 import tests.deprecated_classes  # noqa # isort:skip
 from dev.import_all_classes import import_all_classes  # noqa # isort:skip
-from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
+from setup import PROVIDERS_REQUIREMENTS, PREINSTALLED_PROVIDERS  # noqa # isort:skip
 
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
@@ -63,6 +74,25 @@ from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
 logger = logging.getLogger(__name__)  # noqa
 
 PY3 = sys.version_info[0] == 3
+
+
+@contextmanager
+def with_group(title):
+    """
+    If used in GitHub Action, creates an expandable group in the GitHub Action log.
+    Otherwise, display simple text groups.
+
+    For more information, see:
+    https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
+    """
+    if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
+        print("#" * 20, title, "#" * 20)
+        yield
+        return
+    print(f"::group::{title}")
+    yield
+    print("\033[0m")
+    print("::endgroup::")
 
 
 class EntityType(Enum):
@@ -109,7 +139,6 @@ HOOKS_PATTERN = r".*Hook$"
 SECRETS_PATTERN = r".*Backend$"
 TRANSFERS_PATTERN = r".*To[A-Z0-9].*Operator$"
 WRONG_TRANSFERS_PATTERN = r".*Transfer$|.*TransferOperator$"
-
 
 ALL_PATTERNS = {
     OPERATORS_PATTERN,
@@ -266,8 +295,9 @@ def get_install_requirements(provider_package_id: str, backport_packages: bool) 
             else 'apache-airflow>=1.10.12, <2.0.0'
         )
     else:
-        airflow_dependency = 'apache-airflow>=2.0.0a0'
-    install_requires = [airflow_dependency]
+        airflow_dependency = 'apache-airflow>=2.0.0'
+    # Avoid circular dependency for the preinstalled packages
+    install_requires = [airflow_dependency] if provider_package_id not in PREINSTALLED_PROVIDERS else []
     install_requires.extend(dependencies)
     return install_requires
 
@@ -303,40 +333,12 @@ def get_package_extras(provider_package_id: str, backport_packages: bool) -> Dic
     return extras_dict
 
 
-def get_provider_packages():
+def get_provider_packages() -> List[str]:
     """
     Returns all provider packages.
 
     """
-    return list(PROVIDERS_REQUIREMENTS)
-
-
-def usage() -> None:
-    """
-    Prints usage for the package.
-
-    """
-    print()
-    print("You should provide PACKAGE as first of the setup.py arguments")
-    packages = get_provider_packages()
-    out = ""
-    for package in packages:
-        out += f"{package} "
-    out_array = textwrap.wrap(out, 80)
-    print("Available packages: ")
-    print()
-    for text in out_array:
-        print(text)
-    print()
-    print("Additional commands:")
-    print()
-    print("  list-providers-packages       - lists all provider packages")
-    print("  list-backportable-packages    - lists all packages that are backportable")
-    print("  update-package-release-notes [YYYY.MM.DD] [PACKAGES] - updates package release notes")
-    print("  generate-setup-files PACKAGES - generates setup files for the package")
-    print("  --version-suffix-for-pypi <SUFFIX>  - adds version suffix to version of the packages.")
-    print("                                        Only useful when generating RC candidates for PyPI.")
-    print()
+    return list(PROVIDERS_REQUIREMENTS.keys())
 
 
 def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
@@ -618,10 +620,10 @@ def get_package_class_summary(
     :param imported_classes: entities imported_from providers
     :return: dictionary of objects usable as context for JINJA2 templates - or None if there are some errors
     """
-    from airflow.hooks.base_hook import BaseHook
+    from airflow.hooks.base import BaseHook
     from airflow.models.baseoperator import BaseOperator
     from airflow.secrets import BaseSecretsBackend
-    from airflow.sensors.base_sensor_operator import BaseSensorOperator
+    from airflow.sensors.base import BaseSensorOperator
 
     all_verified_entities: Dict[EntityType, VerifiedEntities] = {
         EntityType.Operators: find_all_entities(
@@ -774,7 +776,7 @@ def convert_cross_package_dependencies_to_table(
     """
     Converts cross-package dependencies to a markdown table
     :param cross_package_dependencies: list of cross-package dependencies
-    :param base_url: base url to use for links
+    :param backport_packages: whether we are preparing backport packages
     :return: markdown-formatted table
     """
     from tabulate import tabulate
@@ -947,7 +949,7 @@ def check_if_release_version_ok(
             if backport_packages:
                 current_release_version = (datetime.today() + timedelta(days=5)).strftime('%Y.%m.%d')
             else:
-                current_release_version = "0.0.1"  # TODO: replace with maintained version
+                current_release_version = "1.0.0"  # TODO: replace with maintained version
     if previous_release_version:
         if Version(current_release_version) < Version(previous_release_version):
             print(
@@ -1133,6 +1135,58 @@ def get_package_pip_name(provider_package_id: str, backport_packages: bool):
         return f"apache-airflow-providers-{provider_package_id.replace('.', '-')}"
 
 
+def validate_provider_info_with_2_0_0_schema(provider_info: Dict[str, Any]) -> None:
+    """
+    Validates provider info against 2.0.0 schema.
+    :param provider_info: provider info to validate
+    """
+
+    def _load_schema() -> Dict[str, Any]:
+        with open(PROVIDER_2_0_0_DATA_SCHEMA_PATH) as schema_file:
+            content = json.load(schema_file)
+        return content
+
+    schema = _load_schema()
+    try:
+        jsonschema.validate(provider_info, schema=schema)
+    except jsonschema.ValidationError as e:
+        raise Exception(
+            "Error when validating schema. The schema must be Airflow 2.0.0 compatible. "
+            "If you added any fields please remove them via 'remove_extra_fields' method.",
+            e,
+        )
+
+
+def remove_logo_field(original_provider_info: Dict[str, Any]):
+    updated_provider_info = deepcopy(original_provider_info)
+    expression = jsonpath_ng.parse("integrations..logo")
+    updated_provider_info = expression.filter(lambda x: True, updated_provider_info)
+    return updated_provider_info
+
+
+def remove_extra_fields(provider_info: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    In Airflow 2.0.0 we set 'additionalProperties" to 'false' in provider's schema, which makes the schema
+    non future-compatible. While we changed tho additionalProperties to 'true' in 2.0.1, we have to
+    make sure that the returned provider_info when preparing package is compatible with the older version
+    of the schema and remove all the newly added fields until we deprecate (possibly even yank) 2.0.0
+    and make provider packages depend on Airflow >=2.0.1.
+    """
+    provider_info = remove_logo_field(provider_info)
+    return provider_info
+
+
+def get_provider_info(provider_package_id: str) -> Dict[str, Any]:
+    provider_yaml_file_name = os.path.join(get_source_package_path(provider_package_id), "provider.yaml")
+    if not os.path.exists(provider_yaml_file_name):
+        raise Exception(f"The provider.yaml file is missing: {provider_yaml_file_name}")
+    with open(provider_yaml_file_name) as provider_file:
+        provider_info = yaml.safe_load(provider_file.read())
+    stripped_provider_info = remove_extra_fields(provider_info)
+    validate_provider_info_with_2_0_0_schema(stripped_provider_info)
+    return stripped_provider_info
+
+
 def update_generated_files_for_package(
     provider_package_id: str,
     current_release_version: str,
@@ -1201,6 +1255,7 @@ def update_generated_files_for_package(
         "EXTRAS_REQUIREMENTS": get_package_extras(
             provider_package_id=provider_package_id, backport_packages=backport_packages
         ),
+        "PROVIDER_INFO": get_provider_info(provider_package_id),
     }
     if update_release_notes:
         git_cmd = get_git_command(previous_release)
@@ -1238,6 +1293,7 @@ def update_generated_files_for_package(
     if update_setup:
         prepare_setup_py_file(context)
         prepare_setup_cfg_file(context)
+        prepare_get_provider_info_py_file(context, provider_package_id)
         prepare_manifest_in_file(context)
 
     bad = bad + sum([len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values()])
@@ -1312,29 +1368,46 @@ def prepare_readme_and_changes_files(
 
 
 def prepare_setup_py_file(context):
-    setup_template_name = "SETUP"
-    setup_file_path = os.path.abspath(os.path.join(get_target_folder(), "setup.py"))
-    setup_content = render_template(
-        template_name=setup_template_name, context=context, extension='.py', autoescape=False
+    setup_py_template_name = "SETUP"
+    setup_py_file_path = os.path.abspath(os.path.join(get_target_folder(), "setup.py"))
+    setup_py_content = render_template(
+        template_name=setup_py_template_name, context=context, extension='.py', autoescape=False
     )
-    with open(setup_file_path, "wt") as setup_file:
-        setup_file.write(setup_content)
+    with open(setup_py_file_path, "wt") as setup_py_file:
+        setup_py_file.write(setup_py_content)
     # format the generated setup.py
-    subprocess.run(["black", setup_file_path, "--config=./pyproject.toml"], cwd=SOURCE_DIR_PATH)
+    subprocess.run(["black", setup_py_file_path, "--config=./pyproject.toml"], cwd=SOURCE_DIR_PATH)
 
 
 def prepare_setup_cfg_file(context):
-    setup_template_name = "SETUP"
-    setup_file_path = os.path.abspath(os.path.join(get_target_folder(), "setup.cfg"))
-    setup_content = render_template(
-        template_name=setup_template_name,
+    setup_cfg_template_name = "SETUP"
+    setup_cfg_file_path = os.path.abspath(os.path.join(get_target_folder(), "setup.cfg"))
+    setup_cfg_content = render_template(
+        template_name=setup_cfg_template_name,
         context=context,
         extension='.cfg',
         autoescape=False,
         keep_trailing_newline=True,
     )
-    with open(setup_file_path, "wt") as setup_file:
-        setup_file.write(setup_content)
+    with open(setup_cfg_file_path, "wt") as setup_cfg_file:
+        setup_cfg_file.write(setup_cfg_content)
+
+
+def prepare_get_provider_info_py_file(context, provider_package_id: str):
+    get_provider_template_name = "get_provider_info"
+    get_provider_file_path = os.path.abspath(
+        os.path.join(get_target_providers_package_folder(provider_package_id), "get_provider_info.py")
+    )
+    get_provider_content = render_template(
+        template_name=get_provider_template_name,
+        context=context,
+        extension='.py',
+        autoescape=False,
+        keep_trailing_newline=True,
+    )
+    with open(get_provider_file_path, "wt") as get_provider_file:
+        get_provider_file.write(get_provider_content)
+    subprocess.run(["black", get_provider_file_path, "--config=./pyproject.toml"], cwd=SOURCE_DIR_PATH)
 
 
 def prepare_manifest_in_file(context):
@@ -1377,25 +1450,27 @@ def update_release_notes_for_packages(
             provider_ids = get_all_providers()
     total = 0
     bad = 0
-    print()
-    print("Generating README files and checking if entities are correctly named.")
-    print()
-    print("Providers to generate:")
-    for provider_id in provider_ids:
-        print(provider_id)
-    print()
+    with with_group("Generating README summary"):
+        print()
+        print("Generating README files and checking if entities are correctly named.")
+        print()
+        print("Providers to generate:")
+        for provider_id in provider_ids:
+            print(provider_id)
+        print()
     for package in provider_ids:
-        inc_total, inc_bad = update_generated_files_for_package(
-            package,
-            release_version,
-            version_suffix,
-            imported_classes,
-            backport_packages,
-            update_release_notes=True,
-            update_setup=False,
-        )
-        total += inc_total
-        bad += inc_bad
+        with with_group(f"Update generated files for package {package}"):
+            inc_total, inc_bad = update_generated_files_for_package(
+                package,
+                release_version,
+                version_suffix,
+                imported_classes,
+                backport_packages,
+                update_release_notes=True,
+                update_setup=False,
+            )
+            total += inc_total
+            bad += inc_bad
     if bad == 0:
         print()
         print(f"All good! All {total} entities are properly named")
@@ -1472,106 +1547,148 @@ def copy_readme_and_changelog(provider_package_id: str, backport_packages: bool)
                 outfile.write(line)
 
 
-if __name__ == "__main__":
-    LIST_PROVIDERS_PACKAGES = "list-providers-packages"
-    LIST_BACKPORTABLE_PACKAGES = "list-backportable-packages"
-    UPDATE_PACKAGE_RELEASE_NOTES = "update-package-release-notes"
-    GENERATE_SETUP_FILES = "generate-setup-files"
+def print_provider_packages_list(args):
+    """List all provider packages."""
+    providers = list(PROVIDERS_REQUIREMENTS.keys())
+    for provider in providers:
+        print(provider)
 
-    BACKPORT_PACKAGES = os.getenv('BACKPORT_PACKAGES') == "true"
-    suffix = ""
 
-    provider_names = get_provider_packages()
-    possible_first_params = provider_names.copy()
-    possible_first_params.append(LIST_PROVIDERS_PACKAGES)
-    possible_first_params.append(LIST_BACKPORTABLE_PACKAGES)
-    possible_first_params.append(UPDATE_PACKAGE_RELEASE_NOTES)
-    possible_first_params.append(GENERATE_SETUP_FILES)
-    if len(sys.argv) == 1:
-        print(
-            """
-ERROR! Missing first param"
-""",
-            file=sys.stderr,
-        )
-        usage()
-        sys.exit(1)
-    if sys.argv[1] == "--version-suffix":
-        if len(sys.argv) < 3:
-            print(
-                """
-ERROR! --version-suffix needs parameter!
-""",
-                file=sys.stderr,
-            )
-            usage()
-            sys.exit(1)
-        suffix = sys.argv[2]
-        sys.argv = [sys.argv[0]] + sys.argv[3:]
-    elif "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) < 2:
-        usage()
-        sys.exit(0)
+def print_backport_packages_list(args):
+    """Lists all packages that are backportable."""
+    providers = get_all_backportable_providers()
+    for provider in providers:
+        print(provider)
 
-    if sys.argv[1] not in possible_first_params:
-        print(
-            f"""
-ERROR! Wrong first param: {sys.argv[1]}
-""",
-            file=sys.stderr,
-        )
-        usage()
-        print()
-        sys.exit(1)
 
-    if sys.argv[1] == LIST_PROVIDERS_PACKAGES:
-        providers = PROVIDERS_REQUIREMENTS.keys()
-        for provider in providers:
-            print(provider)
-        sys.exit(0)
-    elif sys.argv[1] == LIST_BACKPORTABLE_PACKAGES:
-        providers = get_all_backportable_providers()
-        for provider in providers:
-            print(provider)
-        sys.exit(0)
-    elif sys.argv[1] == UPDATE_PACKAGE_RELEASE_NOTES:
-        release_ver = ""
-        if len(sys.argv) > 2 and sys.argv[2] not in provider_names:
-            release_ver = sys.argv[2]
-            print()
-            print()
-            print(f"Preparing release version: {release_ver}")
-            package_list = sys.argv[3:]
-        else:
-            print()
-            print()
-            print("Updating latest release version.")
-            package_list = sys.argv[2:]
-        print()
-        update_release_notes_for_packages(
-            package_list,
-            release_version=release_ver,
-            version_suffix=suffix,
-            backport_packages=BACKPORT_PACKAGES,
-        )
-        sys.exit(0)
-    elif sys.argv[1] == GENERATE_SETUP_FILES:
+def get_version_suffix(version_suffix):
+    return version_suffix if version_suffix is not None else ""
+
+
+def update_package_release_notes(args):
+    """Updates package release notes."""
+    release_ver = ""
+    suffix = get_version_suffix(args.version_suffix)
+
+    if args.release_version and args.release_version not in get_provider_packages():
+        release_ver = args.release_version
         print()
         print()
-        print("Generate setup files")
+        print(f"Preparing release version: {release_ver}")
+        package_list = args.package_list
+    else:
         print()
-        provider = sys.argv[2]
-        make_sure_remote_apache_exists_and_fetch()
-        update_generated_files_for_package(
-            provider, "", suffix, [], BACKPORT_PACKAGES, update_release_notes=False, update_setup=True
-        )
-        sys.exit(0)
-    _provider_package = sys.argv[1]
+        print()
+        print("Updating latest release version.")
+        package_list = args.package_list
+    print()
+    update_release_notes_for_packages(
+        package_list,
+        release_version=release_ver,
+        version_suffix=suffix,
+        backport_packages=BACKPORT_PACKAGES,
+    )
+
+
+def generate_setup_files(args):
+    """Generates setup files for the package."""
+    print()
+    print()
+    print("Generate setup files")
+    print()
+    provider = args.provider
+    suffix = get_version_suffix(args.version_suffix)
+    update_generated_files_for_package(
+        provider, "", suffix, [], BACKPORT_PACKAGES, update_release_notes=False, update_setup=True
+    )
+
+
+def build_provider_package(args):
+    """
+    Provide packages for setup.py.
+    Choose from the above available packages.
+    """
+    _provider_package = args.packages
     verify_provider_package(_provider_package)
-    del sys.argv[1]
-    print(f"Building backport package: {_provider_package}")
+    package_format = os.environ.get("PACKAGE_FORMAT", "wheel")
+    suffix = get_version_suffix(args.version_suffix)
+
+    print(f"Building provider package: {_provider_package} in format ${package_format}")
     copy_readme_and_changelog(_provider_package, BACKPORT_PACKAGES)
-    command = ["python3", "setup.py", "--version-suffix-for-pypi", suffix, "sdist", "bdist_wheel"]
+    command = ["python3", "setup.py"]
+
+    if suffix != "":
+        command.extend(['egg_info', '--tag-build', suffix])
+    if package_format in ['sdist', 'both']:
+        command.append("sdist")
+    if package_format in ['wheel', 'both']:
+        command.append("bdist_wheel")
     print(f"Executing command: '{command}'")
     subprocess.check_call(
         command,
     )
+
+
+def get_parser():
+    provider_names = get_provider_packages()
+    help_text = "Available packages:\n"
+    out = " ".join(provider_names)
+    out_array = textwrap.wrap(out, 80)
+    help_text += "\n".join(out_array)
+    cli_parser = argparse.ArgumentParser(description=help_text, formatter_class=argparse.RawTextHelpFormatter)
+    cli_parser.add_argument(
+        "--packages",
+        help=textwrap.dedent(build_provider_package.__doc__),
+    )
+    cli_parser.add_argument(
+        "--version-suffix",
+        metavar="SUFFIX",
+        help=textwrap.dedent(
+            """Adds version suffix to version of the packages.
+Only useful when generating RC candidates for PyPI."""
+        ),
+    )
+    subparsers = cli_parser.add_subparsers(dest="cmd")
+    first_param_subparser1 = subparsers.add_parser(
+        "list-providers-packages", help=print_provider_packages_list.__doc__
+    )
+    first_param_subparser1.set_defaults(func=print_provider_packages_list)
+
+    first_param_subparser2 = subparsers.add_parser(
+        "list-backportable-packages", help=print_backport_packages_list.__doc__
+    )
+    first_param_subparser2.set_defaults(func=print_backport_packages_list)
+
+    first_param_subparser3 = subparsers.add_parser(
+        "update-package-release-notes", help=update_package_release_notes.__doc__
+    )
+    first_param_subparser3.set_defaults(func=update_package_release_notes)
+    first_param_subparser3.add_argument("release_version", metavar="YYYY.MM.DD", nargs="?", default="")
+    first_param_subparser3.add_argument("package_list", metavar="PACKAGES", nargs="*", type=list)
+
+    first_param_subparser4 = subparsers.add_parser("generate-setup-files", help=generate_setup_files.__doc__)
+    first_param_subparser4.set_defaults(func=generate_setup_files)
+    first_param_subparser4.add_argument("provider", metavar="PACKAGE")
+
+    return cli_parser
+
+
+if __name__ == "__main__":
+    parser = get_parser()
+    args = parser.parse_args()
+
+    BACKPORT_PACKAGES = os.getenv('BACKPORT_PACKAGES') == "true"
+
+    if len(sys.argv) < 2:
+        parser.print_help(file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        if args.packages is not None:
+            build_provider_package(args)
+        else:
+            args.func(args)
+        sys.exit(0)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        sys.exit(1)

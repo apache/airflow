@@ -367,6 +367,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - -c
   - |
         import airflow
+        import logging
         import os
         import time
 
@@ -399,7 +400,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
                     raise TimeoutError("There are still unapplied migrations after {} seconds.".format(ticker))
                 ticker += 1
                 time.sleep(1)
-                log.info('Waiting for migrations... %s second(s)', ticker)
+                logging.info('Waiting for migrations... %s second(s)', ticker)
 {{- end }}
 
 {{ define "registry_docker_config" -}}

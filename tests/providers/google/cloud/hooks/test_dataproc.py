@@ -71,10 +71,23 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
     @mock.patch(DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock)
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceClient"))
-    def test_get_template_client(self, mock_client, mock_client_info, mock_get_credentials):
-        _ = self.hook.get_template_client
+    def test_get_template_client_global(self, mock_client, mock_client_info, mock_get_credentials):
+        _ = self.hook.get_template_client()
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=mock_client_info.return_value
+            credentials=mock_get_credentials.return_value,
+            client_info=mock_client_info.return_value,
+            client_options=None,
+        )
+
+    @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock)
+    @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceClient"))
+    def test_get_template_client_region(self, mock_client, mock_client_info, mock_get_credentials):
+        _ = self.hook.get_template_client(location='region1')
+        mock_client.assert_called_once_with(
+            credentials=mock_get_credentials.return_value,
+            client_info=mock_client_info.return_value,
+            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
@@ -193,34 +206,36 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_create_workflow_template(self, mock_client):
         template = {"test": "test"}
-        mock_client.region_path.return_value = PARENT
+        mock_client.return_value.region_path.return_value = PARENT
         self.hook.create_workflow_template(location=GCP_LOCATION, template=template, project_id=GCP_PROJECT)
-        mock_client.region_path.assert_called_once_with(GCP_PROJECT, GCP_LOCATION)
-        mock_client.create_workflow_template.assert_called_once_with(
+        mock_client.return_value.region_path.assert_called_once_with(GCP_PROJECT, GCP_LOCATION)
+        mock_client.return_value.create_workflow_template.assert_called_once_with(
             parent=PARENT, template=template, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_instantiate_workflow_template(self, mock_client):
         template_name = "template_name"
-        mock_client.workflow_template_path.return_value = NAME
+        mock_client.return_value.workflow_template_path.return_value = NAME
         self.hook.instantiate_workflow_template(
             location=GCP_LOCATION, template_name=template_name, project_id=GCP_PROJECT
         )
-        mock_client.workflow_template_path.assert_called_once_with(GCP_PROJECT, GCP_LOCATION, template_name)
-        mock_client.instantiate_workflow_template.assert_called_once_with(
+        mock_client.return_value.workflow_template_path.assert_called_once_with(
+            GCP_PROJECT, GCP_LOCATION, template_name
+        )
+        mock_client.return_value.instantiate_workflow_template.assert_called_once_with(
             name=NAME, version=None, parameters=None, request_id=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_instantiate_inline_workflow_template(self, mock_client):
         template = {"test": "test"}
-        mock_client.region_path.return_value = PARENT
+        mock_client.return_value.region_path.return_value = PARENT
         self.hook.instantiate_inline_workflow_template(
             location=GCP_LOCATION, template=template, project_id=GCP_PROJECT
         )
-        mock_client.region_path.assert_called_once_with(GCP_PROJECT, GCP_LOCATION)
-        mock_client.instantiate_inline_workflow_template.assert_called_once_with(
+        mock_client.return_value.region_path.assert_called_once_with(GCP_PROJECT, GCP_LOCATION)
+        mock_client.return_value.instantiate_inline_workflow_template.assert_called_once_with(
             parent=PARENT, template=template, request_id=None, retry=None, timeout=None, metadata=None
         )
 

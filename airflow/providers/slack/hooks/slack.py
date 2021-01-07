@@ -21,7 +21,7 @@ from typing import Any, Optional
 from slack import WebClient
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SlackHook(BaseHook):  # noqa

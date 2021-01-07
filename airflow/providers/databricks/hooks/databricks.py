@@ -31,7 +31,7 @@ from requests.auth import AuthBase
 
 from airflow import __version__
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
@@ -103,9 +103,14 @@ class DatabricksHook(BaseHook):  # noqa
     :type retry_delay: float
     """
 
+    conn_name_attr = 'databricks_conn_id'
+    default_conn_name = 'databricks_default'
+    conn_type = 'databricks'
+    hook_name = 'Databricks'
+
     def __init__(
         self,
-        databricks_conn_id: str = 'databricks_default',
+        databricks_conn_id: str = default_conn_name,
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 1.0,

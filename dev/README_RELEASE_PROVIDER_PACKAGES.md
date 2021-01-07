@@ -41,6 +41,7 @@
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages-1)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo-1)
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi)
+  - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -132,13 +133,13 @@ It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
   you intended to build.
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-svn rc1
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-svn rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
 ```
 
 * Move the source tarball to dist folder
@@ -201,13 +202,13 @@ though they should be generated from the same sources.
 this will clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-pypi rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -380,7 +381,7 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify `basename $i .sha512 `
+   echo "Checking $i"; gpg --verify $i
 done
 ```
 
@@ -425,7 +426,7 @@ Run this:
 ```shell script
 for i in *.sha512
 do
-    echo "Checking $i"; gpg --print-md SHA512 `basename $i .sha512 ` | diff - $i
+    echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
 done
 ```
 
@@ -466,19 +467,19 @@ First copy all the provider packages .whl files to the `dist` folder.
 
 ```shell script
 ./breeze start-airflow --install-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --install-wheels
+    --python 3.7 --backend postgres --install-packages-from-dist
 ```
 
 For 1.10 releases you can also use `--no-rbac-ui` flag disable RBAC UI of Airflow:
 
 ```shell script
 ./breeze start-airflow --install-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --install-wheels --no-rbac-ui
+    --python 3.7 --backend postgres --install-packages-from-dist --no-rbac-ui
 ```
 
 ### Building your own docker image
 
-If you prefer to build your own image, you can also use the official image and PyPI packages to test
+If you prefer to build your own image, you can also use the official image andipi PyPI packages to test
 backport packages. This is especially helpful when you want to test integrations, but you need to install
 additional tools. Below is an example Dockerfile, which installs backport providers for Google and
 an additional third-party tools:
@@ -646,13 +647,13 @@ In order to publish to PyPI you just need to build and release packages.
 * Generate the packages.
 
 ```shell script
-./breeze --backports prepare-provider-packages
+./breeze --backports prepare-provider-packages --package-format both
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages <PACKAGE> ...
+./breeze --backports prepare-provider-packages --package-format both  <PACKAGE> ...
 ```
 
 In case you decided to remove some of the packages. remove them from dist folder now:
@@ -775,13 +776,13 @@ packages, so it will only contain the packages you intended to build.
 ```shell script
 export VERSION=0.0.1alpha1
 
-./breeze prepare-provider-packages --version-suffix-for-svn a1 --version-suffix-for-pypi a1
+./breeze prepare-provider-packages --package-format both --version-suffix-for-svn a1 --version-suffix-for-pypi a1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn a1 --version-suffix-for-pypi a1 \
+./breeze prepare-provider-packages --package-format both --version-suffix-for-svn a1 --version-suffix-for-pypi a1 \
     PACKAGE PACKAGE ....
 ```
 
@@ -790,13 +791,13 @@ if you ony build few packages, run:
 ```shell script
 export VERSION=0.0.1alpha1
 
-./breeze prepare-provider-packages --version-suffix-for-svn rc1
+./breeze prepare-provider-packages --package-format both --version-suffix-for-svn rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
+./breeze prepare-provider-packages --package-format both --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -851,13 +852,13 @@ though they should be generated from the same sources.
 this will clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi a1 --version-suffix-for-SVN a1
+./breeze prepare-provider-packages --package-format both --version-suffix-for-pypi a1 --version-suffix-for-SVN a1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi a1 \
+./breeze prepare-provider-packages --package-format both --version-suffix-for-pypi a1 \
     PACKAGE PACKAGE ....
 ```
 
@@ -883,6 +884,58 @@ twine upload -r pypi dist/*
 ```
 
 * Again, confirm that the packages are available under the links printed.
+
+## Publish documentation
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation  for the released versions is published in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code and build tools are available in the `apache/airflow` repository, so you have to coordinate between the two repositories to be able to build the documentation.
+
+Documentation for providers can be found in the `/docs/apache-airflow-providers` directory and the `/docs/apache-airflow-providers-*/` directory. The first directory contains the package contents lists and should be updated every time a new version of provider packages is released.
+
+- First, copy the airflow-site repository and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
+
+    ```shell script
+    git clone https://github.com/apache/airflow-site.git airflow-site
+    cd airflow-site
+    export AIRFLOW_SITE_DIRECTORY="$(pwd)"
+    ```
+
+- Then you can go to the directory and build the necessary documentation packages
+
+    ```shell script
+    cd "${AIRFLOW_REPO_ROOT}"
+    ./breeze build-docs -- \
+      --package-filter apache-airflow-providers \
+      --package-filter apache-airflow-providers-apache-airflow \
+      --package-filter apache-airflow-providers-telegram \
+      --for-production
+    ```
+
+- Now you can preview the documentation.
+
+    ```shell script
+    ./docs/start_doc_server.sh
+    ```
+
+- Copy the documentation to the ``airflow-site`` repository
+
+    ```shell script
+    ./docs/publish_docs.py \
+        --package-filter apache-airflow-providers \
+        --package-filter apache-airflow-providers-apache-airflow \
+        --package-filter apache-airflow-providers-telegram \
+
+    cd "${AIRFLOW_SITE_DIRECTORY}"
+    ```
+
+- If you publish a new package, you must add it to [the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
+
+- Create commit and push changes.
+
+    ```shell script
+    git commit -m "Add documentation for backport packages - $(date "+%Y-%m-%d%n")"
+    git push
+    ```
 
 ## Notify developers of release
 

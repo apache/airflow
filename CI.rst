@@ -135,13 +135,6 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | directories) generated locally on the           |
 |                                         |             |             |            | host during development.                        |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``MOUNT_FILES``                         |     true    |     true    |    true    | Determines whether "files" folder from          |
-|                                         |             |             |            | sources is mounted as "/files" folder           |
-|                                         |             |             |            | inside the container. This is used to           |
-|                                         |             |             |            | share results of local actions to the           |
-|                                         |             |             |            | host, as well as to pass host files to          |
-|                                         |             |             |            | inside container for local development.         |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                           Force variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``FORCE_PULL_IMAGES``                   |    true     |    true     |    true    | Determines if images are force-pulled,          |
@@ -203,8 +196,9 @@ You can use those variables when you try to reproduce the build locally.
 |                                                           Image variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_VERSION``             |             |             |            | Installs Airflow version from PyPI when         |
-|                                         |             |             |            | building image. Can be "wheel" to install from  |
-|                                         |             |             |            | the wheel package instead.                      |
+|                                         |             |             |            | building image. Can be "none" to skip airflow   |
+|                                         |             |             |            | installation so that it can be installed from   |
+|                                         |             |             |            | locally prepared packages.                      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_REFERENCE``           |             |             |            | Installs Airflow version from GitHub            |
 |                                         |             |             |            | branch or tag.                                  |
@@ -253,8 +247,8 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                        Image build variables                                                       |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``UPGRADE_TO_LATEST_CONSTRAINTS``       |    false    |    false    |    false   | Determines whether the build should             |
-|                                         |             |             |     (x)    | attempt to eagerly upgrade all                  |
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false    |    false   | Determines whether the build should             |
+|                                         |             |             |     (x)    | attempt to upgrade all                          |
 |                                         |             |             |            | PIP dependencies to latest ones matching        |
 |                                         |             |             |            | ``setup.py`` limits. This tries to replicate    |
 |                                         |             |             |            | the situation of "fresh" user who just installs |
@@ -695,8 +689,21 @@ We also have a script that can help to clean-up the old artifacts:
 CodeQL scan
 -----------
 
-The CodeQL security scan uses GitHub security scan framework to scan our code for security violations.
+The `CodeQL <https://securitylab.github.com/tools/codeql>`_ security scan uses GitHub security scan framework to scan our code for security violations.
 It is run for JavaScript and python code.
+
+Publishing documentation
+------------------------
+
+Documentation from the ``master`` branch is automatically published on Amazon S3.
+
+To make this possible, GitHub Action has secrets set up with credentials
+for an Amazon Web Service account - ``DOCS_AWS_ACCESS_KEY_ID`` and ``DOCS_AWS_SECRET_ACCESS_KEY``.
+
+This account has permission to write/list/put objects to bucket ``apache-airflow-docs``. This bucket has public access configured, which means it is accessible through the website endpoint. For more information, see: `Hosting a static website on Amazon S3
+ <https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html>`_
+
+Website endpoint: http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/
 
 Naming conventions for stored images
 ====================================
@@ -725,15 +732,15 @@ The image names follow the patterns:
 |              |                            | <COMMIT_SHA>                   | It contains only compiled libraries and minimal set of dependencies to run Airflow.        |
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 
-* <BRANCH> might be either "master" or "v1-10-test"
-* <X.Y> - Python version (Major + Minor). For "master" it should be in ["3.6", "3.7", "3.8"]. For
+* <BRANCH> might be either "master" or "v1-10-test" or "v2-0-test"
+* <X.Y> - Python version (Major + Minor). For "master" and "v2-0-test" should be in ["3.6", "3.7", "3.8"]. For
   v1-10-test it should be in ["2.7", "3.5", "3.6". "3.7", "3.8"].
 * <RUN_ID> - GitHub Actions RUN_ID. You can get it from CI action job outputs (run id is printed in
   logs and displayed as part of the step name. All PRs belong to some RUN_ID and this way you can
   pull the very exact version of image used in that RUN_ID
-* <COMMIT_SHA> - for images that get merged to "master" of "v1-10-test" the images are also tagged
+* <COMMIT_SHA> - for images that get merged to "master", "v2-0-test" of "v1-10-test" the images are also tagged
   with the commit SHA of that particular commit. This way you can easily find the image that was used
-  for testing for that "master" or "v1-10-test" test run.
+  for testing for that "master", "v2-0-test" or "v1-10-test" test run.
 
 Reproducing CI Runs locally
 ===========================

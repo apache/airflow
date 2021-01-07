@@ -17,11 +17,12 @@
 
 ---
 package-name: apache-airflow-providers-salesforce
+name: Salesforce
 description: |
     `Salesforce <https://www.salesforce.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Salesforce
@@ -43,3 +44,6 @@ hooks:
     python-modules:
       - airflow.providers.salesforce.hooks.salesforce
       - airflow.providers.salesforce.hooks.tableau
+
+hook-class-names:
+  - airflow.providers.salesforce.hooks.tableau.TableauHook

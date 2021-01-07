@@ -45,9 +45,9 @@ from airflow.models import (
     Variable,
 )
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.stats import Stats
@@ -414,7 +414,7 @@ class TestTaskInstance(unittest.TestCase):
     @provide_session
     def test_ti_updates_with_task(self, session=None):
         """
-        test that updating the executor_config propogates to the TaskInstance DB
+        test that updating the executor_config propagates to the TaskInstance DB
         """
         with models.DAG(dag_id='test_run_pooling_task') as dag:
             task = DummyOperator(
@@ -1030,9 +1030,9 @@ class TestTaskInstance(unittest.TestCase):
         # Pull the value pushed by the second task
         result = ti1.xcom_pull(task_ids='test_xcom_2', key='foo')
         self.assertEqual(result, 'baz')
-        # Pull the values pushed by both tasks
+        # Pull the values pushed by both tasks & Verify Order of task_ids pass & values returned
         result = ti1.xcom_pull(task_ids=['test_xcom_1', 'test_xcom_2'], key='foo')
-        self.assertEqual(result, ['baz', 'bar'])
+        self.assertEqual(result, ['bar', 'baz'])
 
     def test_xcom_pull_after_success(self):
         """
@@ -1844,7 +1844,7 @@ class TestTaskInstance(unittest.TestCase):
             'spec': {
                 'containers': [
                     {
-                        'command': [
+                        'args': [
                             'airflow',
                             'tasks',
                             'run',
@@ -1945,7 +1945,7 @@ class TestTaskInstance(unittest.TestCase):
                 for upstream, downstream in dependencies.items():
                     dag.set_dependency(upstream, downstream)
 
-            scheduler = SchedulerJob()
+            scheduler = SchedulerJob(subdir=os.devnull)
             scheduler.dagbag.bag_dag(dag, root_dag=dag)
 
             dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow', state=State.RUNNING)
@@ -1976,6 +1976,20 @@ class TestTaskInstance(unittest.TestCase):
                 scheduler._critical_section_execute_task_instances(session=session)
                 task_instance_b.run()
                 self.validate_ti_states(dag_run, second_run_state, error_message)
+
+    def test_set_state_up_for_retry(self):
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        op1 = DummyOperator(task_id='op_1', owner='test', dag=dag)
+
+        ti = TI(task=op1, execution_date=timezone.utcnow(), state=State.RUNNING)
+        start_date = timezone.utcnow()
+        ti.start_date = start_date
+
+        ti.set_state(State.UP_FOR_RETRY)
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.start_date == start_date, "Start date should have been left alone"
+        assert ti.start_date < ti.end_date
+        assert ti.duration > 0
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

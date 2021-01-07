@@ -29,7 +29,7 @@ from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.12.9"
+BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.0"
 
 
 @lru_cache(maxsize=None)
@@ -61,7 +61,7 @@ def validate_k8s_object(instance):
     validate.validate(instance)
 
 
-def render_chart(name="RELEASE-NAME", values=None, show_only=None):
+def render_chart(name="RELEASE-NAME", values=None, show_only=None, validate_schema=True):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
     """
@@ -77,8 +77,9 @@ def render_chart(name="RELEASE-NAME", values=None, show_only=None):
         templates = subprocess.check_output(command)
         k8s_objects = yaml.load_all(templates)
         k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
-        for k8s_object in k8s_objects:
-            validate_k8s_object(k8s_object)
+        if validate_schema:
+            for k8s_object in k8s_objects:
+                validate_k8s_object(k8s_object)
         return k8s_objects
 
 

@@ -161,7 +161,7 @@ class TestCliUsers(unittest.TestCase):
             self.assertIn(f'user{i}', stdout)
 
     def test_cli_list_users_with_args(self):
-        user_command.users_list(self.parser.parse_args(['users', 'list', '--output', 'tsv']))
+        user_command.users_list(self.parser.parse_args(['users', 'list', '--output', 'json']))
 
     def test_cli_import_users(self):
         def assert_user_in_roles(email, roles):

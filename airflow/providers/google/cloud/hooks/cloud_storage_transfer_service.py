@@ -373,7 +373,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
             * project_id is optional if you have a project id defined
               in the connection
-              See: :ref:`howto/connection:gcp`
+              See: :doc:`/connections/gcp`
 
         :type request_filter: dict
         :return: transfer operation
@@ -467,8 +467,8 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         elif isinstance(timeout, timedelta):
             timeout = timeout.total_seconds()
 
-        start_time = time.time()
-        while time.time() - start_time < timeout:
+        start_time = time.monotonic()
+        while time.monotonic() - start_time < timeout:
             request_filter = {FILTER_PROJECT_ID: job[PROJECT_ID], FILTER_JOB_NAMES: [job[NAME]]}
             operations = self.list_transfer_operations(request_filter=request_filter)
 

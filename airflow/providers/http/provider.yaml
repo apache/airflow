@@ -17,17 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-http
+name: Hypertext Transfer Protocol (HTTP)
 description: |
     `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     external-doc-url: https://www.w3.org/Protocols/
     how-to-guide:
-      - /docs/howto/operator/http.rst
+      - /docs/apache-airflow-providers-http/operators.rst
     tags: [protocol]
 
 operators:
@@ -43,3 +44,6 @@ hooks:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
       - airflow.providers.http.hooks.http
+
+hook-class-names:
+  - airflow.providers.http.hooks.http.HttpHook

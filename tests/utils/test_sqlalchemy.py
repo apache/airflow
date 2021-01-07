@@ -20,13 +20,14 @@ import datetime
 import unittest
 from unittest import mock
 
+import pytest
 from parameterized import parameterized
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
 from airflow.models import DAG
 from airflow.settings import Session
-from airflow.utils.sqlalchemy import nowait, skip_locked
+from airflow.utils.sqlalchemy import nowait, prohibit_commit, skip_locked
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
@@ -159,6 +160,41 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         session.bind.dialect.name = dialect
         session.bind.dialect.supports_for_update_of = supports_for_update_of
         self.assertEqual(nowait(session=session), expected_return_value)
+
+    def test_prohibit_commit(self):
+        with prohibit_commit(self.session) as guard:
+            self.session.execute('SELECT 1')
+            with pytest.raises(RuntimeError):
+                self.session.commit()
+            self.session.rollback()
+
+            self.session.execute('SELECT 1')
+            guard.commit()
+
+            # Check the expected_commit is reset
+            with pytest.raises(RuntimeError):
+                self.session.execute('SELECT 1')
+                self.session.commit()
+
+    def test_prohibit_commit_specific_session_only(self):
+        """
+        Test that "prohibit_commit" applies only to the given session object,
+        not any other session objects that may be used
+        """
+
+        # We _want_ another session. By default this would be the _same_
+        # session we already had
+        other_session = Session.session_factory()
+        assert other_session is not self.session
+
+        with prohibit_commit(self.session):
+            self.session.execute('SELECT 1')
+            with pytest.raises(RuntimeError):
+                self.session.commit()
+            self.session.rollback()
+
+            other_session.execute('SELECT 1')
+            other_session.commit()
 
     def tearDown(self):
         self.session.close()

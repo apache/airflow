@@ -42,6 +42,9 @@ def upgrade():
     is_sqlite = bool(conn.dialect.name == "sqlite")
     timestamp = sa.TIMESTAMP(timezone=True) if not is_mysql else mysql.TIMESTAMP(fsp=6, timezone=True)
 
+    if is_sqlite:
+        op.execute("PRAGMA foreign_keys=off")
+
     with op.batch_alter_table('dag_run', schema=None) as batch_op:
         batch_op.add_column(sa.Column('last_scheduling_decision', timestamp, nullable=True))
         batch_op.create_index('idx_last_scheduling_decision', ['last_scheduling_decision'], unique=False)
@@ -65,18 +68,29 @@ def upgrade():
 
     # Set it to true here as it makes us take the slow/more complete path, and when it's next parsed by the
     # DagParser it will get set to correct value.
+
     op.execute(
         "UPDATE dag SET concurrency={}, has_task_concurrency_limits={} where concurrency IS NULL".format(
             concurrency, 1 if is_sqlite else sa.true()
         )
     )
+
     with op.batch_alter_table('dag', schema=None) as batch_op:
         batch_op.alter_column('concurrency', type_=sa.Integer(), nullable=False)
         batch_op.alter_column('has_task_concurrency_limits', type_=sa.Boolean(), nullable=False)
 
+    if is_sqlite:
+        op.execute("PRAGMA foreign_keys=on")
+
 
 def downgrade():
     """Unapply Add scheduling_decision to DagRun and DAG"""
+    conn = op.get_bind()  # pylint: disable=no-member
+    is_sqlite = bool(conn.dialect.name == "sqlite")
+
+    if is_sqlite:
+        op.execute("PRAGMA foreign_keys=off")
+
     with op.batch_alter_table('dag_run', schema=None) as batch_op:
         batch_op.drop_index('idx_last_scheduling_decision')
         batch_op.drop_column('last_scheduling_decision')
@@ -88,3 +102,6 @@ def downgrade():
         batch_op.drop_column('next_dagrun')
         batch_op.drop_column('concurrency')
         batch_op.drop_column('has_task_concurrency_limits')
+
+    if is_sqlite:
+        op.execute("PRAGMA foreign_keys=on")

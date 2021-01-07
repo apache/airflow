@@ -22,7 +22,7 @@ from typing import List, Optional
 import cx_Oracle
 import numpy
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class OracleHook(DbApiHook):
@@ -30,6 +30,9 @@ class OracleHook(DbApiHook):
 
     conn_name_attr = 'oracle_conn_id'
     default_conn_name = 'oracle_default'
+    conn_type = 'oracle'
+    hook_name = 'Oracle'
+
     supports_autocommit = False
 
     # pylint: disable=c-extension-no-member

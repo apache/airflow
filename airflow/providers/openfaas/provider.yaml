@@ -17,11 +17,12 @@
 
 ---
 package-name: apache-airflow-providers-openfaas
+name: OpenFaaS
 description: |
     `OpenFaaS <https://www.openfaas.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 integrations:
   - integration-name: OpenFaaS
     external-doc-url: https://www.openfaas.com/

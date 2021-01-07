@@ -17,11 +17,12 @@
 
 ---
 package-name: apache-airflow-providers-odbc
+name: ODBC
 description: |
     `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 integrations:
   - integration-name: ODBC
     external-doc-url: https://github.com/mkleehammer/pyodbc/wiki
@@ -31,3 +32,6 @@ hooks:
   - integration-name: ODBC
     python-modules:
       - airflow.providers.odbc.hooks.odbc
+
+hook-class-names:
+  - airflow.providers.odbc.hooks.odbc.OdbcHook

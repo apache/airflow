@@ -67,16 +67,21 @@ def _docs_path(filepath: str):
     if not filepath.endswith(".rst"):
         raise Exception(f"The path must ends with '.rst'. Current value: {filepath}")
 
+    if filepath.startswith("/docs/apache-airflow-providers-"):
+        _, _, provider, rest = filepath.split("/", maxsplit=3)
+        filepath = f"{provider}:{rest}"
+    else:
+        filepath = os.path.join(ROOT_DIR, filepath.lstrip('/'))
+        filepath = os.path.relpath(filepath, DOCS_DIR)
+
     len_rst = len(".rst")
     filepath = filepath[:-len_rst]
-    filepath = os.path.join(ROOT_DIR, filepath.lstrip('/'))
-
-    return os.path.relpath(filepath, DOCS_DIR)
+    return filepath
 
 
 def _prepare_resource_index(package_data, resource_type):
     return {
-        integration["integration-name"]: integration
+        integration["integration-name"]: {**integration, 'package-name': provider['package-name']}
         for provider in package_data
         for integration in provider.get(resource_type, [])
     }
@@ -84,16 +89,12 @@ def _prepare_resource_index(package_data, resource_type):
 
 def _prepare_operators_data(tags: Optional[Set[str]]):
     package_data = load_package_data()
-    all_integrations = [
-        {**integration, 'package-name': provider['package-name']}
-        for provider in package_data
-        for integration in provider.get("integrations", [])
-    ]
+    all_integrations = _prepare_resource_index(package_data, "integrations")
     if tags is None:
         to_display_integration = all_integrations
     else:
         to_display_integration = [
-            integration for integration in all_integrations if tags.intersection(integration["tags"])
+            integration for integration in all_integrations.values() if tags.intersection(integration["tags"])
         ]
 
     all_operators_by_integration = _prepare_resource_index(package_data, "operators")
@@ -140,6 +141,7 @@ def _prepare_transfer_data(tags: Optional[Set[str]]):
     all_transfers = [
         {
             **transfer,
+            'package-name': provider['package-name'],
             'source-integration': all_operators_by_integration[transfer['source-integration-name']],
             'target-integration': all_operators_by_integration[transfer['target-integration-name']],
         }
@@ -217,7 +219,7 @@ class TransfersReferenceDirective(BaseJinjaReferenceDirective):
     """Generate a list of transfer operators"""
 
     def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
-        return _render_operator_content(
+        return _render_transfer_content(
             tags=tags,
             header_separator=header_separator,
         )
@@ -252,7 +254,7 @@ if __name__ == "__main__":
     parser_b.set_defaults(cmd=CMD_TRANSFERS)
 
     args = parser.parse_args()
-    print(args)
+
     if args.cmd == CMD_OPERATORS_AND_HOOKS:
         content = _render_operator_content(
             tags=set(args.tags) if args.tags else None, header_separator=args.header_separator

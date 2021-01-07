@@ -229,6 +229,7 @@ def test_aws_batch_waiters(aws_region):
 @mock_ecs
 @mock_iam
 @mock_logs
+@pytest.mark.xfail(condition=True, reason="Inexplicable timeout issue when running this test. See PR 11020")
 def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_definition_name):
     """
     Submit batch jobs and wait for various job status indicators or errors.

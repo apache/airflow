@@ -19,7 +19,7 @@
 
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureContainerRegistryHook(BaseHook):

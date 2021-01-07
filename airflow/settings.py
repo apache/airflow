@@ -325,7 +325,7 @@ def configure_adapters():
 
 def validate_session():
     """Validate ORM Session"""
-    worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
+    worker_precheck = conf.getboolean('celery', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
     else:
@@ -369,7 +369,7 @@ def get_session_lifetime_config():
     session_lifetime_minutes = conf.get('webserver', 'session_lifetime_minutes', fallback=None)
     session_lifetime_days = conf.get('webserver', 'session_lifetime_days', fallback=None)
     uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
-        'webserver', 'force_logout_after', fallback=None
+        'webserver', 'force_log_out_after', fallback=None
     )
 
     minutes_per_day = 24 * 60
@@ -378,7 +378,7 @@ def get_session_lifetime_config():
         warnings.warn(
             '`session_lifetime_days` option from `[webserver]` section has been '
             'renamed to `session_lifetime_minutes`. The new option allows to configure '
-            'session lifetime in minutes. The `force_logout_after` option has been removed '
+            'session lifetime in minutes. The `force_log_out_after` option has been removed '
             'from `[webserver]` section. Please update your configuration.',
             category=DeprecationWarning,
         )
@@ -493,6 +493,11 @@ USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=Tru
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
 # if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
 LAZY_LOAD_PLUGINS = conf.getboolean('core', 'lazy_load_plugins', fallback=True)
+
+# By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
+# Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
+# loaded from module.
+LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallback=True)
 
 # Determines if the executor utilizes Kubernetes
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {

@@ -86,4 +86,4 @@ class TestCliRoles(unittest.TestCase):
         self.assertIn('FakeTeamB', stdout)
 
     def test_cli_list_roles_with_args(self):
-        role_command.roles_list(self.parser.parse_args(['roles', 'list', '--output', 'tsv']))
+        role_command.roles_list(self.parser.parse_args(['roles', 'list', '--output', 'yaml']))

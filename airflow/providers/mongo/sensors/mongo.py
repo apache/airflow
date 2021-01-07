@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.providers.mongo.hooks.mongo import MongoHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

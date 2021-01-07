@@ -30,6 +30,7 @@ from airflow.settings import Session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
 from airflow.version import version
 from airflow.www import app as application
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 
 ROOT_FOLDER = os.path.realpath(
@@ -38,6 +39,7 @@ ROOT_FOLDER = os.path.realpath(
 
 
 class TestBase(unittest.TestCase):
+    @conf_vars({('api', 'enable_experimental_api'): 'true'})
     def setUp(self):
         self.app = application.create_app(testing=True)
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member

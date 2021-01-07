@@ -17,11 +17,12 @@
 
 ---
 package-name: apache-airflow-providers-mongo
+name: MongoDB
 description: |
     `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: MongoDB
@@ -36,3 +37,6 @@ hooks:
   - integration-name: MongoDB
     python-modules:
       - airflow.providers.mongo.hooks.mongo
+
+hook-class-names:
+  - airflow.providers.mongo.hooks.mongo.MongoHook

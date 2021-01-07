@@ -33,7 +33,12 @@ class EmrHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, emr_conn_id: Optional[str] = None, *args, **kwargs) -> None:
+    conn_name_attr = 'emr_conn_id'
+    default_conn_name = 'emr_default'
+    conn_type = 'emr'
+    hook_name = 'Elastic MapReduce'
+
+    def __init__(self, emr_conn_id: Optional[str] = default_conn_name, *args, **kwargs) -> None:
         self.emr_conn_id = emr_conn_id
         kwargs["client_type"] = "emr"
         super().__init__(*args, **kwargs)

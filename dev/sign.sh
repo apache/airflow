@@ -30,5 +30,5 @@ SIGN_WITH="${SIGN_WITH:-apache.org}"
 for name in "${@}"
 do
     gpg --armor --local-user "$SIGN_WITH" --output "${name}.asc" --detach-sig "${name}"
-    gpg --print-md SHA512 "${name}" > "${name}.sha512"
+    shasum -a 512 "${name}" > "${name}.sha512"
 done

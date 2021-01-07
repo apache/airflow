@@ -22,7 +22,7 @@ from typing import Any, List, Optional, Tuple, Union
 import pyexasol
 from pyexasol import ExaConnection
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class ExasolHook(DbApiHook):
@@ -38,6 +38,8 @@ class ExasolHook(DbApiHook):
 
     conn_name_attr = 'exasol_conn_id'
     default_conn_name = 'exasol_default'
+    conn_type = 'exasol'
+    hook_name = 'Exasol'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:

@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Pattern, Type
 
 from airflow import settings
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 log = logging.getLogger(__name__)

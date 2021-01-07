@@ -20,19 +20,13 @@
 /* global window, dagTZ, moment, convertSecsToHumanReadable */
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
-import { escapeHtml } from './base';
+import { escapeHtml } from './main';
 import { defaultFormat, formatDateTime } from './datetime-utils';
 
 function makeDateTimeHTML(start, end) {
   // check task ended or not
-  if (end && end instanceof moment) {
-    return (
-      `Started: ${start.format(defaultFormat)} <br> Ended: ${end.format(defaultFormat)} <br>`
-    );
-  }
-  return (
-    `Started: ${start.format(defaultFormat)} <br> Ended: Not ended yet <br>`
-  );
+  const isEnded = end && end instanceof moment && end.isValid();
+  return `Started: ${start.format(defaultFormat)}<br>Ended: ${isEnded ? end.format(defaultFormat) : 'Not ended yet'}<br>`;
 }
 
 function generateTooltipDateTimes(startDate, endDate, dagTZ) {
@@ -104,4 +98,17 @@ export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
   return tt;
 }
 
+export function taskNoInstanceTooltip(taskId, task) {
+  let tt = '';
+  if (taskId) {
+    tt += `Task_id: ${escapeHtml(taskId)}<br>`;
+  }
+  if (task.task_type !== undefined) {
+    tt += `Operator: ${escapeHtml(task.task_type)}<br>`;
+  }
+  tt += '<br><em>DAG has yet to run.</em>';
+  return tt;
+}
+
 window.tiTooltip = tiTooltip;
+window.taskNoInstanceTooltip = taskNoInstanceTooltip;

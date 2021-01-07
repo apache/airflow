@@ -158,6 +158,13 @@
         "_downstream_task_ids": {
           "type": "array",
           "items": { "type": "string" }
+        },
+        "_is_dummy": { "type": "boolean" },
+        "deps": {
+          "description": "list of dep classes -- if non-standard",
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
         }
       },
       "additionalProperties": true

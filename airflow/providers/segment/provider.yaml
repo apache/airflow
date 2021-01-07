@@ -17,11 +17,12 @@
 
 ---
 package-name: apache-airflow-providers-segment
+name: Segment
 description: |
     `Segment <https://segment.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Segment
@@ -37,3 +38,6 @@ hooks:
   - integration-name: Segment
     python-modules:
       - airflow.providers.segment.hooks.segment
+
+hook-class-names:
+  - airflow.providers.segment.hooks.segment.SegmentHook

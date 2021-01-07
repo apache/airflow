@@ -672,7 +672,7 @@ class TestGCSHook(unittest.TestCase):
         )
 
         self.assertEqual(response, test_file)
-        download_filename_method.assert_called_once_with(test_file)
+        download_filename_method.assert_called_once_with(test_file, timeout=60)
 
     @mock.patch(GCS_STRING.format('NamedTemporaryFile'))
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
@@ -697,7 +697,7 @@ class TestGCSHook(unittest.TestCase):
         with self.gcs_hook.provide_file(bucket_name=test_bucket, object_name=test_object) as response:
 
             self.assertEqual(test_file, response.name)
-        download_filename_method.assert_called_once_with(test_file)
+        download_filename_method.assert_called_once_with(test_file, timeout=60)
         mock_temp_file.assert_has_calls(
             [
                 mock.call(suffix='test_object'),
@@ -762,7 +762,7 @@ class TestGCSHookUpload(unittest.TestCase):
         self.gcs_hook.upload(test_bucket, test_object, filename=self.testfile.name)
 
         upload_method.assert_called_once_with(
-            filename=self.testfile.name, content_type='application/octet-stream'
+            filename=self.testfile.name, content_type='application/octet-stream', timeout=60
         )
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
@@ -782,7 +782,7 @@ class TestGCSHookUpload(unittest.TestCase):
 
         self.gcs_hook.upload(test_bucket, test_object, data=self.testdata_str)
 
-        upload_method.assert_called_once_with(self.testdata_str, content_type='text/plain')
+        upload_method.assert_called_once_with(self.testdata_str, content_type='text/plain', timeout=60)
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_data_bytes(self, mock_service):
@@ -793,7 +793,7 @@ class TestGCSHookUpload(unittest.TestCase):
 
         self.gcs_hook.upload(test_bucket, test_object, data=self.testdata_bytes)
 
-        upload_method.assert_called_once_with(self.testdata_bytes, content_type='text/plain')
+        upload_method.assert_called_once_with(self.testdata_bytes, content_type='text/plain', timeout=60)
 
     @mock.patch(GCS_STRING.format('BytesIO'))
     @mock.patch(GCS_STRING.format('gz.GzipFile'))
@@ -812,7 +812,7 @@ class TestGCSHookUpload(unittest.TestCase):
         byte_str = bytes(self.testdata_str, encoding)
         mock_gzip.assert_called_once_with(fileobj=mock_bytes_io.return_value, mode="w")
         gzip_ctx.write.assert_called_once_with(byte_str)
-        upload_method.assert_called_once_with(data, content_type='text/plain')
+        upload_method.assert_called_once_with(data, content_type='text/plain', timeout=60)
 
     @mock.patch(GCS_STRING.format('BytesIO'))
     @mock.patch(GCS_STRING.format('gz.GzipFile'))
@@ -829,7 +829,7 @@ class TestGCSHookUpload(unittest.TestCase):
 
         mock_gzip.assert_called_once_with(fileobj=mock_bytes_io.return_value, mode="w")
         gzip_ctx.write.assert_called_once_with(self.testdata_bytes)
-        upload_method.assert_called_once_with(data, content_type='text/plain')
+        upload_method.assert_called_once_with(data, content_type='text/plain', timeout=60)
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_exceptions(self, mock_service):

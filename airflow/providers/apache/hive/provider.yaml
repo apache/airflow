@@ -17,15 +17,17 @@
 
 ---
 package-name: apache-airflow-providers-apache-hive
+name: Apache Hive
 description: |
     `Apache Hive <https://hive.apache.org/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Apache Hive
     external-doc-url: https://hive.apache.org/
+    logo: /integration-logos/apache/hive.png
     tags: [apache]
 
 operators:
@@ -65,3 +67,8 @@ transfers:
   - source-integration-name: Microsoft SQL Server (MSSQL)
     target-integration-name: Apache Hive
     python-module: airflow.providers.apache.hive.transfers.mssql_to_hive
+
+hook-class-names:
+  - airflow.providers.apache.hive.hooks.hive.HiveCliHook
+  - airflow.providers.apache.hive.hooks.hive.HiveServer2Hook
+  - airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook

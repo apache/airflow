@@ -22,7 +22,7 @@ import ftplib
 import os.path
 from typing import Any, List, Optional
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class FTPHook(BaseHook):
@@ -34,7 +34,12 @@ class FTPHook(BaseHook):
     connection as ``{"passive": "true"}``.
     """
 
-    def __init__(self, ftp_conn_id: str = 'ftp_default') -> None:
+    conn_name_attr = 'ftp_conn_id'
+    default_conn_name = 'ftp_default'
+    conn_type = 'ftp'
+    hook_name = 'FTP'
+
+    def __init__(self, ftp_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.ftp_conn_id = ftp_conn_id
         self.conn: Optional[ftplib.FTP] = None

@@ -101,4 +101,4 @@ def upgrade():
 
 def downgrade():
     """Unapply Add DagRun run_type"""
-    op.drop_column("run_type")
+    op.drop_column("dag_run", "run_type")

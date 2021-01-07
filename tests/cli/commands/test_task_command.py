@@ -17,6 +17,7 @@
 # under the License.
 #
 import io
+import json
 import logging
 import os
 import unittest
@@ -26,7 +27,6 @@ from unittest import mock
 
 import pytest
 from parameterized import parameterized
-from tabulate import tabulate
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
@@ -55,6 +55,7 @@ def reset(dag_id):
         runs.delete()
 
 
+# TODO: Check if tests needs side effects - locally there's missing DAG
 class TestCliTasks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -69,7 +70,8 @@ class TestCliTasks(unittest.TestCase):
         args = self.parser.parse_args(['tasks', 'list', 'example_bash_operator', '--tree'])
         task_command.task_list(args)
 
-    def test_test(self):
+    @mock.patch("airflow.models.taskinstance.TaskInstance._run_mini_scheduler_on_child_tasks")
+    def test_test(self, mock_run_mini_scheduler):
         """Test the `airflow test` command"""
         args = self.parser.parse_args(
             ["tasks", "test", "example_python_operator", 'print_the_context', '2018-01-01']
@@ -77,6 +79,8 @@ class TestCliTasks(unittest.TestCase):
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
+
+        mock_run_mini_scheduler.assert_not_called()
         # Check that prints, and log messages, are shown
         self.assertIn("'example_python_operator__print_the_context__20180101'", stdout.getvalue())
 
@@ -244,28 +248,30 @@ class TestCliTasks(unittest.TestCase):
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_states_for_dag_run(
                 self.parser.parse_args(
-                    ['tasks', 'states-for-dag-run', 'example_python_operator', defaut_date2.isoformat()]
+                    [
+                        'tasks',
+                        'states-for-dag-run',
+                        'example_python_operator',
+                        defaut_date2.isoformat(),
+                        '--output',
+                        "json",
+                    ]
                 )
             )
-        actual_out = stdout.getvalue()
+        actual_out = json.loads(stdout.getvalue())
 
-        formatted_rows = [
-            (
-                'example_python_operator',
-                '2016-01-09 00:00:00+00:00',
-                'print_the_context',
-                'success',
-                ti_start,
-                ti_end,
-            )
-        ]
-
-        expected = tabulate(
-            formatted_rows, ['dag', 'exec_date', 'task', 'state', 'start_date', 'end_date'], tablefmt="plain"
+        self.assertEqual(len(actual_out), 1)
+        self.assertDictEqual(
+            actual_out[0],
+            {
+                'dag_id': 'example_python_operator',
+                'execution_date': '2016-01-09T00:00:00+00:00',
+                'task_id': 'print_the_context',
+                'state': 'success',
+                'start_date': ti_start.isoformat(),
+                'end_date': ti_end.isoformat(),
+            },
         )
-
-        # Check that prints, and log messages, are shown
-        self.assertIn(expected.replace("\n", ""), actual_out.replace("\n", ""))
 
     def test_subdag_clear(self):
         args = self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator', '--yes'])

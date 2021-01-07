@@ -43,7 +43,7 @@ def get_provider_yaml_paths():
     return sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
 
 
-def load_package_data() -> List[Dict[str, Dict]]:
+def load_package_data() -> List[Dict[str, Any]]:
     """
     Load all data from providers files
 
@@ -59,5 +59,6 @@ def load_package_data() -> List[Dict[str, Dict]]:
         except jsonschema.ValidationError:
             raise Exception(f"Unable to parse: {provider_yaml_path}.")
         provider['python-module'] = _filepath_to_module(os.path.dirname(provider_yaml_path))
+        provider['package-dir'] = os.path.dirname(provider_yaml_path)
         result.append(provider)
     return result

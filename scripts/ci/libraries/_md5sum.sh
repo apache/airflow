@@ -82,6 +82,11 @@ function md5sum::update_all_md5() {
     touch "${BUILT_CI_IMAGE_FLAG_FILE}"
 }
 
+function md5sum::update_all_md5_with_group() {
+    start_end::group_start "Update MD5 hashes for pulled images"
+    md5sum::update_all_md5
+    start_end::group_end
+}
 
 function md5sum::calculate_md5sum_for_all_files() {
     FILES_MODIFIED="false"
@@ -102,7 +107,6 @@ function md5sum::calculate_md5sum_for_all_files() {
 # * setup.py
 # * setup.cfg
 # * Dockerfile.ci
-# * airflow/version.py
 #
 # This is needed because we want to skip rebuilding of the image when only airflow sources change but
 # Trigger rebuild in case we need to change dependencies (setup.py, setup.cfg, change version of Airflow

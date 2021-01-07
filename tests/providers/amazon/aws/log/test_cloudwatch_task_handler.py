@@ -23,7 +23,7 @@ from unittest.mock import call
 from watchtower import CloudWatchLogHandler
 
 from airflow.models import DAG, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.utils.log.cloudwatch_task_handler import CloudwatchTaskHandler
 from airflow.utils.state import State
@@ -111,13 +111,17 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
             mock_emit.assert_has_calls([call(message) for message in messages])
 
     def test_read(self):
+        # Confirmed via AWS Support call:
+        # CloudWatch events must be ordered chronologically otherwise
+        # boto3 put_log_event API throws InvalidParameterException
+        # (moto does not throw this exception)
         generate_log_events(
             self.conn,
             self.remote_log_group,
             self.remote_log_stream,
             [
-                {'timestamp': 20000, 'message': 'Second'},
                 {'timestamp': 10000, 'message': 'First'},
+                {'timestamp': 20000, 'message': 'Second'},
                 {'timestamp': 30000, 'message': 'Third'},
             ],
         )
@@ -139,8 +143,8 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
             self.remote_log_group,
             'alternate_log_stream',
             [
-                {'timestamp': 20000, 'message': 'Second'},
                 {'timestamp': 10000, 'message': 'First'},
+                {'timestamp': 20000, 'message': 'Second'},
                 {'timestamp': 30000, 'message': 'Third'},
             ],
         )
@@ -163,8 +167,8 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
             'alternate_log_group',
             self.remote_log_stream,
             [
-                {'timestamp': 20000, 'message': 'Second'},
                 {'timestamp': 10000, 'message': 'First'},
+                {'timestamp': 20000, 'message': 'Second'},
                 {'timestamp': 30000, 'message': 'Third'},
             ],
         )

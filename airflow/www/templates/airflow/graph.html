@@ -123,7 +123,6 @@
   <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
   <script src="{{ url_for_asset('d3-tip.js') }}"></script>
   <script src="{{ url_for_asset('taskInstances.js') }}"></script>
-  <script src="{{ url_for_asset('graph.js') }}"></script>
   <script>
 
       var highlight_color = "#000";
@@ -563,6 +562,9 @@
             } else if(task_group_tips.has(task_id)) {
               const tt = group_tooltip(task_id, tis)
               taskTip.show(tt, evt.target);
+            } else if (task_id in tasks) {
+              const tt = taskNoInstanceTooltip(task_id, tasks[task_id]);
+              taskTip.show(tt, evt.target)
             }
           };
           elem.onmouseout = taskTip.hide;

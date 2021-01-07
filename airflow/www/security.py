@@ -23,7 +23,7 @@ from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from airflow import models
@@ -74,6 +74,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
+        (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
+        (permissions.ACTION_RESETMYPASSWORD, permissions.RESOURCE_USER_DB_MODELVIEW),
+        (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_USERINFO_EDIT_VIEW),
+        (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_USERINFO_EDIT_VIEW),
+        (permissions.ACTION_USERINFOEDIT, permissions.RESOURCE_USER_DB_MODELVIEW),
+        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_DB_MODELVIEW),
+        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OID_MODELVIEW),
+        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_LDAP_MODELVIEW),
+        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OAUTH_MODELVIEW),
+        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_REMOTEUSER_MODELVIEW),
     ]
     # [END security_viewer_perms]
 
@@ -205,8 +216,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if user is None:
             user = g.user
         if user.is_anonymous:
-            public_role = current_app.appbuilder.config.get('AUTH_ROLE_PUBLIC')
-            return [current_app.appbuilder.security_manager.find_role(public_role)] if public_role else []
+            public_role = current_app.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
+            return [current_app.appbuilder.sm.find_role(public_role)] if public_role else []
         return user.roles
 
     def get_all_permissions_views(self):
@@ -260,22 +271,22 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         resources = set()
         for role in user_query.roles:
             for permission in role.permissions:
-                resource = permission.view_menu.name
                 action = permission.permission.name
                 if action not in user_actions:
                     continue
+
+                resource = permission.view_menu.name
+                if resource == permissions.RESOURCE_DAG:
+                    return session.query(DagModel)
 
                 if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                     resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
                 else:
                     resources.add(resource)
 
-        if permissions.RESOURCE_DAG in resources:
-            return session.query(DagModel)
-
         return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
 
-    def can_access_some_dags(self, action: str, dag_id: Optional[int] = None) -> bool:
+    def can_access_some_dags(self, action: str, dag_id: Optional[str] = None) -> bool:
         """Checks if user has read or write access to some dags."""
         if dag_id and dag_id != '~':
             return self.has_access(action, self.prefixed_dag_id(dag_id))
@@ -362,7 +373,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def _has_perm(self, permission_name, view_menu_name):
         """Whether the user has this perm"""
-        if hasattr(self, 'perms'):
+        if hasattr(self, 'perms') and self.perms is not None:
             if (permission_name, view_menu_name) in self.perms:
                 return True
         # rebuild the permissions set
@@ -520,7 +531,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        all_dag_view = self.find_view_menu(permissions.RESOURCE_DAG)
         dag_pvs = (
             self.get_session.query(sqla_models.ViewMenu)
             .filter(sqla_models.ViewMenu.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
@@ -529,12 +539,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         pv_ids = [pv.id for pv in dag_pvs]
         pvms = (
             self.get_session.query(sqla_models.PermissionView)
-            .filter(
-                ~and_(
-                    sqla_models.PermissionView.view_menu_id.in_(pv_ids),
-                    sqla_models.PermissionView.view_menu_id != all_dag_view.id,
-                )
-            )
+            .filter(~sqla_models.PermissionView.view_menu_id.in_(pv_ids))
             .all()
         )
 
@@ -641,7 +646,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             if not role:
                 raise AirflowException(
                     "The access_control mapping for DAG '{}' includes a role "
-                    "named '{}', but that role does not exist".format(prefixed_dag_id, rolename)
+                    "named '{}', but that role does not exist".format(dag_id, rolename)
                 )
 
             perms = set(perms)
@@ -650,7 +655,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 raise AirflowException(
                     "The access_control map for DAG '{}' includes the following "
                     "invalid permissions: {}; The set of valid permissions "
-                    "is: {}".format(prefixed_dag_id, (perms - self.DAG_PERMS), self.DAG_PERMS)
+                    "is: {}".format(prefixed_dag_id, invalid_perms, self.DAG_PERMS)
                 )
 
             for perm_name in perms:
@@ -665,7 +670,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 self._merge_perm(permission_name=perm, view_menu_name=dag_vm)
 
     def check_authorization(
-        self, perms: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[int] = None
+        self, perms: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[str] = None
     ) -> bool:
         """Checks that the logged in user has the specified permissions."""
         if not perms:

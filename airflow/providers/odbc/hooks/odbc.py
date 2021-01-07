@@ -21,7 +21,7 @@ from urllib.parse import quote_plus
 
 import pyodbc
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.utils.helpers import merge_dicts
 
 
@@ -29,12 +29,14 @@ class OdbcHook(DbApiHook):
     """
     Interact with odbc data sources using pyodbc.
 
-    See :ref:`howto/connection/odbc` for full documentation.
+    See :doc:`/connections/odbc` for full documentation.
     """
 
     DEFAULT_SQLALCHEMY_SCHEME = 'mssql+pyodbc'
     conn_name_attr = 'odbc_conn_id'
     default_conn_name = 'odbc_default'
+    conn_type = 'odbc'
+    hook_name = 'ODBC'
     supports_autocommit = True
 
     def __init__(
@@ -189,7 +191,7 @@ class OdbcHook(DbApiHook):
         return conn
 
     def get_uri(self) -> str:
-        """URI invoked in :py:meth:`~airflow.hooks.dbapi_hook.DbApiHook.get_sqlalchemy_engine` method"""
+        """URI invoked in :py:meth:`~airflow.hooks.dbapi.DbApiHook.get_sqlalchemy_engine` method"""
         quoted_conn_str = quote_plus(self.odbc_connection_string)
         uri = f"{self.sqlalchemy_scheme}:///?odbc_connect={quoted_conn_str}"
         return uri

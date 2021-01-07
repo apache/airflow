@@ -38,29 +38,35 @@ for pre_commit in ${all_pre_commits}
 do
     if ! grep -q "${pre_commit}" "${STATIC_CODE_CHECKS_FILE}"; then
         error="true"
-        >&2 echo
-        >&2 echo "ERROR: Pre-commit ${pre_commit} is not described in ${STATIC_CODE_CHECKS_FILE}"
-        >&2 echo
-        >&2 echo "FIX: Please add ${pre_commit} in the table in the 'Pre-commit hooks' chapter in ${STATIC_CODE_CHECKS_FILE}"
-        >&2 echo
+        echo
+        echo """
+${COLOR_RED_ERROR} Pre-commit ${pre_commit} is not described in ${STATIC_CODE_CHECKS_FILE}
+ERROR: Pre-commit ${pre_commit} is not described in ${STATIC_CODE_CHECKS_FILE}
+
+FIX: Please add ${pre_commit} in the table in the 'Pre-commit hooks' chapter in ${STATIC_CODE_CHECKS_FILE}
+${COLOR_RESET}
+"""
+        echo
     fi
+    # shellcheck disable=SC2154
     if [[ ! ${_breeze_allowed_static_checks} == *${pre_commit}* ]]; then
         error="true"
-        >&2 echo
-        >&2 echo "ERROR: Pre-commit ${pre_commit} is missing in _breeze_allowed_static_checks variable in breeze-complete"
-        >&2 echo
-        >&2 echo "FIX: Please add ${pre_commit} in the table in the '_breeze_allowed_static_checks' constant in ${AIRFLOW_SOURCES}/breeze-complete"
-        >&2 echo
+        echo """
+${COLOR_RED_ERROR}: Pre-commit ${pre_commit} is missing in _breeze_allowed_static_checks variable in breeze-complete
+
+FIX: Please add ${pre_commit} in the table in the '_breeze_allowed_static_checks' constant in ${AIRFLOW_SOURCES}/breeze-complete
+${COLOR_RESET}
+"""
     fi
 done
 
 if [[ ${error} == "true" ]]; then
-  >&2 echo
-  >&2 echo "Some pre-commits are not synchronized! Please fix the errors above!"
-  >&2 echo
-  exit 1
+    echo
+    echo  "${COLOR_RED_ERROR} Some pre-commits are not synchronized! Please fix the errors above!  ${COLOR_RESET}"
+    echo
+    exit 1
 else
-  echo
-  echo "All pre-commits are synchronized!"
-  echo
+    echo
+    echo "${COLOR_GREEN_OK} All pre-commits are synchronized!  ${COLOR_RESET}"
+    echo
 fi

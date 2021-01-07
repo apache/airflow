@@ -27,8 +27,8 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Master](#master)
-- [Airflow 2.0.0b1](#airflow-200b1)
-- [Airflow 2.0.0a1](#airflow-200a1)
+- [Airflow 2.0.0](#airflow-200)
+- [Airflow 1.10.14](#airflow-11014)
 - [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
 - [Airflow 1.10.11](#airflow-11011)
@@ -52,30 +52,71 @@ assists users migrating to a new version.
 
 ## Master
 
-### Unify user session lifetime configuration
+## Airflow 2.0.0
 
-In previous version of Airflow user session lifetime could be configured by
-`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
-had impact on session lifetime, but it was limited to values in day.
-We have removed mentioned options and introduced new `session_lifetime_minutes`
-option which simplify session lifetime configuration.
+### The experimental REST API is disabled by default
 
-Before
+The experimental REST API is disabled by default. To restore these APIs while migrating to
+the stable REST API, set `enable_experimental_api` option in `[api]` section to `True`.
 
- ```ini
-[webserver]
-force_log_out_after = 0
-session_lifetime_days = 30
- ```
+Please note that the experimental REST API do not have access control.
+The authenticated user has full access.
 
-After
+### SparkJDBCHook default connection
 
- ```ini
-[webserver]
-session_lifetime_minutes = 43200
- ```
+For SparkJDBCHook default connection was `spark-default`, and for SparkSubmitHook it was
+`spark_default`. Both hooks now use the `spark_default` which is a common pattern for the connection
+names used across all providers.
 
-## Airflow 2.0.0b1
+### Changes to output argument in commands
+
+From Airflow 2.0, We are replacing [tabulate](https://pypi.org/project/tabulate/) with [rich](https://github.com/willmcgugan/rich) to render commands output. Due to this change, the `--output` argument
+will no longer accept formats of tabulate tables. Instead, it now accepts:
+
+- `table` - will render the output in predefined table
+- `json` - will render the output as a json
+- `yaml` - will render the output as yaml
+
+By doing this we increased consistency and gave users possibility to manipulate the
+output programmatically (when using json or yaml).
+
+Affected commands:
+
+- `airflow dags list`
+- `airflow dags report`
+- `airflow dags list-runs`
+- `airflow dags list-jobs`
+- `airflow connections list`
+- `airflow connections get`
+- `airflow pools list`
+- `airflow pools get`
+- `airflow pools set`
+- `airflow pools delete`
+- `airflow pools import`
+- `airflow pools export`
+- `airflow role list`
+- `airflow providers list`
+- `airflow providers get`
+- `airflow providers hooks`
+- `airflow tasks states-for-dag-run`
+- `airflow users list`
+- `airflow variables list`
+
+### Azure Wasb Hook does not work together with Snowflake hook
+
+The WasbHook in Apache Airflow use a legacy version of Azure library. While the conflict is not
+significant for most of the Azure hooks, it is a problem for Wasb Hook because the `blob` folders
+for both libraries overlap. Installing both Snowflake and Azure extra will result in non-importable
+WasbHook.
+
+### Rename `all` to `devel_all` extra
+
+The `all` extras were reduced to include only user-facing dependencies. This means
+that this extra does not contain development dependencies. If you were relying on
+`all` extra then you should use now `devel_all` or figure out if you need development
+extras at all.
+
+### Context variables `prev_execution_date_success` and `prev_execution_date_success` are now `pendulum.DateTime`
 
 ### Rename policy to task_policy
 
@@ -109,7 +150,7 @@ from my_plugin import MyOperator
 
 The name under `airflow.operators.` was the plugin name, where as in the second example it is the python module name where the operator is defined.
 
-See http://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+See https://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
 
 ### Importing Hooks via plugins is no longer supported
 
@@ -127,7 +168,7 @@ from my_plugin import MyHook
 
 It is still possible (but not required) to "register" hooks in plugins. This is to allow future support for dynamically populating the Connections form in the UI.
 
-See http://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+See https://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
 
 ### Adding Operators and Sensors via plugins is no longer supported
 
@@ -150,8 +191,6 @@ previously used full path as ignored, you should change it to relative one. For 
 folder was '/var/dags/' and your airflowignore contained '/var/dag/excluded/', you should change it
 to 'excluded/'.
 
-### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
-
 ### `ExternalTaskSensor` provides all task context variables to `execution_date_fn` as keyword arguments
 
 The old syntax of passing `context` as a dictionary will continue to work with the caveat that the argument must be named `context`. The following will break. To fix it, change `ctx` to `context`.
@@ -172,12 +211,10 @@ def execution_date_fn(execution_date, ds_nodash):
 def execution_date_fn(execution_date, ds_nodash, dag):
 ```
 
-### The default `[webserver] cookie_samesite` has been changed to `Lax`
+### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
 
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
 `[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
-
-## Airflow 2.0.0a1
 
 The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
 and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
@@ -219,8 +256,29 @@ with third party services to the ``airflow.providers`` package.
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
 
+According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
+`_operator` suffix has been removed from operators. A deprecation warning has also been raised for paths
+importing with the suffix.
 
 
+The following table shows changes in import paths.
+
+
+| Old path                            | New path                   |
+|-------------------------------------|----------------------------|
+| airflow.hooks.base_hook.BaseHook | airflow.hooks.base.BaseHook |
+| airflow.hooks.dbapi_hook.DbApiHook | airflow.hooks.dbapi.DbApiHook |
+| airflow.operators.dummy_operator.DummyOperator | airflow.operators.dummy.DummyOperator |
+| airflow.operators.dagrun_operator.TriggerDagRunOperator | airflow.operators.trigger_dagrun.TriggerDagRunOperator |
+| airflow.operators.branch_operator.BaseBranchOperator | airflow.operators.branch.BaseBranchOperator |
+| airflow.operators.subdag_operator.SubDagOperator | airflow.operators.subdag.SubDagOperator |
+| airflow.sensors.base_sensor_operator.BaseSensorOperator | airflow.sensors.base.BaseSensorOperator |
+| airflow.sensors.date_time_sensor.DateTimeSensor | airflow.sensors.date_time.DateTimeSensor |
+| airflow.sensors.external_task_sensor.ExternalTaskMarker | airflow.sensors.external_task.ExternalTaskMarker |
+| airflow.sensors.external_task_sensor.ExternalTaskSensor | airflow.sensors.external_task.ExternalTaskSensor |
+| airflow.sensors.sql_sensor.SqlSensor | airflow.sensors.sql.SqlSensor |
+| airflow.sensors.time_delta_sensor.TimeDeltaSensor | airflow.sensors.time_delta.TimeDeltaSensor |
+| airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor | airflow.sensors.weekday.DayOfWeekSensor |
 
 
 ### Database schema changes
@@ -506,10 +564,10 @@ User can preserve/achieve the original behaviour by setting the trigger_rule of 
 `BaseOperator` class uses a `BaseOperatorMeta` as a metaclass. This meta class is based on
 `abc.ABCMeta`. If your custom operator uses different metaclass then you will have to adjust it.
 
-#### Remove SQL support in base_hook
+#### Remove SQL support in BaseHook
 
-Remove ``get_records`` and ``get_pandas_df`` and ``run`` from base_hook, which only apply for sql like hook,
-If want to use them, or your custom hook inherit them, please use ``airflow.hooks.dbapi_hook.DbApiHook``
+Remove ``get_records`` and ``get_pandas_df`` and ``run`` from BaseHook, which only apply for sql like hook,
+If want to use them, or your custom hook inherit them, please use ``airflow.hooks.dbapi.DbApiHook``
 
 #### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
 
@@ -541,7 +599,7 @@ becomes `from airflow.operators.bash_operator import BashOperator`
 Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
 
 For example: `from airflow.operators.sensors import BaseSensorOperator`
-becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
+becomes `from airflow.sensors.base import BaseSensorOperator`
 
 #### Skipped tasks can satisfy wait_for_downstream
 
@@ -598,7 +656,7 @@ changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been 
 criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
 behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
 
-#### `airflow.operators.dagrun_operator.TriggerDagRunOperator`
+#### `airflow.operators.trigger_dagrun.TriggerDagRunOperator`
 
 The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
 As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
@@ -696,13 +754,6 @@ No change is needed if only the default trigger rule `all_success` is being used
 If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
 
 The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
-
-#### `airflow.sensors.time_sensor.TimeSensor`
-
-Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
-
-Now it will compare `target_time` with the current time in the timezone of the DAG,
-defaulting to the `default_timezone` in the global config.
 
 ### Changes to the core Python API
 
@@ -1483,7 +1534,7 @@ Migrated are:
 
 #### `airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator`
 
-The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
+The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidentally set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
 versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new
 changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is
 solved.
@@ -1641,6 +1692,16 @@ For example:
 If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
 you should use `pip install apache-airflow[apache.atlas]`.
 
+
+NOTE!
+
+On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
+of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+`pip install --upgrade pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`--use-deprecated legacy-resolver` to your pip install command.
+
+
 If you want to install integration for Microsoft Azure, then instead of
 
 ```
@@ -1652,7 +1713,7 @@ you should execute `pip install 'apache-airflow[azure]'`
 If you want to install integration for Amazon Web Services, then instead of
 `pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
 
-The deprecated extras will be removed in 2.1:
+The deprecated extras will be removed in 3.0.
 
 #### Simplify the response payload of endpoints /dag_stats and /task_stats
 
@@ -1702,7 +1763,78 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 }
 ```
 
+## Airflow 1.10.14
+
+### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
+
+From Airflow 1.10.14, `max_threads` config under `[scheduler]` section has been renamed to `parsing_processes`.
+
+This is to align the name with the actual code where the Scheduler launches the number of processes defined by
+`[scheduler] parsing_processes` to parse the DAG files.
+
+### Airflow CLI changes in line with 2.0
+
+The Airflow CLI has been organized so that related commands are grouped together as subcommands,
+which means that if you use these commands in your scripts, they will now raise a DeprecationWarning and
+you have to make changes to them before you upgrade to Airflow 2.0.
+
+This section describes the changes that have been made, and what you need to do to update your script.
+
+The ability to manipulate users from the command line has been changed. ``airflow create_user``,  ``airflow delete_user``
+ and ``airflow list_users`` has been grouped to a single command `airflow users` with optional flags `create`, `list` and `delete`.
+
+The `airflow list_dags` command is now `airflow dags list`, `airflow pause` is `airflow dags pause`, etc.
+
+In Airflow 1.10 and 2.0 there is an `airflow config` command but there is a difference in behavior. In Airflow 1.10,
+it prints all config options while in Airflow 2.0, it's a command group. `airflow config` is now `airflow config list`.
+You can check other options by running the command `airflow config --help`
+
+Compatibility with the old CLI has been maintained, but they will no longer appear in the help
+
+You can learn about the commands by running ``airflow --help``. For example to get help about the ``celery`` group command,
+you have to run the help command: ``airflow celery --help``.
+
+| Old command                   | New command                        |     Group          |
+|-------------------------------|------------------------------------|--------------------|
+| ``airflow worker``            | ``airflow celery worker``          |    ``celery``      |
+| ``airflow flower``            | ``airflow celery flower``          |    ``celery``      |
+| ``airflow trigger_dag``       | ``airflow dags trigger``           |    ``dags``        |
+| ``airflow delete_dag``        | ``airflow dags delete``            |    ``dags``        |
+| ``airflow show_dag``          | ``airflow dags show``              |    ``dags``        |
+| ``airflow list_dag``          | ``airflow dags list``              |    ``dags``        |
+| ``airflow dag_status``        | ``airflow dags status``            |    ``dags``        |
+| ``airflow backfill``          | ``airflow dags backfill``          |    ``dags``        |
+| ``airflow list_dag_runs``     | ``airflow dags list-runs``         |    ``dags``        |
+| ``airflow pause``             | ``airflow dags pause``             |    ``dags``        |
+| ``airflow unpause``           | ``airflow dags unpause``           |    ``dags``        |
+| ``airflow next_execution``    | ``airflow dags next-execution``    |    ``dags``        |
+| ``airflow test``              | ``airflow tasks test``             |    ``tasks``       |
+| ``airflow clear``             | ``airflow tasks clear``            |    ``tasks``       |
+| ``airflow list_tasks``        | ``airflow tasks list``             |    ``tasks``       |
+| ``airflow task_failed_deps``  | ``airflow tasks failed-deps``      |    ``tasks``       |
+| ``airflow task_state``        | ``airflow tasks state``            |    ``tasks``       |
+| ``airflow run``               | ``airflow tasks run``              |    ``tasks``       |
+| ``airflow render``            | ``airflow tasks render``           |    ``tasks``       |
+| ``airflow initdb``            | ``airflow db init``                |     ``db``         |
+| ``airflow resetdb``           | ``airflow db reset``               |     ``db``         |
+| ``airflow upgradedb``         | ``airflow db upgrade``             |     ``db``         |
+| ``airflow checkdb``           | ``airflow db check``               |     ``db``         |
+| ``airflow shell``             | ``airflow db shell``               |     ``db``         |
+| ``airflow pool``              | ``airflow pools``                  |     ``pools``      |
+| ``airflow create_user``       | ``airflow users create``           |     ``users``      |
+| ``airflow delete_user``       | ``airflow users delete``           |     ``users``      |
+| ``airflow list_users``        | ``airflow users list``             |     ``users``      |
+| ``airflow rotate_fernet_key`` | ``airflow rotate-fernet-key``      |                    |
+| ``airflow sync_perm``         | ``airflow sync-perm``              |                    |
+
 ## Airflow 1.10.13
+
+### TimeSensor is now timezone aware
+
+Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
+
+Now it will compare `target_time` with the current time in the timezone of the DAG,
+defaulting to the `default_timezone` in the global config.
 
 ### Removed Kerberos support for HDFS hook
 
@@ -1711,6 +1843,37 @@ and generally lack of support for SSL in Python3 (Snakebite-py3 we use as depend
 support for SSL connection to HDFS).
 
 SSL support still works for WebHDFS hook.
+
+### Unify user session lifetime configuration
+
+In previous version of Airflow user session lifetime could be configured by
+`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
+had impact on session lifetime, but it was limited to values in day.
+We have removed mentioned options and introduced new `session_lifetime_minutes`
+option which simplify session lifetime configuration.
+
+Before
+
+ ```ini
+[webserver]
+force_log_out_after = 0
+session_lifetime_days = 30
+ ```
+
+After
+
+ ```ini
+[webserver]
+session_lifetime_minutes = 43200
+ ```
+
+### Adding Operators, Hooks and Sensors via Airflow Plugins is deprecated
+
+The ability to import Operators, Hooks and Sensors via the plugin mechanism has been deprecated and will raise warnings
+in Airflow 1.10.13 and will be removed completely in Airflow 2.0.
+
+Check https://airflow.apache.org/docs/1.10.13/howto/custom-operator.html to see how you can create and import
+Custom Hooks, Operators and Sensors.
 
 ## Airflow 1.10.12
 
@@ -2611,7 +2774,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>>
 >>> from datetime import datetime
 >>> from airflow.models.dag import DAG
->>> from airflow.operators.dummy_operator import DummyOperator
+>>> from airflow.operators.dummy import DummyOperator
 >>>
 >>> dag = DAG('simple_dag', start_date=datetime(2017, 9, 1))
 >>>

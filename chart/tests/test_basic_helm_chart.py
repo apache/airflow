@@ -22,7 +22,7 @@ import jmespath
 
 from tests.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 22
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 24
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -50,7 +50,9 @@ class TestBaseChartTest(unittest.TestCase):
                 ('Secret', 'TEST-BASIC-airflow-result-backend'),
                 ('ConfigMap', 'TEST-BASIC-airflow-config'),
                 ('Role', 'TEST-BASIC-pod-launcher-role'),
+                ('Role', 'TEST-BASIC-pod-log-reader-role'),
                 ('RoleBinding', 'TEST-BASIC-pod-launcher-rolebinding'),
+                ('RoleBinding', 'TEST-BASIC-pod-log-reader-rolebinding'),
                 ('Service', 'TEST-BASIC-postgresql-headless'),
                 ('Service', 'TEST-BASIC-postgresql'),
                 ('Service', 'TEST-BASIC-statsd'),
@@ -113,5 +115,3 @@ class TestBaseChartTest(unittest.TestCase):
             if image.startswith(image_repo):
                 # Make sure that a command is not specified
                 self.assertNotIn("command", obj)
-                # Make sure that the first arg is never airflow
-                self.assertNotEqual(obj["args"][0], "airflow")  # pylint: disable=invalid-sequence-index

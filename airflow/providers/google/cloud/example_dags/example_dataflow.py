@@ -32,7 +32,12 @@ from airflow.providers.google.cloud.operators.dataflow import (
     DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
-from airflow.providers.google.cloud.sensors.dataflow import DataflowJobMetricsSensor, DataflowJobStatusSensor
+from airflow.providers.google.cloud.sensors.dataflow import (
+    DataflowJobAutoScalingEventsSensor,
+    DataflowJobMessagesSensor,
+    DataflowJobMetricsSensor,
+    DataflowJobStatusSensor,
+)
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.dates import days_ago
 
@@ -183,8 +188,38 @@ with models.DAG(
         callback=check_metric_scalar_gte(metric_name="Service-cpu_num_seconds", value=100),
     )
 
+    def check_message(messages: List[dict]) -> bool:
+        """Check message"""
+        for message in messages:
+            if "Adding workflow start and stop steps." in message.get("messageText", ""):
+                return True
+        return False
+
+    wait_for_python_job_async_message = DataflowJobMessagesSensor(
+        task_id="wait-for-python-job-async-message",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        location='europe-west3',
+        callback=check_message,
+    )
+
+    def check_autoscaling_event(autoscaling_events: List[dict]) -> bool:
+        """Check autoscaling event"""
+        for autoscaling_event in autoscaling_events:
+            if "Worker pool started." in autoscaling_event.get("description", {}).get("messageText", ""):
+                return True
+        return False
+
+    wait_for_python_job_async_autoscaling_event = DataflowJobAutoScalingEventsSensor(
+        task_id="wait-for-python-job-async-autoscaling-event",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        location='europe-west3',
+        callback=check_autoscaling_event,
+    )
+
     start_python_job_async >> wait_for_python_job_async_done
     start_python_job_async >> wait_for_python_job_async_metric
+    start_python_job_async >> wait_for_python_job_async_message
+    start_python_job_async >> wait_for_python_job_async_autoscaling_event
 
 
 with models.DAG(

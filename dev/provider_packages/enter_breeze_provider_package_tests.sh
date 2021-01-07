@@ -22,11 +22,9 @@ export MOUNT_LOCAL_SOURCES="false"
 
 function enter_breeze_with_mapped_sources() {
     docker run -it "${EXTRA_DOCKER_FLAGS[@]}" \
-        -v "${AIRFLOW_SOURCES}/dist:/dist:cached" \
         -v "${AIRFLOW_SOURCES}/setup.py:/airflow_sources/setup.py:cached" \
         -v "${AIRFLOW_SOURCES}/setup.cfg:/airflow_sources/setup.cfg:cached" \
         -v "${AIRFLOW_SOURCES}/airflow/__init__.py:/airflow_sources/airflow/__init__.py:cached" \
-        -v "${AIRFLOW_SOURCES}/airflow/version.py:/airflow_sources/airflow/version.py:cached" \
         -v "${AIRFLOW_SOURCES}/empty:/opt/airflow/airflow:cached" \
         -v "${AIRFLOW_SOURCES}/scripts/in_container:/opt/airflow/scripts/in_container:cached" \
         -v "${AIRFLOW_SOURCES}/dev/import_all_classes.py:/opt/airflow/dev/import_all_classes.py:cached" \

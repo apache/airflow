@@ -29,6 +29,9 @@ ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 
+ARG AIRFLOW_PIP_VERSION=20.2.4
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
+
 # Print versions
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
@@ -83,6 +86,7 @@ RUN mkdir -pv /usr/share/man/man1 \
            graphviz \
            gosu \
            libffi-dev \
+           libldap2-dev \
            libkrb5-dev \
            libpq-dev \
            libsasl2-2 \
@@ -104,7 +108,9 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY scripts/docker scripts/docker
+COPY scripts/docker /scripts/docker
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/install_mysql.sh
 RUN ./scripts/docker/install_mysql.sh dev
 
 RUN adduser airflow \
@@ -190,7 +196,7 @@ RUN mkdir -pv ${AIRFLOW_HOME} && \
     mkdir -pv ${AIRFLOW_HOME}/logs
 
 # Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="3"
+ARG PIP_DEPENDENCIES_EPOCH_NUMBER="5"
 ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
 # Install BATS and its dependencies for "in container" tests
@@ -250,7 +256,7 @@ ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 
 # By changing the CI build epoch we can force reinstalling Airflow from the current master
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="2"
+ARG AIRFLOW_CI_BUILD_EPOCH="3"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
@@ -260,15 +266,13 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
 ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
-ARG AIRFLOW_LOCAL_PIP_WHEELS=""
-ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
+ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
+ENV INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES}
 
-ARG INSTALL_AIRFLOW_VIA_PIP="true"
-ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
+ARG INSTALL_FROM_PYPI="true"
+ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 
-# If wheel files are found in /docker-context-files during installation
-# they are also installed additionally to whatever is installed from Airflow.
-COPY docker-context-files /docker-context-files
+RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
@@ -277,7 +281,8 @@ COPY docker-context-files /docker-context-files
 RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
         pip install \
             "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" && pip uninstall --yes apache-airflow; \
+            --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+        pip uninstall --yes apache-airflow; \
     fi
 
 # Generate random hex dump file so that we can determine whether it's faster to rebuild the image
@@ -304,11 +309,10 @@ RUN yarn --cwd airflow/www install --frozen-lockfile --no-cache
 COPY setup.py ${AIRFLOW_SOURCES}/setup.py
 COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
-COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
-ARG UPGRADE_TO_LATEST_CONSTRAINTS="false"
-ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
+ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
@@ -316,27 +320,59 @@ ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
 # Usually we will install versions based on the dependencies in setup.py and upgraded only if needed.
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
-RUN if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
-        if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" != "false" ]]; then \
+RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
+        if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
             pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
+            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
         else \
-            pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy only-if-needed; \
+            pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy only-if-needed\
+                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
         fi; \
     fi
 
-RUN if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} != "true" ]]; then \
-        if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \
-            pip install --no-deps /docker-context-files/*.whl; \
+# If wheel files are found in /docker-context-files during installation
+# they are also installed additionally to whatever is installed from Airflow.
+COPY docker-context-files/ /docker-context-files/
+
+# hadolint ignore=SC2086, SC2010
+RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
+        reinstalling_apache_airflow_package=$(ls /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true); \
+        if [[ "${reinstalling_apache_airflow_package}" != "" ]]; then \
+            # install airflow with extras \
+            reinstalling_apache_airflow_package="${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]"; \
+        fi; \
+        reinstalling_apache_airflow_providers_packages=$(ls /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true); \
+        if [[ ${reinstalling_apache_airflow_package} != "" || \
+              ${reinstalling_apache_airflow_providers_packages} == "" ]]; then \
+            if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
+                pip install --force-reinstall --upgrade --upgrade-strategy eager \
+                    --user ${reinstalling_apache_airflow_package} \
+                           ${reinstalling_apache_airflow_providers_packages}; \
+                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+            else \
+                pip install --force-reinstall --upgrade --upgrade-strategy only-if-needed \
+                    --user ${reinstalling_apache_airflow_package} \
+                           ${reinstalling_apache_airflow_providers_packages} \
+                    --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
+                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
+            fi; \
         fi ; \
+        # All the other packages we want to reinstall as-is, without dependencies \
+        reinstalling_other_packages=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
+            grep -v apache_airflow | grep -v apache-airflow || true); \
+        if [[ "${reinstalling_other_packages}" != "" ]]; then \
+            pip install --force-reinstall --user --no-deps ${reinstalling_other_packages}; \
+        fi; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY
 # commands so as otherwise it copies the _contents_ of static/ in to www/
 COPY airflow/www/webpack.config.js ${AIRFLOW_SOURCES}/airflow/www/
 COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
-
+COPY airflow/www/compile_assets.sh ${AIRFLOW_SOURCES}/airflow/www/compile_assets.sh
 # Package JS/css for production
-RUN yarn --cwd airflow/www run prod
+RUN airflow/www/compile_assets.sh
 
 COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
@@ -384,15 +420,16 @@ ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
-LABEL org.apache.airflow.distro="debian"
-LABEL org.apache.airflow.distro.version="buster"
-LABEL org.apache.airflow.module="airflow"
-LABEL org.apache.airflow.component="airflow"
-LABEL org.apache.airflow.image="airflow-ci"
-LABEL org.apache.airflow.uid="0"
-LABEL org.apache.airflow.gid="0"
-LABEL org.apache.airflow.buildId=${BUILD_ID}
-LABEL org.apache.airflow.commitSha=${COMMIT_SHA}
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow-ci" \
+  org.apache.airflow.version="${AIRFLOW_VERSION}" \
+  org.apache.airflow.uid="0" \
+  org.apache.airflow.gid="0" \
+  org.apache.airflow.buildId=${BUILD_ID} \
+  org.apache.airflow.commitSha=${COMMIT_SHA}
 
 EXPOSE 8080
 

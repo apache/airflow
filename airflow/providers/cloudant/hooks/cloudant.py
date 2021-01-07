@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Cloudant"""
+from typing import Dict
+
 from cloudant import cloudant
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class CloudantHook(BaseHook):
@@ -32,7 +34,20 @@ class CloudantHook(BaseHook):
     :type cloudant_conn_id: str
     """
 
-    def __init__(self, cloudant_conn_id: str = 'cloudant_default') -> None:
+    conn_name_attr = 'cloudant_conn_id'
+    default_conn_name = 'cloudant_default'
+    conn_type = 'cloudant'
+    hook_name = 'Cloudant'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['port', 'extra'],
+            "relabeling": {'host': 'Account', 'login': 'Username (or API Key)', 'schema': 'Database'},
+        }
+
+    def __init__(self, cloudant_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.cloudant_conn_id = cloudant_conn_id
 

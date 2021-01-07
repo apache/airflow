@@ -23,17 +23,20 @@ import inspect
 import logging
 import os
 import sys
-import time
 import types
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
-import pkg_resources
+try:
+    import importlib_metadata
+except ImportError:
+    from importlib import metadata as importlib_metadata
 
 from airflow import settings
+from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 
 if TYPE_CHECKING:
-    from airflow.hooks.base_hook import BaseHook
+    from airflow.hooks.base import BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -88,15 +91,16 @@ class PluginsDirectorySource(AirflowPluginSource):
 class EntryPointSource(AirflowPluginSource):
     """Class used to define Plugins loaded from entrypoint."""
 
-    def __init__(self, entrypoint):
-        self.dist = str(entrypoint.dist)
+    def __init__(self, entrypoint: importlib_metadata.EntryPoint, dist: importlib_metadata.Distribution):
+        self.dist = dist.metadata['name']
+        self.version = dist.version
         self.entrypoint = str(entrypoint)
 
     def __str__(self):
-        return f"{self.dist}: {self.entrypoint}"
+        return f"{self.dist}=={self.version}: {self.entrypoint}"
 
     def __html__(self):
-        return f"<em>{self.dist}:</em> {self.entrypoint}"
+        return f"<em>{self.dist}=={self.version}:</em> {self.entrypoint}"
 
 
 class AirflowPluginException(Exception):
@@ -177,23 +181,23 @@ def load_entrypoint_plugins():
     global import_errors  # pylint: disable=global-statement
     global plugins  # pylint: disable=global-statement
 
-    entry_points = pkg_resources.iter_entry_points('airflow.plugins')
-
     log.debug("Loading plugins from entrypoints")
 
-    for entry_point in entry_points:  # pylint: disable=too-many-nested-blocks
+    for entry_point, dist in entry_points_with_dist('airflow.plugins'):
         log.debug('Importing entry_point plugin %s', entry_point.name)
         try:
             plugin_class = entry_point.load()
-            if is_valid_plugin(plugin_class):
-                plugin_instance = plugin_class()
-                if callable(getattr(plugin_instance, 'on_load', None)):
-                    plugin_instance.on_load()
-                    plugin_instance.source = EntryPointSource(entry_point)
-                    plugins.append(plugin_instance)
+            if not is_valid_plugin(plugin_class):
+                continue
+
+            plugin_instance = plugin_class()
+            if callable(getattr(plugin_instance, 'on_load', None)):
+                plugin_instance.on_load()
+                plugin_instance.source = EntryPointSource(entry_point, dist)
+                plugins.append(plugin_instance)
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
-            import_errors[entry_point.module_name] = str(e)
+            import_errors[entry_point.module] = str(e)
 
 
 def load_plugins_from_plugin_directory():
@@ -252,6 +256,8 @@ def ensure_plugins_loaded():
 
     Plugins are only loaded if they have not been previously loaded.
     """
+    from airflow.stats import Stats
+
     global plugins, registered_hooks  # pylint: disable=global-statement
 
     if plugins is not None:
@@ -263,24 +269,21 @@ def ensure_plugins_loaded():
 
     log.debug("Loading plugins")
 
-    start = time.monotonic()
+    with Stats.timer() as timer:
+        plugins = []
+        registered_hooks = []
 
-    plugins = []
-    registered_hooks = []
+        load_plugins_from_plugin_directory()
+        load_entrypoint_plugins()
 
-    load_plugins_from_plugin_directory()
-    load_entrypoint_plugins()
-
-    # We don't do anything with these for now, but we want to keep track of
-    # them so we can integrate them in to the UI's Connection screens
-    for plugin in plugins:
-        registered_hooks.extend(plugin.hooks)
-
-    end = time.monotonic()
+        # We don't do anything with these for now, but we want to keep track of
+        # them so we can integrate them in to the UI's Connection screens
+        for plugin in plugins:
+            registered_hooks.extend(plugin.hooks)
 
     num_loaded = len(plugins)
     if num_loaded > 0:
-        log.info("Loading %d plugin(s) took %.2f seconds", num_loaded, end - start)
+        log.info("Loading %d plugin(s) took %.2f seconds", num_loaded, timer.duration)
 
 
 def initialize_web_ui_plugins():
@@ -398,6 +401,7 @@ def integrate_macros_plugins() -> None:
     global plugins
     global macros_modules
     # pylint: enable=global-statement
+    from airflow import macros
 
     if macros_modules is not None:
         return
@@ -420,3 +424,6 @@ def integrate_macros_plugins() -> None:
         if macros_module:
             macros_modules.append(macros_module)
             sys.modules[macros_module.__name__] = macros_module  # pylint: disable=no-member
+            # Register the newly created module on airflow.macros such that it
+            # can be accessed when rendering templates.
+            setattr(macros, plugin.name, macros_module)

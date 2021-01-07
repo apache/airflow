@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -22,6 +22,12 @@ Contributions
 
 Contributions are welcome and are greatly appreciated! Every little bit helps,
 and credit will always be given.
+
+New Contributor
+---------------
+If you are a new contributor, please follow the `Contributors Quick Start <https://github.com/apache/airflow/blob/master
+/CONTRIBUTORS_QUICK_START.rst>`__ guide to get a gentle step-by-step introduction to setting up the development
+environment and making your first contribution.
 
 Get Mentoring Support
 ---------------------
@@ -134,6 +140,70 @@ The key aspects of a committer are:
 * Quality of the commits
 * Visibility in community discussions (dev mailing list, Slack and GitHub)
 * Testing Release Candidates
+
+Guidelines for promoting Committers to Airflow PMC
+---------------------------------------------------
+
+To become a PMC member the committers should meet all **general prerequisites**.
+Apart from that the person should demonstrate distinct **community involvement** or **code contributions**.
+
+Guidelines from ASF are listed at
+`ASF: New Candidates for Committership <http://community.apache.org/newcommitter.html#guidelines-for-assessing-new-candidates-for-committership>`__.
+
+Prerequisites
+^^^^^^^^^^^^^^
+
+* Has been a committer for at least 3 months
+* Is still active community member (Visible on mailing list or reviewing PRs at the minimum)
+
+Community involvement
+^^^^^^^^^^^^^^^^^^^^^^
+
+* Visibility on discussions on the dev mailing list
+* Spreading the word for "Airflow" either:
+
+  * Talks at meetups, conferences, etc
+  * Creating content like videos, blogs, etc
+
+* Growing the community:
+
+  * Mentors new members/contributors
+  * Answers users/contributors via Github issues, dev list or slack
+
+Code contribution
+^^^^^^^^^^^^^^^^^^
+
+* Consistent voting on RCs for at least past 3 releases lifecycles
+* Engagement in Airflow Improvements Proposals either:
+
+  * Has been actively voting on AIPs
+  * Has been proposing and leading their implementation
+
+* Actively involved in code contributions:
+
+  * Code reviews
+  * Merging pull requests
+  * Fixing bugs and implementing improvements
+
+
+Only a current PMC member can nominate a current committer to be part of PMC.
+
+If the vote fails or PMC members needs more evidence, then one of the PMC Member (who is not the Proposer)
+can become the Mentor and guide the proposed candidates on how they can become a PMC member.
+
+1.  Candidate Proposer
+
+    This is the person who launches the DISCUSS thread & makes the case for a PMC promotion
+
+2.  Candidate Mentor
+
+    If the committee does not have enough information, requires more time, or requires more evidence of
+    candidate's eligibility, a mentor, who is not the proposer, is selected to help mentor the candidate
+    The mentor should try to remain impartial -- his/her goal is to provide the missing evidence and to
+    try to coach/mentor the candidate to success.
+
+    In order to re-raise a candidate vote, both Proposer and Mentor must be in favor. Again,
+    the mentor must try to remain impartial and cannot be the Proposer.
 
 
 Contributors
@@ -250,7 +320,7 @@ Step 4: Prepare PR
 
    For example, to address this example issue, do the following:
 
-   * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
+   * Read about `email configuration in Airflow </docs/howto/email-config.rst>`__.
 
    * Find the class you should modify. For the example GitHub issue,
      this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
@@ -320,6 +390,11 @@ Step 4: Prepare PR
      * when your change changes the "core" of Airflow you will get the comment that PR needs full tests and
        the "full tests needed" label is set for your PR. Additional check is set that prevents from
        accidental merging of the request until full matrix of tests succeeds for the PR.
+
+     * when your change has "upgrade to newer dependencies" label set, constraints will be automatically
+       upgraded to latest constraints matching your setup.py. This is useful in case you want to force
+       upgrade to a latest version of dependencies. You can ask committers to set the label for you
+       when you need it in your PR.
 
    More details about the PR workflow be found in `PULL_REQUEST_WORKFLOW.rst <PULL_REQUEST_WORKFLOW.rst>`_.
 
@@ -527,6 +602,15 @@ than production performance. The production images are not yet officially publis
 Airflow dependencies
 ====================
 
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 Extras
 ------
 
@@ -540,15 +624,17 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 
-all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
-apache.hive, apache.kylin, apache.pinot, apache.spark, apache.webhdfs, async, atlas, aws, azure,
-cassandra, celery, cgroups, cloudant, cncf.kubernetes, dask, databricks, datadog, devel,
-devel_hadoop, doc, docker, druid, elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise,
-google, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap,
-microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty,
-papermill, password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, salesforce,
-samba, segment, sendgrid, sentry, singularity, slack, snowflake, spark, ssh, statsd, tableau,
-vertica, virtualenv, webhdfs, winrm, yandex, yandexcloud, all, devel_ci
+all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
+apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop,
+apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes,
+crypto, dask, databricks, datadog, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc,
+docker, druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github_enterprise, google,
+google_auth, grpc, hashicorp, hdfs, hive, http, imap, jdbc, jenkins, jira, kerberos, kubernetes,
+ldap, microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, openfaas,
+opsgenie, oracle, pagerduty, papermill, password, pinot, plexus, postgres, presto, qds, qubole,
+rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,
+snowflake, spark, sqlite, ssh, statsd, tableau, telegram, vertica, virtualenv, webhdfs, winrm,
+yandex, zendesk
 
   .. END EXTRAS HERE
 
@@ -566,7 +652,7 @@ and not installed together with the core, unless you set ``INSTALL_PROVIDERS_FRO
 variable to ``true``.
 
 In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
-but you can add ``--skip-installing-airflow-providers`` flag to Breeze to skip installing providers when
+but you can add ``--skip-installing-airflow-providers-from-sources`` flag to Breeze to skip installing providers when
 building the images.
 
 One watch-out - providers are still always installed (or rather available) if you install airflow from
@@ -612,7 +698,7 @@ apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
 apache.livy                http
 dingding                   http
 discord                    http
-google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,postgres,presto,salesforce,sftp,ssh
+google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,salesforce,sftp,ssh
 hashicorp                  google
 microsoft.azure            google,oracle
 microsoft.mssql            odbc
@@ -660,6 +746,15 @@ as of airflow 1.10.10 and further improved with 1.10.12 (moved to separate orpha
 Pinned constraint files
 =======================
 
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
 still allowing the apache-airflow package to install. This means that ``apache-airflow`` package might fail to
 install in case a direct or transitive dependency is released that breaks the installation. In such case
@@ -667,7 +762,7 @@ when installing ``apache-airflow``, you might need to provide additional constra
 example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
 
 However we now have ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files generated
-automatically and committed to orphan ``constraints-master`` and ``constraint-1-10`` branches based on
+automatically and committed to orphan ``constraints-master``, ``constraints-2-0` and ``constraints-1-10`` branches based on
 the set of all latest working and tested dependency versions. Those
 ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files can be used as
 constraints file when installing Apache Airflow - either from the sources:
@@ -713,47 +808,9 @@ jobs for each python version.
 Documentation
 =============
 
-The latest API documentation (for the master branch) is usually available
-`here <https://airflow.readthedocs.io/en/latest/>`__.
+Documentation for ``apache-airflow`` package and other packages that are closely related to it ie. providers packages are in ``/docs/`` directory. For detailed information on documentation development, see: `docs/README.rst <docs/README.rst>`_
 
-To generate a local version you can use `<BREEZE.rst>`_.
-
-The documentation build consists of verifying consistency of documentation and two steps:
-
-* spell checking
-* building documentation
-
-You can only run one of the steps via ``--spellcheck-only`` or ``--docs-only``.
-
-.. code-block:: bash
-
-    ./breeze build-docs
-
-or just to run spell-check
-
-.. code-block:: bash
-
-     ./breeze build-docs -- --spellcheck-only
-
-or just to run documentation building
-
-.. code-block:: bash
-
-     ./breeze build-docs -- --docs-only
-
-Also documentation is available as downloadable artifact in GitHub Actions after the CI builds your PR.
-
-**Known issues:**
-
-If you are creating a new directory for new integration in the ``airflow.providers`` package,
-you should also update the ``docs/autoapi_templates/index.rst`` file.
-
-If you are creating new ``hooks``, ``sensors``, ``operators`` directory in
-the ``airflow.providers`` package, you should also update
-the ``docs/operators-and-hooks-ref.rst`` file.
-
-If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache
-license or copy another ``__init__.py`` file that contains the necessary license.
+For Helm Chart documentation, see: `/chart/README.md <../chart/README.md>`__
 
 Static code checks
 ==================
@@ -805,6 +862,47 @@ If this function is designed to be called by "end-users" (i.e. DAG authors) then
     def my_method(arg, arg, session=None)
       ...
       # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
+
+Don't use time() for duration calcuations
+-----------------------------------------
+
+If you wish to compute the time difference between two events with in the same process, use
+``time.monotonic()``, not ``time.time()`` nor ``timzeone.utcnow()``.
+
+If you are measuring duration for performance reasons, then ``time.perf_counter()`` should be used. (On many
+platforms, this uses the same underlying clock mechanism as monotonic, but ``perf_counter`` is guaranteed to be
+the highest accuracy clock on the system, monotonic is simply "guaranteed" to not go backwards.)
+
+If you wish to time how long a block of code takes, use ``Stats.timer()`` -- either with a metric name, which
+will be timed and submitted automatically:
+
+.. code-block:: python
+
+    from airflow.stats import Stats
+
+    ...
+
+    with Stats.timer("my_timer_metric"):
+        ...
+
+or to time but not send a metric:
+
+.. code-block:: python
+
+    from airflow.stats import Stats
+
+    ...
+
+    with Stats.timer() as timer:
+        ...
+
+    log.info("Code took %.3f seconds", timer.duration)
+
+For full docs on ``timer()`` check out `airflow/stats.py`_.
+
+If the start_date of a duration calculation needs to be stored in a database, then this has to be done using
+datetime objects. In all other cases, using datetime for duration calculation MUST be avoided as creating and
+diffing datetime operations are (comparatively) slow.
 
 Naming Conventions for provider packages
 ----------------------------------------
@@ -1247,6 +1345,6 @@ and slightly modified and consensus reached in October 2020:
 
 Resources & Links
 =================
-- `Airflow’s official documentation <http://airflow.apache.org/>`__
+- `Airflow’s official documentation <https://airflow.apache.org/>`__
 
 - `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`__

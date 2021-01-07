@@ -22,7 +22,7 @@ Example usage of the TriggerDagRunOperator. This example holds 2 DAGs:
 2. 2nd DAG (example_trigger_target_dag) which will be triggered by the TriggerDagRunOperator in the 1st DAG
 """
 from airflow import DAG
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.dates import days_ago
 
 dag = DAG(

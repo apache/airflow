@@ -56,13 +56,28 @@ class TestCliDb(unittest.TestCase):
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch("airflow.cli.commands.db_command.NamedTemporaryFile")
-    @mock.patch("airflow.cli.commands.db_command.settings.engine.url", make_url("mysql://root@mysql/airflow"))
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url", make_url("mysql://root@mysql:3306/airflow")
+    )
     def test_cli_shell_mysql(self, mock_tmp_file, mock_execute_interactive):
         mock_tmp_file.return_value.__enter__.return_value.name = "/tmp/name"
         db_command.shell(self.parser.parse_args(['db', 'shell']))
         mock_execute_interactive.assert_called_once_with(['mysql', '--defaults-extra-file=/tmp/name'])
         mock_tmp_file.return_value.__enter__.return_value.write.assert_called_once_with(
-            b'[client]\nhost     = mysql\nuser     = root\npassword = \nport     = ' b'\ndatabase = airflow'
+            b'[client]\nhost     = mysql\nuser     = root\npassword = \nport     = 3306'
+            b'\ndatabase = airflow'
+        )
+
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
+    @mock.patch("airflow.cli.commands.db_command.NamedTemporaryFile")
+    @mock.patch("airflow.cli.commands.db_command.settings.engine.url", make_url("mysql://root@mysql/airflow"))
+    def test_cli_shell_mysql_without_port(self, mock_tmp_file, mock_execute_interactive):
+        mock_tmp_file.return_value.__enter__.return_value.name = "/tmp/name"
+        db_command.shell(self.parser.parse_args(['db', 'shell']))
+        mock_execute_interactive.assert_called_once_with(['mysql', '--defaults-extra-file=/tmp/name'])
+        mock_tmp_file.return_value.__enter__.return_value.write.assert_called_once_with(
+            b'[client]\nhost     = mysql\nuser     = root\npassword = \nport     = 3306'
+            b'\ndatabase = airflow'
         )
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
@@ -76,7 +91,7 @@ class TestCliDb(unittest.TestCase):
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",
-        make_url("postgresql+psycopg2://postgres:airflow@postgres/airflow"),
+        make_url("postgresql+psycopg2://postgres:airflow@postgres:5432/airflow"),
     )
     def test_cli_shell_postgres(self, mock_execute_interactive):
         db_command.shell(self.parser.parse_args(['db', 'shell']))
@@ -89,7 +104,29 @@ class TestCliDb(unittest.TestCase):
                 'PGDATABASE': 'airflow',
                 'PGHOST': 'postgres',
                 'PGPASSWORD': 'airflow',
-                'PGPORT': '',
+                'PGPORT': '5432',
+                'PGUSER': 'postgres',
+            },
+            postgres_env,
+        )
+
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("postgresql+psycopg2://postgres:airflow@postgres/airflow"),
+    )
+    def test_cli_shell_postgres_without_port(self, mock_execute_interactive):
+        db_command.shell(self.parser.parse_args(['db', 'shell']))
+        mock_execute_interactive.assert_called_once_with(['psql'], env=mock.ANY)
+        _, kwargs = mock_execute_interactive.call_args
+        env = kwargs['env']
+        postgres_env = {k: v for k, v in env.items() if k.startswith('PG')}
+        self.assertEqual(
+            {
+                'PGDATABASE': 'airflow',
+                'PGHOST': 'postgres',
+                'PGPASSWORD': 'airflow',
+                'PGPORT': '5432',
                 'PGUSER': 'postgres',
             },
             postgres_env,

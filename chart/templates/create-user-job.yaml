@@ -35,7 +35,7 @@ metadata:
   annotations:
     "helm.sh/hook": post-install
     "helm.sh/hook-weight": "2"
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   template:
     metadata:
@@ -65,7 +65,7 @@ spec:
             - "bash"
             - "-c"
             # Support running against 1.10.x and 2.0.0dev/master
-            - 'airflow create_user "$@" || airflow users create "$@"'
+            - 'airflow users create "$@" || airflow create_user "$@"'
             - --
             - "-r"
             - {{ .Values.webserver.defaultUser.role }}

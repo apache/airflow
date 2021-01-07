@@ -22,12 +22,12 @@ from flask_appbuilder import BaseView as AppBuilderBaseView, expose
 from airflow.executors.base_executor import BaseExecutor
 
 # Importing base classes that we need to derive
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
 
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from tests.test_utils.mock_operators import (
     AirflowLink,
     AirflowLink2,
@@ -74,6 +74,8 @@ class PluginTestAppBuilderBaseView(AppBuilderBaseView):
 
 v_appbuilder_view = PluginTestAppBuilderBaseView()
 v_appbuilder_package = {"name": "Test View", "category": "Test Plugin", "view": v_appbuilder_view}
+
+v_nomenu_appbuilder_package = {"view": v_appbuilder_view}
 
 # Creating a flask appbuilder Menu Item
 appbuilder_mitem = {

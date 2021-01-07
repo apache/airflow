@@ -27,6 +27,7 @@ import traceback
 from collections import defaultdict
 from datetime import datetime, timedelta
 from json import JSONDecodeError
+from operator import itemgetter
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
@@ -52,7 +53,9 @@ from flask import (
 )
 from flask_appbuilder import BaseView, ModelView, expose
 from flask_appbuilder.actions import action
+from flask_appbuilder.fieldwidgets import Select2Widget
 from flask_appbuilder.models.sqla.filters import BaseFilter  # noqa
+from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pygments import highlight, lexers
@@ -60,6 +63,7 @@ from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in
 from sqlalchemy import and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
+from wtforms.validators import InputRequired
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -77,6 +81,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
@@ -91,10 +96,12 @@ from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
 from airflow.www.forms import (
     ConnectionForm,
+    DagRunEditForm,
     DagRunForm,
     DateTimeForm,
     DateTimeWithNumRunsForm,
     DateTimeWithNumRunsWithDagRunsForm,
+    TaskInstanceEditForm,
 )
 from airflow.www.widgets import AirflowModelListWidget
 
@@ -139,8 +146,7 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
         base_date = (date_time + timedelta(seconds=1)).replace(microsecond=0)
 
     default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
-    num_runs = www_request.args.get('num_runs')
-    num_runs = int(num_runs) if num_runs else default_dag_run
+    num_runs = www_request.args.get('num_runs', default=default_dag_run, type=int)
 
     drs = (
         session.query(DagRun)
@@ -436,16 +442,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         hide_paused_dags_by_default = conf.getboolean('webserver', 'hide_paused_dags_by_default')
 
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
-        num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else default_dag_run
+        num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
-        def get_int_arg(value, default=0):
-            try:
-                return int(value)
-            except ValueError:
-                return default
-
-        arg_current_page = request.args.get('page', '0')
+        current_page = request.args.get('page', default=0, type=int)
         arg_search_query = request.args.get('search')
         arg_tags_filter = request.args.getlist('tags')
         arg_status_filter = request.args.get('status')
@@ -475,7 +474,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             arg_status_filter = status
 
         dags_per_page = PAGE_SIZE
-        current_page = get_int_arg(arg_current_page, default=0)
 
         start = current_page * dags_per_page
         end = start + dags_per_page
@@ -491,15 +489,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             if arg_search_query:
                 dags_query = dags_query.filter(
                     DagModel.dag_id.ilike('%' + arg_search_query + '%')
-                    | DagModel.owners.ilike('%' + arg_search_query + '%')  # noqa  # noqa
+                    | DagModel.owners.ilike('%' + arg_search_query + '%')  # noqa
                 )
 
             if arg_tags_filter:
                 dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
-            if permissions.RESOURCE_DAG not in filter_dag_ids:
-                dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-                # pylint: enable=no-member
+            dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+            # pylint: enable=no-member
 
             all_dags = dags_query
             active_dags = dags_query.filter(~DagModel.is_paused)
@@ -531,13 +528,23 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 .all()
             )
 
+            user_permissions = current_app.appbuilder.sm.get_all_permissions_views()
+            all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
+
+            for dag in dags:
+                if all_dags_editable:
+                    dag.can_edit = True
+                else:
+                    dag_resource_name = permissions.RESOURCE_DAG_PREFIX + dag.dag_id
+                    dag.can_edit = (permissions.ACTION_CAN_EDIT, dag_resource_name) in user_permissions
+
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
                 {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
                 for name, in dagtags
             ]
 
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(errors.ImportError).order_by(errors.ImportError.id).all()
 
         for import_error in import_errors:
             flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
@@ -594,8 +601,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dr = models.DagRun
 
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(
             dr.dag_id, dr.state
@@ -645,9 +650,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if not allowed_dag_ids:
             return wwwutils.json_response({})
 
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = {dag_id for dag_id, in session.query(models.DagModel.dag_id)}
-
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id}
 
@@ -665,10 +667,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # pylint: enable=comparison-with-callable
 
         # pylint: disable=no-member
-        if selected_dag_ids:
-            running_dag_run_query_result = running_dag_run_query_result.filter(
-                DagRun.dag_id.in_(filter_dag_ids)
-            )
+        running_dag_run_query_result = running_dag_run_query_result.filter(DagRun.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member
 
         running_dag_run_query_result = running_dag_run_query_result.subquery('running_dag_run')
@@ -684,10 +683,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 running_dag_run_query_result.c.execution_date == TaskInstance.execution_date,
             ),
         )
-        if selected_dag_ids:
-            running_task_instance_query_result = running_task_instance_query_result.filter(
-                TaskInstance.dag_id.in_(filter_dag_ids)
-            )
         # pylint: enable=no-member
 
         if conf.getboolean('webserver', 'SHOW_RECENT_STATS_FOR_COMPLETED_RUNS', fallback=True):
@@ -700,8 +695,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
             # pylint: enable=comparison-with-callable
             # pylint: disable=no-member
-            if selected_dag_ids:
-                last_dag_run = last_dag_run.filter(DagRun.dag_id.in_(filter_dag_ids))
+            last_dag_run = last_dag_run.filter(DagRun.dag_id.in_(filter_dag_ids))
             last_dag_run = last_dag_run.subquery('last_dag_run')
             # pylint: enable=no-member
 
@@ -716,12 +710,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                     last_dag_run.c.execution_date == TaskInstance.execution_date,
                 ),
             )
-            # pylint: disable=no-member
-            if selected_dag_ids:
-                last_task_instance_query_result = last_task_instance_query_result.filter(
-                    TaskInstance.dag_id.in_(filter_dag_ids)
-                )
-            # pylint: enable=no-member
 
             final_task_instance_query_result = union_all(
                 last_task_instance_query_result, running_task_instance_query_result
@@ -760,9 +748,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     def last_dagruns(self, session=None):
         """Last DAG runs"""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
-
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id}
@@ -1001,10 +986,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        if request.args.get('try_number') is not None:
-            try_number = int(request.args.get('try_number'))
-        else:
-            try_number = None
+        try_number = request.args.get('try_number', type=int)
         metadata = request.args.get('metadata')
         metadata = json.loads(metadata)
         response_format = request.args.get('format', 'json')
@@ -1594,9 +1576,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Mark Dag Blocked."""
         allowed_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
-        if permissions.RESOURCE_DAG in allowed_dag_ids:
-            allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
-
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id}
 
@@ -1877,10 +1856,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
 
         base_date = request.args.get('base_date')
-        num_runs = request.args.get('num_runs')
-        if num_runs:
-            num_runs = int(num_runs)
-        else:
+        num_runs = request.args.get('num_runs', type=int)
+        if num_runs is None:
             num_runs = conf.getint('webserver', 'default_dag_run_display_number')
 
         if base_date:
@@ -2130,8 +2107,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag = None
 
         base_date = request.args.get('base_date')
-        num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else default_dag_run
+        num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
         if dag is None:
             flash(f'DAG "{dag_id}" seems to be missing.', "error")
@@ -2255,8 +2231,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
         base_date = request.args.get('base_date')
-        num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else default_dag_run
+        num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
         if base_date:
             base_date = timezone.parse(base_date)
@@ -2328,8 +2303,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
         base_date = request.args.get('base_date')
-        num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else default_dag_run
+        num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
         if base_date:
             base_date = timezone.parse(base_date)
@@ -2814,6 +2788,40 @@ class XComModelView(AirflowModelView):
         item.value = XCom.serialize_value(item.value)
 
 
+def lazy_add_provider_discovered_options_to_connection_form():
+    """Adds provider-discovered connection parameters as late as possible"""
+
+    def _get_connection_types() -> List[Tuple[str, str]]:
+        """Returns connection types available."""
+        _connection_types = [
+            ('fs', 'File (path)'),
+            ('mesos_framework-id', 'Mesos Framework ID'),
+        ]
+        providers_manager = ProvidersManager()
+        for connection_type, (_, _, _, hook_name) in providers_manager.hooks.items():
+            _connection_types.append((connection_type, hook_name))
+        return _connection_types
+
+    ConnectionForm.conn_type = SelectField(
+        lazy_gettext('Conn Type'),
+        choices=sorted(_get_connection_types(), key=itemgetter(1)),
+        widget=Select2Widget(),
+        validators=[InputRequired()],
+    )
+    for key, value in ProvidersManager().connection_form_widgets.items():
+        setattr(ConnectionForm, key, value.field)
+
+
+# Used to store a dictionary of field behaviours used to dynamically change available
+# fields in ConnectionForm based on type of connection chosen
+# See airflow.hooks.base_hook.DiscoverableHook for details on how to customize your Hooks.
+# those field behaviours are rendered as scripts in the conn_create.html and conn_edit.html templates
+class ConnectionFormWidget(FormWidget):
+    """Form widget used to display connection"""
+
+    field_behaviours = json.dumps(ProvidersManager().field_behaviours)
+
+
 class ConnectionModelView(AirflowModelView):
     """View to show records from Connections table"""
 
@@ -2838,26 +2846,7 @@ class ConnectionModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    extra_fields = [
-        'extra__jdbc__drv_path',
-        'extra__jdbc__drv_clsname',
-        'extra__google_cloud_platform__project',
-        'extra__google_cloud_platform__key_path',
-        'extra__google_cloud_platform__keyfile_dict',
-        'extra__google_cloud_platform__scope',
-        'extra__google_cloud_platform__num_retries',
-        'extra__grpc__auth_type',
-        'extra__grpc__credential_pem_file',
-        'extra__grpc__scopes',
-        'extra__yandexcloud__service_account_json',
-        'extra__yandexcloud__service_account_json_path',
-        'extra__yandexcloud__oauth',
-        'extra__yandexcloud__public_ssh_key',
-        'extra__yandexcloud__folder_id',
-        'extra__kubernetes__in_cluster',
-        'extra__kubernetes__kube_config',
-        'extra__kubernetes__namespace',
-    ]
+    extra_fields = list(ProvidersManager().connection_form_widgets.keys())
     list_columns = [
         'conn_id',
         'conn_type',
@@ -2878,9 +2867,13 @@ class ConnectionModelView(AirflowModelView):
         'port',
         'extra',
     ] + extra_fields
+
     add_form = edit_form = ConnectionForm
     add_template = 'airflow/conn_create.html'
     edit_template = 'airflow/conn_edit.html'
+
+    add_widget = ConnectionFormWidget
+    edit_widget = ConnectionFormWidget
 
     base_order = ('conn_id', 'asc')
 
@@ -3253,19 +3246,42 @@ class DagRunModelView(AirflowModelView):
     ]
 
     add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
-    list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'run_type', 'external_trigger', 'conf']
-    search_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'run_type', 'external_trigger', 'conf']
+    list_columns = [
+        'state',
+        'dag_id',
+        'execution_date',
+        'run_id',
+        'run_type',
+        'start_date',
+        'end_date',
+        'external_trigger',
+        'conf',
+    ]
+    search_columns = [
+        'state',
+        'dag_id',
+        'execution_date',
+        'run_id',
+        'run_type',
+        'start_date',
+        'end_date',
+        'external_trigger',
+        'conf',
+    ]
+    edit_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'conf']
 
     base_order = ('execution_date', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
-    add_form = edit_form = DagRunForm
+    add_form = DagRunForm
+    edit_form = DagRunEditForm
 
     formatters_columns = {
         'execution_date': wwwutils.datetime_f('execution_date'),
         'state': wwwutils.state_f,
         'start_date': wwwutils.datetime_f('start_date'),
+        'end_date': wwwutils.datetime_f('end_date'),
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
         'conf': wwwutils.json_f('conf'),
@@ -3277,9 +3293,6 @@ class DagRunModelView(AirflowModelView):
         """Multiple delete."""
         self.datamodel.delete_all(items)
         self.update_redirect()
-        dirty_ids = []
-        for item in items:
-            dirty_ids.append(item.dag_id)
         return redirect(self.get_redirect())
 
     @action('set_running', "Set state to 'running'", '', single=False)
@@ -3288,11 +3301,9 @@ class DagRunModelView(AirflowModelView):
         """Set state to running."""
         try:
             count = 0
-            dirty_ids = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
@@ -3314,12 +3325,10 @@ class DagRunModelView(AirflowModelView):
         """Set state to failed."""
         try:
             count = 0
-            dirty_ids = []
             altered_tis = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += set_dag_run_state_to_failed(
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
@@ -3344,12 +3353,10 @@ class DagRunModelView(AirflowModelView):
         """Set state to success."""
         try:
             count = 0
-            dirty_ids = []
             altered_tis = []
             for dr in (
                 session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all()
             ):  # noqa pylint: disable=no-member
-                dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += set_dag_run_state_to_success(
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
@@ -3426,6 +3433,7 @@ class TaskRescheduleModelView(AirflowModelView):
     route_base = '/taskreschedule'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskReschedule)  # noqa # type: ignore
+    related_views = [DagRunModelView]
 
     class_permission_name = permissions.RESOURCE_TASK_RESCHEDULE
     method_permission_name = {
@@ -3517,10 +3525,14 @@ class TaskInstanceModelView(AirflowModelView):
         'queued_dttm',
         'try_number',
         'pool',
+        'queued_by_job_id',
+        'external_executor_id',
         'log_url',
     ]
 
-    order_columns = [item for item in list_columns if item not in ['try_number', 'log_url']]
+    order_columns = [
+        item for item in list_columns if item not in ['try_number', 'log_url', 'external_executor_id']
+    ]
 
     search_columns = [
         'state',
@@ -3534,6 +3546,17 @@ class TaskInstanceModelView(AirflowModelView):
         'start_date',
         'end_date',
     ]
+
+    edit_columns = [
+        'state',
+        'dag_id',
+        'task_id',
+        'execution_date',
+        'start_date',
+        'end_date',
+    ]
+
+    edit_form = TaskInstanceEditForm
 
     base_order = ('job_id', 'asc')
 
@@ -3746,9 +3769,8 @@ class DagModelView(AirflowModelView):
 
         filter_dag_ids = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
         # pylint: disable=no-member
-        if permissions.RESOURCE_DAG not in filter_dag_ids:
-            dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-            owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+        dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+        owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         # pylint: enable=no-member
 
         payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]

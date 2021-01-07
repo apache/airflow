@@ -32,7 +32,7 @@ EXTRAS = {
 
 @pytest.fixture()
 def mock_hook():
-    with mock.patch("airflow.hooks.base_hook.BaseHook.get_connection") as conn:
+    with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
         hook = GoogleAdsHook(api_version=API_VERSION)
         conn.return_value.extra_dejson = EXTRAS
         yield hook

@@ -21,7 +21,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Union
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
@@ -1047,7 +1047,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     :param gcp_cloudsql_conn_id: The connection ID used to connect to Google Cloud SQL
        its schema should be gcpcloudsql://.
        See :class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook` for
-       details on how to define gcpcloudsql:// connection.
+       details on how to define ``gcpcloudsql://`` connection.
     :type gcp_cloudsql_conn_id: str
     """
 

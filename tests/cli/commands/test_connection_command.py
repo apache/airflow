@@ -43,10 +43,10 @@ class TestCliGetConnection(unittest.TestCase):
     def test_cli_connection_get(self):
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_get(
-                self.parser.parse_args(["connections", "get", "google_cloud_default"])
+                self.parser.parse_args(["connections", "get", "google_cloud_default", "--output", "json"])
             )
             stdout = stdout.getvalue()
-        self.assertIn("URI: google-cloud-platform:///default", stdout)
+        self.assertIn("google-cloud-platform:///default", stdout)
 
     def test_cli_connection_get_invalid(self):
         with self.assertRaisesRegex(SystemExit, re.escape("Connection not found.")):
@@ -112,36 +112,27 @@ class TestCliListConnections(unittest.TestCase):
     def tearDown(self):
         clear_db_connections()
 
-    def test_cli_connections_list(self):
-        with redirect_stdout(io.StringIO()) as stdout:
-            connection_command.connections_list(self.parser.parse_args(["connections", "list"]))
-            stdout = stdout.getvalue()
-            lines = stdout.split("\n")
-
-        for conn_id, conn_type in self.EXPECTED_CONS:
-            self.assertTrue(any(conn_id in line and conn_type in line for line in lines))
-
-    def test_cli_connections_list_as_tsv(self):
-        args = self.parser.parse_args(["connections", "list", "--output", "tsv"])
-
+    def test_cli_connections_list_as_json(self):
+        args = self.parser.parse_args(["connections", "list", "--output", "json"])
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_list(args)
+            print(stdout.getvalue())
             stdout = stdout.getvalue()
-            lines = stdout.split("\n")
 
         for conn_id, conn_type in self.EXPECTED_CONS:
-            self.assertTrue(any(conn_id in line and conn_type in line for line in lines))
+            self.assertIn(conn_type, stdout)
+            self.assertIn(conn_id, stdout)
 
     def test_cli_connections_filter_conn_id(self):
-        args = self.parser.parse_args(["connections", "list", "--output", "tsv", '--conn-id', 'http_default'])
+        args = self.parser.parse_args(
+            ["connections", "list", "--output", "json", '--conn-id', 'http_default']
+        )
 
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_list(args)
             stdout = stdout.getvalue()
-            lines = stdout.split("\n")
 
-        conn_ids = [line.split("\t", 2)[0].strip() for line in lines[1:] if line]
-        self.assertEqual(conn_ids, ['http_default'])
+        self.assertIn("http_default", stdout)
 
 
 class TestCliExportConnections(unittest.TestCase):
@@ -507,7 +498,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-uri=%s" % TEST_URL,
                     "--conn-description=new0 description",
                 ],
-                "\tSuccessfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new0 description",
@@ -527,7 +518,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-uri=%s" % TEST_URL,
                     "--conn-description=new1 description",
                 ],
-                "\tSuccessfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new1 description",
@@ -548,7 +539,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
-                "\tSuccessfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": None,
@@ -571,7 +562,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-description",
                     "new3 description",
                 ],
-                "\tSuccessfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new3 description",
@@ -596,7 +587,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-schema=airflow",
                     "--conn-description=  new4 description  ",
                 ],
-                "\tSuccessfully added `conn_id`=new4 : hive_metastore://airflow:******@host:9083/airflow",
+                "Successfully added `conn_id`=new4 : hive_metastore://airflow:******@host:9083/airflow",
                 {
                     "conn_type": "hive_metastore",
                     "description": "  new4 description  ",
@@ -620,7 +611,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "{'extra': 'yes'}",
                     "--conn-description=new5 description",
                 ],
-                "\tSuccessfully added `conn_id`=new5 : google_cloud_platform://:@:",
+                "Successfully added `conn_id`=new5 : google_cloud_platform://:@:",
                 {
                     "conn_type": "google_cloud_platform",
                     "description": "new5 description",
@@ -712,7 +703,7 @@ class TestCliDeleteConnections(unittest.TestCase):
             stdout = stdout.getvalue()
 
         # Check deletion stdout
-        self.assertIn("\tSuccessfully deleted `conn_id`=new1", stdout)
+        self.assertIn("Successfully deleted connection with `conn_id`=new1", stdout)
 
         # Check deletions
         result = session.query(Connection).filter(Connection.conn_id == "new1").first()

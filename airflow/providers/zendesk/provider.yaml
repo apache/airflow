@@ -17,11 +17,12 @@
 
 ---
 package-name: apache-airflow-providers-zendesk
+name: Zendesk
 description: |
     `Zendesk <https://www.zendesk.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Zendesk

@@ -351,7 +351,7 @@ class PodGenerator:
         try_number: int,
         kube_image: str,
         date: datetime.datetime,
-        command: List[str],
+        args: List[str],
         pod_override_object: Optional[k8s.V1Pod],
         base_worker_pod: k8s.V1Pod,
         namespace: str,
@@ -394,7 +394,7 @@ class PodGenerator:
                 containers=[
                     k8s.V1Container(
                         name="base",
-                        command=command,
+                        args=args,
                         image=image,
                         env=[k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")],
                     )

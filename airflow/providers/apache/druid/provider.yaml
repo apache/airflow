@@ -17,15 +17,17 @@
 
 ---
 package-name: apache-airflow-providers-apache-druid
+name: Apache Druid
 description: |
     `Apache Druid <https://druid.apache.org/>`__.
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Apache Druid
     external-doc-url: https://druid.apache.org/
+    logo: /integration-logos/apache/druid-1.png
     tags: [apache]
 
 operators:

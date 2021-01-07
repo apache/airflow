@@ -114,7 +114,7 @@ class TestAzureKeyVaultBackend(TestCase):
 
         backend = AzureKeyVaultBackend(**kwargs)
         self.assertIsNone(backend.get_conn_uri('test_mysql'))
-        mock_get_secret._get_secret.assert_not_called()
+        mock_get_secret.assert_not_called()
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend._get_secret')
     def test_variable_prefix_none_value(self, mock_get_secret):
@@ -127,7 +127,7 @@ class TestAzureKeyVaultBackend(TestCase):
 
         backend = AzureKeyVaultBackend(**kwargs)
         self.assertIsNone(backend.get_variable('hello'))
-        mock_get_secret._get_secret.assert_not_called()
+        mock_get_secret.assert_not_called()
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend._get_secret')
     def test_config_prefix_none_value(self, mock_get_secret):
@@ -140,4 +140,4 @@ class TestAzureKeyVaultBackend(TestCase):
 
         backend = AzureKeyVaultBackend(**kwargs)
         self.assertIsNone(backend.get_config('test_mysql'))
-        mock_get_secret._get_secret.assert_not_called()
+        mock_get_secret.assert_not_called()

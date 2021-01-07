@@ -101,6 +101,59 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_image_pull_policy_not_set(self, mock_client, monitor_mock, start_mock):
+        from airflow.utils.state import State
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            cluster_context='default',
+        )
+        monitor_mock.return_value = (State.SUCCESS, None)
+        context = self.create_context(k)
+        k.execute(context=context)
+        self.assertEqual(
+            start_mock.call_args[0][0].spec.containers[0].image_pull_policy,
+            'IfNotPresent',
+        )
+
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_image_pull_policy_correctly_set(self, mock_client, monitor_mock, start_mock):
+        from airflow.utils.state import State
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            image_pull_policy='Always',
+            cluster_context='default',
+        )
+        monitor_mock.return_value = (State.SUCCESS, None)
+        context = self.create_context(k)
+        k.execute(context=context)
+        self.assertEqual(
+            start_mock.call_args[0][0].spec.containers[0].image_pull_policy,
+            'Always',
+        )
+
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.delete_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_pod_delete_even_on_launcher_error(
@@ -339,21 +392,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
         self.assertEqual(client.sanitize_for_serialization(result)['spec']['tolerations'], tolerations)
 
     def test_node_selector(self):
-        k8s_api_node_selector = k8s.V1NodeSelector(
-            node_selector_terms=[
-                k8s.V1NodeSelectorTerm(
-                    match_expressions=[
-                        k8s.V1NodeSelectorRequirement(key="disktype", operator="In", values=["ssd"])
-                    ]
-                )
-            ]
-        )
-
-        node_selector = {
-            'nodeSelectorTerms': [
-                {'matchExpressions': [{'key': 'disktype', 'operator': 'In', 'values': ['ssd']}]}
-            ]
-        }
+        node_selector = {'beta.kubernetes.io/os': 'linux'}
 
         k = KubernetesPodOperator(
             namespace='default',
@@ -366,31 +405,12 @@ class TestKubernetesPodOperator(unittest.TestCase):
             in_cluster=False,
             do_xcom_push=False,
             cluster_context='default',
-            node_selector=k8s_api_node_selector,
+            node_selector=node_selector,
         )
 
         result = k.create_pod_request_obj()
         client = ApiClient()
-        self.assertEqual(type(result.spec.node_selector), k8s.V1NodeSelector)
-        self.assertEqual(client.sanitize_for_serialization(result)['spec']['nodeSelector'], node_selector)
-
-        k = KubernetesPodOperator(
-            namespace='default',
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="name",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            cluster_context='default',
-            node_selector=k8s_api_node_selector,
-        )
-
-        result = k.create_pod_request_obj()
-        client = ApiClient()
-        self.assertEqual(type(result.spec.node_selector), k8s.V1NodeSelector)
+        self.assertEqual(type(result.spec.node_selector), dict)
         self.assertEqual(client.sanitize_for_serialization(result)['spec']['nodeSelector'], node_selector)
 
         # repeat tests using deprecated parameter
@@ -410,24 +430,5 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
         result = k.create_pod_request_obj()
         client = ApiClient()
-        self.assertEqual(type(result.spec.node_selector), k8s.V1NodeSelector)
-        self.assertEqual(client.sanitize_for_serialization(result)['spec']['nodeSelector'], node_selector)
-
-        k = KubernetesPodOperator(
-            namespace='default',
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="name",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            cluster_context='default',
-            node_selectors=node_selector,
-        )
-
-        result = k.create_pod_request_obj()
-        client = ApiClient()
-        self.assertEqual(type(result.spec.node_selector), k8s.V1NodeSelector)
+        self.assertEqual(type(result.spec.node_selector), dict)
         self.assertEqual(client.sanitize_for_serialization(result)['spec']['nodeSelector'], node_selector)

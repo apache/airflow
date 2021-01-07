@@ -64,5 +64,4 @@ def load_dag_schema_dict() -> dict:
 def load_dag_schema() -> Validator:
     """Load & Validate Json Schema for DAG"""
     schema = load_dag_schema_dict()
-    jsonschema.Draft7Validator.check_schema(schema)
     return jsonschema.Draft7Validator(schema)

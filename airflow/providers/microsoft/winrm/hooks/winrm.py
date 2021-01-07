@@ -23,7 +23,7 @@ from typing import Optional
 from winrm.protocol import Protocol
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 # TODO: Fixme please - I have too complex implementation

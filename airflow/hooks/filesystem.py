@@ -17,7 +17,7 @@
 # under the License.
 #
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class FSHook(BaseHook):

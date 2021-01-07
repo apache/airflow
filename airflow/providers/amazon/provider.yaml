@@ -17,32 +17,37 @@
 
 ---
 package-name: apache-airflow-providers-amazon
+name: Amazon
 description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
-  - 1.0.0b2
+  - 1.0.0
 
 integrations:
   - integration-name: Amazon Athena
     external-doc-url: https://aws.amazon.com/athena/
+    logo: /integration-logos/aws/Amazon-Athena_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon CloudFormation
     external-doc-url: https://aws.amazon.com/cloudformation/
     tags: [aws]
   - integration-name: Amazon CloudWatch Logs
     external-doc-url: https://aws.amazon.com/cloudwatch/
+    logo: /integration-logos/aws/Amazon-CloudWatch_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon DataSync
     external-doc-url: https://aws.amazon.com/datasync/
     how-to-guide:
-      - /docs/howto/operator/amazon/aws/datasync.rst
+      - /docs/apache-airflow-providers-amazon/operators/datasync.rst
     tags: [aws]
   - integration-name: Amazon DynamoDB
     external-doc-url: https://aws.amazon.com/dynamodb/
+    logo: /integration-logos/aws/Amazon-DynamoDB_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon EC2
     external-doc-url: https://aws.amazon.com/ec2/
+    logo: /integration-logos/aws/Amazon-EC2_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon ECS
     external-doc-url: https://aws.amazon.com/ecs/
@@ -53,21 +58,25 @@ integrations:
   - integration-name: Amazon EMR
     external-doc-url: https://aws.amazon.com/emr/
     how-to-guide:
-      - /docs/howto/operator/amazon/aws/emr.rst
+      - /docs/apache-airflow-providers-amazon/operators/emr.rst
+    logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Glacier
     external-doc-url: https://aws.amazon.com/glacier/
     how-to-guide:
-      - /docs/howto/operator/amazon/aws/glacier.rst
+      - /docs/apache-airflow-providers-amazon/operators/glacier.rst
     tags: [aws]
   - integration-name: Amazon Kinesis Data Firehose
     external-doc-url: https://aws.amazon.com/kinesis/data-firehose/
+    logo: /integration-logos/aws/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Redshift
     external-doc-url: https://aws.amazon.com/redshift/
+    logo: /integration-logos/aws/Amazon-Redshift_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon SageMaker
     external-doc-url: https://aws.amazon.com/sagemaker/
+    logo: /integration-logos/aws/Amazon-SageMaker_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon SecretsManager
     external-doc-url: https://aws.amazon.com/secrets-manager/
@@ -75,31 +84,37 @@ integrations:
   - integration-name: Amazon Simple Email Service (SES)
     external-doc-url: https://aws.amazon.com/ses/
     how-to-guide:
-      - /docs/howto/operator/amazon/aws/ecs.rst
+      - /docs/apache-airflow-providers-amazon/operators/ecs.rst
     tags: [aws]
   - integration-name: Amazon Simple Notification Service (SNS)
     external-doc-url: https://aws.amazon.com/sns/
+    logo: /integration-logos/aws/Amazon-Simple-Notification-Service-SNS_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Simple Queue Service (SQS)
     external-doc-url: https://aws.amazon.com/sqs/
+    logo: /integration-logos/aws/Amazon-Simple-Queue-Service-SQS_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Simple Storage Service (S3)
     external-doc-url: https://aws.amazon.com/s3/
+    logo: /integration-logos/aws/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Web Services
     external-doc-url: https://aws.amazon.com/
     tags: [aws]
   - integration-name: AWS Batch
     external-doc-url: https://aws.amazon.com/batch/
+    logo: /integration-logos/aws/AWS-Batch_light-bg@4x.png
     tags: [aws]
   - integration-name: AWS DataSync
     external-doc-url: https://aws.amazon.com/datasync/
     tags: [aws]
   - integration-name: AWS Glue
     external-doc-url: https://aws.amazon.com/glue/
+    logo: /integration-logos/aws/AWS-Glue_light-bg@4x.png
     tags: [aws]
   - integration-name: AWS Lambda
     external-doc-url: https://aws.amazon.com/lambda/
+    logo: /integration-logos/aws/AWS-Lambda_light-bg@4x.png
     tags: [aws]
   - integration-name: AWS Step Functions
     external-doc-url: https://aws.amazon.com/step-functions/
@@ -166,9 +181,6 @@ operators:
       - airflow.providers.amazon.aws.operators.step_function_start_execution
 
 sensors:
-  - integration-name: Amazon Athena
-    python-modules:
-      - airflow.providers.amazon.aws.sensors.athena
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.sensors.athena
@@ -292,18 +304,18 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.gcs_to_s3
   - source-integration-name: Amazon Glacier
     target-integration-name: Google Cloud Storage (GCS)
-    how-to-guide: /docs/howto/operator/amazon/aws/transfer/glacier_to_gcs.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/glacier_to_gcs.rst
     python-module: airflow.providers.amazon.aws.transfers.glacier_to_gcs
   - source-integration-name: Google
     target-integration-name: Amazon Simple Storage Service (S3)
-    how-to-guide: /docs/howto/operator/amazon/aws/google_api_to_s3_transfer.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/google_api_to_s3_transfer.rst
     python-module: airflow.providers.amazon.aws.transfers.google_api_to_s3
   - source-integration-name: Apache Hive
     target-integration-name: Amazon DynamoDB
     python-module: airflow.providers.amazon.aws.transfers.hive_to_dynamodb
   - source-integration-name: Internet Message Access Protocol (IMAP)
     target-integration-name: Amazon Simple Storage Service (S3)
-    how-to-guide: /docs/howto/operator/amazon/aws/imap_attachment_to_s3.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/imap_attachment_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.imap_attachment_to_s3
   - source-integration-name: MongoDB
     target-integration-name: Amazon Simple Storage Service (S3)
@@ -316,7 +328,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.redshift_to_s3
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: Amazon Redshift
-    how-to-guide: /docs/howto/operator/amazon/aws/s3_to_redshift.rst
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/s3_to_redshift.rst
     python-module: airflow.providers.amazon.aws.transfers.s3_to_redshift
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: SSH File Transfer Protocol (SFTP)
@@ -324,3 +336,8 @@ transfers:
   - source-integration-name: SSH File Transfer Protocol (SFTP)
     target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.amazon.aws.transfers.sftp_to_s3
+
+hook-class-names:
+  - airflow.providers.amazon.aws.hooks.s3.S3Hook
+  - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
+  - airflow.providers.amazon.aws.hooks.emr.EmrHook

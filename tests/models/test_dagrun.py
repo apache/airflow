@@ -24,9 +24,11 @@ from unittest.mock import call
 from parameterized import parameterized
 
 from airflow import models, settings
+from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagBag, DagModel, TaskInstance as TI, clear_task_instances
 from airflow.models.dagrun import DagRun
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.bash import BashOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -36,7 +38,7 @@ from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
-from tests.test_utils.db import clear_db_pools, clear_db_runs
+from tests.test_utils.db import clear_db_jobs, clear_db_pools, clear_db_runs
 
 
 class TestDagRun(unittest.TestCase):
@@ -55,6 +57,7 @@ class TestDagRun(unittest.TestCase):
         task_states=None,
         execution_date=None,
         is_backfill=False,
+        creating_job_id=None,
     ):
         now = timezone.utcnow()
         if execution_date is None:
@@ -69,6 +72,7 @@ class TestDagRun(unittest.TestCase):
             start_date=now,
             state=state,
             external_trigger=False,
+            creating_job_id=creating_job_id,
         )
 
         if task_states is not None:
@@ -735,41 +739,60 @@ class TestDagRun(unittest.TestCase):
         dag_run.update_state()
         self.assertNotIn(call(f'dagrun.{dag.dag_id}.first_task_scheduling_delay'), stats_mock.mock_calls)
 
-    @mock.patch.object(Stats, 'timing')
-    def test_emit_scheduling_delay(self, stats_mock):
+    @parameterized.expand(
+        [
+            ("*/5 * * * *", True),
+            (None, False),
+            ("@once", False),
+        ]
+    )
+    def test_emit_scheduling_delay(self, schedule_interval, expected):
         """
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
-        dag = DAG(dag_id='test_emit_dag_stats', start_date=days_ago(1))
+        dag = DAG(dag_id='test_emit_dag_stats', start_date=days_ago(1), schedule_interval=schedule_interval)
         dag_task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         session = settings.Session()
-        orm_dag = DagModel(
-            dag_id=dag.dag_id,
-            has_task_concurrency_limits=False,
-            next_dagrun=dag.start_date,
-            next_dagrun_create_after=dag.following_schedule(dag.start_date),
-            is_active=True,
-        )
-        session.add(orm_dag)
-        session.flush()
-        dag_run = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            state=State.SUCCESS,
-            execution_date=dag.start_date,
-            start_date=dag.start_date,
-            session=session,
-        )
-        ti = dag_run.get_task_instance(dag_task.task_id)
-        ti.set_state(State.SUCCESS, session)
-        session.commit()
-        session.close()
-        dag_run.update_state()
-        true_delay = (ti.start_date - dag.following_schedule(dag_run.execution_date)).total_seconds()
-        stats_mock.assert_called()
-        sched_delay_stat_call = call(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
-        self.assertIn(sched_delay_stat_call, stats_mock.mock_calls)
+        try:
+            orm_dag = DagModel(
+                dag_id=dag.dag_id,
+                has_task_concurrency_limits=False,
+                next_dagrun=dag.start_date,
+                next_dagrun_create_after=dag.following_schedule(dag.start_date),
+                is_active=True,
+            )
+            session.add(orm_dag)
+            session.flush()
+            dag_run = dag.create_dagrun(
+                run_type=DagRunType.SCHEDULED,
+                state=State.SUCCESS,
+                execution_date=dag.start_date,
+                start_date=dag.start_date,
+                session=session,
+            )
+            ti = dag_run.get_task_instance(dag_task.task_id, session)
+            ti.set_state(State.SUCCESS, session)
+            session.flush()
+
+            with mock.patch.object(Stats, 'timing') as stats_mock:
+                dag_run.update_state(session)
+
+            metric_name = f'dagrun.{dag.dag_id}.first_task_scheduling_delay'
+
+            if expected:
+                true_delay = ti.start_date - dag.following_schedule(dag_run.execution_date)
+                sched_delay_stat_call = call(metric_name, true_delay)
+                assert sched_delay_stat_call in stats_mock.mock_calls
+            else:
+                # Assert that we never passed the metric
+                sched_delay_stat_call = call(metric_name, mock.ANY)
+                assert sched_delay_stat_call not in stats_mock.mock_calls
+        finally:
+            # Don't write anything to the DB
+            session.rollback()
+            session.close()
 
     def test_states_sets(self):
         """
@@ -788,3 +811,40 @@ class TestDagRun(unittest.TestCase):
         ti_failed = dag_run.get_task_instance(dag_task_failed.task_id)
         self.assertIn(ti_success.state, State.success_states)
         self.assertIn(ti_failed.state, State.failed_states)
+
+    def test_delete_dag_run_and_task_instance_does_not_raise_error(self):
+        clear_db_jobs()
+        clear_db_runs()
+
+        job_id = 22
+        dag = DAG(dag_id='test_delete_dag_run', start_date=days_ago(1))
+        _ = BashOperator(task_id='task1', dag=dag, bash_command="echo hi")
+
+        # Simulate DagRun is created by a job inherited by BaseJob with an id
+        # This is so that same foreign key exists on DagRun.creating_job_id & BaseJob.id
+        dag_run = self.create_dag_run(dag=dag, creating_job_id=job_id)
+        assert dag_run is not None
+
+        session = settings.Session()
+
+        job = BaseJob(id=job_id)
+        session.add(job)
+
+        # Simulate TaskInstance is created by a job inherited by BaseJob with an id
+        # This is so that same foreign key exists on TaskInstance.queued_by_job_id & BaseJob.id
+        ti1 = dag_run.get_task_instance(task_id="task1")
+        ti1.queued_by_job_id = job_id
+        session.merge(ti1)
+        session.commit()
+
+        # Test Deleting DagRun does not raise an error
+        session.delete(dag_run)
+
+        # Test Deleting TaskInstance does not raise an error
+        ti1 = dag_run.get_task_instance(task_id="task1")
+        session.delete(ti1)
+        session.commit()
+
+        # CleanUp
+        clear_db_runs()
+        clear_db_jobs()

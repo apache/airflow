@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Airflow module for emailer using sendgrid"""
+"""Airflow module for email backend using sendgrid"""
 
 import base64
 import logging
