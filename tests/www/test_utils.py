@@ -241,8 +241,8 @@ class TestWrappedMarkdown(unittest.TestCase):
     def test_wrapped_markdown_with_table(self):
         rendered = wrapped_markdown(
             """| Job | Duration |
-                                       | ----------- | ----------- |
-                                       | ETL | 14m |"""
+               | ----------- | ----------- |
+               | ETL | 14m |"""
         )
 
         self.assertEqual(
