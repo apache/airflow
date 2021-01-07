@@ -180,7 +180,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
     def test_jinja_templated_fields(self):
         task = KubernetesPodOperator(
-            namespace='default',
+            namespace="{{ namespace_jinja }}",
             image="{{ image_jinja }}:16.04",
             cmds=["bash", "-cx"],
             name="test_pod",
@@ -188,8 +188,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
         )
 
         self.assertEqual(task.image, "{{ image_jinja }}:16.04")
-        task.render_template_fields(context={"image_jinja": "ubuntu"})
+        task.render_template_fields(context={"image_jinja": "ubuntu", "namespace_jinja": "ns"})
         self.assertEqual(task.image, "ubuntu:16.04")
+        self.assertEqual(task.namespace, "ns")
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")

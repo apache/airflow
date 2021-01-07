@@ -156,6 +156,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     """
 
     template_fields: Iterable[str] = (
+        'namespace',
         'image',
         'cmds',
         'arguments',
