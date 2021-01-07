@@ -32,6 +32,47 @@ cluster using the [Helm](https://helm.sh) package manager.
 - Helm 2.11+ or Helm 3.0+
 - PV provisioner support in the underlying infrastructure
 
+## Configuring Airflow
+
+All Airflow configuration parameters (equivalent of `airflow.cfg`) are stored in [values.yaml](https://github.com/apache/airflow/blob/master/chart/values.yaml) under the `config` key . The following code demonstrates how one would deny webserver users from viewing the config from within the webserver application. See the bottom line of the example:
+
+```yaml
+# Config settings to go into the mounted airflow.cfg
+#
+# Please note that these values are passed through the `tpl` function, so are
+# all subject to being rendered as go templates. If you need to include a
+# literal `{{` in a value, it must be expressed like this:
+#
+#    a: '{{ "{{ not a template }}" }}'
+#
+# yamllint disable rule:line-length
+config:
+  core:
+    dags_folder: '{{ include "airflow_dags" . }}'
+    load_examples: 'False'
+    executor: '{{ .Values.executor }}'
+    # For Airflow 1.10, backward compatibility
+    colored_console_log: 'False'
+    remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
+  # Authentication backend used for the experimental API
+  api:
+    auth_backend: airflow.api.auth.backend.deny_all
+  logging:
+    remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
+    colored_console_log: 'False'
+    logging_level: DEBUG
+  metrics:
+    statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
+    statsd_port: 9125
+    statsd_prefix: airflow
+    statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
+  webserver:
+    enable_proxy_fix: 'True'
+    expose_config: 'False'   # <<<<<<<<<< BY DEFAULT THIS IS 'True' BUT WE CHANGE IT TO 'False' PRIOR TO INSTALLING THE CHART
+```
+
+Generally speaking, it is useful to familiarize oneself with the Airflow configuration prior to installing and deploying the service.
+
 ## Installing the Chart
 
 To install this repository from source (using helm 3)
