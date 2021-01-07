@@ -318,7 +318,7 @@ class SalesforceHook(BaseHook):
         df = pd.DataFrame.from_records(query_results, exclude=["attributes"])
 
         df.columns = [column.lower() for column in df.columns]
-
+        df = df.fillna('')
         # convert columns with datetime strings to datetimes
         # not all strings will be datetimes, so we ignore any errors that occur
         # we get the object's definition at this point and only consider
