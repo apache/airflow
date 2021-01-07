@@ -70,7 +70,7 @@ class SalesforceToGcsOperator(BaseOperator):
     def __init__(
         self,
         *,
-        query: str,
+        query: Optional[str],
         bucket_name: str,
         object_name: str,
         salesforce_conn_id: str,
@@ -81,6 +81,8 @@ class SalesforceToGcsOperator(BaseOperator):
         record_time_added: bool = False,
         gzip: bool = False,
         gcp_conn_id: str = "google_cloud_default",
+        schema_file_name: Optional[str],
+        salesforce_object: Optional[str],
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -95,12 +97,19 @@ class SalesforceToGcsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.include_deleted = include_deleted
         self.query_params = query_params
+        self.schema_file_name = schema_file_name
+        self.salesforce_object = salesforce_object
+        if not salesforce_object and query:
+            raise AttributeError('Parameter query or salesforce object must be set')
 
     def execute(self, context: Dict):
         salesforce = SalesforceHook(conn_id=self.salesforce_conn_id)
-        response = salesforce.make_query(
-            query=self.query, include_deleted=self.include_deleted, query_params=self.query_params
-        )
+        if self.query:
+            response = salesforce.make_query(
+                query=self.query, include_deleted=self.include_deleted, query_params=self.query_params
+            )
+        else:
+            response = salesforce.get_object_from_salesforce(self.salesforce_object)
 
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "salesforce_temp_file")
@@ -122,4 +131,20 @@ class SalesforceToGcsOperator(BaseOperator):
 
             gcs_uri = f"gs://{self.bucket_name}/{self.object_name}"
             self.log.info("%s uploaded to GCS", gcs_uri)
+
+            if self.schema_file_name:
+                schema_path = os.path.join(tmp, "salesforce_schema_temp_file")
+                salesforce.write_schema_to_file(
+                    schema_path, response[0]['attributes']['type'], self.record_time_added
+                )
+
+                hook.upload(
+                    bucket_name=self.bucket_name,
+                    object_name=self.schema_file_name,
+                    filename=schema_path,
+                )
+
+                gcs_uri = f"gs://{self.bucket_name}/{self.schema_file_name}"
+                self.log.info("%s uploaded to GCS", gcs_uri)
+
             return gcs_uri
