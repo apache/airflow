@@ -139,12 +139,12 @@ spec:
             periodSeconds: {{ .Values.webserver.livenessProbe.periodSeconds | default 5 }}
           readinessProbe:
             httpGet:
-              path: {{ .Values.webserver.readinessProbe.path }}
+              path: {{if .Values.config.webserver.base_url }}{{- with urlParse .Values.config.webserver.base_url }}{{ .path }}{{end}}{{end}}/health
               port: {{ .Values.ports.airflowUI }}
-{{- if .Values.webserver.readinessProbe.host }}
+{{- if .Values.config.webserver.base_url}}
               httpHeaders:
                 - name: Host
-                  value: {{ .Values.webserver.readinessProbe.host }}
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse .Values.config.webserver.base_url).host  "" }}
 {{- end }}
             initialDelaySeconds: {{ .Values.webserver.readinessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds | default 30 }}
