@@ -90,18 +90,30 @@ The user should do either of the following to fix this -
     def _render_task_content(self, task, content, context):
         completed_rendering = False
         errors_while_rendering = []
+        renderend_content = ""
         while not completed_rendering:
             # Catch errors such as {{ object.element }} where
             # object is not defined
             try:
                 renderend_content = task.render_template(content, context)
                 completed_rendering = True
-            except Exception as e:
-                undefined_variable = re.sub(" is undefined", "", str(e))
-                undefined_variable = re.sub("'", "", undefined_variable)
-                context[undefined_variable] = dict()
+            except ValueError as value_error:
+                undefined_variable = re.search(r"'(.*)'", str(value_error))[1]
                 message = "Could not find the object '{}'".format(undefined_variable)
                 errors_while_rendering.append(message)
+                if re.match(r"(None|NoneType)$", "None"):
+                    break
+                context[undefined_variable] = dict()
+            except TypeError as type_error:
+                undefined_variable = re.search("'(.*)'", str(type_error))[1]
+                errors_while_rendering.append(str(type_error))
+                if re.match(r"(None|NoneType)$", "None"):
+                    break
+                context[undefined_variable] = dict()
+            except Exception as e:
+                errors_while_rendering.append(str(e))
+                break
+
         return renderend_content, errors_while_rendering
 
     def iterate_over_template_fields(self, task):
