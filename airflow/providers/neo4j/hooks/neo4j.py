@@ -102,7 +102,6 @@ class Neo4jHook(BaseHook):
         """
         Function to create a neo4j session
         and execute the query in the session.
-        
         :param query: Neo4j query
         :return: Result
         """
