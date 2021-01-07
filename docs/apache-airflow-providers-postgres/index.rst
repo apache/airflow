@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -27,12 +26,20 @@ Content
     :caption: Guides
 
     Connection types <connections/postgres>
+    PostgresOperator types <operators/postgres_operator_howto_guide>
+
 
 .. toctree::
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/postgres/index>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
+
+    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/postgres/example_dags>
 
 .. toctree::
     :maxdepth: 1

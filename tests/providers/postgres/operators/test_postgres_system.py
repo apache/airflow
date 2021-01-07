@@ -15,31 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-package-name: apache-airflow-providers-postgres
-name: PostgreSQL
-description: |
-  `PostgreSQL <https://www.postgresql.org/>`__
+import os
 
-versions:
-  - 1.0.0
+import pytest
 
-integrations:
-  - integration-name: PostgreSQL
-    external-doc-url: https://www.postgresql.org/
-    how-to-guide:
-      - /docs/apache-airflow-providers-postgres/operators/postgres_operator_howto_guide.rst
-    tags: [software]
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
+from tests.test_utils.system_tests_class import SystemTest
 
-operators:
-  - integration-name: PostgreSQL
-    python-modules:
-      - airflow.providers.postgres.operators.postgres
+POSTGRES_OPERATOR_DAG_FOLDER = os.path.join(
+    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "postgres", "example_dags"
+)
 
-hooks:
-  - integration-name: PostgreSQL
-    python-modules:
-      - airflow.providers.postgres.hooks.postgres
 
-hook-class-names:
-  - airflow.providers.postgres.hooks.postgres.PostgresHook
+@pytest.mark.backend("postgres")
+@pytest.mark.system("postgres")
+class PostgresOperatorExampleDagSystemTest(SystemTest):
+    def test_run_example_dag_postgres_operator(self):
+        self.run_dag('postgres_operator_dag', POSTGRES_OPERATOR_DAG_FOLDER)
