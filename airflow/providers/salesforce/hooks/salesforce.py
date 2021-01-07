@@ -384,7 +384,8 @@ class SalesforceHook(BaseHook):
 
         json_strings = json.dumps(schema)
 
-        with open(schema_file_name, 'w', enconding='utf-8') as f:
-            f.write(json_strings)
+        json_file = open(schema_file_name, "w")
+        json_file.write(json_strings)
+        json_file.close()
 
         return schema

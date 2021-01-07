@@ -60,17 +60,13 @@ class SalesforceToGcsOperator(BaseOperator):
     :type conn_id: str
     """
 
-    template_fields = (
-        'query',
-        'bucket_name',
-        'object_name',
-    )
+    template_fields = ('query', 'bucket_name', 'object_name', 'schema_file_name')
     template_ext = ('.sql',)
 
     def __init__(
         self,
         *,
-        query: Optional[str],
+        query: Optional[str] = None,
         bucket_name: str,
         object_name: str,
         salesforce_conn_id: str,
@@ -81,8 +77,8 @@ class SalesforceToGcsOperator(BaseOperator):
         record_time_added: bool = False,
         gzip: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        schema_file_name: Optional[str],
-        salesforce_object: Optional[str],
+        schema_file_name: Optional[str] = None,
+        salesforce_object: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -99,7 +95,7 @@ class SalesforceToGcsOperator(BaseOperator):
         self.query_params = query_params
         self.schema_file_name = schema_file_name
         self.salesforce_object = salesforce_object
-        if not salesforce_object and query:
+        if not salesforce_object and not query:
             raise AttributeError('Parameter query or salesforce object must be set')
 
     def execute(self, context: Dict):
@@ -130,13 +126,13 @@ class SalesforceToGcsOperator(BaseOperator):
             )
 
             gcs_uri = f"gs://{self.bucket_name}/{self.object_name}"
-            self.log.info("%s uploaded to GCS", gcs_uri)
+            return_val = {'data': gcs_uri}
+            self.log.info("Data file: %s uploaded to GCS", gcs_uri)
 
-            if self.schema_file_name:
+            # Writing schema only works if a salesforce_object is defined
+            if self.schema_file_name and self.salesforce_object:
                 schema_path = os.path.join(tmp, "salesforce_schema_temp_file")
-                salesforce.write_schema_to_file(
-                    schema_path, response[0]['attributes']['type'], self.record_time_added
-                )
+                salesforce.write_schema_to_file(schema_path, self.salesforce_object, self.record_time_added)
 
                 hook.upload(
                     bucket_name=self.bucket_name,
@@ -144,7 +140,8 @@ class SalesforceToGcsOperator(BaseOperator):
                     filename=schema_path,
                 )
 
-                gcs_uri = f"gs://{self.bucket_name}/{self.schema_file_name}"
-                self.log.info("%s uploaded to GCS", gcs_uri)
+                schema_gcs_uri = f"gs://{self.bucket_name}/{self.schema_file_name}"
+                return_val['schema'] = schema_gcs_uri
+                self.log.info("Schema file: %s uploaded to GCS", schema_gcs_uri)
 
-            return gcs_uri
+            return return_val
