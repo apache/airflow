@@ -61,7 +61,7 @@ class BashHook(BaseHook):
             self.log.info('Running command: %s', command)
 
             self.sub_process = Popen(  # pylint: disable=subprocess-popen-preexec-fn
-                ['bash', "-c", command],
+               command,
                 stdout=PIPE,
                 stderr=STDOUT,
                 cwd=tmp_dir,
