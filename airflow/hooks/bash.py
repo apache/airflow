@@ -35,7 +35,7 @@ class BashHook(BaseHook):
         self.sub_process = None
         super().__init__()
 
-    def run_command(self, command, env: Optional[Dict[str, str]] = None, output_encoding: str = 'utf-8'):
+    def run_command(self, command: List[str], env: Optional[Dict[str, str]] = None, output_encoding: str = 'utf-8'):
         """
         Execute the bash command in a temporary directory which will be cleaned afterwards
 
