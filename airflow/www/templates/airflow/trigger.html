@@ -20,6 +20,12 @@
 {% extends base_template %}
 {% from 'appbuilder/dag_docs.html' import dag_docs %}
 
+{% block head_css %}
+  {{ super() }}
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('codemirror.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('lint.css') }}">
+{% endblock %}
+
 {% block content %}
   {{ super() }}
   <h2>Trigger DAG: {{ dag_id }}</h2>
@@ -30,7 +36,7 @@
     <input type="hidden" name="origin" value="{{ origin }}">
     <div class="form-group">
       <label for="conf">Configuration JSON (Optional)</label>
-      <textarea class="form-control" name="conf">{{ conf }}</textarea>
+      <textarea class="form-control" name="conf" id="json">{{ conf }}</textarea>
     </div>
     <p>
       To access configuration in your DAG use <code>{{ '{{ dag_run.conf }}' }}</code>.
@@ -38,4 +44,22 @@
     <button type="submit" class="btn btn-primary">Trigger</button>
     <button type="button" class="btn" onclick="location.href = '{{ origin }}'; return false">Cancel</button>
   </form>
+{% endblock %}
+
+{% block tail_js %}
+  <script src="{{ url_for_asset('codemirror.js') }}"></script>
+  <script src="{{ url_for_asset('javascript.js') }}"></script>
+  <script src="{{ url_for_asset('lint.js') }}"></script>
+  <script src="{{ url_for_asset('javascript-lint.js') }}"></script>
+  <script src="{{ url_for_asset('jshint.js') }}"></script>
+  <script>
+    const textArea = document.getElementById('json');
+    CodeMirror.fromTextArea(textArea, {
+      lineNumbers: true,
+      mode: { name: 'javascript', json: true },
+      gutters: ['CodeMirror-lint-markers'],
+      lint: true,
+    });
+  </script>
+  {{ super() }}
 {% endblock %}
