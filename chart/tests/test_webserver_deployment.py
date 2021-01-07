@@ -33,13 +33,11 @@ class WebserverDeploymentTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        self.assertIn(
-            {"name": "Host", "value": "example.com"},
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0]),
+        assert {"name": "Host", "value": "example.com"} in jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0]
         )
-        self.assertIn(
-            {"name": "Host", "value": "example.com"},
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0]),
+        assert {"name": "Host", "value": "example.com"} in jmespath.search(
+            "spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0]
         )
 
     def test_should_add_path_to_liveness_and_readiness_probes(self):
@@ -52,21 +50,28 @@ class WebserverDeploymentTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.path", docs[0]) ==  "/mypath/path/health"
-        assert jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.path", docs[0]) ==  "/mypath/path/health"
+        assert (
+            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.path", docs[0])
+            == "/mypath/path/health"
+        )
+        assert (
+            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.path", docs[0])
+            == "/mypath/path/health"
+        )
 
     def test_should_not_contain_host_header_if_host_empty_string(self):
         docs = render_chart(
-            values={
-            },
+            values={},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        self.assertIsNone(
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0]),
+        assert (
+            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0])
+            is None
         )
-        self.assertIsNone(
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0]),
+        assert (
+            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0])
+            is None
         )
 
     def test_should_not_contain_host_header_if_base_url_not_set(self):
@@ -79,11 +84,13 @@ class WebserverDeploymentTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        self.assertIsNone(
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0]),
+        assert (
+            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0])
+            is None
         )
-        self.assertIsNone(
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0]),
+        assert (
+            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0])
+            is None
         )
 
     def test_should_not_contain_host_header_by_default(self):
@@ -91,9 +98,11 @@ class WebserverDeploymentTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        self.assertIsNone(
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0]),
+        assert (
+            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0])
+            is None
         )
-        self.assertIsNone(
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0]),
+        assert (
+            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0])
+            is None
         )
