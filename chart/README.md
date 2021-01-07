@@ -36,7 +36,7 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 All Airflow configuration parameters (equivalent of `airflow.cfg`) are stored in [values.yaml](https://github.com/apache/airflow/blob/master/chart/values.yaml) under the `config` key . The following code demonstrates how one would deny webserver users from viewing the config from within the webserver application. See the bottom line of the example:
 
-```
+```yaml
 # Config settings to go into the mounted airflow.cfg
 #
 # Please note that these values are passed through the `tpl` function, so are
