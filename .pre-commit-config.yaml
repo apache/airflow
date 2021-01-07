@@ -142,7 +142,7 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.mermaid$
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: v1.4.0
+    rev: v2.0.0
     hooks:
       - id: doctoc
         name: Add TOC for md files
@@ -156,7 +156,7 @@ repos:
       - id: black
         args: [--config=./pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.3.0
+    rev: v3.4.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements

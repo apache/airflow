@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Setup.py for the Provider packages of Airflow project."""
+import argparse
 import collections
 import importlib
 import json
@@ -138,7 +139,6 @@ HOOKS_PATTERN = r".*Hook$"
 SECRETS_PATTERN = r".*Backend$"
 TRANSFERS_PATTERN = r".*To[A-Z0-9].*Operator$"
 WRONG_TRANSFERS_PATTERN = r".*Transfer$|.*TransferOperator$"
-
 
 ALL_PATTERNS = {
     OPERATORS_PATTERN,
@@ -339,34 +339,6 @@ def get_provider_packages() -> List[str]:
 
     """
     return list(PROVIDERS_REQUIREMENTS.keys())
-
-
-def usage() -> None:
-    """
-    Prints usage for the package.
-
-    """
-    print()
-    print("You should provide PACKAGE as first of the setup.py arguments")
-    packages = get_provider_packages()
-    out = ""
-    for package in packages:
-        out += f"{package} "
-    out_array = textwrap.wrap(out, 80)
-    print("Available packages: ")
-    print()
-    for text in out_array:
-        print(text)
-    print()
-    print("Additional commands:")
-    print()
-    print("  list-providers-packages       - lists all provider packages")
-    print("  list-backportable-packages    - lists all packages that are backportable")
-    print("  update-package-release-notes [YYYY.MM.DD] [PACKAGES] - updates package release notes")
-    print("  generate-setup-files PACKAGES - generates setup files for the package")
-    print("  --version-suffix-for-pypi <SUFFIX>  - adds version suffix to version of the packages.")
-    print("                                        Only useful when generating RC candidates for PyPI.")
-    print()
 
 
 def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
@@ -1575,105 +1547,76 @@ def copy_readme_and_changelog(provider_package_id: str, backport_packages: bool)
                 outfile.write(line)
 
 
-if __name__ == "__main__":
-    LIST_PROVIDERS_PACKAGES = "list-providers-packages"
-    LIST_BACKPORTABLE_PACKAGES = "list-backportable-packages"
-    UPDATE_PACKAGE_RELEASE_NOTES = "update-package-release-notes"
-    GENERATE_SETUP_FILES = "generate-setup-files"
+def print_provider_packages_list(args):
+    """List all provider packages."""
+    providers = list(PROVIDERS_REQUIREMENTS.keys())
+    for provider in providers:
+        print(provider)
 
-    BACKPORT_PACKAGES = os.getenv('BACKPORT_PACKAGES') == "true"
-    suffix = ""
 
-    provider_names = get_provider_packages()
-    possible_first_params = provider_names.copy()
-    possible_first_params.append(LIST_PROVIDERS_PACKAGES)
-    possible_first_params.append(LIST_BACKPORTABLE_PACKAGES)
-    possible_first_params.append(UPDATE_PACKAGE_RELEASE_NOTES)
-    possible_first_params.append(GENERATE_SETUP_FILES)
-    if len(sys.argv) == 1:
-        print(
-            """
-ERROR! Missing first param"
-""",
-            file=sys.stderr,
-        )
-        usage()
-        sys.exit(1)
-    if sys.argv[1] == "--version-suffix":
-        if len(sys.argv) < 3:
-            print(
-                """
-ERROR! --version-suffix needs parameter!
-""",
-                file=sys.stderr,
-            )
-            usage()
-            sys.exit(1)
-        suffix = sys.argv[2]
-        sys.argv = [sys.argv[0]] + sys.argv[3:]
-    elif "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) < 2:
-        usage()
-        sys.exit(0)
+def print_backport_packages_list(args):
+    """Lists all packages that are backportable."""
+    providers = get_all_backportable_providers()
+    for provider in providers:
+        print(provider)
 
-    if sys.argv[1] not in possible_first_params:
-        print(
-            f"""
-ERROR! Wrong first param: {sys.argv[1]}
-""",
-            file=sys.stderr,
-        )
-        usage()
-        print()
-        sys.exit(1)
 
-    if sys.argv[1] == LIST_PROVIDERS_PACKAGES:
-        providers = list(PROVIDERS_REQUIREMENTS.keys())
-        for provider in providers:
-            print(provider)
-        sys.exit(0)
-    elif sys.argv[1] == LIST_BACKPORTABLE_PACKAGES:
-        providers = get_all_backportable_providers()
-        for provider in providers:
-            print(provider)
-        sys.exit(0)
-    elif sys.argv[1] == UPDATE_PACKAGE_RELEASE_NOTES:
-        release_ver = ""
-        if len(sys.argv) > 2 and sys.argv[2] not in provider_names:
-            release_ver = sys.argv[2]
-            print()
-            print()
-            print(f"Preparing release version: {release_ver}")
-            package_list = sys.argv[3:]
-        else:
-            print()
-            print()
-            print("Updating latest release version.")
-            package_list = sys.argv[2:]
-        print()
-        update_release_notes_for_packages(
-            package_list,
-            release_version=release_ver,
-            version_suffix=suffix,
-            backport_packages=BACKPORT_PACKAGES,
-        )
-        sys.exit(0)
-    elif sys.argv[1] == GENERATE_SETUP_FILES:
+def get_version_suffix(version_suffix):
+    return version_suffix if version_suffix is not None else ""
+
+
+def update_package_release_notes(args):
+    """Updates package release notes."""
+    release_ver = ""
+    suffix = get_version_suffix(args.version_suffix)
+
+    if args.release_version and args.release_version not in get_provider_packages():
+        release_ver = args.release_version
         print()
         print()
-        print("Generate setup files")
+        print(f"Preparing release version: {release_ver}")
+        package_list = args.package_list
+    else:
         print()
-        provider = sys.argv[2]
-        update_generated_files_for_package(
-            provider, "", suffix, [], BACKPORT_PACKAGES, update_release_notes=False, update_setup=True
-        )
-        sys.exit(0)
-    _provider_package = sys.argv[1]
+        print()
+        print("Updating latest release version.")
+        package_list = args.package_list
+    print()
+    update_release_notes_for_packages(
+        package_list,
+        release_version=release_ver,
+        version_suffix=suffix,
+        backport_packages=BACKPORT_PACKAGES,
+    )
+
+
+def generate_setup_files(args):
+    """Generates setup files for the package."""
+    print()
+    print()
+    print("Generate setup files")
+    print()
+    provider = args.provider
+    suffix = get_version_suffix(args.version_suffix)
+    update_generated_files_for_package(
+        provider, "", suffix, [], BACKPORT_PACKAGES, update_release_notes=False, update_setup=True
+    )
+
+
+def build_provider_package(args):
+    """
+    Provide packages for setup.py.
+    Choose from the above available packages.
+    """
+    _provider_package = args.packages
     verify_provider_package(_provider_package)
-    del sys.argv[1]
     package_format = os.environ.get("PACKAGE_FORMAT", "wheel")
+    suffix = get_version_suffix(args.version_suffix)
+
     print(f"Building provider package: {_provider_package} in format ${package_format}")
     copy_readme_and_changelog(_provider_package, BACKPORT_PACKAGES)
     command = ["python3", "setup.py"]
+
     if suffix != "":
         command.extend(['egg_info', '--tag-build', suffix])
     if package_format in ['sdist', 'both']:
@@ -1684,3 +1627,68 @@ ERROR! Wrong first param: {sys.argv[1]}
     subprocess.check_call(
         command,
     )
+
+
+def get_parser():
+    provider_names = get_provider_packages()
+    help_text = "Available packages:\n"
+    out = " ".join(provider_names)
+    out_array = textwrap.wrap(out, 80)
+    help_text += "\n".join(out_array)
+    cli_parser = argparse.ArgumentParser(description=help_text, formatter_class=argparse.RawTextHelpFormatter)
+    cli_parser.add_argument(
+        "--packages",
+        help=textwrap.dedent(build_provider_package.__doc__),
+    )
+    cli_parser.add_argument(
+        "--version-suffix",
+        metavar="SUFFIX",
+        help=textwrap.dedent(
+            """Adds version suffix to version of the packages.
+Only useful when generating RC candidates for PyPI."""
+        ),
+    )
+    subparsers = cli_parser.add_subparsers(dest="cmd")
+    first_param_subparser1 = subparsers.add_parser(
+        "list-providers-packages", help=print_provider_packages_list.__doc__
+    )
+    first_param_subparser1.set_defaults(func=print_provider_packages_list)
+
+    first_param_subparser2 = subparsers.add_parser(
+        "list-backportable-packages", help=print_backport_packages_list.__doc__
+    )
+    first_param_subparser2.set_defaults(func=print_backport_packages_list)
+
+    first_param_subparser3 = subparsers.add_parser(
+        "update-package-release-notes", help=update_package_release_notes.__doc__
+    )
+    first_param_subparser3.set_defaults(func=update_package_release_notes)
+    first_param_subparser3.add_argument("release_version", metavar="YYYY.MM.DD", nargs="?", default="")
+    first_param_subparser3.add_argument("package_list", metavar="PACKAGES", nargs="*", type=list)
+
+    first_param_subparser4 = subparsers.add_parser("generate-setup-files", help=generate_setup_files.__doc__)
+    first_param_subparser4.set_defaults(func=generate_setup_files)
+    first_param_subparser4.add_argument("provider", metavar="PACKAGE")
+
+    return cli_parser
+
+
+if __name__ == "__main__":
+    parser = get_parser()
+    args = parser.parse_args()
+
+    BACKPORT_PACKAGES = os.getenv('BACKPORT_PACKAGES') == "true"
+
+    if len(sys.argv) < 2:
+        parser.print_help(file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        if args.packages is not None:
+            build_provider_package(args)
+        else:
+            args.func(args)
+        sys.exit(0)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        sys.exit(1)

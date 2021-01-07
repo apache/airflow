@@ -28,7 +28,7 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 ## Prerequisites
 
-- Kubernetes 1.12+ cluster
+- Kubernetes 1.14+ cluster
 - Helm 2.11+ or Helm 3.0+
 - PV provisioner support in the underlying infrastructure
 

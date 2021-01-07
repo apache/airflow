@@ -331,3 +331,14 @@ you should set ``reload_on_plugin_change`` option in ``[webserver]`` section to 
 
 .. note::
     See :doc:`modules_management` for details on how Python and Airflow manage modules.
+
+Troubleshooting
+---------------
+
+You can use `the Flask CLI <https://flask.palletsprojects.com/en/1.1.x/cli/>`__ to troubleshoot problems. To run this, you need to set the variable :envvar:`FLASK_APP` to ``airflow.www.app:create_app``.
+
+For example, to print all routes, run:
+
+.. code-block:: bash
+
+    FLASK_APP=airflow.www.app:create_app flask routes
