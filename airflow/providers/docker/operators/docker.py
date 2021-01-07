@@ -249,7 +249,7 @@ class DockerOperator(BaseOperator):
                     mem_limit=self.mem_limit,
                     cap_add=self.cap_add,
                     extra_hosts=self.extra_hosts,
-                    device_requests=self.device_requests
+                    device_requests=self.device_requests,
                 ),
                 image=self.image,
                 user=self.user,
