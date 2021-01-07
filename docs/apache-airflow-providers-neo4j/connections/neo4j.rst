@@ -46,10 +46,10 @@ Extra (optional)
         - certs_self_signed - neo4j+ssc://
         - certs_trusted_ca - neo4j+s://
 
-      * ``encrypted``: Sets encrypted=True/False for GraphDatabase.driver, Set to True for Neo4j Aura.
-      * ``neo4j_scheme``: Specifies the scheme to neo4j://, default is bolt://
-      * ``certs_self_signed``: Sets the URI scheme to support self-signed certificates(neo4j+ssc://)
-      * ``certs_trusted_ca``: Sets the URI scheme to support only trusted CA(neo4j+s://)
+      * ``encrypted``: Sets encrypted=True/False for GraphDatabase.driver, Set to ``True`` for Neo4j Aura.
+      * ``neo4j_scheme``: Specifies the scheme to ``neo4j://``, default is ``bolt://``
+      * ``certs_self_signed``: Sets the URI scheme to support self-signed certificates(``neo4j+ssc://``)
+      * ``certs_trusted_ca``: Sets the URI scheme to support only trusted CA(``neo4j+s://``)
 
       Example "extras" field:
 

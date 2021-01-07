@@ -28,8 +28,7 @@ class Neo4jHook(BaseHook):
     """
     Interact with Neo4j.
 
-    Performs a connection to Neo4j
-    and runs the query.
+    Performs a connection to Neo4j and runs the query.
     """
 
     conn_name_attr = 'neo4j_conn_id'
@@ -103,7 +102,8 @@ class Neo4jHook(BaseHook):
         """
         Function to create a neo4j session
         and execute the query in the session.
-        :param query - Neo4j query
+        
+        :param query: Neo4j query
         :return: Result
         """
         driver = self.get_conn()
