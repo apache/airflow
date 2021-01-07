@@ -41,6 +41,15 @@ def check_upgrade(formatter, rules):
     return all_rule_statuses
 
 
+def list_checks():
+    print()
+    print("Upgrade Checks:")
+    for rule in ALL_RULES:
+        rule_name = rule.__class__.__name__
+        print("- {}: {}".format(rule_name, rule.title))
+    print()
+
+
 def register_arguments(subparser):
     subparser.add_argument(
         "-s", "--save",
@@ -49,17 +58,21 @@ def register_arguments(subparser):
     subparser.add_argument(
         "-i", "--ignore",
         help="Ignore a rule. Can be used multiple times.",
-        action='append',
+        action="append",
     )
     subparser.add_argument(
         "-c", "--config",
         help="Path to upgrade check config yaml file.",
     )
-    subparser.set_defaults(func=run)
+    subparser.add_argument(
+        "-l", "--list",
+        help="List the upgrade checks and their class names",
+        action="store_true",
+    )
 
 
 def run(args):
-    from airflow.upgrade.formatters import (ConsoleFormatter, JSONFormatter)
+    from airflow.upgrade.formatters import ConsoleFormatter, JSONFormatter
     from airflow.upgrade.config import UpgradeConfig
 
     if args.save:
@@ -94,7 +107,10 @@ def __main__():
     parser = argparse.ArgumentParser()
     register_arguments(parser)
     args = parser.parse_args()
-    args.func(args)
+    if args.list:
+        list_checks()
+    else:
+        run(args)
 
 
 if __name__ == "__main__":

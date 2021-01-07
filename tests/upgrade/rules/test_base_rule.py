@@ -25,3 +25,19 @@ class TestBaseRule:
         rule_classes = get_rules()
         assert BaseRule not in rule_classes
         assert ConnTypeIsNotNullableRule in rule_classes
+
+    def test_rules_are_ordered(self):
+        rule_classes = get_rules()
+        from airflow.upgrade.rules.aaa_airflow_version_check import VersionCheckRule
+        from airflow.upgrade.rules.conn_id_is_unique import UniqueConnIdRule
+        from airflow.upgrade.rules.no_additional_args_in_operators import (
+            NoAdditionalArgsInOperatorsRule,
+        )
+
+        # Version check should still be first
+        assert rule_classes[0] == VersionCheckRule
+        # The former rule is defined in a file alphabetically before the latter rule,
+        # but it should appear later in the list since the classes are sorted alphabetically
+        unique_rule_index = rule_classes.index(UniqueConnIdRule)
+        no_addtl_args_rule_index = rule_classes.index(NoAdditionalArgsInOperatorsRule)
+        assert unique_rule_index > no_addtl_args_rule_index, "Rules are not alphabetical by class name"
