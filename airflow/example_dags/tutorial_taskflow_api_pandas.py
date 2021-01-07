@@ -17,21 +17,14 @@
 # under the License.
 
 # pylint: disable=missing-function-docstring
-"""
-### TaskFlow API Example using Pandas
 
-This is a simple ETL data pipeline example which demonstrates the use of the
-TaskFlow API using three simple tasks for Extract, Transform, and Load, while
-using Pandas and loading data from files.
-
-"""
 # [START tutorial]
 # [START import_module]
 import pandas as pd
 
 # The DAG object; we'll need this to instantiate a DAG
-from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.decorators import dag, task
+from airflow.operators.python import PythonOperator
 from airflow.sensors.filesystem import FileSensor
 from airflow.utils.dates import days_ago
 
@@ -57,22 +50,19 @@ default_args = {
 
 
 # [START instantiate_dag]
-with DAG(
-    'tutorial_taskflow_api_pandas',
-    default_args=default_args,
-    description='TaskFlow API ETL Pandas',
-    schedule_interval=None,
-    start_date=days_ago(2),
-    tags=['example'],
-) as dag:
+@dag(default_args=default_args, schedule_interval=None, start_date=days_ago(2))
+def tutorial_taskflow_api_pandas():
+    """
+    ### TaskFlow API Example using Pandas
+
+    This is a simple ETL data pipeline example which demonstrates the use of the
+    TaskFlow API using three simple tasks for Extract, Transform, and Load, while
+    using Pandas and loading data from files.
+    """
     # [END instantiate_dag]
 
-    # [START documentation]
-    dag.doc_md = __doc__
-    # [END documentation]
-
     # [START extract]
-    @dag.task()
+    @task()
     def extract():
         """
         #### Extract task
@@ -83,36 +73,34 @@ with DAG(
 
         order_data_df = pd.read_csv(order_data_file)
 
-        # convert to JSON so that it be returned using xcom
-        order_data_df_str = order_data_df.to_json(orient='split')
-        return order_data_df_str
-
-        # Altenatively, to directly return the pandas dataframe, set the
-        # xcom configuration in the airflow.cfg configuration file to use
-        # pickling instead of the default JSON
+        # Make sure to set xcom configuration in the airflow.cfg file to
+        # use the custom Xcom back-end
         # enable_xcom_pickling = True
-        # Caution: Picking of xcom data is not the default due to security
-        # concerns. Please validate with your security team before changing
         # this setting.
         #
-        # return order_data_df
+        return order_data_df
+
+        # If NOT using the custom Xcom back-end which is available with
+        # this example ...
+        # convert to JSON so that it be returned using xcom
+        # order_data_df_str = order_data_df.to_json(orient='split')
+        # return order_data_df_str
 
     # [END extract]
 
     # [START transform]
-    @dag.task(multiple_outputs=True)
-    def transform(order_data_df_str: str):
+    @task(multiple_outputs=True)
+    def transform(order_data_df: pd):
         """
         #### Transform task
         A simple Transform task which takes in the order data and computes
         the total order value.
         """
-        order_data_df = pd.read_json(order_data_df_str, orient='split')
-
         # Alterntively, if using pickling and directly returning a pandas
         # dataframe, make sure to change the input signature to be a dataframe
         # instead of a string and skip the above converstion from a string
         # in JSON format to a pandas dataframe
+        # order_data_df = pd.read_json(order_data_df_str, orient='split')
 
         total_series = order_data_df.sum(numeric_only=True)
         total_order_value = total_series.get('order_value')
@@ -122,7 +110,7 @@ with DAG(
     # [END transform]
 
     # [START load]
-    @dag.task()
+    @task()
     def load(total_order_value: float):
         """
         #### Load task
@@ -149,5 +137,10 @@ with DAG(
 
     generate_data_file_task >> file_task >> order_data
     # [END main_flow]
+
+
+# [START dag_invocation]
+tutorial_etl_pandas_dag = tutorial_taskflow_api_pandas()
+# [END dag_invocation]
 
 # [END tutorial]
