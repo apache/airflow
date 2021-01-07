@@ -28,6 +28,7 @@ from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
+from urllib3.exceptions import ProtocolError
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.kube_client import get_kube_client
@@ -116,6 +117,41 @@ class PodLauncher(LoggingMixin):
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
 
+    def safe_log_pod_logs(
+        self, pod: V1Pod, read_logs_since_sec: Optional[int], last_log_time: Optional[pendulum.DateTime]
+    ) -> Optional[pendulum.DateTime]:
+        """Reads latest logs from a pod and logs them on Airflow.
+
+        Sometimes the log stream from the kubernetes library can be empty
+        causing a ProtocolError which we handle in this function.
+
+        Issue: https://github.com/apache/airflow/issues/12136.
+        """
+        try:
+            logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
+            timestamp = None
+            for line in logs:
+                timestamp, message = self.parse_log_line(line.decode('utf-8'))
+                self.log.info(message)
+
+            # Return the time of last log line
+            if timestamp:
+                return pendulum.parse(timestamp)
+            # If there were no logs, return the last log time
+            else:
+                return last_log_time
+        except ProtocolError as protocol_error:
+            _, protocol_exception = protocol_error.args  # pylint: disable=unbalanced-tuple-unpacking
+            # When no logs are fetched, an IncompleteRead is thrown trying
+            # to decode the stream
+            if str(protocol_exception) == "IncompleteRead(0 bytes read)":
+                self.log.info("The pod has not logged since the logs were last fetched")
+
+                return last_log_time
+            # If the exception is not about an empty stream we raise it
+            else:
+                raise protocol_error
+
     def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
         """
         Monitors a pod and returns the final state
@@ -129,11 +165,7 @@ class PodLauncher(LoggingMixin):
             read_logs_since_sec = None
             last_log_time = None
             while True:
-                logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
-                for line in logs:
-                    timestamp, message = self.parse_log_line(line.decode('utf-8'))
-                    last_log_time = pendulum.parse(timestamp)
-                    self.log.info(message)
+                last_log_time = self.safe_log_pod_logs(pod, read_logs_since_sec, last_log_time)
                 time.sleep(1)
 
                 if not self.base_container_is_running(pod):
