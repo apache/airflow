@@ -4,6 +4,3 @@ config.yml
 
 # Build dir
 repository
-
-# Chart dependencies
-**/charts/*.tgz
