@@ -28,8 +28,7 @@ class Neo4jHook(BaseHook):
     """
     Interact with Neo4j.
 
-    Performs a connection to Neo4j
-    and runs the query.
+    Performs a connection to Neo4j and runs the query.
     """
 
     conn_name_attr = 'neo4j_conn_id'
