@@ -202,7 +202,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.log.info('ECS Task has been successfully executed')
 
         if self.do_xcom_push:
-            return self._last_log_event()
+            return self._last_log_message()
 
         return None
 
@@ -280,7 +280,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     def _aws_logs_enabled(self):
         return self.awslogs_group and self.awslogs_stream_prefix
 
-    def _last_log_event(self):
+    def _last_log_message(self):
         try:
             return deque(self._cloudwatch_log_events(), maxlen=1).pop()["message"]
         except IndexError:
