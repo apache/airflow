@@ -131,7 +131,7 @@ spec:
 {{- if .Values.config.webserver.base_url}}
               httpHeaders:
                 - name: Host
-                  value: {{ (urlParse .Values.config.webserver.base_url).host | trimSuffix (toString .Values.ports.airflowUI) | trimSuffix ":" }}
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse .Values.config.webserver.base_url).host  "" }}
 {{- end }}
             initialDelaySeconds: {{ .Values.webserver.livenessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.livenessProbe.timeoutSeconds | default 30 }}
