@@ -59,7 +59,7 @@ If you wish to have the experimental API work, and aware of the risks of enablin
 
 .. note::
 
-    You can only disable authentication for experimental API not the sable rest API.
+    You can only disable authentication for experimental API not the stable rest API.
 
 See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 
