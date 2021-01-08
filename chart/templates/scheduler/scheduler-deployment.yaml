@@ -160,13 +160,13 @@ spec:
             - name: dags
               mountPath: {{ template "airflow_dags_mount_path" . }}
 {{- end }}
+{{- if .Values.scheduler.extraVolumeMounts }}
+{{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
+{{- end }}
 {{- if .Values.dags.gitSync.enabled }}
             - name: dags
               mountPath: {{ template "airflow_dags_mount_path" . }}
         {{- include "git_sync_container" . | indent 8 }}
-{{- end }}
-{{- if .Values.scheduler.extraVolumeMounts }}
-{{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
 {{- end }}
         # Always start the garbage collector sidecar.
         - name: scheduler-gc
