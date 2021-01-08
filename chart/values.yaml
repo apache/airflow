@@ -711,6 +711,7 @@ config:
     rbac: 'True'
   celery:
     default_queue: celery
+    worker_concurrency: 16
   scheduler:
     scheduler_heartbeat_sec: 5
     # statsd params included for Airflow 1.10 backward compatibility; moved to [metrics] in 2.0

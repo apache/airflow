@@ -319,10 +319,11 @@ helm install --name my-release \
 
 ## Autoscaling with KEDA
 
+*This feature is still experimental.*
+
 KEDA stands for Kubernetes Event Driven Autoscaling. [KEDA](https://github.com/kedacore/keda) is a custom controller that allows users to create custom bindings
 to the Kubernetes [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/).
-We've built an experimental scaler that allows users to create scalers based on postgreSQL queries. For the moment this exists
-on a separate branch, but will be merged upstream soon. To install our custom version of KEDA on your cluster, please run
+We've built a scaler that allows users to create scalers based on postgreSQL queries and shared it with the community. This enables us to scale the number of airflow workers deployed on Kubernetes by this chart depending on the number of task that are `queued` or `running`.
 
 ```bash
 helm repo add kedacore https://kedacore.github.io/charts
@@ -348,6 +349,17 @@ helm install airflow . \
     --set workers.keda.enabled=true \
     --set workers.persistence.enabled=false
 ```
+
+KEDA will derive the desired number of celery workers by querying Airflow metadata database:
+
+```sql
+SELECT
+    ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
+FROM task_instance
+WHERE state='running' OR state='queued'
+```
+
+You should set celery worker concurrency through the helm value `config.celery.worker_concurrency` (i.e. instead of airflow.cfg or environment variables) so that the KEDA trigger will be consistent with the worker concurrency setting.
 
 ## Using an external redis instance
 
