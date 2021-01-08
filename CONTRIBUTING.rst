@@ -1210,7 +1210,7 @@ as "apache" so you can refer to it easily:
    And go either to point 6. or 7, depending on whether you have more commits that cause conflicts in your PR (rebasing applies each
    commit from your PR one-by-one).
 
-Quick resume
+Summary
 -------------
 
 Useful when you understand the flow but don't remember the steps and want a quick reference.
