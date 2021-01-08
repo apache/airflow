@@ -235,7 +235,7 @@ General prerequisites that we look for in all candidates:
 
 1.  Consistent contribution over last few months
 2.  Visibility on discussions on the dev mailing list, Slack channels or Github issues/discussions
-3.  Helped to improve community of Airflow to be stronger
+3.  Contributions to community health and project's sustainability for the long-term
 4.  Understands contributor/committer guidelines:
     `Contributors' Guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__
 
