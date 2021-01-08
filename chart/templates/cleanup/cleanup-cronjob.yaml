@@ -61,10 +61,19 @@ spec:
           {{- end }}
           containers:
             - name: airflow-cleanup-pods
-              image: {{ template "default_airflow_image" . }}
+              image: {{ template "airflow_image" . }}
               imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
               # Don't use entry point here, we don't need to wait on pg-bouncer etc being available.
               args: ["kubernetes", "cleanup-pods", "--namespace={{ .Release.Namespace }}"]
               env:
               {{- include "standard_airflow_environment" . | indent 12 }}
+              volumeMounts:
+                - name: config
+                  mountPath: {{ template "airflow_config_path" . }}
+                  subPath: airflow.cfg
+                  readOnly: true
+          volumes:
+            - name: config
+              configMap:
+                name: {{ template "airflow_config" . }}
 {{- end }}
