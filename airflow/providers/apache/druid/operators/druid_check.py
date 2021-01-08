@@ -33,5 +33,4 @@ class DruidCheckOperator(SQLCheckOperator):
             DeprecationWarning,
             stacklevel=3,
         )
-        conn_id = druid_broker_conn_id or None
-        super().__init__(conn_id=conn_id, **kwargs)
+        super().__init__(conn_id=druid_broker_conn_id, **kwargs)
