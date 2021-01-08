@@ -173,7 +173,7 @@ class WorkflowsHook(GoogleBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ) -> Workflow:
+    ) -> Operation:
         """
         Deletes a workflow with the specified name.
         This method also cancels and deletes all running
@@ -237,6 +237,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata = metadata or ()
         client = self.get_workflows_client()
         parent = f"projects/{project_id}/locations/{location}"
+
         return client.list_workflows(
             request={"parent": parent, "filter": filter_, "order_by": order_by},
             retry=retry,
@@ -259,7 +260,7 @@ class WorkflowsHook(GoogleBaseHook):
         Creates a new execution using the latest revision of
         the given workflow.
 
-        :param execution: Required. Execution to be created.
+        :param execution: Required. Input parameters of the execution represented as a dictionary.
         :type execution: Dict
         :param workflow_id: Required. The ID of the workflow.
         :type workflow_id: str

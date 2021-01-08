@@ -46,9 +46,9 @@ class WorkflowExecutionSensor(BaseSensorOperator):
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
-    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+    :param request_timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
+    :type request_timeout: float
     :param metadata: Additional metadata that is provided to the method.
     :type metadata: Sequence[Tuple[str, str]]
     """
@@ -65,7 +65,7 @@ class WorkflowExecutionSensor(BaseSensorOperator):
         success_states: Optional[Set[Execution.State]] = None,
         failure_states: Optional[Set[Execution.State]] = None,
         retry: Optional[Retry] = None,
-        timeout: Optional[float] = None,
+        request_timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -80,7 +80,7 @@ class WorkflowExecutionSensor(BaseSensorOperator):
         self.location = location
         self.project_id = project_id
         self.retry = retry
-        self.timeout = timeout
+        self.request_timeout = request_timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -94,7 +94,7 @@ class WorkflowExecutionSensor(BaseSensorOperator):
             location=self.location,
             project_id=self.project_id,
             retry=self.retry,
-            timeout=self.timeout,
+            timeout=self.request_timeout,
             metadata=self.metadata,
         )
 
