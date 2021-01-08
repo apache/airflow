@@ -26,21 +26,6 @@ from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
 
-ALLOWED_CONN_TYPE = {
-    "bigquery",
-    "druid",
-    "jdbc",
-    "mssql",
-    "mysql",
-    "odbc",
-    "oracle",
-    "postgres",
-    "presto",
-    "snowflake",
-    "sqlite",
-    "vertica",
-}
-
 
 class BaseSQLOperator(BaseOperator):
     """
@@ -63,15 +48,11 @@ class BaseSQLOperator(BaseOperator):
         self.log.debug("Get connection for %s", self.conn_id)
         conn = BaseHook.get_connection(self.conn_id)
 
-        if conn.conn_type not in ALLOWED_CONN_TYPE:
-            raise AirflowException(
-                "The connection type is not supported by {}.\
-                Supported connection types: {}".format(
-                    self.__class__.__name__, list(ALLOWED_CONN_TYPE)
-                )
-            )
-
         hook = conn.get_hook()
+        if not isinstance(hook, DbApiHook):
+            raise AirflowException(
+                'The hook associated with theconnection type is not a subclass of `DbApiHook`'
+            )
 
         if self.database:
             hook.schema = self.database
