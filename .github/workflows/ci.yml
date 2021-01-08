@@ -834,7 +834,7 @@ jobs:
     timeout-minutes: 120
     name: "Wait for PROD images"
     runs-on: ubuntu-20.04
-    needs: [build-info]
+    needs: [build-info, ci-images]
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
