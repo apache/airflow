@@ -53,6 +53,8 @@ class MongoToS3Operator(BaseOperator):
     :param allow_disk_use: in the case you are retrieving a lot of data, you may have
         to use the disk to save it instead of saving all in the RAM
     :param allow_disk_use: bool
+    :param compression: Type of compression to use when saving the file in S3. Currently only gzip is supported.
+    :type compression: str
     """
 
     template_fields = ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')
