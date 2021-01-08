@@ -97,19 +97,13 @@ The user should do either of the following to fix this -
             try:
                 renderend_content = task.render_template(content, context)
                 completed_rendering = True
-            except ValueError as value_error:
-                undefined_variable = re.search(r"'(.*)'", str(value_error))[1]
+            except (ValueError, jinja2.UndefinedError) as value_error:
+                undefined_variable = re.search(r"'(.*?)'", str(value_error))[1]
                 message = "Could not find the object '{}'".format(undefined_variable)
                 errors_while_rendering.append(message)
-                if re.match(r"(None|NoneType)$", "None"):
-                    break
                 context[undefined_variable] = dict()
-            except TypeError as type_error:
-                undefined_variable = re.search("'(.*)'", str(type_error))[1]
-                errors_while_rendering.append(str(type_error))
-                if re.match(r"(None|NoneType)$", "None"):
+                if undefined_variable == "None":
                     break
-                context[undefined_variable] = dict()
             except Exception as e:
                 errors_while_rendering.append(str(e))
                 break
