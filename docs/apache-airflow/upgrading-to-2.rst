@@ -300,12 +300,12 @@ As part of this change, a few configuration items in ``[webserver]`` section are
 including ``authenticate``, ``filter_by_owner``, ``owner_mode``, and ``rbac``.
 
 Before upgrading to this release, we recommend activating the new FAB RBAC UI. For that, you should set
-the ``rbac`` options  in ``[webserver]`` in the ``airflow.cfg`` file to ``true``
+the ``rbac`` options  in ``[webserver]`` in the ``airflow.cfg`` file to ``True``
 
 .. code-block:: ini
 
     [webserver]
-    rbac = true
+    rbac = True
 
 In order to login to the interface, you need to create an administrator account.
 
