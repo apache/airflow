@@ -239,9 +239,9 @@ jobs:
             ./scripts/ci/selective_ci_checks.sh
           fi
 
-  build-images:
+  build-ci-images:
     timeout-minutes: 80
-    name: "Build ${{matrix.image-type}} images ${{matrix.python-version}}"
+    name: "Build CI images ${{matrix.python-version}}"
     runs-on: ubuntu-20.04
     needs: [build-info, cancel-workflow-runs]
     strategy:
@@ -249,7 +249,6 @@ jobs:
         # We need to attempt to build all possible versions here because workflow_run
         # event is run from master for both master and v1-10-tests
         python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
-        image-type: [CI, PROD]
       fail-fast: true
     if: >
       needs.build-info.outputs.image-build == 'true' &&
@@ -302,13 +301,13 @@ jobs:
         id: build-image-check
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          name: "Status of image build ${{ matrix.image-type }}: ${{ matrix.python-version }}"
+          name: "Status of image build CI: ${{ matrix.python-version }}"
           status: "in_progress"
           sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
           details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           output: >
             {"summary":
-            "Building the image: ${{ matrix.image-type }}: ${{ matrix.python-version }}. See the
+            "Building the image: CI: ${{ matrix.python-version }}. See the
             [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
         if: steps.defaults.outputs.proceed == 'true'
@@ -341,17 +340,10 @@ jobs:
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Build CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-        # locally built CI image is needed to prepare packages for PROD image build
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Push CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
-        if: matrix.image-type == 'CI' && steps.defaults.outputs.proceed == 'true'
-      - name: "Build PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
-        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-        if: matrix.image-type == 'PROD' && steps.defaults.outputs.proceed == 'true'
-      - name: "Push PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
-        run: ./scripts/ci/images/ci_push_production_images.sh
-        if: matrix.image-type == 'PROD' && steps.defaults.outputs.proceed == 'true'
+        if: steps.defaults.outputs.proceed == 'true'
       - name: Update GitHub Checks for Building image with status
         uses: apache/airflow-checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
         if: always() && steps.defaults.outputs.proceed == 'true'
@@ -364,7 +356,135 @@ jobs:
           details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           output: >
             {"summary":
-            "Building the image: ${{ matrix.image-type }}: ${{ matrix.python-version }}. See the
+            "Building the image: CI: ${{ matrix.python-version }}. See the
+            [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            for details" }
+
+  build-prod-images:
+    timeout-minutes: 80
+    name: "Build PROD images ${{matrix.python-version}}"
+    runs-on: ubuntu-20.04
+    needs: [build-info, cancel-workflow-runs, build-ci-images]
+    strategy:
+      matrix:
+        # We need to attempt to build all possible versions here because workflow_run
+        # event is run from master for both master and v1-10-tests
+        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
+      fail-fast: true
+    if: >
+      needs.build-info.outputs.image-build == 'true' &&
+      needs.cancel-workflow-runs.outputs.buildImages == 'true'
+    env:
+      BACKEND: postgres
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.workflow_run.id }}
+      GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.workflow_run.id }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+      DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
+    steps:
+      - name: >
+          Checkout [${{ needs.cancel-workflow-runs.outputs.sourceEvent }}]
+          Event: ${{ needs.cancel-workflow-runs.outputs.sourceEvent }}
+          Repo: ${{ needs.cancel-workflow-runs.outputs.sourceHeadRepo }}
+          Branch: ${{ needs.cancel-workflow-runs.outputs.sourceHeadBranch }}
+          Run id: ${{ github.run_id }}
+          Source Run id: ${{ github.event.workflow_run.id }}
+          Sha: ${{ github.sha }}
+          Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          Merge commit Sha: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
+          Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
+          persist-credentials: false
+      - name: "Retrieve DEFAULTS from the _initialization.sh"
+        # We cannot "source" the script here because that would be a security problem (we cannot run
+        # any code that comes from the sources coming from the PR. Therefore we extract the
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # Also 2.7 and 3.5 versions are not allowed to proceed on master
+        id: defaults
+        run: |
+          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
+          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
+            scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          if [[ ${DEFAULT_BRANCH} != "v1-10-test" && \
+            ( ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ) \
+          ]]; then
+              echo "::set-output name=proceed::false"
+          else
+              echo "::set-output name=proceed::true"
+          fi
+      - name: Initiate GitHub Checks for Building image
+        uses: apache/airflow-checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+        id: build-image-check
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: "Status of image build PROD: ${{ matrix.python-version }}"
+          status: "in_progress"
+          sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          output: >
+            {"summary":
+            "Building the image: PROD: ${{ matrix.python-version }}. See the
+            [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            for details" }
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: >
+          Checkout "${{ needs.cancel-workflow-runs.outputs.targetBranch }}" branch to 'main-airflow' folder
+          to use ci/scripts from there.
+        uses: actions/checkout@v2
+        with:
+          path: "main-airflow"
+          ref: "${{ needs.cancel-workflow-runs.outputs.targetBranch }}"
+          persist-credentials: false
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: >
+          Override "scripts/ci" with the "${{ needs.cancel-workflow-runs.outputs.targetBranch }}" branch
+          so that the PR does not override it
+        # We should not override those scripts which become part of the image as they will not be
+        # changed in the image built - we should only override those that are executed to build
+        # the image.
+        run: |
+          rm -rf "scripts/ci"
+          mv "main-airflow/scripts/ci" "scripts"
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Build CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+        # Pull images built in the previous step
+        if: steps.defaults.outputs.proceed == 'true'
+        env:
+          GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
+      - name: "Build PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
+        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Push PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
+        run: ./scripts/ci/images/ci_push_production_images.sh
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: Update GitHub Checks for Building image with status
+        uses: apache/airflow-checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+        if: always() && steps.defaults.outputs.proceed == 'true'
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check_id: ${{ steps.build-image-check.outputs.check_id }}
+          status: "completed"
+          sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
+          conclusion: ${{ job.status }}
+          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          output: >
+            {"summary":
+            "Building the image: PROD: ${{ matrix.python-version }}. See the
             [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
 
@@ -372,7 +492,7 @@ jobs:
     name: "Cancel 'CI Build' jobs on build image cancelling."
     runs-on: ubuntu-20.04
     if: cancelled()
-    needs: [build-images]
+    needs: [build-ci-images, build-prod-images]
     steps:
       - name: "Canceling the 'CI Build' source workflow in case of failure!"
         uses: apache/airflow-cancel-workflow-runs@953e057dc81d3458935a18d1184c386b0f6b5738  # v4_7
@@ -387,7 +507,7 @@ jobs:
     name: "Cancel 'CI Build' jobs on build image failing."
     runs-on: ubuntu-20.04
     if: failure()
-    needs: [build-images]
+    needs: [build-ci-images, build-prod-images]
     steps:
       - name: "Canceling the 'CI Build' source workflow in case of failure!"
         uses: apache/airflow-cancel-workflow-runs@953e057dc81d3458935a18d1184c386b0f6b5738  # v4_7
