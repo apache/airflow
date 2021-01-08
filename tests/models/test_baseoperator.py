@@ -247,3 +247,49 @@ class BaseOperatorTest(unittest.TestCase):
         task = DummyOperator(task_id="custom-resources", resources={"cpus": 1, "ram": 1024})
         self.assertEqual(task.resources.cpus.qty, 1)
         self.assertEqual(task.resources.ram.qty, 1024)
+
+    def test_render_template_fields_with_nested_templates(self):
+        with DAG("test-dag", start_date=DEFAULT_DATE):
+            task = MockOperator(task_id="op1", arg2="{{ task.arg1 }}", arg1="{{ foo }}")
+            task.template_fields = ('arg1', 'arg2')
+
+        # Assert nothing is templated yet
+        self.assertEqual(task.arg1, "{{ foo }}")
+        self.assertEqual(task.arg2, "{{ task.arg1 }}")
+
+        # Trigger templating and verify if attributes are templated correctly
+        task.render_template_fields(context={"foo": "footemplated", "task": task})
+        self.assertEqual(task.arg1, "footemplated")
+        self.assertEqual(task.arg2, "footemplated")
+
+    def test_render_template_fields_with_nested_templates_reversed(self):
+        with DAG("test-dag", start_date=DEFAULT_DATE):
+            task = MockOperator(task_id="op1", arg1="{{ task.arg2 }}", arg2="{{ foo }}")
+            task.template_fields = ('arg1', 'arg2')
+
+        # Assert nothing is templated yet
+        self.assertEqual(task.arg1, "{{ task.arg2 }}")
+        self.assertEqual(task.arg2, "{{ foo }}")
+
+        # Trigger templating and verify if attributes are templated correctly
+        task.render_template_fields(context={"foo": "footemplated", "task": task})
+        self.assertEqual(task.arg1, "footemplated")
+        self.assertEqual(task.arg2, "footemplated")
+
+    def test_render_template_fields_with_nested_templates_reversed_template_fields(self):
+        with DAG("test-dag", start_date=DEFAULT_DATE):
+            task = MockOperator(task_id="op1", arg1="{{ task.arg2 }}", arg2="{{ foo }}")
+            task.template_fields = ('arg2', 'arg1')
+
+        # Assert nothing is templated yet
+        self.assertEqual(task.arg1, "{{ task.arg2 }}")
+        self.assertEqual(task.arg2, "{{ foo }}")
+
+        # Trigger templating and verify if attributes are templated correctly
+        task.render_template_fields(context={"foo": "footemplated", "task": task})
+        self.assertEqual(task.arg1, "footemplated")
+        self.assertEqual(task.arg2, "footemplated")
+
+
+
+

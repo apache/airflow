@@ -720,10 +720,17 @@ class BaseOperator(LoggingMixin):
 
     def _do_render_template_fields(self, parent, template_fields, context, jinja_env, seen_oids):
         # type: (Any, Iterable[str], Dict, jinja2.Environment, Set) -> None
-        for attr_name in template_fields:
+
+        attributes_to_render = list(template_fields)
+        # render attributes iteratively until rendering does not change value
+        for attr_name in attributes_to_render:
             content = getattr(parent, attr_name)
             if content:
                 rendered_content = self.render_template(content, context, jinja_env, seen_oids)
+
+                if rendered_content != content:
+                    attributes_to_render.append(attr_name)
+
                 setattr(parent, attr_name, rendered_content)
 
     def render_template(self, content, context, jinja_env=None, seen_oids=None):
