@@ -2210,6 +2210,7 @@ class DAG(LoggingMixin):
         rerun_failed_tasks=False,
         run_backwards=False,
         run_at_least_once=False,
+        continue_on_failures=False,
     ):
         """
         Runs the DAG.
@@ -2259,6 +2260,7 @@ class DAG(LoggingMixin):
             rerun_failed_tasks=rerun_failed_tasks,
             run_backwards=run_backwards,
             run_at_least_once=run_at_least_once,
+            continue_on_failures=continue_on_failures,
         )
         job.run()
 
