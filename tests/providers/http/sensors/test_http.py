@@ -64,6 +64,33 @@ class TestHttpSensor(unittest.TestCase):
             task.execute(context={})
 
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
+    def test_poke_continues_for_http_500_with_extra_options_check_response_false(self, mock_session_send):
+        def resp_check(_):
+            return False
+
+        response = requests.Response()
+        response.status_code = 500
+        response.reason = 'Internal Server Error'
+        response._content = b'Internal Server Error'
+        mock_session_send.return_value = response
+
+        task = HttpSensor(
+            dag=self.dag,
+            task_id='http_sensor_poke_for_code_500',
+            http_conn_id='http_default',
+            endpoint='',
+            request_params={},
+            method='HEAD',
+            response_check=resp_check,
+            extra_options={'check_response': False},
+            timeout=5,
+            poke_interval=1,
+        )
+
+        with self.assertRaises(AirflowSensorTimeout):
+            task.execute(context={})
+
+    @patch("airflow.providers.http.hooks.http.requests.Session.send")
     def test_head_method(self, mock_session_send):
         def resp_check(_):
             return True
