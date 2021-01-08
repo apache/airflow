@@ -20,8 +20,6 @@
 
 push_pull_remove_images::check_if_github_registry_wait_for_image_enabled
 
-push_pull_remove_images::check_if_jq_installed
-
 build_image::login_to_github_registry_if_needed
 
 export AIRFLOW_CI_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
