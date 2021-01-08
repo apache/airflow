@@ -87,7 +87,7 @@ class TestSQLCheckOperatorDbHook:
         mock_get_conn.assert_called_once_with(self.conn_id)
 
     def test_not_allowed_conn_type(self, mock_get_conn):
-        mock_get_conn.return_value = Connection(conn_id='sql_default', conn_type='aws')
+        mock_get_conn.return_value = Connection(conn_id='sql_default', conn_type='google_cloud_platform')
         with pytest.raises(AirflowException, match=r"The connection type is not supported"):
             self._operator._hook
 
@@ -476,8 +476,8 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch("airflow.operators.sql.BaseHook")
-    def test_branch_single_value_with_dag_run(self, mock_hook):
+    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    def test_branch_single_value_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation """
         branch_op = BranchSQLOperator(
             task_id="make_choice",
@@ -499,8 +499,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             state=State.RUNNING,
         )
 
-        mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
+        mock_get_records = mock_get_db_hook.return_value.get_first
 
         mock_get_records.return_value = 1
 
@@ -517,8 +516,8 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             else:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseHook")
-    def test_branch_true_with_dag_run(self, mock_hook):
+    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    def test_branch_true_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation """
         branch_op = BranchSQLOperator(
             task_id="make_choice",
@@ -540,8 +539,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             state=State.RUNNING,
         )
 
-        mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
+        mock_get_records = mock_get_db_hook.return_value.get_first
 
         for true_value in SUPPORTED_TRUE_VALUES:
             mock_get_records.return_value = true_value
@@ -559,8 +557,8 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseHook")
-    def test_branch_false_with_dag_run(self, mock_hook):
+    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    def test_branch_false_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation """
         branch_op = BranchSQLOperator(
             task_id="make_choice",
@@ -582,12 +580,10 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             state=State.RUNNING,
         )
 
-        mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
+        mock_get_records = mock_get_db_hook.return_value.get_first
 
         for false_value in SUPPORTED_FALSE_VALUES:
             mock_get_records.return_value = false_value
-
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
             tis = dr.get_task_instances()
@@ -601,8 +597,8 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseHook")
-    def test_branch_list_with_dag_run(self, mock_hook):
+    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    def test_branch_list_with_dag_run(self, mock_get_db_hook):
         """Checks if the BranchSQLOperator supports branching off to a list of tasks."""
         branch_op = BranchSQLOperator(
             task_id="make_choice",
@@ -626,8 +622,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             state=State.RUNNING,
         )
 
-        mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
+        mock_get_records = mock_get_db_hook.return_value.get_first
         mock_get_records.return_value = [["1"]]
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -645,8 +640,8 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             else:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseHook")
-    def test_invalid_query_result_with_dag_run(self, mock_hook):
+    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    def test_invalid_query_result_with_dag_run(self, mock_get_db_hook):
         """Check BranchSQLOperator branch operation """
         branch_op = BranchSQLOperator(
             task_id="make_choice",
@@ -668,16 +663,15 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             state=State.RUNNING,
         )
 
-        mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
+        mock_get_records = mock_get_db_hook.return_value.get_first
 
         mock_get_records.return_value = ["Invalid Value"]
 
         with pytest.raises(AirflowException):
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    @mock.patch("airflow.operators.sql.BaseHook")
-    def test_with_skip_in_branch_downstream_dependencies(self, mock_hook):
+    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    def test_with_skip_in_branch_downstream_dependencies(self, mock_get_db_hook):
         """Test SQL Branch with skipping all downstream dependencies """
         branch_op = BranchSQLOperator(
             task_id="make_choice",
@@ -699,8 +693,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             state=State.RUNNING,
         )
 
-        mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
+        mock_get_records = mock_get_db_hook.return_value.get_first
 
         for true_value in SUPPORTED_TRUE_VALUES:
             mock_get_records.return_value = [true_value]
@@ -718,8 +711,8 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
-    @mock.patch("airflow.operators.sql.BaseHook")
-    def test_with_skip_in_branch_downstream_dependencies2(self, mock_hook):
+    @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
+    def test_with_skip_in_branch_downstream_dependencies2(self, mock_get_db_hook):
         """Test skipping downstream dependency for false condition"""
         branch_op = BranchSQLOperator(
             task_id="make_choice",
@@ -741,8 +734,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             state=State.RUNNING,
         )
 
-        mock_hook.get_connection("mysql_default").conn_type = "mysql"
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_first
+        mock_get_records = mock_get_db_hook.return_value.get_first
 
         for false_value in SUPPORTED_FALSE_VALUES:
             mock_get_records.return_value = [false_value]

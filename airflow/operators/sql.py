@@ -51,7 +51,8 @@ class BaseSQLOperator(BaseOperator):
         hook = conn.get_hook()
         if not isinstance(hook, DbApiHook):
             raise AirflowException(
-                'The hook associated with theconnection type is not a subclass of `DbApiHook`'
+                f'The connection type is not supported by {self.__class__.__name__}. '
+                f'The associated hook should be a subclass of `DbApiHook`. Got {hook.__class__.__name__}'
             )
 
         if self.database:
@@ -511,25 +512,13 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         self.follow_task_ids_if_false = follow_task_ids_if_false
 
     def execute(self, context: Dict):
-        if self._hook is None:
-            raise AirflowException(f"Failed to establish connection to '{self.conn_id}'")
-
-        if self.sql is None:
-            raise AirflowException("Expected 'sql' parameter is missing.")
-
-        if self.follow_task_ids_if_true is None:
-            raise AirflowException("Expected 'follow_task_ids_if_true' parameter is missing.")
-
-        if self.follow_task_ids_if_false is None:
-            raise AirflowException("Expected 'follow_task_ids_if_false' parameter is missing.")
-
         self.log.info(
             "Executing: %s (with parameters %s) with connection: %s",
             self.sql,
             self.parameters,
             self.conn_id,
         )
-        record = self._hook.get_first(self.sql, self.parameters)
+        record = self.get_db_hook().get_first(self.sql, self.parameters)
         if not record:
             raise AirflowException(
                 "No rows returned from sql query. Operator expected True or False return value."
