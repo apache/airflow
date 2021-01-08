@@ -283,12 +283,14 @@ function push_pull_remove_images::wait_for_github_registry_image() {
             -X GET "${GITHUB_API_CALL}" -u "${GITHUB_USERNAME}:${GITHUB_TOKEN}" 2>/dev/null > "${OUTPUT_LOG}"
         local digest
         digest=$(jq '.config.digest' < "${OUTPUT_LOG}")
-        echo -n "."
         if [[ ${digest} != "null" ]]; then
             echo  "${COLOR_GREEN_OK}  ${COLOR_RESET}"
             break
+        else
+            echo "${COLOR_YELLOW}Still waiting!${COLOR_RESET}"
+            cat "${OUTPUT_LOG}"
         fi
-        sleep 10
+        sleep 60
     done
     verbosity::print_info "Found ${image_name_in_github_registry}:${image_tag_in_github_registry} image"
     verbosity::print_info "Digest: '${digest}'"

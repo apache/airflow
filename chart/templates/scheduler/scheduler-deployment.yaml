@@ -28,6 +28,9 @@
 {{- $stateful := and $local $persistence }}
 # If we're using elasticsearch logging
 {{- $elasticsearch := .Values.elasticsearch.enabled }}
+{{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
+{{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
 
 kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
@@ -76,11 +79,11 @@ spec:
         {{- end }}
     spec:
       nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
+{{ toYaml $nodeSelector | indent 8 }}
       affinity:
-{{ toYaml .Values.affinity | indent 8 }}
+{{ toYaml $affinity | indent 8 }}
       tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
+{{ toYaml $tolerations | indent 8 }}
       restartPolicy: Always
       terminationGracePeriodSeconds: 10
       serviceAccountName: {{ .Release.Name }}-scheduler

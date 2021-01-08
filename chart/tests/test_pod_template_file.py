@@ -135,6 +135,41 @@ class PodTemplateFileTest(unittest.TestCase):
             jmespath.search("spec.volumes", docs[0]),
         )
 
+    def test_validate_if_ssh_known_hosts_are_added(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "sshKeySecret": "ssh-secret",
+                        "knownHosts": "github.com ssh-rsa AAAABdummy",
+                        "branch": "test-branch",
+                    }
+                }
+            },
+            show_only=["templates/pod-template-file.yaml"],
+        )
+        self.assertIn(
+            {"name": "GIT_KNOWN_HOSTS", "value": "true"},
+            jmespath.search("spec.initContainers[0].env", docs[0]),
+        )
+        self.assertIn(
+            {
+                "name": "git-sync-known-hosts",
+                "configMap": {"defaultMode": 288, "name": "RELEASE-NAME-airflow-config"},
+            },
+            jmespath.search("spec.volumes", docs[0]),
+        )
+        self.assertIn(
+            {
+                "name": "git-sync-known-hosts",
+                "mountPath": "/etc/git-secret/known_hosts",
+                "subPath": "known_hosts",
+            },
+            jmespath.search("spec.containers[0].volumeMounts", docs[0]),
+        )
+
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
             values={

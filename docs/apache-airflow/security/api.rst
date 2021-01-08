@@ -103,7 +103,7 @@ Here is a sample curl command you can use to validate the setup:
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://locahost:8080/"
+    ENDPOINT_URL="http://localhost:8080/"
     curl -X GET  \
         --user "username:password" \
         "${ENDPOINT_URL}/api/v1/pools"
