@@ -124,6 +124,12 @@ spec:
 {{- if .Values.webserver.extraVolumeMounts }}
 {{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
 {{- end }}
+{{- if .Values.webserver.installRequirements }}
+            - name: config
+              mountPath: {{ template "airflow_install_requirements_path" . }}
+              subPath: webserver_requirements.txt
+              readOnly: true
+{{- end }}
           ports:
             - name: webserver-ui
               containerPort: {{ .Values.ports.airflowUI }}

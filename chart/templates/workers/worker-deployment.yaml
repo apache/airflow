@@ -153,6 +153,12 @@ spec:
             - name: dags
               mountPath: {{ template "airflow_dags_mount_path" . }}
 {{- end }}
+{{- if .Values.workers.installRequirements }}
+            - name: config
+              mountPath: {{ template "airflow_install_requirements_path" . }}
+              subPath: worker_requirements.txt
+              readOnly: true
+{{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:

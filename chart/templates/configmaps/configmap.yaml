@@ -67,3 +67,15 @@ data:
     {{ tpl .Values.kerberos.config . | nindent 4 }}
 {{- end }}
 {{- end }}
+{{- if .Values.scheduler.installRequirements }}
+  scheduler_requirements.txt: |
+    {{- .Values.scheduler.installRequirements | nindent 4}}
+{{- end }}
+{{- if .Values.webserver.installRequirements }}
+  webserver_requirements.txt: |
+    {{- .Values.webserver.installRequirements | nindent 4}}
+{{- end }}
+{{- if .Values.workers.installRequirements }}
+  worker_requirements.txt: |
+    {{- .Values.workers.installRequirements | nindent 4}}
+{{- end }}

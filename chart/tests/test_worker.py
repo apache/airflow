@@ -39,3 +39,22 @@ class WorkerTest(unittest.TestCase):
         self.assertEqual(
             "test-volume", jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0])
         )
+
+    def test_should_add_install_requirements(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"installRequirements": "authlib"},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        self.assertIn(
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/requirements.txt",
+                "subPath": "worker_requirements.txt",
+                "readOnly": True,
+            },
+            jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0]),
+        )

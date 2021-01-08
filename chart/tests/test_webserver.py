@@ -22,37 +22,20 @@ import jmespath
 from tests.helm_template_generator import render_chart
 
 
-class SchedulerTest(unittest.TestCase):
-    def test_should_add_extra_volume_and_extra_volume_mount(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "scheduler": {
-                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
-                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
-                },
-            },
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
-        )
-
-        self.assertEqual("test-volume", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
-        self.assertEqual(
-            "test-volume", jmespath.search("spec.template.spec.containers[0].volumeMounts[3].name", docs[0])
-        )
-
+class Webserver(unittest.TestCase):
     def test_should_add_install_requirements(self):
         docs = render_chart(
             values={
-                "scheduler": {"installRequirements": "authlib"},
+                "webserver": {"installRequirements": "authlib"},
             },
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
         self.assertIn(
             {
                 "name": "config",
                 "mountPath": "/opt/airflow/requirements.txt",
-                "subPath": "scheduler_requirements.txt",
+                "subPath": "webserver_requirements.txt",
                 "readOnly": True,
             },
             jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0]),

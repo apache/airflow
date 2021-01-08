@@ -357,6 +357,10 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{ (printf "%s/config/airflow_local_settings.py" .Values.airflowHome) | quote }}
 {{- end }}
 
+{{ define "airflow_install_requirements_path" -}}
+{{ (printf "%s/requirements.txt" .Values.airflowHome) | quote }}
+{{- end }}
+
 {{ define "airflow_config" -}}
 {{ (printf "%s-airflow-config" .Release.Name) }}
 {{- end }}

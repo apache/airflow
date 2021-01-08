@@ -163,6 +163,12 @@ spec:
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
 {{- end }}
+{{- if .Values.scheduler.installRequirements }}
+            - name: config
+              mountPath: {{ template "airflow_install_requirements_path" . }}
+              subPath: scheduler_requirements.txt
+              readOnly: true
+{{- end }}
 {{- if .Values.dags.gitSync.enabled }}
             - name: dags
               mountPath: {{ template "airflow_dags_mount_path" . }}

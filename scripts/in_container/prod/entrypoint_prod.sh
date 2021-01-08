@@ -116,6 +116,11 @@ if ! whoami &> /dev/null; then
   export HOME="${AIRFLOW_USER_HOME_DIR}"
 fi
 
+# Install extra python packages if requirements.txt is present.
+if [[ -f "${AIRFLOW_HOME}/requirements.txt" ]]; then
+    pip install --user -r "${AIRFLOW_HOME}/requirements.txt"
+fi
+
 # Warning: command environment variables (*_CMD) have priority over usual configuration variables
 # for configuration parameters that require sensitive information. This is the case for the SQL database
 # and the broker backend in this entrypoint script.

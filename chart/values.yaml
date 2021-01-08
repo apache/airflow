@@ -354,6 +354,13 @@ workers:
   affinity: {}
   tolerations: []
 
+  # Install extra python packages.
+  # Mounting a requirements.txt using this option to `airflowHome/requirements.txt`
+  # will execute pip install on container start.
+  installRequirements: ~
+  # installRequirements: |
+  #   authlib
+
 # Airflow scheduler settings
 scheduler:
   # Airflow 2.0 allows users to run multiple schedulers,
@@ -394,6 +401,13 @@ scheduler:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  # Install extra python packages.
+  # Mounting a requirements.txt using this option to `airflowHome/requirements.txt`
+  # will execute pip install on container start.
+  installRequirements: ~
+  # installRequirements: |
+  #   authlib
 
 # Airflow webserver settings
 webserver:
@@ -463,6 +477,13 @@ webserver:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  # Install extra python packages.
+  # Mounting a requirements.txt using this option to `airflowHome/requirements.txt`
+  # will execute pip install on container start.
+  installRequirements: ~
+  # installRequirements: |
+  #   authlib
 
 # Flower settings
 flower:

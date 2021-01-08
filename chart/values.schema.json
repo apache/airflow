@@ -636,6 +636,10 @@
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "array"
+                },
+                "installRequirements": {
+                    "description": "Install extra python packages",
+                    "type": ["string", "null"]
                 }
             }
         },
@@ -710,6 +714,10 @@
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "array"
+                },
+                "installRequirements": {
+                    "description": "Install extra python packages",
+                    "type": ["string", "null"]
                 }
             }
         },
@@ -862,6 +870,10 @@
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "array"
+                },
+                "installRequirements": {
+                    "description": "Install extra python packages",
+                    "type": ["string", "null"]
                 }
             }
         },
