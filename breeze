@@ -222,7 +222,7 @@ function breeze::initialize_virtualenv() {
     set -e
     if [[ ${res} != "0" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} Initializing local virtualenv only works when you have virtualenv activated  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Initializing local virtualenv only works when you have virtualenv activated  ${COLOR_RESET}"
         echo
         echo "Please enter your local virtualenv before (for example using 'pyenv activate' or 'workon') "
         echo
@@ -1200,7 +1200,7 @@ function breeze::parse_arguments() {
         *)
             breeze::flags
             echo
-            echo  "${COLOR_RED_ERROR} Unknown flag  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Unknown flag  ${COLOR_RESET}"
             echo
             exit 1
             ;;
@@ -1401,7 +1401,7 @@ function breeze::parse_arguments() {
         *)
             breeze::usage
             echo
-            echo  "${COLOR_RED_ERROR} Unknown command  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Unknown command  ${COLOR_RESET}"
             echo
             exit 1
             ;;
@@ -2924,7 +2924,7 @@ function breeze::check_and_save_all_params() {
     if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ]]; then
         if [[ ${BRANCH_NAME} == "master" || ${BRANCH_NAME} == "v2-0-test" ]]; then
             echo
-            echo  "${COLOR_RED_ERROR} The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*  ${COLOR_RESET}"
             echo
             echo "You can use it only when you specify 1.10 Airflow via --install-airflow-version"
             echo "or --install-airflow-reference and they point to 1.10 version of Airflow"
@@ -3055,7 +3055,7 @@ function breeze::make_sure_precommit_is_installed() {
         pip_binary=pip
     else
         echo
-        echo  "${COLOR_RED_ERROR} You need to have pip or pip3 in your PATH  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: You need to have pip or pip3 in your PATH  ${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -3228,7 +3228,7 @@ function breeze::run_build_command() {
         ;;
     *)
         echo
-        echo  "${COLOR_RED_ERROR} Unknown command to run ${command_to_run}  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Unknown command to run ${command_to_run}  ${COLOR_RESET}"
         echo
         exit 1
         ;;
@@ -3373,7 +3373,7 @@ function breeze::run_breeze_command() {
         ;;
     *)
         echo
-        echo  "${COLOR_RED_ERROR} Unknown command to run ${command_to_run}  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Unknown command to run ${command_to_run}  ${COLOR_RESET}"
         echo
         ;;
     esac

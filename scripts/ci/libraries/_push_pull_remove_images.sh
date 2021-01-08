@@ -30,7 +30,7 @@ function push_pull_remove_images::push_image_with_retries() {
         set -e
         if [[ ${res} != "0" ]]; then
             echo
-            echo  "${COLOR_YELLOW_WARNING}: Error ${res} when pushing image on ${try_num} try  ${COLOR_RESET}"
+            echo  "${COLOR_YELLOW}WARNING: Error ${res} when pushing image on ${try_num} try  ${COLOR_RESET}"
             echo
             continue
         else
@@ -38,7 +38,7 @@ function push_pull_remove_images::push_image_with_retries() {
         fi
     done
     echo
-    echo  "${COLOR_RED_ERROR} Error ${res} when pushing image on ${try_num} try. Giving up!  ${COLOR_RESET}"
+    echo  "${COLOR_RED}ERROR: Error ${res} when pushing image on ${try_num} try. Giving up!  ${COLOR_RESET}"
     echo
     return 1
 }
@@ -66,7 +66,7 @@ function push_pull_remove_images::pull_image_if_not_present_or_forced() {
         if [[ ${EXIT_VALUE} != "0" && ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR} == "true" ]]; then
             echo
             echo """
-${COLOR_RED_ERROR} Exiting on docker pull error
+${COLOR_RED}ERROR: Exiting on docker pull error
 
 If you have authorisation problems, you might want to run:
 
@@ -283,7 +283,7 @@ function push_pull_remove_images::wait_for_github_registry_image() {
             --connect-timeout 60  --max-time 60 \
             -X GET "${GITHUB_API_CALL}" -u "${GITHUB_USERNAME}:${GITHUB_TOKEN}")
         if [[ ${http_status} == "200" ]]; then
-            echo  "${COLOR_GREEN_OK}  ${COLOR_RESET}"
+            echo  "${COLOR_GREEN}OK.  ${COLOR_RESET}"
             break
         else
             echo "${COLOR_YELLOW}Still waiting - status code ${http_status}!${COLOR_RESET}"

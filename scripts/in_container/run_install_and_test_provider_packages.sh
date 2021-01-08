@@ -26,7 +26,7 @@ function verify_parameters(){
 
     if [[ ${INSTALL_AIRFLOW_VERSION=""} == "" ]]; then
         echo
-        echo "${COLOR_RED_ERROR} You have to specify airflow version to install.${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR: You have to specify airflow version to install.${COLOR_RESET}"
         echo
         echo "It might be version from PyPI, wheel with extras or none to uninstall airflow"
         echo
@@ -37,7 +37,7 @@ function verify_parameters(){
 
     if [[ ${PACKAGE_FORMAT} != "wheel" && ${PACKAGE_FORMAT} != "sdist" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} Wrong install type ${PACKAGE_FORMAT}. Should be 'wheel' or 'sdist'  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Wrong install type ${PACKAGE_FORMAT}. Should be 'wheel' or 'sdist'  ${COLOR_RESET}"
         echo
         exit 3
     fi
@@ -89,7 +89,7 @@ function install_provider_packages() {
         install_all_provider_packages_from_sdist
     else
         echo
-        echo "${COLOR_RED_ERROR} Wrong package format ${PACKAGE_FORMAT}. Should be wheel or sdist${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR: Wrong package format ${PACKAGE_FORMAT}. Should be wheel or sdist${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -107,7 +107,7 @@ function discover_all_provider_packages() {
     actual_number_of_providers=$(wc -l <<<"$actual_providers")
     if [[ ${actual_number_of_providers} != "${expected_number_of_providers}" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR}Number of providers installed is wrong${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR:Number of providers installed is wrong${COLOR_RESET}"
         echo "Expected number was '${expected_number_of_providers}' and got '${actual_number_of_providers}'"
         echo
         echo "Either increase the number of providers if you added one or diagnose and fix the problem."
@@ -129,7 +129,7 @@ function discover_all_hooks() {
     actual_number_of_hooks=$(airflow providers hooks --output table | grep -c "| apache" | xargs)
     if [[ ${actual_number_of_hooks} != "${expected_number_of_hooks}" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} Number of hooks registered is wrong  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Number of hooks registered is wrong  ${COLOR_RESET}"
         echo "Expected number was '${expected_number_of_hooks}' and got '${actual_number_of_hooks}'"
         echo
         echo "Either increase the number of hooks if you added one or diagnose and fix the problem."
@@ -148,7 +148,7 @@ function discover_all_extra_links() {
     actual_number_of_extra_links=$(airflow providers links --output table | grep -c ^airflow.providers | xargs)
     if [[ ${actual_number_of_extra_links} != "${expected_number_of_extra_links}" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} Number of links registered is wrong  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Number of links registered is wrong  ${COLOR_RESET}"
         echo "Expected number was '${expected_number_of_extra_links}' and got '${actual_number_of_extra_links}'"
         echo
         echo "Either increase the number of links if you added one or diagnose and fix the problem."
@@ -168,7 +168,7 @@ function discover_all_connection_form_widgets() {
     actual_number_of_widgets=$(airflow providers widgets --output table | grep -c ^extra)
     if [[ ${actual_number_of_widgets} != "${expected_number_of_widgets}" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} Number of connections with widgets registered is wrong  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Number of connections with widgets registered is wrong  ${COLOR_RESET}"
         echo "Expected number was '${expected_number_of_widgets}' and got '${actual_number_of_widgets}'"
         echo
         echo "Increase the number of connections with widgets if you added one or investigate"
@@ -189,7 +189,7 @@ function discover_all_field_behaviours() {
     if [[ ${actual_number_of_connections_with_behaviours} != \
             "${expected_number_of_connections_with_behaviours}" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} Number of connections with customized behaviours is wrong  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Number of connections with customized behaviours is wrong  ${COLOR_RESET}"
         echo "Expected number was '${expected_number_of_connections_with_behaviours}' and got '${actual_number_of_connections_with_behaviours}'"
         echo
         echo "Increase the number of connections if you added one or investigate."

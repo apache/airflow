@@ -39,7 +39,7 @@ elif [[ "${RES}" != "0" ]]; then
         EXTRA_ARGS="--mysql-version ${MYSQL_VERSION} "
     fi
     echo """
-${COLOR_RED_ERROR}
+${COLOR_RED}ERROR:
 ***********************************************************************************************
 *
 * ERROR! Some tests failed, unfortunately. Those might be transient errors,

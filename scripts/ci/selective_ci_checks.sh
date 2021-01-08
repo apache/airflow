@@ -138,7 +138,7 @@ function get_changed_files() {
         -r "${INCOMING_COMMIT_SHA}^" "${INCOMING_COMMIT_SHA}" || true)
     if [[ ${CHANGED_FILES} == "" ]]; then
         echo
-        echo  "${COLOR_YELLOW_WARNING}: Could not find any changed files  ${COLOR_RESET}"
+        echo  "${COLOR_YELLOW}WARNING: Could not find any changed files  ${COLOR_RESET}"
         echo Assuming that we should run all tests in this case
         echo
         set_outputs_run_everything_and_exit

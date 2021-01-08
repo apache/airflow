@@ -40,7 +40,7 @@ function assert_in_container() {
     export VERBOSE=${VERBOSE:="false"}
     if [[ ! -f /.dockerenv ]]; then
         echo
-        echo "${COLOR_RED_ERROR} You are not inside the Airflow docker container!  ${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR: You are not inside the Airflow docker container!  ${COLOR_RESET}"
         echo
         echo "You should only run this script in the Airflow docker container as it may override your files."
         echo "Learn more about how we develop and test airflow in:"
@@ -404,7 +404,7 @@ function verify_suffix_versions_for_package_preparation() {
 
     if [[ ${VERSION_SUFFIX_FOR_SVN} =~ ^rc ]]; then
         echo """
-${COLOR_YELLOW_WARNING} The version suffix for SVN is used only for file names.
+${COLOR_YELLOW}WARNING: The version suffix for SVN is used only for file names.
          The version inside the packages has no version suffix.
          This way we can just rename files when they graduate to final release.
 ${COLOR_RESET}
@@ -425,7 +425,7 @@ ${COLOR_RESET}
     if [[ ${VERSION_SUFFIX_FOR_PYPI} != '' && ${VERSION_SUFFIX_FOR_SVN} != '' ]]; then
         if [[ ${VERSION_SUFFIX_FOR_PYPI} != "${VERSION_SUFFIX_FOR_SVN}" ]]; then
             echo
-            echo "${COLOR_RED_ERROR} If you specify both PyPI and SVN version suffixes they must match  ${COLOR_RESET}"
+            echo "${COLOR_RED}ERROR: If you specify both PyPI and SVN version suffixes they must match  ${COLOR_RESET}"
             echo
             echo "However they are different: PyPI:'${VERSION_SUFFIX_FOR_PYPI}' vs. SVN:'${VERSION_SUFFIX_FOR_SVN}'"
             echo
@@ -433,7 +433,7 @@ ${COLOR_RESET}
         else
             if [[ ${VERSION_SUFFIX_FOR_PYPI} =~ ^rc ]]; then
                 echo
-                echo "${COLOR_RED_ERROR} If you prepare an RC candidate, you need to specify only PyPI suffix  ${COLOR_RESET}"
+                echo "${COLOR_RED}ERROR: If you prepare an RC candidate, you need to specify only PyPI suffix  ${COLOR_RESET}"
                 echo
                 echo "However you specified both: PyPI'${VERSION_SUFFIX_FOR_PYPI}' and SVN '${VERSION_SUFFIX_FOR_SVN}'"
                 echo
@@ -450,7 +450,7 @@ ${COLOR_RESET}
 
             if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' ]]; then
                 echo
-                echo "${COLOR_RED_ERROR} You should never specify version for PyPI only.  ${COLOR_RESET}"
+                echo "${COLOR_RED}ERROR: You should never specify version for PyPI only.  ${COLOR_RESET}"
                 echo
                 echo "You specified PyPI suffix: '${VERSION_SUFFIX_FOR_PYPI}'"
                 echo
@@ -459,7 +459,7 @@ ${COLOR_RESET}
             TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}${VERSION_SUFFIX_FOR_SVN}
             if [[ ! ${TARGET_VERSION_SUFFIX} =~ rc.* ]]; then
                 echo
-                echo "${COLOR_RED_ERROR} If you prepare an alpha/beta release, you need to specify both PyPI/SVN suffixes and they have to match.  ${COLOR_RESET}"
+                echo "${COLOR_RED}ERROR: If you prepare an alpha/beta release, you need to specify both PyPI/SVN suffixes and they have to match.  ${COLOR_RESET}"
                 echo
                 echo "And they have to match. You specified only one suffix:  ${TARGET_VERSION_SUFFIX}."
                 echo
@@ -515,20 +515,14 @@ EOF
 function in_container_set_colors() {
     COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
-    COLOR_GREEN_OK=$'\e[32mOK.'
     COLOR_RED=$'\e[31m'
-    COLOR_RED_ERROR=$'\e[31mERROR:'
     COLOR_RESET=$'\e[0m'
     COLOR_YELLOW=$'\e[33m'
-    COLOR_YELLOW_WARNING=$'\e[33mWARNING:'
     export COLOR_BLUE
     export COLOR_GREEN
-    export COLOR_GREEN_OK
     export COLOR_RED
-    export COLOR_RED_ERROR
     export COLOR_RESET
     export COLOR_YELLOW
-    export COLOR_YELLOW_WARNING
 }
 
 # Starts group for Github Actions - makes logs much more readable

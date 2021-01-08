@@ -119,7 +119,7 @@ function build_images::forget_last_answer() {
 function build_images::confirm_via_terminal() {
     echo >"${DETECTED_TERMINAL}"
     echo >"${DETECTED_TERMINAL}"
-    echo "${COLOR_YELLOW_WARNING}Make sure that you rebased to latest master before rebuilding!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+    echo "${COLOR_YELLOW}WARNING:Make sure that you rebased to latest master before rebuilding!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
     echo >"${DETECTED_TERMINAL}"
     # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
     # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
@@ -170,7 +170,7 @@ function build_images::confirm_image_rebuild() {
     elif [[ -t 0 ]]; then
         echo
         echo
-        echo "${COLOR_YELLOW_WARNING}Make sure that you rebased to latest master before rebuilding!${COLOR_RESET}"
+        echo "${COLOR_YELLOW}WARNING:Make sure that you rebased to latest master before rebuilding!${COLOR_RESET}"
         echo
         # Check if this script is run interactively with stdin open and terminal attached
         "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
@@ -200,7 +200,7 @@ function build_images::confirm_image_rebuild() {
         echo 'export FORCE_ANSWER_TO_QUESTIONS="no"' >"${LAST_FORCE_ANSWER_FILE}"
     elif [[ ${RES} == "2" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
         echo """
 
    Make sure you build the images bu running
@@ -590,7 +590,7 @@ function build_images::build_ci_image() {
         )
     else
         echo
-        echo  "${COLOR_RED_ERROR} The ${DOCKER_CACHE} cache is unknown!  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: The ${DOCKER_CACHE} cache is unknown!  ${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -769,7 +769,7 @@ function build_images::build_prod_images() {
         )
     else
         echo
-        echo  "${COLOR_RED_ERROR} The ${DOCKER_CACHE} cache is unknown  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: The ${DOCKER_CACHE} cache is unknown  ${COLOR_RESET}"
         echo
         echo
         exit 1
@@ -928,7 +928,7 @@ function build_image::assert_variable() {
     local variable_value=${!variable_name}
     if [[ ${variable_value} != "${expected_value}" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR}: Variable ${variable_name}: expected_value: '${expected_value}' but was '${variable_value}'!${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Variable ${variable_name}: expected_value: '${expected_value}' but was '${variable_value}'!${COLOR_RESET}"
         echo
         exit 1
     fi
