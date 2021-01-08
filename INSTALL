@@ -51,24 +51,44 @@ pip install . \
   --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
-By default `pip install` in Airflow 2.0 installs only the provider packages that are needed by the extras,
-however if you want to install all providers (which was default behaviour in 1.10.*)
-you can do it by setting environment variable INSTALL_PROVIDERS_FROM_SOURCES to `true`.
+By default `pip install` in Airflow 2.0 installs only the provider packages that are needed by the extras and
+install them as packages from PyPI rather than from local sources:
 
 
-INSTALL_PROVIDERS_FROM_SOURCES="true" pip install . \
+pip install . \
   --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
-You can also install airflow in "editable mode" (with -e) flag and then provider packages will be
-available, because they are used directly from the airflow sources:
+You can also install airflow in "editable mode" (with -e) flag and then provider packages are
+available directly from the sources (and the provider packages installed from PyPI are UNINSTALLED in
+order to avoid having providers in two places. And `provider.yaml` files are used to discover capabilities
+of the providers which are part of the airflow source code.
 
+You can read more about `provider.yaml` and community-managed providers in
+https://airflow.apache.org/docs/apache-airflow-providers/index.html for developing custom providers
+and in ``CONTRIBUTING.rst`` for developing community maintained providers.
+
+This is useful if you want to develop providers:
 
 pip install -e . \
   --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
+You can als skip installing provider packages from PyPI by setting INSTALL_PROVIDERS_FROM_SOURCE to "true".
+In this case Airflow will be installed in non-editable mode with all providers installed from the sources.
+Additionally `provider.yaml` files will also be copied to providers folders which will make the providers
+discoverable by Airflow even if they are not installed from packages in this case.
 
-# You can also install Airflow with extras specified. The list of available extras:
+INSTALL_PROVIDERS_FROM_SOURCES="true" pip install . \
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+Airflow can be installed with extras to install some additional features (for example 'async' or 'doc' or
+to install automatically providers and all dependencies needed by that provider:
+
+pip install .[async,google,amazon] \
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+The list of available extras:
+
 # START EXTRAS HERE
 
 all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,

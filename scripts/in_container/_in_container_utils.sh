@@ -348,13 +348,15 @@ function install_all_provider_packages_from_wheels() {
     echo
     echo "Installing all provider packages from wheels"
     echo
+    uninstall_providers
     pip install /dist/apache_airflow*providers_*.whl >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
-function install_all_provider_packages_from_tar_gz_files() {
+function install_all_provider_packages_from_sdist() {
     echo
     echo "Installing all provider packages from .tar.gz"
     echo
+    uninstall_providers
     pip install /dist/apache-airflow-*providers-*.tar.gz >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
