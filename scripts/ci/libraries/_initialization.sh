@@ -148,55 +148,6 @@ function initialization::initialize_base_variables() {
     # If no Airflow Home defined - fallback to ${HOME}/airflow
     AIRFLOW_HOME_DIR=${AIRFLOW_HOME:=${HOME}/airflow}
     export AIRFLOW_HOME_DIR
-
-    INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
-    export INSTALL_PROVIDERS_FROM_SOURCES
-
-    INSTALLED_PROVIDERS+=(
-        "amazon"
-        "celery"
-        "cncf.kubernetes"
-        "docker"
-        "elasticsearch"
-        "ftp"
-        "grpc"
-        "hashicorp"
-        "http"
-        "imap"
-        "google"
-        "microsoft.azure"
-        "mysql"
-        "postgres"
-        "redis"
-        "sendgrid"
-        "sqlite"
-        "sftp"
-        "slack"
-        "sqlite"
-        "ssh"
-    )
-    export INSTALLED_PROVIDERS
-    export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
-
-    # default version of PIP USED (This has to be < 20.3 until https://github.com/apache/airflow/issues/12838 is solved)
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="20.2.4"}
-    export AIRFLOW_PIP_VERSION
-
-    # We also pin version of wheel used to get consistent builds
-    WHEEL_VERSION=${WHEEL_VERSION:="0.36.1"}
-    export WHEEL_VERSION
-
-    # Sources by default are installed from local sources when using breeze/ci
-    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="."}
-    export AIRFLOW_SOURCES_FROM
-
-    # They are copied to /opt/airflow by default (breeze and ci)
-    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/opt/airflow"}
-    export AIRFLOW_SOURCES_TO
-
-    # And installed from there (breeze and ci)
-    AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION:="."}
-    export AIRFLOW_INSTALL_VERSION
 }
 
 # Determine current branch
@@ -238,6 +189,12 @@ function initialization::initialize_files_for_rebuild_check() {
         "setup.cfg"
         "Dockerfile.ci"
         ".dockerignore"
+        "scripts/docker/compile_www_assets.sh"
+        "scripts/docker/install_additional_dependencies.sh"
+        "scripts/docker/install_airflow.sh"
+        "scripts/docker/install_airflow_from_latest_master.sh"
+        "scripts/docker/install_from_docker_context_files.sh"
+        "scripts/docker/install_mysql.sh"
         "airflow/www/package.json"
         "airflow/www/yarn.lock"
         "airflow/www/webpack.config.js"
@@ -354,12 +311,6 @@ function initialization::initialize_image_build_variables() {
         awk 'BEGIN { FS="=" } { print $2 }' | tr -d '"')
     export DEFAULT_PROD_EXTRAS
 
-    # Installs different airflow version than current from the sources
-    export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:=""}
-
-    # Determines if airflow should be installed from a specified reference in GitHub
-    export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
-
     # By default we are not upgrading to latest version of constraints when building Docker CI image
     # This will only be done in cron jobs
     export UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES:="false"}
@@ -386,8 +337,8 @@ function initialization::initialize_image_build_variables() {
     export ADDITIONAL_DEV_APT_ENV="${ADDITIONAL_DEV_APT_ENV:=""}"
     # Use default RUNTIME_APT_COMMAND
     export RUNTIME_APT_COMMAND=""
-    # Use default RUNTIME_APT_DEVS
-    export RUNTIME_APT_DEVS=""
+    # Use default RUNTIME_APT_DEPS
+    export RUNTIME_APT_DEPS=""
     # Use empty ADDITIONAL_RUNTIME_APT_COMMAND
     export ADDITIONAL_RUNTIME_APT_COMMAND=""
     # additional runtime apt dependencies on top of the default ones
@@ -402,14 +353,77 @@ function initialization::initialize_image_build_variables() {
     # additional tag for the image
     export IMAGE_TAG=${IMAGE_TAG:=""}
 
+    INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
+    export INSTALL_PROVIDERS_FROM_SOURCES
+
+    INSTALLED_PROVIDERS+=(
+        "amazon"
+        "celery"
+        "cncf.kubernetes"
+        "docker"
+        "elasticsearch"
+        "ftp"
+        "grpc"
+        "hashicorp"
+        "http"
+        "imap"
+        "google"
+        "microsoft.azure"
+        "mysql"
+        "postgres"
+        "redis"
+        "sendgrid"
+        "sqlite"
+        "sftp"
+        "slack"
+        "sqlite"
+        "ssh"
+    )
+    export INSTALLED_PROVIDERS
+    export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+
+    # default version of PIP USED (This has to be < 20.3 until https://github.com/apache/airflow/issues/12838 is solved)
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="20.2.4"}
+    export AIRFLOW_PIP_VERSION
+
+    # We also pin version of wheel used to get consistent builds
+    WHEEL_VERSION=${WHEEL_VERSION:="0.36.1"}
+    export WHEEL_VERSION
+
+    # And installed from there (breeze and ci)
+    AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION:="."}
+    export AIRFLOW_INSTALL_VERSION
+
+    # By default no sources are copied to image
+    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="empty"}
+    export AIRFLOW_SOURCES_FROM
+
+    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/empty"}
+    export AIRFLOW_SOURCES_TO
+
+    # By default in scripts production docker image is installed from PyPI package
+    export AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD:="apache-airflow"}
+
+    # Installs different airflow version than current from the sources
+    export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:=""}
+
+    # Continue on PIP CHECK failure
+    export CONTINUE_ON_PIP_CHECK_FAILURE=${CONTINUE_ON_PIP_CHECK_FAILURE:="false"}
+
+    # Determines if airflow should be installed from a specified reference in GitHub
+    export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
+
     # whether installation of Airflow should be done via PIP. You can set it to false if you have
     # all the binary packages (including airflow) in the docker-context-files folder and use
     # INSTALL_FROM_DOCKER_CONTEXT_FILES="true" to install it from there.
     export INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI:="true"}"
+
     # whether installation should be performed from the local wheel packages in "docker-context-files" folder
     export INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES:="false"}"
+
     # reference to CONSTRAINTS. they can be overwritten manually or replaced with AIRFLOW_CONSTRAINTS_LOCATION
     export AIRFLOW_CONSTRAINTS_REFERENCE="${AIRFLOW_CONSTRAINTS_REFERENCE:=""}"
+
     # direct constraints Location - can be URL or path to local file. If empty, it will be calculated
     # based on which Airflow version is installed and from where
     export AIRFLOW_CONSTRAINTS_LOCATION="${AIRFLOW_CONSTRAINTS_LOCATION:=""}"
@@ -558,7 +572,7 @@ function initialization::set_default_python_version_if_empty() {
 
 }
 
-function initialization::summarize_ci_environment() {
+function initialization::summarize_build_environment() {
     cat <<EOF
 
 Configured build variables:
@@ -594,11 +608,6 @@ Host variables:
     HOST_HOME=${HOST_HOME}
     HOST_AIRFLOW_SOURCES=${HOST_AIRFLOW_SOURCES}
 
-Image variables:
-
-    INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION}
-    INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE}
-
 Version suffix variables:
 
     VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
@@ -613,23 +622,65 @@ Verbosity variables:
     VERBOSE: ${VERBOSE}
     VERBOSE_COMMANDS: ${VERBOSE_COMMANDS}
 
-Image build variables:
+Common image build variables:
 
-    UPGRADE_TO_NEWER_DEPENDENCIES: ${UPGRADE_TO_NEWER_DEPENDENCIES}
-    CHECK_IMAGE_FOR_REBUILD: ${CHECK_IMAGE_FOR_REBUILD}
+    INSTALL_AIRFLOW_VERSION: '${INSTALL_AIRFLOW_VERSION}'
+    INSTALL_AIRFLOW_REFERENCE: '${INSTALL_AIRFLOW_REFERENCE}'
+    INSTALL_FROM_PYPI: '${INSTALL_FROM_PYPI}'
+    AIRFLOW_PRE_CACHED_PIP_PACKAGES: '${AIRFLOW_PRE_CACHED_PIP_PACKAGES}'
+    UPGRADE_TO_NEWER_DEPENDENCIES: '${UPGRADE_TO_NEWER_DEPENDENCIES}'
+    CONTINUE_ON_PIP_CHECK_FAILURE: '${CONTINUE_ON_PIP_CHECK_FAILURE}'
+    CHECK_IMAGE_FOR_REBUILD: '${CHECK_IMAGE_FOR_REBUILD}'
+    AIRFLOW_CONSTRAINTS_LOCATION: '${AIRFLOW_CONSTRAINTS_LOCATION}'
+    AIRFLOW_CONSTRAINTS_REFERENCE: '${AIRFLOW_CONSTRAINTS_REFERENCE}'
+    INSTALL_PROVIDERS_FROM_SOURCES: '${INSTALL_PROVIDERS_FROM_SOURCES}'
+    INSTALL_FROM_DOCKER_CONTEXT_FILES: '${INSTALL_FROM_DOCKER_CONTEXT_FILES}'
+    ADDITIONAL_AIRFLOW_EXTRAS: '${ADDITIONAL_AIRFLOW_EXTRAS}'
+    ADDITIONAL_PYTHON_DEPS: '${ADDITIONAL_PYTHON_DEPS}'
+    DEV_APT_COMMAND: '${DEV_APT_COMMAND}'
+    ADDITIONAL_DEV_APT_COMMAND: '${ADDITIONAL_DEV_APT_COMMAND}'
+    DEV_APT_DEPS: '${DEV_APT_DEPS}'
+    ADDITIONAL_DEV_APT_DEPS: '${ADDITIONAL_DEV_APT_DEPS}'
+    RUNTIME_APT_COMMAND: '${RUNTIME_APT_COMMAND}'
+    ADDITIONAL_RUNTIME_APT_COMMAND: '${ADDITIONAL_RUNTIME_APT_COMMAND}'
+    RUNTIME_APT_DEPS: '${RUNTIME_APT_DEPS}'
+    ADDITIONAL_RUNTIME_APT_DEPS: '${ADDITIONAL_RUNTIME_APT_DEPS}'
+    ADDITIONAL_RUNTIME_APT_ENV: '${ADDITIONAL_RUNTIME_APT_ENV}'
 
+Production image build variables:
+
+    AIRFLOW_INSTALLATION_METHOD: '${AIRFLOW_INSTALLATION_METHOD}'
+    AIRFLOW_INSTALL_VERSION: '${AIRFLOW_INSTALL_VERSION}'
+    AIRFLOW_SOURCES_FROM: '${AIRFLOW_SOURCES_FROM}'
+    AIRFLOW_SOURCES_TO: '${AIRFLOW_SOURCES_TO}'
 
 Detected GitHub environment:
 
-    USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY}
-    GITHUB_REGISTRY=${GITHUB_REGISTRY}
-    GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
-    GITHUB_USERNAME=${GITHUB_USERNAME}
-    GITHUB_TOKEN=${GITHUB_TOKEN}
-    GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE}
-    GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG}
-    GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG}
-    GITHUB_ACTIONS=${GITHUB_ACTIONS=}
+    USE_GITHUB_REGISTRY: '${USE_GITHUB_REGISTRY}'
+    GITHUB_REGISTRY: '${GITHUB_REGISTRY}'
+    GITHUB_REPOSITORY: '${GITHUB_REPOSITORY}'
+    GITHUB_USERNAME: '${GITHUB_USERNAME}'
+    GITHUB_TOKEN: '${GITHUB_TOKEN}'
+    GITHUB_REGISTRY_WAIT_FOR_IMAGE: '${GITHUB_REGISTRY_WAIT_FOR_IMAGE}'
+    GITHUB_REGISTRY_PULL_IMAGE_TAG: '${GITHUB_REGISTRY_PULL_IMAGE_TAG}'
+    GITHUB_REGISTRY_PUSH_IMAGE_TAG: '${GITHUB_REGISTRY_PUSH_IMAGE_TAG}'
+    GITHUB_ACTIONS: '${GITHUB_ACTIONS=}'
+
+Initialization variables:
+
+    INIT_SCRIPT_FILE: '${INIT_SCRIPT_FILE=}'
+    LOAD_DEFAULT_CONNECTIONS: '${LOAD_DEFAULT_CONNECTIONS}'
+    LOAD_EXAMPLES: '${LOAD_EXAMPLES}'
+    INSTALL_PACKAGES_FROM_DIST: '${INSTALL_PACKAGES_FROM_DIST=}'
+    DISABLE_RBAC: '${DISABLE_RBAC}'
+
+Test variables:
+
+    TEST_TYPE: '${TEST_TYPE}'
+
+EOF
+    if [[ "${CI}" == "true" ]]; then
+        cat <<EOF
 
 Detected CI build environment:
 
@@ -638,20 +689,8 @@ Detected CI build environment:
     CI_BUILD_ID=${CI_BUILD_ID}
     CI_JOB_ID=${CI_JOB_ID}
     CI_EVENT_TYPE=${CI_EVENT_TYPE}
-
-Initialization variables:
-
-    INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE=}
-    LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
-    LOAD_EXAMPLES: ${LOAD_EXAMPLES}
-    INSTALL_PACKAGES_FROM_DIST: ${INSTALL_PACKAGES_FROM_DIST=}
-    DISABLE_RBAC: ${DISABLE_RBAC}
-
-Test variables:
-
-    TEST_TYPE: ${TEST_TYPE}
-
 EOF
+    fi
 }
 
 # Retrieves CI environment variables needed - depending on the CI system we run it in.
@@ -678,7 +717,7 @@ function initialization::get_environment_for_builds_on_ci() {
     fi
 
     if [[ ${VERBOSE} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
-        initialization::summarize_ci_environment
+        initialization::summarize_build_environment
     fi
 }
 

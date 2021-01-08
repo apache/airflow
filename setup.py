@@ -477,7 +477,7 @@ zendesk = [
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
 # IF you are removing dependencies from this list, please make sure that you also increase
-# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
+# PIP_DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci and Dockerfile
 ############################################################################################################
 devel = [
     'beautifulsoup4~=4.7.1',
@@ -526,7 +526,7 @@ devel = [
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
 # If you are removing dependencies from the above list, please make sure that you also increase
-# DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
+# PIP_DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci and Dockerfile
 ############################################################################################################
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password

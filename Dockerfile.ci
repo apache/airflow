@@ -29,9 +29,6 @@ ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 
-ARG AIRFLOW_PIP_VERSION=20.2.4
-ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
-
 # Print versions
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
@@ -108,10 +105,11 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY scripts/docker /scripts/docker
+# Only copy install_mysql.sh to not invalidate cache on other script changes
+COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
 # fix permission issue in Azure DevOps when running the script
 RUN chmod a+x /scripts/docker/install_mysql.sh
-RUN ./scripts/docker/install_mysql.sh dev
+RUN /scripts/docker/install_mysql.sh dev
 
 RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
@@ -126,6 +124,7 @@ ARG RUNTIME_APT_DEPS="\
       bash-completion \
       ca-certificates \
       software-properties-common \
+      krb5-user \
       krb5-user \
       ldap-utils \
       less \
@@ -151,13 +150,15 @@ ENV RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND}
 ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ENV ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND}
 
-ARG ADDITIONAL_RUNTIME_ENV_VARS=""
+ARG ADDITIONAL_DEV_APT_ENV=""
+ARG ADDITIONAL_RUNTIME_APT_ENV=""
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && export ${ADDITIONAL_RUNTIME_ENV_VARS?} \
+    && export ${ADDITIONAL_DEV_APT_ENV?} \
+    && export ${ADDITIONAL_RUNTIME_APT_ENV?} \
     && bash -o pipefail -e -u -x -c "${RUNTIME_APT_COMMAND}" \
     && bash -o pipefail -e -u -x -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
     && apt-get update \
@@ -174,12 +175,6 @@ ENV DOCKER_CLI_VERSION=${DOCKER_CLI_VERSION}
 RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz \
     |  tar -C /usr/bin --strip-components=1 -xvzf - docker/docker
 
-# Setup PIP
-# By default PIP install run without cache to make image smaller
-ARG PIP_NO_CACHE_DIR="true"
-ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
-RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
-
 ARG HOME=/root
 ENV HOME=${HOME}
 
@@ -194,10 +189,6 @@ WORKDIR ${AIRFLOW_SOURCES}
 RUN mkdir -pv ${AIRFLOW_HOME} && \
     mkdir -pv ${AIRFLOW_HOME}/dags && \
     mkdir -pv ${AIRFLOW_HOME}/logs
-
-# Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="5"
-ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
 # Install BATS and its dependencies for "in container" tests
 ARG BATS_VERSION="0.4.0"
@@ -226,7 +217,6 @@ RUN echo "export PATH=/opt/bats/bin:${PATH}" >> /root/.bashrc
 # Additional scripts for managing BATS addons
 COPY scripts/docker/load.bash /opt/bats/lib/
 RUN chmod a+x /opt/bats/lib/load.bash
-
 
 # Optimizing installation of Cassandra driver
 # Speeds up building the image - cassandra driver without CYTHON saves around 10 minutes
@@ -272,17 +262,47 @@ ENV INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES}
 ARG INSTALL_FROM_PYPI="true"
 ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 
+ARG AIRFLOW_PIP_VERSION=20.2.4
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
+
+# In the CI image we always:
+# * install MySQL
+# * install airflow from current sources, not from PyPI package
+# * install airflow without `--user` flag
+# * install airflow in editable mode
+# * install always current version of airflow
+
+ENV INSTALL_MYSQL_CLIENT="true"
+ENV AIRFLOW_INSTALLATION_METHOD="."
+ENV AIRFLOW_INSTALL_USER_FLAG=""
+ENV AIRFLOW_INSTALL_EDITABLE_FLAG="--editable"
+ENV AIRFLOW_INSTALL_VERSION=""
+
+# Setup PIP
+# By default PIP install run without cache to make image smaller
+ARG PIP_NO_CACHE_DIR="true"
+ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
+RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
+
 RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+
+# Increase the value here to force reinstalling Apache Airflow pip dependencies
+ARG PIP_DEPENDENCIES_EPOCH_NUMBER="5"
+ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
+
+# Only copy install_airflow_from_latest_master.sh to not invalidate cache on other script changes
+COPY scripts/docker/install_airflow_from_latest_master.sh /scripts/docker/install_airflow_from_latest_master.sh
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/install_airflow_from_latest_master.sh
 
 # In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
 # This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
 # And is automatically reinstalled from the scratch every time patch release of python gets released
+# The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
+# are uninstalled, only dependencies remain
 RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
-        pip install \
-            "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-            --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-        pip uninstall --yes apache-airflow; \
+        /scripts/docker/install_airflow_from_latest_master.sh; \
     fi
 
 # Generate random hex dump file so that we can determine whether it's faster to rebuild the image
@@ -314,6 +334,23 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
+# Those are additional constraints that are needed for some extras but we do not want to
+# Force them on the main Airflow package. Those limitations are:
+# * chardet,<4: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
+# * lazy-object-proxy<1.5.0: required by astroid
+# * pyOpenSSL: Imposed by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
+# * requests>=2.20.0,<2.24.0: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
+# * urllib3<1.26: Required to keep boto3 and snowflake happy
+
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 requests>=2.20.0,<2.24.0 urllib3<1.26"
+
+ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
+
+# Only copy install_airflow.sh to not invalidate cache on other script changes
+COPY scripts/docker/install_airflow.sh /scripts/docker/install_airflow.sh
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/install_airflow.sh
+
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
@@ -321,49 +358,20 @@ ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
 RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
-            pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
-            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-        else \
-            pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy only-if-needed\
-                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-        fi; \
+        /scripts/docker/install_airflow.sh; \
     fi
+
+# Only copy install_from_docker_context_files.sh to not invalidate cache on other script changes
+COPY scripts/docker/install_from_docker_context_files.sh /scripts/docker/install_from_docker_context_files.sh
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/install_from_docker_context_files.sh
 
 # If wheel files are found in /docker-context-files during installation
 # they are also installed additionally to whatever is installed from Airflow.
 COPY docker-context-files/ /docker-context-files/
 
-# hadolint ignore=SC2086, SC2010
 RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        reinstalling_apache_airflow_package=$(ls /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true); \
-        if [[ "${reinstalling_apache_airflow_package}" != "" ]]; then \
-            # install airflow with extras \
-            reinstalling_apache_airflow_package="${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]"; \
-        fi; \
-        reinstalling_apache_airflow_providers_packages=$(ls /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true); \
-        if [[ ${reinstalling_apache_airflow_package} != "" || \
-              ${reinstalling_apache_airflow_providers_packages} == "" ]]; then \
-            if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
-                pip install --force-reinstall --upgrade --upgrade-strategy eager \
-                    --user ${reinstalling_apache_airflow_package} \
-                           ${reinstalling_apache_airflow_providers_packages}; \
-                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-            else \
-                pip install --force-reinstall --upgrade --upgrade-strategy only-if-needed \
-                    --user ${reinstalling_apache_airflow_package} \
-                           ${reinstalling_apache_airflow_providers_packages} \
-                    --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-            fi; \
-        fi ; \
-        # All the other packages we want to reinstall as-is, without dependencies \
-        reinstalling_other_packages=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
-            grep -v apache_airflow | grep -v apache-airflow || true); \
-        if [[ "${reinstalling_other_packages}" != "" ]]; then \
-            pip install --force-reinstall --user --no-deps ${reinstalling_other_packages}; \
-        fi; \
+        /scripts/docker/install_from_docker_context_files.sh; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY

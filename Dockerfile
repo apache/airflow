@@ -61,9 +61,6 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 ARG PYTHON_MAJOR_MINOR_VERSION
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 
-ARG AIRFLOW_PIP_VERSION
-ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
-
 # Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
@@ -145,7 +142,8 @@ RUN mkdir -pv /usr/share/man/man1 \
 ARG INSTALL_MYSQL_CLIENT="true"
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT}
 
-COPY scripts/docker /scripts/docker
+# Only copy install_mysql.sh to not invalidate cache on other script changes
+COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
 COPY docker-context-files /docker-context-files
 # fix permission issue in Azure DevOps when running the script
 RUN chmod a+x /scripts/docker/install_mysql.sh
@@ -172,6 +170,15 @@ RUN if [[ -f /docker-context-files/.pypirc ]]; then \
         cp /docker-context-files/.pypirc /root/.pypirc; \
     fi
 
+ARG AIRFLOW_PIP_VERSION
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
+
+# Install Airflow with "--user" flag, so that we can copy the whole .local folder to the final image
+# from the build image and always in non-editable mode
+ENV AIRFLOW_INSTALL_USER_FLAG="--user"
+ENV AIRFLOW_INSTALL_EDITABLE_FLAG=""
+
+# Upgrade to specific PIP version
 RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
@@ -179,16 +186,27 @@ RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
 ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 
+# By default we install providers from PyPI but in case of Breeze build we want to install providers
+# from local sources without the need of preparing provider packages upfront. This value is
+# automatically overridden by Breeze scripts.
+ARG INSTALL_PROVIDERS_FROM_SOURCES="false"
+ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
+
+# Increase the value here to force reinstalling Apache Airflow pip dependencies
+ARG PIP_DEPENDENCIES_EPOCH_NUMBER="1"
+ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
+
+# Only copy install_airflow_from_latest_master.sh to not invalidate cache on other script changes
+COPY scripts/docker/install_airflow_from_latest_master.sh /scripts/docker/install_airflow_from_latest_master.sh
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/install_airflow_from_latest_master.sh
+
 # In case of Production build image segment we want to pre-install master version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
+# The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
+# are uninstalled, only dependencies remain
 RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
-       if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
-          AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
-       fi; \
-       pip install --user \
-          "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-          --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
-          && pip uninstall --yes apache-airflow; \
+        /scripts/docker/install_airflow_from_latest_master.sh; \
     fi
 
 # By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
@@ -209,6 +227,7 @@ ENV CASS_DRIVER_BUILD_CONCURRENCY=${CASS_DRIVER_BUILD_CONCURRENCY}
 ARG AIRFLOW_VERSION
 ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 
+# Add extra python dependencies
 ARG ADDITIONAL_PYTHON_DEPS=""
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS}
 
@@ -236,91 +255,43 @@ ENV INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES}
 ARG INSTALL_FROM_PYPI="true"
 ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 
-# By default we install providers from PyPI but in case of Breze build we want to install providers
-# from local sources without the neeed of preparing provider packages upfront. This value is
-# automatically overridden by Breeze scripts.
-ARG INSTALL_PROVIDERS_FROM_SOURCES="false"
-ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
-
+# By default we do not upgrade to latest dependencies
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
+# Those are additional constraints that are needed for some extras but we do not want to
+# Force them on the main Airflow package.
+# * urllib3 - required to keep boto3 happy
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="urllib3<1.26 chardet<4"
+
 WORKDIR /opt/airflow
 
+ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
+
+# Copy all install scripts here
+COPY scripts/docker/install*.sh /scripts/docker/
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/instal*.sh
+
 # hadolint ignore=SC2086, SC2010
-RUN if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then \
-        # Remove mysql from extras if client is not installed \
-        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}; \
-    fi; \
-    if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
-            pip install --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
-                --upgrade --upgrade-strategy eager; \
-            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-        else \
-            pip install --upgrade --upgrade-strategy only-if-needed \
-                --user "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
-                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-        fi; \
+RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
+        /scripts/docker/install_airflow.sh; \
     fi; \
     if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        reinstalling_apache_airflow_package=$(ls /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true); \
-        if [[ "${reinstalling_apache_airflow_package}" != "" ]]; then \
-            # install airflow with extras \
-            reinstalling_apache_airflow_package="${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]"; \
-        fi; \
-        reinstalling_apache_airflow_providers_packages=$(ls /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true); \
-        if [[ ${reinstalling_apache_airflow_package} != "" || \
-              ${reinstalling_apache_airflow_providers_packages} == "" ]]; then \
-            if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
-                pip install --force-reinstall --upgrade --upgrade-strategy eager \
-                    --user ${reinstalling_apache_airflow_package} \
-                           ${reinstalling_apache_airflow_providers_packages}; \
-                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-            else \
-                pip install --force-reinstall --upgrade --upgrade-strategy only-if-needed \
-                    --user ${reinstalling_apache_airflow_package} \
-                           ${reinstalling_apache_airflow_providers_packages} \
-                    --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-                pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-            fi; \
-        fi ; \
-        # All the other packages we want to reinstall as-is, without dependencies \
-        reinstalling_other_packages=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
-            grep -v apache_airflow | grep -v apache-airflow || true); \
-        if [[ "${reinstalling_other_packages}" != "" ]]; then \
-            pip install --force-reinstall --user --no-deps ${reinstalling_other_packages}; \
-        fi; \
+        /scripts/docker/install_from_docker_context_files.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then \
-            pip install --user ${ADDITIONAL_PYTHON_DEPS} \
-                ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
-                --upgrade --upgrade-strategy eager; \
-             pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-              pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}; \
-        else \
-            pip install --user ${ADDITIONAL_PYTHON_DEPS} --upgrade --upgrade-strategy only-if-needed \
-                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"; \
-            pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"; \
-        fi; \
+        /scripts/docker/install_additional_dependencies.sh; \
     fi; \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true
 
-RUN AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow"; \
-    if [[ -f "${AIRFLOW_SITE_PACKAGE}/www_rbac/package.json" ]]; then \
-        WWW_DIR="${AIRFLOW_SITE_PACKAGE}/www_rbac"; \
-    elif [[ -f "${AIRFLOW_SITE_PACKAGE}/www/package.json" ]]; then \
-        WWW_DIR="${AIRFLOW_SITE_PACKAGE}/www"; \
-    fi; \
-    if [[ ${WWW_DIR:=} != "" ]]; then \
-        yarn --cwd "${WWW_DIR}" install --frozen-lockfile --no-cache; \
-        yarn --cwd "${WWW_DIR}" run prod; \
-        rm -rf "${WWW_DIR}/node_modules"; \
-        rm -vf "${WWW_DIR}"/{package.json,yarn.lock,.eslintignore,.eslintrc,.stylelintignore,.stylelintrc,compile_assets.sh,webpack.config.js} ;\
-    fi
+# Copy compile_www_assets.sh install scripts here
+COPY scripts/docker/compile_www_assets.sh /scripts/docker/compile_www_assets.sh
+# fix permission issue in Azure DevOps when running the script
+RUN chmod a+x /scripts/docker/compile_www_assets.sh
+
+RUN /scripts/docker/compile_www_assets.sh
 
 # make sure that all directories and files in .local are also group accessible
 RUN find /root/.local -executable -print0 | xargs --null chmod g+x && \
@@ -440,10 +411,12 @@ RUN mkdir -pv /usr/share/man/man1 \
 ARG INSTALL_MYSQL_CLIENT="true"
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT}
 
-COPY scripts/docker /scripts/docker
-# fix permission issue in Azure DevOps when running the script
+# Only copy install_mysql script. We do not need any other
+COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
+# fix permission issue in Azure DevOps when running the scripts
 RUN chmod a+x /scripts/docker/install_mysql.sh
-RUN ./scripts/docker/install_mysql.sh prod
+
+RUN /scripts/docker/install_mysql.sh prod
 
 ENV AIRFLOW_UID=${AIRFLOW_UID}
 ENV AIRFLOW_GID=${AIRFLOW_GID}

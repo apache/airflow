@@ -35,6 +35,7 @@ _breeze_allowed_postgres_versions="9.6 10 11 12 13"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell k9s"
 _breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Heisentests Postgres MySQL Helm"
 _breeze_allowed_package_formats="wheel sdist both"
+_breeze_allowed_installation_methods=". apache-airflow"
 
 # shellcheck disable=SC2034
 {
@@ -168,7 +169,7 @@ additional-extras: additional-python-deps: disable-pypi-when-building skip-insta
 dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-command: additional-dev-apt-env:
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
-install-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies
+install-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure
 test-type:
 preserve-volumes
 "
@@ -290,6 +291,9 @@ function breeze_complete::get_known_values_breeze() {
         ;;
     --package-format)
         _breeze_known_values="${_breeze_allowed_package_formats}"
+        ;;
+    --installation-method)
+        _breeze_known_values="${_breeze_allowed_installation_methods}"
         ;;
     *)
         _breeze_known_values=""

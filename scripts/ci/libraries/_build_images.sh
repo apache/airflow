@@ -660,6 +660,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
+        --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${additional_dev_args[@]}" \
@@ -698,14 +699,19 @@ function build_images::prepare_prod_build() {
         # When --install-airflow-version is used then the image is build from PIP package
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
             "--build-arg" "AIRFLOW_INSTALLATION_METHOD=apache-airflow"
-            "--build-arg" "AIRFLOW_INSTALL_VERSION===${INSTALL_AIRFLOW_VERSION}"
+            "--build-arg" "AIRFLOW_INSTALL_VERSION=${INSTALL_AIRFLOW_VERSION}"
             "--build-arg" "AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION}"
         )
         export AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
         build_images::add_build_args_for_remote_install
     else
-        # When no airflow version/reference is specified, production image is built from local sources
+        # When no airflow version/reference is specified, production image is built either from the
+        # local sources (in Breeze) or from PyPI (in the ci_scripts)
+        # Default values for the variables are set in breeze (breeze defaults) and _initialization.sh (CI ones)
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+            "--build-arg" "AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}"
+            "--build-arg" "AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}"
+            "--build-arg" "AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}"
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
         )
     fi
@@ -776,6 +782,7 @@ function build_images::build_prod_images() {
     if [[ ${DEV_APT_COMMAND} != "" ]]; then
         additional_dev_args+=("--build-arg" "DEV_APT_COMMAND=\"${DEV_APT_COMMAND}\"")
     fi
+
     docker build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
@@ -795,6 +802,7 @@ function build_images::build_prod_images() {
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
+        --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
@@ -826,6 +834,7 @@ function build_images::build_prod_images() {
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
+        --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
@@ -952,7 +961,7 @@ function build_images::build_prod_images_from_locally_built_airflow_packages() {
 
 # Useful information for people who stumble upon a pip check failure
 function build_images::inform_about_pip_check() {
-        echo """
+    echo """
 ${COLOR_BLUE}***** Beginning of the instructions ****${COLOR_RESET}
 
 The image did not pass 'pip check' verification. This means that there are some conflicting dependencies
@@ -964,50 +973,49 @@ It can mean one of those:
 2) You changed some dependencies in setup.py or setup.cfg and they are conflicting.
 
 
+
 In case 1) - apologies for the trouble.Please let committers know and they will fix it. You might
 be asked to rebase to the latest master after the problem is fixed.
 
 In case 2) - Follow the steps below:
 
-* consult the committers if you are unsure what to do. Just comment in the PR that you need help, if you do,
-  but try to follow those instructions first!
+* try to build CI and then PROD image locally with breeze, adding --upgrade-to-newer-dependencies flag
+  (repeat it for all python versions)
 
-* ask the committer to set 'upgrade to newer dependencies'. All dependencies in your PR will be updated
-  to latest 'good' versions and you will be able to check if they are not conflicting.
+CI image:
 
-* run locally the image that is failing with Breeze:
+${COLOR_BLUE}
+     ./breeze build-image --upgrade-to-newer-dependencies --python 3.6
+${COLOR_RESET}
 
-    ./breeze ${1}--github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND="sqlite"} --python ${PYTHON_MAJOR_MINOR_VERSION}
+Production image:
 
-* your setup.py and setup.cfg will be mounted to the container. You will be able to iterate with
-  different setup.py versions.
+${COLOR_BLUE}
+     ./breeze build-image --production-image --upgrade-to-newer-dependencies --python 3.6
+${COLOR_RESET}
 
-* in container your can run 'pipdeptree' to figure out where the dependency conflict comes from.
+* If you want to build the image regardless if 'pip check' fails for it, you can add
+  --continue-on-pip-check-failure flag and enter the image and inspect dependencies.
 
-* Some useful commands that can help yoy to find out dependencies you have:
+CI image:
 
-     * 'pipdeptree | less' (you can then search through the dependencies with vim-like shortcuts)
+${COLOR_BLUE}
+     ./breeze build-image --upgrade-to-newer-dependencies --python 3.6 --continue-on-pip-check-failure
+     docker run -it apache/airflow:master-3.6-ci bash
+${COLOR_RESET}
 
-     * 'pipdeptree > /files/pipdeptree.txt' - this will produce a pipdeptree.txt file in your source
-       'files' directory and you can open it in editor of your choice,
+Production image:
 
-     * 'pipdeptree | grep YOUR_DEPENDENCY' - to see all the requirements your dependency has as specified
-       by other packages
+${COLOR_BLUE}
+     ./breeze build-image --production-image --upgrade-to-newer-dependencies --python 3.6 --continue-on-pip-check-failure
+     docker run -it apache/airflow:master-3.6 bash
+${COLOR_RESET}
 
-* figure out which dependency limits should be upgraded. Upgrade them in corresponding setup.py extras
-  and run pip to upgrade your dependencies accordingly:
-
-     pip install '.[all]' --upgrade --upgrade-strategy eager
-
-* run pip check to figure out if the dependencies have been fixed. It should let you know which dependencies
-  are conflicting or (hurray!) if there are no conflicts:
-
-     pip check
-
-* in some, rare, cases, pip will not limit the requirement in case you specify it in extras, you might
-  need to add such requirement in 'install_requires' section of setup.cfg instead of extras in setup.py.
-
-* iterate until all such dependency conflicts are fixed.
+* You will see error messages there telling which requirements are conflicting and which packages caused the
+  conflict. Add the limitation that caused the conflict to EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS
+  variable in Dockerfile.ci. Note that the limitations might be different for Dockerfile.ci and Dockerfile
+  because not all packages are installed by default in the PROD Dockerfile. So you might find that you
+  only need to add the limitation to the Dockerfile.ci
 
 ${COLOR_BLUE}***** End of the instructions ****${COLOR_RESET}
 
