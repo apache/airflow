@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import sys
 import unittest
 import uuid
@@ -475,8 +476,10 @@ class TestPodGenerator(unittest.TestCase):
         worker_config_result = self.k8s_client.sanitize_for_serialization(worker_config)
         assert worker_config_result == sanitized_result
 
-    def ensure_max_label_length(self):
-        path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
+    @mock.patch('uuid.uuid4')
+    def test_ensure_max_label_length(self, mock_uuid):
+        mock_uuid.return_value = self.static_uuid
+        path = os.path.join(os.path.dirname(__file__), 'pod_generator_base_with_secrets.yaml')
         worker_config = PodGenerator.deserialize_model_file(path)
 
         result = PodGenerator.construct_pod(
@@ -493,9 +496,9 @@ class TestPodGenerator(unittest.TestCase):
             base_worker_pod=worker_config,
         )
 
-        assert result.metadata.name < 253
+        assert result.metadata.name == 'a' * 63 + '.' + self.static_uuid.hex
         for _, v in result.metadata.labels.items():
-            assert len(v) < 63
+            assert len(v) <= 63
 
     def test_merge_objects_empty(self):
         annotations = {'foo1': 'bar1'}

@@ -353,7 +353,7 @@ class PodGenerator:
         pod_override_object: Optional[k8s.V1Pod],
         base_worker_pod: k8s.V1Pod,
         namespace: str,
-        scheduler_job_id: str,
+        scheduler_job_id: int,
     ) -> k8s.V1Pod:
         """
         Construct a pod by gathering and consolidating the configuration from 3 places:
@@ -370,7 +370,7 @@ class PodGenerator:
 
         task_id = make_safe_label_value(task_id)
         dag_id = make_safe_label_value(dag_id)
-        scheduler_job_id = make_safe_label_value(scheduler_job_id)
+        scheduler_job_id = make_safe_label_value(str(scheduler_job_id))
 
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
