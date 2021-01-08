@@ -66,30 +66,22 @@ def is_mismatch(measure_result, curve_mode):
 
 
 @provide_session
-def get_bolt_recent_mismatch_rate(dag_id, task_id, execution_date, session=None):
-    tis = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag_id,
-        TaskInstance.execution_date == pendulum.parse(execution_date),
-        TaskInstance.task_id == task_id)
-    ti = list(tis.all())[0]
+def get_recent_mismatch_rate(dag_id, task_id, session=None):
     delta = datetime.timedelta(days=2)
     min_date = timezone.utcnow() - delta
-    bolt_number = ti.bolt_number
-    bolt_tis = session.query(TaskInstance).filter(
-        TaskInstance.bolt_number == bolt_number,
+    total = session.query(TaskInstance).filter(
         TaskInstance.dag_id == dag_id,
         TaskInstance.task_id == task_id,
         TaskInstance.execution_date > min_date
     ).count()
-    bolt_mismatch_tis = session.query(TaskInstance).filter(
-        TaskInstance.bolt_number == bolt_number,
+    mismatches = session.query(TaskInstance).filter(
         TaskInstance.dag_id == dag_id,
         TaskInstance.task_id == task_id,
         TaskInstance.execution_date > min_date,
         TaskInstance.measure_result != TaskInstance.result
     ).count()
-    _log.info('bolt:{},bolt_tis:{},bolt_mismatch_tis:{}'.format(bolt_number, bolt_tis, bolt_mismatch_tis))
-    return bolt_mismatch_tis / (bolt_tis + 1), bolt_tis
+    _log.info('total:{},mismatches:{}'.format(total, mismatches))
+    return mismatches / (total + 1), total
 
 
 def mismatch_relaxation(mismatch_rate, count) -> bool:
@@ -106,7 +98,7 @@ def filter_mismatches(measure_result, curve_mode, dag_id, task_id, execution_dat
         _log.info('not mismatch')
         return curve_mode
     _log.info('is mismatch')
-    mismatch_rate, count = get_bolt_recent_mismatch_rate(dag_id, task_id, execution_date)
+    mismatch_rate, count = get_recent_mismatch_rate(dag_id, task_id)
     _log.info('mismatch_rate:{}, count:{}'.format(mismatch_rate, count))
     if mismatch_relaxation(mismatch_rate, count):
         return 0 if measure_result == 'OK' else 1
