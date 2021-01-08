@@ -24,18 +24,19 @@ Release: 2020.10.29
 
 **Table of contents**
 
-- [Backport package](#backport-package)
-- [Installation](#installation)
-- [PIP requirements](#pip-requirements)
-- [Cross provider package dependencies](#cross-provider-package-dependencies)
-- [Provider class summary](#provider-classes-summary)
-    - [Operators](#operators)
-        - [Moved operators](#moved-operators)
-    - [Transfer operators](#transfer-operators)
-        - [Moved transfer operators](#moved-transfer-operators)
-    - [Hooks](#hooks)
-        - [Moved hooks](#moved-hooks)
-- [Releases](#releases)
+- [Package apache-airflow-backport-providers-apache-druid](#package-apache-airflow-backport-providers-apache-druid)
+  - [Backport package](#backport-package)
+  - [Installation](#installation)
+  - [PIP requirements](#pip-requirements)
+  - [Cross provider package dependencies](#cross-provider-package-dependencies)
+- [Provider classes summary](#provider-classes-summary)
+  - [Operators](#operators)
+    - [Moved operators](#moved-operators)
+  - [Transfer operators](#transfer-operators)
+    - [Moved transfer operators](#moved-transfer-operators)
+  - [Hooks](#hooks)
+    - [Moved hooks](#moved-hooks)
+  - [Releases](#releases)
     - [Release 2020.10.29](#release-20201029)
     - [Release 2020.10.5](#release-2020105)
     - [Release 2020.6.24](#release-2020624)
@@ -94,7 +95,6 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | Airflow 2.0 operators: `airflow.providers.apache.druid` package                                                                                   | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                       |
 |:--------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------|
 | [operators.druid.DruidOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid.py)                  | [contrib.operators.druid_operator.DruidOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/druid_operator.py)  |
-| [operators.druid_check.DruidCheckOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid_check.py) | [operators.druid_check_operator.DruidCheckOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/druid_check_operator.py) |
 
 
 ## Transfer operators

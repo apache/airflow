@@ -42,6 +42,9 @@ hooks:
     python-modules:
       - airflow.providers.apache.druid.hooks.druid
 
+hook-class-names:
+  - airflow.providers.apache.druid.hooks.druid.DruidDbApiHook
+
 transfers:
   - source-integration-name: Apache Hive
     target-integration-name: Apache Druid

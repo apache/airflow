@@ -28,6 +28,7 @@ from airflow.utils.decorators import apply_defaults
 
 ALLOWED_CONN_TYPE = {
     "google_cloud_platform",
+    "druid",
     "jdbc",
     "mssql",
     "mysql",
