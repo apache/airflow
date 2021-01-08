@@ -27,7 +27,7 @@ from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
 
 ALLOWED_CONN_TYPE = {
-    "google_cloud_platform",
+    "bigquery",
     "druid",
     "jdbc",
     "mssql",
