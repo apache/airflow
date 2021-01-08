@@ -1223,9 +1223,11 @@ The goal of rebasing your PR on top of ``apache/master`` is to "transplant" your
 the latest changes that are merged by others. It also allows you to fix all the conflicts
 that arise as a result of other people changing the same files as you and merging the changes to ``apache/master``.
 
-Here is how rebase looks in practice:
+Here is how rebase looks in practice (you can find a summary below these detailed steps):
 
-1. You first need to add the Apache project remote to your git repository. In this example, we will be adding the remote
+1. You first need to add the Apache project remote to your git repository. This is only necessary once,
+so if it's not the first time you are following this tutorial you can skip this step. In this example,
+we will be adding the remote
 as "apache" so you can refer to it easily:
 
 * If you use ssh: ``git remote add apache git@github.com:apache/airflow.git``
@@ -1244,8 +1246,9 @@ as "apache" so you can refer to it easily:
    ``git merge-base my-branch apache/master``
 
    This will print the HASH of the base commit which you should use to rebase your feature from.
-   For example: ``5abce471e0690c6b8d06ca25685b0845c5fd270f``. You can also find this commit hash manually if you want
-   better control.
+   For example: ``5abce471e0690c6b8d06ca25685b0845c5fd270f``. Copy that HASH and go to the next step.
+
+   Optionally, if you want better control you can also find this commit hash manually.
 
    Run:
 
@@ -1259,7 +1262,7 @@ as "apache" so you can refer to it easily:
 
    Will "transplant" all commits after the commit with the HASH.
 
-4. Check out your feature branch locally via:
+4. Providing that you weren't already working on your branch, check out your feature branch locally via:
 
    ``git checkout my-branch``
 
@@ -1295,6 +1298,17 @@ as "apache" so you can refer to it easily:
 
    And go either to point 6. or 7, depending on whether you have more commits that cause conflicts in your PR (rebasing applies each
    commit from your PR one-by-one).
+
+Summary
+-------------
+
+Useful when you understand the flow but don't remember the steps and want a quick reference.
+
+``git fetch --all``
+``git merge-base my-branch apache/master``
+``git checkout my-branch``
+``git rebase HASH --onto apache/master``
+``git push --force-with-lease``
 
 How to communicate
 ==================
