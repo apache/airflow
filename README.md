@@ -240,7 +240,7 @@ Airflow is the work of the [community](https://github.com/apache/airflow/graphs/
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
 are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
 If you would like to become a maintainer, please review the Apache Airflow
-[committer requirements](https://airflow.apache.org/docs/stable/project.html#committers).
+[committer requirements](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#guidelines-to-become-an-airflow-committer).
 
 ## Can I use the Apache Airflow logo in my presentation?
 
