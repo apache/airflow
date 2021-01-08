@@ -20,25 +20,25 @@ set -euo pipefail
 
 if [ -z "${AIRFLOW_CI_IMAGE=}" ]; then
     echo
-    echo  "${COLOR_RED_ERROR} Missing environment variable AIRFLOW_CI_IMAGE  ${COLOR_RESET}"
+    echo  "${COLOR_RED}ERROR: Missing environment variable AIRFLOW_CI_IMAGE  ${COLOR_RESET}"
     echo
     exit 1
 fi
 if [ -z "${HOST_AIRFLOW_SOURCES=}" ]; then
     echo
-    echo  "${COLOR_RED_ERROR} Missing environment variable HOST_AIRFLOW_SOURCES  ${COLOR_RESET}"
+    echo  "${COLOR_RED}ERROR: Missing environment variable HOST_AIRFLOW_SOURCES  ${COLOR_RESET}"
     echo
     exit 1
 fi
 if [ -z "${HOST_USER_ID=}" ]; then
     echo
-    echo  "${COLOR_RED_ERROR} Missing environment variable HOST_USER_ID  ${COLOR_RESET}"
+    echo  "${COLOR_RED}ERROR: Missing environment variable HOST_USER_ID  ${COLOR_RESET}"
     echo
     exit 1
 fi
 if [ -z "${HOST_GROUP_ID=}" ]; then
     echo
-    echo  "${COLOR_RED_ERROR} Missing environment variable HOST_GROUP_ID   ${COLOR_RESET}"
+    echo  "${COLOR_RED}ERROR: Missing environment variable HOST_GROUP_ID   ${COLOR_RESET}"
     echo
     exit 1
 fi
@@ -131,7 +131,7 @@ case "${TOOL_NAME}" in
         ;;
     * )
         echo
-        echo  "${COLOR_RED_ERROR} Unsupported tool name: ${TOOL_NAME}  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Unsupported tool name: ${TOOL_NAME}  ${COLOR_RESET}"
         echo
         exit 1
         ;;

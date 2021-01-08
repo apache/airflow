@@ -115,7 +115,7 @@ if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
     fi
     if [[ ${PACKAGE_FORMAT} == "both" ]]; then
         echo
-        echo "${COLOR_RED_ERROR}You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -328,7 +328,7 @@ else
         SELECTED_TESTS=("${ALL_TESTS[@]}")
     else
         echo
-        echo  "${COLOR_RED_ERROR} Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
         echo
         exit 1
     fi
