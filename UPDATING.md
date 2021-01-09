@@ -742,7 +742,6 @@ The following operators were affected:
 * BashOperator (Not backwards compatible)
 * DockerOperator (Not backwards compatible)
 * SimpleHttpOperator (Not backwards compatible)
-* ECSOperator (Not backwards compatible)
 
 See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) for details
 
