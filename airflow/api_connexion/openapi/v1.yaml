@@ -1342,7 +1342,7 @@ paths:
 
   /health:
     get:
-      summary: Get a instance status
+      summary: Get instance status
       description: |
         Get the status of Airflow's metadatabase and scheduler. It includes info about
         metadatabase and last heartbeat of scheduler.
