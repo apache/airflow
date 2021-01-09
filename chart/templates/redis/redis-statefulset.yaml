@@ -18,7 +18,7 @@
 ################################
 ## Airflow Redis StatefulSet
 #################################
-{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+{{- if and .Values.redis.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
 {{- $nodeSelector := or .Values.redis.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.redis.affinity .Values.affinity }}
 {{- $tolerations := or .Values.redis.tolerations .Values.tolerations }}

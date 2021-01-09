@@ -214,11 +214,12 @@ extraEnvFrom: ~
 #   - configMapRef:
 #       name: '{{ .Release.Name }}-airflow-variables'
 
-# Airflow database config
+# Airflow database & redis config
 data:
   # If secret names are provided, use those secrets
   metadataSecretName: ~
   resultBackendSecretName: ~
+  brokerUrlSecretName: ~
 
   # Otherwise pass connection values in
   metadataConnection:
@@ -235,6 +236,7 @@ data:
     port: 5432
     db: postgres
     sslmode: disable
+  brokerUrl: ~
 
 # Fernet key settings
 fernetKey: ~
@@ -571,7 +573,9 @@ pgbouncer:
   affinity: {}
   tolerations: []
 
+# Configuration for the redis provisioned by the chart
 redis:
+  enabled: true
   terminationGracePeriodSeconds: 600
 
   persistence:
@@ -590,12 +594,11 @@ redis:
   #   cpu: 100m
   #   memory: 128Mi
 
-  # If set use as redis secret
+  # If set use as redis secret. Make sure to also set data.brokerUrlSecretName value.
   passwordSecretName: ~
-  brokerURLSecretName: ~
 
   # Else, if password is set, create secret with it,
-  # else generate a new one on install
+  # Otherwise a new password will be generated on install
   password: ~
 
   # This setting tells kubernetes that its ok to evict
