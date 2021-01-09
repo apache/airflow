@@ -18,6 +18,9 @@
 ################################
 ## Airflow Run Migrations
 #################################
+{{- $nodeSelector := or .Values.webserver.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.webserver.affinity .Values.affinity }}
+{{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -47,11 +50,11 @@ spec:
           runAsUser: {{ .Values.uid }}
       restartPolicy: OnFailure
       nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
+{{ toYaml $nodeSelector | indent 8 }}
       affinity:
-{{ toYaml .Values.affinity | indent 8 }}
+{{ toYaml $affinity | indent 8 }}
       tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
+{{ toYaml $tolerations | indent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}

@@ -72,6 +72,7 @@ else
 fi
 
 if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
+    export PYTHONPATH=${AIRFLOW_SOURCES}
     echo
     echo "Using already installed airflow version"
     echo
@@ -81,7 +82,6 @@ if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
     mkdir -p "${AIRFLOW_SOURCES}"/logs/
     mkdir -p "${AIRFLOW_SOURCES}"/tmp/
-    export PYTHONPATH=${AIRFLOW_SOURCES}
 elif [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
     echo
     echo "Skip installing airflow - only install wheel/tar.gz packages that are present locally"
@@ -115,7 +115,7 @@ if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
     fi
     if [[ ${PACKAGE_FORMAT} == "both" ]]; then
         echo
-        echo "${COLOR_RED_ERROR}You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -328,7 +328,7 @@ else
         SELECTED_TESTS=("${ALL_TESTS[@]}")
     else
         echo
-        echo  "${COLOR_RED_ERROR} Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
         echo
         exit 1
     fi

@@ -22,7 +22,7 @@ metadata:
 spec:
 {{- if .Values.dags.gitSync.enabled }}
   initContainers:
-{{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | indent 8 }}
+{{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | indent 4 }}
 {{- end }}
   containers:
     - args: []
@@ -53,7 +53,7 @@ spec:
 {{- end }}
 {{- if .Values.dags.gitSync.knownHosts }}
         - mountPath: /etc/git-secret/known_hosts
-          name: {{ .Values.dags.gitSync.knownHosts }}
+          name: git-sync-known-hosts
           subPath: known_hosts
 {{- end }}
 {{- if .Values.dags.gitSync.sshKeySecret }}

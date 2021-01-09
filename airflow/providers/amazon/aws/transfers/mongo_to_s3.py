@@ -53,6 +53,7 @@ class MongoToS3Operator(BaseOperator):
         s3_key: str,
         mongo_db: Optional[str] = None,
         replace: bool = False,
+        compression: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -70,6 +71,7 @@ class MongoToS3Operator(BaseOperator):
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.replace = replace
+        self.compression = compression
 
     def execute(self, context) -> bool:
         """Executed by task_instance at runtime"""
@@ -95,7 +97,11 @@ class MongoToS3Operator(BaseOperator):
 
         # Load Into S3
         s3_conn.load_string(
-            string_data=docs_str, key=self.s3_key, bucket_name=self.s3_bucket, replace=self.replace
+            string_data=docs_str,
+            key=self.s3_key,
+            bucket_name=self.s3_bucket,
+            replace=self.replace,
+            compression=self.compression,
         )
 
         return True

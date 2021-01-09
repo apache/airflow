@@ -677,9 +677,8 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         ):
             self.hook.run_load("test.test", "test_schema.json", ["test_data.json"], source_format="json")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
-    def test_insert_all_succeed(self, mock_client, mock_table):
+    def test_insert_all_succeed(self, mock_client):
         rows = [{"json": {"a_key": "a_value_0"}}]
 
         self.hook.insert_all(
@@ -690,9 +689,9 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             ignore_unknown_values=True,
             skip_invalid_rows=True,
         )
-        mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
+        mock_client.return_value.get_table.assert_called_once_with(TABLE_REFERENCE)
         mock_client.return_value.insert_rows.assert_called_once_with(
-            table=mock_table.from_api_repr.return_value,
+            table=mock_client.return_value.get_table.return_value,
             rows=rows,
             ignore_unknown_values=True,
             skip_invalid_rows=True,

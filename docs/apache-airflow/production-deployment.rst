@@ -568,6 +568,12 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | upgraded to newer versions matching      |
 |                                          |                                          | setup.py before installation.            |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``CONTINUE_ON_PIP_CHECK_FAILURE``        | ``false``                                | By default the image build fails if pip  |
+|                                          |                                          | check fails for it. This is good for     |
+|                                          |                                          | interactive building but on CI the       |
+|                                          |                                          | image should be built regardless - we    |
+|                                          |                                          | have a separate step to verify image.    |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which    |
 |                                          |                                          | airflow is installed.                    |
 +------------------------------------------+------------------------------------------+------------------------------------------+

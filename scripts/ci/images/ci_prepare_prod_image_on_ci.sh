@@ -32,12 +32,14 @@ function build_prod_images_on_ci() {
     build_images::prepare_prod_build
 
     if [[ ${USE_GITHUB_REGISTRY} == "true" && ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
-
-        # Tries to wait for the image indefinitely
-        # skips further image checks - since we already have the target image
-
         build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}" \
             ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_IMAGE}"
+
+        if [[ "${WAIT_FOR_PROD_BUILD_IMAGE=}" == "true" ]]; then
+            # If specified in variable - also waits for the build image
+            build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" \
+                ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_BUILD_IMAGE}"
+        fi
 
     else
         build_images::build_prod_images_from_locally_built_airflow_packages

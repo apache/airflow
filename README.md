@@ -83,15 +83,14 @@ Apache Airflow is tested with:
 | Python       | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
 | MySQL        | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
-| SQLite       | latest stable             | latest stable            | latest stable              |
+| SQLite       | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
 | Kubernetes   | 1.16.9, 1.17.5, 1.18.6    | 1.16.9, 1.17.5, 1.18.6   | 1.16.9, 1.17.5, 1.18.6     |
 
-**Note:** MariaDB and MySQL 5.x are unable to or have limitations with
-running multiple schedulers -- please see the "Scheduler" docs.
+**Note:** MySQL 5.x versions are unable to or have limitations with
+running multiple schedulers -- please see the "Scheduler" docs. MariaDB is not tested/recommended.
 
 **Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
-using the latest stable version of SQLite for local development. Some older versions
-of SQLite might not work well, however anything at or above 3.27.2 should work fine.
+using the latest stable version of SQLite for local development.
 
 ## Support for Python versions
 
@@ -163,7 +162,7 @@ pip install apache-airflow[postgres,google]==2.0.0 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 ```
 
-For information on installing backport providers check [/docs/backport-providers.rst][/docs/backport-providers.rst].
+For information on installing backport providers check [backport-providers.rst](docs/apache-airflow/backport-providers.rst).
 
 ## Official source code
 
@@ -241,7 +240,7 @@ Airflow is the work of the [community](https://github.com/apache/airflow/graphs/
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
 are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
 If you would like to become a maintainer, please review the Apache Airflow
-[committer requirements](https://airflow.apache.org/docs/stable/project.html#committers).
+[committer requirements](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#guidelines-to-become-an-airflow-committer).
 
 ## Can I use the Apache Airflow logo in my presentation?
 

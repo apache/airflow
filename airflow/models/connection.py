@@ -102,7 +102,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
-    _extra = Column('extra', String(5000))
+    _extra = Column('extra', Text())
 
     def __init__(  # pylint: disable=too-many-arguments
         self,

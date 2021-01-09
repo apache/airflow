@@ -40,7 +40,7 @@ do
         error="true"
         echo
         echo """
-${COLOR_RED_ERROR} Pre-commit ${pre_commit} is not described in ${STATIC_CODE_CHECKS_FILE}
+${COLOR_RED}ERROR: Pre-commit ${pre_commit} is not described in ${STATIC_CODE_CHECKS_FILE}
 ERROR: Pre-commit ${pre_commit} is not described in ${STATIC_CODE_CHECKS_FILE}
 
 FIX: Please add ${pre_commit} in the table in the 'Pre-commit hooks' chapter in ${STATIC_CODE_CHECKS_FILE}
@@ -52,7 +52,7 @@ ${COLOR_RESET}
     if [[ ! ${_breeze_allowed_static_checks} == *${pre_commit}* ]]; then
         error="true"
         echo """
-${COLOR_RED_ERROR}: Pre-commit ${pre_commit} is missing in _breeze_allowed_static_checks variable in breeze-complete
+${COLOR_RED}ERROR:: Pre-commit ${pre_commit} is missing in _breeze_allowed_static_checks variable in breeze-complete
 
 FIX: Please add ${pre_commit} in the table in the '_breeze_allowed_static_checks' constant in ${AIRFLOW_SOURCES}/breeze-complete
 ${COLOR_RESET}
@@ -62,11 +62,11 @@ done
 
 if [[ ${error} == "true" ]]; then
     echo
-    echo  "${COLOR_RED_ERROR} Some pre-commits are not synchronized! Please fix the errors above!  ${COLOR_RESET}"
+    echo  "${COLOR_RED}ERROR: Some pre-commits are not synchronized! Please fix the errors above!  ${COLOR_RESET}"
     echo
     exit 1
 else
     echo
-    echo "${COLOR_GREEN_OK} All pre-commits are synchronized!  ${COLOR_RESET}"
+    echo "${COLOR_GREEN}OK. All pre-commits are synchronized!  ${COLOR_RESET}"
     echo
 fi
