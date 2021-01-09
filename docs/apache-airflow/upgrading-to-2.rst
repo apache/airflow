@@ -27,9 +27,8 @@ users to migrate from Airflow 1.10.x to Airflow 2.0.
 Step 1: Upgrade to Python 3
 '''''''''''''''''''''''''''
 
-Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will
-require Python 3.6+ and at this point in time has been tested with Python versions 3.6, 3.7,
-and 3.8, but does not yet support Python 3.9.
+Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0
+requires Python 3.6+ and has been tested with Python versions 3.6, 3.7 and 3.8, but does not yet support Python 3.9.
 
 If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator`` for this.
 
@@ -47,10 +46,8 @@ that have been backported from Airflow 2.0 to make it easy for users to test the
 environment before upgrading to Airflow 2.0.
 
 We strongly recommend that all users upgrading to Airflow 2.0, first
-upgrade to Airflow 1.10.14 and test their Airflow deployment and only then upgrade to Airflow 2.0. After the
-Airflow 2.0 GA (General Availability) release, it is expected that all future Airflow development would be
-based on Airflow 2.0. The Airflow 1.10.x release tree will be supported for a limited time after the GA
-release of Airflow 2.0.
+upgrade to Airflow 1.10.14 and test their Airflow deployment and only then upgrade to Airflow 2.0.
+The Airflow 1.10.x release tree will be supported for six months from Airflow 2.0 release date.
 
 Features in 1.10.14 include:
 
