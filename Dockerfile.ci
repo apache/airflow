@@ -212,7 +212,7 @@ RUN mkdir -p /opt/bats/lib/bats-file \
     && curl -sSL https://github.com/bats-core/bats-file/archive/v${BATS_FILE_VERSION}.tar.gz -o /tmp/bats-file.tgz \
     && tar -zxf /tmp/bats-file.tgz -C /opt/bats/lib/bats-file --strip 1 && rm -rf /tmp/*
 
-RUN echo "export PATH=/opt/bats/bin:${PATH}" >> /root/.bashrc
+ENV PATH "/opt/bats/bin/:${PATH}"
 
 # Additional scripts for managing BATS addons
 COPY scripts/docker/load.bash /opt/bats/lib/
@@ -418,7 +418,7 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
 
 WORKDIR ${AIRFLOW_SOURCES}
 
-ENV PATH="${HOME}:${PATH}"
+ENV PATH "/files/bin/:/opt/airflow/scripts/in_container/bin/:${HOME}:${PATH}"
 
 # Needed to stop Gunicorn from crashing when /tmp is now mounted from host
 ENV GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm/"

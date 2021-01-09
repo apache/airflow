@@ -47,7 +47,7 @@ SCRIPT_NAME="$( basename "${BASH_SOURCE[0]}")"
 # Drop "-update" suffix, if exists
 TOOL_NAME="$(echo "${SCRIPT_NAME}" | cut -d "-" -f 1)"
 
-SUPPORTED_TOOL_NAMES=("aws" "az" "gcloud" "bq" "gsutil" "terraform" "java")
+SUPPORTED_TOOL_NAMES=("aws" "az")
 
 if [ ! -L "${BASH_SOURCE[0]}" ]
 then
@@ -93,10 +93,6 @@ COMMON_DOCKER_ARGS=(
 
 AWS_CREDENTIALS_DOCKER_ARGS=(-v "${HOST_HOME}/.aws:/root/.aws")
 AZURE_CREDENTIALS_DOCKER_ARGS=(-v "${HOST_HOME}/.azure:/root/.azure")
-GOOGLE_CREDENTIALS_DOCKER_ARGS=(
-    -v "${HOST_HOME}/.config/gcloud:/root/.config/gcloud"
-    -v "${HOST_AIRFLOW_SOURCES}/files/.kube:/root/.kube"
-)
 
 COMMAND=("${@}")
 
@@ -109,25 +105,6 @@ case "${TOOL_NAME}" in
     az )
         COMMON_DOCKER_ARGS+=("${AZURE_CREDENTIALS_DOCKER_ARGS[@]}")
         IMAGE_NAME="mcr.microsoft.com/azure-cli:latest"
-        ;;
-    gcloud | bq | gsutil )
-        COMMON_DOCKER_ARGS+=("${GOOGLE_CREDENTIALS_DOCKER_ARGS[@]}")
-        IMAGE_NAME="gcr.io/google.com/cloudsdktool/cloud-sdk:latest"
-        COMMAND=("$TOOL_NAME" "${@}")
-        ;;
-    terraform )
-        COMMON_DOCKER_ARGS+=(
-            "${GOOGLE_CREDENTIALS_DOCKER_ARGS[@]}"
-            "${AZURE_CREDENTIALS_DOCKER_ARGS[@]}"
-            "${AWS_CREDENTIALS_DOCKER_ARGS[@]}"
-        )
-        IMAGE_NAME="hashicorp/terraform:latest"
-        ;;
-    java )
-        # TODO: Should we add other credentials?
-        COMMON_DOCKER_ARGS+=("${GOOGLE_CREDENTIALS_DOCKER_ARGS[@]}")
-        IMAGE_NAME="openjdk:8-jre-slim"
-        COMMAND=("/usr/local/openjdk-8/bin/java" "${@}")
         ;;
     * )
         echo
