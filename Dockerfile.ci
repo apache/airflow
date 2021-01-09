@@ -418,7 +418,7 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
 
 WORKDIR ${AIRFLOW_SOURCES}
 
-ENV PATH="${HOME}:${PATH}"
+RUN echo "export PATH=/files/bin/:/opt/airflow/scripts/in_container/bin/:${HOME}:${PATH}" >> /root/.bashrc
 
 # Needed to stop Gunicorn from crashing when /tmp is now mounted from host
 ENV GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm/"
