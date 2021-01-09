@@ -1493,6 +1493,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # as that is the expected behavior when executing over time.
             # Therefore, execute the first max_active_runs DagRuns ordered by
             # execution_date.
+            #
+            # The longer term fix would be to have `clear` do this, and put DagRuns
+            # in to the queued state, then take DRs out of queued before creating
+            # any new ones
 
             # Build up a set of execution_dates that are "active" for a given
             # dag_id -- only tasks from those runs will be scheduled.
