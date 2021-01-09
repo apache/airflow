@@ -56,6 +56,13 @@ function install_airflow() {
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy eager \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+        if [[ ${AIRFLOW_INSTALL_EDITABLE_FLAG} != "" ]]; then
+            # Remove airflow and reinstall it using editable flag
+            # We can only do it when we install airflow from sources
+            pip uninstall apache-airflow --yes
+            pip install ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
+                "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}"
+        fi
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
         pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
