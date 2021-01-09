@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import json
 import os
 import shutil
 import unittest
+from io import StringIO
 from unittest import mock
 
+import paramiko
 import pysftp
 from parameterized import parameterized
 
@@ -28,12 +30,24 @@ from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.utils.session import provide_session
 
+
+def generate_host_key(pkey: paramiko.PKey):
+    key_fh = StringIO()
+    pkey.write_private_key(key_fh)
+    key_fh.seek(0)
+    key_obj = paramiko.RSAKey(file_obj=key_fh)
+    return key_obj.get_base64()
+
+
 TMP_PATH = '/tmp'
 TMP_DIR_FOR_TESTS = 'tests_sftp_hook_dir'
 SUB_DIR = "sub_dir"
 TMP_FILE_FOR_TESTS = 'test_file.txt'
 
 SFTP_CONNECTION_USER = "root"
+
+TEST_PKEY = paramiko.RSAKey.generate(4096)
+TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
 
 
 class TestSFTPHook(unittest.TestCase):
@@ -177,6 +191,31 @@ class TestSFTPHook(unittest.TestCase):
         get_connection.return_value = connection
         hook = SFTPHook()
         self.assertEqual(hook.no_host_key_check, False)
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_host_key_default(self, get_connection):
+        connection = Connection(login='login', host='host')
+        get_connection.return_value = connection
+        hook = SFTPHook()
+        self.assertEqual(hook.host_key, None)
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_host_key(self, get_connection):
+        connection = Connection(
+            login='login',
+            host='host',
+            extra=json.dumps({"host_key": TEST_HOST_KEY, "no_host_key_check": False}),
+        )
+        get_connection.return_value = connection
+        hook = SFTPHook()
+        self.assertEqual(hook.host_key.get_base64(), TEST_HOST_KEY)
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_host_key_with_no_host_key_check(self, get_connection):
+        connection = Connection(login='login', host='host', extra=json.dumps({"host_key": TEST_HOST_KEY}))
+        get_connection.return_value = connection
+        hook = SFTPHook()
+        self.assertEqual(hook.host_key, None)
 
     @parameterized.expand(
         [

@@ -29,7 +29,7 @@ from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.12.9"
+BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.0"
 
 
 @lru_cache(maxsize=None)
@@ -75,7 +75,7 @@ def render_chart(name="RELEASE-NAME", values=None, show_only=None, validate_sche
             for i in show_only:
                 command.extend(["--show-only", i])
         templates = subprocess.check_output(command)
-        k8s_objects = yaml.load_all(templates)
+        k8s_objects = yaml.full_load_all(templates)
         k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
         if validate_schema:
             for k8s_object in k8s_objects:

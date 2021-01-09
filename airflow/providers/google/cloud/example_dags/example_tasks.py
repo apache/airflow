@@ -29,7 +29,8 @@ from google.cloud.tasks_v2.types import Queue
 from google.protobuf import timestamp_pb2
 
 from airflow import models
-from airflow.operators.bash_operator import BashOperator
+from airflow.models.baseoperator import chain
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksQueueCreateOperator,
     CloudTasksQueueDeleteOperator,
@@ -46,7 +47,6 @@ from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksTasksListOperator,
 )
 from airflow.utils.dates import days_ago
-from airflow.utils.helpers import chain
 
 timestamp = timestamp_pb2.Timestamp()
 timestamp.FromDatetime(datetime.now() + timedelta(hours=12))  # pylint: disable=no-member

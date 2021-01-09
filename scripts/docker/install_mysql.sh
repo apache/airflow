@@ -15,27 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+set -euo pipefail
 
 declare -a packages
 
-if [[ "${1}" == "dev" ]]; then
-    packages=("libmysqlclient-dev" "mysql-client")
-elif [[ "${1}" == "prod" ]]; then
-    packages=("libmysqlclient21" "mysql-client")
-else
-    echo
-    echo "Specify either prod or dev"
-    echo
-fi
+MYSQL_VERSION="8.0"
+readonly MYSQL_VERSION
 
-# Install MySQL Client during the container build
-set -euo pipefail
+install_mysql_client() {
+    echo
+    echo Installing mysql client
+    echo
 
-# Install MySQL client from Oracle repositories (Debian installs mariadb)
-# But only if it is not disabled
-if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
-    KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5"
-    readonly KEY
+    if [[ "${1}" == "dev" ]]; then
+        packages=("libmysqlclient-dev" "mysql-client")
+    elif [[ "${1}" == "prod" ]]; then
+        packages=("libmysqlclient21" "mysql-client")
+    else
+        echo
+        echo "Specify either prod or dev"
+        echo
+        exit 1
+    fi
+
+    local key="A4A9406876FCBD3C456770C88C718D3B5072E1F5"
+    readonly key
 
     GNUPGHOME="$(mktemp -d)"
     export GNUPGHOME
@@ -43,16 +47,28 @@ if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
     for keyserver in $(shuf -e ha.pool.sks-keyservers.net hkp://p80.pool.sks-keyservers.net:80 \
                                keyserver.ubuntu.com hkp://keyserver.ubuntu.com:80)
     do
-        gpg --keyserver "${keyserver}" --recv-keys "${KEY}" && break
+        gpg --keyserver "${keyserver}" --recv-keys "${key}" && break
     done
     set -e
-    gpg --export "${KEY}" > /etc/apt/trusted.gpg.d/mysql.gpg
+    gpg --export "${key}" > /etc/apt/trusted.gpg.d/mysql.gpg
     gpgconf --kill all
     rm -rf "${GNUPGHOME}"
+    unset GNUPGHOME
     apt-key list > /dev/null 2>&1
-    echo "deb http://repo.mysql.com/apt/debian/ buster mysql-8.0" | tee -a /etc/apt/sources.list.d/mysql.list
+    echo "deb http://repo.mysql.com/apt/debian/ buster mysql-${MYSQL_VERSION}" | tee -a /etc/apt/sources.list.d/mysql.list
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
+}
+
+
+
+# Install MySQL Client during the container build
+set -euo pipefail
+
+# Install MySQL client from Oracle repositories (Debian installs mariadb)
+# But only if it is not disabled
+if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
+    install_mysql_client "${@}"
 fi

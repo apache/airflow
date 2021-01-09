@@ -186,7 +186,7 @@ jobs:
         if: needs.build-info.outputs.waitForImage == 'true'
       - name: >
           Wait for CI images
-          ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+          ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
         env:
           CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
             ${{needs.build-info.outputs.pythonVersionsListAsString}}
@@ -387,7 +387,7 @@ jobs:
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
-      VERSION_SUFFIX_FOR_PYPI: "rc1"
+      VERSION_SUFFIX_FOR_PYPI: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
     if: needs.build-info.outputs.image-build == 'true'
     steps:
@@ -409,6 +409,8 @@ jobs:
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
       - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        env:
+          INSTALL_PROVIDERS_FROM_SOURCES: "false"
       - name: "Upload package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
@@ -433,7 +435,7 @@ jobs:
       INSTALL_AIRFLOW_VERSION: "${{ matrix.package-format }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      VERSION_SUFFIX_FOR_PYPI: "rc1"
+      VERSION_SUFFIX_FOR_PYPI: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
     strategy:
       matrix:
@@ -460,6 +462,8 @@ jobs:
         run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
       - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        env:
+          INSTALL_PROVIDERS_FROM_SOURCES: "false"
       - name: "Upload package artifacts"
         uses: actions/upload-artifact@v2
         if: always()
@@ -474,6 +478,41 @@ jobs:
           name: airflow-provider-readmes
           path: "./files/airflow-readme-*"
           retention-days: 7
+
+  test-provider-packages-released-airflow:
+    timeout-minutes: 30
+    name: "Test Provider packages with 2.0.0 version ${{ matrix.package-format }}"
+    runs-on: ubuntu-20.04
+    needs: [build-info, ci-images]
+    env:
+      INSTALL_AIRFLOW_VERSION: "2.0.0"
+      AIRFLOW_EXTRAS: "all"
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      VERSION_SUFFIX_FOR_PYPI: "dev"
+      PACKAGE_FORMAT: ${{ matrix.package-format }}
+    strategy:
+      matrix:
+        package-format: ['wheel', 'sdist']
+    if: needs.build-info.outputs.image-build == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Prepare provider readmes"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider packages: ${{ matrix.package-format }}"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
+      - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
 
   tests-helm:
     timeout-minutes: 20
@@ -799,7 +838,7 @@ jobs:
     timeout-minutes: 120
     name: "Wait for PROD images"
     runs-on: ubuntu-20.04
-    needs: [build-info]
+    needs: [build-info, ci-images]
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
@@ -821,7 +860,7 @@ jobs:
         if: needs.build-info.outputs.waitForImage == 'true'
       - name: >
           Wait for PROD images
-          ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+          ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
         env:
           CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
             ${{needs.build-info.outputs.pythonVersionsListAsString}}
@@ -929,7 +968,7 @@ jobs:
 
   push-prod-images-to-github-registry:
     timeout-minutes: 10
-    name: "Push PROD images"
+    name: "Push PROD images as cache to GitHub Registry"
     runs-on: ubuntu-20.04
     needs:
       - build-info
@@ -941,6 +980,7 @@ jobs:
       - tests-kubernetes
       - prepare-backport-provider-packages
       - prepare-provider-packages
+      - test-provider-packages-released-airflow
       - prod-images
       - verify-prod-images
       - docs
@@ -965,14 +1005,19 @@ jobs:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+      - name:
+          "Prepare PROD image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+        env:
+          # Since we are going to push both final image and build image segment, we need to pull the
+          # build image, in case we are pulling from registry rather than building.
+          WAIT_FOR_PROD_BUILD_IMAGE: "true"
       - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
 
   push-ci-images-to-github-registry:
     timeout-minutes: 10
-    name: "Push CI images"
+    name: "Push CI images as cache to GitHub Registry"
     runs-on: ubuntu-20.04
     needs:
       - build-info

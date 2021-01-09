@@ -24,7 +24,9 @@ services:
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://postgres:airflow@postgres/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:${POSTGRES_VERSION}
     environment:
@@ -36,3 +38,9 @@ services:
       - postgres-db-volume:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_HOST_PORT}:5432"
+    healthcheck:
+      test: ["CMD", "psql", "-h", "localhost", "-U", "postgres", "-c", "select 1", "airflow"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: always

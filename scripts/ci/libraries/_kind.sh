@@ -49,7 +49,7 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo
         echo "Downloading Kind version ${KIND_VERSION}"
         repeats::run_with_retry 4 \
-            "curl --fail --location '${KIND_URL}' --output '${KIND_BINARY_PATH}'"
+            "curl --connect-timeout 60  --max-time 180 --fail --location '${KIND_URL}' --output '${KIND_BINARY_PATH}'"
         chmod a+x "${KIND_BINARY_PATH}"
     else
         echo "Kind version ok"
@@ -65,7 +65,7 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo
         echo "Downloading Kubectl version ${KUBECTL_VERSION}"
         repeats::run_with_retry 4 \
-            "curl --fail --location '${KUBECTL_URL}' --output '${KUBECTL_BINARY_PATH}'"
+            "curl --connect-timeout 60 --max-time 180 --fail --location '${KUBECTL_URL}' --output '${KUBECTL_BINARY_PATH}'"
         chmod a+x "${KUBECTL_BINARY_PATH}"
     else
         echo "Kubectl version ok"
@@ -81,7 +81,7 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo
         echo "Downloading Helm version ${HELM_VERSION}"
         repeats::run_with_retry 4 \
-            "curl --location '${HELM_URL}' | tar -xvz -O '${SYSTEM}-amd64/helm' >'${HELM_BINARY_PATH}'"
+            "curl --connect-timeout 60  --max-time 180 --location '${HELM_URL}' | tar -xvz -O '${SYSTEM}-amd64/helm' >'${HELM_BINARY_PATH}'"
         chmod a+x "${HELM_BINARY_PATH}"
     else
         echo "Helm version ok"
@@ -118,7 +118,7 @@ function kind::perform_kind_cluster_operation() {
     set +u
     if [[ -z "${1=}" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} Operation must be provided as first parameter. One of: ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Operation must be provided as first parameter. One of: ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -201,7 +201,7 @@ function kind::perform_kind_cluster_operation() {
                 -v "${KUBECONFIG}:/root/.kube/config" quay.io/derailed/k9s
         else
             echo
-            echo  "${COLOR_RED_ERROR} Wrong cluster operation: ${OPERATION}. Should be one of: ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Wrong cluster operation: ${OPERATION}. Should be one of: ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
             echo
             exit 1
         fi
@@ -219,12 +219,12 @@ function kind::perform_kind_cluster_operation() {
             kind::create_cluster
         elif [[ ${OPERATION} == "stop" || ${OPERATION} == "deploy" || ${OPERATION} == "test" || ${OPERATION} == "shell" ]]; then
             echo
-            echo  "${COLOR_RED_ERROR} Cluster ${KIND_CLUSTER_NAME} does not exist. It should exist for ${OPERATION} operation  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Cluster ${KIND_CLUSTER_NAME} does not exist. It should exist for ${OPERATION} operation  ${COLOR_RESET}"
             echo
             exit 1
         else
             echo
-            echo  "${COLOR_RED_ERROR} Wrong cluster operation: ${OPERATION}. Should be one of ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Wrong cluster operation: ${OPERATION}. Should be one of ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
             echo
             exit 1
         fi
@@ -289,7 +289,7 @@ function kind::wait_for_webserver_healthy() {
     num_tries=0
     set +e
     sleep "${SLEEP_TIME_FOR_HEALTH_CHECK}"
-    while ! curl "http://localhost:${FORWARDED_PORT_NUMBER}/health" -s | grep -q healthy; do
+    while ! curl --connect-timeout 60  --max-time 60 "http://localhost:${FORWARDED_PORT_NUMBER}/health" -s | grep -q healthy; do
         echo
         echo "Sleeping ${SLEEP_TIME_FOR_HEALTH_CHECK} while waiting for webserver being ready"
         echo
@@ -297,7 +297,7 @@ function kind::wait_for_webserver_healthy() {
         num_tries=$((num_tries + 1))
         if [[ ${num_tries} == "${MAX_NUM_TRIES_FOR_HEALTH_CHECK}" ]]; then
             echo
-            echo  "${COLOR_RED_ERROR} Timeout while waiting for the webserver health check  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Timeout while waiting for the webserver health check  ${COLOR_RESET}"
             echo
         fi
     done

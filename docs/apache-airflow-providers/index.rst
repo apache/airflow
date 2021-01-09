@@ -21,8 +21,8 @@ Provider packages
 
 .. contents:: :local:
 
-Provider packages context
-'''''''''''''''''''''''''
+Community maintained providers
+''''''''''''''''''''''''''''''
 
 Unlike Apache Airflow 1.10, the Airflow 2.0 is delivered in multiple, separate but connected packages.
 The core of Airflow scheduling system is delivered as ``apache-airflow`` package and there are around
@@ -31,15 +31,15 @@ Those provider packages are separated per-provider (for example ``amazon``, ``go
 etc.). Those packages are available as ``apache-airflow-providers`` packages - separately per each provider
 (for example there is an ``apache-airflow-providers-amazon`` or ``apache-airflow-providers-google`` package).
 
-You can install those provider packages separately in order to interface with a given provider. For those
+You can install those provider packages separately in order to interface with a given service. For those
 providers that have corresponding extras, the provider packages (latest version from PyPI) are installed
 automatically when Airflow is installed with the extra.
 
-Providers are released and versioned separately from the Airflow releases. We are following the
-`Semver <https://semver.org/>`_ versioning scheme for the packages. Some versions of the provider
-packages might depend on particular versions of Airflow, but the general approach we have is that unless
-there is a good reason, new version of providers should work with recent versions of Airflow 2.x. Details
-will vary per-provider and if there is a limitation for particular version of particular provider,
+Community maintained providers are released and versioned separately from the Airflow releases. We are
+following the `Semver <https://semver.org/>`_ versioning scheme for the packages. Some versions of the
+provider packages might depend on particular versions of Airflow, but the general approach we have is that
+unless there is a good reason, new version of providers should work with recent versions of Airflow 2.x.
+Details will vary per-provider and if there is a limitation for particular version of particular provider,
 constraining the Airflow version used, it will be included as limitation of dependencies in the provider
 package.
 
@@ -54,10 +54,11 @@ provider packages are automatically documented in the release notes of every pro
     Those are the same providers as for 2.0 but automatically back-ported to work for Airflow 1.10. Those
     backport providers are going to be updated and released for 3 months after Apache Airflow 2.0 release.
 
+
 Provider packages functionality
 '''''''''''''''''''''''''''''''
 
-Separate provider packages provide the possibilities that were not available in 1.10:
+Separate provider packages give the possibilities that were not available in 1.10:
 
 1. You can upgrade to latest version of particular providers without the need of Apache Airflow core upgrade.
 
@@ -72,11 +73,11 @@ Separate provider packages provide the possibilities that were not available in 
 Extending Airflow Connections and Extra links via Providers
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-Providers can not only deliver operators, hooks, sensor, and transfer operators to communicate with a
-multitude of external systems, but they can also extend Airflow. Airflow has several extension capabilities
-that can be used by providers. Airflow automatically discovers which providers add those additional
-capabilities and, once you install provider package and re-start Airflow, those become automatically
-available to Airflow Users.
+Providers can contain operators, hooks, sensor, and transfer operators to communicate with a
+multitude of external systems, but they can also extend Airflow core. Airflow has several extension
+capabilities that can be used by providers. Airflow automatically discovers which providers add those
+additional capabilities and, once you install provider package and re-start Airflow, those become
+automatically available to Airflow Users.
 
 The capabilities are:
 
@@ -87,8 +88,21 @@ The capabilities are:
   connections defined by the provider. See :doc:`apache-airflow:howto/connection` for a description of
   connection and what capabilities of custom connection you can define.
 
+Custom provider packages
+''''''''''''''''''''''''
+
+However, there is more. You can develop your own providers. This is a bit involved, but your custom operators,
+hooks, sensors, transfer operators can be packaged together in a standard airflow package and installed
+using the same mechanisms. Moreover they can also use the same mechanisms to extend the Airflow Core with
+custom connections and extra operator links as described in the previous chapter.
+
 How to create your own provider
 '''''''''''''''''''''''''''''''
+
+As mentioned in the `Providers <http://airflow.apache.org/docs/apache-airflow-providers/index.html>`_
+documentation, custom providers can extend Airflow core - they can add extra links to operators as well
+as custom connections. You can use build your own providers and install them as packages if you would like
+to use the mechanism for your own, custom providers.
 
 Adding a provider to Airflow is just a matter of building a Python package and adding the right meta-data to
 the package. We are using standard mechanism of python to define
@@ -99,7 +113,20 @@ of your package. The dictionary has to follow the
 `json-schema specification <https://github.com/apache/airflow/blob/master/airflow/provider.yaml.schema.json>`_.
 
 Most of the schema provides extension point for the documentation (which you might want to also use for
-your own purpose) but the two important fields from the extensibility point of view are:
+your own purpose) but the important fields from the extensibility point of view are those:
+
+Displaying package information in CLI/API:
+
+* ``package-name`` - Name of the package for the provider.
+
+* ``name`` - Human-friendly name of the provider.
+
+* ``description`` - Additional description of the provider.
+
+* ``version`` - List of versions of the package (in reverse-chronological order). The first version in the
+  list is the current package version.
+
+Exposing customized functionality to the Airflow's core:
 
 * ``extra-links`` - this field should contain the list of all operator class names that are adding extra links
   capability. See :doc:`apache-airflow:howto/define_extra_link` for description of how to add extra link
@@ -141,7 +168,6 @@ Using Backport Providers in Airflow 1.10
 **I have an Airflow version (1.10.12) running and it is stable. However, because of a Cloud provider change,
 I would like to upgrade the provider package. If I don't need to upgrade the Airflow version anymore,
 how do I know that this provider version is compatible with my Airflow version?**
-
 
 Backport Provider Packages (those are needed in 1.10.* Airflow series) are going to be released for
 3 months after the release. We will stop releasing new updates to the backport providers afterwards.
@@ -245,7 +271,7 @@ If you have done that, airflow does the following at runtime:
 
 **Should I name my provider specifically or should it be created in ``airflow.providers`` package?**
 
-We have quite a number (>70) of providers managed by the community and we are going to maintain them
+We have quite a number (>60) of providers managed by the community and we are going to maintain them
 together with Apache Airflow. All those providers have well-defined structured and follow the
 naming conventions we defined and they are all in ``airflow.providers`` package. If your intention is
 to contribute your provider, then you should follow those conventions and make a PR to Apache Airflow
@@ -266,10 +292,15 @@ only one of them will succeed.
 
 **Can I contribute my own provider to Apache Airflow?**
 
-However, community only accepts providers that are generic enough and can be managed
-by the community, so we might not always be in the position to accept such contributions. In case you
-have your own, specific provider, you are free to use your own structure and package names and to
-publish the providers in whatever form you find appropriate.
+Of course, but it's better to check at developer's mailing list whether such contribution will be accepted by
+the Community, before investing time to make the provider compliant with community requirements.
+The Community only accepts providers that are generic enough, are well documented, fully covered by tests
+and with capabilities of being tested by people in the community. So we might not always be in the
+position to accept such contributions.
+
+However, in case you have your own, specific provider, which you can maintain on your own or by your
+team, you are free to publish the providers in whatever form you find appropriate. The custom and
+community-managed providers have exactly the same capabilities.
 
 **Can I advertise my own provider to Apache Airflow users and share it with others as package in PyPI?**
 

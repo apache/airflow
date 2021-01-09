@@ -89,7 +89,7 @@ def main():
         print(f" - {pkg}")
     print()
     for package_name in current_packages:
-        builder = AirflowDocsBuilder(package_name=package_name, for_production=True, verbose=False)
+        builder = AirflowDocsBuilder(package_name=package_name, for_production=True)
         builder.publish()
 
 

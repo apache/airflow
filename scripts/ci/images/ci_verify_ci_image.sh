@@ -24,12 +24,12 @@ function verify_ci_image_dependencies() {
     docker run --rm --entrypoint /bin/bash "${AIRFLOW_CI_IMAGE}" -c 'pip check'
     local res=$?
     if [[ ${res} != "0" ]]; then
-        echo  "${COLOR_RED_ERROR} ^^^ Some dependencies are conflicting. See instructions below on how to deal with it.  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: ^^^ Some dependencies are conflicting. See instructions below on how to deal with it.  ${COLOR_RESET}"
         echo
         build_images::inform_about_pip_check ""
     else
         echo
-        echo  "${COLOR_GREEN_OK} The ${AIRFLOW_PROD_IMAGE} image dependencies are consistent.  ${COLOR_RESET}"
+        echo  "${COLOR_GREEN}OK. The ${AIRFLOW_PROD_IMAGE} image dependencies are consistent.  ${COLOR_RESET}"
         echo
     fi
     set -e
