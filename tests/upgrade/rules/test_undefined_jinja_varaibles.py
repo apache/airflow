@@ -133,6 +133,31 @@ class TestUndefinedJinjaVariablesRule(TestCase):
             dag=self.invalid_dag,
         )
 
+        miscellaneous_exception_command = """
+            {% for i in None %}
+            {% endfor %}
+            """
+
+        BashOperator(
+            task_id="miscellaneous_exception",
+            depends_on_past=False,
+            bash_command=miscellaneous_exception_command,
+            dag=self.invalid_dag,
+        )
+
+        missing_attribute_command = """
+            echo "{{ params.undefined_variable.foo }}"
+            """
+
+        BashOperator(
+            task_id="missing_attribute",
+            depends_on_past=False,
+            bash_command=missing_attribute_command,
+            dag=self.invalid_dag,
+        )
+   
+
+
     def setUp(self):
         self.setUpValidDag()
         self.setUpDagToSkip()
@@ -190,9 +215,16 @@ class TestUndefinedJinjaVariablesRule(TestCase):
             "dict object['undefined']  NestedTemplateField=att1 NestedTemplateField=nested1",
             "Possible UndefinedJinjaVariable -> DAG: test-undefined-jinja-variables, "
             "Task: templated_string, Attribute: env, Error: no such element: dict object['element']",
+            "Possible UndefinedJinjaVariable -> DAG: test-undefined-jinja-variables, "
+            "Task: miscellaneous_exception, Attribute: bash_command, "
+            "Error: 'NoneType' object is not iterable", 
+            "Possible UndefinedJinjaVariable -> DAG: test-undefined-jinja-variables, "
+            "Task: missing_attribute, Attribute: bash_command, "
+            "Error: Could not find the object 'dict object'"
         ]
 
         assert len(messages) == len(expected_messages)
         assert [m for m in messages if m in expected_messages], len(messages) == len(
             expected_messages
         )
+

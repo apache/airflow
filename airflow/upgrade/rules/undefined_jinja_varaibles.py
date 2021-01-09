@@ -102,7 +102,7 @@ The user should do either of the following to fix this -
                 message = "Could not find the object '{}'".format(undefined_variable)
                 errors_while_rendering.append(message)
                 context[undefined_variable] = dict()
-                if undefined_variable == "None":
+                if re.search(r".*has no attribute.*", str(value_error)):
                     break
             except Exception as e:
                 errors_while_rendering.append(str(e))
