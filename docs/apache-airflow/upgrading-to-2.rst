@@ -33,7 +33,7 @@ requires Python 3.6+ and has been tested with Python versions 3.6, 3.7 and 3.8, 
 If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator`` for this.
 
 For a list of breaking changes between Python 2 and Python 3, please refer to this
-[handy blog](https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/)
+`handy blog <https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/>`_
 from the CouchBaseDB team.
 
 
