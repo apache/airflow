@@ -92,7 +92,7 @@ class S3ToSnowflakeOperator(BaseOperator):
             stage=self.stage,
             prefix=(self.prefix if self.prefix else ""),
             files=files,
-            file_format=self.file_format
+            file_format=self.file_format,
         )
 
         if self.columns_array:
