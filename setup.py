@@ -403,6 +403,7 @@ redis = [
 ]
 salesforce = [
     'simple-salesforce>=1.0.0',
+    'tableauserverclient',
 ]
 samba = [
     'pysmbclient>=0.1.3',
