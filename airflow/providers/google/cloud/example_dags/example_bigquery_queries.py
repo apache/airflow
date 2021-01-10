@@ -43,6 +43,7 @@ LOCATION = "southamerica-east1"
 
 TABLE_1 = "table1"
 TABLE_2 = "table2"
+TABLE_3 = "table3"
 
 
 INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
@@ -124,6 +125,39 @@ for location in [None, LOCATION]:
             location=location,
         )
         # [END howto_operator_bigquery_select_job]
+        
+        extract_job = BigQueryInsertJobOperator(
+            task_id=f'extract_to_gcs_job',
+            configuration={
+                "extract": {
+                    "sourceTable": {
+                        "projectId": PROJECT_ID,
+                        "datasetId": DATASET_NAME,
+                        "tableId": TABLE_1,
+                    },
+                    "destinationUris": ["gs://example_bucket/dump/table.*.csv.gz"],
+                    "compression": "NONE",
+                    "printHeader": True,
+                    "destinationFormat": "CSV",
+                }
+            }
+        )
+        
+        load_job = BigQueryInsertJobOperator(
+            task_id='load_from_gcs_job',
+            configuration={
+                "load": {
+                    "destinationTable": {
+                        "projectId": PROJECT_ID,
+                        "datasetId": DATASET_NAME,
+                        "tableId": TABLE_3,
+                    },
+                    "sourceUris":  ["gs://example_bucket/dump/table.*.csv.gz"],
+                    "autodetect": True,
+                    "sourceFormat": "CSV", # see: google.cloud.bigquery.SourceFormat
+                }
+            }
+        )
 
         execute_insert_query = BigQueryExecuteQueryOperator(
             task_id="execute_insert_query", sql=INSERT_ROWS_QUERY, use_legacy_sql=False, location=location
@@ -199,3 +233,4 @@ for location in [None, LOCATION]:
         execute_insert_query >> get_data >> get_data_result >> delete_dataset
         execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
         execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
+        insert_query_job >> extract_job >> load_job
