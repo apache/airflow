@@ -107,6 +107,7 @@ integrations:
   - integration-name: Amazon Web Services
     external-doc-url: https://aws.amazon.com/
     logo: /integration-logos/aws/AWS-Cloud-alt_light-bg@4x.png
+    tags: [aws]
   - integration-name: AWS Batch
     external-doc-url: https://aws.amazon.com/batch/
     logo: /integration-logos/aws/AWS-Batch_light-bg@4x.png
