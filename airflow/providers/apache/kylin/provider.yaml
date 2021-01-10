@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Apache Kylin
     external-doc-url: https://kylin.apache.org/
+    logo: /integration-logos/apache/kylin.png
     tags: [apache]
 
 operators:

@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Segment
     external-doc-url: https://oapi.dingtalk.com
+    logo: /integration-logos/segment/Segment.png
     tags: [service]
 
 operators:

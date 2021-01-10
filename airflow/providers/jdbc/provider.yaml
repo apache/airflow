@@ -28,6 +28,7 @@ integrations:
     external-doc-url: https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/
     how-to-guide:
       - /docs/apache-airflow-providers-jdbc/operators.rst
+    logo: /integration-logos/jdbc/JDBC.png
     tags: [protocol]
 
 operators:

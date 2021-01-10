@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Salesforce
     external-doc-url: https://www.salesforce.com/
+    logo: /integration-logos/salesforce/Salesforce.png
     tags: [service]
 
 operators:

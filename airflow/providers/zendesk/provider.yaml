@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Zendesk
     external-doc-url: https://www.zendesk.com/
+    logo: /integration-logos/zendesk/Zendesk.png
     tags: [software]
 
 hooks:
