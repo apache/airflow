@@ -29,6 +29,7 @@ integrations:
     external-doc-url: https://www.sqlite.org/index.html
     how-to-guide:
       - /docs/apache-airflow-providers-sqlite/operators.rst
+    logo: /integration-logos/sqlite/SQLite.png
     tags: [software]
 
 operators:

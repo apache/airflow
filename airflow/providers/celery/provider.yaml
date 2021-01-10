@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Celery
     external-doc-url: http://www.celeryproject.org/
+    logo: /integration-logos/celery/Celery.png
     tags: [software]
 
 sensors:

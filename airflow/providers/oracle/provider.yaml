@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Oracle
     external-doc-url: https://www.oracle.com/en/database/
+    logo: /integration-logos/oracle/Oracle.png
     tags: [software]
 
 operators:

@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Samba
     external-doc-url: https://www.samba.org/
+    logo: /integration-logos/samba/Samba.png
     tags: [protocol]
 
 hooks:

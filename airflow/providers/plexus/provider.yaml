@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Plexus
     external-doc-url: https://plexus.corescientific.com/
+    logo: /integration-logos/plexus/Plexus.png
     tags: [service]
 
 operators:

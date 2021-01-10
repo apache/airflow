@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Vertica
     external-doc-url: https://www.vertica.com/
+    logo: /integration-logos/vertica/Vertica.png
     tags: [software]
 
 operators:

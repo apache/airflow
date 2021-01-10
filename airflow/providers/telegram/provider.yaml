@@ -29,6 +29,7 @@ integrations:
     external-doc-url: https://telegram.org/
     how-to-guide:
       - /docs/apache-airflow-providers-telegram/operators.rst
+    logo: /integration-logos/telegram/Telegram.png
     tags: [service]
 
 operators:

@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: ODBC
     external-doc-url: https://github.com/mkleehammer/pyodbc/wiki
+    logo: /integration-logos/odbc/ODBC.png
     tags: [protocol]
 
 hooks:
