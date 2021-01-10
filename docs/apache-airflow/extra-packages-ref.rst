@@ -203,8 +203,6 @@ can be reported by some tools (even if it is harmless).
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
 | statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                           |           |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
-| tableau             | ``pip install 'apache-airflow[tableau]'``           | Tableau visualization integration                                                  |           |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
 | virtualenv          | ``pip install 'apache-airflow[virtualenv]'``        | Running python tasks in local virtualenv                                           |           |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
 
@@ -250,6 +248,8 @@ all replaced by new extras, which have naming consistent with the names of provi
 The ``crypto`` extra is not needed any more, because all crypto dependencies are part of airflow package,
 so there is no replacement for ``crypto`` extra.
 
+The ``tableau`` extra dependencies have been included in the ``salesforce`` extra.
+
 +---------------------+-----------------------------+
 | Deprecated extra    | Extra to be used instead    |
 +=====================+=============================+
@@ -284,6 +284,8 @@ so there is no replacement for ``crypto`` extra.
 | s3                  | amazon                      |
 +---------------------+-----------------------------+
 | spark               | apache.spark                |
++---------------------+-----------------------------+
+| tableau             | salesforce                  |
 +---------------------+-----------------------------+
 | webhdfs             | apache.webhdfs              |
 +---------------------+-----------------------------+

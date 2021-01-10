@@ -449,9 +449,6 @@ ssh = [
 statsd = [
     'statsd>=3.3.0, <4.0',
 ]
-tableau = [
-    'tableauserverclient~=0.12',
-]
 telegram = [
     'python-telegram-bot==13.0',
 ]
@@ -626,7 +623,6 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'rabbitmq': rabbitmq,
     'sentry': sentry,
     'statsd': statsd,
-    'tableau': tableau,
     'virtualenv': virtualenv,
 }
 
@@ -666,6 +662,7 @@ EXTRAS_DEPRECATED_ALIASES: Dict[str, str] = {
     'qds': 'qubole',
     's3': 'amazon',
     'spark': 'apache.spark',
+    'tableau': 'salesforce',
     'webhdfs': 'apache.webhdfs',
     'winrm': 'microsoft.winrm',
 }
