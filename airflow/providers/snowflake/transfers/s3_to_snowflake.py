@@ -38,6 +38,8 @@ class S3ToSnowflakeOperator(BaseOperator):
     :type table: str
     :param stage: reference to a specific snowflake stage
     :type stage: str
+    :param prefix: cloud storage location specified to limit the set of files to load
+    :type prefix: str
     :param file_format: reference to a specific file format
     :type file_format: str
     :param schema: reference to a specific schema in snowflake database
@@ -54,7 +56,8 @@ class S3ToSnowflakeOperator(BaseOperator):
         *,
         s3_keys: Optional[list] = None,
         table: str,
-        stage: Any,
+        stage: str,
+        prefix: Optional[str] = None,
         file_format: str,
         schema: str,  # TODO: shouldn't be required, rely on session/user defaults
         columns_array: Optional[list] = None,
@@ -66,6 +69,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         self.s3_keys = s3_keys
         self.table = table
         self.stage = stage
+        self.prefix = prefix
         self.file_format = file_format
         self.schema = schema
         self.columns_array = columns_array
@@ -81,11 +85,14 @@ class S3ToSnowflakeOperator(BaseOperator):
 
         # we can extend this based on stage
         base_sql = """
-                    FROM @{stage}/
+                    FROM @{stage}/{prefix}
                     {files}
                     file_format={file_format}
                 """.format(
-            stage=self.stage, files=files, file_format=self.file_format
+            stage=self.stage,
+            prefix=(self.prefix if self.prefix else ""),
+            files=files,
+            file_format=self.file_format
         )
 
         if self.columns_array:
