@@ -27,7 +27,6 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Master](#master)
-- [Default `[celery] worker_concurrency` is changed to `16`](#default-celery-worker_concurrency-is-changed-to-16)
 - [Airflow 2.0.0](#airflow-200)
 - [Airflow 1.10.14](#airflow-11014)
 - [Airflow 1.10.13](#airflow-11013)
@@ -53,7 +52,7 @@ assists users migrating to a new version.
 
 ## Master
 
-## Default `[celery] worker_concurrency` is changed to `16`
+### Default `[celery] worker_concurrency` is changed to `16`
 
 The default value for `[celery] worker_concurrency` was `16` for Airflow <2.0.0.
 However, it was unintentionally changed to `8` in 2.0.0.
