@@ -486,6 +486,7 @@ flower:
   password: ~
 
   service:
+    annotations: {}
     type: ClusterIP
 
   # Select certain nodes for airflow flower pods.

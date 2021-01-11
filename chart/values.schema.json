@@ -917,6 +917,10 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "annotations": {
+                            "description": "Extra annotations for the flower service.",
+                            "type": "object"
+                        },
                         "type": {
                             "description": "Flower service type.",
                             "type": "string"
