@@ -159,6 +159,49 @@
     }, []);
   }
 
+  function genMarkArea(dataKey, name, value, color = null) {
+    const {xKey, yKey} = chartParams;
+    let dataAxis = '';
+    if (xKey === dataKey) {
+      dataAxis = 'xAxis';
+    } else if (yKey === dataKey) {
+      dataAxis = 'yAxis';
+    } else {
+      return null;
+    }
+    return {
+      name,
+      [dataAxis]: value,
+      itemStyle: {
+        color: color,
+        opacity: 0.2
+      }
+    };
+  }
+
+  function getMarkAreaByDataKey() {
+    if (!showRange) {
+      return [];
+    }
+    const {xKey, yKey} = chartParams;
+    const dataKeys = [xKey, yKey];
+    return dataKeys.reduce(function (markArea, dataKey) {
+      if (dataKey !== 'cur_w' && dataKey !== 'cur_m') {
+        return markArea;
+      }
+      if (dataKey === 'cur_w') {
+        markArea.push([genMarkArea(dataKey, resultKeys.angle_max, result.angle_max, 'green'),
+          genMarkArea(dataKey, resultKeys.angle_min, result.angle_min, 'orange')]);
+        return markArea;
+      }
+      if (dataKey === 'cur_m') {
+        markArea.push([genMarkArea(dataKey, resultKeys.torque_max, result.torque_max, 'green'),
+          genMarkArea(dataKey, resultKeys.torque_min, result.torque_min, 'orange')]);
+        return markArea;
+      }
+    }, []);
+  }
+
   function renderChart() {
     const {xName, yName} = chartParams;
 
@@ -166,8 +209,7 @@
       toolbox: {
         show: true,
         feature: {
-          dataZoom: {
-          },
+          dataZoom: {},
           dataView: {readOnly: true},
           saveAsImage: {}
         }
@@ -216,6 +258,12 @@
             // { type: 'min', name: '最小值' },
             // { type: 'max', name: '最大值' },
             ...getMarkLineByDataKey()
+          ]
+        },
+        markArea: {
+          silent: true,
+          data: [
+            ...getMarkAreaByDataKey()
           ]
         }
       }],
