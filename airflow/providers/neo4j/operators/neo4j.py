@@ -31,9 +31,7 @@ class Neo4jOperator(BaseOperator):
         :ref:`howto/operator:Neo4jOperator`
 
     :param sql: the sql code to be executed. Can receive a str representing a
-        sql statement, a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
-        (templated)
+        sql statement, a list of str (sql statements)
     :type sql: str or list[str]
     :param neo4j_conn_id: reference to a specific Neo4j database
     :type neo4j_conn_id: str
@@ -52,8 +50,12 @@ class Neo4jOperator(BaseOperator):
         self.neo4j_conn_id = neo4j_conn_id
         self.sql = sql
         self.parameters = parameters
+        self.hook = None
+
+    def get_hook(self):
+        return Neo4jHook(conn_id=self.neo4j_conn_id)
 
     def execute(self, context: Dict) -> None:
         self.log.info('Executing: %s', self.sql)
-        hook = Neo4jHook(conn_id=self.neo4j_conn_id)
-        hook.run(self.sql)
+        self.hook = self.get_hook()
+        self.hook.run(self.sql)
