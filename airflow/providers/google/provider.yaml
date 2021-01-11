@@ -77,7 +77,7 @@ integrations:
     external-doc-url: https://cloud.google.com/dlp/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/data_loss_prevention.rst
-    logo: /integration-logos/gcp/Google-Data-Loss-Prevention.png
+    logo: /integration-logos/gcp/google-data-loss-prevention.png
     tags: [gcp]
   - integration-name: Google Cloud Firestore
     external-doc-url: https://firebase.google.com/docs/firestore
@@ -197,7 +197,7 @@ integrations:
     external-doc-url: https://cloud.google.com/data-catalog
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/datacatalog.rst
-    logo: /integration-logos/gcp/Google-Cloud-Data-Catalog.png
+    logo: /integration-logos/gcp/Google-Data-Catalog.png
     tags: [gcp]
   - integration-name: Google Dataflow
     external-doc-url: https://cloud.google.com/dataflow/
@@ -253,7 +253,7 @@ integrations:
     external-doc-url: https://marketingplatform.google.com/about/display-video-360/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/marketing_platform/display_video.rst
-    logo: /integration-logos/gcp/Google-Display-And-Video360.png
+    logo: /integration-logos/gcp/Google-Display-And-Video-360.png
     tags: [gmp]
   - integration-name: Google Drive
     external-doc-url: https://www.google.com/drive/
