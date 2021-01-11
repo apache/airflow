@@ -98,15 +98,16 @@ jobs:
       pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
     steps:
-      - name: "Get information about the PR"
-        uses: apache/airflow-get-workflow-origin@588cc14f9f1cdf1b8be3db816855e96422204fec  # v1_3
-        id: source-run-info
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
           persist-credentials: false
+          submodules: recursive
+      - name: "Get information about the PR"
+        uses: ./.github/actions/get-workflow-origin
+        id: source-run-info
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: >
           Event: ${{ github.event_name }}
           Repo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
@@ -296,6 +297,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           persist-credentials: false
+          submodules: recursive
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
@@ -617,6 +619,11 @@ jobs:
       - tests-mysql
       - tests-quarantined
     steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: "Download all artifacts from the current build"
         uses: actions/download-artifact@v2
         with:
@@ -624,7 +631,7 @@ jobs:
       - name: "Removes unnecessary artifacts"
         run: ls ./coverage-files | grep -v coverage | xargs rm -rf
       - name: "Upload all coverage reports to codecov"
-        uses: apache/airflow-codecov-action@1fc7722ded4708880a5aea49f2bfafb9336f0c8d  # v1.1.1
+        uses: ./.github/actions/codecov-action
         with:
           directory: "./coverage-files"
 
@@ -905,6 +912,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           persist-credentials: false
+          submodules: recursive
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh
@@ -921,7 +929,7 @@ jobs:
       - name: "Commit changed constraint files for ${{needs.build-info.outputs.pythonVersions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
       - name: "Push changes"
-        uses: apache/airflow-github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6  # v0.6.0
+        uses: ./.github/actions/github-push-action
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}
