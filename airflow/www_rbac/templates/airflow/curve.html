@@ -163,6 +163,15 @@
     const {xName, yName} = chartParams;
 
     const option = {
+      toolbox: {
+        show: true,
+        feature: {
+          dataZoom: {
+          },
+          dataView: {readOnly: true},
+          saveAsImage: {}
+        }
+      },
       legend: {
         type: 'scroll',
         data: [yName]
@@ -415,7 +424,7 @@
 
   function getTaskErrorTags() {
     try {
-      return JSON.parse('{{task_instance.error_tag}}').map(t => `${t}`);
+      return JSON.parse('{{task_instance.error_tag if task_instance.error_tag else []}}').map(t => `${t}`);
     } catch (e) {
       console.error(e);
       return [];

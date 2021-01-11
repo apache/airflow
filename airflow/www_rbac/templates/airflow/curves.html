@@ -183,6 +183,15 @@
       // title: {
       //   text: `${xName}-${yName}图`
       // },
+      toolbox: {
+        show: true,
+        feature: {
+          dataZoom: {
+          },
+          dataView: {readOnly: true},
+          saveAsImage: {}
+        }
+      },
       legend: {
         type: 'scroll',
         data: selectedEIds.map(c => extraData[c] && `${extraData[c].carCode}@${extraData[c].date}`)
