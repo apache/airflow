@@ -21,6 +21,7 @@ from tempfile import TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Union
 
 from docker import APIClient, tls
+from docker.types import DeviceRequest
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -169,7 +170,7 @@ class DockerOperator(BaseOperator):
         tty: bool = False,
         cap_add: Optional[Iterable[str]] = None,
         extra_hosts: Optional[Dict[str, str]] = None,
-        device_requests: Optional[List[any]] = None,
+        device_requests: Optional[List[DeviceRequest]] = None,
         **kwargs,
     ) -> None:
 
