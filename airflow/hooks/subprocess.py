@@ -47,7 +47,7 @@ class SubprocessHook(BaseHook):
         :param env: Optional dict containing environment variables to be made available to the shell
             environment in which ``command`` will be executed.  If omitted, ``os.environ`` will be used.
         :param output_encoding: encoding to use for decoding stdout
-        :return: last line of stdout
+        :return: last line of output (on stderr or stdout)
         """
         self.log.info('Tmp dir root location: \n %s', gettempdir())
 
