@@ -125,9 +125,9 @@ for location in [None, LOCATION]:
             location=location,
         )
         # [END howto_operator_bigquery_select_job]
-        
+
         extract_job = BigQueryInsertJobOperator(
-            task_id=f'extract_to_gcs_job',
+            task_id="extract_to_gcs_job",
             configuration={
                 "extract": {
                     "sourceTable": {
@@ -142,9 +142,9 @@ for location in [None, LOCATION]:
                 }
             }
         )
-        
+
         load_job = BigQueryInsertJobOperator(
-            task_id='load_from_gcs_job',
+            task_id="load_from_gcs_job",
             configuration={
                 "load": {
                     "destinationTable": {
