@@ -113,7 +113,7 @@ class ImportChangesRule(BaseRule):
         with open(file_path, "r") as file:
             content = file.read()
             for change in ImportChangesRule.ALL_CHANGES:
-                if change.old_class in content:
+                if change.old_path in content:
                     problems.append(change.info(file_path))
                     if change.providers_package:
                         providers.add(change.providers_package)
