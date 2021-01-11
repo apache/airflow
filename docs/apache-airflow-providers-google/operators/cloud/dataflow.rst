@@ -20,7 +20,7 @@ Google Cloud Dataflow Operators
 
 `Dataflow <https://cloud.google.com/dataflow/>`__ is a managed service for
 executing a wide variety of data processing patterns. These pipelines are created
-using the Apache Beam programming model which allows for both batch and streaming.
+using the Apache Beam programming model which allows for both batch and streaming processing.
 
 .. contents::
   :depth: 1
@@ -34,14 +34,38 @@ Prerequisite Tasks
 Ways to run a data pipeline
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There are multiple options to execute a Dataflow pipeline on Airflow. If looking to execute the pipeline
-code from a source file (Java or Python) it would be best to use the language specific create operators.
-If a process exists to stage the pipeline code in an abstracted manner - a Templated job would be best as
-it allows development of the application without minimal intrusion to the DAG containing operators for it.
-It is also possible to run jobs defined in SQL language.
+There are several ways to run a Dataflow pipeline depending on your environment, source files:
 
-Starting a new job
-^^^^^^^^^^^^^^^^^^
+- **Non-templated pipeline**: Developer can run the pipeline as a local process on the worker
+  if you have a '*.jar' file for Java or a '* .py` file for Python. This also means that the necessary system
+  dependencies must be installed on the worker.  For Java, worker must have the JRE Runtime installed.
+  For Python, the Python interpreter. The runtime versions must be compatible with the pipeline versions.
+  This is the fastest way to start a pipeline, but because of its frequent problems with system dependencies,
+  it often causes problems. See:
+  :ref:`howto/operator:DataflowCreateJavaJobOperator`, :ref:`howto/operator:DataflowCreatePythonJobOperator`
+- **Templated pipeline**: The programmer can make the pipeline independent of the environment by preparing
+  a template that will then be run on a machine managed by Google. This way, changes to the environment
+  won't affect your pipeline. There are two types of the templates:
+
+  - **Classic templates**. Developers run the pipeline and create a template. The Apache Beam SDK stages
+    files in Cloud Storage, creates a template file (similar to job request),
+    and saves the template file in Cloud Storage. See: :ref:`howto/operator:DataflowTemplatedJobStartOperator`
+  - **Flex Templates**. Developers package the pipeline into a Docker image and then use the ``gcloud``
+    command-line tool to build and save the Flex Template spec file in Cloud Storage. See:
+    :ref:`howto/operator:DataflowStartFlexTemplateOperator`
+
+- **SQL pipeline**: Developer can write pipeline as SQL statement and then execute it in Dataflow. See:
+  :ref:`howto/operator:DataflowStartSqlJobOperator`
+
+It is a good idea to test your pipeline using the non-templated pipeline,
+and then run the pipeline in production using the templates.
+
+For details on the differences between the pipeline types, see
+`Dataflow templates <https://cloud.google.com/dataflow/docs/concepts/dataflow-templates>`__
+in the Google Cloud documentation.
+
+Starting Non-templated pipeline
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To create a new pipeline using the source file (JAR in Java or Python file) use
 the create job operators. The source file can be located on GCS or on the local filesystem.
@@ -49,20 +73,12 @@ the create job operators. The source file can be located on GCS or on the local 
 or
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
 
-Please see the notes below on Java and Python specific SDKs as they each have their own set
-of execution options when running pipelines.
-
-Language specific pipelines
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Based on which language (SDK) is used for the Dataflow operators, there are specific options to be wary of.
-
 .. _howto/operator:DataflowCreateJavaJobOperator:
 
 Java SDK pipelines
 """"""""""""""""""
 
-The ``jar`` argument must be specified for
+For Java pipeline the ``jar`` argument must be specified for
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`
 as it contains the pipeline to be executed on Dataflow. The JAR can be available on GCS that Airflow
 has the ability to download or available on the local filesystem (provide the absolute path to it).
@@ -74,7 +90,6 @@ Here is an example of creating and running a pipeline in Java with jar stored on
     :dedent: 4
     :start-after: [START howto_operator_start_java_job_jar_on_gcs]
     :end-before: [END howto_operator_start_java_job_jar_on_gcs]
-
 
 Here is an example of creating and running a pipeline in Java with jar stored on GCS:
 
@@ -111,17 +126,17 @@ recommend avoiding unless the Dataflow job requires it.
     :start-after: [START howto_operator_start_python_job]
     :end-before: [END howto_operator_start_python_job]
 
-
-Execution options for pipelines
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Execution models
+^^^^^^^^^^^^^^^^
 
 Dataflow has multiple options of executing pipelines. It can be done in the following modes:
 batch asynchronously (fire and forget), batch blocking (wait until completion), or streaming (run indefinitely).
 In Airflow it is best practice to use asynchronous batch pipelines or streams and use sensors to listen for expected job state.
 
-By default :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`
-or
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
+By default :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator` and
+:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowStartFlexTemplateOperator`
 have argument ``wait_until_finished`` set to ``None`` which cause different behaviour depends om the type of pipeline:
 
 * for the streaming pipeline, wait for jobs to start,
@@ -129,6 +144,8 @@ have argument ``wait_until_finished`` set to ``None`` which cause different beha
 
 If ``wait_until_finished`` is set to ``True`` operator will always wait for end of pipeline execution.
 If set to ``False`` only submits the jobs.
+
+See: `Configuring PipelineOptions for execution on the Cloud Dataflow service <https://cloud.google.com/dataflow/docs/guides/specifying-exec-params#configuring-pipelineoptions-for-execution-on-the-cloud-dataflow-service>`_
 
 Asynchronous execution
 """"""""""""""""""""""
@@ -168,47 +185,6 @@ instead of canceling during during killing task instance.
 See the `Stopping a running pipeline
 <https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline>`_.
 
-.. _howto/operator:DataflowJobStatusSensor:
-.. _howto/operator:DataflowJobMetricsSensor:
-.. _howto/operator:DataflowJobMessagesSensor:
-.. _howto/operator:DataflowJobAutoScalingEventsSensor:
-
-Sensors
-^^^^^^^
-
-When job is triggered asynchronously sensors may be used to run checks for specific job properties.
-
-:class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobStatusSensor`.
-
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataflow.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_sensor_wait_for_job_status]
-    :end-before: [END howto_sensor_wait_for_job_status]
-
-:class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobMetricsSensor`.
-
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataflow.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_sensor_wait_for_job_metric]
-    :end-before: [END howto_sensor_wait_for_job_metric]
-
-:class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobMessagesSensor`.
-
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataflow.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_sensor_wait_for_job_message]
-    :end-before: [END howto_sensor_wait_for_job_message]
-
-:class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobAutoScalingEventsSensor`.
-
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataflow.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_sensor_wait_for_job_autoscaling_event]
-    :end-before: [END howto_sensor_wait_for_job_autoscaling_event]
 
 .. _howto/operator:DataflowTemplatedJobStartOperator:
 .. _howto/operator:DataflowStartFlexTemplateOperator:
@@ -261,6 +237,48 @@ Here is an example of running Dataflow SQL job with
 
 See the `Dataflow SQL reference
 <https://cloud.google.com/dataflow/docs/reference/sql>`_.
+
+.. _howto/operator:DataflowJobStatusSensor:
+.. _howto/operator:DataflowJobMetricsSensor:
+.. _howto/operator:DataflowJobMessagesSensor:
+.. _howto/operator:DataflowJobAutoScalingEventsSensor:
+
+Sensors
+^^^^^^^
+
+When job is triggered asynchronously sensors may be used to run checks for specific job properties.
+
+:class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobStatusSensor`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataflow.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_wait_for_job_status]
+    :end-before: [END howto_sensor_wait_for_job_status]
+
+:class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobMetricsSensor`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataflow.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_wait_for_job_metric]
+    :end-before: [END howto_sensor_wait_for_job_metric]
+
+:class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobMessagesSensor`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataflow.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_wait_for_job_message]
+    :end-before: [END howto_sensor_wait_for_job_message]
+
+:class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobAutoScalingEventsSensor`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataflow.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_wait_for_job_autoscaling_event]
+    :end-before: [END howto_sensor_wait_for_job_autoscaling_event]
 
 Reference
 ^^^^^^^^^
