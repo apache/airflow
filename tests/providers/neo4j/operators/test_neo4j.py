@@ -33,8 +33,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from unittest import mock
+
 from airflow.models.dag import DAG
 from airflow.providers.neo4j.operators.neo4j import Neo4jOperator
 from airflow.utils import timezone

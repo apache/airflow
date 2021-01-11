@@ -53,6 +53,9 @@ class Neo4jOperator(BaseOperator):
         self.hook = None
 
     def get_hook(self):
+        """
+        Function to retrieve the Neo4j Hook.
+        """
         return Neo4jHook(conn_id=self.neo4j_conn_id)
 
     def execute(self, context: Dict) -> None:
