@@ -1209,6 +1209,35 @@ class TaskInstanceTest(unittest.TestCase):
         ti.set_duration()
         self.assertIsNone(ti.duration)
 
+    def test_recursive_templating_with_task_fields(self):
+        dag = DAG('test_recursive_templating', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        _arg = 'test_{{task.task_id}}'
+        _kwarg = '{{task.op_args[0]}}'
+
+        def print_nested_template(arg, kwarg):
+            assert kwarg == 'test_nested_render'
+            assert arg == 'test_nested_render'
+
+        task = PythonOperator(
+            task_id='nested_render',
+            python_callable=print_nested_template,
+            op_args=[_arg, ],
+            op_kwargs={
+                'kwarg': _kwarg,
+            },
+            dag=dag
+        )
+
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti.state = State.RUNNING
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+
+        ti._run_raw_task()
+
+
     def test_success_callbak_no_race_condition(self):
         class CallbackWrapper(object):
             def wrap_task_instance(self, ti):

@@ -937,8 +937,6 @@ class TaskInstance(Base, LoggingMixin):
         actual_start_date = timezone.utcnow()
         try:
             if not mark_success:
-                context = self.get_template_context()
-
                 task_copy = copy.copy(task)
 
                 # Sensors in `poke` mode can block execution of DAGs when running
@@ -962,7 +960,9 @@ class TaskInstance(Base, LoggingMixin):
 
                 start_time = time.time()
 
+                context = self.get_template_context()
                 self.render_templates(context=context)
+
                 if STORE_SERIALIZED_DAGS:
                     RTIF.write(RTIF(ti=self, render_templates=False))
                     RTIF.delete_old_records(self.task_id, self.dag_id)
