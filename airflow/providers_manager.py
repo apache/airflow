@@ -34,7 +34,7 @@ try:
     import importlib.resources as importlib_resources
 except ImportError:
     # Try back-ported to PY<37 `importlib_resources`.
-    import importlib_resources
+    import importlib_resources  # noqa
 
 log = logging.getLogger(__name__)
 
@@ -156,7 +156,7 @@ class ProvidersManager:
                     f"{provider_info_package_name} do not match. Please make sure they are aligned"
                 )
             if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = (version, provider_info)
+                self._provider_dict[package_name] = ProviderInfo(version, provider_info)
             else:
                 log.warning(
                     "The provider for package '%s' could not be registered from because providers for that "
@@ -220,7 +220,7 @@ class ProvidersManager:
 
             version = provider_info['versions'][0]
             if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = (version, provider_info)
+                self._provider_dict[package_name] = ProviderInfo(version, provider_info)
             else:
                 log.warning(
                     "The providers for package '%s' could not be registered because providers for that "

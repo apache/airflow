@@ -60,6 +60,18 @@ Those "known-to-be-working" constraints are per major/minor python version. You 
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
 and python versions in the URL.
 
+The official way of installing Airflow is with the ``pip`` tool.
+There was a recent (November 2020) change in resolver, so currently only 20.2.4 version is officially
+supported, although you might have a success with 20.3.3+ version (to be confirmed if all initial
+issues from ``pip`` 20.3.0 release have been fixed in 20.3.3).
+
+While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+`pip-tools <https://pypi.org/project/pip-tools/>`_, but they do not share the same workflow as
+``pip``- especially when it comes to constraint vs. requirements management.
+Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install airflow
+using those tools you should use the constraint files described below and convert them to appropriate
+format and workflow that your tool requires.
+
   **Prerequisites**
 
   On Debian based Linux OS:

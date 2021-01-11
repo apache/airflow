@@ -27,14 +27,13 @@ users to migrate from Airflow 1.10.x to Airflow 2.0.
 Step 1: Upgrade to Python 3
 '''''''''''''''''''''''''''
 
-Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will
-require Python 3.6+ and at this point in time has been tested with Python versions 3.6, 3.7,
-and 3.8, but does not yet support Python 3.9.
+Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0
+requires Python 3.6+ and has been tested with Python versions 3.6, 3.7 and 3.8, but does not yet support Python 3.9.
 
 If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator`` for this.
 
 For a list of breaking changes between Python 2 and Python 3, please refer to this
-[handy blog](https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/)
+`handy blog <https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/>`_
 from the CouchBaseDB team.
 
 
@@ -47,10 +46,8 @@ that have been backported from Airflow 2.0 to make it easy for users to test the
 environment before upgrading to Airflow 2.0.
 
 We strongly recommend that all users upgrading to Airflow 2.0, first
-upgrade to Airflow 1.10.14 and test their Airflow deployment and only then upgrade to Airflow 2.0. After the
-Airflow 2.0 GA (General Availability) release, it is expected that all future Airflow development would be
-based on Airflow 2.0. The Airflow 1.10.x release tree will be supported for a limited time after the GA
-release of Airflow 2.0.
+upgrade to Airflow 1.10.14 and test their Airflow deployment and only then upgrade to Airflow 2.0.
+The Airflow 1.10.x release tree will be supported for six months from Airflow 2.0 release date.
 
 Features in 1.10.14 include:
 
@@ -300,12 +297,12 @@ As part of this change, a few configuration items in ``[webserver]`` section are
 including ``authenticate``, ``filter_by_owner``, ``owner_mode``, and ``rbac``.
 
 Before upgrading to this release, we recommend activating the new FAB RBAC UI. For that, you should set
-the ``rbac`` options  in ``[webserver]`` in the ``airflow.cfg`` file to ``true``
+the ``rbac`` options  in ``[webserver]`` in the ``airflow.cfg`` file to ``True``
 
 .. code-block:: ini
 
     [webserver]
-    rbac = true
+    rbac = True
 
 In order to login to the interface, you need to create an administrator account.
 

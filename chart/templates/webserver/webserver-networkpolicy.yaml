@@ -39,13 +39,13 @@ spec:
       component: webserver
       release: {{ .Release.Name }}
   policyTypes:
-  - Ingress
-  ingress:
-  - from:
+    - Ingress
 {{- if .Values.webserver.extraNetworkPolicies }}
-{{ toYaml .Values.webserver.extraNetworkPolicies | indent 4 }}
+  ingress:
+    - from:
+{{ toYaml .Values.webserver.extraNetworkPolicies | indent 6 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.ports.airflowUI }}
 {{- end }}
-    ports:
-    - protocol: TCP
-      port: {{ .Values.ports.airflowUI }}
 {{- end }}

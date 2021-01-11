@@ -70,7 +70,6 @@ Extra Packages
    ``--use-deprecated legacy-resolver`` to your pip install command.
 
 
-
 You can also install extra packages (like ``[ssh]``, etc) via
 ``pip install -e [EXTRA1,EXTRA2 ...]``. However, some of them may
 have additional install and setup requirements for your local system.
@@ -135,7 +134,7 @@ To create and initialize the local virtualenv:
 
    .. code-block:: bash
 
-    pip install -U -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -U -e ".[devel,google,postgres]"
+    pip install --upgrade -e ".[devel,<OTHER EXTRAS>]" # for example: pip install --upgrade -e ".[devel,google,postgres]"
 
 In case you have problems with installing airflow because of some requirements are not installable, you can
 try to install it with the set of working constraints (note that there are different constraint files
@@ -143,8 +142,31 @@ for different python versions:
 
    .. code-block:: bash
 
-    pip install -U -e ".[devel,<OTHER EXTRAS>]" \
+    pip install -e ".[devel,<OTHER EXTRAS>]" \
         --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+
+This will install Airflow in 'editable' mode - where sources of Airflow are taken directly from the source
+code rather than moved to the installation directory. During the installation airflow will install - but then
+automatically remove all provider packages installed from PyPI - instead it will automatically use the
+provider packages available in your local sources.
+
+You can also install Airflow in non-editable mode:
+
+   .. code-block:: bash
+
+    pip install ".[devel,<OTHER EXTRAS>]" \
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+This will copy the sources to directory where usually python packages are installed. You can see the list
+of directories via ``python -m site`` command. In this case the providers are installed from PyPI, not from
+sources, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment variable to ``true``
+
+   .. code-block:: bash
+
+    INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[devel,<OTHER EXTRAS>]" \
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
 
 Note: when you first initialize database (the next step), you may encounter some problems.
 This is because airflow by default will try to load in example dags where some of them requires dependencies ``google`` and ``postgres``.

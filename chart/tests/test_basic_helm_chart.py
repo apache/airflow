@@ -22,7 +22,7 @@ import jmespath
 
 from tests.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 24
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 22
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -62,8 +62,6 @@ class TestBaseChartTest(unittest.TestCase):
                 ('Deployment', 'TEST-BASIC-webserver'),
                 ('StatefulSet', 'TEST-BASIC-postgresql'),
                 ('Secret', 'TEST-BASIC-fernet-key'),
-                ('Secret', 'TEST-BASIC-redis-password'),
-                ('Secret', 'TEST-BASIC-broker-url'),
                 ('Job', 'TEST-BASIC-create-user'),
                 ('Job', 'TEST-BASIC-run-airflow-migrations'),
             ],
@@ -87,6 +85,31 @@ class TestBaseChartTest(unittest.TestCase):
         ]
         self.assertNotIn(('Job', 'TEST-BASIC-create-user'), list_of_kind_names_tuples)
         self.assertEqual(OBJECT_COUNT_IN_BASIC_DEPLOYMENT - 1, len(k8s_objects))
+
+    def test_network_policies_are_valid(self):
+        k8s_objects = render_chart(
+            "TEST-BASIC",
+            {
+                "networkPolicies": {"enabled": True},
+                "executor": "CeleryExecutor",
+                "pgbouncer": {"enabled": True},
+            },
+        )
+        kind_names_tuples = {
+            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+        }
+
+        expected_kind_names = [
+            ('NetworkPolicy', 'TEST-BASIC-redis-policy'),
+            ('NetworkPolicy', 'TEST-BASIC-flower-policy'),
+            ('NetworkPolicy', 'TEST-BASIC-pgbouncer-policy'),
+            ('NetworkPolicy', 'TEST-BASIC-scheduler-policy'),
+            ('NetworkPolicy', 'TEST-BASIC-statsd-policy'),
+            ('NetworkPolicy', 'TEST-BASIC-webserver-policy'),
+            ('NetworkPolicy', 'TEST-BASIC-worker-policy'),
+        ]
+        for kind_name in expected_kind_names:
+            self.assertIn(kind_name, kind_names_tuples)
 
     def test_chart_is_consistent_with_official_airflow_image(self):
         def get_k8s_objs_with_image(obj: Union[List[Any], Dict[str, Any]]) -> List[Dict[str, Any]]:

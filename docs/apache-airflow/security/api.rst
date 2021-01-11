@@ -57,6 +57,10 @@ If you wish to have the experimental API work, and aware of the risks of enablin
     [api]
     auth_backend = airflow.api.auth.backend.default
 
+.. note::
+
+    You can only disable authentication for experimental API, not the stable REST API.
+
 See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 
 Kerberos authentication

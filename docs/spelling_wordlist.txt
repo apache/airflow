@@ -1152,6 +1152,7 @@ rootcss
 rowid
 rpc
 rshift
+rsa
 rst
 rtype
 ru
