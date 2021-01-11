@@ -138,12 +138,12 @@ Additional options to your auth backend can be configured in ``airflow.cfg``, as
 Enabling CORS
 ---------------
 
-[Cross-origin resource sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
+`Cross-origin resource sharing (CORS) <https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS>`_
 is a browser security feature that restricts HTTP requests that are initiated
 from scripts running in the browser.
 
-`Access-Control-Allow-Headers`, `Access-Control-Allow-Methods`, and
-`Access-Control-Allow-Origin` headers can be added by setting values for
+``Access-Control-Allow-Headers``, ``Access-Control-Allow-Methods``, and
+``Access-Control-Allow-Origin`` headers can be added by setting values for
 ``access_control_allow_headers``, ``access_control_allow_methods``, and
 ``access_control_allow_origin`` options in the ``[api]`` section of the
 ``airflow.cfg`` file.
