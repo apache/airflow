@@ -74,7 +74,8 @@ class AirflowMesosScheduler(MesosClient):
         self.mesos_docker_sock = conf.get('mesos', 'DOCKER_SOCK')
         self.core_sql_alchemy_conn = conf.get('core', 'SQL_ALCHEMY_CONN')
         self.core_fernet_key = conf.get('core', 'FERNET_KEY')
-        self.command_shell = conf.get('mesos', 'COMMAND_SHELL')
+        self.logging_logging_level = conf.get('logging', 'LOGGING_LEVEL')
+        self.command_shell = conf.get('mesos', 'COMMAND_SHELL').lower()
 
     def resource_offers(self, offers):
         """If we got a offer, run a queued task"""
@@ -133,7 +134,7 @@ class AirflowMesosScheduler(MesosClient):
                         'variables': [
                             {'name': 'AIRFLOW__CORE__SQL_ALCHEMY_CONN', 'value': self.core_sql_alchemy_conn},
                             {'name': 'AIRFLOW__CORE__FERNET_KEY', 'value': self.core_fernet_key},
-                            {'name': 'AIRFLOW__CORE__LOGGING_LEVEL', 'value': 'DEBUG'},
+                            {'name': 'AIRFLOW__LOGGING__LOGGING_LEVEL', 'value': self.logging_logging_level},
                         ]
                     },
                     'value': " ".join(cmd),
