@@ -45,10 +45,11 @@ from airflow.configuration import conf
 from airflow.executors import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, \
-    TaskInstance as TI, errors
+    TaskInstance as TI, TaskReschedule, errors
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils import timezone
 from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_paths
 from airflow.utils.dates import days_ago
@@ -236,6 +237,53 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(ti1.state, State.SUCCESS)
 
         mock_stats_incr.assert_called_once_with('scheduler.tasks.killed_externally')
+
+    @mock.patch('airflow.settings.Stats.incr')
+    def test_process_rescheduled_sensor_in_queued_state(self, mock_stats_incr):
+
+        class DummySensor(BaseSensorOperator):
+            def __init__(self, **kwargs):
+                super(DummySensor, self).__init__(**kwargs)
+
+            def poke(self, context):
+                return False
+
+        dag = DAG(dag_id="test_rescheduled_sensor", start_date=DEFAULT_DATE)
+        dagbag = self._make_simple_dag_bag([dag])
+        sensor = DummySensor(
+            task_id="dummy_task",
+            mode="reschedule",
+            dag=dag,
+        )
+
+        session = settings.Session()
+        ti = TI(sensor, DEFAULT_DATE)
+        session.merge(ti)
+        session.commit()
+
+        # poke() returns False, so reschedule
+        sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        task_reschedules = TaskReschedule.find_for_task_instance(ti, session)
+        self.assertEqual(len(task_reschedules), 1)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.UP_FOR_RESCHEDULE)
+
+        # Reschedule timeout expires, scheduler re-enqueues...
+        ti.state = State.QUEUED
+        session.merge(ti)
+        session.commit()
+
+        scheduler = SchedulerJob()
+        executor = MockExecutor(do_update=False)
+        # Executor reports success from previous attempt, but we
+        # already re-enqueued the TI
+        executor.event_buffer[ti.key] = State.SUCCESS
+        scheduler.executor = executor
+
+        scheduler._process_executor_events(simple_dag_bag=dagbag)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.QUEUED)
+        mock_stats_incr.assert_called_once_with('scheduler.tasks.already_rescheduled')
 
     def test_execute_task_instances_is_paused_wont_execute(self):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute'

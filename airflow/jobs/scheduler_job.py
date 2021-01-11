@@ -43,7 +43,7 @@ from airflow.configuration import conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DagRun, SlaMiss, errors
+from airflow.models import DagRun, SlaMiss, TaskReschedule, errors
 from airflow.settings import Stats
 from airflow.ti_deps.dep_context import DepContext, SCHEDULED_DEPS
 from airflow.operators.dummy_operator import DummyOperator
@@ -1344,24 +1344,40 @@ class SchedulerJob(BaseJob):
 
                 # TODO: should we fail RUNNING as well, as we do in Backfills?
                 if ti.try_number == try_number and ti.state == State.QUEUED:
-                    msg = ("Executor reports task instance {} finished ({}) "
-                           "although the task says its {}. Was the task "
-                           "killed externally?".format(ti, state, ti.state))
-                    Stats.incr('scheduler.tasks.killed_externally')
-                    self.log.error(msg)
-                    try:
-                        simple_dag = simple_dag_bag.get_dag(dag_id)
-                        dagbag = models.DagBag(simple_dag.full_filepath)
-                        dag = dagbag.get_dag(dag_id)
-                        ti.task = dag.get_task(task_id)
-                        ti.handle_failure(msg)
-                    except Exception:
-                        self.log.error("Cannot load the dag bag to handle failure for %s"
-                                       ". Setting task to FAILED without callbacks or "
-                                       "retries. Do you have enough resources?", ti)
-                        ti.state = State.FAILED
-                        session.merge(ti)
-                        session.commit()
+                    task_reschedules = TaskReschedule.find_for_task_instance(ti)
+                    if task_reschedules:
+                        # Hacky workaround for https://issues.apache.org/jira/browse/AIRFLOW-5071
+                        #
+                        # The sensors' reschedule timeout has already
+                        # expired and the scheduler has re-enqueued
+                        # the task. The executor event we're seeing
+                        # here actually corresponds to the previous
+                        # attempt. It has the same try_number because
+                        # Sensors with mode=reschedule don't bump the
+                        # try_number on every reschedule attempt
+                        msg = ("Executor reports sensor {} finished ({}), "
+                               "but the scheduler already re-enqueued it. "
+                               "Running it again...")
+                        Stats.incr('scheduler.tasks.already_rescheduled')
+                    else:
+                        msg = ("Executor reports task instance {} finished ({}) "
+                               "although the task says its {}. Was the task "
+                               "killed externally?".format(ti, state, ti.state))
+                        Stats.incr('scheduler.tasks.killed_externally')
+                        self.log.error(msg)
+                        try:
+                            simple_dag = simple_dag_bag.get_dag(dag_id)
+                            dagbag = models.DagBag(simple_dag.full_filepath)
+                            dag = dagbag.get_dag(dag_id)
+                            ti.task = dag.get_task(task_id)
+                            ti.handle_failure(msg)
+                        except Exception:
+                            self.log.error("Cannot load the dag bag to handle failure for %s"
+                                        ". Setting task to FAILED without callbacks or "
+                                        "retries. Do you have enough resources?", ti)
+                            ti.state = State.FAILED
+                            session.merge(ti)
+                            session.commit()
 
     def _execute(self):
         self.log.info("Starting the scheduler")
