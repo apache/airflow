@@ -56,7 +56,7 @@ that 1.10.14 will process these DAGs the same way as Airflow 2.0. Instead, this 
 compatible DAGs will work in Airflow 1.10.14. This backport will give users time to modify their DAGs over time
 without any service disruption.
 
-2. We have also backported the updated Airflow 2.0 CLI commands to Airflow 1.10.4, so that users can modify their scripts
+2. We have also backported the updated Airflow 2.0 CLI commands to Airflow 1.10.14, so that users can modify their scripts
 to be compatible with Airflow 2.0 before the upgrade.
 
 3. For users of the KubernetesExecutor, we have backported the ``pod_template_file`` capability for the KubernetesExecutor
