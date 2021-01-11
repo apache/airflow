@@ -152,6 +152,9 @@ unset AIRFLOW__CORE__UNIT_TEST_MODE
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
+# Change the default worker_concurrency for tests
+export AIRFLOW__CELERY__WORKER_CONCURRENCY=8
+
 disable_rbac_if_requested
 
 set +e
