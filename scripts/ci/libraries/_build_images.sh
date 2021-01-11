@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# For remote installation of airflow (from GitHub or Pypi) when building the image, you need to
+# For remote installation of airflow (from GitHub or PyPI) when building the image, you need to
 # pass build flags depending on the version and method of the installation (for example to
 # get proper requirement constraint files)
 function build_images::add_build_args_for_remote_install() {

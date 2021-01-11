@@ -15,7 +15,7 @@
       "type": "string"
     },
     "versions": {
-      "description": "List of available versions in Pypi. Sorted descending according to release date.",
+      "description": "List of available versions in PyPI. Sorted descending according to release date.",
       "type": "array",
       "items": {
         "type": "string"
