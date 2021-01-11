@@ -233,4 +233,4 @@ for location in [None, LOCATION]:
         execute_insert_query >> get_data >> get_data_result >> delete_dataset
         execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
         execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
-        insert_query_job >> extract_job >> load_job
+        insert_query_job >> extract_job >> load_job >> delete_dataset
