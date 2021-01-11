@@ -39,14 +39,13 @@ class TestSubprocessHook(unittest.TestCase):
             ('empty env', {}, {OS_ENV_KEY: ''}),
             ('no env', None, {OS_ENV_KEY: OS_ENV_VAL}),
         ]
-    )
+    )  # pylint: disable=unused-argument
     def test_env(self, name, env, expected):
         """
         Test that env variables are exported correctly to the command environment.
         When ``env`` is ``None``, ``os.environ`` should be passed to ``Popen``.
         Otherwise, the variables in ``env`` should be available, and ``os.environ`` should not.
         """
-        print(f"test_name: {name}")
         hook = SubprocessHook()
 
         def build_cmd(keys, filename):
