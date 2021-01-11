@@ -259,6 +259,23 @@ def do_save_curve_error_tag(dag_id, task_id, execution_date, error_tags=None):
     task.set_error_tag(json.dumps(error_tags))
 
 
+def should_trigger_training(result, final_state, analysis_mode, train_mode):
+    ENV_TRIGGER_TRAINING_MODE = os.environ.get('TRIGGER_TRAINING_MODE', 'ANALYSIS_ERROR')
+    # ANALYSIS_ERROR, ALWAYS, DIFFERENT_MODE
+    if ENV_TRIGGER_TRAINING_MODE == 'ALWAYS':
+        return True
+    if ENV_TRIGGER_TRAINING_MODE == 'DIFFERENT_MODE':
+        modes = json.loads(analysis_mode)
+        train_modes = json.loads(train_mode)
+        if len(modes) != len(train_modes):
+            return True
+        for mode in modes:
+            if mode not in train_mode:
+                return True
+        return False
+    return final_state != result
+
+
 def get_curve_template_name(key: str) -> str:
     if '@@' in key:
         return key.split('@@')[0]
