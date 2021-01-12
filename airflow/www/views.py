@@ -2891,9 +2891,13 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         """Process form data."""
-        formdata = form.data
-        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc', 'yandexcloud', 'kubernetes']:
-            extra = {key: formdata[key] for key in self.extra_fields if key in formdata}
+        conn_type = form.data['conn_type']
+        extra = {
+            key: form.data[key]
+            for key in self.extra_fields
+            if key in form.data and key.startswith(f"extra__{conn_type}__")
+        }
+        if extra.keys():
             form.extra.data = json.dumps(extra)
 
     def prefill_form(self, form, pk):
