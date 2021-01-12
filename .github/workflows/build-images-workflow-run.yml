@@ -431,6 +431,16 @@ jobs:
           else
               echo "::set-output name=proceed::true"
           fi
+      - name: >
+          Checkout "${{ needs.cancel-workflow-runs.outputs.targetBranch }}" branch to 'main-airflow' folder
+          to use ci/scripts from there.
+        uses: actions/checkout@v2
+        with:
+          path: "main-airflow"
+          ref: "${{ needs.cancel-workflow-runs.outputs.targetBranch }}"
+          persist-credentials: false
+          submodules: recursive
+        if: steps.defaults.outputs.proceed == 'true'
       - name: Initiate GitHub Checks for Building image with status
         uses: ./main-airflow/.github/actions/checks-action
         id: build-image-check
@@ -445,16 +455,6 @@ jobs:
             "Building the image: PROD: ${{ matrix.python-version }}. See the
             [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
-        if: steps.defaults.outputs.proceed == 'true'
-      - name: >
-          Checkout "${{ needs.cancel-workflow-runs.outputs.targetBranch }}" branch to 'main-airflow' folder
-          to use ci/scripts from there.
-        uses: actions/checkout@v2
-        with:
-          path: "main-airflow"
-          ref: "${{ needs.cancel-workflow-runs.outputs.targetBranch }}"
-          persist-credentials: false
-          submodules: recursive
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2
