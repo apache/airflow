@@ -99,8 +99,10 @@
 <script src="{{ url_for('static', filename='js/bootstrap-treeview.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
   let selectedEIds = [];
+  let backendSelectedTasks = JSON.parse('{{ selected_tasks|tojson|safe }}');
   let curvesData = {};
   let extraData = {};
+
 
   function entityIdSelect(entityId, data) {
     const idx = selectedEIds.findIndex(id => id === entityId);
@@ -108,7 +110,6 @@
       selectedEIds.push(entityId);
       extraData[entityId] = data;
     }
-    console.log(extraData);
   }
 
   function entityIdUnselect(entityId) {
@@ -186,8 +187,7 @@
       toolbox: {
         show: true,
         feature: {
-          dataZoom: {
-          },
+          dataZoom: {},
           dataView: {readOnly: true},
           saveAsImage: {}
         }
@@ -284,6 +284,11 @@
   }
 
   function viewCurves() {
+    if (backendSelectedTasks && Object.keys(backendSelectedTasks).length > 0) {
+      const backendSelectedEntityIds = Object.keys(backendSelectedTasks);
+      selectedEIds = selectedEIds.concat(backendSelectedEntityIds);
+      extraData = Object.assign(extraData, backendSelectedTasks);
+    }
     queryCurves(selectedEIds).then((curves) => {
       const newCurves = {};
       curves.forEach((c) => {

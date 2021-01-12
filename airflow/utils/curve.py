@@ -223,6 +223,15 @@ def get_curve(entity_id):
     return st.query_curve()
 
 
+@provide_session
+def get_task_instances_by_entity_ids(entity_ids, session=None):
+    tis = session.query(TaskInstance).filter(
+        TaskInstance.entity_id.in_(entity_ids),
+        TaskInstance.task_id == 'trigger_anay_task'
+    ).all()
+    return tis
+
+
 def trigger_push_template_dag(template_name, template_data):
     push_result_dag_id = 'publish_result_dag'
     conf = {

@@ -83,7 +83,7 @@ from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DagRunForm, ConnectionForm, ErrorTagForm, TighteningControllerForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget, AirflowControllerListWidget
 from flask_wtf.csrf import CSRFProtect
-from airflow.utils.curve import get_curve, get_result, generate_bolt_number
+from airflow.utils.curve import get_curve, get_result, get_task_instances_by_entity_ids
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.www_rbac.api.experimental.endpoints import do_remove_curve_from_curve_template
 
@@ -2220,7 +2220,8 @@ class CurvesView(BaseCRUDView):
     @has_access
     def view_curves(self, bolt_no, craft_type):
         view_name = 'curves'
-
+        curves = request.args.get('curves')
+        curves_list = curves.replace('@', '/').split(',') if curves is not None else []
         _has_access = self.appbuilder.sm.has_access
         pages = get_page_args()
         page = pages.get(view_name, 0)
@@ -2238,10 +2239,20 @@ class CurvesView(BaseCRUDView):
             page=page,
             page_size=page_size,
         )
+
+        selected_tasks = {}
+        tasks = list(get_task_instances_by_entity_ids(curves_list))
+        for ti in tasks:
+            selected_tasks[ti.entity_id] = {
+                'carCode': ti.car_code,
+                'date': str(ti.execution_date)
+            }
         widgets = self._list()
 
         return self.render_template('airflow/curves.html', tasks=lst, page=page, page_size=page_size, count=count,
                                     modelview_name=view_name,
+                                    selected_curves=curves_list,
+                                    selected_tasks=selected_tasks,
                                     widgets=widgets)
 
 

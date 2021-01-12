@@ -454,7 +454,10 @@
 
   function renderBaseInfo() {
     const info = [
-      {label: '曲线编号', value: '{{task_instance.entity_id}}'},
+      {
+        label: '曲线编号',
+        value: '<a target="_blank" href="' + "{{url_for('CurvesView.view_curves',bolt_no=task_instance.bolt_number,craft_type=task_instance.craft_type,curves=task_instance.entity_id.replace('/','@'))}}" + '">{{task_instance.entity_id}}</a>'
+      },
       {
         label: '螺栓编号',
         value: '<a target="_blank" href="' + "{{url_for('VariableModelView.list',_flt_0_key=task_instance.bolt_number,_flt_0_is_curve_template='y')}}" + '">{{task_instance.bolt_number}}</a>'
