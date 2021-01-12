@@ -103,6 +103,9 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
     try:
         from airflow.cli.cli_parser import get_parser
 
+        settings.engine.pool.dispose()
+        settings.engine.dispose()
+
         parser = get_parser()
         # [1:] - remove "airflow" from the start of the command
         args = parser.parse_args(command_to_exec[1:])

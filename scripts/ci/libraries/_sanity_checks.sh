@@ -78,7 +78,7 @@ function sanity_checks::check_if_coreutils_installed() {
         verbosity::print_info
         if [[ $(uname -s) == 'Darwin' ]] ; then
             echo """
-${COLOR_RED_ERROR} You are running ${CMDNAME} in OSX environment and ou need to install gnu commands
+${COLOR_RED}ERROR: You are running ${CMDNAME} in OSX environment and ou need to install gnu commands
 
 Run 'brew install gnu-getopt coreutils'
 
@@ -102,7 +102,7 @@ ${COLOR_RESET}
 """
         else
             echo """
-${COLOR_RED_ERROR} You do not have necessary tools in your path (getopt, stat, md5sum).
+${COLOR_RED}ERROR: You do not have necessary tools in your path (getopt, stat, md5sum).
 Please install latest/GNU version of getopt and coreutils.
 This can usually be done with 'apt install util-linux coreutils'
 ${COLOR_RESET}
@@ -135,11 +135,7 @@ https://github.com/apache/airflow/blob/master/TESTING.rst
 
 # Changes directory to local sources
 function sanity_checks::go_to_airflow_sources {
-    verbosity::print_info
-    pushd "${AIRFLOW_SOURCES}" &>/dev/null || exit 1
-    verbosity::print_info
-    verbosity::print_info "Running in host in $(pwd)"
-    verbosity::print_info
+    pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }
 
 #

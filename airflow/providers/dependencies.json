@@ -36,6 +36,7 @@
     "microsoft.azure",
     "microsoft.mssql",
     "mysql",
+    "oracle",
     "postgres",
     "presto",
     "salesforce",

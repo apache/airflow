@@ -314,7 +314,7 @@ def _guess_debugger():
 
 
 @cli_utils.action_logging
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def task_states_for_dag_run(args):
     """Get the status of all task instances in a DagRun"""
     with create_session() as session:

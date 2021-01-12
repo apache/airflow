@@ -84,7 +84,10 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_instance.assert_called_once_with(
-            name=TEST_NAME_DEFAULT_PROJECT_ID, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            request=dict(name=TEST_NAME_DEFAULT_PROJECT_ID),
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
         )
         self.assertEqual(Instance(name=TEST_NAME), result)
 
@@ -115,13 +118,15 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             ]
         )
         mock_get_conn.return_value.create_instance.assert_called_once_with(
-            instance=Instance(
-                name=TEST_NAME,
-                labels={"airflow-version": "v" + version.version.replace(".", "-").replace("+", "-")},
+            request=dict(
+                parent=TEST_PARENT_DEFAULT_PROJECT_ID,
+                instance=Instance(
+                    name=TEST_NAME,
+                    labels={"airflow-version": "v" + version.version.replace(".", "-").replace("+", "-")},
+                ),
+                instance_id=TEST_INSTANCE_ID,
             ),
-            instance_id=TEST_INSTANCE_ID,
             metadata=TEST_METADATA,
-            parent=TEST_PARENT_DEFAULT_PROJECT_ID,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
         )
@@ -142,7 +147,10 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_instance.assert_called_once_with(
-            name=TEST_NAME_DEFAULT_PROJECT_ID, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            request=dict(name=TEST_NAME_DEFAULT_PROJECT_ID),
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
         )
 
     @mock.patch(
@@ -160,7 +168,10 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_instance.assert_called_once_with(
-            name=TEST_NAME_DEFAULT_PROJECT_ID, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            request=dict(name=TEST_NAME_DEFAULT_PROJECT_ID),
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
         )
 
     @mock.patch(
@@ -178,8 +189,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.list_instances.assert_called_once_with(
-            parent=TEST_PARENT_DEFAULT_PROJECT_ID,
-            page_size=TEST_PAGE_SIZE,
+            request=dict(parent=TEST_PARENT_DEFAULT_PROJECT_ID, page_size=TEST_PAGE_SIZE),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -202,8 +212,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_instance.assert_called_once_with(
-            update_mask=TEST_UPDATE_MASK,
-            instance=Instance(name=TEST_NAME_DEFAULT_PROJECT_ID),
+            request=dict(update_mask=TEST_UPDATE_MASK, instance=Instance(name=TEST_NAME_DEFAULT_PROJECT_ID)),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -233,7 +242,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_instance.assert_called_once_with(
-            name="projects/test-project-id/locations/test-location/instances/test-instance-id",
+            request=dict(name="projects/test-project-id/locations/test-location/instances/test-instance-id"),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -274,13 +283,15 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         )
 
         mock_get_conn.return_value.create_instance.assert_called_once_with(
-            instance=Instance(
-                name=TEST_NAME,
-                labels={"airflow-version": "v" + version.version.replace(".", "-").replace("+", "-")},
+            request=dict(
+                parent=TEST_PARENT,
+                instance=Instance(
+                    name=TEST_NAME,
+                    labels={"airflow-version": "v" + version.version.replace(".", "-").replace("+", "-")},
+                ),
+                instance_id=TEST_INSTANCE_ID,
             ),
-            instance_id=TEST_INSTANCE_ID,
             metadata=TEST_METADATA,
-            parent=TEST_PARENT,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
         )
@@ -315,7 +326,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_instance.assert_called_once_with(
-            name=TEST_NAME, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            request=dict(name=TEST_NAME), retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
         )
 
     @mock.patch(
@@ -346,7 +357,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_instance.assert_called_once_with(
-            name=TEST_NAME, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            request=dict(name=TEST_NAME), retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
         )
 
     @mock.patch(
@@ -377,8 +388,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.list_instances.assert_called_once_with(
-            parent=TEST_PARENT,
-            page_size=TEST_PAGE_SIZE,
+            request=dict(parent=TEST_PARENT, page_size=TEST_PAGE_SIZE),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -412,8 +422,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
             project_id=TEST_PROJECT_ID,
         )
         mock_get_conn.return_value.update_instance.assert_called_once_with(
-            update_mask=TEST_UPDATE_MASK,
-            instance=Instance(name=TEST_NAME),
+            request=dict(update_mask={'paths': ['memory_size_gb']}, instance=Instance(name=TEST_NAME)),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,

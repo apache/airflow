@@ -215,6 +215,7 @@ KeyManagementServiceClient
 Keyfile
 Kibana
 Kinesis
+Koka
 Kombu
 Kube
 Kubernetes
@@ -382,6 +383,7 @@ Vendorize
 Vertica
 Vevo
 VideoIntelligenceServiceClient
+Vikram
 WTF
 WaiterModel
 Wasb
@@ -1148,6 +1150,7 @@ rootcss
 rowid
 rpc
 rshift
+rsa
 rst
 rtype
 ru
@@ -1363,6 +1366,7 @@ versionable
 vertica
 verticaql
 videointelligence
+vikramkoka
 virtualenv
 vm
 VolumeMount

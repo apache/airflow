@@ -19,6 +19,9 @@
 ## Airflow Pgbouncer Deployment
 #################################
 {{- if .Values.pgbouncer.enabled }}
+{{- $nodeSelector := or .Values.pgbouncer.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.pgbouncer.affinity .Values.affinity }}
+{{- $tolerations := or .Values.pgbouncer.tolerations .Values.tolerations }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -57,11 +60,11 @@ spec:
         checksum/pgbouncer-certificates-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-certificates-secret.yaml") . | sha256sum }}
     spec:
       nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
+{{ toYaml $nodeSelector | indent 8 }}
       affinity:
-{{ toYaml .Values.affinity | indent 8 }}
+{{ toYaml $affinity | indent 8 }}
       tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
+{{ toYaml $tolerations | indent 8 }}
       restartPolicy: Always
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:

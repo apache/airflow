@@ -338,8 +338,12 @@ start integrations (separate Docker images) if specified as extra ``--integratio
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
-tmux session with three panes (one to monitor the scheduler, one for the webserver and one with a shell
-for additional commands.
+tmux session with four panes:
+
+   - one to monitor the scheduler,
+   - one for the webserver,
+   - one monitors and compiles Javascript files,
+   - one with a shell for additional commands.
 
 Managing Prod environment (with ``--production-image`` flag):
 
@@ -424,18 +428,44 @@ way as when you enter the environment. You can do it multiple times and open as 
     </div>
 
 
-CLIs for cloud providers
-------------------------
+Additional tools
+----------------
 
-For development convenience we installed simple wrappers for the most common cloud providers CLIs. Those
-CLIs are not installed when you build or pull the image - they will be downloaded as docker images
-the first time you attempt to use them. It is downloaded and executed in your host's docker engine so once
-it is downloaded, it will stay until you remove the downloaded images from your host container.
+To shrink a Docker image, not all tools are installed in the Docker image. Some of you have to install
+or yourself, but we made sure it was an easy process.
+
+Additional tools are installed in ``/files/bin``. This path is added to ``$PATH``, so you shell will
+automatically autocomplete files that are in that directory. You can also keep your tools in this directory
+if you need to.
+
+**Installation scripts**
+
+For the development convenience, we also provided install script for common used tools. They are
+installed to ``/files/opt/``, so they are preserved after restarting the Breeze environment. Each script
+is also available in ``$PATH``, so just type ``install_<TAB>`` to get a list of tools.
+
+Currently available scripts:
+
+* ``install_gcloud.sh`` - installs `the Google Cloud SDK <https://cloud.google.com/sdk>`__ including
+  ``gcloud``, ``gsutil``.
+* ``install_imgcat.sh`` - installs `imgcat - Inline Images Protocol <https://iterm2.com/documentation-images.html>`__
+  for iTem2 (Mac OS only)
+* ``install_java.sh`` - installs `the OpenJDK 8u41 <https://openjdk.java.net/>`__
+* ``install_kubectl.sh`` - installs `the Kubernetes command-line tool, kubectl <https://kubernetes.io/docs/reference/kubectl/kubectl/>`__
+* ``install_terraform.sh`` - installs `the Terraform <https://www.terraform.io/docs/index.html>`__
+
+**Docker wrappers**
+
+For tools that do not provide a simple method of installation in the custom directory, we provided simple
+wrappers for docker. Those CLIs are not installed when you build or pull the image - they will be downloaded
+as docker images the first time you attempt to use them. It is downloaded and executed in your host's
+docker engine so once it is downloaded, it will stay until you remove the downloaded images from your host
+container.
 
 For each of those CLI credentials are taken (automatically) from the credentials you have defined in
-your ${HOME} directory on host.
+your ``${HOME}`` directory on host.
 
-Those tools also have host Airflow source directory mounted in /opt/airflow path
+Those tools also have host Airflow source directory mounted in ``/opt/airflow`` path
 so you can directly transfer files to/from your airflow host sources.
 
 Those are currently installed CLIs (they are available as aliases to the docker commands):
@@ -446,12 +476,6 @@ Those are currently installed CLIs (they are available as aliases to the docker 
 | Amazon Web Services   | aws      | amazon/aws-cli:latest                           | .aws              |
 +-----------------------+----------+-------------------------------------------------+-------------------+
 | Microsoft Azure       | az       | mcr.microsoft.com/azure-cli:latest              | .azure            |
-+-----------------------+----------+-------------------------------------------------+-------------------+
-| Google Cloud          | bq       | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
-|                       +----------+-------------------------------------------------+-------------------+
-|                       | gcloud   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
-|                       +----------+-------------------------------------------------+-------------------+
-|                       | gsutil   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
 +-----------------------+----------+-------------------------------------------------+-------------------+
 
 For each of the CLIs we have also an accompanying ``*-update`` alias (for example ``aws-update``) which
@@ -801,7 +825,7 @@ Generating constraints
 ----------------------
 
 Whenever setup.py gets modified, the CI master job will re-generate constraint files. Those constraint
-files are stored in separated orphan branches: ``constraints-master`` and ``constraint-1-10``.
+files are stored in separated orphan branches: ``constraints-master``, ``constraints-2-0`` and ``constraints-1-10``.
 They are stored separately for each python version. Those are
 constraint files as described in detail in the
 `<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
@@ -1283,7 +1307,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
+                 2.0.0 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and
@@ -1295,6 +1319,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image.
           This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
+  --installation-method INSTALLATION_METHOD
+          Method of installing airflow - either from the sources ('.') or from package
+          'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
@@ -1302,6 +1332,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified it will look for packages placed in dist folder and it will install the
           packages after installing Airflow. This is useful for testing provider
           packages.
+
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  --continue-on-pip-check-failure
+          Continue even if 'pip check' fails.
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1326,7 +1362,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
                  virtualenv
 
   --image-tag TAG
@@ -1535,11 +1571,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Generates pinned constraint files from setup.py. Those files are generated in files folder
         - separate files for different python version. Those constraint files when pushed to orphan
-        constraint-master and constraint-1-10 branches are used to generate repeatable
-        CI builds as well as run repeatable production image builds. You can use those constraints
-        to predictably install released Airflow versions. This is mainly used to test the constraint
-        generation - constraints are pushed to the orphan branches by a successful scheduled
-        CRON job in CI automatically.
+        constraints-master, constraints-2-0 and constraints-1-10 branches are used to generate
+        repeatable CI builds as well as run repeatable production image builds. You can use those
+        constraints to predictably install released Airflow versions. This is mainly used to test
+        the constraint generation - constraints are pushed to the orphan branches by a
+        successful scheduled CRON job in CI automatically.
 
   Flags:
 
@@ -1914,7 +1950,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
                  virtualenv
 
   --image-tag TAG
@@ -2156,11 +2192,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
                  lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
                  no-providers-in-core-examples no-relative-imports pre-commit-descriptions
-                 provide-create-sessions providers-init-file provider-yamls pydevd pydocstyle pylint
-                 pylint-tests python-no-log-warn pyupgrade restrict-start_date rst-backticks
-                 setup-order setup-extra-packages shellcheck sort-in-the-wild stylelint
-                 trailing-whitespace update-breeze-file update-extras update-local-yml-file
-                 update-setup-cfg-file version-sync yamllint
+                 pre-commit-hook-names provide-create-sessions providers-init-file provider-yamls
+                 pydevd pydocstyle pylint pylint-tests python-no-log-warn pyupgrade
+                 restrict-start_date rst-backticks setup-order setup-extra-packages shellcheck
+                 sort-in-the-wild stylelint trailing-whitespace update-breeze-file update-extras
+                 update-local-yml-file update-setup-cfg-file version-sync yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -2172,6 +2208,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
         To check all files that differ between you current branch and master run:
 
         'breeze static-check all -- --from-ref $(git merge-base master HEAD) --to-ref HEAD'
+
+        To check all files that are in the HEAD commit run:
+
+        'breeze static-check mypy -- --from-ref HEAD^ --to-ref HEAD'
+
 
         You can see all the options by adding --help EXTRA_ARG:
 
@@ -2298,7 +2339,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           start all integrations. Selected integrations are not saved for future execution.
           One of:
 
-                 cassandra kerberos mongo openldap presto rabbitmq redis all
+                 cassandra kerberos mongo openldap pinot presto rabbitmq redis all
 
   --init-script INIT_SCRIPT_FILE
           Initialization script name - Sourced from files/airflow-breeze-config. Default value
@@ -2386,7 +2427,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
+                 2.0.0 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and
@@ -2398,6 +2439,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image.
           This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
+  --installation-method INSTALLATION_METHOD
+          Method of installing airflow - either from the sources ('.') or from package
+          'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
@@ -2405,6 +2452,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified it will look for packages placed in dist folder and it will install the
           packages after installing Airflow. This is useful for testing provider
           packages.
+
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  --continue-on-pip-check-failure
+          Continue even if 'pip check' fails.
 
   ****************************************************************************************************
    Credentials
@@ -2436,7 +2489,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
                  virtualenv
 
   --image-tag TAG

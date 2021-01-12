@@ -21,6 +21,28 @@ Installation
 
 .. contents:: :local:
 
+
+Prerequisites
+-------------
+
+Airflow is tested with:
+
+* Python: 3.6, 3.7, 3.8
+
+* Databases:
+
+  * PostgreSQL:  9.6, 10, 11, 12, 13
+  * MySQL: 5.7, 8
+  * SQLite: 3.15.0+
+
+* Kubernetes: 1.16.9, 1.17.5, 1.18.6
+
+**Note:** MySQL 5.x versions are unable to or have limitations with
+running multiple schedulers -- please see the "Scheduler" docs. MariaDB is not tested/recommended.
+
+**Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
+using the latest stable version of SQLite for local development.
+
 Getting Airflow
 '''''''''''''''
 
@@ -33,10 +55,22 @@ not work or will produce unusable Airflow installation.
 
 In order to have repeatable installation, however, starting from **Airflow 1.10.10** and updated in
 **Airflow 1.10.13** we also keep a set of "known-to-be-working" constraint files in the
-``constraints-master`` and ``constraints-1-10`` orphan branches.
+``constraints-master``, ``constraints-2-0`` and ``constraints-1-10`` orphan branches.
 Those "known-to-be-working" constraints are per major/minor python version. You can use them as constraint
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
 and python versions in the URL.
+
+The official way of installing Airflow is with the ``pip`` tool.
+There was a recent (November 2020) change in resolver, so currently only 20.2.4 version is officially
+supported, although you might have a success with 20.3.3+ version (to be confirmed if all initial
+issues from ``pip`` 20.3.0 release have been fixed in 20.3.3).
+
+While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+`pip-tools <https://pypi.org/project/pip-tools/>`_, but they do not share the same workflow as
+``pip``- especially when it comes to constraint vs. requirements management.
+Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install airflow
+using those tools you should use the constraint files described below and convert them to appropriate
+format and workflow that your tool requires.
 
   **Prerequisites**
 
@@ -53,38 +87,38 @@ and python versions in the URL.
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
    ``--use-deprecated legacy-resolver`` to your pip install command.
 
 
 .. code-block:: bash
 
-    AIRFLOW_VERSION=1.10.14
+    AIRFLOW_VERSION=2.0.0
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.6.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
-    Please note that with respect to Python 3 support, Airflow 1.10.14 has been
-    tested with Python 3.6, 3.7, and 3.8, but does not yet support Python 3.9.
+Please note that with respect to Python 3 support, Airflow 2.0.0 has been
+tested with Python 3.6, 3.7, and 3.8, but does not yet support Python 3.9.
 
 2. Installing with extras (for example postgres, google)
 
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
    ``--use-deprecated legacy-resolver`` to your pip install command.
 
 
 .. code-block:: bash
 
-    AIRFLOW_VERSION=1.10.14
+    AIRFLOW_VERSION=2.0.0
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
@@ -94,6 +128,23 @@ has a corresponding ``apache-airflow-providers-amazon`` providers package to be 
 Airflow with such extras, the necessary provider packages are installed automatically (latest versions from
 PyPI for those packages). However you can freely upgrade and install provider packages independently from
 the main Airflow installation.
+
+Python versions support
+'''''''''''''''''''''''
+
+As of Airflow 2.0 we agreed to certain rules we follow for Python support. They are based on the official
+release schedule of Python, nicely summarized in the
+`Python Developer's Guide <https://devguide.python.org/#status-of-python-branches>`_
+
+1. We end support for Python versions when they reach EOL (For Python 3.6 it means that we will stop supporting it
+   on 23.12.2021).
+
+2. The "oldest" supported version of Python is the default one. "Default" is only meaningful in terms of
+   "smoke tests" in CI PRs which are run using this default version.
+
+3. We support a new version of Python after it is officially released, as soon as we manage to make
+   it works in our CI pipeline (which might not be immediate) and release a new version of Airflow
+   (non-Patch version) based on this CI set-up.
 
 
 Requirements

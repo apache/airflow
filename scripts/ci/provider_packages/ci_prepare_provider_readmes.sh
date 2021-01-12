@@ -19,7 +19,5 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 build_images::prepare_ci_build
-
-build_images::rebuild_ci_image_if_needed
-
+build_images::rebuild_ci_image_if_needed_with_group
 runs::run_prepare_provider_readme "$@"

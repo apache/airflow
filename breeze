@@ -125,6 +125,17 @@ function breeze::setup_default_breeze_constants() {
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC="false"
 
+    # Sources by default are installed from local sources when using breeze
+    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="."}
+    export AIRFLOW_SOURCES_FROM
+
+    # They are copied to /opt/airflow by default in breeze
+    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/opt/airflow"}
+    export AIRFLOW_SOURCES_TO
+
+    # Unlike in CI scripts, in breeze by default production image ist installed from sources
+    export AIRFLOW_INSTALLATION_METHOD="."
+
     # If it set is set to specified version, then the source version of Airflow
     # is removed and the specified version of Airflow is installed from PyPi
     export INSTALL_AIRFLOW_VERSION=""
@@ -211,7 +222,7 @@ function breeze::initialize_virtualenv() {
     set -e
     if [[ ${res} != "0" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} Initializing local virtualenv only works when you have virtualenv activated  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Initializing local virtualenv only works when you have virtualenv activated  ${COLOR_RESET}"
         echo
         echo "Please enter your local virtualenv before (for example using 'pyenv activate' or 'workon') "
         echo
@@ -224,7 +235,7 @@ function breeze::initialize_virtualenv() {
         echo
         "${AIRFLOW_SOURCES}/confirm" "Proceeding with the initialization"
         echo
-        pushd "${AIRFLOW_SOURCES}"
+        pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
         set +e
         # We need to export this one to speed up Cassandra driver installation in virtualenv
         CASS_DRIVER_NO_CYTHON="1" pip install -e ".[devel]" \
@@ -514,6 +525,10 @@ EOF
 EOF
         fi
     fi
+    if [[ ${VERBOSE} == "true" ]]; then
+        initialization::summarize_build_environment
+    fi
+
 }
 
 #######################################################################################################
@@ -587,6 +602,8 @@ export BACKEND="${BACKEND}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
 export WEBSERVER_HOST_PORT="${WEBSERVER_HOST_PORT}"
+export FLOWER_HOST_PORT="${FLOWER_HOST_PORT}"
+export REDIS_HOST_PORT="${REDIS_HOST_PORT}"
 export POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT}"
 export POSTGRES_VERSION="${POSTGRES_VERSION}"
 export MYSQL_HOST_PORT="${MYSQL_HOST_PORT}"
@@ -1146,9 +1163,27 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
+        --upgrade-to-newer-dependencies)
+            export UPGRADE_TO_NEWER_DEPENDENCIES="true"
+            echo "Upgrade packages to latest versions."
+            echo
+            shift
+            ;;
+        --continue-on-pip-check-failure)
+            export CONTINUE_ON_PIP_CHECK_FAILURE="true"
+            echo "Skip PIP check failure."
+            echo
+            shift
+            ;;
         --package-format)
             export PACKAGE_FORMAT="${2}"
             echo "Selected package type: ${PACKAGE_FORMAT}"
+            echo
+            shift 2
+            ;;
+        --installation-method)
+            export AIRFLOW_INSTALLATION_METHOD="${2}"
+            echo "Airflow installation method: ${PACKAGE_FORMAT}"
             echo
             shift 2
             ;;
@@ -1165,7 +1200,7 @@ function breeze::parse_arguments() {
         *)
             breeze::flags
             echo
-            echo  "${COLOR_RED_ERROR} Unknown flag  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Unknown flag  ${COLOR_RESET}"
             echo
             exit 1
             ;;
@@ -1224,7 +1259,7 @@ function breeze::parse_arguments() {
             command_to_run="perform_generate_constraints"
             export FORCE_ANSWER_TO_QUESTIONS="yes"
             export FORCE_BUILD_IMAGES="true"
-            export UPGRADE_TO_LATEST_CONSTRAINTS="true"
+            export UPGRADE_TO_NEWER_DEPENDENCIES="true"
             shift
             ;;
         prepare-airflow-packages)
@@ -1366,7 +1401,7 @@ function breeze::parse_arguments() {
         *)
             breeze::usage
             echo
-            echo  "${COLOR_RED_ERROR} Unknown command  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Unknown command  ${COLOR_RESET}"
             echo
             exit 1
             ;;
@@ -1456,6 +1491,10 @@ function breeze::prepare_formatted_versions() {
     FORMATTED_INSTALL_AIRFLOW_VERSIONS=$(echo "${_breeze_allowed_install_airflow_versions=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_INSTALL_AIRFLOW_VERSIONS
+
+    FORMATTED_INSTALLATION_METHOD=$(echo "${_breeze_allowed_installation_methods=""}" |
+        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_INSTALLATION_METHOD
 
     FORMATTED_POSTGRES_VERSIONS=$(echo "${_breeze_allowed_postgres_versions=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
@@ -1701,11 +1740,11 @@ ${CMDNAME} generate-constraints [FLAGS]
 
       Generates pinned constraint files from setup.py. Those files are generated in files folder
       - separate files for different python version. Those constraint files when pushed to orphan
-      constraint-master and constraint-1-10 branches are used to generate repeatable
-      CI builds as well as run repeatable production image builds. You can use those constraints
-      to predictably install released Airflow versions. This is mainly used to test the constraint
-      generation - constraints are pushed to the orphan branches by a successful scheduled
-      CRON job in CI automatically.
+      constraints-master, constraints-2-0 and constraints-1-10 branches are used to generate
+      repeatable CI builds as well as run repeatable production image builds. You can use those
+      constraints to predictably install released Airflow versions. This is mainly used to test
+      the constraint generation - constraints are pushed to the orphan branches by a
+      successful scheduled CRON job in CI automatically.
 
 Flags:
 $(breeze::flag_airflow_variants)
@@ -1901,6 +1940,11 @@ ${FORMATTED_STATIC_CHECKS}
       To check all files that differ between you current branch and master run:
 
       '${CMDNAME} static-check all -- --from-ref \$(git merge-base master HEAD) --to-ref HEAD'
+
+      To check all files that are in the HEAD commit run:
+
+      '${CMDNAME} static-check mypy -- --from-ref HEAD^ --to-ref HEAD'
+
 
       You can see all the options by adding --help EXTRA_ARG:
 
@@ -2277,6 +2321,12 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
         image building time in production image and at container entering time for CI image.
         This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
+--installation-method INSTALLATION_METHOD
+        Method of installing airflow - either from the sources ('.') or from package
+        'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+
+${FORMATTED_INSTALLATION_METHOD}
+
 --no-rbac-ui
         Disables RBAC UI when Airflow 1.10.* is installed.
 
@@ -2284,6 +2334,13 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
         If specified it will look for packages placed in dist folder and it will install the
         packages after installing Airflow. This is useful for testing provider
         packages.
+
+--upgrade-to-newer-dependencies
+        Upgrades PIP packages to latest versions available without looking at the constraints.
+
+--continue-on-pip-check-failure
+        Continue even if 'pip check' fails.
+
 "
 }
 
@@ -2867,7 +2924,7 @@ function breeze::check_and_save_all_params() {
     if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ]]; then
         if [[ ${BRANCH_NAME} == "master" || ${BRANCH_NAME} == "v2-0-test" ]]; then
             echo
-            echo  "${COLOR_RED_ERROR} The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*  ${COLOR_RESET}"
             echo
             echo "You can use it only when you specify 1.10 Airflow via --install-airflow-version"
             echo "or --install-airflow-reference and they point to 1.10 version of Airflow"
@@ -2998,7 +3055,7 @@ function breeze::make_sure_precommit_is_installed() {
         pip_binary=pip
     else
         echo
-        echo  "${COLOR_RED_ERROR} You need to have pip or pip3 in your PATH  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: You need to have pip or pip3 in your PATH  ${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -3171,7 +3228,7 @@ function breeze::run_build_command() {
         ;;
     *)
         echo
-        echo  "${COLOR_RED_ERROR} Unknown command to run ${command_to_run}  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Unknown command to run ${command_to_run}  ${COLOR_RESET}"
         echo
         exit 1
         ;;
@@ -3316,7 +3373,7 @@ function breeze::run_breeze_command() {
         ;;
     *)
         echo
-        echo  "${COLOR_RED_ERROR} Unknown command to run ${command_to_run}  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Unknown command to run ${command_to_run}  ${COLOR_RESET}"
         echo
         ;;
     esac

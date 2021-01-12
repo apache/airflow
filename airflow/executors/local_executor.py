@@ -173,7 +173,15 @@ class QueuedLocalWorker(LocalWorkerBase):
 
     def do_work(self) -> None:
         while True:
-            key, command = self.task_queue.get()
+            try:
+                key, command = self.task_queue.get()
+            except EOFError:
+                self.log.info(
+                    "Failed to read tasks from the task queue because the other "
+                    "end has closed the connection. Terminating worker %s.",
+                    self.name,
+                )
+                break
             try:
                 if key is None or command is None:
                     # Received poison pill, no more tasks to run
