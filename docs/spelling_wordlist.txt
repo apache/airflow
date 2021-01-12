@@ -1067,6 +1067,7 @@ preemptible
 prefetch
 prefetched
 prefetches
+preflight
 prefork
 preloading
 prepend
