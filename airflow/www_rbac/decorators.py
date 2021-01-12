@@ -133,11 +133,6 @@ def has_dag_access(**dag_kwargs):
                     verification_passed = False
                     failed_dag_id = check_dag_id
 
-            # 1. check whether the user has can_dag_edit permissions on all_dags
-            # 2. if 1 false, check whether the user
-            #    has can_dag_edit permissions on the dag
-            # 3. if 2 false, check whether it is can_dag_read view,
-            #    and whether user has the permissions
             if verification_passed:
                 return f(self, *args, **kwargs)
             else:
