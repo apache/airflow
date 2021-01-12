@@ -1684,7 +1684,7 @@ class TestSchedulerJob(unittest.TestCase):
     def test_execute_task_instances_unlimited(self):
         """Test that max_tis_per_query=0 is unlimited"""
 
-        dag_id = 'SchedulerJobTest.test_execute_task_instances_limit'
+        dag_id = 'SchedulerJobTest.test_execute_task_instances_unlimited'
         task_id_1 = 'dummy_task'
         task_id_2 = 'dummy_task_2'
 
@@ -1724,13 +1724,9 @@ class TestSchedulerJob(unittest.TestCase):
             session.merge(ti2)
             session.flush()
         scheduler.max_tis_per_query = 0
+        scheduler.executor = MagicMock(slots_available=36)
 
-        with mock.patch.object(
-            type(scheduler.executor), 'slots_available', new_callable=mock.PropertyMock
-        ) as mock_slots:
-            # Make sure the limiting factor is not our max TIs setting
-            mock_slots.return_value = 36
-            res = scheduler._critical_section_execute_task_instances(session)
+        res = scheduler._critical_section_execute_task_instances(session)
         # 20 dag runs * 2 tasks each = 40, but limited by number of slots available
         self.assertEqual(36, res)
         session.rollback()
