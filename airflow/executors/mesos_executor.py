@@ -71,7 +71,6 @@ class AirflowMesosScheduler(MesosClient):
         self.mesos_docker_volume_dag_container_path = conf.get('mesos', 'DOCKER_VOLUME_DAG_CONTAINER_PATH')
         self.mesos_docker_volume_logs_name = conf.get('mesos', 'DOCKER_VOLUME_LOGS_NAME')
         self.mesos_docker_volume_logs_container_path = conf.get('mesos', 'DOCKER_VOLUME_LOGS_CONTAINER_PATH')
-        self.mesos_docker_sock = conf.get('mesos', 'DOCKER_SOCK')
         self.core_sql_alchemy_conn = conf.get('core', 'SQL_ALCHEMY_CONN')
         self.core_fernet_key = conf.get('core', 'FERNET_KEY')
         self.logging_logging_level = conf.get('logging', 'LOGGING_LEVEL')
@@ -169,9 +168,6 @@ class AirflowMesosScheduler(MesosClient):
                         'image': self.mesos_slave_docker_image,
                         'force_pull_image': 'true',
                         'privileged': 'true',
-                        'parameters': [
-                            {'key': 'volume', 'value': self.mesos_docker_sock + ':/var/run/docker.sock'}
-                        ],
                     },
                 },
             }
