@@ -105,22 +105,43 @@ def has_dag_access(**dag_kwargs):
             dag_id = request.values.get('dag_id')
             # if it is false, we need to check whether user has write access on the dag
             can_dag_edit = dag_kwargs.get('can_dag_edit', False)
+            tis = kwargs.get('tis', None)
+
+            dag_ids = []
+            if dag_id is not None:
+                dag_ids.append(dag_id)
+            if tis is not None:
+                for ti in tis:
+                    dag_ids.append(ti.dag_id)
+
+            verification_passed = True
+            failed_dag_id = None
+            for check_dag_id in dag_ids:
+                # For each id, check
+                # 1. check whether the user has can_dag_edit permissions on all_dags
+                # 2. if 1 false, check whether the user
+                #    has can_dag_edit permissions on the dag
+                # 3. if 2 false, check whether it is can_dag_read view,
+                #    and whether user has the permissions
+                if not (
+                    has_access('can_dag_edit', 'all_dags') or
+                    has_access('can_dag_edit', check_dag_id) or (not can_dag_edit and
+                                                           (has_access('can_dag_read',
+                                                                       'all_dags') or
+                                                            has_access('can_dag_read',
+                                                                       check_dag_id)))):
+                    verification_passed = False
+                    failed_dag_id = check_dag_id
 
             # 1. check whether the user has can_dag_edit permissions on all_dags
             # 2. if 1 false, check whether the user
             #    has can_dag_edit permissions on the dag
             # 3. if 2 false, check whether it is can_dag_read view,
             #    and whether user has the permissions
-            if (
-                has_access('can_dag_edit', 'all_dags') or
-                has_access('can_dag_edit', dag_id) or (not can_dag_edit and
-                                                       (has_access('can_dag_read',
-                                                                   'all_dags') or
-                                                        has_access('can_dag_read',
-                                                                   dag_id)))):
+            if verification_passed:
                 return f(self, *args, **kwargs)
             else:
-                flash("Access is Denied", "danger")
+                flash("Access is Denied; No Permissions on {}".format(failed_dag_id), "danger")
                 return redirect(url_for(self.appbuilder.sm.auth_view.
                                         __class__.__name__ + ".login"))
         return wrapper
