@@ -36,13 +36,13 @@ Ways to run a data pipeline
 
 There are several ways to run a Dataflow pipeline depending on your environment, source files:
 
-- **Non-templated pipeline**: Developer can run the pipeline as a local process on the worker
+- **Non-templated pipeline**: Developer can run the pipeline as a local process on the Airflow worker
   if you have a '*.jar' file for Java or a '* .py` file for Python. This also means that the necessary system
   dependencies must be installed on the worker.  For Java, worker must have the JRE Runtime installed.
   For Python, the Python interpreter. The runtime versions must be compatible with the pipeline versions.
   This is the fastest way to start a pipeline, but because of its frequent problems with system dependencies,
-  it often causes problems. See:
-  :ref:`howto/operator:DataflowCreateJavaJobOperator`, :ref:`howto/operator:DataflowCreatePythonJobOperator`
+  it may cause problems. See: :ref:`howto/operator:DataflowCreateJavaJobOperator`,
+  :ref:`howto/operator:DataflowCreatePythonJobOperator` for more detailed information.
 - **Templated pipeline**: The programmer can make the pipeline independent of the environment by preparing
   a template that will then be run on a machine managed by Google. This way, changes to the environment
   won't affect your pipeline. There are two types of the templates:
@@ -234,6 +234,10 @@ Here is an example of running Dataflow SQL job with
     :dedent: 4
     :start-after: [START howto_operator_start_sql_job]
     :end-before: [END howto_operator_start_sql_job]
+
+.. warning::
+    This operator requires ``gcloud`` command (Google Cloud SDK) must be installed on the Airflow worker
+    <https://cloud.google.com/sdk/docs/install>`__
 
 See the `Dataflow SQL reference
 <https://cloud.google.com/dataflow/docs/reference/sql>`_.

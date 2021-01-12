@@ -675,6 +675,10 @@ class DataflowStartSqlJobOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataflowStartSqlJobOperator`
 
+    .. warning::
+        This operator requires ``gcloud`` command (Google Cloud SDK) must be installed on the Airflow worker
+        <https://cloud.google.com/sdk/docs/install>`__
+
     :param job_name: The unique name to assign to the Cloud Dataflow job.
     :type job_name: str
     :param query: The SQL query to execute.
