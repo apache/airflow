@@ -40,6 +40,8 @@ from airflow.utils.dates import days_ago
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset")
 LOCATION = "southamerica-east1"
+BUCKET_1 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
+
 
 TABLE_1 = "table1"
 TABLE_2 = "table2"
@@ -135,7 +137,7 @@ for location in [None, LOCATION]:
                         "datasetId": DATASET_NAME,
                         "tableId": TABLE_1,
                     },
-                    "destinationUris": ["gs://example_bucket/dump/table.*.csv.gz"],
+                    "destinationUris": [f"{BUCKET_1}/bigquery_example/table.*.csv.gz"],
                     "compression": "NONE",
                     "printHeader": True,
                     "destinationFormat": "CSV",
@@ -152,7 +154,7 @@ for location in [None, LOCATION]:
                         "datasetId": DATASET_NAME,
                         "tableId": TABLE_3,
                     },
-                    "sourceUris":  ["gs://example_bucket/dump/table.*.csv.gz"],
+                    "sourceUris":  [f"{BUCKET_1}/bigquery_example/table.*.csv.gz"],
                     "autodetect": True,
                     "sourceFormat": "CSV", # see: google.cloud.bigquery.SourceFormat
                 }
