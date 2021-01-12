@@ -232,6 +232,8 @@ class BaseXCom(Base, LoggingMixin):
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
         try:
+            if hasattr(value, 'decode'):
+                value = value.decode('utf-8')
             return json.dumps(value).encode('UTF-8')
         except (ValueError, TypeError):
             log.error(
