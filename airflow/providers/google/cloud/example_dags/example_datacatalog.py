@@ -19,7 +19,7 @@
 """
 Example Airflow DAG that interacts with Google Data Catalog service
 """
-from google.cloud.datacatalog_v1beta1.proto.tags_pb2 import FieldType, TagField, TagTemplateField
+from google.cloud.datacatalog_v1beta1 import FieldType, TagField, TagTemplateField
 
 from airflow import models
 from airflow.operators.bash_operator import BashOperator
@@ -91,7 +91,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
         entry_id=ENTRY_ID,
         entry={
             "display_name": "Wizard",
-            "type": "FILESET",
+            "type_": "FILESET",
             "gcs_fileset_spec": {"file_patterns": ["gs://test-datacatalog/**"]},
         },
     )
@@ -144,7 +144,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
             "display_name": "Awesome Tag Template",
             "fields": {
                 FIELD_NAME_1: TagTemplateField(
-                    display_name="first-field", type=FieldType(primitive_type="STRING")
+                    display_name="first-field", type_=dict(primitive_type="STRING")
                 )
             },
         },
@@ -172,7 +172,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
         tag_template=TEMPLATE_ID,
         tag_template_field_id=FIELD_NAME_2,
         tag_template_field=TagTemplateField(
-            display_name="second-field", type=FieldType(primitive_type="STRING")
+            display_name="second-field", type_=FieldType(primitive_type="STRING")
         ),
     )
     # [END howto_operator_gcp_datacatalog_create_tag_template_field]
@@ -305,7 +305,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [START howto_operator_gcp_datacatalog_lookup_entry_result]
     lookup_entry_result = BashOperator(
         task_id="lookup_entry_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('lookup_entry')['displayName'] }}\"",
+        bash_command="echo \"{{ task_instance.xcom_pull('lookup_entry')['display_name'] }}\"",
     )
     # [END howto_operator_gcp_datacatalog_lookup_entry_result]
 

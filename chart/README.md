@@ -34,7 +34,7 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 ## Configuring Airflow
 
-All Airflow configuration parameters (equivalent of `airflow.cfg`) are stored in [values.yaml](https://github.com/apache/airflow/blob/master/chart/values.yaml) under the `config` key . The following code demonstrates how one would deny webserver users from viewing the config from within the webserver application. See the bottom line of the example:
+All Airflow configuration parameters (equivalent of `airflow.cfg`) are stored in [values.yaml](https://github.com/apache/airflow/blob/master/chart/values.yaml) under the `config` key . The following code demonstrates how one would allow webserver users to view the config from within the webserver application. See the bottom line of the example:
 
 ```yaml
 # Config settings to go into the mounted airflow.cfg
@@ -68,7 +68,7 @@ config:
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
   webserver:
     enable_proxy_fix: 'True'
-    expose_config: 'False'   # <<<<<<<<<< BY DEFAULT THIS IS 'True' BUT WE CHANGE IT TO 'False' PRIOR TO INSTALLING THE CHART
+    expose_config: 'True'   # <<<<<<<<<< BY DEFAULT THIS IS 'False' BUT WE CHANGE IT TO 'True' PRIOR TO INSTALLING THE CHART
 ```
 
 Generally speaking, it is useful to familiarize oneself with the Airflow configuration prior to installing and deploying the service.
@@ -134,7 +134,7 @@ helm upgrade airflow . \
 
 ## Mounting DAGS using Git-Sync side car without Persistence
 
-This option will use an always running Git-Sync side car on every scheduler,webserver and worker pods. The Git-Sync side car containers will sync DAGs from a git repository every configured number of seconds. If you are using the KubernetesExecutor, Git-sync will run as an initContainer on your worker pods.
+This option will use an always running Git-Sync side car on every scheduler, webserver and worker pods. The Git-Sync side car containers will sync DAGs from a git repository every configured number of seconds. If you are using the KubernetesExecutor, Git-sync will run as an initContainer on your worker pods.
 
 ```bash
 helm upgrade airflow . \

@@ -39,9 +39,9 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
-def _create_provider_schema_validator():
-    """Creates JSON schema validator from the provider.yaml.schema.json"""
-    schema = json.loads(importlib_resources.read_text('airflow', 'provider.yaml.schema.json'))
+def _create_provider_info_schema_validator():
+    """Creates JSON schema validator from the provider_info.schema.json"""
+    schema = json.loads(importlib_resources.read_text('airflow', 'provider_info.schema.json'))
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
@@ -106,7 +106,7 @@ class ProvidersManager:
         # Customizations for javascript fields are kept here
         self._field_behaviours: Dict[str, Dict] = {}
         self._extra_link_class_name_set: Set[str] = set()
-        self._provider_schema_validator = _create_provider_schema_validator()
+        self._provider_schema_validator = _create_provider_info_schema_validator()
         self._customized_form_fields_schema_validator = (
             _create_customized_form_field_behaviours_schema_validator()
         )
@@ -114,7 +114,7 @@ class ProvidersManager:
 
     def initialize_providers_manager(self):
         """Lazy initialization of provider data."""
-        # We cannot use @cache here because it does not work during pytests, apparently each test
+        # We cannot use @cache here because it does not work during pytest, apparently each test
         # runs it it's own namespace and ProvidersManager is a different object in each namespace
         # even if it is singleton but @cache on the initialize_providers_manager message still works in the
         # way that it is called only once for one of the objects (at least this is how it looks like
@@ -139,7 +139,10 @@ class ProvidersManager:
         """
         Discovers all providers by scanning packages installed. The list of providers should be returned
         via the 'apache_airflow_provider' entrypoint as a dictionary conforming to the
-        'airflow/provider.yaml.schema.json' schema.
+        'airflow/provider_info.schema.json' schema. Note that the schema is different at runtime
+        than provider.yaml.schema.json. The development version of provider schema is more strict and changes
+        together with the code. The runtime version is more relaxed (allows for additional properties)
+        and verifies only the subset of fields that are needed at runtime.
         """
         for entry_point, dist in entry_points_with_dist('apache_airflow_provider'):
             package_name = dist.metadata['name']
@@ -194,7 +197,7 @@ class ProvidersManager:
         for folder, subdirs, files in os.walk(path, topdown=True):
             for filename in fnmatch.filter(files, "provider.yaml"):
                 package_name = "apache-airflow-providers" + folder[len(root_path) :].replace(os.sep, "-")
-                # We are skipping discovering snowflake because of snowflake monkeypatching problem
+                # We are skipping discovering snowflake because of snowflake monkey-patching problem
                 # This is only for local development - it has no impact for the packaged snowflake provider
                 # That should work on its own
                 # https://github.com/apache/airflow/issues/12881

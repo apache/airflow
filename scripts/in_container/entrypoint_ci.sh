@@ -62,7 +62,6 @@ if [[ ${GITHUB_ACTIONS:="false"} == "false" ]]; then
     # Create links for useful CLI tools
     # shellcheck source=scripts/in_container/run_cli_tool.sh
     source <(bash scripts/in_container/run_cli_tool.sh)
-    ln -s '/opt/airflow/scripts/in_container/run_tmux.sh' /usr/bin/run_tmux
 fi
 
 if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
@@ -153,6 +152,9 @@ unset AIRFLOW__CORE__UNIT_TEST_MODE
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
+# Change the default worker_concurrency for tests
+export AIRFLOW__CELERY__WORKER_CONCURRENCY=8
+
 disable_rbac_if_requested
 
 set +e
@@ -201,8 +203,8 @@ cd "${AIRFLOW_SOURCES}"
 if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
     export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
     export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
-    # shellcheck source=scripts/in_container/run_tmux.sh
-    exec /bin/bash "${IN_CONTAINER_DIR}/run_tmux.sh"
+    # shellcheck source=scripts/in_container/bin/run_tmux
+    exec run_tmux
 fi
 
 set +u

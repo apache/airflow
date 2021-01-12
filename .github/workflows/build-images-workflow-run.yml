@@ -57,14 +57,19 @@ jobs:
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
       buildImages: ${{ steps.build-images.outputs.buildImages }}
     steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: "Get information about the original trigger of the run"
-        uses: apache/airflow-get-workflow-origin@588cc14f9f1cdf1b8be3db816855e96422204fec  # v1_3
+        uses: ./.github/actions/get-workflow-origin
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           sourceRunId: ${{ github.event.workflow_run.id }}
       - name: "Cancel duplicated 'CI Build' runs"
-        uses: apache/airflow-cancel-workflow-runs@953e057dc81d3458935a18d1184c386b0f6b5738  # v4_7
+        uses: ./.github/actions/cancel-workflow-runs
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: allDuplicates
@@ -81,7 +86,7 @@ jobs:
         # trick ¯\_(ツ)_/¯. We name the build-info job appropriately
         # and then we try to find and cancel all the jobs with the same Event + Repo + Branch as the
         # current Event/Repo/Branch combination.
-        uses: apache/airflow-cancel-workflow-runs@953e057dc81d3458935a18d1184c386b0f6b5738  # v4_7
+        uses: ./.github/actions/cancel-workflow-runs
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -97,7 +102,7 @@ jobs:
         # We also produce list of canceled "CI Build' runs as output, so that we
         # can cancel all the matching "Build Images" workflow runs in the two following steps.
         # Yeah. Adding to the complexity ¯\_(ツ)_/¯.
-        uses: apache/airflow-cancel-workflow-runs@953e057dc81d3458935a18d1184c386b0f6b5738  # v4_7
+        uses: ./.github/actions/cancel-workflow-runs
         id: cancel-failed
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -130,14 +135,14 @@ jobs:
         # it to cancel any jobs that have matching names containing Source Run Id:
         # followed by one of the run ids. Yes I know it's super complex ¯\_(ツ)_/¯.
         if: env.BUILD_IMAGES == 'true' && steps.cancel-failed.outputs.cancelledRuns != '[]'
-        uses: apache/airflow-cancel-workflow-runs@953e057dc81d3458935a18d1184c386b0f6b5738  # v4_7
+        uses: ./.github/actions/cancel-workflow-runs
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
           notifyPRCancel: true
           jobNameRegexps: ${{ steps.extract-cancelled-failed-runs.outputs.matching-regexp }}
       - name: "Cancel duplicated 'CodeQL' runs"
-        uses: apache/airflow-cancel-workflow-runs@953e057dc81d3458935a18d1184c386b0f6b5738  # v4_7
+        uses: ./.github/actions/cancel-workflow-runs
         id: cancel
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -157,7 +162,7 @@ jobs:
         # trick ¯\_(ツ)_/¯. We name the build-info job appropriately and then we try to match
         # all the jobs with the same Event + Repo + Branch match and cancel all the duplicates for those
         # This might cancel own run, so this is the last step in the job
-        uses: apache/airflow-cancel-workflow-runs@953e057dc81d3458935a18d1184c386b0f6b5738  # v4_7
+        uses: ./.github/actions/cancel-workflow-runs
         with:
           cancelMode: allDuplicatedNamedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -200,6 +205,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           persist-credentials: false
+          submodules: recursive
       - name: >
           Event: ${{ needs.cancel-workflow-runs.outputs.sourceEvent }}
           Repo: ${{ needs.cancel-workflow-runs.outputs.sourceHeadRepo }}
@@ -218,12 +224,14 @@ jobs:
           ref: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
           fetch-depth: 2
           persist-credentials: false
+          submodules: recursive
         if: needs.cancel-workflow-runs.outputs.sourceEvent  == 'pull_request'
       # checkout the master version again, to use the right script in master workflow
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
           persist-credentials: false
+          submodules: recursive
       - name: Selective checks
         id: selective-checks
         env:
@@ -276,6 +284,7 @@ jobs:
         with:
           ref: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
           persist-credentials: false
+          submodules: recursive
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
@@ -297,8 +306,19 @@ jobs:
           else
               echo "::set-output name=proceed::true"
           fi
+      - name: >
+          Checkout "${{ needs.cancel-workflow-runs.outputs.targetBranch }}" branch to 'main-airflow' folder
+          to use ci/scripts from there.
+        uses: actions/checkout@v2
+        with:
+          path: "main-airflow"
+          ref: "${{ needs.cancel-workflow-runs.outputs.targetBranch }}"
+          persist-credentials: false
+          submodules: recursive
+        if: steps.defaults.outputs.proceed == 'true'
       - name: Initiate GitHub Checks for Building image
-        uses: apache/airflow-checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+        # Use the submodule from main, not the PR branch
+        uses: ./main-airflow/.github/actions/checks-action
         id: build-image-check
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -311,15 +331,6 @@ jobs:
             "Building the image: CI: ${{ matrix.python-version }}. See the
             [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
-        if: steps.defaults.outputs.proceed == 'true'
-      - name: >
-          Checkout "${{ needs.cancel-workflow-runs.outputs.targetBranch }}" branch to 'main-airflow' folder
-          to use ci/scripts from there.
-        uses: actions/checkout@v2
-        with:
-          path: "main-airflow"
-          ref: "${{ needs.cancel-workflow-runs.outputs.targetBranch }}"
-          persist-credentials: false
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -346,7 +357,7 @@ jobs:
         run: ./scripts/ci/images/ci_push_ci_images.sh
         if: steps.defaults.outputs.proceed == 'true'
       - name: Update GitHub Checks for Building image with status
-        uses: apache/airflow-checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+        uses: ./main-airflow/.github/actions/checks-action
         if: always() && steps.defaults.outputs.proceed == 'true'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -398,6 +409,7 @@ jobs:
         with:
           ref: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
           persist-credentials: false
+          submodules: recursive
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
@@ -419,8 +431,18 @@ jobs:
           else
               echo "::set-output name=proceed::true"
           fi
-      - name: Initiate GitHub Checks for Building image
-        uses: apache/airflow-checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+      - name: >
+          Checkout "${{ needs.cancel-workflow-runs.outputs.targetBranch }}" branch to 'main-airflow' folder
+          to use ci/scripts from there.
+        uses: actions/checkout@v2
+        with:
+          path: "main-airflow"
+          ref: "${{ needs.cancel-workflow-runs.outputs.targetBranch }}"
+          persist-credentials: false
+          submodules: recursive
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: Initiate GitHub Checks for Building image with status
+        uses: ./main-airflow/.github/actions/checks-action
         id: build-image-check
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -433,15 +455,6 @@ jobs:
             "Building the image: PROD: ${{ matrix.python-version }}. See the
             [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
-        if: steps.defaults.outputs.proceed == 'true'
-      - name: >
-          Checkout "${{ needs.cancel-workflow-runs.outputs.targetBranch }}" branch to 'main-airflow' folder
-          to use ci/scripts from there.
-        uses: actions/checkout@v2
-        with:
-          path: "main-airflow"
-          ref: "${{ needs.cancel-workflow-runs.outputs.targetBranch }}"
-          persist-credentials: false
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2
@@ -474,7 +487,7 @@ jobs:
         run: ./scripts/ci/images/ci_push_production_images.sh
         if: steps.defaults.outputs.proceed == 'true'
       - name: Update GitHub Checks for Building image with status
-        uses: apache/airflow-checks-action@9f02872da71b6f558c6a6f190f925dde5e4d8798  # v1.1.0
+        uses: ./main-airflow/.github/actions/checks-action
         if: always() && steps.defaults.outputs.proceed == 'true'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -495,8 +508,13 @@ jobs:
     if: cancelled()
     needs: [build-ci-images, build-prod-images]
     steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: "Canceling the 'CI Build' source workflow in case of failure!"
-        uses: apache/airflow-cancel-workflow-runs@953e057dc81d3458935a18d1184c386b0f6b5738  # v4_7
+        uses: ./.github/actions/cancel-workflow-runs
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: self
@@ -510,8 +528,13 @@ jobs:
     if: failure()
     needs: [build-ci-images, build-prod-images]
     steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: "Canceling the 'CI Build' source workflow in case of failure!"
-        uses: apache/airflow-cancel-workflow-runs@953e057dc81d3458935a18d1184c386b0f6b5738  # v4_7
+        uses: ./.github/actions/cancel-workflow-runs
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: self
