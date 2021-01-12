@@ -245,6 +245,7 @@ class TestWrappedMarkdown(unittest.TestCase):
                | ETL | 14m |"""
         )
 
+        
         self.assertEqual(
             (
                 '<div class="None" ><table>\n<thead>\n<tr>\n<th>Job</th>\n'
