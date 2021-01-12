@@ -185,7 +185,9 @@ def init_api_connexion(app: Flask) -> None:
     api_bp = connexion_app.add_api(
         specification='v1.yaml', base_path=base_path, validate_responses=True, strict_validation=True
     ).blueprint
-    app.after_request(set_cors_headers_on_response)
+    # Like "api_bp.after_request", but the BP is already registered, so we have
+    # to register it in the app directly.
+    app.after_request_funcs.setdefault(api_bp.name, []).append(set_cors_headers_on_response)
     app.register_error_handler(ProblemException, common_error_handler)
     app.extensions['csrf'].exempt(api_bp)
 
