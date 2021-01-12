@@ -185,7 +185,7 @@ The pickle type for XCom messages has been replaced to JSON by default to preven
 Note that JSON serialization is stricter than pickling, so for example if you want to pass
 raw bytes through XCom you must encode them using an encoding like ``base64``.
 If you understand the risk and still want to use [pickling](https://docs.python.org/3/library/pickle.html),
-set `enable_xcom_pickling = False` in your Airflow config's `core` section.
+set `enable_xcom_pickling = True` in your Airflow config's `core` section.
 
 ### Airflowignore of base path
 
