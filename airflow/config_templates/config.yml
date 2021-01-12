@@ -766,18 +766,21 @@
         the server side response to the browser's
         Access-Control-Request-Headers header.
       type: string
+      version_added: ~
       example: ~
       default: ""
     - name: access_control_allow_methods
       description: |
         Specifies the method or methods allowed when accessing the resource.
       type: string
+      version_added: ~
       example: ~
       default: ""
     - name: access_control_allow_origin
       description: |
         Indicates whether the response can be shared with requesting code from the given origin.
       type: string
+      version_added: ~
       example: ~
       default: ""
 - name: lineage
