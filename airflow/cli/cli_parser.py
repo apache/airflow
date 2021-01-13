@@ -1516,7 +1516,7 @@ def _remove_dag_id_opt(command: ActionCommand):
     cmd['args'] = (arg for arg in command.args if arg is not ARG_DAG_ID)
     return ActionCommand(**cmd)
 
-dag_cli_commands = [
+dag_cli_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
         help='Manage DAGs',
