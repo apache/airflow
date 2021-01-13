@@ -424,6 +424,8 @@ class Airflow(AirflowBaseView):
         show_range = (ENV_CURVE_GRAPH_SHOW_RANGE == True) or (ENV_CURVE_GRAPH_SHOW_RANGE == 'True')
         can_verify = _has_access('set_final_state_ok', 'TaskInstanceModelView') \
                      and _has_access('set_final_state_nok', 'TaskInstanceModelView')
+        display_keys = Variable.get('view_curve_page_keys', deserialize_json=True,
+                                    default_var={})
         return self.render_template('airflow/curve.html', task_instance=ti, result=result,
                                     curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
                                     resultErrorMessageMapping=result_error_message_mapping,
@@ -432,7 +434,8 @@ class Airflow(AirflowBaseView):
                                     can_verify=can_verify,
                                     controller=controller,
                                     errorTags=error_tags,
-                                    show_range=show_range
+                                    show_range=show_range,
+                                    display_keys=display_keys
                                     )
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>')

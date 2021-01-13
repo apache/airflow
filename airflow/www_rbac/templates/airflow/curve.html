@@ -69,7 +69,7 @@
 
   {% include 'airflow/curve_chart.html' %}
 
-  {% call panel.panel('结果数据','result-container') %}
+  {% call panel.panel('详细信息','result-container') %}
   <div class=" overflow-auto p-0">
     <table id="result_table" class="table position-relative ">
       <thead>
@@ -97,6 +97,7 @@
   const showRange = JSON.parse('{{ show_range|tojson|safe }}');
   const curve = JSON.parse('{{ curve|tojson|safe }}');
   const errorTags = JSON.parse('{{ errorTags|tojson|safe }}');
+  const displayKeys = JSON.parse('{{ display_keys|tojson|safe }}');
   const resultErrs = JSON.parse('{{ resultErrorMessageMapping|tojson|safe }}');
   const resultKeys = JSON.parse('{{ resultKeysTranslationMapping|tojson|safe }}');
   let $errorTagsSelector = null;
@@ -128,7 +129,10 @@
       [dataAxis]: value,
       lineStyle: {
         color: color
-      }
+      },
+      // label:{
+      //   show:false
+      // }
     };
   }
 
@@ -170,11 +174,11 @@
       return null;
     }
     return {
-      name,
+      name:'',
       [dataAxis]: value,
       itemStyle: {
         color: color,
-        opacity: 0.2
+        opacity: 0.1
       }
     };
   }
@@ -352,21 +356,22 @@
       measure_torque,
       ...rest
     } = result;
+    const {detail} = displayKeys;
     const $rows = [];
-    const isNOK = (measureResult || '').toUpperCase() === 'NOK';
-    $rows.push(renderResultTableRow(resultKeys.measure_result || 'measure_result', measureResult, isNOK));
-    $rows.push(renderResultTableRow(resultKeys.error_code || 'error_code', parseResultErrorCode(errorCode), isNOK));
-    $rows.push(renderResultTableRow(resultKeys.measure_angle || 'measure_angle', measure_angle));
-    $rows.push(renderResultTableRow(resultKeys.angle_target || 'angle_target', angle_target));
-    $rows.push(renderResultTableRow(resultKeys.angle_max || 'angle_max', angle_max));
-    $rows.push(renderResultTableRow(resultKeys.angle_min || 'angle_min', angle_min));
-    $rows.push(renderResultTableRow(resultKeys.measure_torque || 'measure_torque', measure_torque));
-    $rows.push(renderResultTableRow(resultKeys.torque_target || 'torque_target', torque_target));
-    $rows.push(renderResultTableRow(resultKeys.torque_max || 'torque_max', torque_max));
-    $rows.push(renderResultTableRow(resultKeys.torque_min || 'torque_min', torque_min));
+    // const isNOK = (measureResult || '').toUpperCase() === 'NOK';
+    // $rows.push(renderResultTableRow(resultKeys.measure_result || 'measure_result', measureResult, isNOK));
+    // $rows.push(renderResultTableRow(resultKeys.error_code || 'error_code', parseResultErrorCode(errorCode), isNOK));
+    // $rows.push(renderResultTableRow(resultKeys.measure_angle || 'measure_angle', measure_angle));
+    // $rows.push(renderResultTableRow(resultKeys.angle_target || 'angle_target', angle_target));
+    // $rows.push(renderResultTableRow(resultKeys.angle_max || 'angle_max', angle_max));
+    // $rows.push(renderResultTableRow(resultKeys.angle_min || 'angle_min', angle_min));
+    // $rows.push(renderResultTableRow(resultKeys.measure_torque || 'measure_torque', measure_torque));
+    // $rows.push(renderResultTableRow(resultKeys.torque_target || 'torque_target', torque_target));
+    // $rows.push(renderResultTableRow(resultKeys.torque_max || 'torque_max', torque_max));
+    // $rows.push(renderResultTableRow(resultKeys.torque_min || 'torque_min', torque_min));
 
-    Object.keys(rest).forEach((k) => {
-      $rows.push(renderResultTableRow(resultKeys[k] || k, rest[k]));
+    detail.forEach((k) => {
+      $rows.push(renderResultTableRow(resultKeys[k] || k, result[k]));
     });
     $('#result_detail').append($rows);
   }
@@ -453,22 +458,26 @@
   }
 
   function renderBaseInfo() {
-    const info = [
-      {
+    const baseInfo = {
+      entity_id: {
         label: '曲线编号',
         value: '<a target="_blank" href="' + "{{url_for('CurvesView.view_curves',bolt_no=task_instance.bolt_number,craft_type=task_instance.craft_type,curves=task_instance.entity_id.replace('/','@'))}}" + '">{{task_instance.entity_id}}</a>'
       },
-      {
+      bolt_number: {
         label: '螺栓编号',
         value: '<a target="_blank" href="' + "{{url_for('VariableModelView.list',_flt_0_key=task_instance.bolt_number,_flt_0_is_curve_template='y')}}" + '">{{task_instance.bolt_number}}</a>'
       },
-      {label: '拧紧时间', value: new Date('{{task_instance.execution_date}}').toLocaleString()},
-      {label: '工段', value: '{{controller.line_code}}'},
-      {label: '工位名称', value: '{{controller.work_center_name}}'},
-      {label: '工位编号', value: '{{controller.work_center_code}}'},
-      {label: '控制器', value: '{{controller.controller_name}}'},
-      {label: '工具序列号', value: '{{result.tool_sn}}'}
-    ];
+      execution_date: {label: '拧紧时间', value: new Date('{{task_instance.execution_date}}').toLocaleString()},
+      controller_name: {label: '控制器', value: '{{controller.controller_name}}'},
+      tool_sn: {label: '工具序列号', value: '{{result.tool_sn}}'},
+      line_code: {label: '工段', value: '{{controller.line_code}}'},
+      work_center_name: {label: '工位名称', value: '{{controller.work_center_name}}'},
+      work_center_code: {label: '工位编号', value: '{{controller.work_center_code}}'}
+    };
+    const {basic} = displayKeys;
+    const info = basic.map(function (k) {
+      return baseInfo[k] || {};
+    });
 
     $('#base-info-content').append(info.map(i => renderBaseInfoRow(i.label, i.value)));
   }
