@@ -387,7 +387,7 @@ function initialization::initialize_image_build_variables() {
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
-    WHEEL_VERSION=${WHEEL_VERSION:="0.36.1"}
+    WHEEL_VERSION=${WHEEL_VERSION:="0.36.2"}
     export WHEEL_VERSION
 
     # And installed from there (breeze and ci)

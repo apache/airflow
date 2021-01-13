@@ -110,7 +110,7 @@ the package. We are using standard mechanism of python to define
 needs to define appropriate entry-point ``apache_airflow_provider`` which has to point to a callable
 implemented by your package and return a dictionary containing the list of discoverable capabilities
 of your package. The dictionary has to follow the
-`json-schema specification <https://github.com/apache/airflow/blob/master/airflow/provider.yaml.schema.json>`_.
+`json-schema specification <https://github.com/apache/airflow/blob/master/airflow/provider_info.schema.json>`_.
 
 Most of the schema provides extension point for the documentation (which you might want to also use for
 your own purpose) but the important fields from the extensibility point of view are those:
@@ -215,8 +215,11 @@ You need to do the following to turn an existing Python package into a provider 
 * Add the ``apache_airflow_provider`` entry point in the ``setup.cfg`` - this tells airflow where to get
   the required provider metadata
 * Create the function that you refer to in the first step as part of your package: this functions returns a
-  dictionary that contains all meta-data about your provider package; see also ``provider.yaml``
-  files in the community managed provider packages as examples
+  dictionary that contains all meta-data about your provider package
+* note that the dictionary should be compliant with ``airflow/provider_info.schema.json`` JSON-schema
+  specification and the community-managed providers have more fields there that are used to build
+  documentation, but the requirement for runtime information only contains several fields from the
+  runtime schema. See below for examples.
 
 Example ``setup.cfg``:
 

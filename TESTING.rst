@@ -973,7 +973,7 @@ If ``current`` is specified (default), then the current version of Airflow is us
 Otherwise, the released version of Airflow is installed.
 
 The ``-install-airflow-version=<VERSION>`` command make sure that the current (from sources) version of
-Airflow is removed and the released version of Airflow from ``Pypi`` is installed. Note that tests sources
+Airflow is removed and the released version of Airflow from ``PyPI`` is installed. Note that tests sources
 are not removed and they can be used to run tests (unit tests and system tests) against the
 freshly installed version.
 

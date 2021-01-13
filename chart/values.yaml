@@ -705,7 +705,6 @@ config:
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
   webserver:
     enable_proxy_fix: 'True'
-    expose_config: 'True'
     rbac: 'True'
   celery:
     default_queue: celery

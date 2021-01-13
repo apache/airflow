@@ -1356,7 +1356,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "8"
+      default: "16"
     - name: worker_autoscale
       description: |
         The maximum and minimum concurrency that will be used when starting workers with the
