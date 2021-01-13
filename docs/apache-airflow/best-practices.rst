@@ -238,7 +238,7 @@ You can use environment variables to parameterize the DAG.
    )
 
 Mocking variables and connections
-=================================
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When you write tests for code that uses variables or a connection, you must ensure that they exist when you run the tests. The obvious solution is to save these objects to the database so they can be read while your code is executing. However, reading and writing objects to the database are burdened with additional time overhead. In order to speed up the test execution, it is worth simulating the existence of these objects without saving them to the database. For this, you can create environment variables with mocking :any:`os.environ` using :meth:`unittest.mock.patch.dict`.
 
