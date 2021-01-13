@@ -58,8 +58,6 @@ function verify_db_connection {
             # Not used PASSWORD match
             DETECTED_DB_HOST=${BASH_REMATCH[4]} &&
             DETECTED_DB_PORT=${BASH_REMATCH[5]} &&
-            DETECTED_DB_HOST=${BASH_REMATCH[3]} &&
-            DETECTED_DB_PORT=${BASH_REMATCH[4]} &&
             # Not used SCHEMA match
             # Not used PARAMS match
 
