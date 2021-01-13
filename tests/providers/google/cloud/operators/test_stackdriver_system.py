@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,29 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-package-name: apache-airflow-providers-segment
-name: Segment
-description: |
-    `Segment <https://segment.com/>`__
+import pytest
 
-versions:
-  - 1.0.0
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_STACKDRIVER
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
-integrations:
-  - integration-name: Segment
-    external-doc-url: https://segment.com/docs/
-    tags: [service]
 
-operators:
-  - integration-name: Segment
-    python-modules:
-      - airflow.providers.segment.operators.segment_track_event
-
-hooks:
-  - integration-name: Segment
-    python-modules:
-      - airflow.providers.segment.hooks.segment
-
-hook-class-names:
-  - airflow.providers.segment.hooks.segment.SegmentHook
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.credential_file(GCP_STACKDRIVER)
+class GCPTextToSpeechExampleDagSystemTest(GoogleSystemTest):
+    @provide_gcp_context(GCP_STACKDRIVER)
+    def test_run_example_dag(self):
+        self.run_dag("example_stackdriver", CLOUD_DAG_FOLDER)

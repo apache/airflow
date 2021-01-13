@@ -21,6 +21,8 @@ import unittest
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.monitoring_v3.proto.alert_pb2 import AlertPolicy
+from google.cloud.monitoring_v3.proto.notification_pb2 import NotificationChannel
 
 from airflow.providers.google.cloud.operators.stackdriver import (
     StackdriverDeleteAlertOperator,
@@ -94,7 +96,8 @@ class TestStackdriverListAlertPoliciesOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.stackdriver.StackdriverHook')
     def test_execute(self, mock_hook):
         operator = StackdriverListAlertPoliciesOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
-        operator.execute(None)
+        mock_hook.return_value.list_alert_policies.return_value = [AlertPolicy(name="test-name")]
+        result = operator.execute(None)
         mock_hook.return_value.list_alert_policies.assert_called_once_with(
             project_id=None,
             filter_=TEST_FILTER,
@@ -105,6 +108,7 @@ class TestStackdriverListAlertPoliciesOperator(unittest.TestCase):
             timeout=DEFAULT,
             metadata=None,
         )
+        self.assertEqual([{'name': 'test-name'}], result)
 
 
 class TestStackdriverEnableAlertPoliciesOperator(unittest.TestCase):
@@ -160,7 +164,11 @@ class TestStackdriverListNotificationChannelsOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.stackdriver.StackdriverHook')
     def test_execute(self, mock_hook):
         operator = StackdriverListNotificationChannelsOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
-        operator.execute(None)
+        mock_hook.return_value.list_notification_channels.return_value = [
+            NotificationChannel(name="test-123")
+        ]
+
+        result = operator.execute(None)
         mock_hook.return_value.list_notification_channels.assert_called_once_with(
             project_id=None,
             filter_=TEST_FILTER,
@@ -171,6 +179,7 @@ class TestStackdriverListNotificationChannelsOperator(unittest.TestCase):
             timeout=DEFAULT,
             metadata=None,
         )
+        self.assertEqual([{'name': 'test-123'}], result)
 
 
 class TestStackdriverEnableNotificationChannelsOperator(unittest.TestCase):
