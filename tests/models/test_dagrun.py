@@ -30,6 +30,7 @@ from airflow.models.dagrun import DagRun
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.callback_requests import DagCallbackRequest
@@ -304,6 +305,9 @@ class TestDagRun(unittest.TestCase):
             'test_state_succeeded2': State.SUCCESS,
         }
 
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
         _, callback = dag_run.update_state()
         self.assertEqual(State.SUCCESS, dag_run.state)
@@ -327,6 +331,9 @@ class TestDagRun(unittest.TestCase):
             'test_state_failed2': State.FAILED,
         }
         dag_task1.set_downstream(dag_task2)
+
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
         _, callback = dag_run.update_state()
@@ -353,6 +360,9 @@ class TestDagRun(unittest.TestCase):
             'test_state_succeeded1': State.SUCCESS,
             'test_state_succeeded2': State.SUCCESS,
         }
+
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
 
@@ -387,6 +397,9 @@ class TestDagRun(unittest.TestCase):
             'test_state_succeeded1': State.SUCCESS,
             'test_state_failed2': State.FAILED,
         }
+
+        # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_run = self.create_dag_run(dag=dag, state=State.RUNNING, task_states=initial_task_states)
 
