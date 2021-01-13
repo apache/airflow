@@ -52,6 +52,13 @@ assists users migrating to a new version.
 
 ## Master
 
+### Default `[celery] worker_concurrency` is changed to `16`
+
+The default value for `[celery] worker_concurrency` was `16` for Airflow <2.0.0.
+However, it was unintentionally changed to `8` in 2.0.0.
+
+From Airflow 2.0.1, we revert to the old default of `16`.
+
 ## Airflow 2.0.0
 
 ### The experimental REST API is disabled by default
@@ -178,7 +185,7 @@ The pickle type for XCom messages has been replaced to JSON by default to preven
 Note that JSON serialization is stricter than pickling, so for example if you want to pass
 raw bytes through XCom you must encode them using an encoding like ``base64``.
 If you understand the risk and still want to use [pickling](https://docs.python.org/3/library/pickle.html),
-set `enable_xcom_pickling = False` in your Airflow config's `core` section.
+set `enable_xcom_pickling = True` in your Airflow config's `core` section.
 
 ### Airflowignore of base path
 
