@@ -1510,7 +1510,25 @@ airflow_commands: List[CLICommand] = [
     ),
 ]
 ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
-DAG_CLI_COMMANDS: Set[str] = {'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs'}
+
+def _remove_dag_id_opt(command: ActionCommand):
+    cmd = command._asdict()
+    cmd['args'] = (arg for arg in command.args if arg is not ARG_DAG_ID)
+    return ActionCommand(**cmd)
+
+dag_cli_commands = [
+    GroupCommand(
+        name='dags',
+        help='Manage DAGs',
+        subcommands=[_remove_dag_id_opt(sp) for sp in DAGS_COMMANDS if sp.name in ['backfill', 'list-runs', 'pause', 'unpause']],
+    ),
+    GroupCommand(
+        name='tasks',
+        help='Manage tasks',
+        subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in ['list', 'test', 'run']],
+    ),
+]
+DAG_CLI_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
 
 
 class AirflowHelpFormatter(argparse.HelpFormatter):
@@ -1562,10 +1580,11 @@ def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest='subcommand', metavar="GROUP_OR_COMMAND")
     subparsers.required = True
 
-    subparser_list = DAG_CLI_COMMANDS if dag_parser else ALL_COMMANDS_DICT.keys()
+    command_dict = DAG_CLI_DICT if dag_parser else ALL_COMMANDS_DICT
+    subparser_list = command_dict.keys()
     sub_name: str
     for sub_name in sorted(subparser_list):
-        sub: CLICommand = ALL_COMMANDS_DICT[sub_name]
+        sub: CLICommand = command_dict[sub_name]
         _add_command(subparsers, sub)
     return parser
 
