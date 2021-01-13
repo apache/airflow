@@ -151,19 +151,19 @@ def has_dag_access_ti(**dag_kwargs):
                   (has_access('can_dag_read','all_dags'))):
                 return f(self, *args, **kwargs)
 
-            failed_on = None
+            failed_on = set()
 
             for dag_id in dag_ids:
                 if not (
                     has_access('can_dag_edit', dag_id) or (not can_dag_edit and
                                                            (has_access('can_dag_read',
                                                                        dag_id)))):
-                    failed_on = dag_id
+                    failed_on.add(dag_id)
 
-            if failed_on is None:
+            if len(failed_on) == 0:
                 return f(self, *args, **kwargs)
             else:
-                flash("Access is Denied on dag_id: {}".format(failed_on), "danger")
+                flash("Access is Denied due to lack of permmissions on dag_id(s): {}".format(failed_on), "danger")
                 return redirect(url_for(self.appbuilder.sm.auth_view.
                                         __class__.__name__ + ".login"))
         return wrapper
