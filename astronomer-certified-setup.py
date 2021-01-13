@@ -38,6 +38,8 @@ def get_info_from_airflow_wheel(filepath):
         \s*
         ;
         \s*
+        # ( python_version etc.
+        ( (?P<condition> .* ) \s and \s*)?
         extra \s* == \s* '(?P<extra> .*? )'
         \s*
         $
@@ -48,7 +50,12 @@ def get_info_from_airflow_wheel(filepath):
         if not match:
             continue
 
-        extras[match['extra']].append(match['specifier'])
+        if match['condition']:
+            specifier = match['specifier'] + ' ; ' + match['condition']
+        else:
+            specifier = match['specifier']
+
+        extras[match['extra']].append(specifier)
 
     return extras, airflow_version
 
