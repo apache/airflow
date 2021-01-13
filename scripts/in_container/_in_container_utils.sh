@@ -302,8 +302,22 @@ function install_airflow_from_sdist() {
     pip install "${airflow_package}${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
 }
 
+function reinstall_azure_storage_blob() {
+    group_start "Reinstalls azure-storage-blob (temporary workaround)"
+    # Reinstall azure-storage-blob here until https://github.com/apache/airflow/pull/12188 is solved
+    # Azure-storage-blob need to be reinstalled to overwrite azure-storage-blob installed by old version
+    # of the `azure-storage` library
+    echo
+    echo "Reinstalling azure-storage-blob"
+    echo
+    pip install azure-storage-blob --no-deps --force-reinstall
+    group_end
+}
+
 function install_remaining_dependencies() {
+    group_start "Installs all remaining dependencies that are not installed by '${AIRFLOW_EXTRAS}' "
     pip install apache-beam[gcp] >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    group_end
 }
 
 function uninstall_airflow() {

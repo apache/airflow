@@ -286,22 +286,23 @@ RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
 
 RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
-# Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="5"
-ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
-
 # Only copy install_airflow_from_latest_master.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_airflow_from_latest_master.sh /scripts/docker/install_airflow_from_latest_master.sh
 # fix permission issue in Azure DevOps when running the script
 RUN chmod a+x /scripts/docker/install_airflow_from_latest_master.sh
 
+ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
+
 # In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
-# This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
 # And is automatically reinstalled from the scratch every time patch release of python gets released
 # The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
-# are uninstalled, only dependencies remain
-RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
+# are uninstalled, only dependencies remain.
+# the cache is only used when "upgrade to newer dependencies" is not set to automatically
+# account for removed dependencies (we do not install them in the first place)
+RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
+          ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
         /scripts/docker/install_airflow_from_latest_master.sh; \
     fi
 
@@ -331,18 +332,13 @@ COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
-ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
-ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
-
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package. Those limitations are:
-# * chardet,<4: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
+# * chardet,<4: required by snowflake provider
 # * lazy-object-proxy<1.5.0: required by astroid
 # * pyOpenSSL: Imposed by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
-# * requests>=2.20.0,<2.24.0: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
-# * urllib3<1.26: Required to keep boto3 and snowflake happy
-
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 requests>=2.20.0,<2.24.0 urllib3<1.26"
+# * urllib3<1.26: Required to keep boto3 happy
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 urllib3<1.26"
 
 ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
 

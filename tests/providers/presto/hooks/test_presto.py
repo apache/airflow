@@ -217,23 +217,6 @@ class TestPrestoHookIntegration(unittest.TestCase):
         records = hook.get_records(sql)
         self.assertEqual([['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']], records)
 
-    @pytest.mark.xfail(
-        condition=True,
-        reason="""
-This test will fail when full suite of tests are run, because of Snowflake monkeypatching urllib3
-library as described in https://github.com/snowflakedb/snowflake-connector-python/issues/324
-the offending code is here:
-https://github.com/snowflakedb/snowflake-connector-python/blob/133d6215f7920d304c5f2d466bae38127c1b836d/src/snowflake/connector/network.py#L89-L92
-
-This test however runs fine when run in total isolation. We could move it to Heisentests, but then we would
-have to enable integrations there and make sure no snowflake gets imported.
-
-In the future Snowflake plans to get rid of the MonkeyPatching.
-
-Issue to keep track of it: https://github.com/apache/airflow/issues/12881
-
-""",
-    )
     @pytest.mark.integration("presto")
     @pytest.mark.integration("kerberos")
     def test_should_record_records_with_kerberos_auth(self):
