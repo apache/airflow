@@ -161,7 +161,7 @@ You can create the URL to the file substituting the variables in the template be
 where:
 
 - ``AIRFLOW_VERSION`` - Airflow version (e.g. ``2.0.0``) or ``master``, ``2-0``, ``1-10`` for latest development version
-- ''PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.7``
+- ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.7``
 
 Installation script
 '''''''''''''''''''
