@@ -117,7 +117,7 @@ class BaseJob(Base, LoggingMixin):
         :param session: Database session
         :rtype: BaseJob or None
         """
-        return session.query(cls).order_by(cls.latest_heartbeat.desc()).limit(1).first()
+        return session.query(cls).filter(cls.hostname == self.hostname).order_by(cls.latest_heartbeat.desc()).limit(1).first()
 
     def is_alive(self, grace_multiplier=2.1):
         """

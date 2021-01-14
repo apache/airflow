@@ -136,7 +136,7 @@ spec:
                 import sys
 
                 job = SchedulerJob.most_recent_job()
-                sys.exit(0 if job.is_alive() and job.hostname == get_hostname() else 1)
+                sys.exit(0 if job and job.is_alive() else 1)
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
           volumeMounts:
