@@ -1511,21 +1511,31 @@ airflow_commands: List[CLICommand] = [
 ]
 ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
 
+
 def _remove_dag_id_opt(command: ActionCommand):
     cmd = command._asdict()
     cmd['args'] = (arg for arg in command.args if arg is not ARG_DAG_ID)
     return ActionCommand(**cmd)
 
+
 dag_cli_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
         help='Manage DAGs',
-        subcommands=[_remove_dag_id_opt(sp) for sp in DAGS_COMMANDS if sp.name in ['backfill', 'list-runs', 'pause', 'unpause']],
+        subcommands=[
+            _remove_dag_id_opt(sp)
+            for sp in DAGS_COMMANDS
+            if sp.name in ['backfill', 'list-runs', 'pause', 'unpause']
+        ],
     ),
     GroupCommand(
         name='tasks',
         help='Manage tasks',
-        subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in ['list', 'test', 'run']],
+        subcommands=[
+            _remove_dag_id_opt(sp)
+            for sp in TASKS_COMMANDS
+            if sp.name in ['list', 'test', 'run']
+        ],
     ),
 ]
 DAG_CLI_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
