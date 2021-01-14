@@ -749,6 +749,58 @@ additional apt dev and runtime dependencies.
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
 
 
+Recipes
+-------
+
+Users sometimes share interesting ways of using the Docker images. We encourage users to contribute these
+recipes to the documentation in case they prove useful to other members of the community by
+submitting a pull request. The sections below capture this knowledge.
+
+Google Cloud SDK installation
+.............................
+
+Some operators, such as :class:`airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`,
+:class:`airflow.providers.google.cloud.operators.dataflow.DataflowStartSqlJobOperator`, require
+the installation of `Google Cloud SDK <https://cloud.google.com/sdk>`__ (includes ``gcloud``). You can also run these commands with BashOperator.
+
+Create a new Dockerfile like the one shown below.
+
+.. exampleinclude:: /docker-images-recipes/gcloud.Dockerfile
+    :language: dockerfile
+
+Then build a new image.
+
+.. code-block:: bash
+
+  docker build . \
+    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.0.0" \
+    -t my-airflow-image
+
+
+Apache Hadoop Stack installation
+................................
+
+Airflow is often used to run tasks on Hadoop cluster. It required Java Runtime Environment (JRE) to run.
+Below are the steps to take tools that are frequently used in Hadoop-world:
+
+- Java Runtime Environment (JRE)
+- Apache Hadoop
+- Apache Hive
+- `Cloud Storage connector for Apache Hadoop <https://cloud.google.com/dataproc/docs/concepts/connectors/cloud-storage>`__
+
+
+Create a new Dockerfile like the one shown below.
+
+.. exampleinclude:: /docker-images-recipes/hadoop.Dockerfile
+    :language: dockerfile
+
+Then build a new image.
+
+.. code-block:: bash
+
+  docker build . \
+    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.0.0" \
+    -t my-airflow-image
 
 More details about the images
 -----------------------------
