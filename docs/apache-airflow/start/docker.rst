@@ -95,7 +95,7 @@ Once the cluster has started up, you login to the web interface and try to run s
 Notes
 =====
 
-By default, the Docker Compose file uses the latest Airflow image (`apache/airflow< <https://hub.docker.com/r/apache/airflow>`__). If you need, you can :ref:`customize and extend it <docker_image>` to your needs.
+By default, the Docker Compose file uses the latest Airflow image (`apache/airflow< <https://hub.docker.com/r/apache/airflow>`__). If you need, you can :ref:`customize and extend it <docker_image>`.
 
 What's Next?
 ============
