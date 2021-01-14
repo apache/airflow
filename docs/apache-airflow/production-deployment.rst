@@ -108,6 +108,8 @@ Strategies for mitigation:
 * When running on kubernetes, use a ``livenessProbe`` on the scheduler deployment to fail if the scheduler has not heartbeat in a while.
   `Example: <https://github.com/apache/airflow/blob/190066cf201e5b0442bbbd6df74efecae523ee76/chart/templates/scheduler/scheduler-deployment.yaml#L118-L136>`_.
 
+.. _docker_image:
+
 Production Container Images
 ===========================
 

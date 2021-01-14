@@ -19,7 +19,7 @@ import os
 import tempfile
 import unittest
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import kubernetes
 
@@ -72,12 +72,14 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         pod1.metadata.name = 'dummy'
         pod1.status.phase = 'Running'
         pod1.status.reason = None
-        pods = list_namespaced_pod()
+        pods = MagicMock()
         pods.metadata._continue = None
         pods.items = [pod1]
+        list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
+        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500)
         delete_pod.assert_not_called()
         load_incluster_config.assert_called_once()
 
@@ -89,12 +91,14 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         pod1.metadata.name = 'dummy'
         pod1.status.phase = 'Succeeded'
         pod1.status.reason = None
-        pods = list_namespaced_pod()
+        pods = MagicMock()
         pods.metadata._continue = None
         pods.items = [pod1]
+        list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
+        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500)
         delete_pod.assert_called_with('dummy', 'awesome-namespace')
         load_incluster_config.assert_called_once()
 
@@ -109,12 +113,14 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         pod1.status.phase = 'Failed'
         pod1.status.reason = None
         pod1.spec.restart_policy = 'Always'
-        pods = list_namespaced_pod()
+        pods = MagicMock()
         pods.metadata._continue = None
         pods.items = [pod1]
+        list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
+        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500)
         delete_pod.assert_not_called()
         load_incluster_config.assert_called_once()
 
@@ -129,12 +135,14 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         pod1.status.phase = 'Failed'
         pod1.status.reason = None
         pod1.spec.restart_policy = 'Never'
-        pods = list_namespaced_pod()
+        pods = MagicMock()
         pods.metadata._continue = None
         pods.items = [pod1]
+        list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
+        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500)
         delete_pod.assert_called_with('dummy3', 'awesome-namespace')
         load_incluster_config.assert_called_once()
 
@@ -147,12 +155,14 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         pod1.status.phase = 'Failed'
         pod1.status.reason = 'Evicted'
         pod1.spec.restart_policy = 'Never'
-        pods = list_namespaced_pod()
+        pods = MagicMock()
         pods.metadata._continue = None
         pods.items = [pod1]
+        list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
+        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500)
         delete_pod.assert_called_with('dummy4', 'awesome-namespace')
         load_incluster_config.assert_called_once()
 
@@ -165,10 +175,38 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         pod1.metadata.name = 'dummy'
         pod1.status.phase = 'Succeeded'
         pod1.status.reason = None
-        pods = list_namespaced_pod()
+        pods = MagicMock()
         pods.metadata._continue = None
         pods.items = [pod1]
+        list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
+        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500)
+        load_incluster_config.assert_called_once()
+
+    @mock.patch('airflow.cli.commands.kubernetes_command._delete_pod')
+    @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
+    @mock.patch('kubernetes.config.load_incluster_config')
+    def test_list_pod_with_continue_token(self, load_incluster_config, list_namespaced_pod, delete_pod):
+        pod1 = MagicMock()
+        pod1.metadata.name = 'dummy'
+        pod1.status.phase = 'Succeeded'
+        pod1.status.reason = None
+        pods = MagicMock()
+        pods.metadata._continue = 'dummy-token'
+        pods.items = [pod1]
+        next_pods = MagicMock()
+        next_pods.metadata._continue = None
+        next_pods.items = [pod1]
+        list_namespaced_pod.side_effect = [pods, next_pods]
+        kubernetes_command.cleanup_pods(
+            self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
+        )
+        calls = [
+            call.first(namespace='awesome-namespace', limit=500),
+            call.second(namespace='awesome-namespace', limit=500, _continue='dummy-token'),
+        ]
+        list_namespaced_pod.assert_has_calls(calls)
+        delete_pod.assert_called_with('dummy', 'awesome-namespace')
         load_incluster_config.assert_called_once()

@@ -90,9 +90,9 @@ def cleanup_pods(args):
     print('Loading Kubernetes configuration')
     kube_client = get_kube_client()
     print(f'Listing pods in namespace {namespace}')
-    continue_token = None
+    list_kwargs = {"namespace": namespace, "limit": 500}
     while True:  # pylint: disable=too-many-nested-blocks
-        pod_list = kube_client.list_namespaced_pod(namespace=namespace, limit=500, _continue=continue_token)
+        pod_list = kube_client.list_namespaced_pod(**list_kwargs)
         for pod in pod_list.items:
             pod_name = pod.metadata.name
             print(f'Inspecting pod {pod_name}')
@@ -118,6 +118,7 @@ def cleanup_pods(args):
         continue_token = pod_list.metadata._continue  # pylint: disable=protected-access
         if not continue_token:
             break
+        list_kwargs["_continue"] = continue_token
 
 
 def _delete_pod(name, namespace):
