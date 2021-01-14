@@ -2940,7 +2940,8 @@ class TaskInstanceModelView(AirflowModelView):
                     # 'unixname', 'hostname', 'queue', 'queued_dttm', 'operator',
                     'pool', 'log_url']
 
-    search_columns = ['state', 'type', 'dag_id', 'entity_id', 'measure_result', 'result', 'final_state', 'task_id',
+    search_columns = ['state', 'type', 'dag_id', 'entity_id', 'measure_result', 'result', 'final_state',
+                      'task_id',
                       'execution_date', 'hostname',
                       'queue', 'pool', 'operator', 'start_date', 'end_date']
 
@@ -2982,6 +2983,12 @@ class TaskInstanceModelView(AirflowModelView):
         if end_date and duration:
             return timedelta(seconds=duration)
 
+    def type_f(attr):
+        ti_type = attr.get('type')
+        if ti_type == 'rework':
+            return lazy_gettext('Task Instance Rework')
+        return lazy_gettext('Task Instance Normal')
+
     formatters_columns = {
         'log_url': log_url_formatter,
         'task_id': wwwutils.task_instance_link,
@@ -2993,6 +3000,7 @@ class TaskInstanceModelView(AirflowModelView):
         'queued_dttm': wwwutils.datetime_f('queued_dttm'),
         'dag_id': wwwutils.dag_link,
         'duration': duration_f,
+        'type': type_f,
     }
 
     @provide_session
