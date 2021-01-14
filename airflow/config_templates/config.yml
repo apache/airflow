@@ -1648,11 +1648,13 @@
       default: "1"
     - name: min_file_process_interval
       description: |
-        after how much time (seconds) a new DAGs should be picked up from the filesystem
+        Number of seconds after which a DAG file is parsed. The DAG file is parsed every
+        ``min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
+        this interval. Keeping this number low will increase CPU usage.
       version_added: ~
       type: string
       example: ~
-      default: "0"
+      default: "30"
     - name: dag_dir_list_interval
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.

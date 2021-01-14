@@ -59,6 +59,15 @@ However, it was unintentionally changed to `8` in 2.0.0.
 
 From Airflow 2.0.1, we revert to the old default of `16`.
 
+### Default `[scheduler] min_file_process_interval` is changed to `30`
+
+The default value for `[scheduler] min_file_process_interval` was `0`,
+due to which the CPU Usage mostly stayed around 100% as the DAG files are parsed
+constantly.
+
+From Airflow 2.0.0, the scheduling decisions have been moved from
+DagFileProcessor to Scheduler, so we can keep the default a bit higher: `30`.
+
 ## Airflow 2.0.0
 
 ### The experimental REST API is disabled by default
