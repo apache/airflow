@@ -373,10 +373,12 @@ Prerequisites that new provider package should fulfill
     * extras
     * provider packages
 
-  * ``airflow/providers/dependencies.json``
   * ``setup.py``
   * ``tests/core/test_providers_manager.py``
 
+* Files automatically updated by pre-commit:
+
+  * ``airflow/providers/dependencies.json``
 
 Content
 -------
