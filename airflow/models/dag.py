@@ -348,6 +348,12 @@ class DAG(LoggingMixin):
         self.partial = False
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
+
+        # To keep it in parity with Serialized DAGs
+        # and identify if DAG has on_*_callback without actually storing them in Serialized JSON
+        self.has_on_success_callback = self.on_success_callback is not None
+        self.has_on_failure_callback = self.on_failure_callback is not None
+
         self.doc_md = doc_md
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
@@ -2028,6 +2034,9 @@ class DAG(LoggingMixin):
                 'on_failure_callback',
                 'template_undefined',
                 'jinja_environment_kwargs',
+                # has_on_*_callback are only stored if the value is True, as the default is False
+                'has_on_success_callback',
+                'has_on_failure_callback',
             }
         return cls.__serialized_fields
 

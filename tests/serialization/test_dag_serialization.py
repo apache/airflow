@@ -806,7 +806,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         dag_schema: dict = load_dag_schema_dict()["definitions"]["dag"]["properties"]
 
         # The parameters we add manually in Serialization needs to be ignored
-        ignored_keys: set = {"is_subdag", "tasks"}
+        ignored_keys: set = {"is_subdag", "tasks", "has_on_success_callback", "has_on_failure_callback"}
         dag_params: set = set(dag_schema.keys()) - ignored_keys
         self.assertEqual(set(DAG.get_serialized_fields()), dag_params)
 
@@ -969,6 +969,60 @@ class TestStringifiedDAGs(unittest.TestCase):
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
 
         assert op.deps == serialized_op.deps
+
+    @parameterized.expand(
+        [
+            ({"on_success_callback": lambda x: print("hi")}, True),
+            ({}, False),
+        ]
+    )
+    def test_dag_on_success_callback_roundtrip(self, passed_success_callback, expected_value):
+        """
+        Test that when on_success_callback is passed to the DAG, has_on_success_callback is stored
+        in Serialized JSON blob. And when it is de-serialized dag.has_on_success_callback is set to True.
+
+        When the callback is not set, has_on_success_callback should not be stored in Serialized blob
+        and so default to False on de-serialization
+        """
+        dag = DAG(dag_id='test_dag_on_success_callback_roundtrip', **passed_success_callback)
+        BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if expected_value:
+            assert "has_on_success_callback" in serialized_dag["dag"]
+        else:
+            assert "has_on_success_callback" not in serialized_dag["dag"]
+
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+
+        assert deserialized_dag.has_on_success_callback is expected_value
+
+    @parameterized.expand(
+        [
+            ({"on_failure_callback": lambda x: print("hi")}, True),
+            ({}, False),
+        ]
+    )
+    def test_dag_on_failure_callback_roundtrip(self, passed_failure_callback, expected_value):
+        """
+        Test that when on_failure_callback is passed to the DAG, has_on_failure_callback is stored
+        in Serialized JSON blob. And when it is de-serialized dag.has_on_failure_callback is set to True.
+
+        When the callback is not set, has_on_failure_callback should not be stored in Serialized blob
+        and so default to False on de-serialization
+        """
+        dag = DAG(dag_id='test_dag_on_failure_callback_roundtrip', **passed_failure_callback)
+        BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if expected_value:
+            assert "has_on_failure_callback" in serialized_dag["dag"]
+        else:
+            assert "has_on_failure_callback" not in serialized_dag["dag"]
+
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+
+        assert deserialized_dag.has_on_failure_callback is expected_value
 
 
 def test_kubernetes_optional():

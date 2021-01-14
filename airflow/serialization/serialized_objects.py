@@ -634,6 +634,12 @@ class SerializedDAG(DAG, BaseSerialization):
 
             serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
             serialize_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
+
+            # has_on_*_callback are only stored if the value is True, as the default is False
+            if dag.has_on_success_callback:
+                serialize_dag['has_on_success_callback'] = True
+            if dag.has_on_failure_callback:
+                serialize_dag['has_on_failure_callback'] = True
             return serialize_dag
         except SerializationError:
             raise
@@ -676,6 +682,12 @@ class SerializedDAG(DAG, BaseSerialization):
             for task in dag.tasks:
                 dag.task_group.add(task)
         # pylint: enable=protected-access
+
+        # Set has_on_*_callbacks to True if they exist in Serialized blob as False is the default
+        if "has_on_success_callback" in encoded_dag:
+            dag.has_on_success_callback = True
+        if "has_on_failure_callback" in encoded_dag:
+            dag.has_on_failure_callback = True
 
         keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:
