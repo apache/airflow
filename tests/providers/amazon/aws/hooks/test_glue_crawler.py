@@ -88,20 +88,32 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
     def test_init(self):
         self.assertEqual(self.hook.aws_conn_id, "aws_default")
 
+    def test_has_crawler(self):
+        response = self.hook.has_crawler(mock_crawler_name)
+        self.assertIsInstance(response, bool)
+
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    def test_get_or_create_crawler(self, mock_get_conn):
+    def test_get_crawler(self, mock_get_conn):
 
         mock_crawler = mock_get_conn.return_value.get_crawler(Name=mock_crawler_name)['Crawler']['Name']
-        glue_crawler = self.hook.get_or_create_crawler(**mock_config)
+        glue_crawler = self.hook.get_crawler(**mock_config)
+
+        self.assertEqual(glue_crawler, mock_crawler)
+
+    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    def test_create_crawler(self, mock_get_conn):
+
+        mock_crawler = mock_get_conn.return_value.create_crawler(Name=mock_crawler_name)['Crawler']['Name']
+        glue_crawler = self.hook.create_crawler(**mock_config)
 
         self.assertEqual(glue_crawler, mock_crawler)
 
     @mock.patch.object(AwsGlueCrawlerHook, "wait_for_crawler_completion", autospec=True)
-    @mock.patch.object(AwsGlueCrawlerHook, "get_or_create_crawler", autospec=True)
+    @mock.patch.object(AwsGlueCrawlerHook, "get_crawler", autospec=True)
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    def test_start_crawler(self, mock_get_conn, mock_get_or_create_crawler, mock_wait_for_completion):
+    def test_start_crawler(self, mock_get_conn, mock_get_crawler, mock_wait_for_completion):
 
-        mock_get_or_create_crawler.Name = mock.Mock(Name=mock_crawler_name)
+        mock_get_crawler.Name = mock.Mock(Name=mock_crawler_name)
         mock_get_conn.return_value.start_crawler(crawler_name=mock_crawler_name)
 
         mock_crawler_status = mock_wait_for_completion.return_value

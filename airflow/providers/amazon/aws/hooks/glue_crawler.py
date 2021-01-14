@@ -26,9 +26,13 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class AwsGlueCrawlerHook(AwsBaseHook):
     """
-    Interacts with AWS Glue Crawler
-    :param config = Configurations for the AWS Glue crawler
-    :type config = dict
+    Interacts with AWS Glue Crawler.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs):
@@ -46,7 +50,8 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         valid pre-existing role within the caller's AWS account.
         Is needed because the current Boto3 (<=1.16.46)
         glue client create_crawler() method misleadingly catches
-        non-existing role as a role trust policy error.
+        a non-existing role as a role trust policy error.
+
         :param role_name = IAM role name
         :type role_name = str
         :return: IAM role name
@@ -55,32 +60,67 @@ class AwsGlueCrawlerHook(AwsBaseHook):
 
         iam_client.get_role(RoleName=role_name)
 
-    def get_or_create_crawler(self, **crawler_kwargs) -> str:
+    def has_crawler(self, crawler_name) -> bool:
         """
-        Creates the crawler if the crawler doesn't exists and returns the crawler name
+        Checks if the crawler already exists
 
-        :param crawler_kwargs = Keyword args that define the configurations used to create/update the crawler
+        :param crawler_name: unique crawler name per AWS account
+        :type crawler_name: str
+        :return: Returns True if the crawler already exists and False if not.
+        """
+        self.log.info("Checking if AWS Glue crawler already exists: %s", crawler_name)
+
+        try:
+            self.glue_client.get_crawler(Name=crawler_name)
+            return True
+        except self.glue_client.exceptions.EntityNotFoundException:
+            return False
+
+    def get_crawler(self, **crawler_kwargs) -> str:
+        """
+        Updates crawler configurations and gets the crawler's name
+
+        :param crawler_kwargs = Keyword args that define the configurations used for the crawler
         :type crawler_kwargs = any
         :return: Name of the crawler
         """
         crawler_name = crawler_kwargs['Name']
-        try:
-            glue_response = self.glue_client.get_crawler(Name=crawler_name)
-            self.log.info("Crawler %s already exists; updating crawler", crawler_name)
+        current_crawler = self.glue_client.get_crawler(Name=crawler_name)['Crawler']
+
+        update_config = {
+            key: value for key, value in crawler_kwargs.items() if current_crawler[key] != crawler_kwargs[key]
+        }
+        if update_config != {}:
+            self.log.info("Updating crawler: %s", crawler_name)
             self.glue_client.update_crawler(**crawler_kwargs)
+            self.log.info("Updated configurations: %s", update_config)
+
+        return crawler_name
+
+    def create_crawler(self, **crawler_kwargs) -> str:
+        """
+        Creates an AWS Glue Crawler
+
+        :param crawler_kwargs = Keyword args that define the configurations used to create the crawler
+        :type crawler_kwargs = any
+        :return: Name of the crawler
+        """
+        crawler_name = crawler_kwargs['Name']
+        self.log.info("Creating AWS Glue crawler: %s", crawler_name)
+
+        try:
+            glue_response = self.glue_client.create_crawler(**crawler_kwargs)
             return glue_response['Crawler']['Name']
-        except self.glue_client.exceptions.EntityNotFoundException:
-            self.log.info("Creating AWS Glue crawler %s", crawler_name)
-            try:
-                glue_response = self.glue_client.create_crawler(**crawler_kwargs)
-                return glue_response['Crawler']['Name']
-            except self.glue_client.exceptions.InvalidInputException as general_error:
-                self.check_iam_role(crawler_kwargs['Role'])
-                raise AirflowException(general_error)
+        except self.glue_client.exceptions.InvalidInputException as general_error:
+            self.check_iam_role(crawler_kwargs['Role'])
+            raise AirflowException(general_error)
 
     def start_crawler(self, crawler_name: str) -> dict:
         """
         Triggers the AWS Glue crawler
+
+        :param crawler_name: unique crawler name per AWS account
+        :type crawler_name: str
         :return: Empty dictionary
         """
         crawler = self.glue_client.start_crawler(Name=crawler_name)
@@ -90,6 +130,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         """
         Get state of the Glue crawler. The crawler state can be
         ready, running, or stopping.
+
         :param crawler_name: unique crawler name per AWS account
         :type crawler_name: str
         :return: State of the Glue crawler
@@ -102,6 +143,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         """
         Get the status of the latest crawl run. The crawl
         status can be succeeded, cancelled, or failed.
+
         :param crawler_name: unique crawler name per AWS account
         :type crawler_name: str
         :return: Status of the Glue crawler
@@ -115,6 +157,7 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         Waits until Glue crawler completes and
         returns the status of the latest crawl run.
         Raises AirflowException if the crawler fails or is cancelled.
+
         :param crawler_name: unique crawler name per AWS account
         :type crawler_name: str
         :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
@@ -160,6 +203,9 @@ class AwsGlueCrawlerHook(AwsBaseHook):
     def get_crawler_metrics(self, crawler_name: str) -> dict:
         """
         Returns metrics associated with the crawler
+
+        :param crawler_name: unique crawler name per AWS account
+        :type crawler_name: str
         :return: Dictionary of the crawler metrics
         """
         crawler = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])

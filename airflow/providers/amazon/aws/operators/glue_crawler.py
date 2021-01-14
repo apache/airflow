@@ -60,9 +60,14 @@ class AwsGlueCrawlerOperator(BaseOperator):
     def execute(self, context):
         """
         Executes AWS Glue Crawler from Airflow
+
         :return: the name of the current glue crawler.
         """
-        crawler_name = self.hook.get_or_create_crawler(**self.config)
+        if self.hook.has_crawler(self.config['Name']):
+            crawler_name = self.hook.get_crawler(**self.config)
+        else:
+            crawler_name = self.hook.create_crawler(**self.config)
+
         self.log.info("Triggering AWS Glue Crawler")
         self.hook.start_crawler(crawler_name)
         self.log.info("Waiting for AWS Glue Crawler")
