@@ -363,15 +363,12 @@ class DagFileProcessor(LoggingMixin):
     This includes:
 
     1. Execute the file and look for DAG objects in the namespace.
-    2. Pickle the DAG and save it to the DB (if necessary).
-    3. For each DAG, see what tasks should run and create appropriate task
-    instances in the DB.
-    4. Record any errors importing the file into ORM
-    5. Kill (in ORM) any task instances belonging to the DAGs that haven't
-    issued a heartbeat in a while.
+    2. Execute any Callbacks if passed to DagFileProcessor.process_file
+    3. Serialize the DAGs and save it to DB (or update existing record in the DB).
+    4. Pickle the DAG and save it to the DB (if necessary).
+    5. Record any errors importing the file into ORM
 
-    Returns a list of SimpleDag objects that represent the DAGs found in
-    the file
+    Returns a tuple of 'number of dags found' and 'the count of import errors'
 
     :param dag_ids: If specified, only look at these DAG ID's
     :type dag_ids: List[str]
@@ -609,10 +606,10 @@ class DagFileProcessor(LoggingMixin):
         This includes:
 
         1. Execute the file and look for DAG objects in the namespace.
-        2. Pickle the DAG and save it to the DB (if necessary).
-        3. For each DAG, see what tasks should run and create appropriate task
-        instances in the DB.
-        4. Record any errors importing the file into ORM
+        2. Execute any Callbacks if passed to this method.
+        3. Serialize the DAGs and save it to DB (or update existing record in the DB).
+        4. Pickle the DAG and save it to the DB (if necessary).
+        5. Record any errors importing the file into ORM
 
         :param file_path: the path to the Python file that should be executed
         :type file_path: str
@@ -1267,7 +1264,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
             self.register_signals()
 
-            # Start after resetting orphaned tasks to avoid stressing out DB.
             self.processor_agent.start()
 
             execute_start_time = timezone.utcnow()
