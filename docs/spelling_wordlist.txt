@@ -252,6 +252,7 @@ NaN
 Naik
 Namenode
 Namespace
+Neo4j
 Nextdoor
 Nones
 NotFound
@@ -992,6 +993,8 @@ navbar
 nd
 ndjson
 neighbours
+neo
+neo4j
 neq
 networkUri
 nginx
@@ -1219,6 +1222,7 @@ sqlsensor
 sqoop
 src
 srv
+ssc
 ssd
 sshHook
 sshtunnel

@@ -213,6 +213,8 @@ Those are extras that add dependencies needed for integration with other softwar
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | mysql               | ``pip install 'apache-airflow[mysql]'``             | MySQL operators and hook                  |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
+| neo4j               | ``pip install 'apache-airflow[neo4j]'``             | Neo4j operators and hook                  |
++---------------------+-----------------------------------------------------+-------------------------------------------+
 | odbc                | ``pip install 'apache-airflow[odbc]'``              | ODBC data sources including MS SQL Server |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | openfaas            | ``pip install 'apache-airflow[openfaas]'``          | OpenFaaS hooks                            |

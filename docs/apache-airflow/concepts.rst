@@ -1321,8 +1321,8 @@ In case of DAG and task policies users may raise :class:`~airflow.exceptions.Air
 to prevent a DAG from being imported or prevent a task from being executed if the task is not compliant with
 users' check.
 
-Please note, cluster policy will have precedence over task attributes defined in DAG meaning
-if ``task.sla`` is defined in dag and also mutated via cluster policy then later will have precedence.
+Please note, cluster policy will have precedence over task attributes defined in DAG meaning that
+if ``task.sla`` is defined in dag and also mutated via cluster policy then the latter will have precedence.
 
 In next sections we show examples of each type of cluster policy.
 

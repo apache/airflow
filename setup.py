@@ -360,6 +360,7 @@ mysql = [
     'mysql-connector-python>=8.0.11, <=8.0.22',
     'mysqlclient>=1.3.6,<1.4',
 ]
+neo4j = ['neo4j>=4.2.1']
 odbc = [
     'pyodbc',
 ]
@@ -557,6 +558,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'microsoft.winrm': winrm,
     'mongo': mongo,
     'mysql': mysql,
+    'neo4j': neo4j,
     'odbc': odbc,
     'openfaas': [],
     'opsgenie': [],
@@ -711,6 +713,7 @@ ALL_DB_PROVIDERS = [
     'microsoft.mssql',
     'mongo',
     'mysql',
+    'neo4j',
     'postgres',
     'presto',
     'vertica',
