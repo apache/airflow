@@ -1531,11 +1531,7 @@ dag_cli_commands: List[CLICommand] = [
     GroupCommand(
         name='tasks',
         help='Manage tasks',
-        subcommands=[
-            _remove_dag_id_opt(sp)
-            for sp in TASKS_COMMANDS
-            if sp.name in ['list', 'test', 'run']
-        ],
+        subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in ['list', 'test', 'run']],
     ),
 ]
 DAG_CLI_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
