@@ -494,7 +494,7 @@ function initialization::initialize_git_variables() {
 function initialization::initialize_github_variables() {
     # Defaults for interacting with GitHub
     export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
-
+    export GITHUB_REGISTRY_IMAGE_SUFFIX="-v2"
     export GITHUB_REGISTRY=${GITHUB_REGISTRY:="docker.pkg.github.com"}
     export GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"}
     export GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG:="latest"}
