@@ -142,6 +142,72 @@ class TestDagFileProcessorManager(unittest.TestCase):
         child_pipe.close()
         parent_pipe.close()
 
+    @pytest.mark.backend("mysql", "postgres")
+    def test_start_new_processes_with_same_filepath(self):
+        """
+        Test that when a processor already exist with a filepath, a new processor won't be created
+        with that filepath. The filepath will just be removed from the list.
+        """
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        file_1 = 'file_1.py'
+        file_2 = 'file_2.py'
+        file_3 = 'file_3.py'
+        manager._file_path_queue = [file_1, file_2, file_3]
+
+        manager._processors[file_1] = MagicMock()
+        manager.start_new_processes()
+
+        assert file_1 in manager._processors.keys()
+        assert file_2 in manager._processors.keys()
+        assert [file_3] == manager._file_path_queue
+
+    @pytest.mark.backend("mysql", "postgres")
+    def test_start_new_processes_with_same_filepath_with_callback(self):
+        """
+        Test that when a processor already exist with a filepath, a new processor will be created
+        with that filepath if the filepath does not exist in filepath queue and a callback exists
+        for that filepath
+        """
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        file_1 = 'file_1.py'
+        file_2 = 'file_2.py'
+        file_3 = 'file_3.py'
+
+        # Given: Processor for the filepath already exist
+        manager._processors[file_1] = MagicMock()
+
+        # filepath is not present in the queue
+        manager._file_path_queue = [file_1, file_2, file_3]
+
+        # Callback exists for that filepath
+        manager._callback_to_execute[file_1] = MagicMock()
+        manager.start_new_processes()
+
+        assert file_1 in manager._processors.keys()
+        assert file_2 in manager._processors.keys()
+        # Check that 'file_1' is pop'd from the list and re-added at the end of the list
+        assert [file_3, file_1] == manager._file_path_queue
+
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
             dag_directory='directory',
