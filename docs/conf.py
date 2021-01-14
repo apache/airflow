@@ -231,6 +231,8 @@ if PACKAGE_NAME == 'apache-airflow':
     html_js_files = ['jira-links.js']
 else:
     html_js_files = []
+if PACKAGE_NAME == 'apache-airflow':
+    html_extra_path = [f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml"]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.

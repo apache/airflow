@@ -15,31 +15,13 @@
     specific language governing permissions and limitations
     under the License.
 
+Quick start
+===========
 
-
-How-to Guides
-=============
-
-Setting up the sandbox in the :doc:`/start/index` section was easy;
-building a production-grade environment requires a bit more work!
-
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
+This section contains quick start guides to help you get up and running with Apache Airflow.
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
-    add-dag-tags
-    set-config
-    set-up-database
-    operator/index
-    customize-state-colors-ui
-    custom-operator
-    connection
-    variable
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    define_extra_link
-    email-config
+    local.rst
+    docker.rst
