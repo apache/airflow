@@ -18,7 +18,7 @@
 Running Airflow in Docker
 #########################
 
-this quick-start guide will allow you to quickly start Airflow from :doc:`CeleryExecutor </executor/celery>` in Docker. This is the fastest way to start Airflow.
+This quick-start guide will allow you to quickly start Airflow with :doc:`CeleryExecutor </executor/celery>` in Docker. This is the fastest way to start Airflow.
 
 Before you begin
 ================
@@ -41,7 +41,7 @@ To deploy Airflow on Docker Compose, you should download `docker-compose.yaml <.
 - ``postgres`` - The database.
 - ``redis`` - `The redis <https://redis.io/>`__ - broker that forwards messages from scheduler to worker.
 
-All these services allow you to run Airflow with :doc:`CeleryExecutor </executor/celery>`. For more information, see: :ref:`architecture`.
+All these services allow you to run Airflow with :doc:`CeleryExecutor </executor/celery>`. For more information, see :ref:`architecture`.
 
 Running Airflow
 ===============
@@ -88,7 +88,7 @@ In the second terminal you can check the condition of the containers and make su
 Testing
 =======
 
-Once the cluster has started up, you login to the web interface and try to run some tasks. The webserver available at: ``http://localhost:8080``.
+Once the cluster has started up, you can log in to the web interface and try to run some tasks. The webserver available at: ``http://localhost:8080``.
 
 .. image:: /img/dags.png
 
