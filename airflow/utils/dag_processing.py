@@ -995,11 +995,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             file_path = self._file_path_queue.pop(0)
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file_path in self._processors.keys():
-                # If filepath is no longer in the queue and if callback exists to execute
-                # we add the filepath to the end of queue so it still runs before
-                # new filepaths are added to the queue as we should runs callbacks asap
-                if file_path not in self._file_path_queue and self._callback_to_execute[file_path]:
-                    self._file_path_queue.append(file_path)
                 continue
 
             callback_to_execute_for_file = self._callback_to_execute[file_path]
