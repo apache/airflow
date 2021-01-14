@@ -24,7 +24,7 @@ import os
 import textwrap
 from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
-from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Union
+from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
 
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
