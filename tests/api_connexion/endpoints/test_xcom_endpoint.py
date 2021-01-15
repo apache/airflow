@@ -115,6 +115,7 @@ class TestGetXComEntry(TestXComEndpoint):
                 'key': xcom_key,
                 'task_id': task_id,
                 'timestamp': 'TIMESTAMP',
+                'value': 'TEST_VALUE',
             },
         )
 
