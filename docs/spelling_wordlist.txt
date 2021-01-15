@@ -858,6 +858,7 @@ ints
 intvl
 io
 ip
+ipc
 isfile
 ish
 isn
