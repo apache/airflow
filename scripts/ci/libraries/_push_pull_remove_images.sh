@@ -189,8 +189,7 @@ function push_pull_remove_images::push_ci_images_to_dockerhub() {
 
 # Pushes Ci images and their tags to registry in GitHub
 function push_pull_remove_images::push_ci_images_to_github() {
-    # Push image to GitHub registry with chosen push tag
-    # the PUSH tag might be:
+    # Push image to GitHub registry with the push tag:
     #     "${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
     #     "latest"           - in case of push builds
     AIRFLOW_CI_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
@@ -202,12 +201,21 @@ function push_pull_remove_images::push_ci_images_to_github() {
         docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_SHA_IMAGE}"
         push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_SHA_IMAGE}"
     fi
+    # Push python image to GitHub registry with the push tag:
+    #     X.Y-slim-buster-"${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
+    #     X.Y-slim-buster                    - in case of push builds
     PYTHON_TAG_SUFFIX=""
     if [[ ${GITHUB_REGISTRY_PUSH_IMAGE_TAG} != "latest" ]]; then
         PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     fi
-    docker tag "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
-    push_pull_remove_images::push_image_with_retries "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+
+    # Label the python image for GCR, so that it is linked to the current project it is build in
+    echo "FROM ${PYTHON_BASE_IMAGE}" | \
+        docker build --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            -t "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}" -
+
+    push_pull_remove_images::push_image_with_retries \
+        "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
 }
 
 
@@ -264,8 +272,8 @@ function push_pull_remove_images::push_prod_images() {
     fi
 }
 
-# waits for an image to be available in the GitHub registry
-function push_pull_remove_images::wait_for_github_registry_image() {
+# waits for an image to be available in GitHub Packages
+function push_pull_remove_images::wait_for_image_in_github_packages() {
     local github_repository_lowercase
     github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
     local github_api_endpoint
@@ -292,6 +300,46 @@ function push_pull_remove_images::wait_for_github_registry_image() {
         sleep 60
     done
     verbosity::print_info "Found ${image_name_in_github_registry}:${image_tag_in_github_registry} image"
+}
+
+
+# waits for an image to be available in GitHub Container Registry
+function push_pull_remove_images::wait_for_image_in_github_container_registry() {
+    local image_name_in_github_registry="${1}"
+    local image_tag_in_github_registry=${2}
+
+    local image_to_wait_for="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY}-${image_name_in_github_registry}:${image_tag_in_github_registry}"
+    echo
+    echo "Waiting for ${GITHUB_REGISTRY}/${GITHUB_REPOSITORY}-${image_name_in_github_registry}:${image_tag_in_github_registry} image"
+    echo
+    set +e
+    while true; do
+        docker manifest inspect "${image_to_wait_for}"
+        local res=$?
+        if [[ ${res} == "0" ]]; then
+            echo  "${COLOR_GREEN}OK.${COLOR_RESET}"
+            break
+        else
+            echo "${COLOR_YELLOW}Still waiting for ${image_to_wait_for}!${COLOR_RESET}"
+        fi
+        sleep 30
+    done
+    set -e
+    verbosity::print_info "Found ${image_name_in_github_registry}:${image_tag_in_github_registry} image"
+}
+
+# waits for an image to be available in the GitHub registry
+function push_pull_remove_images::wait_for_github_registry_image() {
+    if [[ ${GITHUB_REGISTRY} == "ghcr.io" ]]; then
+        push_pull_remove_images::wait_for_image_in_github_container_registry "${@}"
+    elif [[ ${GITHUB_REGISTRY} == "docker.pkg.github.com" ]]; then
+        push_pull_remove_images::wait_for_image_in_github_packages "${@}"
+    else
+        echo
+        echo  "${COLOR_RED}ERROR: Bad value of '${GITHUB_REGISTRY}'. Should be either 'ghcr.io' or 'docker.pkg.github.com'!${COLOR_RESET}"
+        echo
+        exit 1
+    fi
 }
 
 function push_pull_remove_images::check_if_github_registry_wait_for_image_enabled() {

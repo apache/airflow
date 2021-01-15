@@ -26,6 +26,8 @@
 _breeze_allowed_python_major_minor_versions="2.7 3.5 3.6 3.7 3.8"
 _breeze_allowed_backends="sqlite mysql postgres"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot presto rabbitmq redis all"
+# registrys is good here even if it is not correct english. We are adding s automatically to all variables
+_breeze_allowed_github_registrys="docker.pkg.github.com ghcr.io"
 _breeze_allowed_kubernetes_modes="image"
 _breeze_allowed_kubernetes_versions="v1.18.6 v1.17.5 v1.16.9"
 _breeze_allowed_helm_versions="v3.2.4"
@@ -41,6 +43,7 @@ _breeze_allowed_installation_methods=". apache-airflow"
 {
     # Default values for the commands & flags used
     _breeze_default_backend=$(echo "${_breeze_allowed_backends}" | awk '{print $1}')
+    _breeze_default_github_registry=$(echo "${_breeze_allowed_github_registrys}" | awk '{print $1}')
     _breeze_default_kubernetes_mode=$(echo "${_breeze_allowed_kubernetes_modes}" | awk '{print $1}')
     _breeze_default_kubernetes_version=$(echo "${_breeze_allowed_kubernetes_versions}" | awk '{print $1}')
     _breeze_default_helm_version=$(echo "${_breeze_allowed_helm_versions}" | awk '{print $1}')
@@ -160,7 +163,7 @@ skip-mounting-local-sources install-airflow-version: install-airflow-reference: 
 verbose assume-yes assume-no assume-quit forward-credentials init-script:
 force-build-images force-pull-images production-image extras: force-clean-images skip-rebuild-check
 build-cache-local build-cache-pulled build-cache-disabled disable-pip-cache
-dockerhub-user: dockerhub-repo: github-registry github-repository: github-image-id:
+dockerhub-user: dockerhub-repo: use-github-registry github-registry: github-repository: github-image-id:
 postgres-version: mysql-version:
 version-suffix-for-pypi: version-suffix-for-svn: backports
 additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps: image-tag:
@@ -294,6 +297,9 @@ function breeze_complete::get_known_values_breeze() {
         ;;
     --installation-method)
         _breeze_known_values="${_breeze_allowed_installation_methods}"
+        ;;
+    --github-registry)
+        _breeze_known_values="${_breeze_allowed_github_registrys}"
         ;;
     *)
         _breeze_known_values=""

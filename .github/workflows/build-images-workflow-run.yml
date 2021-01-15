@@ -30,9 +30,14 @@ env:
   DB_RESET: "true"
   VERBOSE: "true"
   USE_GITHUB_REGISTRY: "true"
+  # Might be either 'ghcr.io' or 'docker.pkg.github.com'
+  GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
+  # This token is WRITE one - workflow_run type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # This token should not be empty in workflow_run type of event.
+  CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   BUILD_IMAGES: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE != 'false' }}

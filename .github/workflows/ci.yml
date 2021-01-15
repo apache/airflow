@@ -36,9 +36,15 @@ env:
   VERBOSE: "true"
   DOCKER_CACHE: "pulled"
   USE_GITHUB_REGISTRY: "true"
+  # Might be either 'ghcr.io' or 'docker.pkg.github.com'
+  GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
+  # In builds from forks, this token is read-only. For scheduler/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # In builds from forks, this token is empty, and this is good because such builds do not even try
+  # to push images to the registry.
+  CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"

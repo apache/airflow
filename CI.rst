@@ -366,14 +366,33 @@ Our CI uses GitHub Registry to pull and push images to/from by default. You can 
 DockerHub registry or change the GitHub registry to interact with and use your own repo by changing
 ``GITHUB_REPOSITORY`` and providing your own GitHub Username and Token.
 
+Currently we are using GitHub Packages to cache images for the build. GitHub Packages are "legacy"
+storage of binary artifacts for GitHub and as of September 2020 they introduced Github Container Registry
+as more stable, easier to manage replacement for container storage. It includes complete self-management
+of the images including permission management, public access, retention management and many more.
+
+More about it here:
+
+https://github.blog/2020-09-01-introducing-github-container-registry/
+
+Recently we started to experience unstable behaviour of the Github Packages ('unknown blob'
+and manifest v1 vs. v2 when pushing images to it). So together with ASF we proposed to
+enable Github Container Registry and it happened as of January 2020.
+
+More about it in https://issues.apache.org/jira/browse/INFRA-20959
+
+We are currently in the testing phase, especially when it comes to management of permissions -
+the model of permission management is not the same for Container Registry as it was for GitHub Packages
+(it was per-repository in GitHub Packages, but it is organization-wide in the Container Registry.
+
 +--------------------------------+---------------------------+----------------------------------------------+
 | Variable                       | Default                   | Comment                                      |
 +================================+===========================+==============================================+
 | USE_GITHUB_REGISTRY            | true                      | If set to "true", we interact with GitHub    |
 |                                |                           | Registry registry not the DockerHub one.     |
 +--------------------------------+---------------------------+----------------------------------------------+
-| GITHUB_REGISTRY                | ``docker.pkg.github.com`` | DNS name of the GitHub registry to           |
-|                                |                           | use.                                         |
+| GITHUB_REGISTRY                | ``docker.pkg.github.com`` | Name of the GitHub registry to use. Can be   |
+|                                |                           | ``docker.pkg.github.com`` or ``ghcr.io``     |
 +--------------------------------+---------------------------+----------------------------------------------+
 | GITHUB_REPOSITORY              | ``apache/airflow``        | Prefix of the image. It indicates which.     |
 |                                |                           | registry from GitHub to use                  |
@@ -381,8 +400,18 @@ DockerHub registry or change the GitHub registry to interact with and use your o
 | GITHUB_USERNAME                |                           | Username to use to login to GitHub           |
 |                                |                           |                                              |
 +--------------------------------+---------------------------+----------------------------------------------+
-| GITHUB_TOKEN                   |                           | Personal token to use to login to GitHub     |
-|                                |                           |                                              |
+| GITHUB_TOKEN                   |                           | Token to use to login to GitHub. This token  |
+|                                |                           | is automatically set by GitHub CI to a       |
+|                                |                           | to a READ-only token for PR builds from fork |
+|                                |                           | and to WRITE token for direct pushes and     |
+|                                |                           | scheduled or workflow_run types of builds    |
++--------------------------------+---------------------------+----------------------------------------------+
+| CONTAINER_REGISTRY_TOKEN       |                           | Personal token to use to login to GitHub     |
+|                                |                           | Container Registry. Should be retrieved      |
+|                                |                           | from secret (in our case it is PAT_CR secret |
+|                                |                           | following example in GitHub documentation.   |
+|                                |                           | Only set in push/scheduled/workflow_run      |
+|                                |                           | type of build.                               |
 +--------------------------------+---------------------------+----------------------------------------------+
 | GITHUB_REGISTRY_WAIT_FOR_IMAGE | ``false``                 | Wait for the image to be available. This is  |
 |                                |                           | useful if commit SHA is used as pull tag     |
@@ -393,6 +422,17 @@ DockerHub registry or change the GitHub registry to interact with and use your o
 | GITHUB_REGISTRY_PUSH_IMAGE_TAG | ``latest``                | Pull this image tag. This is "latest" by     |
 |                                |                           | default, can be commit SHA or RUN_ID.        |
 +--------------------------------+---------------------------+----------------------------------------------+
+
+Authentication in Github Registry
+=================================
+
+We are currently in the process of testing using Github Container Registry as cache for our images during
+the CI process. The default registry is set to "GitHub Packages", but we are testing the GitHub
+Container Registry. In case of GitHub Packages, authentication uses GITHUB_TOKEN mechanism. Authentication
+is needed for both pushing the images (WRITE) and pulling them (READ) - which means that GitHub token
+is used in "master" build (WRITE) and in fork builds (READ). For container registry, our images are
+Publicly Visible and we do not need any authentication to pull them so the CONTAINER_REGISTRY_TOKEN is
+only set in the "master" builds only ("Build Images" workflow and "Scheduled quarantine" one).
 
 Dockerhub Variables
 ===================

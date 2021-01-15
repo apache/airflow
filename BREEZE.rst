@@ -1416,7 +1416,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -U, --build-cache-pulled
           Uses images pulled from registry (either DockerHub or GitHub depending on
-          --github-registry flag) to build images. The pulled images will be used as cache.
+          --use-github-registry flag) to build images. The pulled images will be used as cache.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
           the registry images are not yet updated. The DockerHub images are updated nightly and the
           GitHub images are updated after merges to master so it might be that the images are still
@@ -1439,16 +1439,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry GITHUB_REGISTRY
+  -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
+
+  --github-registry GITHUB_REGISTRY
+          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          registry.
+
+          Default: docker.pkg.github.com.
+
+          If you use this flag, automatically --use-github-registry flag is enabled.
+
+                 docker.pkg.github.com ghcr.io
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
-          If you use this flag, automatically --github-registry flag is enabled.
+          If you use this flag, automatically --use-github-registry flag is enabled.
 
   -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
@@ -1457,7 +1467,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically pull and use that image so that you can easily reproduce a problem
           that occurred in CI.
 
-          If you use this flag, automatically --github-registry is enabled.
+          If you use this flag, automatically --use-github-registry is enabled.
 
 
           Default: latest.
@@ -1567,14 +1577,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze push_image [FLAGS]
 
         Pushes images to docker registry. You can push the images to DockerHub registry (default)
-        or to the GitHub registry (if --github-registry flag is used).
+        or to the GitHub registry (if --use-github-registry flag is used).
 
         For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
         the repository to push to. For GitHub repository, the --github-repository
         flag can be used for the same purpose. You can also add
         --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to push image with specific
         SHA tag or run id. In case you specify --github-repository or --github-image-id, you
-        do not need to specify --github-registry flag.
+        do not need to specify --use-github-registry flag.
 
         You can also add --production-image flag to switch to production image (default is CI one)
 
@@ -1583,7 +1593,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         'breeze push-image' or
         'breeze push-image --dockerhub-user user' to push to your private registry or
         'breeze push-image --production-image' - to push production image or
-        'breeze push-image --github-registry' - to push to GitHub image registry or
+        'breeze push-image --use-github-registry' - to push to GitHub image registry or
         'breeze push-image \
               --github-repository user/airflow' - to push to your user's fork
         'breeze push-image \
@@ -1599,16 +1609,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry GITHUB_REGISTRY
+  -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
+
+  --github-registry GITHUB_REGISTRY
+          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          registry.
+
+          Default: docker.pkg.github.com.
+
+          If you use this flag, automatically --use-github-registry flag is enabled.
+
+                 docker.pkg.github.com ghcr.io
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
-          If you use this flag, automatically --github-registry flag is enabled.
+          If you use this flag, automatically --use-github-registry flag is enabled.
 
   -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
@@ -1617,7 +1637,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically pull and use that image so that you can easily reproduce a problem
           that occurred in CI.
 
-          If you use this flag, automatically --github-registry is enabled.
+          If you use this flag, automatically --use-github-registry is enabled.
 
 
           Default: latest.
@@ -2004,7 +2024,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -U, --build-cache-pulled
           Uses images pulled from registry (either DockerHub or GitHub depending on
-          --github-registry flag) to build images. The pulled images will be used as cache.
+          --use-github-registry flag) to build images. The pulled images will be used as cache.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
           the registry images are not yet updated. The DockerHub images are updated nightly and the
           GitHub images are updated after merges to master so it might be that the images are still
@@ -2543,7 +2563,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -U, --build-cache-pulled
           Uses images pulled from registry (either DockerHub or GitHub depending on
-          --github-registry flag) to build images. The pulled images will be used as cache.
+          --use-github-registry flag) to build images. The pulled images will be used as cache.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
           the registry images are not yet updated. The DockerHub images are updated nightly and the
           GitHub images are updated after merges to master so it might be that the images are still
@@ -2569,16 +2589,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry GITHUB_REGISTRY
+  -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
+
+  --github-registry GITHUB_REGISTRY
+          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          registry.
+
+          Default: docker.pkg.github.com.
+
+          If you use this flag, automatically --use-github-registry flag is enabled.
+
+                 docker.pkg.github.com ghcr.io
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
-          If you use this flag, automatically --github-registry flag is enabled.
+          If you use this flag, automatically --use-github-registry flag is enabled.
 
   -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
@@ -2587,7 +2617,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically pull and use that image so that you can easily reproduce a problem
           that occurred in CI.
 
-          If you use this flag, automatically --github-registry is enabled.
+          If you use this flag, automatically --use-github-registry is enabled.
 
 
           Default: latest.

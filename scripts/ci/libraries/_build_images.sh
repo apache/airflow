@@ -394,27 +394,126 @@ function build_images::get_docker_image_names() {
     # File that is touched when the CI image is built for the first time locally
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
-    # GitHub Registry names must be lowercase :(
-    github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
-    export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
-    export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}-build"
-    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+    # This is 1-1 mapping of image names of Apache Airflow stored in DockerHub vs. the same images stored
+    # in Github Registries (either Github Container Registry or Github Packages)
+    #
+    # We have to apply naming conventions used by the registries and keep multiple RUN_ID tags. We use
+    # common suffix ('gcr-v1') to be able to switch to different set of cache images if needed
+    # - for example when some images gets broken (might happen with Github Actions Registries) or when
+    # the storage capacity per image is reached (though it is apparently unlimited)
+    #
+    # Some examples:
+    #
+    # In case of Github Container Registry:
+    #
+    # * Prod Image: "apache/airflow:master-python3.8" ->  "apache/airflow-master-python3.8-gcr-v1:<RUN_ID>"
+    # * Prod build image: "apache/airflow:master-python3.8-build" ->  "apache/airflow-master-python3.8-build-gcr-v1:<RUN_ID>"
+    # * CI build image: "apache/airflow:master-python3.8-ci" ->  "apache/airflow-master-python3.8-ci-gcr-v1:<RUN_ID>"
+    #
+    # The python base image/tag mapping is slightly different (the base images are shared by all Prod/Build/CI images)
+    # And python version is part of the tag.
+    #
+    # "apache/airflow:python-3.6 ->  "apache/airflow-python-gcr-v1:3.6-slim-buster-<RUN_ID>"
+    #
+    # In case of Github Packages image must be part of the repository:
+    #
+    # * Prod Image: "apache/airflow:master-python3.8" ->  "apache/airflow/master-python3.8-gcr-v1:<RUN_ID>"
+    # * Prod build image: "apache/airflow:master-python3.8-build" ->  "apache/airflow/master-python3.8-build-gcr-v1:<RUN_ID>"
+    # * CI build image: "apache/airflow:master-python3.8-ci" ->  "apache/airflow/master-python3.8-ci-gcr-v1:<RUN_ID>"
+    #
+    # The python base image/tag mapping is slightly different (the base images are shared by all
+    # Prod/Build/CI images) and python version is part of the tag.
+    #
+    # "apache/airflow:python-3.6 ->  "apache/airflow/python/gcr-v1:3.6-slim-buster-<RUN_ID>"
 
-    export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
-    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${github_repository_lowercase}/python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+
+    local image_name
+    image_name="${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)"
+    local image_separator
+    if [[ ${GITHUB_REGISTRY} == "ghcr.io" ]]; then
+        image_separator="-"
+    elif [[ ${GITHUB_REGISTRY} == "docker.pkg.github.com" ]]; then
+        image_separator="/"
+    else
+        echo
+        echo  "${COLOR_RED}ERROR: Bad value of '${GITHUB_REGISTRY}'. Should be either 'ghcr.io' or 'docker.pkg.github.com'!${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+
+    export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${image_name}-${AIRFLOW_PROD_BASE_TAG}${image_separator}build${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+
+    export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 }
 
-# If GitHub Registry is used, login to the registry using GITHUB_USERNAME and GITHUB_TOKEN
-function build_image::login_to_github_registry_if_needed() {
+# If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
+# either GITHUB_TOKEN or CONTAINER_REGISTRY_TOKEN depending on the registry.
+# In case Personal Access token is not set, skip logging in
+function build_image::login_to_github_container_registry_if_github_registry_enabled() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        if [[ -n ${GITHUB_TOKEN=} ]]; then
-            start_end::group_start "Login to GitHub registry"
-            echo "${GITHUB_TOKEN}" | docker login \
+        start_end::group_start "Determine Github Registry token used"
+        local token=""
+        if [[ "${GITHUB_REGISTRY}" == "ghcr.io" ]]; then
+            # For now ghcr.io can only authenticate using Personal Access Token with package access scope.
+            # There are plans to implement GITHUB_TOKEN authentication but this is not implemented yet
+            token="${CONTAINER_REGISTRY_TOKEN=}"
+            echo
+            echo "Using CONTAINER_REGISTRY_TOKEN!"
+            echo
+        elif [[ "${GITHUB_REGISTRY}" == "docker.pkg.github.com" ]]; then
+            token="${GITHUB_TOKEN}"
+            echo
+            echo "Using GITHUB_TOKEN!"
+            echo
+        else
+            echo
+            echo  "${COLOR_RED}ERROR: Bad value of '${GITHUB_REGISTRY}'. Should be either 'ghcr.io' or 'docker.pkg.github.com'!${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+        if [[ "${token}" == "" ]] ; then
+            echo
+            echo "Skip logging in to Github Registry. No Token available!"
+            echo
+        fi
+        start_end::group_end
+        if [[ "${token}" != "" ]]; then
+            start_end::group_start "Login to GitHub Registry ${GITHUB_REGISTRY}"
+            echo "${token}" | docker login \
                 --username "${GITHUB_USERNAME:-apache}" \
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
             start_end::group_end
+        else
+            start_end::group_start "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
+            start_end::group_end
         fi
+    fi
+}
+
+function build_image::enable_docker_experimental_features_if_github_registry_enabled() {
+    if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
+        start_end::group_start "Enable experimental features in Docker ('docker manifest' command)"
+        python <<EOF
+import json
+from os.path import expanduser, join
+
+DOCKER_CONFIG_FILE=join(expanduser("~"), ".docker", 'config.json')
+with open(DOCKER_CONFIG_FILE) as f:
+    config = json.load(f)
+print("\nBefore:\n")
+print(json.dumps(config, indent=4))
+print("\nAdding experimental flag to enable docker manifest command\n")
+config['experimental'] = "enabled"
+print("\nAfter:\n")
+print(json.dumps(config, indent=4))
+with open(DOCKER_CONFIG_FILE,"wt") as f:
+    json.dump(config, f)
+EOF
+        start_end::group_end
     fi
 }
 
@@ -433,7 +532,8 @@ function build_images::prepare_ci_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    build_image::login_to_github_registry_if_needed
+    build_image::login_to_github_container_registry_if_github_registry_enabled
+    build_image::enable_docker_experimental_features_if_github_registry_enabled
     sanity_checks::go_to_airflow_sources
     permissions::fix_group_permissions
 }
@@ -565,6 +665,18 @@ function build_images::rebuild_ci_image_if_needed_and_confirmed() {
     fi
 }
 
+# Retrieves Github Container Registry image prefix from repository name
+# GitHub Container Registry stores all images at the organization level, they are just
+# linked to the repository via docker label - however we assume a convention where we will
+# add repository name to organisation separated by '-' and convert everything to lowercase
+# this is because in order for it to work for internal PR for users or other organisation's
+# repositories, the other organisations and repositories can be uppercase
+# container registry image name has to be lowercase
+function get_github_container_registry_image_prefix() {
+    echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]'
+}
+
+
 # Builds CI image - depending on the caching strategy (pulled, local, disabled) it
 # passes the necessary docker build flags via DOCKER_CACHE_CI_DIRECTIVE array
 # it also passes the right Build args depending on the configuration of the build
@@ -639,7 +751,6 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     if [[ ${RUNTIME_APT_COMMAND} != "" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
-
     docker build \
         "${EXTRA_DOCKER_CI_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
@@ -661,6 +772,8 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
         --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
+        --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
+        --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date --rfc-3339=seconds | sed 's/ /T/')" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${additional_dev_args[@]}" \
@@ -730,8 +843,8 @@ function build_images::prepare_prod_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    build_image::login_to_github_registry_if_needed
-
+    build_image::login_to_github_container_registry_if_github_registry_enabled
+    build_image::enable_docker_experimental_features_if_github_registry_enabled
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
     sanity_checks::go_to_airflow_sources
 }
@@ -782,7 +895,6 @@ function build_images::build_prod_images() {
     if [[ ${DEV_APT_COMMAND} != "" ]]; then
         additional_dev_args+=("--build-arg" "DEV_APT_COMMAND=\"${DEV_APT_COMMAND}\"")
     fi
-
     docker build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
@@ -805,6 +917,8 @@ function build_images::build_prod_images() {
         --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
+        --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
+        --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date --rfc-3339=seconds | sed 's/ /T/')" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
         -t "${AIRFLOW_PROD_BUILD_IMAGE}" \
         --target "airflow-build-image" \
@@ -840,6 +954,8 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
+        --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
+        --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date --rfc-3339=seconds | sed 's/ /T/')" \
         "${additional_dev_args[@]}" \
         "${additional_runtime_args[@]}" \
         "${DOCKER_CACHE_PROD_DIRECTIVE[@]}" \
