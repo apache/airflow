@@ -244,7 +244,6 @@ class TestWrappedMarkdown(unittest.TestCase):
                | ----------- | ----------- |
                | ETL | 14m |"""
         )
-
         
         self.assertEqual(
             (
