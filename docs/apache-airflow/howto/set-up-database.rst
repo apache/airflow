@@ -77,14 +77,14 @@ in your ``my.cnf`` file. You can also activate these options with the ``--explic
 
 We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlchemy connection string.
 
-.. code-block:: python
+.. code-block:: text
 
     mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
 
 But we also support the ``mysql-connector-python`` driver, which lets you connect through SSL
 without any cert options provided.
 
-.. code-block:: python
+.. code-block:: text
 
    mysql+mysqlconnector://<user>:<password>@<host>[:<port>]/<dbname>
 
@@ -113,7 +113,7 @@ in the Postgres documentation to learn more.
 
 We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy connection string.
 
-.. code-block:: python
+.. code-block:: text
 
    postgresql+psycopg2://<user>:<password>@<host>/<db>
 
