@@ -195,7 +195,6 @@ class TestGetXComEntries(TestXComEndpoint):
                         'key': 'test-xcom-key-1',
                         'task_id': task_id,
                         'timestamp': "TIMESTAMP",
-                        'value': 'TEST',
                     },
                     {
                         'dag_id': dag_id,
@@ -203,7 +202,6 @@ class TestGetXComEntries(TestXComEndpoint):
                         'key': 'test-xcom-key-2',
                         'task_id': task_id,
                         'timestamp': "TIMESTAMP",
-                        'value': 'TEST',
                     },
                 ],
                 'total_entries': 2,
@@ -243,7 +241,6 @@ class TestGetXComEntries(TestXComEndpoint):
                         'key': 'test-xcom-key-1',
                         'task_id': task_id_1,
                         'timestamp': "TIMESTAMP",
-                        'value': 'TEST',
                     },
                     {
                         'dag_id': dag_id_1,
@@ -251,7 +248,6 @@ class TestGetXComEntries(TestXComEndpoint):
                         'key': 'test-xcom-key-2',
                         'task_id': task_id_1,
                         'timestamp': "TIMESTAMP",
-                        'value': 'TEST',
                     },
                     {
                         'dag_id': dag_id_2,
@@ -259,7 +255,6 @@ class TestGetXComEntries(TestXComEndpoint):
                         'key': 'test-xcom-key-1',
                         'task_id': task_id_2,
                         'timestamp': "TIMESTAMP",
-                        'value': 'TEST',
                     },
                     {
                         'dag_id': dag_id_2,
@@ -267,7 +262,6 @@ class TestGetXComEntries(TestXComEndpoint):
                         'key': 'test-xcom-key-2',
                         'task_id': task_id_2,
                         'timestamp': "TIMESTAMP",
-                        'value': 'TEST',
                     },
                 ],
                 'total_entries': 4,
@@ -306,7 +300,6 @@ class TestGetXComEntries(TestXComEndpoint):
                         'key': 'test-xcom-key-1',
                         'task_id': task_id_1,
                         'timestamp': "TIMESTAMP",
-                        'value': 'TEST',
                     },
                     {
                         'dag_id': dag_id_1,
@@ -314,7 +307,6 @@ class TestGetXComEntries(TestXComEndpoint):
                         'key': 'test-xcom-key-2',
                         'task_id': task_id_1,
                         'timestamp': "TIMESTAMP",
-                        'value': 'TEST',
                     },
                 ],
                 'total_entries': 2,

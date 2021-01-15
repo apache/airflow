@@ -35,7 +35,6 @@ class XComCollectionItemSchema(SQLAlchemySchema):
     execution_date = auto_field()
     task_id = auto_field()
     dag_id = auto_field()
-    value = auto_field()
 
 
 class XComSchema(XComCollectionItemSchema):
