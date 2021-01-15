@@ -53,21 +53,27 @@ class FTPToS3Operator(BaseOperator):
         uploaded to the S3 bucket.
     :type acl_policy: str
     """
-    template_fields = ('s3_bucket', 's3_key', 'ftp_path',)
+    template_fields = (
+        's3_bucket',
+        's3_key',
+        'ftp_path',
+    )
 
     @apply_defaults
-    def __init__(self,
-                 s3_bucket,
-                 s3_key,
-                 ftp_path,
-                 aws_conn_id='aws_default',
-                 ftp_conn_id='ftp_default',
-                 replace=False,
-                 encrypt=False,
-                 gzip=False,
-                 acl_policy=None,
-                 *args,
-                 **kwargs):
+    def __init__(
+        self,
+        s3_bucket,
+        s3_key,
+        ftp_path,
+        aws_conn_id='aws_default',
+        ftp_conn_id='ftp_default',
+        replace=False,
+        encrypt=False,
+        gzip=False,
+        acl_policy=None,
+        *args,
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
@@ -80,17 +86,21 @@ class FTPToS3Operator(BaseOperator):
         self.acl_policy = acl_policy
 
     def execute(self, context):
-        s3 = S3Hook(self.aws_conn_id)
+        s3_hook = S3Hook(self.aws_conn_id)
         ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
 
         with NamedTemporaryFile() as local_tmp_file:
-            ftp_hook.retrieve_file(remote_full_path=self.ftp_path,
-                                   local_full_path_or_buffer=local_tmp_file.name)
+            ftp_hook.retrieve_file(
+                remote_full_path=self.ftp_path,
+                local_full_path_or_buffer=local_tmp_file.name
+            )
 
-            s3.load_file(filename=local_tmp_file.name,
-                         key=self.s3_key,
-                         bucket_name=self.s3_bucket,
-                         replace=self.replace,
-                         encrypt=self.encrypt,
-                         gzip=self.gzip,
-                         acl_policy=self.acl_policy)
+            s3_hook.load_file(
+                filename=local_tmp_file.name,
+                key=self.s3_key,
+                bucket_name=self.s3_bucket,
+                replace=self.replace,
+                encrypt=self.encrypt,
+                gzip=self.gzip,
+                acl_policy=self.acl_policy
+            )
