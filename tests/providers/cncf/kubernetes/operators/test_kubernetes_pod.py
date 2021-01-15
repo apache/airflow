@@ -426,3 +426,40 @@ class TestKubernetesPodOperator(unittest.TestCase):
         client = ApiClient()
         assert isinstance(result.spec.node_selector, dict)
         assert client.sanitize_for_serialization(result)['spec']['nodeSelector'] == node_selector
+
+    def test_hostpid_and_hostipc(self):
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="name",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            cluster_context='default',
+        )
+
+        result = k.create_pod_request_obj()
+        assert not result.spec.host_pid
+        assert not result.spec.host_ipc
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="name",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            cluster_context='default',
+            hostpid=True,
+            hostipc=True,
+        )
+
+        result = k.create_pod_request_obj()
+        assert result.spec.host_pid
+        assert result.spec.host_ipc

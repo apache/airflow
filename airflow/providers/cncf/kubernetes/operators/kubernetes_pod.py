@@ -128,6 +128,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type is_delete_operator_pod: bool
     :param hostnetwork: If True enable host networking on the pod.
     :type hostnetwork: bool
+    :param hostpid: If True, use host's pid namespace on the pod.
+    :type hostpid: bool
+    :param hostipc: If True, use host's ipc namespace on the pod.
+    :type hostipc: bool
     :param tolerations: A list of kubernetes tolerations.
     :type tolerations: List[k8s.V1Toleration]
     :param security_context: security options the pod should run with (PodSecurityContext).
@@ -199,6 +203,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         service_account_name: str = 'default',
         is_delete_operator_pod: bool = False,
         hostnetwork: bool = False,
+        hostpid: bool = False,
+        hostipc: bool = False,
         tolerations: Optional[List[k8s.V1Toleration]] = None,
         security_context: Optional[Dict] = None,
         dnspolicy: Optional[str] = None,
@@ -256,6 +262,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
+        self.hostpid = hostpid
+        self.hostipc = hostipc
         self.tolerations = [convert_toleration(toleration) for toleration in tolerations] \
             if tolerations else []
         self.security_context = security_context or {}
@@ -442,6 +450,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 image_pull_secrets=self.image_pull_secrets,
                 service_account_name=self.service_account_name,
                 host_network=self.hostnetwork,
+                host_pid=self.hostpid,
+                host_ipc=self.hostipc,
                 security_context=self.security_context,
                 dns_policy=self.dnspolicy,
                 scheduler_name=self.schedulername,
