@@ -59,8 +59,8 @@ the example below.
 
 The exact format description is described in the SQLAlchemy documentation, see `Database Urls <https://docs.sqlalchemy.org/en/14/core/engines.html>`__. We will also show you some examples below.
 
-Set up a MySQL
---------------
+Setting up a MySQL Database
+---------------------------
 
 You need to create a database and a database user that Airflow will use to access this database.
 In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
@@ -91,8 +91,8 @@ without any cert options provided.
 However if you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/13/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
 and setup of the SqlAlchemy connection.
 
-Set up a PostgreSQL
--------------------
+Setting up a PostgreSQL Database
+--------------------------------
 
 You need to create a database and a database user that Airflow will use to access this database.
 In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
@@ -102,8 +102,6 @@ In the example below, a database ``airflow_db`` and user  with username ``airflo
    CREATE DATABASE airflow_db;
    CREATE USER airflow_user WITH PASSWORD 'airflow_user';
    GRANT ALL PRIVILEGES ON DATABASE airflow_db TO airflow_user;
-
-You need to create a database and a user that Airflow will use to access this database.
 
 You may need to update your Postgres ``pg_hba.conf`` to add the
 ``airflow`` user to the database access control list; and to reload
