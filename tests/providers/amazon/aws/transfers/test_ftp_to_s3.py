@@ -28,12 +28,12 @@ AWS_CONN_ID = 'aws_default'
 FTP_CONN_ID = 'ftp_default'
 
 
-class TestS3ToFTPOperator(unittest.TestCase):
+class TestFTPToS3Operator(unittest.TestCase):
     @mock.patch("airflow.providers.ftp.hooks.ftp.FTPHook.retrieve_file")
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.load_file")
     @mock.patch("airflow.providers.amazon.aws.transfers.ftp_to_s3.NamedTemporaryFile")
     def test_execute(self, mock_local_tmp_file, mock_s3_hook_load_file, mock_ftp_hook_retrieve_file):
-        operator = S3ToFTPOperator(task_id=TASK_ID, s3_bucket=BUCKET, s3_key=S3_KEY, ftp_path=FTP_PATH)
+        operator = FTPToS3Operator(task_id=TASK_ID, s3_bucket=BUCKET, s3_key=S3_KEY, ftp_path=FTP_PATH)
         operator.execute(None)
 
         mock_local_tmp_file_value = mock_local_tmp_file.return_value.__enter__.return_value
