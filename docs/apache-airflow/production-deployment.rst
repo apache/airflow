@@ -26,7 +26,7 @@ Database backend
 
 Airflow comes with an ``SQLite`` backend by default. This allows the user to run Airflow without any external database.
 However, such a setup is meant to be used for testing purposes only; running the default setup in production can lead to data loss in multiple scenarios.
-If you want to run production-grade Airflow, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as PostgreSQL or MySQL.
+If you want to run production-grade Airflow, make sure you :doc:`configure the backend <howto/set-up-database>` to be an external database such as PostgreSQL or MySQL.
 
 You can change the backend using the following config
 
