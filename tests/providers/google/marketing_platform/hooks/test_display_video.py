@@ -314,7 +314,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         # fmt: off
         get_conn_to_display_video.return_value. \
             sdfdownloadtasks.return_value. \
-            operation.return_value. \
+            operations.return_value. \
             get.assert_called_once_with(name=operation_name)
         # fmt: on
 
@@ -328,7 +328,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         # fmt: off
         get_conn_to_display_video.return_value. \
             sdfdownloadtasks.return_value. \
-            operation.return_value. \
+            operations.return_value. \
             get.assert_called_once()
         # fmt: on
 
@@ -340,7 +340,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         operation_name = "operation"
         response = "reposonse"
 
-        get_conn_to_display_video.return_value.sdfdownloadtasks.return_value.operation.return_value.get = (
+        get_conn_to_display_video.return_value.sdfdownloadtasks.return_value.operations.return_value.get = (
             response
         )
 
