@@ -28,16 +28,16 @@ Choosing database backend
 -------------------------
 
 If you want to take a real test drive of Airflow, you should consider setting up a database backend to **MySQL** and **PostgresSQL**.
-By default, Airflow uses **SQLite** which is not intended for development purposes only.
+By default, Airflow uses **SQLite**, which is not intended for development purposes only.
 
-Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statement.
+Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
   * PostgreSQL:  9.6, 10, 11, 12, 13
   * MySQL: 5.7, 8
   * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
-For details, see :ref:`Scheduler HA Database Requirements <scheduler:ha:db_requirements>`
+For details, see :ref:`Scheduler HA Database Requirements <scheduler:ha:db_requirements>`.
 
 Database URI
 ------------
@@ -49,7 +49,7 @@ this option with ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` environment variable.
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`.
 
-If you want to check the current value of database URI, you can use ``airflow config get-value core sql_alchemy_conn`` command as in
+If you want to check the current value, you can use ``airflow config get-value core sql_alchemy_conn`` command as in
 the example below.
 
 .. code-block:: bash
@@ -63,7 +63,7 @@ Set up a MySQL
 --------------
 
 You need to create a database and a database user that Airflow will use to access this database.
-In the example below, an database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
+In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
 
 .. code-block:: sql
 
@@ -95,7 +95,7 @@ Set up a PostgreSQL
 -------------------
 
 You need to create a database and a database user that Airflow will use to access this database.
-In the example below, an database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
+In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
 
 .. code-block:: sql
 
