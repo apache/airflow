@@ -34,6 +34,15 @@ howto/write-logs.rst logging-monitoring/logging-tasks.rst
 metrics.rst logging-monitoring/metrics.rst
 howto/tracking-user-activity.rst logging-monitoring/tracking-user-activity.rst
 
+<<<<<<< Updated upstream
+=======
+# Quick start
+start.rst start/index.rst
+
+# Set up a database
+howto/initialize-database.rst howto/set-up-database.rst
+
+>>>>>>> Stashed changes
 # References
 cli-ref.rst cli-and-env-variables-ref.rst
 _api/index.rst python-api-ref.rst
