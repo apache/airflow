@@ -142,6 +142,45 @@ class TestDagFileProcessorManager(unittest.TestCase):
         child_pipe.close()
         parent_pipe.close()
 
+    @pytest.mark.backend("mysql", "postgres")
+    def test_start_new_processes_with_same_filepath(self):
+        """
+        Test that when a processor already exist with a filepath, a new processor won't be created
+        with that filepath. The filepath will just be removed from the list.
+        """
+        processor_factory_mock = MagicMock()
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_factory=processor_factory_mock,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        file_1 = 'file_1.py'
+        file_2 = 'file_2.py'
+        file_3 = 'file_3.py'
+        manager._file_path_queue = [file_1, file_2, file_3]
+
+        # Mock that only one processor exists. This processor runs with 'file_1'
+        manager._processors[file_1] = MagicMock()
+        # Start New Processes
+        manager.start_new_processes()
+
+        # Because of the config: '[scheduler] parsing_processes = 2'
+        # verify that only one extra process is created
+        # and since a processor with 'file_1' already exists,
+        # even though it is first in '_file_path_queue'
+        # a new processor is created with 'file_2' and not 'file_1'.
+        processor_factory_mock.assert_called_once_with('file_2.py', [], [], False)
+
+        assert file_1 in manager._processors.keys()
+        assert file_2 in manager._processors.keys()
+        assert [file_3] == manager._file_path_queue
+
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
             dag_directory='directory',
