@@ -237,3 +237,20 @@ class TestWrappedMarkdown(unittest.TestCase):
 <strong>bold</strong></p></div>''',
             rendered,
         )
+
+    def test_wrapped_markdown_with_table(self):
+        rendered = wrapped_markdown(
+            """| Job | Duration |
+               | ----------- | ----------- |
+               | ETL | 14m |"""
+        )
+
+        self.assertEqual(
+            (
+                '<div class="None" ><table>\n<thead>\n<tr>\n<th>Job</th>\n'
+                '<th>Duration</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ETL'
+                '</td>\n<td>14m</td>\n</tr>\n</tbody>\n'
+                '</table></div>'
+            ),
+            rendered,
+        )
