@@ -132,11 +132,15 @@ spec:
                 os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
 
                 from airflow.jobs.scheduler_job import SchedulerJob
+                from airflow.utils.db import create_session
                 from airflow.utils.net import get_hostname
                 import sys
 
-                job = SchedulerJob.most_recent_job()
-                sys.exit(0 if job.is_alive() and job.hostname == get_hostname() else 1)
+                with create_session() as session:
+                    job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
+                        SchedulerJob.latest_heartbeat.desc()).limit(1).first()
+
+                sys.exit(0 if job.is_alive() else 1)
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
           volumeMounts:
