@@ -67,9 +67,7 @@ azure-keyvault==4.1.0
 azure-kusto-data==0.0.45
 azure-mgmt-containerinstance==1.5.0
 azure-mgmt-core==1.2.2
-azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==1.0.0
-azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==15.0.0
 azure-nspkg==3.0.2
 azure-storage-blob==12.6.0
@@ -172,7 +170,7 @@ google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.19.1
 google-cloud-speech==1.3.2
 google-cloud-storage==1.35.0
-google-cloud-tasks==1.5.0
+google-cloud-tasks==2.1.0
 google-cloud-texttospeech==1.0.1
 google-cloud-translate==1.7.0
 google-cloud-videointelligence==1.16.1
@@ -250,6 +248,7 @@ mysqlclient==1.3.14
 natsort==7.1.0
 nbclient==0.5.1
 nbformat==5.0.8
+neo4j==4.2.1
 nest-asyncio==1.4.3
 networkx==2.5
 nodeenv==1.5.0
