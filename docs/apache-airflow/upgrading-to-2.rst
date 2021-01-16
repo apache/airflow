@@ -1186,24 +1186,16 @@ depending on the development packages then you should use ``devel_all``.
 Support for Airflow 1.10.x releases
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As mentioned earlier in Step 2, the 1.10.14 release is intended to be a "bridge release"
-which would be a step in the migration to Airflow 2.0.
+The Airflow 1.10.x release tree will be supported for **six months** from Airflow 2.0 release date.
+Specifically, only "critical fixes" defined as fixes
+to bugs that take down Production systems, will be backported to 1.10.x core for
+**six months** after Airflow 2.0.0 is released.
 
-After the Airflow 2.0 GA (General Availability) release, it expected that all
-future Airflow development would be based on Airflow 2.0, including a series of
-patch releases such as 2.0.1, 2.0.2 and then feature releases such as 2.1.
+In addition, Backport providers within
+1.10.x, will be supported for critical fixes for **three months** from Airflow 2.0.0
+release date.
 
 We plan to take a strict Semantic Versioning approach to our versioning and release process. This
 means that we do not plan to make any backwards-incompatible changes in the 2.* releases. Any
 breaking changes, including the removal of features deprecated in Airflow 2.0 will happen as part
 of the Airflow 3.0 release.
-
-The Airflow 1.10.x release tree will be supported for a limited time after the
-GA release of Airflow 2.0 to give users time to upgrade from one of the Airflow 1.10.x releases.
-Specifically, only "critical fixes" defined as fixes
-to bugs that take down Production systems, will be backported to 1.10.x core for
-six months after Airflow 2.0.0 is released.
-
-In addition, Backport providers within
-1.10.x, will be supported for critical fixes for three months after Airflow 2.0.0
-is released.
