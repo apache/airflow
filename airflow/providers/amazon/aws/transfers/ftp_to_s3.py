@@ -53,6 +53,7 @@ class FTPToS3Operator(BaseOperator):
         uploaded to the S3 bucket.
     :type acl_policy: str
     """
+
     template_fields = (
         's3_bucket',
         's3_key',
