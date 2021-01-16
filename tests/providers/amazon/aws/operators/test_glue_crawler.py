@@ -83,18 +83,22 @@ mock_config = {
 
 
 class TestAwsGlueCrawlerOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.amazon.aws.hooks.glue_crawler.AwsGlueCrawlerHook')
-    def setUp(self, glue_hook_mock):
-        conf.load_test_config()
-
-        self.glue_hook_mock = glue_hook_mock
+    def setUp(self):
         self.glue = AwsGlueCrawlerOperator(task_id='test_glue_crawler_operator', config=mock_config)
 
-    @mock.patch.object(AwsGlueCrawlerHook, 'start_crawler')
-    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    def test_execute_without_failure(self, mock_get_conn, mock_start_crawler):
-        mock_start_crawler.return_value = {}
+    @mock.patch('airflow.providers.amazon.aws.operators.glue_crawler.AwsGlueCrawlerHook')
+    def test_execute_without_failure(self, mock_hook):
+        mock_hook.return_value.has_crawler.return_value = True
         self.glue.execute(None)
 
-        mock_start_crawler.assert_called_once_with({})
-        self.assertEqual(self.glue.crawler_name, mock_crawler_name)
+        mock_hook.assert_has_calls(
+            [
+                mock.call('aws_default'),
+                mock.call().has_crawler('test-crawler'),
+                mock.call().get_crawler(**mock_config),
+                mock.call().start_crawler(mock_hook.return_value.get_crawler.return_value),
+                mock.call().wait_for_crawler_completion(
+                    crawler_name=mock_hook.return_value.get_crawler.return_value, poll_interval=5
+                ),
+            ]
+        )

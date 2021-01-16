@@ -81,45 +81,115 @@ mock_config = {
 
 
 class TestAwsGlueCrawlerHook(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
+    def setUp(cls):
         cls.hook = AwsGlueCrawlerHook(aws_conn_id="aws_default")
 
     def test_init(self):
         self.assertEqual(self.hook.aws_conn_id, "aws_default")
 
-    def test_has_crawler(self):
+    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    def test_has_crawler(self, mock_get_conn):
         response = self.hook.has_crawler(mock_crawler_name)
-        self.assertIsInstance(response, bool)
+        self.assertEqual(response, True)
+        mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
+
+    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    def test_has_crawler_crawled_doesnt_exists(self, mock_get_conn):
+        class MockException(Exception):
+            pass
+
+        mock_get_conn.return_value.exceptions.EntityNotFoundException = MockException
+        mock_get_conn.return_value.get_crawler.side_effect = MockException("AAA")
+        response = self.hook.has_crawler(mock_crawler_name)
+        self.assertEqual(response, False)
+        mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
     def test_get_crawler(self, mock_get_conn):
 
-        mock_crawler = mock_get_conn.return_value.get_crawler(Name=mock_crawler_name)['Crawler']['Name']
-        glue_crawler = self.hook.get_crawler(**mock_config)
+        mock_get_conn.return_value.get_crawler.return_value = {'Crawler': mock_config}
+        result = self.hook.get_crawler(**mock_config)
 
-        self.assertEqual(glue_crawler, mock_crawler)
+        self.assertEqual(mock_crawler_name, result)
 
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
     def test_create_crawler(self, mock_get_conn):
+        mock_get_conn.return_value.create_crawler.return_value = {'Crawler': {'Name': mock_crawler_name}}
 
-        mock_crawler = mock_get_conn.return_value.create_crawler(Name=mock_crawler_name)['Crawler']['Name']
         glue_crawler = self.hook.create_crawler(**mock_config)
 
-        self.assertEqual(glue_crawler, mock_crawler)
+        self.assertEqual(glue_crawler, mock_crawler_name)
 
-    @mock.patch.object(AwsGlueCrawlerHook, "wait_for_crawler_completion", autospec=True)
-    @mock.patch.object(AwsGlueCrawlerHook, "get_crawler", autospec=True)
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    def test_start_crawler(self, mock_get_conn, mock_get_crawler, mock_wait_for_completion):
+    def test_start_crawler(self, mock_get_conn):
+        result = self.hook.start_crawler(mock_crawler_name)
+        self.assertEqual(result, mock_get_conn.return_value.start_crawler.return_value)
 
-        mock_get_crawler.Name = mock.Mock(Name=mock_crawler_name)
-        mock_get_conn.return_value.start_crawler(crawler_name=mock_crawler_name)
+        mock_get_conn.return_value.start_crawler.assert_called_once_with(Name=mock_crawler_name)
 
-        mock_crawler_status = mock_wait_for_completion.return_value
-        glue_crawler_status = self.hook.wait_for_crawler_completion(crawler_name=mock_crawler_name)
+    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    def test_wait_for_crawler_completion_instant_ready(self, mock_get_conn):
+        mock_get_conn.return_value.get_crawler.side_effect = [
+            {'Crawler': {'State': 'READY'}},
+            {'Crawler': {'LastCrawl': {'Status': 'MOCK_STATUS'}}},
+        ]
+        mock_get_conn.return_value.get_crawler_metrics.return_value = {
+            'CrawlerMetricsList': [
+                {
+                    'LastRuntimeSeconds': 'TEST-A',
+                    'MedianRuntimeSeconds': 'TEST-B',
+                    'TablesCreated': 'TEST-C',
+                    'TablesUpdated': 'TEST-D',
+                    'TablesDeleted': 'TEST-E',
+                }
+            ]
+        }
+        result = self.hook.wait_for_crawler_completion(mock_crawler_name)
+        self.assertEqual(result, 'MOCK_STATUS')
+        mock_get_conn.assert_has_calls(
+            [
+                mock.call(),
+                mock.call().get_crawler(Name=mock_crawler_name),
+                mock.call().get_crawler(Name=mock_crawler_name),
+                mock.call().get_crawler_metrics(CrawlerNameList=[mock_crawler_name]),
+            ]
+        )
 
-        self.assertEqual(glue_crawler_status, mock_crawler_status)
+    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    @mock.patch('airflow.providers.amazon.aws.hooks.glue_crawler.sleep')
+    def test_wait_for_crawler_completion_retry_two_times(self, mock_sleep, mock_get_conn):
+        mock_get_conn.return_value.get_crawler.side_effect = [
+            {'Crawler': {'State': 'NOT_READY'}},
+            {'Crawler': {'State': 'READY'}},
+            {'Crawler': {'LastCrawl': {'Status': 'MOCK_STATUS'}}},
+            {'Crawler': {'State': 'READY'}},
+        ]
+        mock_get_conn.return_value.get_crawler_metrics.side_effect = [
+            {'CrawlerMetricsList': [{'TimeLeftSeconds': 12}]},
+            {
+                'CrawlerMetricsList': [
+                    {
+                        'LastRuntimeSeconds': 'TEST-A',
+                        'MedianRuntimeSeconds': 'TEST-B',
+                        'TablesCreated': 'TEST-C',
+                        'TablesUpdated': 'TEST-D',
+                        'TablesDeleted': 'TEST-E',
+                    }
+                ]
+            },
+        ]
+        result = self.hook.wait_for_crawler_completion(mock_crawler_name)
+        self.assertEqual(result, 'MOCK_STATUS')
+        mock_get_conn.assert_has_calls(
+            [
+                mock.call(),
+                mock.call().get_crawler(Name=mock_crawler_name),
+                mock.call().get_crawler_metrics(CrawlerNameList=[mock_crawler_name]),
+                mock.call().get_crawler(Name=mock_crawler_name),
+                mock.call().get_crawler(Name=mock_crawler_name),
+                mock.call().get_crawler_metrics(CrawlerNameList=[mock_crawler_name]),
+            ]
+        )
 
 
 if __name__ == '__main__':
