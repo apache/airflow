@@ -427,14 +427,10 @@ snowflake = [
     # once it is merged, we can move those two back to `azure` extra.
     'azure-storage-blob',
     'azure-storage-common',
-    # snowflake is not compatible with latest version.
-    # This library monkey patches the requests library, so SSL is broken globally.
-    # See: https://github.com/snowflakedb/snowflake-connector-python/issues/324
-    'requests<2.24.0',
-    # Newest version drop support for old version of azure-storage-blob
-    # Until #12188 is solved at least we need to limit maximum version.
-    # https://github.com/apache/airflow/pull/12188
-    'snowflake-connector-python>=1.5.2,<=2.3.6',
+    # Snowflake conector > 2.3.8 is needed because it has vendored urrllib3 and requests libraries which
+    # are monkey-patched. In earlier versions of the library, monkeypatching the libraries by snowflake
+    # caused other providers to fail (Google, Amazon etc.)
+    'snowflake-connector-python>=2.3.8',
     'snowflake-sqlalchemy>=1.1.0',
 ]
 spark = [
@@ -474,11 +470,6 @@ zendesk = [
 ]
 # End dependencies group
 
-############################################################################################################
-# IMPORTANT NOTE!!!!!!!!!!!!!!!
-# IF you are removing dependencies from this list, please make sure that you also increase
-# PIP_DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci and Dockerfile
-############################################################################################################
 devel = [
     'beautifulsoup4~=4.7.1',
     'black',
@@ -523,25 +514,8 @@ devel = [
     'yamllint',
 ]
 
-############################################################################################################
-# IMPORTANT NOTE!!!!!!!!!!!!!!!
-# If you are removing dependencies from the above list, please make sure that you also increase
-# PIP_DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci and Dockerfile
-############################################################################################################
-
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
-
-############################################################################################################
-# IMPORTANT NOTE!!!!!!!!!!!!!!!
-# If you have a 'pip check' problem with dependencies, it might be because some dependency has been
-# installed via 'install_requires' in setup.cfg in higher version than required in one of the options below.
-# For example pip check was failing with requests=2.25.1 installed even if in some dependencies below
-# < 2.24.0 was specified for it. Solution in such case is to add such limiting requirement to
-# install_requires in setup.cfg (we've added requests<2.24.0 there to limit requests library).
-# This should be done with appropriate comment explaining why the requirement was added.
-############################################################################################################
-
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
@@ -642,7 +616,6 @@ def add_extras_for_all_providers() -> None:
 
 add_extras_for_all_providers()
 
-#############################################################################################################
 #############################################################################################################
 #  The whole section can be removed in Airflow 3.0 as those old aliases are deprecated in 2.* series
 #############################################################################################################
@@ -749,10 +722,9 @@ PACKAGES_EXCLUDED_FOR_ALL.extend(
 
 # Those packages are excluded because they break tests (downgrading mock and few other requirements)
 # and they are not needed to run our test suite. This can be removed as soon as we get non-conflicting
-# requirements for the apache-beam as well. This waits for azure + snowflake fixes:
+# requirements for the apache-beam as well. This waits for azure fixes:
 #
 # * Azure: https://github.com/apache/airflow/issues/11968
-# * Snowflake: https://github.com/apache/airflow/issues/12881
 #
 PACKAGES_EXCLUDED_FOR_CI = [
     'apache-beam',

@@ -75,12 +75,6 @@ function install_airflow_as_specified() {
     group_end
 }
 
-function install_deps() {
-    group_start "Installs all remaining dependencies that are not installed by '${AIRFLOW_EXTRAS}' "
-    install_remaining_dependencies
-    group_end
-}
-
 function install_provider_packages() {
     group_start "Install provider packages"
     if [[ ${PACKAGE_FORMAT} == "wheel" ]]; then
@@ -202,7 +196,8 @@ function discover_all_field_behaviours() {
 setup_provider_packages
 verify_parameters
 install_airflow_as_specified
-install_deps
+install_remaining_dependencies
+reinstall_azure_storage_blob
 install_provider_packages
 import_all_provider_classes
 
