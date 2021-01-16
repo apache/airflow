@@ -425,6 +425,7 @@ snowflake = [
     # blob is the only exception
     # Solution to that is being worked on in https://github.com/apache/airflow/pull/12188
     # once it is merged, we can move those two back to `azure` extra.
+    'azure-core>=1.10.0',
     'azure-storage-blob',
     'azure-storage-common',
     # Snowflake conector > 2.3.8 is needed because it has vendored urrllib3 and requests libraries which
