@@ -72,7 +72,7 @@ class FTPToS3Operator(BaseOperator):
         gzip=False,
         acl_policy=None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.s3_bucket = s3_bucket
@@ -91,8 +91,7 @@ class FTPToS3Operator(BaseOperator):
 
         with NamedTemporaryFile() as local_tmp_file:
             ftp_hook.retrieve_file(
-                remote_full_path=self.ftp_path,
-                local_full_path_or_buffer=local_tmp_file.name
+                remote_full_path=self.ftp_path, local_full_path_or_buffer=local_tmp_file.name
             )
 
             s3_hook.load_file(
@@ -102,5 +101,5 @@ class FTPToS3Operator(BaseOperator):
                 replace=self.replace,
                 encrypt=self.encrypt,
                 gzip=self.gzip,
-                acl_policy=self.acl_policy
+                acl_policy=self.acl_policy,
             )
