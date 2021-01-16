@@ -1,6 +1,6 @@
 # Editable install with no version control (apache-airflow==2.1.0.dev0)
 APScheduler==3.6.3
-Authlib==0.15.2
+Authlib==0.15.3
 Babel==2.9.0
 Flask-AppBuilder==3.1.1
 Flask-Babel==1.0.0
@@ -18,7 +18,7 @@ HeapDict==1.0.1
 JPype1==1.2.1
 JayDeBeApi==1.2.3
 Jinja2==2.11.2
-Mako==1.1.3
+Mako==1.1.4
 Markdown==3.3.3
 MarkupSafe==1.1.1
 PyHive==0.6.3
@@ -26,7 +26,7 @@ PyJWT==1.7.1
 PyNaCl==1.4.0
 PySmbClient==0.1.5
 PyYAML==5.3.1
-Pygments==2.7.3
+Pygments==2.7.4
 SQLAlchemy-JSONField==1.0.0
 SQLAlchemy-Utils==0.36.8
 SQLAlchemy==1.3.22
@@ -56,7 +56,7 @@ aws-sam-translator==1.33.0
 aws-xray-sdk==2.6.0
 azure-batch==10.0.0
 azure-common==1.1.26
-azure-core==1.9.0
+azure-core==1.10.0
 azure-cosmos==3.2.0
 azure-datalake-store==0.0.51
 azure-identity==1.5.0
@@ -67,10 +67,12 @@ azure-keyvault==4.1.0
 azure-kusto-data==0.0.45
 azure-mgmt-containerinstance==1.5.0
 azure-mgmt-core==1.2.2
-azure-mgmt-datalake-store==1.0.0
+azure-mgmt-datalake-nspkg==3.0.1
+azure-mgmt-datalake-store==0.5.0
+azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==15.0.0
 azure-nspkg==3.0.2
-azure-storage-blob==12.6.0
+azure-storage-blob==12.7.0
 azure-storage-common==2.1.0
 azure-storage==0.36.0
 backcall==0.2.0
@@ -99,7 +101,7 @@ clickclick==20.10.2
 cloudant==2.14.0
 cloudpickle==1.4.1
 colorama==0.4.4
-colorlog==4.0.2
+colorlog==4.7.2
 commonmark==0.9.1
 connexion==2.7.0
 contextvars==2.4
@@ -108,7 +110,7 @@ croniter==0.3.37
 cryptography==3.3.1
 curlify==2.2.1
 cx-Oracle==8.1.0
-dask==2020.12.0
+dask==2021.1.0
 dataclasses==0.7
 datadog==0.39.0
 decorator==4.4.2
@@ -129,7 +131,7 @@ email-validator==1.1.2
 entrypoints==0.3
 eventlet==0.30.0
 execnet==1.7.1
-facebook-business==9.0.1
+facebook-business==9.0.2
 fastavro==1.2.3
 filelock==3.0.12
 fissix==20.8.0
@@ -141,11 +143,11 @@ freezegun==1.0.0
 fsspec==0.8.5
 future==0.18.2
 gcsfs==0.7.1
-gevent==20.12.1
+gevent==21.1.0
 gitdb==4.0.5
 github3.py==1.3.0
 google-ads==4.0.0
-google-api-core==1.24.1
+google-api-core==1.25.0
 google-api-python-client==1.12.8
 google-auth-httplib2==0.0.4
 google-auth-oauthlib==0.4.2
@@ -153,7 +155,7 @@ google-auth==1.24.0
 google-cloud-automl==2.1.0
 google-cloud-bigquery-datatransfer==3.0.0
 google-cloud-bigquery-storage==2.1.0
-google-cloud-bigquery==2.6.1
+google-cloud-bigquery==2.6.2
 google-cloud-bigtable==1.6.1
 google-cloud-container==1.0.1
 google-cloud-core==1.5.0
@@ -177,14 +179,14 @@ google-cloud-texttospeech==1.0.1
 google-cloud-translate==1.7.0
 google-cloud-videointelligence==1.16.1
 google-cloud-vision==1.0.0
-google-crc32c==1.1.0
+google-crc32c==1.1.1
 google-resumable-media==1.2.0
 googleapis-common-protos==1.52.0
 graphviz==0.16
-greenlet==0.4.17
+greenlet==1.0.0
 grpc-google-iam-v1==0.12.3
 grpcio-gcp==0.2.2
-grpcio==1.34.0
+grpcio==1.34.1
 gunicorn==19.10.0
 hdfs==2.5.8
 hmsclient==0.1.1
@@ -234,7 +236,7 @@ marshmallow-sqlalchemy==0.23.1
 marshmallow==3.10.0
 mccabe==0.6.1
 mock==4.0.2
-mongomock==3.22.0
+mongomock==3.22.1
 more-itertools==8.6.0
 moreorless==0.3.0
 moto==1.3.16
@@ -251,7 +253,7 @@ mysql-connector-python==8.0.22
 mysqlclient==1.3.14
 natsort==7.1.0
 nbclient==0.5.1
-nbformat==5.0.8
+nbformat==5.1.2
 neo4j==4.2.1
 nest-asyncio==1.4.3
 networkx==2.5
@@ -336,7 +338,7 @@ python3-openid==3.2.0
 pytz==2020.5
 pytzdata==2020.1
 pywinrm==0.4.1
-pyzmq==20.0.0
+pyzmq==21.0.1
 qds-sdk==1.16.1
 redis==3.5.3
 regex==2020.11.13
@@ -345,14 +347,14 @@ requests-mock==1.8.0
 requests-ntlm==1.1.0
 requests-oauthlib==1.1.0
 requests-toolbelt==0.9.1
-requests==2.23.0
+requests==2.25.1
 responses==0.12.1
 rich==9.2.0
 rsa==4.7
-s3transfer==0.3.3
+s3transfer==0.3.4
 sasl==0.2.1
 semver==2.13.0
-sendgrid==6.4.8
+sendgrid==6.5.0
 sentinels==1.0.0
 sentry-sdk==0.19.5
 setproctitle==1.2.1
@@ -361,7 +363,7 @@ six==1.15.0
 slackclient==2.9.3
 smmap==3.0.4
 snowballstemmer==2.0.0
-snowflake-connector-python==2.3.6
+snowflake-connector-python==2.3.8
 snowflake-sqlalchemy==1.2.4
 sortedcontainers==2.3.0
 soupsieve==2.1
@@ -393,7 +395,7 @@ tabulate==0.8.7
 tblib==1.7.0
 tenacity==6.2.0
 termcolor==1.1.0
-testfixtures==6.17.0
+testfixtures==6.17.1
 text-unidecode==1.3
 textwrap3==0.9.2
 thrift-sasl==0.4.2
@@ -413,7 +415,7 @@ uritemplate==3.0.1
 urllib3==1.25.11
 vertica-python==1.0.1
 vine==1.3.0
-virtualenv==20.3.0
+virtualenv==20.3.1
 volatile==2.1.0
 watchtower==0.7.3
 wcwidth==0.2.5
