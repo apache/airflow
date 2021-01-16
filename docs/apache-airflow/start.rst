@@ -70,7 +70,8 @@ if started by systemd.
 
 Out of the box, Airflow uses a sqlite database, which you should outgrow
 fairly quickly since no parallelization is possible using this database
-backend. It works in conjunction with the :class:`airflow.executors.sequential_executor.SequentialExecutor` which will
+backend. It works in conjunction with the
+:class:`~airflow.executors.sequential_executor.SequentialExecutor` which will
 only run task instances sequentially. While this is very limiting, it allows
 you to get up and running quickly and take a tour of the UI and the
 command line utilities.
