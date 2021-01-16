@@ -152,6 +152,7 @@ Currently, **officially** using Airflow:
 1. [Energy Solutions](https://www.energy-solution.com) [[@energy-solution](https://github.com/energy-solution/)]
 1. [Enigma](https://www.enigma.com) [[@hydrosquall](https://github.com/hydrosquall)]
 1. [Etsy](https://www.etsy.com) [[@mchalek](https://github.com/mchalek)]
+1. [EUIGS - Admiral Group](https://www.linkedin.com/company/euiitglobalservices) [[@emilioego](https://github.com/emilioego)]
 1. [Everis](https://www.everis.com) [[@diegobenedicto](https://github.com/diegobenedicto)]
 1. [Everlane](https://everlane.com) [[@NickBenthem](https://github.com/NickBenthem)]
 1. [evo.company](https://evo.company/) [[@orhideous](https://github.com/orhideous)]
