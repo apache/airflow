@@ -228,7 +228,12 @@ Choosing image registry
 =======================
 
 By default images are pulled and pushed from and to DockerHub registry when you use Breeze's push-image
-or build commands.
+or build commands. But as described in `CI Documentaton <CI.rst>`_, you can choose different image
+registry by setting ``GITHUB_REGISTRY`` to ``docker.pkg.github.com`` for Github Package Registry or
+``ghcr.io`` for GitHub Container Registry.
+
+Default is the Github Package Registry one. The Pull Request forks have no access to the secret but they
+auto-detect the registry used when they wait for the images.
 
 Our images are named like that:
 
@@ -348,6 +353,60 @@ GitHub Container Registry
 .. code-block:: bash
 
   docker login ghcr.io
+
+Interacting with container registries
+=====================================
+
+Since there are different naming conventions used for Airflow images and there are multiple images used,
+`Breeze <BREEZE.rst>`_ provides easy to use management interface for the images. The
+`CI system of ours <CI.rst>`_ is designed in the way that it should automatically refresh caches, rebuild
+the images periodically and update them whenever new version of base python is released.
+However, occasionally, you might need to rebuild images locally and push them directly to the registries
+to refresh them.
+
+This can be done with ``Breeze`` command line which has easy-to-use tool to manage those images. For
+example:
+
+
+Force building Python 3.6 CI image using local cache and pushing it container registry:
+
+.. code-block:: bash
+
+  ./breeze build-image --python 3.6 --force-build-images --build-cache-local
+  ./breeze push-image --python 3.6 --github-registry ghcr.io
+
+
+Building Python 3.7 PROD images (both build and final image) using cache pulled
+from ``docker.pkg.github.com`` and pushing it back:
+
+.. code-block:: bash
+
+  ./breeze build-image --production-image --python 3.7 --github-registry docker.pkg.github.com
+  ./breeze push-image --production-image --python 3.7 --github-registry docker.pkg.github.com
+
+
+Building Python 3.8 CI image using cache pulled from DockerHub and pushing it back:
+
+.. code-block:: bash
+
+  ./breeze build-image --python 3.8
+  ./breeze push-image --python 3.8
+
+You can also pull and run images being result of a specific CI run in GitHub Actions. This is a powerful
+tool that allows to reproduce CI failures locally, enter the images and fix them much faster. It is enough
+to pass ``--github-image-id`` and the registry and Breeze will download and execute commands using
+the same image that was used during the CI build.
+
+For example this command will run the same Python 3.8 image as was used in 210056909
+run with enabled Kerberos integration (assuming docker.pkg.github.com was used as build cache).
+
+.. code-block:: bash
+
+  ./breeze --github-image-id 210056909 \
+    --github-registry docker.pkg.github.com \
+    --python 3.8 --integration kerberos
+
+You can see more details and examples in `Breeze <BREEZE.rst>`_
 
 
 Technical details of Airflow images

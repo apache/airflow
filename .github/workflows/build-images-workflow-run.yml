@@ -30,8 +30,6 @@ env:
   DB_RESET: "true"
   VERBOSE: "true"
   USE_GITHUB_REGISTRY: "true"
-  # Might be either 'ghcr.io' or 'docker.pkg.github.com'
-  GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
   # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
@@ -47,6 +45,7 @@ env:
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   BUILD_IMAGES: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE != 'false' }}
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
+  GITHUB_REGISTRY: ${{ secrets.OVERRIDE_GITHUB_REGISTRY }}
 
 jobs:
 
