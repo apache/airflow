@@ -232,7 +232,7 @@ Example test here:
             res = render_chart('GIT-SYNC', helm_settings,
                                show_only=["templates/scheduler/scheduler-deployment.yaml"])
             dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
-            self.assertEqual("dags", dep.spec.template.spec.volumes[1].name)
+            assert "dags" == dep.spec.template.spec.volumes[1].name
 
 To run tests using breeze run the following command
 
@@ -330,7 +330,7 @@ Example of the ``redis`` integration test:
         hook = RedisHook(redis_conn_id='redis_default')
         redis = hook.get_conn()
 
-        self.assertTrue(redis.ping(), 'Connection to Redis with PING works.')
+        assert redis.ping(), 'Connection to Redis with PING works.'
 
 The markers can be specified at the test level or the class level (then all tests in this class
 require an integration). You can add multiple markers with different integrations for tests that
@@ -973,7 +973,7 @@ If ``current`` is specified (default), then the current version of Airflow is us
 Otherwise, the released version of Airflow is installed.
 
 The ``-install-airflow-version=<VERSION>`` command make sure that the current (from sources) version of
-Airflow is removed and the released version of Airflow from ``Pypi`` is installed. Note that tests sources
+Airflow is removed and the released version of Airflow from ``PyPI`` is installed. Note that tests sources
 are not removed and they can be used to run tests (unit tests and system tests) against the
 freshly installed version.
 

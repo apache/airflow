@@ -427,7 +427,7 @@ class TestBigQueryOperator(unittest.TestCase):
             cluster_fields=None,
         )
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             operator.execute(MagicMock())
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
@@ -460,10 +460,10 @@ class TestBigQueryOperator(unittest.TestCase):
             cluster_fields=None,
             encryption_configuration=None,
         )
-        self.assertTrue(isinstance(operator.sql, str))
+        assert isinstance(operator.sql, str)
         ti = TaskInstance(task=operator, execution_date=DEFAULT_DATE)
         ti.render_templates()
-        self.assertTrue(isinstance(ti.task.sql, str))
+        assert isinstance(ti.task.sql, str)
 
     def test_bigquery_operator_extra_serialized_field_when_single_query(self):
         with self.dag:
@@ -472,35 +472,34 @@ class TestBigQueryOperator(unittest.TestCase):
                 sql='SELECT * FROM test_table',
             )
         serialized_dag = SerializedDAG.to_dict(self.dag)
-        self.assertIn("sql", serialized_dag["dag"]["tasks"][0])
+        assert "sql" in serialized_dag["dag"]["tasks"][0]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[TASK_ID]
-        self.assertEqual(getattr(simple_task, "sql"), 'SELECT * FROM test_table')
+        assert getattr(simple_task, "sql") == 'SELECT * FROM test_table'
 
         #########################################################
         # Verify Operator Links work with Serialized Operator
         #########################################################
 
         # Check Serialized version of operator link
-        self.assertEqual(
-            serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
-            [{'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink': {}}],
-        )
+        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+            {'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink': {}}
+        ]
 
         # Check DeSerialized version of operator link
-        self.assertIsInstance(list(simple_task.operator_extra_links)[0], BigQueryConsoleLink)
+        assert isinstance(list(simple_task.operator_extra_links)[0], BigQueryConsoleLink)
 
         ti = TaskInstance(task=simple_task, execution_date=DEFAULT_DATE)
         ti.xcom_push('job_id', 12345)
 
         # check for positive case
         url = simple_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name)
-        self.assertEqual(url, 'https://console.cloud.google.com/bigquery?j=12345')
+        assert url == 'https://console.cloud.google.com/bigquery?j=12345'
 
         # check for negative case
         url2 = simple_task.get_extra_links(datetime(2017, 1, 2), BigQueryConsoleLink.name)
-        self.assertEqual(url2, '')
+        assert url2 == ''
 
     def test_bigquery_operator_extra_serialized_field_when_multiple_queries(self):
         with self.dag:
@@ -509,54 +508,37 @@ class TestBigQueryOperator(unittest.TestCase):
                 sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
             )
         serialized_dag = SerializedDAG.to_dict(self.dag)
-        self.assertIn("sql", serialized_dag["dag"]["tasks"][0])
+        assert "sql" in serialized_dag["dag"]["tasks"][0]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[TASK_ID]
-        self.assertEqual(
-            getattr(simple_task, "sql"), ['SELECT * FROM test_table', 'SELECT * FROM test_table2']
-        )
+        assert getattr(simple_task, "sql") == ['SELECT * FROM test_table', 'SELECT * FROM test_table2']
 
         #########################################################
         # Verify Operator Links work with Serialized Operator
         #########################################################
 
         # Check Serialized version of operator link
-        self.assertEqual(
-            serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
-            [
-                {
-                    'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink': {
-                        'index': 0
-                    }
-                },
-                {
-                    'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink': {
-                        'index': 1
-                    }
-                },
-            ],
-        )
+        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+            {'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink': {'index': 0}},
+            {'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink': {'index': 1}},
+        ]
 
         # Check DeSerialized version of operator link
-        self.assertIsInstance(list(simple_task.operator_extra_links)[0], BigQueryConsoleIndexableLink)
+        assert isinstance(list(simple_task.operator_extra_links)[0], BigQueryConsoleIndexableLink)
 
         ti = TaskInstance(task=simple_task, execution_date=DEFAULT_DATE)
         job_id = ['123', '45']
         ti.xcom_push(key='job_id', value=job_id)
 
-        self.assertEqual(
-            {'BigQuery Console #1', 'BigQuery Console #2'}, simple_task.operator_extra_link_dict.keys()
+        assert {'BigQuery Console #1', 'BigQuery Console #2'} == simple_task.operator_extra_link_dict.keys()
+
+        assert 'https://console.cloud.google.com/bigquery?j=123' == simple_task.get_extra_links(
+            DEFAULT_DATE, 'BigQuery Console #1'
         )
 
-        self.assertEqual(
-            'https://console.cloud.google.com/bigquery?j=123',
-            simple_task.get_extra_links(DEFAULT_DATE, 'BigQuery Console #1'),
-        )
-
-        self.assertEqual(
-            'https://console.cloud.google.com/bigquery?j=45',
-            simple_task.get_extra_links(DEFAULT_DATE, 'BigQuery Console #2'),
+        assert 'https://console.cloud.google.com/bigquery?j=45' == simple_task.get_extra_links(
+            DEFAULT_DATE, 'BigQuery Console #2'
         )
 
     @provide_session
@@ -570,10 +552,7 @@ class TestBigQueryOperator(unittest.TestCase):
         self.dag.clear()
         session.query(XCom).delete()
 
-        self.assertEqual(
-            '',
-            bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name),
-        )
+        assert '' == bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name)
 
     @provide_session
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
@@ -594,15 +573,11 @@ class TestBigQueryOperator(unittest.TestCase):
         job_id = '12345'
         ti.xcom_push(key='job_id', value=job_id)
 
-        self.assertEqual(
-            f'https://console.cloud.google.com/bigquery?j={job_id}',
-            bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name),
+        assert f'https://console.cloud.google.com/bigquery?j={job_id}' == bigquery_task.get_extra_links(
+            DEFAULT_DATE, BigQueryConsoleLink.name
         )
 
-        self.assertEqual(
-            '',
-            bigquery_task.get_extra_links(datetime(2019, 1, 1), BigQueryConsoleLink.name),
-        )
+        assert '' == bigquery_task.get_extra_links(datetime(2019, 1, 1), BigQueryConsoleLink.name)
 
     @provide_session
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
@@ -623,18 +598,14 @@ class TestBigQueryOperator(unittest.TestCase):
         job_id = ['123', '45']
         ti.xcom_push(key='job_id', value=job_id)
 
-        self.assertEqual(
-            {'BigQuery Console #1', 'BigQuery Console #2'}, bigquery_task.operator_extra_link_dict.keys()
+        assert {'BigQuery Console #1', 'BigQuery Console #2'} == bigquery_task.operator_extra_link_dict.keys()
+
+        assert 'https://console.cloud.google.com/bigquery?j=123' == bigquery_task.get_extra_links(
+            DEFAULT_DATE, 'BigQuery Console #1'
         )
 
-        self.assertEqual(
-            'https://console.cloud.google.com/bigquery?j=123',
-            bigquery_task.get_extra_links(DEFAULT_DATE, 'BigQuery Console #1'),
-        )
-
-        self.assertEqual(
-            'https://console.cloud.google.com/bigquery?j=45',
-            bigquery_task.get_extra_links(DEFAULT_DATE, 'BigQuery Console #2'),
+        assert 'https://console.cloud.google.com/bigquery?j=45' == bigquery_task.get_extra_links(
+            DEFAULT_DATE, 'BigQuery Console #2'
         )
 
 
@@ -716,12 +687,15 @@ class TestBigQueryConnIdDeprecationWarning(unittest.TestCase):
     )
     def test_bigquery_conn_id_deprecation_warning(self, operator_class, kwargs):
         bigquery_conn_id = 'google_cloud_default'
-        with self.assertWarnsRegex(
+        with pytest.warns(
             DeprecationWarning,
-            "The bigquery_conn_id parameter has been deprecated. You should pass the gcp_conn_id parameter.",
+            match=(
+                "The bigquery_conn_id parameter has been deprecated. "
+                "You should pass the gcp_conn_id parameter."
+            ),
         ):
             operator = operator_class(bigquery_conn_id=bigquery_conn_id, **kwargs)
-            self.assertEqual(bigquery_conn_id, operator.gcp_conn_id)
+            assert bigquery_conn_id == operator.gcp_conn_id
 
 
 class TestBigQueryUpsertTableOperator(unittest.TestCase):

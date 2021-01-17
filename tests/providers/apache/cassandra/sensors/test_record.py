@@ -37,7 +37,7 @@ class TestCassandraRecordSensor(unittest.TestCase):
         )
         exists = sensor.poke(dict())
 
-        self.assertTrue(exists)
+        assert exists
 
         mock_hook.return_value.record_exists.assert_called_once_with(TEST_CASSANDRA_TABLE, TEST_CASSANDRA_KEY)
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
@@ -52,7 +52,7 @@ class TestCassandraRecordSensor(unittest.TestCase):
         )
         exists = sensor.poke(dict())
 
-        self.assertTrue(exists)
+        assert exists
 
         mock_hook.return_value.record_exists.assert_called_once_with(TEST_CASSANDRA_TABLE, None)
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
@@ -69,7 +69,7 @@ class TestCassandraRecordSensor(unittest.TestCase):
         )
         exists = sensor.poke(dict())
 
-        self.assertFalse(exists)
+        assert not exists
 
         mock_hook.return_value.record_exists.assert_called_once_with(TEST_CASSANDRA_TABLE, TEST_CASSANDRA_KEY)
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)

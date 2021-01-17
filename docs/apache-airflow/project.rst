@@ -88,11 +88,4 @@ Resources & links
 
 * `Issues on GitHub <https://github.com/apache/airflow/issues>`_
 * `Slack (chat) Channel <https://s.apache.org/airflow-slack>`_
-* `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`_
-
-
-
-Roadmap
--------
-
-Please refer to the Roadmap on `the wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`_
+* `Airflow Improvement Proposals <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals>`_

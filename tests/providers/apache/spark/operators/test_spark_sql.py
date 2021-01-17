@@ -50,18 +50,18 @@ class TestSparkSqlOperator(unittest.TestCase):
         # Given / When
         operator = SparkSqlOperator(task_id='spark_sql_job', dag=self.dag, **self._config)
 
-        self.assertEqual(self._config['sql'], operator._sql)
-        self.assertEqual(self._config['conn_id'], operator._conn_id)
-        self.assertEqual(self._config['total_executor_cores'], operator._total_executor_cores)
-        self.assertEqual(self._config['executor_cores'], operator._executor_cores)
-        self.assertEqual(self._config['executor_memory'], operator._executor_memory)
-        self.assertEqual(self._config['keytab'], operator._keytab)
-        self.assertEqual(self._config['principal'], operator._principal)
-        self.assertEqual(self._config['executor_memory'], operator._executor_memory)
-        self.assertEqual(self._config['keytab'], operator._keytab)
-        self.assertEqual(self._config['principal'], operator._principal)
-        self.assertEqual(self._config['master'], operator._master)
-        self.assertEqual(self._config['name'], operator._name)
-        self.assertEqual(self._config['num_executors'], operator._num_executors)
-        self.assertEqual(self._config['verbose'], operator._verbose)
-        self.assertEqual(self._config['yarn_queue'], operator._yarn_queue)
+        assert self._config['sql'] == operator._sql
+        assert self._config['conn_id'] == operator._conn_id
+        assert self._config['total_executor_cores'] == operator._total_executor_cores
+        assert self._config['executor_cores'] == operator._executor_cores
+        assert self._config['executor_memory'] == operator._executor_memory
+        assert self._config['keytab'] == operator._keytab
+        assert self._config['principal'] == operator._principal
+        assert self._config['executor_memory'] == operator._executor_memory
+        assert self._config['keytab'] == operator._keytab
+        assert self._config['principal'] == operator._principal
+        assert self._config['master'] == operator._master
+        assert self._config['name'] == operator._name
+        assert self._config['num_executors'] == operator._num_executors
+        assert self._config['verbose'] == operator._verbose
+        assert self._config['yarn_queue'] == operator._yarn_queue

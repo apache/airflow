@@ -24,6 +24,7 @@ from io import StringIO
 from unittest import mock
 
 import google.auth
+import pytest
 import tenacity
 from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import GoogleAuthError
@@ -74,17 +75,17 @@ def _retryable_test_with_temporary_quota_retry(thing):
 class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
     def test_do_nothing_on_non_error(self):
         result = _retryable_test_with_temporary_quota_retry(lambda: 42)
-        self.assertTrue(result, 42)
+        assert result, 42
 
     def test_retry_on_exception(self):
         message = "POST https://translation.googleapis.com/language/translate/v2: User Rate Limit Exceeded"
         errors = [mock.MagicMock(details=mock.PropertyMock(return_value='userRateLimitExceeded'))]
         custom_fn = NoForbiddenAfterCount(count=5, message=message, errors=errors)
         _retryable_test_with_temporary_quota_retry(custom_fn)
-        self.assertEqual(5, custom_fn.counter)
+        assert 5 == custom_fn.counter
 
     def test_raise_exception_on_non_quota_exception(self):
-        with self.assertRaisesRegex(Forbidden, "Daily Limit Exceeded"):
+        with pytest.raises(Forbidden, match="Daily Limit Exceeded"):
             message = "POST https://translation.googleapis.com/language/translate/v2: Daily Limit Exceeded"
             errors = [mock.MagicMock(details=mock.PropertyMock(return_value='dailyLimitExceeded'))]
 
@@ -132,13 +133,11 @@ class TestFallbackToDefaultProjectId(unittest.TestCase):
     def test_restrict_positional_arguments(self):
         gcp_hook = FallbackToDefaultProjectIdFixtureClass(321)
 
-        with self.assertRaises(AirflowException) as cm:
+        with pytest.raises(AirflowException) as ctx:
             gcp_hook.method(123)
 
-        self.assertEqual(
-            str(cm.exception), "You must use keyword arguments in this methods rather than positional"
-        )
-        self.assertEqual(gcp_hook.mock.call_count, 0)
+        assert str(ctx.value) == "You must use keyword arguments in this methods rather than positional"
+        assert gcp_hook.mock.call_count == 0
 
 
 ENV_VALUE = "/tmp/a"
@@ -161,11 +160,11 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            self.assertEqual(os.environ[CREDENTIALS], key_path)
+            assert os.environ[CREDENTIALS] == key_path
 
-        with self.assertRaisesRegex(
+        with pytest.raises(
             AirflowException,
-            'The `keyfile_dict` and `key_path` fields are mutually exclusive. '
+            match='The `keyfile_dict` and `key_path` fields are mutually exclusive. '
             'Please provide only one value.',
         ):
             assert_gcp_credential_file_in_env(self.instance)
@@ -176,7 +175,7 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            self.assertEqual(os.environ[CREDENTIALS], key_path)
+            assert os.environ[CREDENTIALS] == key_path
 
         assert_gcp_credential_file_in_env(self.instance)
 
@@ -192,8 +191,8 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            self.assertEqual(os.environ[CREDENTIALS], file_name)
-            self.assertEqual(file_content, string_file.getvalue())
+            assert os.environ[CREDENTIALS] == file_name
+            assert file_content == string_file.getvalue()
 
         assert_gcp_credential_file_in_env(self.instance)
 
@@ -204,10 +203,10 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            self.assertEqual(os.environ[CREDENTIALS], key_path)
+            assert os.environ[CREDENTIALS] == key_path
 
         assert_gcp_credential_file_in_env(self.instance)
-        self.assertEqual(os.environ[CREDENTIALS], ENV_VALUE)
+        assert os.environ[CREDENTIALS] == ENV_VALUE
 
     @mock.patch.dict(os.environ, {CREDENTIALS: ENV_VALUE})
     def test_provide_gcp_credential_keep_environment_when_exception(self):
@@ -218,10 +217,10 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         def assert_gcp_credential_file_in_env(_):
             raise Exception()
 
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             assert_gcp_credential_file_in_env(self.instance)
 
-        self.assertEqual(os.environ[CREDENTIALS], ENV_VALUE)
+        assert os.environ[CREDENTIALS] == ENV_VALUE
 
     @mock.patch.dict(os.environ, clear=True)
     def test_provide_gcp_credential_keep_clear_environment(self):
@@ -230,10 +229,10 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            self.assertEqual(os.environ[CREDENTIALS], key_path)
+            assert os.environ[CREDENTIALS] == key_path
 
         assert_gcp_credential_file_in_env(self.instance)
-        self.assertNotIn(CREDENTIALS, os.environ)
+        assert CREDENTIALS not in os.environ
 
     @mock.patch.dict(os.environ, clear=True)
     def test_provide_gcp_credential_keep_clear_environment_when_exception(self):
@@ -244,10 +243,10 @@ class TestProvideGcpCredentialFile(unittest.TestCase):
         def assert_gcp_credential_file_in_env(_):
             raise Exception()
 
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             assert_gcp_credential_file_in_env(self.instance)
 
-        self.assertNotIn(CREDENTIALS, os.environ)
+        assert CREDENTIALS not in os.environ
 
 
 class TestProvideGcpCredentialFileAsContext(unittest.TestCase):
@@ -263,7 +262,7 @@ class TestProvideGcpCredentialFileAsContext(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         with self.instance.provide_gcp_credential_file_as_context():
-            self.assertEqual(os.environ[CREDENTIALS], key_path)
+            assert os.environ[CREDENTIALS] == key_path
 
     @mock.patch('tempfile.NamedTemporaryFile')
     def test_provide_gcp_credential_file_decorator_key_content(self, mock_file):
@@ -276,8 +275,8 @@ class TestProvideGcpCredentialFileAsContext(unittest.TestCase):
         mock_file_handler.write = string_file.write
 
         with self.instance.provide_gcp_credential_file_as_context():
-            self.assertEqual(os.environ[CREDENTIALS], file_name)
-            self.assertEqual(file_content, string_file.getvalue())
+            assert os.environ[CREDENTIALS] == file_name
+            assert file_content == string_file.getvalue()
 
     @mock.patch.dict(os.environ, {CREDENTIALS: ENV_VALUE})
     def test_provide_gcp_credential_keep_environment(self):
@@ -285,20 +284,20 @@ class TestProvideGcpCredentialFileAsContext(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         with self.instance.provide_gcp_credential_file_as_context():
-            self.assertEqual(os.environ[CREDENTIALS], key_path)
+            assert os.environ[CREDENTIALS] == key_path
 
-        self.assertEqual(os.environ[CREDENTIALS], ENV_VALUE)
+        assert os.environ[CREDENTIALS] == ENV_VALUE
 
     @mock.patch.dict(os.environ, {CREDENTIALS: ENV_VALUE})
     def test_provide_gcp_credential_keep_environment_when_exception(self):
         key_path = '/test/key-path'
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             with self.instance.provide_gcp_credential_file_as_context():
                 raise Exception()
 
-        self.assertEqual(os.environ[CREDENTIALS], ENV_VALUE)
+        assert os.environ[CREDENTIALS] == ENV_VALUE
 
     @mock.patch.dict(os.environ, clear=True)
     def test_provide_gcp_credential_keep_clear_environment(self):
@@ -306,20 +305,20 @@ class TestProvideGcpCredentialFileAsContext(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         with self.instance.provide_gcp_credential_file_as_context():
-            self.assertEqual(os.environ[CREDENTIALS], key_path)
+            assert os.environ[CREDENTIALS] == key_path
 
-        self.assertNotIn(CREDENTIALS, os.environ)
+        assert CREDENTIALS not in os.environ
 
     @mock.patch.dict(os.environ, clear=True)
     def test_provide_gcp_credential_keep_clear_environment_when_exception(self):
         key_path = '/test/key-path'
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             with self.instance.provide_gcp_credential_file_as_context():
                 raise Exception()
 
-        self.assertNotIn(CREDENTIALS, os.environ)
+        assert CREDENTIALS not in os.environ
 
 
 class TestGoogleBaseHook(unittest.TestCase):
@@ -338,7 +337,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             target_principal=None,
             delegates=None,
         )
-        self.assertEqual(('CREDENTIALS', 'PROJECT_ID'), result)
+        assert ('CREDENTIALS', 'PROJECT_ID') == result
 
     @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
     def test_get_credentials_and_project_id_with_service_account_file(self, mock_get_creds_and_proj_id):
@@ -354,16 +353,16 @@ class TestGoogleBaseHook(unittest.TestCase):
             target_principal=None,
             delegates=None,
         )
-        self.assertEqual((mock_credentials, 'PROJECT_ID'), result)
+        assert (mock_credentials, 'PROJECT_ID') == result
 
     def test_get_credentials_and_project_id_with_service_account_file_and_p12_key(self):
         self.instance.extras = {'extra__google_cloud_platform__key_path': "KEY_PATH.p12"}
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.instance._get_credentials_and_project_id()
 
     def test_get_credentials_and_project_id_with_service_account_file_and_unknown_key(self):
         self.instance.extras = {'extra__google_cloud_platform__key_path': "KEY_PATH.unknown"}
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.instance._get_credentials_and_project_id()
 
     @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
@@ -381,7 +380,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             target_principal=None,
             delegates=None,
         )
-        self.assertEqual((mock_credentials, 'PROJECT_ID'), result)
+        assert (mock_credentials, 'PROJECT_ID') == result
 
     @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
     def test_get_credentials_and_project_id_with_default_auth_and_delegate(self, mock_get_creds_and_proj_id):
@@ -398,7 +397,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             target_principal=None,
             delegates=None,
         )
-        self.assertEqual((mock_credentials, "PROJECT_ID"), result)
+        assert (mock_credentials, "PROJECT_ID") == result
 
     @mock.patch('google.auth.default')
     def test_get_credentials_and_project_id_with_default_auth_and_unsupported_delegate(
@@ -408,9 +407,9 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
 
-        with self.assertRaisesRegex(
+        with pytest.raises(
             AirflowException,
-            re.escape(
+            match=re.escape(
                 "The `delegate_to` parameter cannot be used here as the current authentication method "
                 "does not support account impersonate. Please use service-account for authorization."
             ),
@@ -431,7 +430,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             target_principal=None,
             delegates=None,
         )
-        self.assertEqual(("CREDENTIALS", 'SECOND_PROJECT_ID'), result)
+        assert ("CREDENTIALS", 'SECOND_PROJECT_ID') == result
 
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(
         self,
@@ -441,8 +440,9 @@ class TestGoogleBaseHook(unittest.TestCase):
             'extra__google_cloud_platform__key_path': "KEY_PATH",
             'extra__google_cloud_platform__keyfile_dict': '{"KEY": "VALUE"}',
         }
-        with self.assertRaisesRegex(
-            AirflowException, re.escape('The `keyfile_dict` and `key_path` fields are mutually exclusive.')
+        with pytest.raises(
+            AirflowException,
+            match=re.escape('The `keyfile_dict` and `key_path` fields are mutually exclusive.'),
         ):
             self.instance._get_credentials_and_project_id()
 
@@ -452,7 +452,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         self.instance.extras = {
             'extra__google_cloud_platform__keyfile_dict': 'INVALID_DICT',
         }
-        with self.assertRaisesRegex(AirflowException, re.escape('Invalid key JSON.')):
+        with pytest.raises(AirflowException, match=re.escape('Invalid key JSON.')):
             self.instance._get_credentials_and_project_id()
 
     @unittest.skipIf(
@@ -479,8 +479,8 @@ class TestGoogleBaseHook(unittest.TestCase):
             return
 
         scopes = credentials.scopes
-        self.assertIn('https://www.googleapis.com/auth/bigquery', scopes)
-        self.assertIn('https://www.googleapis.com/auth/devstorage.read_only', scopes)
+        assert 'https://www.googleapis.com/auth/bigquery' in scopes
+        assert 'https://www.googleapis.com/auth/devstorage.read_only' in scopes
 
     @unittest.skipIf(
         not default_creds_available, 'Default Google Cloud credentials not available to run tests'
@@ -496,7 +496,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             return
 
         scopes = credentials.scopes
-        self.assertEqual(tuple(_DEFAULT_SCOPES), tuple(scopes))
+        assert tuple(_DEFAULT_SCOPES) == tuple(scopes)
 
     def test_provide_gcp_credential_file_decorator_key_path(self):
         key_path = '/test/key-path'
@@ -504,7 +504,7 @@ class TestGoogleBaseHook(unittest.TestCase):
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(hook_instance):  # pylint: disable=unused-argument
-            self.assertEqual(os.environ[CREDENTIALS], key_path)
+            assert os.environ[CREDENTIALS] == key_path
 
         assert_gcp_credential_file_in_env(self.instance)
 
@@ -520,8 +520,8 @@ class TestGoogleBaseHook(unittest.TestCase):
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(hook_instance):  # pylint: disable=unused-argument
-            self.assertEqual(os.environ[CREDENTIALS], file_name)
-            self.assertEqual(file_content, string_file.getvalue())
+            assert os.environ[CREDENTIALS] == file_name
+            assert file_content == string_file.getvalue()
 
         assert_gcp_credential_file_in_env(self.instance)
 
@@ -538,18 +538,15 @@ class TestGoogleBaseHook(unittest.TestCase):
             ),
         }
 
-        self.assertEqual(
-            self.instance.scopes,
-            [
-                'https://www.googleapis.com/auth/bigquery',
-                'https://www.googleapis.com/auth/devstorage.read_only',
-            ],
-        )
+        assert self.instance.scopes == [
+            'https://www.googleapis.com/auth/bigquery',
+            'https://www.googleapis.com/auth/devstorage.read_only',
+        ]
 
     def test_default_scopes(self):
         self.instance.extras = {'extra__google_cloud_platform__project': default_project}
 
-        self.assertEqual(self.instance.scopes, ('https://www.googleapis.com/auth/cloud-platform',))
+        assert self.instance.scopes == ('https://www.googleapis.com/auth/cloud-platform',)
 
     @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection")
     def test_num_retries_is_not_none_by_default(self, get_con_mock):
@@ -558,7 +555,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         should not be None
         """
         get_con_mock.return_value.extra_dejson = {"extra__google_cloud_platform__num_retries": None}
-        self.assertEqual(self.instance.num_retries, 5)
+        assert self.instance.num_retries == 5
 
     @mock.patch("airflow.providers.google.common.hooks.base_google.build_http")
     @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
@@ -582,8 +579,8 @@ class TestGoogleBaseHook(unittest.TestCase):
             method='GET',
             redirections=5,
         )
-        self.assertEqual(response, new_response)
-        self.assertEqual(content, new_content)
+        assert response == new_response
+        assert content == new_content
 
     @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
     def test_authorize_assert_http_308_is_excluded(self, mock_get_credentials):
@@ -591,7 +588,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         Verify that 308 status code is excluded from httplib2's redirect codes
         """
         http_authorized = self.instance._authorize().http
-        self.assertTrue(308 not in http_authorized.redirect_codes)
+        assert 308 not in http_authorized.redirect_codes
 
     @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
     def test_authorize_assert_http_timeout_is_present(self, mock_get_credentials):
@@ -599,7 +596,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         Verify that http client has a timeout set
         """
         http_authorized = self.instance._authorize().http
-        self.assertNotEqual(http_authorized.timeout, None)
+        assert http_authorized.timeout is not None
 
     @parameterized.expand(
         [
@@ -634,7 +631,7 @@ class TestGoogleBaseHook(unittest.TestCase):
             target_principal=target_principal,
             delegates=delegates,
         )
-        self.assertEqual((mock_credentials, PROJECT_ID), result)
+        assert (mock_credentials, PROJECT_ID) == result
 
 
 class TestProvideAuthorizedGcloud(unittest.TestCase):
@@ -658,13 +655,13 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
             'extra__google_cloud_platform__keyfile_dict': '{"foo": "bar"}',
         }
 
-        with self.assertRaisesRegex(
+        with pytest.raises(
             AirflowException,
-            'The `keyfile_dict` and `key_path` fields are mutually exclusive. '
+            match='The `keyfile_dict` and `key_path` fields are mutually exclusive. '
             'Please provide only one value.',
         ):
             with self.instance.provide_authorized_gcloud():
-                self.assertEqual(os.environ[CREDENTIALS], key_path)
+                assert os.environ[CREDENTIALS] == key_path
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -677,7 +674,7 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         self.instance.extras = {'extra__google_cloud_platform__key_path': key_path}
 
         with self.instance.provide_authorized_gcloud():
-            self.assertEqual(os.environ[CREDENTIALS], key_path)
+            assert os.environ[CREDENTIALS] == key_path
 
         mock_check_output.has_calls(
             mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
@@ -701,7 +698,7 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         mock_file_handler.write = string_file.write
 
         with self.instance.provide_authorized_gcloud():
-            self.assertEqual(os.environ[CREDENTIALS], file_name)
+            assert os.environ[CREDENTIALS] == file_name
 
         mock_check_output.has_calls(
             [
@@ -755,8 +752,8 @@ class TestNumRetry(unittest.TestCase):
             'extra__google_cloud_platform__num_retries': 10,
         }
 
-        self.assertIsInstance(instance.num_retries, int)
-        self.assertEqual(10, instance.num_retries)
+        assert isinstance(instance.num_retries, int)
+        assert 10 == instance.num_retries
 
     @mock.patch.dict(
         'os.environ',
@@ -766,7 +763,7 @@ class TestNumRetry(unittest.TestCase):
     )
     def test_should_return_int_when_set_via_env_var(self):
         instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
-        self.assertIsInstance(instance.num_retries, int)
+        assert isinstance(instance.num_retries, int)
 
     @mock.patch.dict(
         'os.environ',
@@ -776,10 +773,8 @@ class TestNumRetry(unittest.TestCase):
     )
     def test_should_raise_when_invalid_value_via_env_var(self):
         instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
-        with self.assertRaisesRegex(
-            AirflowException, re.escape("The num_retries field should be a integer.")
-        ):
-            self.assertIsInstance(instance.num_retries, int)
+        with pytest.raises(AirflowException, match=re.escape("The num_retries field should be a integer.")):
+            assert isinstance(instance.num_retries, int)
 
     @mock.patch.dict(
         'os.environ',
@@ -789,5 +784,5 @@ class TestNumRetry(unittest.TestCase):
     )
     def test_should_fallback_when_empty_string_in_env_var(self):
         instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
-        self.assertIsInstance(instance.num_retries, int)
-        self.assertEqual(5, instance.num_retries)
+        assert isinstance(instance.num_retries, int)
+        assert 5 == instance.num_retries

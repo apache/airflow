@@ -17,6 +17,8 @@
 
 import unittest
 
+import pytest
+
 from airflow import DAG
 from airflow.exceptions import AirflowDagCycleException
 from airflow.operators.dummy import DummyOperator
@@ -29,7 +31,7 @@ class TestCycleTester(unittest.TestCase):
         # test empty
         dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
-        self.assertFalse(_test_cycle(dag))
+        assert not _test_cycle(dag)
 
     def test_cycle_single_task(self):
         # test single task
@@ -38,7 +40,7 @@ class TestCycleTester(unittest.TestCase):
         with dag:
             DummyOperator(task_id='A')
 
-        self.assertFalse(_test_cycle(dag))
+        assert not _test_cycle(dag)
 
     def test_semi_complex(self):
         dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
@@ -75,7 +77,7 @@ class TestCycleTester(unittest.TestCase):
             op2.set_downstream(op4)
             op5.set_downstream(op6)
 
-        self.assertFalse(_test_cycle(dag))
+        assert not _test_cycle(dag)
 
     def test_cycle_loop(self):
         # test self loop
@@ -86,8 +88,8 @@ class TestCycleTester(unittest.TestCase):
             op1 = DummyOperator(task_id='A')
             op1.set_downstream(op1)
 
-        with self.assertRaises(AirflowDagCycleException):
-            self.assertFalse(_test_cycle(dag))
+        with pytest.raises(AirflowDagCycleException):
+            assert not _test_cycle(dag)
 
     def test_cycle_downstream_loop(self):
         # test downstream self loop
@@ -106,8 +108,8 @@ class TestCycleTester(unittest.TestCase):
             op4.set_downstream(op5)
             op5.set_downstream(op5)
 
-        with self.assertRaises(AirflowDagCycleException):
-            self.assertFalse(_test_cycle(dag))
+        with pytest.raises(AirflowDagCycleException):
+            assert not _test_cycle(dag)
 
     def test_cycle_large_loop(self):
         # large loop
@@ -124,8 +126,8 @@ class TestCycleTester(unittest.TestCase):
                 current = next_task
 
             current.set_downstream(start)
-        with self.assertRaises(AirflowDagCycleException):
-            self.assertFalse(_test_cycle(dag))
+        with pytest.raises(AirflowDagCycleException):
+            assert not _test_cycle(dag)
 
     def test_cycle_arbitrary_loop(self):
         # test arbitrary loop
@@ -146,5 +148,5 @@ class TestCycleTester(unittest.TestCase):
             op2.set_downstream(op5)
             op5.set_downstream(op1)
 
-        with self.assertRaises(AirflowDagCycleException):
-            self.assertFalse(_test_cycle(dag))
+        with pytest.raises(AirflowDagCycleException):
+            assert not _test_cycle(dag)

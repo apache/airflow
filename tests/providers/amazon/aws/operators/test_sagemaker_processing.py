@@ -18,6 +18,7 @@
 import unittest
 from unittest import mock
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -138,7 +139,8 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=create_processing_params
         )
-        self.assertRaises(AirflowException, sagemaker.execute, None)
+        with pytest.raises(AirflowException):
+            sagemaker.execute(None)
 
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "list_processing_jobs", return_value=[{"ProcessingJobName": job_name}])
@@ -176,11 +178,13 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
             **self.processing_config_kwargs, config=create_processing_params
         )
         sagemaker.action_if_job_exists = "fail"
-        self.assertRaises(AirflowException, sagemaker.execute, None)
+        with pytest.raises(AirflowException):
+            sagemaker.execute(None)
 
     @mock.patch.object(SageMakerHook, "get_conn")
     def test_action_if_job_exists_validation(self, mock_client):
         sagemaker = SageMakerProcessingOperator(
             **self.processing_config_kwargs, config=create_processing_params
         )
-        self.assertRaises(AirflowException, sagemaker.__init__, action_if_job_exists="not_fail_or_increment")
+        with pytest.raises(AirflowException):
+            sagemaker.__init__(action_if_job_exists="not_fail_or_increment")

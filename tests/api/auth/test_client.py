@@ -38,7 +38,7 @@ class TestGetCurrentApiClient(unittest.TestCase):
         mock_client.assert_called_once_with(
             api_base_url='http://localhost:1234', auth='CLIENT_AUTH', session=None
         )
-        self.assertEqual(mock_client.return_value, result)
+        assert mock_client.return_value == result
 
     @mock.patch("airflow.api.client.json_client.Client")
     @mock.patch("airflow.providers.google.common.auth_backend.google_openid.create_client_session")
@@ -55,4 +55,4 @@ class TestGetCurrentApiClient(unittest.TestCase):
         mock_client.assert_called_once_with(
             api_base_url='http://localhost:1234', auth=None, session=mock_create_client_session.return_value
         )
-        self.assertEqual(mock_client.return_value, result)
+        assert mock_client.return_value == result

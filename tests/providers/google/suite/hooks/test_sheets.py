@@ -23,6 +23,8 @@ Unit Tests for the GSheets Hook
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -58,7 +60,7 @@ class TestGSheetsHook(unittest.TestCase):
         mock_build.assert_called_once_with(
             'sheets', 'v4', http=mock_authorize.return_value, cache_discovery=False
         )
-        self.assertEqual(mock_build.return_value, result)
+        assert mock_build.return_value == result
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_get_values(self, get_conn):
@@ -72,7 +74,7 @@ class TestGSheetsHook(unittest.TestCase):
             value_render_option=VALUE_RENDER_OPTION,
             date_time_render_option=DATE_TIME_RENDER_OPTION,
         )
-        self.assertIs(result, VALUES)
+        assert result is VALUES
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         get_method.assert_called_once_with(
             spreadsheetId=SPREADSHEET_ID,
@@ -94,7 +96,7 @@ class TestGSheetsHook(unittest.TestCase):
             value_render_option=VALUE_RENDER_OPTION,
             date_time_render_option=DATE_TIME_RENDER_OPTION,
         )
-        self.assertIs(result, API_RESPONSE)
+        assert result is API_RESPONSE
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         batch_get_method.assert_called_once_with(
             spreadsheetId=SPREADSHEET_ID,
@@ -120,7 +122,7 @@ class TestGSheetsHook(unittest.TestCase):
             date_time_render_option=DATE_TIME_RENDER_OPTION,
         )
         body = {"range": RANGE_, "majorDimension": MAJOR_DIMENSION, "values": VALUES}
-        self.assertIs(result, API_RESPONSE)
+        assert result is API_RESPONSE
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         update_method.assert_called_once_with(
             spreadsheetId=SPREADSHEET_ID,
@@ -158,7 +160,7 @@ class TestGSheetsHook(unittest.TestCase):
             "responseValueRenderOption": VALUE_RENDER_OPTION,
             "responseDateTimeRenderOption": DATE_TIME_RENDER_OPTION,
         }
-        self.assertIs(result, API_RESPONSE)
+        assert result is API_RESPONSE
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         batch_update_method.assert_called_once_with(spreadsheetId=SPREADSHEET_ID, body=body)
 
@@ -167,7 +169,7 @@ class TestGSheetsHook(unittest.TestCase):
         batch_update_method = get_conn.return_value.spreadsheets.return_value.values.return_value.batchUpdate
         execute_method = batch_update_method.return_value.execute
         execute_method.return_value = API_RESPONSE
-        with self.assertRaises(AirflowException) as cm:
+        with pytest.raises(AirflowException) as ctx:
             self.hook.batch_update_values(
                 spreadsheet_id=SPREADSHEET_ID,
                 ranges=['test!A1:B2', 'test!C1:C2'],
@@ -180,8 +182,8 @@ class TestGSheetsHook(unittest.TestCase):
             )
         batch_update_method.assert_not_called()
         execute_method.assert_not_called()
-        err = cm.exception
-        self.assertIn("must be of equal length.", str(err))
+        err = ctx.value
+        assert "must be of equal length." in str(err)
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_append_values(self, get_conn):
@@ -200,7 +202,7 @@ class TestGSheetsHook(unittest.TestCase):
             date_time_render_option=DATE_TIME_RENDER_OPTION,
         )
         body = {"range": RANGE_, "majorDimension": MAJOR_DIMENSION, "values": VALUES}
-        self.assertIs(result, API_RESPONSE)
+        assert result is API_RESPONSE
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         append_method.assert_called_once_with(
             spreadsheetId=SPREADSHEET_ID,
@@ -220,7 +222,7 @@ class TestGSheetsHook(unittest.TestCase):
         execute_method.return_value = API_RESPONSE
         result = self.hook.clear(spreadsheet_id=SPREADSHEET_ID, range_=RANGE_)
 
-        self.assertIs(result, API_RESPONSE)
+        assert result is API_RESPONSE
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         clear_method.assert_called_once_with(spreadsheetId=SPREADSHEET_ID, range=RANGE_)
 
@@ -231,7 +233,7 @@ class TestGSheetsHook(unittest.TestCase):
         execute_method.return_value = API_RESPONSE
         result = self.hook.batch_clear(spreadsheet_id=SPREADSHEET_ID, ranges=RANGES)
         body = {"ranges": RANGES}
-        self.assertIs(result, API_RESPONSE)
+        assert result is API_RESPONSE
         execute_method.assert_called_once_with(num_retries=NUM_RETRIES)
         batch_clear_method.assert_called_once_with(spreadsheetId=SPREADSHEET_ID, body=body)
 

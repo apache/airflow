@@ -18,6 +18,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
 
@@ -170,5 +172,5 @@ class TestGcsToGDriveOperator(unittest.TestCase):
         task = GCSToGoogleDriveOperator(
             task_id="move_files", source_bucket="data", source_object="sales/*/*.avro", move_object=True
         )
-        with self.assertRaisesRegex(AirflowException, "Only one wildcard"):
+        with pytest.raises(AirflowException, match="Only one wildcard"):
             task.execute(mock.MagicMock())

@@ -18,9 +18,9 @@
 import inspect
 import unittest
 from datetime import datetime
-from typing import Any
 from unittest import mock
 
+import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 
@@ -129,27 +129,27 @@ WORKFLOW_TEMPLATE = {
 }
 
 
-def assert_warning(msg: str, warning: Any):
-    assert any(msg in str(w) for w in warning.warnings)
+def assert_warning(msg: str, warnings):
+    assert any(msg in str(w) for w in warnings)
 
 
 class TestsClusterGenerator(unittest.TestCase):
     def test_image_version(self):
-        with self.assertRaises(ValueError) as err:
+        with pytest.raises(ValueError) as ctx:
             ClusterGenerator(
                 custom_image="custom_image",
                 image_version="image_version",
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-            self.assertIn("custom_image and image_version", str(err))
+            assert "custom_image and image_version" in str(ctx.value)
 
     def test_nodes_number(self):
-        with self.assertRaises(AssertionError) as err:
+        with pytest.raises(AssertionError) as ctx:
             ClusterGenerator(
                 num_workers=0, num_preemptible_workers=0, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
             )
-            self.assertIn("num_workers == 0 means single", str(err))
+            assert "num_workers == 0 means single" in str(ctx.value)
 
     def test_build(self):
         generator = ClusterGenerator(
@@ -186,12 +186,12 @@ class TestsClusterGenerator(unittest.TestCase):
             customer_managed_key="customer_managed_key",
         )
         cluster = generator.make()
-        self.assertDictEqual(CONFIG, cluster)
+        assert CONFIG == cluster
 
 
 class TestDataprocClusterCreateOperator(unittest.TestCase):
     def test_deprecation_warning(self):
-        with self.assertWarns(DeprecationWarning) as warning:
+        with pytest.warns(DeprecationWarning) as warnings:
             op = DataprocCreateClusterOperator(
                 task_id=TASK_ID,
                 region=GCP_LOCATION,
@@ -200,22 +200,22 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
                 num_workers=2,
                 zone="zone",
             )
-        assert_warning("Passing cluster parameters by keywords", warning)
+        assert_warning("Passing cluster parameters by keywords", warnings)
 
-        self.assertEqual(op.project_id, GCP_PROJECT)
-        self.assertEqual(op.cluster_name, "cluster_name")
-        self.assertEqual(op.cluster_config['worker_config']['num_instances'], 2)
-        self.assertIn("zones/zone", op.cluster_config['master_config']["machine_type_uri"])
+        assert op.project_id == GCP_PROJECT
+        assert op.cluster_name == "cluster_name"
+        assert op.cluster_config['worker_config']['num_instances'] == 2
+        assert "zones/zone" in op.cluster_config['master_config']["machine_type_uri"]
 
-        with self.assertWarns(DeprecationWarning) as warning:
+        with pytest.warns(DeprecationWarning) as warnings:
             op_default_region = DataprocCreateClusterOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
                 cluster_name="cluster_name",
                 cluster_config=op.cluster_config,
             )
-        assert_warning("Default region value", warning)
-        self.assertEqual(op_default_region.region, 'global')
+        assert_warning("Default region value", warnings)
+        assert op_default_region.region == 'global'
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
@@ -305,7 +305,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             request_id=REQUEST_ID,
             use_if_exists=False,
         )
-        with self.assertRaises(AlreadyExists):
+        with pytest.raises(AlreadyExists):
             op.execute(context={})
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -329,7 +329,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             metadata=METADATA,
             request_id=REQUEST_ID,
         )
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             op.execute(context={})
 
         mock_hook.return_value.diagnose_cluster.assert_called_once_with(
@@ -368,7 +368,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             delete_on_error=True,
             gcp_conn_id=GCP_CONN_ID,
         )
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             op.execute(context={})
 
         calls = [mock.call(mock_hook.return_value), mock.call(mock_hook.return_value)]
@@ -381,9 +381,9 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
 
 class TestDataprocClusterScaleOperator(unittest.TestCase):
     def test_deprecation_warning(self):
-        with self.assertWarns(DeprecationWarning) as warning:
+        with pytest.warns(DeprecationWarning) as warnings:
             DataprocScaleClusterOperator(task_id=TASK_ID, cluster_name=CLUSTER_NAME, project_id=GCP_PROJECT)
-        assert_warning("DataprocUpdateClusterOperator", warning)
+        assert_warning("DataprocUpdateClusterOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
@@ -662,9 +662,9 @@ class TestDataProcHiveOperator(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with self.assertWarns(DeprecationWarning) as warning:
+        with pytest.warns(DeprecationWarning) as warnings:
             DataprocSubmitHiveJobOperator(task_id=TASK_ID, region=GCP_LOCATION, query="query")
-        assert_warning("DataprocSubmitJobOperator", warning)
+        assert_warning("DataprocSubmitJobOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -705,7 +705,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
             variables=self.variables,
         )
         job = op.generate_job()
-        self.assertDictEqual(self.job, job)
+        assert self.job == job
 
 
 class TestDataProcPigOperator(unittest.TestCase):
@@ -721,9 +721,9 @@ class TestDataProcPigOperator(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with self.assertWarns(DeprecationWarning) as warning:
+        with pytest.warns(DeprecationWarning) as warnings:
             DataprocSubmitPigJobOperator(task_id=TASK_ID, region=GCP_LOCATION, query="query")
-        assert_warning("DataprocSubmitJobOperator", warning)
+        assert_warning("DataprocSubmitJobOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -764,7 +764,7 @@ class TestDataProcPigOperator(unittest.TestCase):
             variables=self.variables,
         )
         job = op.generate_job()
-        self.assertDictEqual(self.job, job)
+        assert self.job == job
 
 
 class TestDataProcSparkSqlOperator(unittest.TestCase):
@@ -780,9 +780,9 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with self.assertWarns(DeprecationWarning) as warning:
+        with pytest.warns(DeprecationWarning) as warnings:
             DataprocSubmitSparkSqlJobOperator(task_id=TASK_ID, region=GCP_LOCATION, query="query")
-        assert_warning("DataprocSubmitJobOperator", warning)
+        assert_warning("DataprocSubmitJobOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -823,7 +823,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
             variables=self.variables,
         )
         job = op.generate_job()
-        self.assertDictEqual(self.job, job)
+        assert self.job == job
 
 
 class TestDataProcSparkOperator(unittest.TestCase):
@@ -839,11 +839,11 @@ class TestDataProcSparkOperator(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with self.assertWarns(DeprecationWarning) as warning:
+        with pytest.warns(DeprecationWarning) as warnings:
             DataprocSubmitSparkJobOperator(
                 task_id=TASK_ID, region=GCP_LOCATION, main_class=self.main_class, dataproc_jars=self.jars
             )
-        assert_warning("DataprocSubmitJobOperator", warning)
+        assert_warning("DataprocSubmitJobOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -860,7 +860,7 @@ class TestDataProcSparkOperator(unittest.TestCase):
             dataproc_jars=self.jars,
         )
         job = op.generate_job()
-        self.assertDictEqual(self.job, job)
+        assert self.job == job
 
 
 class TestDataProcHadoopOperator(unittest.TestCase):
@@ -876,11 +876,11 @@ class TestDataProcHadoopOperator(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with self.assertWarns(DeprecationWarning) as warning:
+        with pytest.warns(DeprecationWarning) as warnings:
             DataprocSubmitHadoopJobOperator(
                 task_id=TASK_ID, region=GCP_LOCATION, main_jar=self.jar, arguments=self.args
             )
-        assert_warning("DataprocSubmitJobOperator", warning)
+        assert_warning("DataprocSubmitJobOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -897,7 +897,7 @@ class TestDataProcHadoopOperator(unittest.TestCase):
             arguments=self.args,
         )
         job = op.generate_job()
-        self.assertDictEqual(self.job, job)
+        assert self.job == job
 
 
 class TestDataProcPySparkOperator(unittest.TestCase):
@@ -912,9 +912,9 @@ class TestDataProcPySparkOperator(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with self.assertWarns(DeprecationWarning) as warning:
+        with pytest.warns(DeprecationWarning) as warnings:
             DataprocSubmitPySparkJobOperator(task_id=TASK_ID, region=GCP_LOCATION, main=self.uri)
-        assert_warning("DataprocSubmitJobOperator", warning)
+        assert_warning("DataprocSubmitJobOperator", warnings)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -926,7 +926,7 @@ class TestDataProcPySparkOperator(unittest.TestCase):
             task_id=TASK_ID, region=GCP_LOCATION, gcp_conn_id=GCP_CONN_ID, main=self.uri
         )
         job = op.generate_job()
-        self.assertDictEqual(self.job, job)
+        assert self.job == job
 
 
 class TestDataprocCreateWorkflowTemplateOperator:

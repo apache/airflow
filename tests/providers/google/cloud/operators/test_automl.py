@@ -20,8 +20,9 @@ import copy
 import unittest
 from unittest import mock
 
-from google.cloud.automl_v1beta1 import AutoMlClient, PredictionServiceClient
+from google.cloud.automl_v1beta1 import BatchPredictResult, Dataset, Model, PredictResponse
 
+from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLBatchPredictOperator,
     AutoMLCreateDatasetOperator,
@@ -43,7 +44,7 @@ TASK_ID = "test-automl-hook"
 GCP_PROJECT_ID = "test-project"
 GCP_LOCATION = "test-location"
 MODEL_NAME = "test_model"
-MODEL_ID = "projects/198907790164/locations/us-central1/models/TBL9195602771183665152"
+MODEL_ID = "TBL9195602771183665152"
 DATASET_ID = "TBL123456789"
 MODEL = {
     "display_name": MODEL_NAME,
@@ -51,8 +52,9 @@ MODEL = {
     "tables_model_metadata": {"train_budget_milli_node_hours": 1000},
 }
 
-LOCATION_PATH = AutoMlClient.location_path(GCP_PROJECT_ID, GCP_LOCATION)
-MODEL_PATH = PredictionServiceClient.model_path(GCP_PROJECT_ID, GCP_LOCATION, MODEL_ID)
+LOCATION_PATH = f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}"
+MODEL_PATH = f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/models/{MODEL_ID}"
+DATASET_PATH = f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/datasets/{DATASET_ID}"
 
 INPUT_CONFIG = {"input": "value"}
 OUTPUT_CONFIG = {"output": "value"}
@@ -60,12 +62,15 @@ PAYLOAD = {"test": "payload"}
 DATASET = {"dataset_id": "data"}
 MASK = {"field": "mask"}
 
+extract_object_id = CloudAutoMLHook.extract_object_id
+
 
 class TestAutoMLTrainModelOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.automl.AutoMLTrainModelOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook, mock_xcom):
-        mock_hook.return_value.extract_object_id.return_value = MODEL_ID
+        mock_hook.return_value.create_model.return_value.result.return_value = Model(name=MODEL_PATH)
+        mock_hook.return_value.extract_object_id = extract_object_id
         op = AutoMLTrainModelOperator(
             model=MODEL,
             location=GCP_LOCATION,
@@ -87,6 +92,9 @@ class TestAutoMLTrainModelOperator(unittest.TestCase):
 class TestAutoMLBatchPredictOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
+        mock_hook.return_value.batch_predict.return_value.result.return_value = BatchPredictResult()
+        mock_hook.return_value.extract_object_id = extract_object_id
+
         op = AutoMLBatchPredictOperator(
             model_id=MODEL_ID,
             location=GCP_LOCATION,
@@ -113,6 +121,8 @@ class TestAutoMLBatchPredictOperator(unittest.TestCase):
 class TestAutoMLPredictOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
+        mock_hook.return_value.predict.return_value = PredictResponse()
+
         op = AutoMLPredictOperator(
             model_id=MODEL_ID,
             location=GCP_LOCATION,
@@ -137,7 +147,9 @@ class TestAutoMLCreateImportOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.automl.AutoMLCreateDatasetOperator.xcom_push")
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook, mock_xcom):
-        mock_hook.return_value.extract_object_id.return_value = DATASET_ID
+        mock_hook.return_value.create_dataset.return_value = Dataset(name=DATASET_PATH)
+        mock_hook.return_value.extract_object_id = extract_object_id
+
         op = AutoMLCreateDatasetOperator(
             dataset=DATASET,
             location=GCP_LOCATION,
@@ -191,6 +203,8 @@ class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
 class TestAutoMLUpdateDatasetOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
+        mock_hook.return_value.update_dataset.return_value = Dataset(name=DATASET_PATH)
+
         dataset = copy.deepcopy(DATASET)
         dataset["name"] = DATASET_ID
 
@@ -213,6 +227,9 @@ class TestAutoMLUpdateDatasetOperator(unittest.TestCase):
 class TestAutoMLGetModelOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook):
+        mock_hook.return_value.get_model.return_value = Model(name=MODEL_PATH)
+        mock_hook.return_value.extract_object_id = extract_object_id
+
         op = AutoMLGetModelOperator(
             model_id=MODEL_ID,
             location=GCP_LOCATION,

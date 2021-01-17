@@ -49,12 +49,12 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
             gcp_conn_id=GCS_CONN_ID,
         )
 
-        self.assertEqual(operator.task_id, TASK_ID)
-        self.assertEqual(operator.src_adls, ADLS_PATH_1)
-        self.assertEqual(operator.dest_gcs, GCS_PATH)
-        self.assertEqual(operator.replace, False)
-        self.assertEqual(operator.gcp_conn_id, GCS_CONN_ID)
-        self.assertEqual(operator.azure_data_lake_conn_id, AZURE_CONN_ID)
+        assert operator.task_id == TASK_ID
+        assert operator.src_adls == ADLS_PATH_1
+        assert operator.dest_gcs == GCS_PATH
+        assert operator.replace is False
+        assert operator.gcp_conn_id == GCS_CONN_ID
+        assert operator.azure_data_lake_conn_id == AZURE_CONN_ID
 
     @mock.patch('airflow.providers.google.cloud.transfers.adls_to_gcs.AzureDataLakeHook')
     @mock.patch('airflow.providers.microsoft.azure.operators.adls_list.AzureDataLakeHook')
@@ -101,7 +101,7 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
         )
 
         # we expect MOCK_FILES to be uploaded
-        self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
+        assert sorted(MOCK_FILES) == sorted(uploaded_files)
 
     @mock.patch('airflow.providers.google.cloud.transfers.adls_to_gcs.AzureDataLakeHook')
     @mock.patch('airflow.providers.microsoft.azure.operators.adls_list.AzureDataLakeHook')
@@ -140,4 +140,4 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
         )
 
         # we expect MOCK_FILES to be uploaded
-        self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
+        assert sorted(MOCK_FILES) == sorted(uploaded_files)

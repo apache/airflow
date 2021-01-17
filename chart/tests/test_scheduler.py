@@ -35,7 +35,7 @@ class SchedulerTest(unittest.TestCase):
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        self.assertEqual("test-volume", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
-        self.assertEqual(
-            "test-volume", jmespath.search("spec.template.spec.containers[0].volumeMounts[3].name", docs[0])
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[3].name", docs[0]
         )

@@ -54,22 +54,22 @@ class TestSystemSecretsManager(TestCase):
     def test_read_secret_from_secret_manager(self):
         hook = SecretsManagerHook()
         secret = hook.get_secret(secret_id=TEST_SECRET_ID)
-        self.assertEqual(TEST_SECRET_VALUE, secret)
+        assert TEST_SECRET_VALUE == secret
 
     @pytest.mark.usefixtures("helper_one_version")
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY)
     def test_read_missing_secret_from_secret_manager(self):
         hook = SecretsManagerHook()
         secret = hook.get_secret(secret_id=TEST_MISSING_SECRET_ID)
-        self.assertIsNone(secret)
+        assert secret is None
 
     @pytest.mark.usefixtures("helper_two_versions")
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY)
     def test_read_secret_different_versions_from_secret_manager(self):
         hook = SecretsManagerHook()
         secret = hook.get_secret(secret_id=TEST_SECRET_ID)
-        self.assertEqual(TEST_SECRET_VALUE_UPDATED, secret)
+        assert TEST_SECRET_VALUE_UPDATED == secret
         secret = hook.get_secret(secret_id=TEST_SECRET_ID, secret_version='1')
-        self.assertEqual(TEST_SECRET_VALUE, secret)
+        assert TEST_SECRET_VALUE == secret
         secret = hook.get_secret(secret_id=TEST_SECRET_ID, secret_version='2')
-        self.assertEqual(TEST_SECRET_VALUE_UPDATED, secret)
+        assert TEST_SECRET_VALUE_UPDATED == secret

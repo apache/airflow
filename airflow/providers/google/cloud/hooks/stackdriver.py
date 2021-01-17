@@ -265,11 +265,10 @@ class StackdriverHook(GoogleBaseHook):
         ]
         policies_ = []
         channels = []
-
-        for channel in record["channels"]:
+        for channel in record.get("channels", []):
             channel_json = json.dumps(channel)
             channels.append(Parse(channel_json, monitoring_v3.types.notification_pb2.NotificationChannel()))
-        for policy in record["policies"]:
+        for policy in record.get("policies", []):
             policy_json = json.dumps(policy)
             policies_.append(Parse(policy_json, monitoring_v3.types.alert_pb2.AlertPolicy()))
 

@@ -21,6 +21,8 @@ import json
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow import models
 from airflow.providers.exasol.hooks.exasol import ExasolHook
 
@@ -47,11 +49,11 @@ class TestExasolHookConn(unittest.TestCase):
         mock_connect = mock_pyexasol.connect
         mock_connect.assert_called_once()
         args, kwargs = mock_connect.call_args
-        self.assertEqual(args, ())
-        self.assertEqual(kwargs['user'], 'login')
-        self.assertEqual(kwargs['password'], 'password')
-        self.assertEqual(kwargs['dsn'], 'host:1234')
-        self.assertEqual(kwargs['schema'], 'schema')
+        assert args == ()
+        assert kwargs['user'] == 'login'
+        assert kwargs['password'] == 'password'
+        assert kwargs['dsn'] == 'host:1234'
+        assert kwargs['schema'] == 'schema'
 
     @mock.patch('airflow.providers.exasol.hooks.exasol.pyexasol')
     def test_get_conn_extra_args(self, mock_pyexasol):
@@ -60,8 +62,8 @@ class TestExasolHookConn(unittest.TestCase):
         mock_connect = mock_pyexasol.connect
         mock_connect.assert_called_once()
         args, kwargs = mock_connect.call_args
-        self.assertEqual(args, ())
-        self.assertEqual(kwargs['encryption'], True)
+        assert args == ()
+        assert kwargs['encryption'] is True
 
 
 class TestExasolHook(unittest.TestCase):
@@ -90,7 +92,7 @@ class TestExasolHook(unittest.TestCase):
     def test_get_autocommit(self):
         setattr(self.conn, 'autocommit', True)
         setattr(self.conn, 'attr', {'autocommit': False})
-        self.assertFalse(self.db_hook.get_autocommit(self.conn))
+        assert not self.db_hook.get_autocommit(self.conn)
 
     def test_run_without_autocommit(self):
         sql = 'SQL'
@@ -124,17 +126,19 @@ class TestExasolHook(unittest.TestCase):
         self.conn.set_autocommit.assert_called_once_with(True)
         for i in range(len(self.conn.execute.call_args_list)):
             args, kwargs = self.conn.execute.call_args_list[i]
-            self.assertEqual(len(args), 2)
-            self.assertEqual(args[0], sql[i])
-            self.assertEqual(kwargs, {})
+            assert len(args) == 2
+            assert args[0] == sql[i]
+            assert kwargs == {}
         self.conn.execute.assert_called_with(sql[1], None)
         self.conn.commit.assert_not_called()
 
     def test_bulk_load(self):
-        self.assertRaises(NotImplementedError, self.db_hook.bulk_load, 'table', '/tmp/file')
+        with pytest.raises(NotImplementedError):
+            self.db_hook.bulk_load('table', '/tmp/file')
 
     def test_bulk_dump(self):
-        self.assertRaises(NotImplementedError, self.db_hook.bulk_dump, 'table', '/tmp/file')
+        with pytest.raises(NotImplementedError):
+            self.db_hook.bulk_dump('table', '/tmp/file')
 
     def test_serialize_cell(self):
-        self.assertEqual('foo', self.db_hook._serialize_cell('foo', None))
+        assert 'foo' == self.db_hook._serialize_cell('foo', None)

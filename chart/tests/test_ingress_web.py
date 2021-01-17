@@ -34,4 +34,4 @@ class IngressWebTest(unittest.TestCase):
             values={"ingress": {"enabled": True, "web": {"annotations": {"aa": "bb", "cc": "dd"}}}},
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
-        self.assertEqual({"aa": "bb", "cc": "dd"}, jmespath.search("metadata.annotations", docs[0]))
+        assert {"aa": "bb", "cc": "dd"} == jmespath.search("metadata.annotations", docs[0])

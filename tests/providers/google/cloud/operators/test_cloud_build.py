@@ -22,6 +22,7 @@ from copy import deepcopy
 from datetime import datetime
 from unittest import TestCase, mock
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -41,7 +42,7 @@ TEST_DEFAULT_DATE = datetime(year=2020, month=1, day=1)
 
 class TestBuildProcessor(TestCase):
     def test_verify_source(self):
-        with self.assertRaisesRegex(AirflowException, "The source could not be determined."):
+        with pytest.raises(AirflowException, match="The source could not be determined."):
             BuildProcessor(body={"source": {"storageSource": {}, "repoSource": {}}}).process_body()
 
     @parameterized.expand(
@@ -63,7 +64,7 @@ class TestBuildProcessor(TestCase):
     def test_convert_repo_url_to_dict_valid(self, url, expected_dict):
         body = {"source": {"repoSource": url}}
         body = BuildProcessor(body=body).process_body()
-        self.assertEqual(body["source"]["repoSource"], expected_dict)
+        assert body["source"]["repoSource"] == expected_dict
 
     @parameterized.expand(
         [
@@ -76,7 +77,7 @@ class TestBuildProcessor(TestCase):
     )
     def test_convert_repo_url_to_storage_dict_invalid(self, url):
         body = {"source": {"repoSource": url}}
-        with self.assertRaisesRegex(AirflowException, "Invalid URL."):
+        with pytest.raises(AirflowException, match="Invalid URL."):
             BuildProcessor(body=body).process_body()
 
     @parameterized.expand(
@@ -94,14 +95,14 @@ class TestBuildProcessor(TestCase):
     def test_convert_storage_url_to_dict_valid(self, url, expected_dict):
         body = {"source": {"storageSource": url}}
         body = BuildProcessor(body=body).process_body()
-        self.assertEqual(body["source"]["storageSource"], expected_dict)
+        assert body["source"]["storageSource"] == expected_dict
 
     @parameterized.expand(
         [("///object",), ("gsXXa:///object",), ("gs://bucket-name/",), ("gs://bucket-name",)]
     )
     def test_convert_storage_url_to_dict_invalid(self, url):
         body = {"source": {"storageSource": url}}
-        with self.assertRaisesRegex(AirflowException, "Invalid URL."):
+        with pytest.raises(AirflowException, match="Invalid URL."):
             BuildProcessor(body=body).process_body()
 
     @parameterized.expand([("storageSource",), ("repoSource",)])
@@ -110,7 +111,7 @@ class TestBuildProcessor(TestCase):
         expected_body = deepcopy(body)
 
         BuildProcessor(body=body).process_body()
-        self.assertEqual(body, expected_body)
+        assert body == expected_body
 
 
 class TestGcpCloudBuildCreateBuildOperator(TestCase):
@@ -121,11 +122,11 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
             body=TEST_CREATE_BODY, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
         result = operator.execute({})
-        self.assertIs(result, TEST_CREATE_BODY)
+        assert result is TEST_CREATE_BODY
 
     @parameterized.expand([({},), (None,)])
     def test_missing_input(self, body):
-        with self.assertRaisesRegex(AirflowException, "The required parameter 'body' is missing"):
+        with pytest.raises(AirflowException, match="The required parameter 'body' is missing"):
             CloudBuildCreateBuildOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -206,7 +207,7 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
         hook_mock.return_value.create_build.assert_called_once_with(
             body=expected_body, project_id=TEST_PROJECT_ID
         )
-        self.assertEqual(return_value, TEST_CREATE_BODY)
+        assert return_value == TEST_CREATE_BODY
 
     def test_load_templated_yaml(self):
         dag = DAG(dag_id='example_cloudbuild_operator', start_date=TEST_DEFAULT_DATE)
@@ -227,4 +228,4 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
             ti = TaskInstance(operator, TEST_DEFAULT_DATE)
             ti.render_templates()
             expected_body = {'steps': [{'name': 'ubuntu', 'args': ['echo', 'Hello airflow!']}]}
-            self.assertEqual(expected_body, operator.body)
+            assert expected_body == operator.body

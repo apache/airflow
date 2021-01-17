@@ -27,14 +27,14 @@ class TestQuboleHook(unittest.TestCase):
     def test_add_string_to_tags(self):
         tags = {'dag_id', 'task_id'}
         add_tags(tags, 'string')
-        self.assertEqual({'dag_id', 'task_id', 'string'}, tags)
+        assert {'dag_id', 'task_id', 'string'} == tags
 
     def test_add_list_to_tags(self):
         tags = {'dag_id', 'task_id'}
         add_tags(tags, ['value1', 'value2'])
-        self.assertEqual({'dag_id', 'task_id', 'value1', 'value2'}, tags)
+        assert {'dag_id', 'task_id', 'value1', 'value2'} == tags
 
     def test_add_tuple_to_tags(self):
         tags = {'dag_id', 'task_id'}
         add_tags(tags, ('value1', 'value2'))
-        self.assertEqual({'dag_id', 'task_id', 'value1', 'value2'}, tags)
+        assert {'dag_id', 'task_id', 'value1', 'value2'} == tags

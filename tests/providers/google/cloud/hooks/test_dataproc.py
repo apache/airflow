@@ -19,6 +19,7 @@
 import unittest
 from unittest import mock
 
+import pytest
 from google.cloud.dataproc_v1beta2.types import JobStatus  # pylint: disable=no-name-in-module
 
 from airflow.exceptions import AirflowException
@@ -245,7 +246,7 @@ class TestDataprocHook(unittest.TestCase):
             mock.MagicMock(status=mock.MagicMock(state=JobStatus.RUNNING)),
             mock.MagicMock(status=mock.MagicMock(state=JobStatus.ERROR)),
         ]
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.hook.wait_for_job(job_id=JOB_ID, location=GCP_LOCATION, project_id=GCP_PROJECT, wait_time=0)
         calls = [
             mock.call(location=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),
@@ -284,7 +285,7 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.submit_job"))
     def test_submit(self, mock_submit_job, mock_wait_for_job):
         mock_submit_job.return_value.reference.job_id = JOB_ID
-        with self.assertWarns(DeprecationWarning):
+        with pytest.warns(DeprecationWarning):
             self.hook.submit(project_id=GCP_PROJECT, job=JOB, region=GCP_LOCATION)
         mock_submit_job.assert_called_once_with(location=GCP_LOCATION, project_id=GCP_PROJECT, job=JOB)
         mock_wait_for_job.assert_called_once_with(
@@ -306,7 +307,7 @@ class TestDataprocHook(unittest.TestCase):
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
     def test_cancel_job_deprecation_warning(self, mock_client):
-        with self.assertWarns(DeprecationWarning):
+        with pytest.warns(DeprecationWarning):
             self.hook.cancel_job(job_id=JOB_ID, project_id=GCP_PROJECT)
         mock_client.assert_called_once_with(location='global')
         mock_client.return_value.cancel_job.assert_called_once_with(
@@ -350,72 +351,72 @@ class TestDataProcJobBuilder(unittest.TestCase):
             properties=properties,
         )
 
-        self.assertDictEqual(job, builder.job)
+        assert job == builder.job
 
     def test_add_labels(self):
         labels = {"key": "value"}
         self.builder.add_labels(labels)
-        self.assertIn("key", self.builder.job["job"]["labels"])
-        self.assertEqual("value", self.builder.job["job"]["labels"]["key"])
+        assert "key" in self.builder.job["job"]["labels"]
+        assert "value" == self.builder.job["job"]["labels"]["key"]
 
     def test_add_variables(self):
         variables = ["variable"]
         self.builder.add_variables(variables)
-        self.assertEqual(variables, self.builder.job["job"][self.job_type]["script_variables"])
+        assert variables == self.builder.job["job"][self.job_type]["script_variables"]
 
     def test_add_args(self):
         args = ["args"]
         self.builder.add_args(args)
-        self.assertEqual(args, self.builder.job["job"][self.job_type]["args"])
+        assert args == self.builder.job["job"][self.job_type]["args"]
 
     def test_add_query(self):
         query = ["query"]
         self.builder.add_query(query)
-        self.assertEqual({"queries": [query]}, self.builder.job["job"][self.job_type]["query_list"])
+        assert {"queries": [query]} == self.builder.job["job"][self.job_type]["query_list"]
 
     def test_add_query_uri(self):
         query_uri = "query_uri"
         self.builder.add_query_uri(query_uri)
-        self.assertEqual(query_uri, self.builder.job["job"][self.job_type]["query_file_uri"])
+        assert query_uri == self.builder.job["job"][self.job_type]["query_file_uri"]
 
     def test_add_jar_file_uris(self):
         jar_file_uris = ["jar_file_uris"]
         self.builder.add_jar_file_uris(jar_file_uris)
-        self.assertEqual(jar_file_uris, self.builder.job["job"][self.job_type]["jar_file_uris"])
+        assert jar_file_uris == self.builder.job["job"][self.job_type]["jar_file_uris"]
 
     def test_add_archive_uris(self):
         archive_uris = ["archive_uris"]
         self.builder.add_archive_uris(archive_uris)
-        self.assertEqual(archive_uris, self.builder.job["job"][self.job_type]["archive_uris"])
+        assert archive_uris == self.builder.job["job"][self.job_type]["archive_uris"]
 
     def test_add_file_uris(self):
         file_uris = ["file_uris"]
         self.builder.add_file_uris(file_uris)
-        self.assertEqual(file_uris, self.builder.job["job"][self.job_type]["file_uris"])
+        assert file_uris == self.builder.job["job"][self.job_type]["file_uris"]
 
     def test_add_python_file_uris(self):
         python_file_uris = ["python_file_uris"]
         self.builder.add_python_file_uris(python_file_uris)
-        self.assertEqual(python_file_uris, self.builder.job["job"][self.job_type]["python_file_uris"])
+        assert python_file_uris == self.builder.job["job"][self.job_type]["python_file_uris"]
 
     def test_set_main_error(self):
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             self.builder.set_main("test", "test")
 
     def test_set_main_class(self):
         main = "main"
         self.builder.set_main(main_class=main, main_jar=None)
-        self.assertEqual(main, self.builder.job["job"][self.job_type]["main_class"])
+        assert main == self.builder.job["job"][self.job_type]["main_class"]
 
     def test_set_main_jar(self):
         main = "main"
         self.builder.set_main(main_class=None, main_jar=main)
-        self.assertEqual(main, self.builder.job["job"][self.job_type]["main_jar_file_uri"])
+        assert main == self.builder.job["job"][self.job_type]["main_jar_file_uri"]
 
     def test_set_python_main(self):
         main = "main"
         self.builder.set_python_main(main)
-        self.assertEqual(main, self.builder.job["job"][self.job_type]["main_python_file_uri"])
+        assert main == self.builder.job["job"][self.job_type]["main_python_file_uri"]
 
     @mock.patch(DATAPROC_STRING.format("uuid.uuid4"))
     def test_set_job_name(self, mock_uuid):
@@ -424,7 +425,7 @@ class TestDataProcJobBuilder(unittest.TestCase):
         name = "name"
         self.builder.set_job_name(name)
         name += "_" + uuid[:8]
-        self.assertEqual(name, self.builder.job["job"]["reference"]["job_id"])
+        assert name == self.builder.job["job"]["reference"]["job_id"]
 
     def test_build(self):
-        self.assertEqual(self.builder.job, self.builder.build())
+        assert self.builder.job == self.builder.build()

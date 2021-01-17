@@ -26,7 +26,7 @@ Database backend
 
 Airflow comes with an ``SQLite`` backend by default. This allows the user to run Airflow without any external database.
 However, such a setup is meant to be used for testing purposes only; running the default setup in production can lead to data loss in multiple scenarios.
-If you want to run production-grade Airflow, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as PostgreSQL or MySQL.
+If you want to run production-grade Airflow, make sure you :doc:`configure the backend <howto/set-up-database>` to be an external database such as PostgreSQL or MySQL.
 
 You can change the backend using the following config
 
@@ -108,6 +108,8 @@ Strategies for mitigation:
 * When running on kubernetes, use a ``livenessProbe`` on the scheduler deployment to fail if the scheduler has not heartbeat in a while.
   `Example: <https://github.com/apache/airflow/blob/190066cf201e5b0442bbbd6df74efecae523ee76/chart/templates/scheduler/scheduler-deployment.yaml#L118-L136>`_.
 
+.. _docker_image:
+
 Production Container Images
 ===========================
 
@@ -119,7 +121,7 @@ way we do, you might want to know very quickly how you can extend or customize t
 for Apache Airflow. This chapter gives you a short answer to those questions.
 
 The docker image provided (as convenience binary package) in the
-`Apache Airflow DockerHub <https://hub.docker.com/repository/docker/apache/airflow>`_ is a bare image
+`Apache Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_ is a bare image
 that has not many external dependencies and extras installed. Apache Airflow has many extras
 that can be installed alongside the "core" airflow image and they often require some additional
 dependencies. The Apache Airflow image provided as convenience package is optimized for size, so
@@ -411,9 +413,9 @@ Here is the comparison of the two types of building images.
 +----------------------------------------------------+---------------------+-----------------------+
 
 [1] When you combine customizing and extending the image, you can use external sources
-    in the "extend" part. There are plans to add functionality to add external sources
-    option to image customization. You can also modify Dockerfile manually if you want to
-    use non-default sources for dependencies.
+in the "extend" part. There are plans to add functionality to add external sources
+option to image customization. You can also modify Dockerfile manually if you want to
+use non-default sources for dependencies.
 
 Using the production image
 --------------------------
@@ -567,6 +569,12 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to true, the dependencies are     |
 |                                          |                                          | upgraded to newer versions matching      |
 |                                          |                                          | setup.py before installation.            |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``CONTINUE_ON_PIP_CHECK_FAILURE``        | ``false``                                | By default the image build fails if pip  |
+|                                          |                                          | check fails for it. This is good for     |
+|                                          |                                          | interactive building but on CI the       |
+|                                          |                                          | image should be built regardless - we    |
+|                                          |                                          | have a separate step to verify image.    |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which    |
 |                                          |                                          | airflow is installed.                    |
@@ -741,6 +749,58 @@ additional apt dev and runtime dependencies.
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
 
 
+Recipes
+-------
+
+Users sometimes share interesting ways of using the Docker images. We encourage users to contribute these
+recipes to the documentation in case they prove useful to other members of the community by
+submitting a pull request. The sections below capture this knowledge.
+
+Google Cloud SDK installation
+.............................
+
+Some operators, such as :class:`airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`,
+:class:`airflow.providers.google.cloud.operators.dataflow.DataflowStartSqlJobOperator`, require
+the installation of `Google Cloud SDK <https://cloud.google.com/sdk>`__ (includes ``gcloud``). You can also run these commands with BashOperator.
+
+Create a new Dockerfile like the one shown below.
+
+.. exampleinclude:: /docker-images-recipes/gcloud.Dockerfile
+    :language: dockerfile
+
+Then build a new image.
+
+.. code-block:: bash
+
+  docker build . \
+    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.0.0" \
+    -t my-airflow-image
+
+
+Apache Hadoop Stack installation
+................................
+
+Airflow is often used to run tasks on Hadoop cluster. It required Java Runtime Environment (JRE) to run.
+Below are the steps to take tools that are frequently used in Hadoop-world:
+
+- Java Runtime Environment (JRE)
+- Apache Hadoop
+- Apache Hive
+- `Cloud Storage connector for Apache Hadoop <https://cloud.google.com/dataproc/docs/concepts/connectors/cloud-storage>`__
+
+
+Create a new Dockerfile like the one shown below.
+
+.. exampleinclude:: /docker-images-recipes/hadoop.Dockerfile
+    :language: dockerfile
+
+Then build a new image.
+
+.. code-block:: bash
+
+  docker build . \
+    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.0.0" \
+    -t my-airflow-image
 
 More details about the images
 -----------------------------

@@ -217,8 +217,8 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                         Verbosity variables                                                        |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``PRINT_INFO_FROM_SCRIPTS``             |    true     |     true    |   true     | Allows to print output to terminal from running |
-|                                         |     (x)     |      (x)    |    (x)     | scripts. It prints some extra outputs if true   |
+| ``PRINT_INFO_FROM_SCRIPTS``             |   true\*    |    true\*   |    true\*  | Allows to print output to terminal from running |
+|                                         |             |             |            | scripts. It prints some extra outputs if true   |
 |                                         |             |             |            | including what the commands do, results of some |
 |                                         |             |             |            | operations, summary of variable values, exit    |
 |                                         |             |             |            | status from the scripts, outputs of failing     |
@@ -226,7 +226,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | commands executed by docker, kind, helm,        |
 |                                         |             |             |            | kubectl. Disabled in pre-commit checks.         |
 |                                         |             |             |            |                                                 |
-|                                         |             |             |            | (x) set to false in pre-commits                 |
+|                                         |             |             |            | \* set to false in pre-commits                  |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``VERBOSE``                             |    false    |     true    |    true    | Determines whether docker, helm, kind,          |
 |                                         |             |             |            | kubectl commands should be printed before       |
@@ -247,8 +247,8 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                        Image build variables                                                       |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false    |    false   | Determines whether the build should             |
-|                                         |             |             |     (x)    | attempt to upgrade all                          |
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false    |   false\*  | Determines whether the build should             |
+|                                         |             |             |            | attempt to upgrade all                          |
 |                                         |             |             |            | PIP dependencies to latest ones matching        |
 |                                         |             |             |            | ``setup.py`` limits. This tries to replicate    |
 |                                         |             |             |            | the situation of "fresh" user who just installs |
@@ -277,11 +277,11 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | tested and updated whenever new versions        |
 |                                         |             |             |            | of libraries are released.                      |
 |                                         |             |             |            |                                                 |
-|                                         |             |             |            | (x) true in case of direct pushes and           |
-|                                         |             |             |            |     scheduled builds                            |
+|                                         |             |             |            | \* true in case of direct pushes and            |
+|                                         |             |             |            |    scheduled builds                             |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``CHECK_IMAGE_FOR_REBUILD``             |     true    |     true    |    true    | Determines whether attempt should be            |
-|                                         |             |             |     (x)    | made to rebuild the CI image with latest        |
+| ``CHECK_IMAGE_FOR_REBUILD``             |     true    |     true    |   true\*   | Determines whether attempt should be            |
+|                                         |             |             |            | made to rebuild the CI image with latest        |
 |                                         |             |             |            | sources. It is true by default for              |
 |                                         |             |             |            | local builds, however it is set to              |
 |                                         |             |             |            | true in case we know that the image             |
@@ -299,18 +299,18 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | waiting for images is disabled                  |
 |                                         |             |             |            | in the CI workflow.                             |
 |                                         |             |             |            |                                                 |
-|                                         |             |             |            | (x) if waiting for images the variable is set   |
-|                                         |             |             |            |     to false automatically.                     |
+|                                         |             |             |            | \* if waiting for images the variable is set    |
+|                                         |             |             |            |    to false automatically.                      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``SKIP_BUILDING_PROD_IMAGE``            |     false   |     false   |    false   | Determines whether we should skip building      |
-|                                         |             |             |     (x)    | the PROD image with latest sources.             |
+| ``SKIP_BUILDING_PROD_IMAGE``            |     false   |     false   |   false\*  | Determines whether we should skip building      |
+|                                         |             |             |            | the PROD image with latest sources.             |
 |                                         |             |             |            | It is set to false, but in deploy app for       |
 |                                         |             |             |            | kubernetes step it is set to "true", because at |
 |                                         |             |             |            | this stage we know we have good image build or  |
 |                                         |             |             |            | pulled.                                         |
 |                                         |             |             |            |                                                 |
-|                                         |             |             |            | (x) set to true in "Deploy App to Kubernetes"   |
-|                                         |             |             |            |     to false automatically.                     |
+|                                         |             |             |            | \* set to true in "Deploy App to Kubernetes"    |
+|                                         |             |             |            |    to false automatically.                      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 
 Running CI Builds locally

@@ -51,7 +51,7 @@ class TestSecretManagerClient(TestCase):
         secrets_client = _SecretManagerClient(credentials="credentials")
         secret = secrets_client.get_secret(secret_id="missing", project_id="project_id")
         mock_client.secret_version_path.assert_called_once_with("project_id", 'missing', 'latest')
-        self.assertIsNone(secret)
+        assert secret is None
         mock_client.access_secret_version.assert_called_once_with('full-path')
 
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
@@ -66,7 +66,7 @@ class TestSecretManagerClient(TestCase):
         secrets_client = _SecretManagerClient(credentials="credentials")
         secret = secrets_client.get_secret(secret_id="missing", project_id="project_id")
         mock_client.secret_version_path.assert_called_once_with("project_id", 'missing', 'latest')
-        self.assertIsNone(secret)
+        assert secret is None
         mock_client.access_secret_version.assert_called_once_with('full-path')
 
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
@@ -82,7 +82,7 @@ class TestSecretManagerClient(TestCase):
         secrets_client = _SecretManagerClient(credentials="credentials")
         secret = secrets_client.get_secret(secret_id="existing", project_id="project_id")
         mock_client.secret_version_path.assert_called_once_with("project_id", 'existing', 'latest')
-        self.assertEqual("result", secret)
+        assert "result" == secret
         mock_client.access_secret_version.assert_called_once_with('full-path')
 
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
@@ -100,5 +100,5 @@ class TestSecretManagerClient(TestCase):
             secret_id="existing", project_id="project_id", secret_version="test-version"
         )
         mock_client.secret_version_path.assert_called_once_with("project_id", 'existing', 'test-version')
-        self.assertEqual("result", secret)
+        assert "result" == secret
         mock_client.access_secret_version.assert_called_once_with('full-path')

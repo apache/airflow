@@ -98,7 +98,7 @@ class ExtraEnvEnvFromTest(unittest.TestCase):
         k8s_object = self.k8s_objects_by_key[k8s_obj_key]
         for path in env_paths:
             env = jmespath.search(f"{path}.env", k8s_object)
-            self.assertIn(expected_env_as_str, yaml.dump(env))
+            assert expected_env_as_str in yaml.dump(env)
 
     @parameterized.expand(PARAMS)
     def test_extra_env_from(self, k8s_obj_key, env_from_paths):
@@ -114,4 +114,4 @@ class ExtraEnvEnvFromTest(unittest.TestCase):
         k8s_object = self.k8s_objects_by_key[k8s_obj_key]
         for path in env_from_paths:
             env_from = jmespath.search(f"{path}.envFrom", k8s_object)
-            self.assertIn(expected_env_from_as_str, yaml.dump(env_from))
+            assert expected_env_from_as_str in yaml.dump(env_from)
