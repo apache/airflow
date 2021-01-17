@@ -121,7 +121,7 @@ way we do, you might want to know very quickly how you can extend or customize t
 for Apache Airflow. This chapter gives you a short answer to those questions.
 
 The docker image provided (as convenience binary package) in the
-`Apache Airflow DockerHub <https://hub.docker.com/repository/docker/apache/airflow>`_ is a bare image
+`Apache Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_ is a bare image
 that has not many external dependencies and extras installed. Apache Airflow has many extras
 that can be installed alongside the "core" airflow image and they often require some additional
 dependencies. The Apache Airflow image provided as convenience package is optimized for size, so
@@ -413,9 +413,9 @@ Here is the comparison of the two types of building images.
 +----------------------------------------------------+---------------------+-----------------------+
 
 [1] When you combine customizing and extending the image, you can use external sources
-    in the "extend" part. There are plans to add functionality to add external sources
-    option to image customization. You can also modify Dockerfile manually if you want to
-    use non-default sources for dependencies.
+in the "extend" part. There are plans to add functionality to add external sources
+option to image customization. You can also modify Dockerfile manually if you want to
+use non-default sources for dependencies.
 
 Using the production image
 --------------------------
