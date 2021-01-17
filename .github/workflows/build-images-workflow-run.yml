@@ -30,8 +30,6 @@ env:
   DB_RESET: "true"
   VERBOSE: "true"
   USE_GITHUB_REGISTRY: "true"
-  # Might be either 'ghcr.io' or 'docker.pkg.github.com'
-  GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
   # This token is WRITE one - workflow_run type of events always have the WRITE token
@@ -195,6 +193,7 @@ jobs:
     needs: [cancel-workflow-runs]
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
+      GITHUB_REGISTRY_SECRET: ${{ secrets.GITHUB_REGISTRY }}
     outputs:
       pythonVersions: ${{ steps.selective-checks.python-versions }}
       upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
@@ -203,6 +202,7 @@ jobs:
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       image-build: ${{ steps.selective-checks.outputs.image-build }}
+      githubRegistry: ${{ steps.determine-github-registry.outputs.githubRegistry }}
     if: >
       needs.cancel-workflow-runs.outputs.buildImages == 'true'
     steps:
@@ -251,6 +251,9 @@ jobs:
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
           fi
+      - name: Determine GitHub Registry
+        id: determine-github-registry
+        run: ./scripts/ci/images/ci_determine_github_registry.sh
 
   build-ci-images:
     timeout-minutes: 80
@@ -270,6 +273,7 @@ jobs:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.workflow_run.id }}
+      GITHUB_REGISTRY: ${{ needs.build-info.outputs.githubRegistry }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       CONTINUE_ON_PIP_CHECK_FAILURE: "true"
       DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
@@ -396,6 +400,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.workflow_run.id }}
       GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.workflow_run.id }}
+      GITHUB_REGISTRY: ${{ needs.build-info.outputs.githubRegistry }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
     steps:

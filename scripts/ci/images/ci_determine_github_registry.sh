@@ -16,22 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-if [[ ${WAIT_FOR_IMAGE} != "true" ]]; then
-    # shellcheck source=scripts/in_container/_in_container_script_init.sh
-    . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-    echo
-    echo "Not waiting for all CI images to appear as they are built locally in this build"
-    echo
-    push_pull_remove_images::determine_github_registry
-    exit
-fi
+# shellcheck disable=SC2030,SC2031
 
-echo
-echo "Waiting for all CI images to appear: ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}"
-echo
+# This is hook build used by DockerHub. We are also using it
+# on CI to potentially rebuild (and refresh layers that
+# are not cached) Docker images that are used to run CI jobs
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-for PYTHON_MAJOR_MINOR_VERSION in ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}
-do
-    export PYTHON_MAJOR_MINOR_VERSION
-    "$( dirname "${BASH_SOURCE[0]}" )/ci_wait_for_ci_image.sh"
-done
+push_pull_remove_images::determine_github_registry

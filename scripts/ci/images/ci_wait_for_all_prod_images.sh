@@ -15,6 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+if [[ ${WAIT_FOR_IMAGE} != "true" ]]; then
+    # shellcheck source=scripts/in_container/_in_container_script_init.sh
+    . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+    echo
+    echo "Not waiting for all PROD images to appear as they are built locally in this build"
+    echo
+    push_pull_remove_images::determine_github_registry
+    exit
+fi
+
 echo
 echo "Waiting for all PROD images to appear: ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}"
 echo
