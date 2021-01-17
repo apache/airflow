@@ -38,8 +38,7 @@ class TestFTPToS3Operator(unittest.TestCase):
 
         mock_local_tmp_file_value = mock_local_tmp_file.return_value.__enter__.return_value
         mock_ftp_hook_retrieve_file.assert_called_once_with(
-            local_full_path_or_buffer=mock_local_tmp_file_value.name,
-            remote_full_path=operator.ftp_path
+            local_full_path_or_buffer=mock_local_tmp_file_value.name, remote_full_path=operator.ftp_path
         )
 
         mock_s3_hook_load_file.assert_called_once_with(
