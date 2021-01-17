@@ -100,14 +100,14 @@ class TestCheckOperator(unittest.TestCase):
     def test_execute_no_records(self, mock_get_db_hook):
         mock_get_db_hook.return_value.get_first.return_value = []
 
-        with self.assertRaisesRegex(AirflowException, "The query returned None"):
+        with pytest.raises(AirflowException, match=r"The query returned None"):
             self._operator.execute()
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
     def test_execute_not_all_records_are_true(self, mock_get_db_hook):
         mock_get_db_hook.return_value.get_first.return_value = ["data", ""]
 
-        with self.assertRaisesRegex(AirflowException, "Test failed."):
+        with pytest.raises(AirflowException, match=r"Test failed."):
             self._operator.execute()
 
 
