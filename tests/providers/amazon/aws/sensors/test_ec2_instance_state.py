@@ -19,6 +19,7 @@
 
 import unittest
 
+import pytest
 from moto import mock_ec2
 
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
@@ -34,22 +35,22 @@ class TestEC2InstanceStateSensor(unittest.TestCase):
             aws_conn_id="aws_conn_test",
             region_name="region-test",
         )
-        self.assertEqual(ec2_operator.task_id, "task_test")
-        self.assertEqual(ec2_operator.target_state, "stopped")
-        self.assertEqual(ec2_operator.instance_id, "i-123abc")
-        self.assertEqual(ec2_operator.aws_conn_id, "aws_conn_test")
-        self.assertEqual(ec2_operator.region_name, "region-test")
+        assert ec2_operator.task_id == "task_test"
+        assert ec2_operator.target_state == "stopped"
+        assert ec2_operator.instance_id == "i-123abc"
+        assert ec2_operator.aws_conn_id == "aws_conn_test"
+        assert ec2_operator.region_name == "region-test"
 
     def test_init_invalid_target_state(self):
         invalid_target_state = "target_state_test"
-        with self.assertRaises(ValueError) as cm:
+        with pytest.raises(ValueError) as ctx:
             EC2InstanceStateSensor(
                 task_id="task_test",
                 target_state=invalid_target_state,
                 instance_id="i-123abc",
             )
         msg = f"Invalid target_state: {invalid_target_state}"
-        self.assertEqual(str(cm.exception), msg)
+        assert str(ctx.value) == msg
 
     @mock_ec2
     def test_running(self):
@@ -70,11 +71,11 @@ class TestEC2InstanceStateSensor(unittest.TestCase):
             instance_id=instance_id,
         )
         # assert instance state is not running
-        self.assertFalse(start_sensor.poke(None))
+        assert not start_sensor.poke(None)
         # start instance
         ec2_hook.get_instance(instance_id=instance_id).start()
         # assert instance state is running
-        self.assertTrue(start_sensor.poke(None))
+        assert start_sensor.poke(None)
 
     @mock_ec2
     def test_stopped(self):
@@ -95,11 +96,11 @@ class TestEC2InstanceStateSensor(unittest.TestCase):
             instance_id=instance_id,
         )
         # assert instance state is not stopped
-        self.assertFalse(stop_sensor.poke(None))
+        assert not stop_sensor.poke(None)
         # stop instance
         ec2_hook.get_instance(instance_id=instance_id).stop()
         # assert instance state is stopped
-        self.assertTrue(stop_sensor.poke(None))
+        assert stop_sensor.poke(None)
 
     @mock_ec2
     def test_terminated(self):
@@ -120,8 +121,8 @@ class TestEC2InstanceStateSensor(unittest.TestCase):
             instance_id=instance_id,
         )
         # assert instance state is not terminated
-        self.assertFalse(stop_sensor.poke(None))
+        assert not stop_sensor.poke(None)
         # stop instance
         ec2_hook.get_instance(instance_id=instance_id).terminate()
         # assert instance state is terminated
-        self.assertTrue(stop_sensor.poke(None))
+        assert stop_sensor.poke(None)

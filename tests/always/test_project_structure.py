@@ -100,7 +100,7 @@ class TestProjectStructure(unittest.TestCase):
         with self.subTest("Detect missing tests in providers module"):
             expected_missing_test_modules = {pair[1] for pair in expected_missing_providers_modules}
             missing_tests_files = missing_tests_files - set(expected_missing_test_modules)
-            self.assertEqual(set(), missing_tests_files)
+            assert set() == missing_tests_files
 
         with self.subTest("Verify removed deprecated module also removed from deprecated list"):
             expected_missing_modules = {pair[0] for pair in expected_missing_providers_modules}
@@ -258,7 +258,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         with self.subTest("Detect missing example dags"):
             missing_example = {s for s in operator_sets if not has_example_dag(s)}
             missing_example -= self.MISSING_EXAMPLE_DAGS
-            self.assertEqual(set(), missing_example)
+            assert set() == missing_example
 
         with self.subTest("Keep update missing example dags list"):
             new_example_dag = set(example_sets).intersection(set(self.MISSING_EXAMPLE_DAGS))
@@ -310,7 +310,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
                 print("example_paths=", example_paths)
                 operators_paths = set(get_classes_from_file(f"{ROOT_FOLDER}/{filepath}"))
                 missing_operators.extend(operators_paths - example_paths)
-        self.assertEqual(set(missing_operators), self.MISSING_EXAMPLES_FOR_OPERATORS)
+        assert set(missing_operators) == self.MISSING_EXAMPLES_FOR_OPERATORS
 
     @parameterized.expand(
         itertools.product(["_system.py", "_system_helper.py"], ["operators", "sensors", "transfers"])
@@ -325,7 +325,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         expected_files = (f.replace(".py", filename_suffix).replace("/test_", "/") for f in expected_files)
         expected_files = {f'{f.rpartition("/")[0]}/test_{f.rpartition("/")[2]}' for f in expected_files}
 
-        self.assertEqual(set(), files - expected_files)
+        assert set() == files - expected_files
 
     @staticmethod
     def find_resource_files(
@@ -357,4 +357,4 @@ class TestOperatorsHooks(unittest.TestCase):
 
         invalid_files = [f for f in files if any(f.endswith(suffix) for suffix in illegal_suffixes)]
 
-        self.assertEqual([], invalid_files)
+        assert [] == invalid_files

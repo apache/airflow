@@ -19,6 +19,7 @@
 from datetime import datetime
 from unittest import TestCase, mock
 
+import pytest
 from freezegun import freeze_time
 from parameterized import parameterized
 
@@ -51,7 +52,7 @@ class TestS3KeysUnchangedSensor(TestCase):
         )
 
     def test_reschedule_mode_not_allowed(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             S3KeysUnchangedSensor(
                 task_id='sensor_2',
                 bucket_name='test-bucket',
@@ -65,7 +66,7 @@ class TestS3KeysUnchangedSensor(TestCase):
     def test_files_deleted_between_pokes_throw_error(self):
         self.sensor.allow_delete = False
         self.sensor.is_keys_unchanged({'a', 'b'})
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.sensor.is_keys_unchanged({'a'})
 
     @parameterized.expand(
@@ -82,17 +83,17 @@ class TestS3KeysUnchangedSensor(TestCase):
     )
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_key_changes(self, current_objects, expected_returns, inactivity_periods):
-        self.assertEqual(self.sensor.is_keys_unchanged(current_objects[0]), expected_returns[0])
-        self.assertEqual(self.sensor.inactivity_seconds, inactivity_periods[0])
-        self.assertEqual(self.sensor.is_keys_unchanged(current_objects[1]), expected_returns[1])
-        self.assertEqual(self.sensor.inactivity_seconds, inactivity_periods[1])
-        self.assertEqual(self.sensor.is_keys_unchanged(current_objects[2]), expected_returns[2])
-        self.assertEqual(self.sensor.inactivity_seconds, inactivity_periods[2])
+        assert self.sensor.is_keys_unchanged(current_objects[0]) == expected_returns[0]
+        assert self.sensor.inactivity_seconds == inactivity_periods[0]
+        assert self.sensor.is_keys_unchanged(current_objects[1]) == expected_returns[1]
+        assert self.sensor.inactivity_seconds == inactivity_periods[1]
+        assert self.sensor.is_keys_unchanged(current_objects[2]) == expected_returns[2]
+        assert self.sensor.inactivity_seconds == inactivity_periods[2]
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     @mock.patch('airflow.providers.amazon.aws.sensors.s3_keys_unchanged.S3Hook')
     def test_poke_succeeds_on_upload_complete(self, mock_hook):
         mock_hook.return_value.list_keys.return_value = {'a'}
-        self.assertFalse(self.sensor.poke(dict()))
-        self.assertFalse(self.sensor.poke(dict()))
-        self.assertTrue(self.sensor.poke(dict()))
+        assert not self.sensor.poke(dict())
+        assert not self.sensor.poke(dict())
+        assert self.sensor.poke(dict())

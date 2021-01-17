@@ -42,7 +42,7 @@ class CloudSecretManagerBackendVariableSystemTest(GoogleSystemTest):
             {self.secret_name} --data-file=-  --replication-policy=automatic'
         subprocess.run(["bash", "-c", cmd], check=True)
         result = subprocess.check_output(['airflow', 'variables', 'get', self.name])
-        self.assertIn("TEST_CONTENT", result.decode())
+        assert "TEST_CONTENT" in result.decode()
 
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
     def tearDown(self) -> None:
@@ -63,7 +63,7 @@ class CloudSecretManagerBackendConnectionSystemTest(GoogleSystemTest):
             {self.secret_name} --data-file=- --replication-policy=automatic'
         subprocess.run(["bash", "-c", cmd], check=True)
         result = subprocess.check_output(['airflow', 'connections', 'get', self.name])
-        self.assertIn("URI: mysql://user:pass@example.org", result.decode())
+        assert "URI: mysql://user:pass@example.org" in result.decode()
 
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
     def tearDown(self) -> None:

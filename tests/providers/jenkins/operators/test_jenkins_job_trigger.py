@@ -20,6 +20,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import jenkins
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -75,7 +76,7 @@ class TestJenkinsOperator(unittest.TestCase):
 
             operator.execute(None)
 
-            self.assertEqual(jenkins_mock.get_build_info.call_count, 1)
+            assert jenkins_mock.get_build_info.call_count == 1
             jenkins_mock.get_build_info.assert_called_once_with(name='a_job_on_jenkins', number='1')
 
     @parameterized.expand(
@@ -125,7 +126,7 @@ class TestJenkinsOperator(unittest.TestCase):
             )
 
             operator.execute(None)
-            self.assertEqual(jenkins_mock.get_build_info.call_count, 2)
+            assert jenkins_mock.get_build_info.call_count == 2
 
     @parameterized.expand(
         [
@@ -173,7 +174,8 @@ class TestJenkinsOperator(unittest.TestCase):
                 sleep_time=1,
             )
 
-            self.assertRaises(AirflowException, operator.execute, None)
+            with pytest.raises(AirflowException):
+                operator.execute(None)
 
     def test_build_job_request_settings(self):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret', timeout=2)
@@ -191,5 +193,5 @@ class TestJenkinsOperator(unittest.TestCase):
             operator.build_job(jenkins_mock)
             mock_request = mock_make_request.call_args_list[0][0][1]
 
-        self.assertEqual(mock_request.method, 'POST')
-        self.assertEqual(mock_request.url, 'http://apache.org')
+        assert mock_request.method == 'POST'
+        assert mock_request.url == 'http://apache.org'

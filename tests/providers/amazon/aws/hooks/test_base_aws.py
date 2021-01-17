@@ -45,7 +45,7 @@ class TestAwsBaseHook(unittest.TestCase):
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='emr')
         client_from_hook = hook.get_client_type('emr')
 
-        self.assertEqual(client_from_hook.list_clusters()['Clusters'], [])
+        assert client_from_hook.list_clusters()['Clusters'] == []
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
@@ -65,7 +65,7 @@ class TestAwsBaseHook(unittest.TestCase):
 
         table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
 
-        self.assertEqual(table.item_count, 0)
+        assert table.item_count == 0
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
@@ -84,7 +84,7 @@ class TestAwsBaseHook(unittest.TestCase):
 
         table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
 
-        self.assertEqual(table.item_count, 0)
+        assert table.item_count == 0
 
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_login_with_token(self, mock_get_connection):
@@ -96,9 +96,9 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
-        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
-        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
-        self.assertEqual(credentials_from_hook.token, 'test_token')
+        assert credentials_from_hook.access_key == 'aws_access_key_id'
+        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
+        assert credentials_from_hook.token == 'test_token'
 
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_login_without_token(self, mock_get_connection):
@@ -110,9 +110,9 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='spam')
         credentials_from_hook = hook.get_credentials()
-        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
-        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
-        self.assertIsNone(credentials_from_hook.token)
+        assert credentials_from_hook.access_key == 'aws_access_key_id'
+        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
+        assert credentials_from_hook.token is None
 
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_extra_with_token(self, mock_get_connection):
@@ -124,9 +124,9 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
-        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
-        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
-        self.assertEqual(credentials_from_hook.token, 'session_token')
+        assert credentials_from_hook.access_key == 'aws_access_key_id'
+        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
+        assert credentials_from_hook.token == 'session_token'
 
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_extra_without_token(self, mock_get_connection):
@@ -137,9 +137,9 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
-        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
-        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
-        self.assertIsNone(credentials_from_hook.token)
+        assert credentials_from_hook.access_key == 'aws_access_key_id'
+        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
+        assert credentials_from_hook.token is None
 
     @mock.patch(
         'airflow.providers.amazon.aws.hooks.base_aws._parse_s3_config',
@@ -168,13 +168,13 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
-        self.assertIn("ASIA", credentials_from_hook.access_key)
+        assert "ASIA" in credentials_from_hook.access_key
 
         # We assert the length instead of actual values as the values are random:
         # Details: https://github.com/spulec/moto/commit/ab0d23a0ba2506e6338ae20b3fde70da049f7b03
-        self.assertEqual(20, len(credentials_from_hook.access_key))
-        self.assertEqual(40, len(credentials_from_hook.secret_key))
-        self.assertEqual(356, len(credentials_from_hook.token))
+        assert 20 == len(credentials_from_hook.access_key)
+        assert 40 == len(credentials_from_hook.secret_key)
+        assert 356 == len(credentials_from_hook.token)
 
     def test_get_credentials_from_gcp_credentials(self):
         mock_connection = Connection(
@@ -208,9 +208,8 @@ class TestAwsBaseHook(unittest.TestCase):
 
             credentials_from_hook = hook.get_credentials()
             mock_get_credentials = mock_boto3.session.Session.return_value.get_credentials
-            self.assertEqual(
-                mock_get_credentials.return_value.get_frozen_credentials.return_value,
-                credentials_from_hook,
+            assert (
+                mock_get_credentials.return_value.get_frozen_credentials.return_value == credentials_from_hook
             )
 
         mock_boto3.assert_has_calls(
@@ -260,7 +259,7 @@ class TestAwsBaseHook(unittest.TestCase):
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         arn = hook.expand_role('test-role')
         expect_arn = conn.get_role(RoleName='test-role').get('Role').get('Arn')
-        self.assertEqual(arn, expect_arn)
+        assert arn == expect_arn
 
     def test_use_default_boto3_behaviour_without_conn_id(self):
         for conn_id in (None, ''):

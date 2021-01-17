@@ -43,12 +43,12 @@ class TestSnsPublishOperator(unittest.TestCase):
         )
 
         # Then
-        self.assertEqual(TASK_ID, operator.task_id)
-        self.assertEqual(AWS_CONN_ID, operator.aws_conn_id)
-        self.assertEqual(TARGET_ARN, operator.target_arn)
-        self.assertEqual(MESSAGE, operator.message)
-        self.assertEqual(SUBJECT, operator.subject)
-        self.assertEqual(MESSAGE_ATTRIBUTES, operator.message_attributes)
+        assert TASK_ID == operator.task_id
+        assert AWS_CONN_ID == operator.aws_conn_id
+        assert TARGET_ARN == operator.target_arn
+        assert MESSAGE == operator.message
+        assert SUBJECT == operator.subject
+        assert MESSAGE_ATTRIBUTES == operator.message_attributes
 
     @mock.patch('airflow.providers.amazon.aws.operators.sns.AwsSnsHook')
     def test_execute(self, mock_hook):
@@ -71,4 +71,4 @@ class TestSnsPublishOperator(unittest.TestCase):
         result = operator.execute(None)
 
         # Then
-        self.assertEqual(hook_response, result)
+        assert hook_response == result

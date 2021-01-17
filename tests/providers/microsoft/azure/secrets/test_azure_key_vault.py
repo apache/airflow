@@ -29,7 +29,7 @@ class TestAzureKeyVaultBackend(TestCase):
         mock_get_uri.return_value = 'scheme://user:pass@host:100'
         conn_list = AzureKeyVaultBackend().get_connections('fake_conn')
         conn = conn_list[0]
-        self.assertEqual(conn.host, 'host')
+        assert conn.host == 'host'
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.DefaultAzureCredential')
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.SecretClient')
@@ -48,7 +48,7 @@ class TestAzureKeyVaultBackend(TestCase):
         mock_secret_client.assert_called_once_with(
             credential=mock_cred, vault_url='https://example-akv-resource-name.vault.azure.net/'
         )
-        self.assertEqual(returned_uri, 'postgresql://airflow:airflow@host:5432/airflow')
+        assert returned_uri == 'postgresql://airflow:airflow@host:5432/airflow'
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.client')
     def test_get_conn_uri_non_existent_key(self, mock_client):
@@ -60,8 +60,8 @@ class TestAzureKeyVaultBackend(TestCase):
         mock_client.get_secret.side_effect = ResourceNotFoundError
         backend = AzureKeyVaultBackend(vault_url="https://example-akv-resource-name.vault.azure.net/")
 
-        self.assertIsNone(backend.get_conn_uri(conn_id=conn_id))
-        self.assertEqual([], backend.get_connections(conn_id=conn_id))
+        assert backend.get_conn_uri(conn_id=conn_id) is None
+        assert [] == backend.get_connections(conn_id=conn_id)
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.client')
     def test_get_variable(self, mock_client):
@@ -69,7 +69,7 @@ class TestAzureKeyVaultBackend(TestCase):
         backend = AzureKeyVaultBackend()
         returned_uri = backend.get_variable('hello')
         mock_client.get_secret.assert_called_with(name='airflow-variables-hello')
-        self.assertEqual('world', returned_uri)
+        assert 'world' == returned_uri
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.client')
     def test_get_variable_non_existent_key(self, mock_client):
@@ -79,7 +79,7 @@ class TestAzureKeyVaultBackend(TestCase):
         """
         mock_client.get_secret.side_effect = ResourceNotFoundError
         backend = AzureKeyVaultBackend()
-        self.assertIsNone(backend.get_variable('test_mysql'))
+        assert backend.get_variable('test_mysql') is None
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.client')
     def test_get_secret_value_not_found(self, mock_client):
@@ -88,8 +88,8 @@ class TestAzureKeyVaultBackend(TestCase):
         """
         mock_client.get_secret.side_effect = ResourceNotFoundError
         backend = AzureKeyVaultBackend()
-        self.assertIsNone(
-            backend._get_secret(path_prefix=backend.connections_prefix, secret_id='test_non_existent')
+        assert (
+            backend._get_secret(path_prefix=backend.connections_prefix, secret_id='test_non_existent') is None
         )
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.client')
@@ -101,7 +101,7 @@ class TestAzureKeyVaultBackend(TestCase):
         backend = AzureKeyVaultBackend()
         secret_val = backend._get_secret('af-secrets', 'test_mysql_password')
         mock_client.get_secret.assert_called_with(name='af-secrets-test-mysql-password')
-        self.assertEqual(secret_val, 'super-secret')
+        assert secret_val == 'super-secret'
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend._get_secret')
     def test_connection_prefix_none_value(self, mock_get_secret):
@@ -113,7 +113,7 @@ class TestAzureKeyVaultBackend(TestCase):
         kwargs = {'connections_prefix': None}
 
         backend = AzureKeyVaultBackend(**kwargs)
-        self.assertIsNone(backend.get_conn_uri('test_mysql'))
+        assert backend.get_conn_uri('test_mysql') is None
         mock_get_secret.assert_not_called()
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend._get_secret')
@@ -126,7 +126,7 @@ class TestAzureKeyVaultBackend(TestCase):
         kwargs = {'variables_prefix': None}
 
         backend = AzureKeyVaultBackend(**kwargs)
-        self.assertIsNone(backend.get_variable('hello'))
+        assert backend.get_variable('hello') is None
         mock_get_secret.assert_not_called()
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend._get_secret')
@@ -139,5 +139,5 @@ class TestAzureKeyVaultBackend(TestCase):
         kwargs = {'config_prefix': None}
 
         backend = AzureKeyVaultBackend(**kwargs)
-        self.assertIsNone(backend.get_config('test_mysql'))
+        assert backend.get_config('test_mysql') is None
         mock_get_secret.assert_not_called()

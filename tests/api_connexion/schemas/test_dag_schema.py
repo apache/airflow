@@ -47,21 +47,18 @@ class TestDagSchema(unittest.TestCase):
             tags=[DagTag(name="tag-1"), DagTag(name="tag-2")],
         )
         serialized_dag = DAGSchema().dump(dag_model)
-        self.assertEqual(
-            {
-                "dag_id": "test_dag_id",
-                "description": "The description",
-                "fileloc": "/root/airflow/dags/my_dag.py",
-                "file_token": SERIALIZER.dumps("/root/airflow/dags/my_dag.py"),
-                "is_paused": True,
-                "is_subdag": False,
-                "owners": ["airflow1", "airflow2"],
-                "root_dag_id": "test_root_dag_id",
-                "schedule_interval": {"__type": "CronExpression", "value": "5 4 * * *"},
-                "tags": [{"name": "tag-1"}, {"name": "tag-2"}],
-            },
-            serialized_dag,
-        )
+        assert {
+            "dag_id": "test_dag_id",
+            "description": "The description",
+            "fileloc": "/root/airflow/dags/my_dag.py",
+            "file_token": SERIALIZER.dumps("/root/airflow/dags/my_dag.py"),
+            "is_paused": True,
+            "is_subdag": False,
+            "owners": ["airflow1", "airflow2"],
+            "root_dag_id": "test_root_dag_id",
+            "schedule_interval": {"__type": "CronExpression", "value": "5 4 * * *"},
+            "tags": [{"name": "tag-1"}, {"name": "tag-2"}],
+        } == serialized_dag
 
 
 class TestDAGCollectionSchema(unittest.TestCase):
@@ -70,38 +67,35 @@ class TestDAGCollectionSchema(unittest.TestCase):
         dag_model_b = DagModel(dag_id="test_dag_id_b", fileloc="/tmp/a.py")
         schema = DAGCollectionSchema()
         instance = DAGCollection(dags=[dag_model_a, dag_model_b], total_entries=2)
-        self.assertEqual(
-            {
-                "dags": [
-                    {
-                        "dag_id": "test_dag_id_a",
-                        "description": None,
-                        "fileloc": "/tmp/a.py",
-                        "file_token": SERIALIZER.dumps("/tmp/a.py"),
-                        "is_paused": None,
-                        "is_subdag": None,
-                        "owners": [],
-                        "root_dag_id": None,
-                        "schedule_interval": None,
-                        "tags": [],
-                    },
-                    {
-                        "dag_id": "test_dag_id_b",
-                        "description": None,
-                        "fileloc": "/tmp/a.py",
-                        "file_token": SERIALIZER.dumps("/tmp/a.py"),
-                        "is_paused": None,
-                        "is_subdag": None,
-                        "owners": [],
-                        "root_dag_id": None,
-                        "schedule_interval": None,
-                        "tags": [],
-                    },
-                ],
-                "total_entries": 2,
-            },
-            schema.dump(instance),
-        )
+        assert {
+            "dags": [
+                {
+                    "dag_id": "test_dag_id_a",
+                    "description": None,
+                    "fileloc": "/tmp/a.py",
+                    "file_token": SERIALIZER.dumps("/tmp/a.py"),
+                    "is_paused": None,
+                    "is_subdag": None,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": None,
+                    "tags": [],
+                },
+                {
+                    "dag_id": "test_dag_id_b",
+                    "description": None,
+                    "fileloc": "/tmp/a.py",
+                    "file_token": SERIALIZER.dumps("/tmp/a.py"),
+                    "is_paused": None,
+                    "is_subdag": None,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": None,
+                    "tags": [],
+                },
+            ],
+            "total_entries": 2,
+        } == schema.dump(instance)
 
 
 class TestDAGDetailSchema:

@@ -50,32 +50,26 @@ class TestOperatorHelpers(unittest.TestCase):
         }
 
     def test_context_to_airflow_vars_empty_context(self):
-        self.assertDictEqual(operator_helpers.context_to_airflow_vars({}), {})
+        assert operator_helpers.context_to_airflow_vars({}) == {}
 
     def test_context_to_airflow_vars_all_context(self):
-        self.assertDictEqual(
-            operator_helpers.context_to_airflow_vars(self.context),
-            {
-                'airflow.ctx.dag_id': self.dag_id,
-                'airflow.ctx.execution_date': self.execution_date,
-                'airflow.ctx.task_id': self.task_id,
-                'airflow.ctx.dag_run_id': self.dag_run_id,
-                'airflow.ctx.dag_owner': 'owner1,owner2',
-                'airflow.ctx.dag_email': 'email1@test.com',
-            },
-        )
+        assert operator_helpers.context_to_airflow_vars(self.context) == {
+            'airflow.ctx.dag_id': self.dag_id,
+            'airflow.ctx.execution_date': self.execution_date,
+            'airflow.ctx.task_id': self.task_id,
+            'airflow.ctx.dag_run_id': self.dag_run_id,
+            'airflow.ctx.dag_owner': 'owner1,owner2',
+            'airflow.ctx.dag_email': 'email1@test.com',
+        }
 
-        self.assertDictEqual(
-            operator_helpers.context_to_airflow_vars(self.context, in_env_var_format=True),
-            {
-                'AIRFLOW_CTX_DAG_ID': self.dag_id,
-                'AIRFLOW_CTX_EXECUTION_DATE': self.execution_date,
-                'AIRFLOW_CTX_TASK_ID': self.task_id,
-                'AIRFLOW_CTX_DAG_RUN_ID': self.dag_run_id,
-                'AIRFLOW_CTX_DAG_OWNER': 'owner1,owner2',
-                'AIRFLOW_CTX_DAG_EMAIL': 'email1@test.com',
-            },
-        )
+        assert operator_helpers.context_to_airflow_vars(self.context, in_env_var_format=True) == {
+            'AIRFLOW_CTX_DAG_ID': self.dag_id,
+            'AIRFLOW_CTX_EXECUTION_DATE': self.execution_date,
+            'AIRFLOW_CTX_TASK_ID': self.task_id,
+            'AIRFLOW_CTX_DAG_RUN_ID': self.dag_run_id,
+            'AIRFLOW_CTX_DAG_OWNER': 'owner1,owner2',
+            'AIRFLOW_CTX_DAG_EMAIL': 'email1@test.com',
+        }
 
 
 def callable1(ds_nodash):

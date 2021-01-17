@@ -324,10 +324,9 @@ class TestAwsS3Hook:
     def test_delete_bucket_if_not_bucket_exist(self, s3_bucket):
         # assert if exception is raised if bucket not present
         mock_hook = S3Hook()
-        with pytest.raises(ClientError) as error:
-            # assert error
+        with pytest.raises(ClientError) as ctx:
             assert mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
-        assert error.value.response['Error']['Code'] == 'NoSuchBucket'
+        assert ctx.value.response['Error']['Code'] == 'NoSuchBucket'
 
     @mock.patch.object(S3Hook, 'get_connection', return_value=Connection(schema='test_bucket'))
     def test_provide_bucket_name(self, mock_get_connection):
@@ -346,11 +345,11 @@ class TestAwsS3Hook:
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         hook = S3Hook()
-        with pytest.raises(AirflowException) as err:
+        with pytest.raises(AirflowException) as ctx:
             hook.delete_objects(bucket=s3_bucket, keys=['key-1'])
 
-        assert isinstance(err.value, AirflowException)
-        assert str(err.value) == "Errors when deleting: ['key-1']"
+        assert isinstance(ctx.value, AirflowException)
+        assert str(ctx.value) == "Errors when deleting: ['key-1']"
 
     def test_delete_objects_one_key(self, mocked_s3_res, s3_bucket):
         key = 'key-1'
@@ -394,9 +393,9 @@ class TestAwsS3Hook:
         test_bucket_name_with_key = fake_s3_hook.test_function_with_key('s3://foo/bar.csv')
         assert ('foo', 'bar.csv') == test_bucket_name_with_key
 
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError) as ctx:
             fake_s3_hook.test_function_with_test_key('s3://foo/bar.csv')
-        assert isinstance(err.value, ValueError)
+        assert isinstance(ctx.value, ValueError)
 
     @mock.patch('airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile')
     def test_download_file(self, mock_temp_file):

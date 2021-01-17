@@ -53,7 +53,7 @@ class TestPrestoHookConn(unittest.TestCase):
             auth=mock_basic_auth.return_value,
         )
         mock_basic_auth.assert_called_once_with('login', 'password')
-        self.assertEqual(mock_connect.return_value, conn)
+        assert mock_connect.return_value == conn
 
     @patch('airflow.providers.presto.hooks.presto.PrestoHook.get_connection')
     def test_get_conn_invalid_auth(self, mock_get_connection):
@@ -64,8 +64,8 @@ class TestPrestoHookConn(unittest.TestCase):
             schema='hive',
             extra=json.dumps({'auth': 'kerberos'}),
         )
-        with self.assertRaisesRegex(
-            AirflowException, re.escape("Kerberos authorization doesn't support password.")
+        with pytest.raises(
+            AirflowException, match=re.escape("Kerberos authorization doesn't support password.")
         ):
             PrestoHook().get_conn()
 
@@ -116,7 +116,7 @@ class TestPrestoHookConn(unittest.TestCase):
             sanitize_mutual_error_response=True,
             service_name='TEST_SERVICE_NAME',
         )
-        self.assertEqual(mock_connect.return_value, conn)
+        assert mock_connect.return_value == conn
 
     @parameterized.expand(
         [
@@ -140,7 +140,7 @@ class TestPrestoHookConn(unittest.TestCase):
 
             conn = PrestoHook().get_conn()
             mock_verify.assert_called_once_with(expected_verify)
-            self.assertEqual(mock_connect.return_value, conn)
+            assert mock_connect.return_value == conn
 
 
 class TestPrestoHook(unittest.TestCase):
@@ -177,7 +177,7 @@ class TestPrestoHook(unittest.TestCase):
         result_sets = [('row1',), ('row2',)]
         self.cur.fetchone.return_value = result_sets[0]
 
-        self.assertEqual(result_sets[0], self.db_hook.get_first(statement))
+        assert result_sets[0] == self.db_hook.get_first(statement)
         self.conn.close.assert_called_once_with()
         self.cur.close.assert_called_once_with()
         self.cur.execute.assert_called_once_with(statement)
@@ -187,7 +187,7 @@ class TestPrestoHook(unittest.TestCase):
         result_sets = [('row1',), ('row2',)]
         self.cur.fetchall.return_value = result_sets
 
-        self.assertEqual(result_sets, self.db_hook.get_records(statement))
+        assert result_sets == self.db_hook.get_records(statement)
         self.conn.close.assert_called_once_with()
         self.cur.close.assert_called_once_with()
         self.cur.execute.assert_called_once_with(statement)
@@ -200,10 +200,10 @@ class TestPrestoHook(unittest.TestCase):
         self.cur.fetchall.return_value = result_sets
         df = self.db_hook.get_pandas_df(statement)
 
-        self.assertEqual(column, df.columns[0])
+        assert column == df.columns[0]
 
-        self.assertEqual(result_sets[0][0], df.values.tolist()[0][0])
-        self.assertEqual(result_sets[1][0], df.values.tolist()[1][0])
+        assert result_sets[0][0] == df.values.tolist()[0][0]
+        assert result_sets[1][0] == df.values.tolist()[1][0]
 
         self.cur.execute.assert_called_once_with(statement, None)
 
@@ -215,7 +215,7 @@ class TestPrestoHookIntegration(unittest.TestCase):
         hook = PrestoHook()
         sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
         records = hook.get_records(sql)
-        self.assertEqual([['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']], records)
+        assert [['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']] == records
 
     @pytest.mark.integration("presto")
     @pytest.mark.integration("kerberos")
@@ -230,6 +230,4 @@ class TestPrestoHookIntegration(unittest.TestCase):
             hook = PrestoHook()
             sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
             records = hook.get_records(sql)
-            self.assertEqual(
-                [['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']], records
-            )
+            assert [['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']] == records

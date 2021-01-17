@@ -20,6 +20,7 @@ from copy import deepcopy
 from typing import Dict, Sequence, Tuple
 from unittest import TestCase, mock
 
+import pytest
 from google.api_core.retry import Retry
 from google.cloud.datacatalog_v1beta1.types import Entry, Tag, TagTemplate
 
@@ -126,8 +127,8 @@ class TestCloudDataCatalog(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_lookup_entry_without_resource(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(
-            AirflowException, re.escape("At least one of linked_resource, sql_resource should be set.")
+        with pytest.raises(
+            AirflowException, match=re.escape("At least one of linked_resource, sql_resource should be set.")
         ):
             self.hook.lookup_entry(retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA)
 
@@ -529,7 +530,7 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        self.assertEqual(result, tag_2)
+        assert result == tag_2
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id",
@@ -1040,7 +1041,7 @@ class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        self.assertEqual(result, tag_2)
+        assert result == tag_2
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id",
@@ -1190,7 +1191,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.create_entry(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,
@@ -1207,7 +1208,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.create_entry_group(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 entry_group_id=TEST_ENTRY_GROUP_ID,
@@ -1223,7 +1224,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
 
             self.hook.create_tag(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
@@ -1242,7 +1243,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag_protobuff(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
 
             self.hook.create_tag(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
@@ -1261,7 +1262,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
 
             self.hook.create_tag_template(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
@@ -1278,7 +1279,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
 
             self.hook.create_tag_template_field(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
@@ -1296,7 +1297,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_delete_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
 
             self.hook.delete_entry(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
@@ -1313,7 +1314,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_delete_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.delete_entry_group(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,
@@ -1328,7 +1329,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_delete_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.delete_tag(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,
@@ -1345,7 +1346,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_delete_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.delete_tag_template(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 tag_template=TEST_TAG_TEMPLATE_ID,
@@ -1361,7 +1362,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_delete_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.delete_tag_template_field(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 tag_template=TEST_TAG_TEMPLATE_ID,
@@ -1378,7 +1379,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_get_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.get_entry(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,
@@ -1394,7 +1395,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_get_entry_group(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.get_entry_group(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,
@@ -1410,7 +1411,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_get_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.get_tag_template(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 tag_template=TEST_TAG_TEMPLATE_ID,
@@ -1425,7 +1426,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_list_tags(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.list_tags(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,
@@ -1446,7 +1447,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
         tag_2 = mock.MagicMock(template=TEST_TAG_TEMPLATE_PATH.format(TEST_PROJECT_ID_2))
 
         mock_get_conn.return_value.list_tags.return_value = [tag_1, tag_2]
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.get_tag_for_template_name(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,
@@ -1463,7 +1464,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_rename_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.rename_tag_template_field(  # pylint: disable=no-value-for-parameter
                 location=TEST_LOCATION,
                 tag_template=TEST_TAG_TEMPLATE_ID,
@@ -1480,7 +1481,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_update_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.update_entry(  # pylint: disable=no-value-for-parameter
                 entry=TEST_ENTRY,
                 update_mask=TEST_UPDATE_MASK,
@@ -1498,7 +1499,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_update_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.update_tag(  # pylint: disable=no-value-for-parameter
                 tag=deepcopy(TEST_TAG),
                 update_mask=TEST_UPDATE_MASK,
@@ -1517,7 +1518,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_update_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.update_tag_template(  # pylint: disable=no-value-for-parameter
                 tag_template=TEST_TAG_TEMPLATE,
                 update_mask=TEST_UPDATE_MASK,
@@ -1534,7 +1535,7 @@ class TestCloudDataCatalogMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_update_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.update_tag_template_field(  # pylint: disable=no-value-for-parameter
                 tag_template_field=TEST_TAG_TEMPLATE_FIELD,
                 update_mask=TEST_UPDATE_MASK,

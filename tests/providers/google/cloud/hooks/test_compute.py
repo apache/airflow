@@ -22,6 +22,8 @@ import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook, GceOperationStatus
 from tests.providers.google.cloud.utils.base_gcp_mock import (
@@ -52,7 +54,7 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         mock_build.assert_called_once_with(
             'compute', 'v1', http=mock_authorize.return_value, cache_discovery=False
         )
-        self.assertEqual(mock_build.return_value, result)
+        assert mock_build.return_value == result
 
     @mock.patch('airflow.providers.google.cloud.hooks.compute.ComputeEngineHook.get_conn')
     @mock.patch(
@@ -66,7 +68,7 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         res = self.gce_hook_no_project_id.start_instance(
             project_id='example-project', zone=GCE_ZONE, resource_id=GCE_INSTANCE
         )
-        self.assertIsNone(res)
+        assert res is None
         start_method.assert_called_once_with(instance='instance', project='example-project', zone='zone')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -85,7 +87,7 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         res = self.gce_hook_no_project_id.stop_instance(
             project_id='example-project', zone=GCE_ZONE, resource_id=GCE_INSTANCE
         )
-        self.assertIsNone(res)
+        assert res is None
         stop_method.assert_called_once_with(instance='instance', project='example-project', zone='zone')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -104,7 +106,7 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         res = self.gce_hook_no_project_id.set_machine_type(
             body={}, project_id='example-project', zone=GCE_ZONE, resource_id=GCE_INSTANCE
         )
-        self.assertIsNone(res)
+        assert res is None
         set_machine_type_method.assert_called_once_with(
             body={}, instance='instance', project='example-project', zone='zone'
         )
@@ -125,7 +127,7 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         res = self.gce_hook_no_project_id.get_instance_template(
             resource_id=GCE_INSTANCE_TEMPLATE, project_id='example-project'
         )
-        self.assertIsNotNone(res)
+        assert res is not None
         get_method.assert_called_once_with(instanceTemplate='instance-template', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
@@ -142,7 +144,7 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         res = self.gce_hook_no_project_id.insert_instance_template(
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST, body={}, request_id=GCE_REQUEST_ID
         )
-        self.assertIsNone(res)
+        assert res is None
         insert_method.assert_called_once_with(body={}, project='example-project', requestId='request_id')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -161,7 +163,7 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
         res = self.gce_hook_no_project_id.get_instance_group_manager(
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST, zone=GCE_ZONE, resource_id=GCE_INSTANCE_GROUP_MANAGER
         )
-        self.assertIsNotNone(res)
+        assert res is not None
         get_method.assert_called_once_with(
             instanceGroupManager='instance_group_manager', project='example-project', zone='zone'
         )
@@ -186,7 +188,7 @@ class TestGcpComputeHookNoDefaultProjectId(unittest.TestCase):
             body={},
             request_id=GCE_REQUEST_ID,
         )
-        self.assertIsNone(res)
+        assert res is None
         patch_method.assert_called_once_with(
             body={},
             instanceGroupManager='instance_group_manager',
@@ -227,7 +229,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
             resource_id=GCE_INSTANCE,
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
-        self.assertIsNone(res)
+        assert res is None
         start_method.assert_called_once_with(instance='instance', project='example-project', zone='zone')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -244,7 +246,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
         res = self.gce_hook.start_instance(project_id='new-project', zone=GCE_ZONE, resource_id=GCE_INSTANCE)
-        self.assertIsNone(res)
+        assert res is None
         start_method.assert_called_once_with(instance='instance', project='new-project', zone='zone')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -270,7 +272,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
             resource_id=GCE_INSTANCE,
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
-        self.assertIsNone(res)
+        assert res is None
         stop_method.assert_called_once_with(instance='instance', project='example-project', zone='zone')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -287,7 +289,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
         res = self.gce_hook.stop_instance(project_id='new-project', zone=GCE_ZONE, resource_id=GCE_INSTANCE)
-        self.assertIsNone(res)
+        assert res is None
         stop_method.assert_called_once_with(instance='instance', project='new-project', zone='zone')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -313,7 +315,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
             resource_id=GCE_INSTANCE,
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
-        self.assertIsNone(res)
+        assert res is None
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             project_id='example-project', operation_name='operation_id', zone='zone'
@@ -330,7 +332,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         res = self.gce_hook.set_machine_type(
             project_id='new-project', body={}, zone=GCE_ZONE, resource_id=GCE_INSTANCE
         )
-        self.assertIsNone(res)
+        assert res is None
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
             project_id='new-project', operation_name='operation_id', zone='zone'
@@ -353,7 +355,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         res = self.gce_hook.get_instance_template(
             resource_id=GCE_INSTANCE_TEMPLATE, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
         )
-        self.assertIsNotNone(res)
+        assert res is not None
         get_method.assert_called_once_with(instanceTemplate='instance-template', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
@@ -368,7 +370,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
         res = self.gce_hook.get_instance_template(project_id='new-project', resource_id=GCE_INSTANCE_TEMPLATE)
-        self.assertIsNotNone(res)
+        assert res is not None
         get_method.assert_called_once_with(instanceTemplate='instance-template', project='new-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
@@ -392,7 +394,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
             request_id=GCE_REQUEST_ID,
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
-        self.assertIsNone(res)
+        assert res is None
         insert_method.assert_called_once_with(body={}, project='example-project', requestId='request_id')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -411,7 +413,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         res = self.gce_hook.insert_instance_template(
             project_id='new-project', body={}, request_id=GCE_REQUEST_ID
         )
-        self.assertIsNone(res)
+        assert res is None
         insert_method.assert_called_once_with(body={}, project='new-project', requestId='request_id')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
@@ -437,7 +439,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
             resource_id=GCE_INSTANCE_GROUP_MANAGER,
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
-        self.assertIsNotNone(res)
+        assert res is not None
         get_method.assert_called_once_with(
             instanceGroupManager='instance_group_manager', project='example-project', zone='zone'
         )
@@ -456,7 +458,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
         res = self.gce_hook.get_instance_group_manager(
             project_id='new-project', zone=GCE_ZONE, resource_id=GCE_INSTANCE_GROUP_MANAGER
         )
-        self.assertIsNotNone(res)
+        assert res is not None
         get_method.assert_called_once_with(
             instanceGroupManager='instance_group_manager', project='new-project', zone='zone'
         )
@@ -484,7 +486,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
             request_id=GCE_REQUEST_ID,
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
-        self.assertIsNone(res)
+        assert res is None
         patch_method.assert_called_once_with(
             body={},
             instanceGroupManager='instance_group_manager',
@@ -515,7 +517,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
             body={},
             request_id=GCE_REQUEST_ID,
         )
-        self.assertIsNone(res)
+        assert res is None
         patch_method.assert_called_once_with(
             body={},
             instanceGroupManager='instance_group_manager',
@@ -567,7 +569,7 @@ class TestGcpComputeHookDefaultProjectId(unittest.TestCase):
             'httpErrorMessage': 'sample msg',
         }
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.gce_hook._wait_for_operation_to_complete(
                 project_id=project_id, operation_name=operation_name, zone=None
             )

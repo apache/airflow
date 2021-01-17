@@ -48,7 +48,7 @@ class TestPrevDagrunDep(unittest.TestCase):
         ti = Mock(task=task, previous_ti=prev_ti, execution_date=datetime(2016, 1, 3))
         dep_context = DepContext(ignore_depends_on_past=False)
 
-        self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
+        assert PrevDagrunDep().is_met(ti=ti, dep_context=dep_context)
 
     def test_context_ignore_depends_on_past(self):
         """
@@ -67,7 +67,7 @@ class TestPrevDagrunDep(unittest.TestCase):
         ti = Mock(task=task, previous_ti=prev_ti, execution_date=datetime(2016, 1, 3))
         dep_context = DepContext(ignore_depends_on_past=True)
 
-        self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
+        assert PrevDagrunDep().is_met(ti=ti, dep_context=dep_context)
 
     def test_first_task_run(self):
         """
@@ -80,7 +80,7 @@ class TestPrevDagrunDep(unittest.TestCase):
         ti = Mock(task=task, previous_ti=prev_ti, execution_date=datetime(2016, 1, 1))
         dep_context = DepContext(ignore_depends_on_past=False)
 
-        self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
+        assert PrevDagrunDep().is_met(ti=ti, dep_context=dep_context)
 
     def test_prev_ti_bad_state(self):
         """
@@ -93,7 +93,7 @@ class TestPrevDagrunDep(unittest.TestCase):
         ti = Mock(task=task, previous_ti=prev_ti, execution_date=datetime(2016, 1, 2))
         dep_context = DepContext(ignore_depends_on_past=False)
 
-        self.assertFalse(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
+        assert not PrevDagrunDep().is_met(ti=ti, dep_context=dep_context)
 
     def test_failed_wait_for_downstream(self):
         """
@@ -106,7 +106,7 @@ class TestPrevDagrunDep(unittest.TestCase):
         ti = Mock(task=task, previous_ti=prev_ti, execution_date=datetime(2016, 1, 2))
         dep_context = DepContext(ignore_depends_on_past=False)
 
-        self.assertFalse(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
+        assert not PrevDagrunDep().is_met(ti=ti, dep_context=dep_context)
 
     def test_all_met(self):
         """
@@ -117,4 +117,4 @@ class TestPrevDagrunDep(unittest.TestCase):
         ti = Mock(task=task, execution_date=datetime(2016, 1, 2), **{'get_previous_ti.return_value': prev_ti})
         dep_context = DepContext(ignore_depends_on_past=False)
 
-        self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
+        assert PrevDagrunDep().is_met(ti=ti, dep_context=dep_context)

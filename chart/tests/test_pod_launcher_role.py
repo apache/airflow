@@ -45,6 +45,6 @@ class PodLauncherTest(unittest.TestCase):
         )
         if expected_accounts:
             for idx, suffix in enumerate(expected_accounts):
-                self.assertEqual(f"RELEASE-NAME-{suffix}", jmespath.search(f"subjects[{idx}].name", docs[0]))
+                assert f"RELEASE-NAME-{suffix}" == jmespath.search(f"subjects[{idx}].name", docs[0])
         else:
-            self.assertEqual([], docs)
+            assert [] == docs

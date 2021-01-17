@@ -31,27 +31,21 @@ class CleanupPodsTest(unittest.TestCase):
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
-        self.assertEqual(
-            "airflow-cleanup-pods",
-            jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].name", docs[0]),
+        assert "airflow-cleanup-pods" == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].name", docs[0]
         )
-        self.assertEqual(
-            "apache/airflow:2.0.0",
-            jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]),
+        assert "apache/airflow:2.0.0" == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]
         )
-        self.assertIn(
-            {"name": "config", "configMap": {"name": "RELEASE-NAME-airflow-config"}},
-            jmespath.search("spec.jobTemplate.spec.template.spec.volumes", docs[0]),
+        assert {"name": "config", "configMap": {"name": "RELEASE-NAME-airflow-config"}} in jmespath.search(
+            "spec.jobTemplate.spec.template.spec.volumes", docs[0]
         )
-        self.assertIn(
-            {
-                "name": "config",
-                "mountPath": "/opt/airflow/airflow.cfg",
-                "subPath": "airflow.cfg",
-                "readOnly": True,
-            },
-            jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0]),
-        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/airflow.cfg",
+            "subPath": "airflow.cfg",
+            "readOnly": True,
+        } in jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0])
 
     def test_should_change_image_when_set_airflow_image(self):
         docs = render_chart(
@@ -62,7 +56,6 @@ class CleanupPodsTest(unittest.TestCase):
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
-        self.assertEqual(
-            "airflow:test",
-            jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]),
+        assert "airflow:test" == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]
         )

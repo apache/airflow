@@ -30,7 +30,7 @@ class KedaTest(unittest.TestCase):
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
             validate_schema=False,
         )
-        self.assertListEqual(docs, [])
+        assert docs == []
 
     @parameterized.expand(
         [
@@ -52,6 +52,6 @@ class KedaTest(unittest.TestCase):
             validate_schema=False,
         )
         if is_created:
-            self.assertEqual("RELEASE-NAME-worker", jmespath.search("metadata.name", docs[0]))
+            assert "RELEASE-NAME-worker" == jmespath.search("metadata.name", docs[0])
         else:
-            self.assertListEqual(docs, [])
+            assert docs == []

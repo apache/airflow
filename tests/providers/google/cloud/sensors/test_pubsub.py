@@ -20,6 +20,7 @@ import unittest
 from typing import Any, Dict, List
 from unittest import mock
 
+import pytest
 from google.cloud.pubsub_v1.types import ReceivedMessage
 from google.protobuf.json_format import MessageToDict, ParseDict
 
@@ -59,7 +60,7 @@ class TestPubSubPullSensor(unittest.TestCase):
         )
 
         mock_hook.return_value.pull.return_value = []
-        self.assertEqual(False, operator.poke({}))
+        assert operator.poke({}) is False
 
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
     def test_poke_with_ack_messages(self, mock_hook):
@@ -74,7 +75,7 @@ class TestPubSubPullSensor(unittest.TestCase):
 
         mock_hook.return_value.pull.return_value = generated_messages
 
-        self.assertEqual(True, operator.poke({}))
+        assert operator.poke({}) is True
         mock_hook.return_value.acknowledge.assert_called_once_with(
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
@@ -98,7 +99,7 @@ class TestPubSubPullSensor(unittest.TestCase):
         mock_hook.return_value.pull.assert_called_once_with(
             project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
         )
-        self.assertEqual(generated_dicts, response)
+        assert generated_dicts == response
 
     @mock.patch('airflow.providers.google.cloud.sensors.pubsub.PubSubHook')
     def test_execute_timeout(self, mock_hook):
@@ -112,7 +113,7 @@ class TestPubSubPullSensor(unittest.TestCase):
 
         mock_hook.return_value.pull.return_value = []
 
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             operator.execute({})
             mock_hook.return_value.pull.assert_called_once_with(
                 project_id=TEST_PROJECT,

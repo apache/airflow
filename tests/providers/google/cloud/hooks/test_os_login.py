@@ -18,6 +18,7 @@ import re
 from typing import Dict, Sequence, Tuple
 from unittest import TestCase, mock
 
+import pytest
 from google.api_core.retry import Retry
 
 from airflow import AirflowException
@@ -165,7 +166,7 @@ class TestOSLoginHookMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.os_login.OSLoginHook.get_conn")
     def test_import_ssh_public_key(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.import_ssh_public_key(
                 user=TEST_USER,
                 ssh_public_key=TEST_BODY,

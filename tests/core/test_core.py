@@ -23,6 +23,8 @@ import unittest
 from datetime import timedelta
 from time import sleep
 
+import pytest
+
 from airflow import settings
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
@@ -124,31 +126,28 @@ class TestCore(unittest.TestCase):
         """
         msg = 'Invalid arguments were passed to BashOperator (task_id: test_illegal_args).'
         with conf_vars({('operators', 'allow_illegal_arguments'): 'True'}):
-            with self.assertWarns(PendingDeprecationWarning) as warning:
+            with pytest.warns(PendingDeprecationWarning) as warnings:
                 BashOperator(
                     task_id='test_illegal_args',
                     bash_command='echo success',
                     dag=self.dag,
                     illegal_argument_1234='hello?',
                 )
-                assert any(msg in str(w) for w in warning.warnings)
+                assert any(msg in str(w) for w in warnings)
 
     def test_illegal_args_forbidden(self):
         """
         Tests that operators raise exceptions on illegal arguments when
         illegal arguments are not allowed.
         """
-        with self.assertRaises(AirflowException) as ctx:
+        with pytest.raises(AirflowException) as ctx:
             BashOperator(
                 task_id='test_illegal_args',
                 bash_command='echo success',
                 dag=self.dag,
                 illegal_argument_1234='hello?',
             )
-        self.assertIn(
-            'Invalid arguments were passed to BashOperator (task_id: test_illegal_args).',
-            str(ctx.exception),
-        )
+        assert 'Invalid arguments were passed to BashOperator (task_id: test_illegal_args).' in str(ctx.value)
 
     def test_bash_operator(self):
         op = BashOperator(task_id='test_bash_operator', bash_command="echo success", dag=self.dag)
@@ -176,7 +175,8 @@ class TestCore(unittest.TestCase):
             bash_command="/bin/bash -c 'sleep %s'" % sleep_time,
             dag=self.dag,
         )
-        self.assertRaises(AirflowTaskTimeout, op.run, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        with pytest.raises(AirflowTaskTimeout):
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         sleep(2)
         pid = -1
         for proc in psutil.process_iter():
@@ -201,10 +201,9 @@ class TestCore(unittest.TestCase):
             dag=self.dag,
             on_failure_callback=check_failure,
         )
-        self.assertRaises(
-            AirflowException, op.run, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
-        )
-        self.assertTrue(data['called'])
+        with pytest.raises(AirflowException):
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        assert data['called']
 
     def test_dryrun(self):
         op = BashOperator(task_id='test_dryrun', bash_command="echo success", dag=self.dag)
@@ -226,9 +225,8 @@ class TestCore(unittest.TestCase):
             python_callable=lambda: sleep(5),
             dag=self.dag,
         )
-        self.assertRaises(
-            AirflowTaskTimeout, op.run, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
-        )
+        with pytest.raises(AirflowTaskTimeout):
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_python_op(self):
         def test_py_op(templates_dict, ds, **kwargs):
@@ -243,7 +241,7 @@ class TestCore(unittest.TestCase):
 
     def test_complex_template(self):
         def verify_templated_field(context):
-            self.assertEqual(context['ti'].task.some_templated_field['bar'][1], context['ds'])
+            assert context['ti'].task.some_templated_field['bar'][1] == context['ds']
 
         op = OperatorSubclass(
             task_id='test_complex_template',
@@ -282,26 +280,26 @@ class TestCore(unittest.TestCase):
         context = ti.get_template_context()
 
         # DEFAULT DATE is 2015-01-01
-        self.assertEqual(context['ds'], '2015-01-01')
-        self.assertEqual(context['ds_nodash'], '20150101')
+        assert context['ds'] == '2015-01-01'
+        assert context['ds_nodash'] == '20150101'
 
         # next_ds is 2015-01-02 as the dag interval is daily
-        self.assertEqual(context['next_ds'], '2015-01-02')
-        self.assertEqual(context['next_ds_nodash'], '20150102')
+        assert context['next_ds'] == '2015-01-02'
+        assert context['next_ds_nodash'] == '20150102'
 
         # prev_ds is 2014-12-31 as the dag interval is daily
-        self.assertEqual(context['prev_ds'], '2014-12-31')
-        self.assertEqual(context['prev_ds_nodash'], '20141231')
+        assert context['prev_ds'] == '2014-12-31'
+        assert context['prev_ds_nodash'] == '20141231'
 
-        self.assertEqual(context['ts'], '2015-01-01T00:00:00+00:00')
-        self.assertEqual(context['ts_nodash'], '20150101T000000')
-        self.assertEqual(context['ts_nodash_with_tz'], '20150101T000000+0000')
+        assert context['ts'] == '2015-01-01T00:00:00+00:00'
+        assert context['ts_nodash'] == '20150101T000000'
+        assert context['ts_nodash_with_tz'] == '20150101T000000+0000'
 
-        self.assertEqual(context['yesterday_ds'], '2014-12-31')
-        self.assertEqual(context['yesterday_ds_nodash'], '20141231')
+        assert context['yesterday_ds'] == '2014-12-31'
+        assert context['yesterday_ds_nodash'] == '20141231'
 
-        self.assertEqual(context['tomorrow_ds'], '2015-01-02')
-        self.assertEqual(context['tomorrow_ds_nodash'], '20150102')
+        assert context['tomorrow_ds'] == '2015-01-02'
+        assert context['tomorrow_ds_nodash'] == '20150102'
 
     def test_local_task_job(self):
         TI = TaskInstance
@@ -319,7 +317,7 @@ class TestCore(unittest.TestCase):
         ti.run(ignore_ti_state=True)
 
     def test_bad_trigger_rule(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             DummyOperator(task_id='test_bad_trigger', trigger_rule="non_existent", dag=self.dag)
 
     def test_terminate_task(self):
@@ -341,7 +339,7 @@ class TestCore(unittest.TestCase):
         session = settings.Session()
         ti.refresh_from_db(session=session)
         # making sure it's actually running
-        self.assertEqual(State.RUNNING, ti.state)
+        assert State.RUNNING == ti.state
         ti = (
             session.query(TI)
             .filter_by(dag_id=task.dag_id, task_id=task.task_id, execution_date=DEFAULT_DATE)
@@ -356,7 +354,7 @@ class TestCore(unittest.TestCase):
 
         # making sure that the task ended up as failed
         ti.refresh_from_db(session=session)
-        self.assertEqual(State.FAILED, ti.state)
+        assert State.FAILED == ti.state
         session.close()
 
     def test_task_fail_duration(self):
@@ -390,9 +388,9 @@ class TestCore(unittest.TestCase):
             .all()
         )
 
-        self.assertEqual(0, len(op1_fails))
-        self.assertEqual(1, len(op2_fails))
-        self.assertGreaterEqual(sum([f.duration for f in op2_fails]), 3)
+        assert 0 == len(op1_fails)
+        assert 1 == len(op2_fails)
+        assert sum([f.duration for f in op2_fails]) >= 3
 
     def test_externally_triggered_dagrun(self):
         TI = TaskInstance
@@ -418,8 +416,8 @@ class TestCore(unittest.TestCase):
         context = ti.get_template_context()
 
         # next_ds/prev_ds should be the execution date for manually triggered runs
-        self.assertEqual(context['next_ds'], execution_ds)
-        self.assertEqual(context['next_ds_nodash'], execution_ds_nodash)
+        assert context['next_ds'] == execution_ds
+        assert context['next_ds_nodash'] == execution_ds_nodash
 
-        self.assertEqual(context['prev_ds'], execution_ds)
-        self.assertEqual(context['prev_ds_nodash'], execution_ds_nodash)
+        assert context['prev_ds'] == execution_ds
+        assert context['prev_ds_nodash'] == execution_ds_nodash

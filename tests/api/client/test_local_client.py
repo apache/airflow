@@ -20,6 +20,7 @@ import json
 import unittest
 from unittest.mock import ANY, patch
 
+import pytest
 from freezegun import freeze_time
 
 from airflow.api.client.local_client import Client
@@ -60,7 +61,7 @@ class TestLocalClient(unittest.TestCase):
         DagBag(include_examples=True)
 
         # non existent
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.client.trigger_dag(dag_id="blablabla")
 
         with freeze_time(EXECDATE):
@@ -118,36 +119,36 @@ class TestLocalClient(unittest.TestCase):
         key = "my_dag_id"
 
         with create_session() as session:
-            self.assertEqual(session.query(DagModel).filter(DagModel.dag_id == key).count(), 0)
+            assert session.query(DagModel).filter(DagModel.dag_id == key).count() == 0
             session.add(DagModel(dag_id=key))
 
         with create_session() as session:
-            self.assertEqual(session.query(DagModel).filter(DagModel.dag_id == key).count(), 1)
+            assert session.query(DagModel).filter(DagModel.dag_id == key).count() == 1
 
             self.client.delete_dag(dag_id=key)
-            self.assertEqual(session.query(DagModel).filter(DagModel.dag_id == key).count(), 0)
+            assert session.query(DagModel).filter(DagModel.dag_id == key).count() == 0
 
     def test_get_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
         pool = self.client.get_pool(name='foo')
-        self.assertEqual(pool, ('foo', 1, ''))
+        assert pool == ('foo', 1, '')
 
     def test_get_pools(self):
         self.client.create_pool(name='foo1', slots=1, description='')
         self.client.create_pool(name='foo2', slots=2, description='')
         pools = sorted(self.client.get_pools(), key=lambda p: p[0])
-        self.assertEqual(pools, [('default_pool', 128, 'Default pool'), ('foo1', 1, ''), ('foo2', 2, '')])
+        assert pools == [('default_pool', 128, 'Default pool'), ('foo1', 1, ''), ('foo2', 2, '')]
 
     def test_create_pool(self):
         pool = self.client.create_pool(name='foo', slots=1, description='')
-        self.assertEqual(pool, ('foo', 1, ''))
+        assert pool == ('foo', 1, '')
         with create_session() as session:
-            self.assertEqual(session.query(Pool).count(), 2)
+            assert session.query(Pool).count() == 2
 
     def test_delete_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
         with create_session() as session:
-            self.assertEqual(session.query(Pool).count(), 2)
+            assert session.query(Pool).count() == 2
         self.client.delete_pool(name='foo')
         with create_session() as session:
-            self.assertEqual(session.query(Pool).count(), 1)
+            assert session.query(Pool).count() == 1

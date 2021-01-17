@@ -32,7 +32,7 @@ class TestDagrunRunningDep(unittest.TestCase):
         """
         dag = DAG('test_dag', max_active_runs=2)
         ti = Mock(task=Mock(dag=dag), get_dagrun=Mock(return_value=None))
-        self.assertFalse(DagrunRunningDep().is_met(ti=ti))
+        assert not DagrunRunningDep().is_met(ti=ti)
 
     def test_dagrun_exists(self):
         """
@@ -40,4 +40,4 @@ class TestDagrunRunningDep(unittest.TestCase):
         """
         dagrun = DagRun(state=State.RUNNING)
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
-        self.assertTrue(DagrunRunningDep().is_met(ti=ti))
+        assert DagrunRunningDep().is_met(ti=ti)

@@ -43,7 +43,7 @@ class TestPluginsRBAC(unittest.TestCase):
             view for view in self.appbuilder.baseviews if view.blueprint.name == appbuilder_class_name
         ]
 
-        self.assertTrue(len(plugin_views) == 1)
+        assert len(plugin_views) == 1
 
         # view should have a menu item matching category of v_appbuilder_package
         links = [
@@ -52,12 +52,12 @@ class TestPluginsRBAC(unittest.TestCase):
             if menu_item.name == v_appbuilder_package['category']
         ]
 
-        self.assertTrue(len(links) == 1)
+        assert len(links) == 1
 
         # menu link should also have a link matching the name of the package.
         link = links[0]
-        self.assertEqual(link.name, v_appbuilder_package['category'])
-        self.assertEqual(link.childs[0].name, v_appbuilder_package['name'])
+        assert link.name == v_appbuilder_package['category']
+        assert link.childs[0].name == v_appbuilder_package['name']
 
     def test_flaskappbuilder_nomenu_views(self):
         from tests.plugins.test_plugin import v_nomenu_appbuilder_package
@@ -74,7 +74,7 @@ class TestPluginsRBAC(unittest.TestCase):
                 view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name
             ]
 
-            self.assertTrue(len(plugin_views) == 1)
+            assert len(plugin_views) == 1
 
     def test_flaskappbuilder_menu_links(self):
         from tests.plugins.test_plugin import appbuilder_mitem
@@ -86,19 +86,19 @@ class TestPluginsRBAC(unittest.TestCase):
             if menu_item.name == appbuilder_mitem['category']
         ]
 
-        self.assertTrue(len(links) == 1)
+        assert len(links) == 1
 
         # menu link should also have a link matching the name of the package.
         link = links[0]
-        self.assertEqual(link.name, appbuilder_mitem['category'])
-        self.assertEqual(link.childs[0].name, appbuilder_mitem['name'])
+        assert link.name == appbuilder_mitem['category']
+        assert link.childs[0].name == appbuilder_mitem['name']
 
     def test_app_blueprints(self):
         from tests.plugins.test_plugin import bp
 
         # Blueprint should be present in the app
-        self.assertTrue('test_plugin' in self.app.blueprints)
-        self.assertEqual(self.app.blueprints['test_plugin'].name, bp.name)
+        assert 'test_plugin' in self.app.blueprints
+        assert self.app.blueprints['test_plugin'].name == bp.name
 
 
 class TestPluginsManager:
@@ -281,9 +281,9 @@ class TestPluginsDirectorySource(unittest.TestCase):
         from airflow import plugins_manager
 
         source = plugins_manager.PluginsDirectorySource(__file__)
-        self.assertEqual("test_plugins_manager.py", source.path)
-        self.assertEqual("$PLUGINS_FOLDER/test_plugins_manager.py", str(source))
-        self.assertEqual("<em>$PLUGINS_FOLDER/</em>test_plugins_manager.py", source.__html__())
+        assert "test_plugins_manager.py" == source.path
+        assert "$PLUGINS_FOLDER/test_plugins_manager.py" == str(source)
+        assert "<em>$PLUGINS_FOLDER/</em>test_plugins_manager.py" == source.__html__()
 
 
 class TestEntryPointSource:

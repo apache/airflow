@@ -19,6 +19,7 @@ import unittest
 from unittest import mock
 from unittest.mock import patch
 
+import pytest
 import requests
 
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
@@ -59,7 +60,7 @@ class TestHttpSensor(unittest.TestCase):
             timeout=5,
             poke_interval=1,
         )
-        with self.assertRaisesRegex(AirflowException, 'AirflowException raised here!'):
+        with pytest.raises(AirflowException, match='AirflowException raised here!'):
             task.execute(context={})
 
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
@@ -86,8 +87,8 @@ class TestHttpSensor(unittest.TestCase):
 
         prep_request = requests.Request('HEAD', 'https://www.httpbin.org', {}).prepare()
 
-        self.assertEqual(prep_request.url, received_request.url)
-        self.assertTrue(prep_request.method, received_request.method)
+        assert prep_request.url == received_request.url
+        assert prep_request.method, received_request.method
 
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
     def test_poke_context(self, mock_session_send):
@@ -138,10 +139,10 @@ class TestHttpSensor(unittest.TestCase):
         )
 
         with mock.patch.object(task.hook.log, 'error') as mock_errors:
-            with self.assertRaises(AirflowSensorTimeout):
+            with pytest.raises(AirflowSensorTimeout):
                 task.execute(None)
 
-            self.assertTrue(mock_errors.called)
+            assert mock_errors.called
             calls = [
                 mock.call('HTTP error: %s', 'Not Found'),
                 mock.call('This endpoint doesnt exist'),

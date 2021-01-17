@@ -64,12 +64,12 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
 
     def test_version_information(self):
         expected_version = "airflow_v" + version
-        self.assertEqual(expected_version, self.hook.client_info.client_library_version)
+        assert expected_version == self.hook.client_info.client_library_version
 
     def test_disable_auto_scheduling(self):
         expected = deepcopy(TRANSFER_CONFIG)
         expected.schedule_options.disable_auto_scheduling = True
-        self.assertEqual(expected, self.hook._disable_auto_scheduling(TRANSFER_CONFIG))
+        assert expected == self.hook._disable_auto_scheduling(TRANSFER_CONFIG)
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.bigquery_dts."

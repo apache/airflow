@@ -19,6 +19,7 @@
 import unittest
 from unittest import mock
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -62,7 +63,7 @@ class TestDataflowJobStatusSensor(unittest.TestCase):
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": current_status}
         results = task.poke(mock.MagicMock())
 
-        self.assertEqual(sensor_return, results)
+        assert sensor_return == results
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
@@ -88,9 +89,9 @@ class TestDataflowJobStatusSensor(unittest.TestCase):
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
 
-        with self.assertRaisesRegex(
+        with pytest.raises(
             AirflowException,
-            f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
+            match=f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
             f"{DataflowJobStatus.JOB_STATE_CANCELLED}",
         ):
             task.poke(mock.MagicMock())
@@ -133,7 +134,7 @@ class TestDataflowJobMetricsSensor(unittest.TestCase):
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": job_current_state}
         results = task.poke(mock.MagicMock())
 
-        self.assertEqual(callback.return_value, results)
+        assert callback.return_value == results
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
@@ -176,7 +177,7 @@ class DataflowJobMessagesSensorTest(unittest.TestCase):
 
         results = task.poke(mock.MagicMock())
 
-        self.assertEqual(callback.return_value, results)
+        assert callback.return_value == results
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
@@ -207,9 +208,9 @@ class DataflowJobMessagesSensorTest(unittest.TestCase):
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
 
-        with self.assertRaisesRegex(
+        with pytest.raises(
             AirflowException,
-            f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
+            match=f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
             f"{DataflowJobStatus.JOB_STATE_DONE}",
         ):
             task.poke(mock.MagicMock())
@@ -252,7 +253,7 @@ class DataflowJobAutoScalingEventsSensorTest(unittest.TestCase):
 
         results = task.poke(mock.MagicMock())
 
-        self.assertEqual(callback.return_value, results)
+        assert callback.return_value == results
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
@@ -283,9 +284,9 @@ class DataflowJobAutoScalingEventsSensorTest(unittest.TestCase):
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
 
-        with self.assertRaisesRegex(
+        with pytest.raises(
             AirflowException,
-            f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
+            match=f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
             f"{DataflowJobStatus.JOB_STATE_DONE}",
         ):
             task.poke(mock.MagicMock())

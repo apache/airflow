@@ -19,6 +19,8 @@
 import json
 import unittest
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
@@ -65,7 +67,7 @@ class TestDiscordWebhookHook(unittest.TestCase):
         webhook_endpoint = hook._get_webhook_endpoint(None, provided_endpoint)
 
         # Then
-        self.assertEqual(webhook_endpoint, provided_endpoint)
+        assert webhook_endpoint == provided_endpoint
 
     def test_get_webhook_endpoint_invalid_url(self):
         # Given
@@ -73,7 +75,7 @@ class TestDiscordWebhookHook(unittest.TestCase):
 
         # When/Then
         expected_message = 'Expected Discord webhook endpoint in the form of'
-        with self.assertRaisesRegex(AirflowException, expected_message):
+        with pytest.raises(AirflowException, match=expected_message):
             DiscordWebhookHook(webhook_endpoint=provided_endpoint)
 
     def test_get_webhook_endpoint_conn_id(self):
@@ -86,7 +88,7 @@ class TestDiscordWebhookHook(unittest.TestCase):
         webhook_endpoint = hook._get_webhook_endpoint(conn_id, None)
 
         # Then
-        self.assertEqual(webhook_endpoint, expected_webhook_endpoint)
+        assert webhook_endpoint == expected_webhook_endpoint
 
     def test_build_discord_payload(self):
         # Given
@@ -96,7 +98,7 @@ class TestDiscordWebhookHook(unittest.TestCase):
         payload = hook._build_discord_payload()
 
         # Then
-        self.assertEqual(self.expected_payload, payload)
+        assert self.expected_payload == payload
 
     def test_build_discord_payload_message_length(self):
         # Given
@@ -107,5 +109,5 @@ class TestDiscordWebhookHook(unittest.TestCase):
 
         # When/Then
         expected_message = 'Discord message length must be 2000 or fewer characters'
-        with self.assertRaisesRegex(AirflowException, expected_message):
+        with pytest.raises(AirflowException, match=expected_message):
             hook._build_discord_payload()
