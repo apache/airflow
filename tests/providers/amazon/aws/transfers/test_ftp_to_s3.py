@@ -20,7 +20,7 @@ from unittest import mock
 
 from airflow.providers.amazon.aws.transfers.ftp_to_s3 import FTPToS3Operator
 
-TASK_ID = 'test_s3_to_ftp'
+TASK_ID = 'test_ftp_to_s3'
 BUCKET = 'test-s3-bucket'
 S3_KEY = 'test/test_1_file.csv'
 FTP_PATH = '/tmp/remote_path.txt'
@@ -37,7 +37,10 @@ class TestFTPToS3Operator(unittest.TestCase):
         operator.execute(None)
 
         mock_local_tmp_file_value = mock_local_tmp_file.return_value.__enter__.return_value
-        mock_ftp_hook_retrieve_file.assert_called_once_with(operator.ftp_path, mock_local_tmp_file_value.name)
+        mock_ftp_hook_retrieve_file.assert_called_once_with(
+            local_full_path_or_buffer=mock_local_tmp_file_value.name,
+            remote_full_path=operator.ftp_path
+        )
 
         mock_s3_hook_load_file.assert_called_once_with(
             filename=mock_local_tmp_file_value.name, key=operator.s3_key, bucket_name=operator.s3_bucket
