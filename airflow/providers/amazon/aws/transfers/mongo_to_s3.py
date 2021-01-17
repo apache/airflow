@@ -57,7 +57,12 @@ class MongoToS3Operator(BaseOperator):
     :type compression: str
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')
+    template_fields = (
+        's3_bucket',
+        's3_key',
+        'mongo_query',
+        'mongo_collection'
+    )
     # pylint: disable=too-many-instance-attributes
 
     @apply_defaults
