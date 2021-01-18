@@ -464,6 +464,11 @@ EXPOSE 8080
 
 USER ${AIRFLOW_UID}
 
+# Having the variable in final image allows to disable providers manager warnings when
+# production image is prepared from sources rather than from package
+ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
+ENV AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
+
 ARG BUILD_ID
 ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
