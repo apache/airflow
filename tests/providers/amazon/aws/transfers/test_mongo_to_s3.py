@@ -60,7 +60,7 @@ class TestMongoToS3Operator(unittest.TestCase):
     def test_init(self):
         assert self.mock_operator.task_id == TASK_ID
         assert self.mock_operator.mongo_conn_id == MONGO_CONN_ID
-        assert self.mock_operator.s3_conn_id == S3_CONN_ID
+        assert self.mock_operator.aws_conn_id == AWS_CONN_ID
         assert self.mock_operator.mongo_collection == MONGO_COLLECTION
         assert self.mock_operator.mongo_query == MONGO_QUERY
         assert self.mock_operator.s3_bucket == S3_BUCKET
@@ -68,7 +68,7 @@ class TestMongoToS3Operator(unittest.TestCase):
         assert self.mock_operator.compression == COMPRESSION
 
     def test_template_field_overrides(self):
-        assert self.mock_operator.template_fields == ['s3_key', 'mongo_query', 'mongo_collection']
+        assert self.mock_operator.template_fields == ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')
 
     def test_render_template(self):
         ti = TaskInstance(self.mock_operator, DEFAULT_DATE)
