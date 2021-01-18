@@ -159,8 +159,8 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
-{{- if .Values.airflowExtraContainers }}
-{{- toYaml .Values.airflowExtraContainers | nindent 8 }}
+{{- if .Values.webserver.extraContainers }}
+{{- toYaml .Values.webserver.extraContainers | nindent 8 }}
 {{- end }}
       volumes:
         - name: config

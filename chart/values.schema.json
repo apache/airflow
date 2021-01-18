@@ -154,10 +154,6 @@
             "description": "Extra annotations to apply to all Airflow pods.",
             "type": "object"
         },
-        "airflowExtraContainers": {
-            "description": "Extra containers to apply to webserver, scheduler, worker pods.",
-            "type": "array"
-        },
         "rbacEnabled": {
             "description": "Enable RBAC (default on most clusters these days).",
             "type": "boolean"
@@ -635,6 +631,10 @@
                   "description": "Annotations to add to the worker kubernetes service account.",
                   "type": "object"
                 },
+                "extraContainers": {
+                    "description": "Launch additional containers into workers.",
+                    "type": "array"
+                },
                 "extraVolumes": {
                     "description": "Mount additional volumes into workers.",
                     "type": "array"
@@ -708,6 +708,10 @@
                 "serviceAccountAnnotations": {
                   "description": "Annotations to add to the scheduler kubernetes service account.",
                   "type": "object"
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into scheduler.",
+                    "type": "array"
                 },
                 "extraVolumes": {
                     "description": "Mount additional volumes into scheduler.",
@@ -834,6 +838,10 @@
                             "type": "string"
                         }
                     }
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into webserver.",
+                    "type": "array"
                 },
                 "extraVolumes": {
                     "description": "Mount additional volumes into webserver.",

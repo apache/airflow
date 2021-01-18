@@ -105,9 +105,6 @@ networkPolicies:
 # Airflow pods
 airflowPodAnnotations: {}
 
-# Extra containers to apply to webserver, scheduler, worker pods
-airflowExtraContainers: []
-
 # Enable RBAC (default on most clusters these days)
 rbacEnabled: true
 
@@ -357,6 +354,10 @@ workers:
   safeToEvict: true
   # Annotations to add to worker kubernetes service account.
   serviceAccountAnnotations: {}
+
+  # Launch additional containers into worker.
+  extraContainers: []
+
   # Mount additional volumes into worker.
   extraVolumes: []
   extraVolumeMounts: []
@@ -397,6 +398,9 @@ scheduler:
 
   # Annotations to add to scheduler kubernetes service account.
   serviceAccountAnnotations: {}
+
+  # Launch additional containers into scheduler.
+  extraContainers: []
 
   # Mount additional volumes into scheduler.
   extraVolumes: []
@@ -445,6 +449,9 @@ webserver:
     firstName: admin
     lastName: user
     password: admin
+
+  # Launch additional containers into webserver.
+  extraContainers: []
 
   # Mount additional volumes into webserver.
   extraVolumes: []
