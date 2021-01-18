@@ -105,6 +105,9 @@ networkPolicies:
 # Airflow pods
 airflowPodAnnotations: {}
 
+# Extra containers to apply to webserver, scheduler, worker pods
+airflowExtraContainers: []
+
 # Enable RBAC (default on most clusters these days)
 rbacEnabled: true
 

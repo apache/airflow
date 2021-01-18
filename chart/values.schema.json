@@ -154,6 +154,10 @@
             "description": "Extra annotations to apply to all Airflow pods.",
             "type": "object"
         },
+        "airflowExtraContainers": {
+            "description": "Extra containers to apply to webserver, scheduler, worker pods.",
+            "type": "array"
+        },
         "rbacEnabled": {
             "description": "Enable RBAC (default on most clusters these days).",
             "type": "boolean"
