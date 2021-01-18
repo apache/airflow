@@ -40,7 +40,7 @@ as :class:`~airflow.models.serialized_dag.SerializedDagModel` model.
 
 The Webserver now instead of having to parse the DAG file again, reads the
 serialized DAGs in JSON, de-serializes them and create the DagBag and uses it
-to show in the UI. And  the Scheduler does not need the actual DAG for making Scheduling decisions,
+to show in the UI. And the Scheduler does not need the actual DAG for making Scheduling decisions,
 instead of using the DAG files, we use Serialized DAGs that contain all the information needing to
 schedule the DAGs from Airflow 2.0.0 (this was done as part of :ref:`Scheduler HA <scheduler:ha>`).
 
@@ -49,7 +49,7 @@ instead of loading an entire DagBag when the WebServer starts we only load each 
 Serialized Dag table. This helps reduce Webserver startup time and memory. The reduction is notable
 when you have large number of DAGs.
 
-You can enable the source code to be stored in the database to make Webserver completely independent from DAG files.
+You can enable the source code to be stored in the database to make the Webserver completely independent of the DAG files.
 This is not necessary if your files are embedded in an Docker image or you can otherwise provide
 them to the webserver. The data is stored in the :class:`~airflow.models.dagcode.DagCode` model.
 
