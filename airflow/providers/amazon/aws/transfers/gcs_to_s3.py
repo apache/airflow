@@ -175,7 +175,7 @@ class GCSToS3Operator(BaseOperator):
         if files:
 
             for file in files:
-                file_bytes = hook.download(self.bucket, file)
+                file_bytes = hook.download(object_name=file, bucket_name=self.bucket)
 
                 dest_key = self.dest_s3_key + file
                 self.log.info("Saving file to %s", dest_key)

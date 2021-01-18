@@ -52,7 +52,7 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
             delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        self.assertEqual(hook.api_version, API_VERSION)
+        assert hook.api_version == API_VERSION
 
     @mock.patch("airflow.providers.google.marketing_platform.hooks.analytics.GoogleAnalyticsHook._authorize")
     @mock.patch("airflow.providers.google.marketing_platform.hooks.analytics.build")
@@ -64,7 +64,7 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
             http=mock_authorize.return_value,
             cache_discovery=False,
         )
-        self.assertEqual(mock_build.return_value, result)
+        assert mock_build.return_value == result
 
     @mock.patch("airflow.providers.google.marketing_platform.hooks.analytics.GoogleAnalyticsHook.get_conn")
     def test_list_accounts(self, get_conn_mock):
@@ -73,7 +73,7 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
         mock_execute = mock_list.return_value.execute
         mock_execute.return_value = {"items": ["a", "b"], "totalResults": 2}
         list_accounts = self.hook.list_accounts()
-        self.assertEqual(list_accounts, ["a", "b"])
+        assert list_accounts == ["a", "b"]
 
     @mock.patch("airflow.providers.google.marketing_platform.hooks.analytics.GoogleAnalyticsHook.get_conn")
     def test_list_accounts_for_multiple_pages(self, get_conn_mock):
@@ -85,7 +85,7 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
             {"items": ["b"], "totalResults": 2},
         ]
         list_accounts = self.hook.list_accounts()
-        self.assertEqual(list_accounts, ["a", "b"])
+        assert list_accounts == ["a", "b"]
 
     @mock.patch("airflow.providers.google.marketing_platform.hooks.analytics.GoogleAnalyticsHook.get_conn")
     def test_get_ad_words_links_call(self, get_conn_mock):
@@ -116,7 +116,7 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
         mock_execute = mock_list.return_value.execute
         mock_execute.return_value = {"items": ["a", "b"], "totalResults": 2}
         list_ads_links = self.hook.list_ad_words_links(account_id=ACCOUNT_ID, web_property_id=WEB_PROPERTY_ID)
-        self.assertEqual(list_ads_links, ["a", "b"])
+        assert list_ads_links == ["a", "b"]
 
     @mock.patch("airflow.providers.google.marketing_platform.hooks.analytics.GoogleAnalyticsHook.get_conn")
     def test_list_ad_words_links_for_multiple_pages(self, get_conn_mock):
@@ -128,7 +128,7 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
             {"items": ["b"], "totalResults": 2},
         ]
         list_ads_links = self.hook.list_ad_words_links(account_id=ACCOUNT_ID, web_property_id=WEB_PROPERTY_ID)
-        self.assertEqual(list_ads_links, ["a", "b"])
+        assert list_ads_links == ["a", "b"]
 
     @mock.patch("airflow.providers.google.marketing_platform.hooks.analytics.GoogleAnalyticsHook.get_conn")
     @mock.patch("airflow.providers.google.marketing_platform.hooks.analytics.MediaFileUpload")
@@ -184,4 +184,4 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
             web_property_id=WEB_PROPERTY_ID,
             custom_data_source_id=DATA_SOURCE,
         )
-        self.assertEqual(result, ["a", "b"])
+        assert result == ["a", "b"]

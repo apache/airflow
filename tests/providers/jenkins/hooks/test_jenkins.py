@@ -41,8 +41,8 @@ class TestJenkinsHook(unittest.TestCase):
 
         complete_url = f'http://{connection_host}:{connection_port}/'
         hook = JenkinsHook(default_connection_id)
-        self.assertIsNotNone(hook.jenkins_server)
-        self.assertEqual(hook.jenkins_server.server, complete_url)
+        assert hook.jenkins_server is not None
+        assert hook.jenkins_server.server == complete_url
 
     @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_client_created_default_https(self, get_connection_mock):
@@ -63,5 +63,5 @@ class TestJenkinsHook(unittest.TestCase):
 
         complete_url = f'https://{connection_host}:{connection_port}/'
         hook = JenkinsHook(default_connection_id)
-        self.assertIsNotNone(hook.jenkins_server)
-        self.assertEqual(hook.jenkins_server.server, complete_url)
+        assert hook.jenkins_server is not None
+        assert hook.jenkins_server.server == complete_url

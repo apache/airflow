@@ -135,8 +135,8 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             'labels.execution_date="2016-01-01T00:00:00+00:00"',
             page_token=None,
         )
-        self.assertEqual(['MSG1\nMSG2'], logs)
-        self.assertEqual([{'end_of_log': True}], metadata)
+        assert ['MSG1\nMSG2'] == logs
+        assert [{'end_of_log': True}] == metadata
 
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch(
@@ -156,8 +156,8 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             'labels.execution_date="2016-01-01T00:00:00+00:00"',
             page_token=None,
         )
-        self.assertEqual(['MSG1\nMSG2'], logs)
-        self.assertEqual([{'end_of_log': True}], metadata)
+        assert ['MSG1\nMSG2'] == logs
+        assert [{'end_of_log': True}] == metadata
 
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch(
@@ -178,8 +178,8 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             'labels.try_number="3"',
             page_token=None,
         )
-        self.assertEqual(['MSG1\nMSG2'], logs)
-        self.assertEqual([{'end_of_log': True}], metadata)
+        assert ['MSG1\nMSG2'] == logs
+        assert [{'end_of_log': True}] == metadata
 
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client')
@@ -191,14 +191,14 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
         logs, metadata1 = self.stackdriver_task_handler.read(self.ti, 3)
         mock_client.return_value.list_entries.assert_called_once_with(filter_=mock.ANY, page_token=None)
-        self.assertEqual(['MSG1\nMSG2'], logs)
-        self.assertEqual([{'end_of_log': False, 'next_page_token': 'TOKEN1'}], metadata1)
+        assert ['MSG1\nMSG2'] == logs
+        assert [{'end_of_log': False, 'next_page_token': 'TOKEN1'}] == metadata1
 
         mock_client.return_value.list_entries.return_value.next_page_token = None
         logs, metadata2 = self.stackdriver_task_handler.read(self.ti, 3, metadata1[0])
         mock_client.return_value.list_entries.assert_called_with(filter_=mock.ANY, page_token="TOKEN1")
-        self.assertEqual(['MSG3\nMSG4'], logs)
-        self.assertEqual([{'end_of_log': True}], metadata2)
+        assert ['MSG3\nMSG4'] == logs
+        assert [{'end_of_log': True}] == metadata2
 
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client')
@@ -211,8 +211,8 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
 
         logs, metadata1 = self.stackdriver_task_handler.read(self.ti, 3, {'download_logs': True})
 
-        self.assertEqual(['MSG1\nMSG2\nMSG3\nMSG4'], logs)
-        self.assertEqual([{'end_of_log': True}], metadata1)
+        assert ['MSG1\nMSG2\nMSG3\nMSG4'] == logs
+        assert [{'end_of_log': True}] == metadata1
 
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch(
@@ -250,8 +250,8 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             'labels.execution_date="2016-01-01T00:00:00+00:00"',
             page_token=None,
         )
-        self.assertEqual(['TEXT\nTEXT'], logs)
-        self.assertEqual([{'end_of_log': True}], metadata)
+        assert ['TEXT\nTEXT'] == logs
+        assert [{'end_of_log': True}] == metadata
 
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client')
@@ -275,7 +275,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             ),
         )
         mock_client.assert_called_once_with(credentials='creds', client_info=mock.ANY, project="project_id")
-        self.assertEqual(mock_client.return_value, client)
+        assert mock_client.return_value == client
 
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client')
@@ -291,11 +291,11 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
 
         parsed_url = urlparse(url)
         parsed_qs = parse_qs(parsed_url.query)
-        self.assertEqual('https', parsed_url.scheme)
-        self.assertEqual('console.cloud.google.com', parsed_url.netloc)
-        self.assertEqual('/logs/viewer', parsed_url.path)
-        self.assertCountEqual(['project', 'interval', 'resource', 'advancedFilter'], parsed_qs.keys())
-        self.assertIn('global', parsed_qs['resource'])
+        assert 'https' == parsed_url.scheme
+        assert 'console.cloud.google.com' == parsed_url.netloc
+        assert '/logs/viewer' == parsed_url.path
+        assert {'project', 'interval', 'resource', 'advancedFilter'} == set(parsed_qs.keys())
+        assert 'global' in parsed_qs['resource']
 
         filter_params = parsed_qs['advancedFilter'][0].split('\n')
         expected_filter = [
@@ -306,4 +306,4 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             f'labels.execution_date="{self.ti.execution_date.isoformat()}"',
             f'labels.try_number="{self.ti.try_number}"',
         ]
-        self.assertCountEqual(expected_filter, filter_params)
+        assert set(expected_filter) == set(filter_params)

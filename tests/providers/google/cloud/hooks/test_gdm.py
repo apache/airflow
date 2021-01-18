@@ -19,6 +19,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gdm import GoogleDeploymentManagerHook
 
@@ -71,12 +73,12 @@ class TestDeploymentManagerHook(unittest.TestCase):
             orderBy='name',
         )
 
-        self.assertEqual(mock_get_conn.return_value.deployments.return_value.list_next.call_count, 2)
+        assert mock_get_conn.return_value.deployments.return_value.list_next.call_count == 2
 
-        self.assertEqual(
-            deployments,
-            [{'id': 'deployment1', 'name': 'test-deploy1'}, {'id': 'deployment2', 'name': 'test-deploy2'}],
-        )
+        assert deployments == [
+            {'id': 'deployment1', 'name': 'test-deploy1'},
+            {'id': 'deployment2', 'name': 'test-deploy2'},
+        ]
 
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
     def test_delete_deployment(self, mock_get_conn):
@@ -93,7 +95,7 @@ class TestDeploymentManagerHook(unittest.TestCase):
 
         mock_get_conn.return_value.deployments.return_value.delete.return_value.execute.return_value = resp
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.gdm_hook.delete_deployment(project_id=TEST_PROJECT, deployment=TEST_DEPLOYMENT)
 
         mock_get_conn.assert_called_once_with()

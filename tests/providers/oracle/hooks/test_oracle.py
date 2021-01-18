@@ -22,6 +22,7 @@ from datetime import datetime
 from unittest import mock
 
 import numpy
+import pytest
 
 from airflow.models import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
@@ -49,10 +50,10 @@ class TestOracleHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
-        self.assertEqual(args, ())
-        self.assertEqual(kwargs['user'], 'login')
-        self.assertEqual(kwargs['password'], 'password')
-        self.assertEqual(kwargs['dsn'], 'host')
+        assert args == ()
+        assert kwargs['user'] == 'login'
+        assert kwargs['password'] == 'password'
+        assert kwargs['dsn'] == 'host'
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_sid(self, mock_connect):
@@ -61,10 +62,8 @@ class TestOracleHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
-        self.assertEqual(args, ())
-        self.assertEqual(
-            kwargs['dsn'], cx_Oracle.makedsn(dsn_sid['dsn'], self.connection.port, dsn_sid['sid'])
-        )
+        assert args == ()
+        assert kwargs['dsn'] == cx_Oracle.makedsn(dsn_sid['dsn'], self.connection.port, dsn_sid['sid'])
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_service_name(self, mock_connect):
@@ -73,12 +72,9 @@ class TestOracleHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
-        self.assertEqual(args, ())
-        self.assertEqual(
-            kwargs['dsn'],
-            cx_Oracle.makedsn(
-                dsn_service_name['dsn'], self.connection.port, service_name=dsn_service_name['service_name']
-            ),
+        assert args == ()
+        assert kwargs['dsn'] == cx_Oracle.makedsn(
+            dsn_service_name['dsn'], self.connection.port, service_name=dsn_service_name['service_name']
         )
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
@@ -87,9 +83,9 @@ class TestOracleHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
-        self.assertEqual(args, ())
-        self.assertEqual(kwargs['encoding'], 'UTF-8')
-        self.assertEqual(kwargs['nencoding'], 'UTF-8')
+        assert args == ()
+        assert kwargs['encoding'] == 'UTF-8'
+        assert kwargs['nencoding'] == 'UTF-8'
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_encoding_with_nencoding(self, mock_connect):
@@ -97,9 +93,9 @@ class TestOracleHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
-        self.assertEqual(args, ())
-        self.assertEqual(kwargs['encoding'], 'UTF-8')
-        self.assertEqual(kwargs['nencoding'], 'gb2312')
+        assert args == ()
+        assert kwargs['encoding'] == 'UTF-8'
+        assert kwargs['nencoding'] == 'gb2312'
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_nencoding(self, mock_connect):
@@ -107,9 +103,9 @@ class TestOracleHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
-        self.assertEqual(args, ())
-        self.assertNotIn('encoding', kwargs)
-        self.assertEqual(kwargs['nencoding'], 'UTF-8')
+        assert args == ()
+        assert 'encoding' not in kwargs
+        assert kwargs['nencoding'] == 'UTF-8'
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_mode(self, mock_connect):
@@ -129,8 +125,8 @@ class TestOracleHookConn(unittest.TestCase):
                 assert mock_connect.call_count == 1
                 first = False
             args, kwargs = mock_connect.call_args
-            self.assertEqual(args, ())
-            self.assertEqual(kwargs['mode'], mode.get(mod))
+            assert args == ()
+            assert kwargs['mode'] == mode.get(mod)
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_threaded(self, mock_connect):
@@ -138,8 +134,8 @@ class TestOracleHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
-        self.assertEqual(args, ())
-        self.assertEqual(kwargs['threaded'], True)
+        assert args == ()
+        assert kwargs['threaded'] is True
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_events(self, mock_connect):
@@ -147,8 +143,8 @@ class TestOracleHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
-        self.assertEqual(args, ())
-        self.assertEqual(kwargs['events'], True)
+        assert args == ()
+        assert kwargs['events'] is True
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_purity(self, mock_connect):
@@ -165,8 +161,8 @@ class TestOracleHookConn(unittest.TestCase):
                 assert mock_connect.call_count == 1
                 first = False
             args, kwargs = mock_connect.call_args
-            self.assertEqual(args, ())
-            self.assertEqual(kwargs['purity'], purity.get(pur))
+            assert args == ()
+            assert kwargs['purity'] == purity.get(pur)
 
 
 @unittest.skipIf(cx_Oracle is None, 'cx_Oracle package not present')
@@ -281,4 +277,5 @@ class TestOracleHook(unittest.TestCase):
 
     def test_bulk_insert_rows_no_rows(self):
         rows = []
-        self.assertRaises(ValueError, self.db_hook.bulk_insert_rows, 'table', rows)
+        with pytest.raises(ValueError):
+            self.db_hook.bulk_insert_rows('table', rows)

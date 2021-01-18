@@ -30,6 +30,7 @@ MONGO_COLLECTION = 'example_collection'
 MONGO_QUERY = {"$lt": "{{ ts + 'Z' }}"}
 S3_BUCKET = 'example_bucket'
 S3_KEY = 'example_key'
+COMPRESSION = None
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 MOCK_MONGO_RETURN = [
@@ -53,19 +54,21 @@ class TestMongoToS3Operator(unittest.TestCase):
             s3_bucket=S3_BUCKET,
             s3_key=S3_KEY,
             dag=self.dag,
+            compression=COMPRESSION,
         )
 
     def test_init(self):
-        self.assertEqual(self.mock_operator.task_id, TASK_ID)
-        self.assertEqual(self.mock_operator.mongo_conn_id, MONGO_CONN_ID)
-        self.assertEqual(self.mock_operator.s3_conn_id, S3_CONN_ID)
-        self.assertEqual(self.mock_operator.mongo_collection, MONGO_COLLECTION)
-        self.assertEqual(self.mock_operator.mongo_query, MONGO_QUERY)
-        self.assertEqual(self.mock_operator.s3_bucket, S3_BUCKET)
-        self.assertEqual(self.mock_operator.s3_key, S3_KEY)
+        assert self.mock_operator.task_id == TASK_ID
+        assert self.mock_operator.mongo_conn_id == MONGO_CONN_ID
+        assert self.mock_operator.s3_conn_id == S3_CONN_ID
+        assert self.mock_operator.mongo_collection == MONGO_COLLECTION
+        assert self.mock_operator.mongo_query == MONGO_QUERY
+        assert self.mock_operator.s3_bucket == S3_BUCKET
+        assert self.mock_operator.s3_key == S3_KEY
+        assert self.mock_operator.compression == COMPRESSION
 
     def test_template_field_overrides(self):
-        self.assertEqual(self.mock_operator.template_fields, ['s3_key', 'mongo_query', 'mongo_collection'])
+        assert self.mock_operator.template_fields == ['s3_key', 'mongo_query', 'mongo_collection']
 
     def test_render_template(self):
         ti = TaskInstance(self.mock_operator, DEFAULT_DATE)
@@ -73,7 +76,7 @@ class TestMongoToS3Operator(unittest.TestCase):
 
         expected_rendered_template = {'$lt': '2017-01-01T00:00:00+00:00Z'}
 
-        self.assertDictEqual(expected_rendered_template, getattr(self.mock_operator, 'mongo_query'))
+        assert expected_rendered_template == getattr(self.mock_operator, 'mongo_query')
 
     @mock.patch('airflow.providers.amazon.aws.transfers.mongo_to_s3.MongoHook')
     @mock.patch('airflow.providers.amazon.aws.transfers.mongo_to_s3.S3Hook')
@@ -95,5 +98,28 @@ class TestMongoToS3Operator(unittest.TestCase):
         s3_doc_str = op_stringify(op_transform(MOCK_MONGO_RETURN))
 
         mock_s3_hook.return_value.load_string.assert_called_once_with(
-            string_data=s3_doc_str, key=S3_KEY, bucket_name=S3_BUCKET, replace=False
+            string_data=s3_doc_str, key=S3_KEY, bucket_name=S3_BUCKET, replace=False, compression=COMPRESSION
+        )
+
+    @mock.patch('airflow.providers.amazon.aws.transfers.mongo_to_s3.MongoHook')
+    @mock.patch('airflow.providers.amazon.aws.transfers.mongo_to_s3.S3Hook')
+    def test_execute_compress(self, mock_s3_hook, mock_mongo_hook):
+        operator = self.mock_operator
+        self.mock_operator.compression = 'gzip'
+        mock_mongo_hook.return_value.find.return_value = iter(MOCK_MONGO_RETURN)
+        mock_s3_hook.return_value.load_string.return_value = True
+
+        operator.execute(None)
+
+        mock_mongo_hook.return_value.find.assert_called_once_with(
+            mongo_collection=MONGO_COLLECTION, query=MONGO_QUERY, mongo_db=None
+        )
+
+        op_stringify = self.mock_operator._stringify
+        op_transform = self.mock_operator.transform
+
+        s3_doc_str = op_stringify(op_transform(MOCK_MONGO_RETURN))
+
+        mock_s3_hook.return_value.load_string.assert_called_once_with(
+            string_data=s3_doc_str, key=S3_KEY, bucket_name=S3_BUCKET, replace=False, compression='gzip'
         )

@@ -158,7 +158,7 @@ class TestCliUsers(unittest.TestCase):
             user_command.users_list(self.parser.parse_args(['users', 'list']))
             stdout = stdout.getvalue()
         for i in range(0, 3):
-            self.assertIn(f'user{i}', stdout)
+            assert f'user{i}' in stdout
 
     def test_cli_list_users_with_args(self):
         user_command.users_list(self.parser.parse_args(['users', 'list', '--output', 'json']))
@@ -166,11 +166,11 @@ class TestCliUsers(unittest.TestCase):
     def test_cli_import_users(self):
         def assert_user_in_roles(email, roles):
             for role in roles:
-                self.assertTrue(_does_user_belong_to_role(self.appbuilder, email, role))
+                assert _does_user_belong_to_role(self.appbuilder, email, role)
 
         def assert_user_not_in_roles(email, roles):
             for role in roles:
-                self.assertFalse(_does_user_belong_to_role(self.appbuilder, email, role))
+                assert not _does_user_belong_to_role(self.appbuilder, email, role)
 
         assert_user_not_in_roles(TEST_USER1_EMAIL, ['Admin', 'Op'])
         assert_user_not_in_roles(TEST_USER2_EMAIL, ['Public'])
@@ -250,8 +250,8 @@ class TestCliUsers(unittest.TestCase):
             matches[0].pop('id')  # this key not required for import
             return matches[0]
 
-        self.assertEqual(find_by_username('imported_user1'), user1)
-        self.assertEqual(find_by_username('imported_user2'), user2)
+        assert find_by_username('imported_user1') == user1
+        assert find_by_username('imported_user2') == user2
 
     def _import_users_from_file(self, user_list):
         json_file_content = json.dumps(user_list)
@@ -291,18 +291,16 @@ class TestCliUsers(unittest.TestCase):
         )
         user_command.users_create(args)
 
-        self.assertFalse(
-            _does_user_belong_to_role(appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Op'),
-            "User should not yet be a member of role 'Op'",
-        )
+        assert not _does_user_belong_to_role(
+            appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Op'
+        ), "User should not yet be a member of role 'Op'"
 
         args = self.parser.parse_args(['users', 'add-role', '--username', 'test4', '--role', 'Op'])
         user_command.users_manage_role(args, remove=False)
 
-        self.assertTrue(
-            _does_user_belong_to_role(appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Op'),
-            "User should have been added to role 'Op'",
-        )
+        assert _does_user_belong_to_role(
+            appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Op'
+        ), "User should have been added to role 'Op'"
 
     def test_cli_remove_user_role(self):
         args = self.parser.parse_args(
@@ -324,15 +322,13 @@ class TestCliUsers(unittest.TestCase):
         )
         user_command.users_create(args)
 
-        self.assertTrue(
-            _does_user_belong_to_role(appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Viewer'),
-            "User should have been created with role 'Viewer'",
-        )
+        assert _does_user_belong_to_role(
+            appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Viewer'
+        ), "User should have been created with role 'Viewer'"
 
         args = self.parser.parse_args(['users', 'remove-role', '--username', 'test4', '--role', 'Viewer'])
         user_command.users_manage_role(args, remove=True)
 
-        self.assertFalse(
-            _does_user_belong_to_role(appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Viewer'),
-            "User should have been removed from role 'Viewer'",
-        )
+        assert not _does_user_belong_to_role(
+            appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Viewer'
+        ), "User should have been removed from role 'Viewer'"

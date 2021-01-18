@@ -18,6 +18,7 @@
 import unittest
 from unittest import mock
 
+import pytest
 from google.cloud.dataproc_v1beta2.types import JobStatus
 
 from airflow import AirflowException
@@ -61,7 +62,7 @@ class TestDataprocJobSensor(unittest.TestCase):
         mock_hook.return_value.get_job.assert_called_once_with(
             job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
         )
-        self.assertTrue(ret)
+        assert ret
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_error(self, mock_hook):
@@ -78,7 +79,7 @@ class TestDataprocJobSensor(unittest.TestCase):
             timeout=TIMEOUT,
         )
 
-        with self.assertRaisesRegex(AirflowException, "Job failed"):
+        with pytest.raises(AirflowException, match="Job failed"):
             sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(
@@ -104,7 +105,7 @@ class TestDataprocJobSensor(unittest.TestCase):
         mock_hook.return_value.get_job.assert_called_once_with(
             job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
         )
-        self.assertFalse(ret)
+        assert not ret
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_cancelled(self, mock_hook):
@@ -120,7 +121,7 @@ class TestDataprocJobSensor(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             timeout=TIMEOUT,
         )
-        with self.assertRaisesRegex(AirflowException, "Job was cancelled"):
+        with pytest.raises(AirflowException, match="Job was cancelled"):
             sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(

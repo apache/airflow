@@ -32,8 +32,8 @@ class GitSyncWorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        self.assertEqual("config", jmespath.search("spec.template.spec.volumes[0].name", docs[0]))
-        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
+        assert "config" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
+        assert "dags" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
 
     def test_should_add_dags_volume_to_the_worker_if_git_sync_is_enabled_and_persistence_is_disabled(self):
         docs = render_chart(
@@ -44,8 +44,8 @@ class GitSyncWorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        self.assertEqual("config", jmespath.search("spec.template.spec.volumes[0].name", docs[0]))
-        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
+        assert "config" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
+        assert "dags" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
 
     def test_should_add_git_sync_container_to_worker_if_persistence_is_not_enabled_but_git_sync_is(self):
         docs = render_chart(
@@ -59,7 +59,7 @@ class GitSyncWorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        self.assertEqual("git-sync", jmespath.search("spec.template.spec.containers[0].name", docs[0]))
+        assert "git-sync" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
     def test_should_not_add_sync_container_to_worker_if_git_sync_and_persistence_are_enabled(self):
         docs = render_chart(
@@ -73,4 +73,4 @@ class GitSyncWorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        self.assertNotEqual("git-sync", jmespath.search("spec.template.spec.containers[0].name", docs[0]))
+        assert "git-sync" != jmespath.search("spec.template.spec.containers[0].name", docs[0])

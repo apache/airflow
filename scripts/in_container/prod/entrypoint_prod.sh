@@ -52,11 +52,12 @@ function verify_db_connection {
 
     if [[ ${DB_URL} != sqlite* ]]; then
         # Auto-detect DB parameters
-        [[ ${DB_URL} =~ ([^:]*)://([^@/]*)@?([^/:]*):?([0-9]*)/([^\?]*)\??(.*) ]] && \
+        [[ ${DB_URL} =~ ([^:]*)://([^:]*[@.*]?):([^@]*)@?([^/:]*):?([0-9]*)/([^\?]*)\??(.*) ]] && \
             DETECTED_DB_BACKEND=${BASH_REMATCH[1]} &&
             # Not used USER match
-            DETECTED_DB_HOST=${BASH_REMATCH[3]} &&
-            DETECTED_DB_PORT=${BASH_REMATCH[4]} &&
+            # Not used PASSWORD match
+            DETECTED_DB_HOST=${BASH_REMATCH[4]} &&
+            DETECTED_DB_PORT=${BASH_REMATCH[5]} &&
             # Not used SCHEMA match
             # Not used PARAMS match
 

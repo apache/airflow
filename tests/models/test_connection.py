@@ -21,6 +21,7 @@ import unittest
 from collections import namedtuple
 from unittest import mock
 
+import pytest
 import sqlalchemy
 from cryptography.fernet import Fernet
 from parameterized import parameterized
@@ -72,8 +73,8 @@ class TestConnection(unittest.TestCase):
         encryption.
         """
         test_connection = Connection(extra='testextra')
-        self.assertFalse(test_connection.is_extra_encrypted)
-        self.assertEqual(test_connection.extra, 'testextra')
+        assert not test_connection.is_extra_encrypted
+        assert test_connection.extra == 'testextra'
 
     @conf_vars({('core', 'fernet_key'): Fernet.generate_key().decode()})
     def test_connection_extra_with_encryption(self):
@@ -81,8 +82,8 @@ class TestConnection(unittest.TestCase):
         Tests extras on a new connection with encryption.
         """
         test_connection = Connection(extra='testextra')
-        self.assertTrue(test_connection.is_extra_encrypted)
-        self.assertEqual(test_connection.extra, 'testextra')
+        assert test_connection.is_extra_encrypted
+        assert test_connection.extra == 'testextra'
 
     def test_connection_extra_with_encryption_rotate_fernet_key(self):
         """
@@ -93,20 +94,20 @@ class TestConnection(unittest.TestCase):
 
         with conf_vars({('core', 'fernet_key'): key1.decode()}):
             test_connection = Connection(extra='testextra')
-            self.assertTrue(test_connection.is_extra_encrypted)
-            self.assertEqual(test_connection.extra, 'testextra')
-            self.assertEqual(Fernet(key1).decrypt(test_connection._extra.encode()), b'testextra')
+            assert test_connection.is_extra_encrypted
+            assert test_connection.extra == 'testextra'
+            assert Fernet(key1).decrypt(test_connection._extra.encode()) == b'testextra'
 
         # Test decrypt of old value with new key
         with conf_vars({('core', 'fernet_key'): ','.join([key2.decode(), key1.decode()])}):
             crypto._fernet = None
-            self.assertEqual(test_connection.extra, 'testextra')
+            assert test_connection.extra == 'testextra'
 
             # Test decrypt of new value with new key
             test_connection.rotate_fernet_key()
-            self.assertTrue(test_connection.is_extra_encrypted)
-            self.assertEqual(test_connection.extra, 'testextra')
-            self.assertEqual(Fernet(key2).decrypt(test_connection._extra.encode()), b'testextra')
+            assert test_connection.is_extra_encrypted
+            assert test_connection.extra == 'testextra'
+            assert Fernet(key2).decrypt(test_connection._extra.encode()) == b'testextra'
 
     test_from_uri_params = [
         UriTestCaseConfig(
@@ -297,11 +298,11 @@ class TestConnection(unittest.TestCase):
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
             actual_val = getattr(connection, conn_attr)
             if expected_val is None:
-                self.assertIsNone(expected_val)
+                assert expected_val is None
             if isinstance(expected_val, dict):
-                self.assertDictEqual(expected_val, actual_val)
+                assert expected_val == actual_val
             else:
-                self.assertEqual(expected_val, actual_val)
+                assert expected_val == actual_val
 
     # pylint: disable=undefined-variable
     @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
@@ -317,13 +318,13 @@ class TestConnection(unittest.TestCase):
         connection = Connection(uri=test_config.test_uri)
         generated_uri = connection.get_uri()
         new_conn = Connection(uri=generated_uri)
-        self.assertEqual(connection.conn_type, new_conn.conn_type)
-        self.assertEqual(connection.login, new_conn.login)
-        self.assertEqual(connection.password, new_conn.password)
-        self.assertEqual(connection.host, new_conn.host)
-        self.assertEqual(connection.port, new_conn.port)
-        self.assertEqual(connection.schema, new_conn.schema)
-        self.assertDictEqual(connection.extra_dejson, new_conn.extra_dejson)
+        assert connection.conn_type == new_conn.conn_type
+        assert connection.login == new_conn.login
+        assert connection.password == new_conn.password
+        assert connection.host == new_conn.host
+        assert connection.port == new_conn.port
+        assert connection.schema == new_conn.schema
+        assert connection.extra_dejson == new_conn.extra_dejson
 
     # pylint: disable=undefined-variable
     @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
@@ -350,11 +351,11 @@ class TestConnection(unittest.TestCase):
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
             actual_val = getattr(new_conn, conn_attr)
             if expected_val is None:
-                self.assertIsNone(expected_val)
+                assert expected_val is None
             if isinstance(expected_val, dict):
-                self.assertDictEqual(expected_val, actual_val)
+                assert expected_val == actual_val
             else:
-                self.assertEqual(expected_val, actual_val)
+                assert expected_val == actual_val
 
     @parameterized.expand(
         [
@@ -426,12 +427,12 @@ class TestConnection(unittest.TestCase):
     def test_connection_from_with_auth_info(self, uri, uri_parts):
         connection = Connection(uri=uri)
 
-        self.assertEqual(connection.conn_type, uri_parts.conn_type)
-        self.assertEqual(connection.login, uri_parts.login)
-        self.assertEqual(connection.password, uri_parts.password)
-        self.assertEqual(connection.host, uri_parts.host)
-        self.assertEqual(connection.port, uri_parts.port)
-        self.assertEqual(connection.schema, uri_parts.schema)
+        assert connection.conn_type == uri_parts.conn_type
+        assert connection.login == uri_parts.login
+        assert connection.password == uri_parts.password
+        assert connection.host == uri_parts.host
+        assert connection.port == uri_parts.port
+        assert connection.schema == uri_parts.schema
 
     @mock.patch.dict(
         'os.environ',
@@ -441,11 +442,11 @@ class TestConnection(unittest.TestCase):
     )
     def test_using_env_var(self):
         conn = SqliteHook.get_connection(conn_id='test_uri')
-        self.assertEqual('ec2.compute.com', conn.host)
-        self.assertEqual('the_database', conn.schema)
-        self.assertEqual('username', conn.login)
-        self.assertEqual('password', conn.password)
-        self.assertEqual(5432, conn.port)
+        assert 'ec2.compute.com' == conn.host
+        assert 'the_database' == conn.schema
+        assert 'username' == conn.login
+        assert 'password' == conn.password
+        assert 5432 == conn.port
 
     @mock.patch.dict(
         'os.environ',
@@ -455,11 +456,11 @@ class TestConnection(unittest.TestCase):
     )
     def test_using_unix_socket_env_var(self):
         conn = SqliteHook.get_connection(conn_id='test_uri_no_creds')
-        self.assertEqual('ec2.compute.com', conn.host)
-        self.assertEqual('the_database', conn.schema)
-        self.assertIsNone(conn.login)
-        self.assertIsNone(conn.password)
-        self.assertIsNone(conn.port)
+        assert 'ec2.compute.com' == conn.host
+        assert 'the_database' == conn.schema
+        assert conn.login is None
+        assert conn.password is None
+        assert conn.port is None
 
     def test_param_setup(self):
         conn = Connection(
@@ -470,15 +471,15 @@ class TestConnection(unittest.TestCase):
             password='airflow',
             schema='airflow',
         )
-        self.assertEqual('localhost', conn.host)
-        self.assertEqual('airflow', conn.schema)
-        self.assertEqual('airflow', conn.login)
-        self.assertEqual('airflow', conn.password)
-        self.assertIsNone(conn.port)
+        assert 'localhost' == conn.host
+        assert 'airflow' == conn.schema
+        assert 'airflow' == conn.login
+        assert 'airflow' == conn.password
+        assert conn.port is None
 
     def test_env_var_priority(self):
         conn = SqliteHook.get_connection(conn_id='airflow_db')
-        self.assertNotEqual('ec2.compute.com', conn.host)
+        assert 'ec2.compute.com' != conn.host
 
         with mock.patch.dict(
             'os.environ',
@@ -487,11 +488,11 @@ class TestConnection(unittest.TestCase):
             },
         ):
             conn = SqliteHook.get_connection(conn_id='airflow_db')
-            self.assertEqual('ec2.compute.com', conn.host)
-            self.assertEqual('the_database', conn.schema)
-            self.assertEqual('username', conn.login)
-            self.assertEqual('password', conn.password)
-            self.assertEqual(5432, conn.port)
+            assert 'ec2.compute.com' == conn.host
+            assert 'the_database' == conn.schema
+            assert 'username' == conn.login
+            assert 'password' == conn.password
+            assert 5432 == conn.port
 
     @mock.patch.dict(
         'os.environ',
@@ -503,10 +504,10 @@ class TestConnection(unittest.TestCase):
     def test_dbapi_get_uri(self):
         conn = BaseHook.get_connection(conn_id='test_uri')
         hook = conn.get_hook()
-        self.assertEqual('postgres://username:password@ec2.compute.com:5432/the_database', hook.get_uri())
+        assert 'postgres://username:password@ec2.compute.com:5432/the_database' == hook.get_uri()
         conn2 = BaseHook.get_connection(conn_id='test_uri_no_creds')
         hook2 = conn2.get_hook()
-        self.assertEqual('postgres://ec2.compute.com/the_database', hook2.get_uri())
+        assert 'postgres://ec2.compute.com/the_database' == hook2.get_uri()
 
     @mock.patch.dict(
         'os.environ',
@@ -519,8 +520,8 @@ class TestConnection(unittest.TestCase):
         conn = BaseHook.get_connection(conn_id='test_uri')
         hook = conn.get_hook()
         engine = hook.get_sqlalchemy_engine()
-        self.assertIsInstance(engine, sqlalchemy.engine.Engine)
-        self.assertEqual('postgres://username:password@ec2.compute.com:5432/the_database', str(engine.url))
+        assert isinstance(engine, sqlalchemy.engine.Engine)
+        assert 'postgres://username:password@ec2.compute.com:5432/the_database' == str(engine.url)
 
     @mock.patch.dict(
         'os.environ',
@@ -539,9 +540,9 @@ class TestConnection(unittest.TestCase):
         assert conns[0].port == 5432
 
     def test_connection_mixed(self):
-        with self.assertRaisesRegex(
+        with pytest.raises(
             AirflowException,
-            re.escape(
+            match=re.escape(
                 "You must create an object using the URI or individual values (conn_type, host, login, "
                 "password, schema, port or extra).You can't mix these two ways to create this object."
             ),

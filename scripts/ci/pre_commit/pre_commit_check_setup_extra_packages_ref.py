@@ -260,7 +260,6 @@ if __name__ == '__main__':
     status: List[bool] = []
     # force adding all provider package dependencies, to check providers status
     add_all_provider_packages()
-
     main_console = Console()
     status.append(check_regular_extras(main_console))
     status.append(check_deprecated_extras(main_console))

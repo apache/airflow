@@ -84,10 +84,10 @@ class TestLocalTaskJob(unittest.TestCase):
         essential_attr = ["dag_id", "job_type", "start_date", "hostname"]
 
         check_result_1 = [hasattr(job1, attr) for attr in essential_attr]
-        self.assertTrue(all(check_result_1))
+        assert all(check_result_1)
 
         check_result_2 = [getattr(job1, attr) is not None for attr in essential_attr]
-        self.assertTrue(all(check_result_2))
+        assert all(check_result_2)
 
     @patch('os.getpid')
     def test_localtaskjob_heartbeat(self, mock_pid):
@@ -111,7 +111,8 @@ class TestLocalTaskJob(unittest.TestCase):
         session.commit()
 
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
-        self.assertRaises(AirflowException, job1.heartbeat_callback)
+        with pytest.raises(AirflowException):
+            job1.heartbeat_callback()  # pylint: disable=no-value-for-parameter
 
         mock_pid.return_value = 1
         ti.state = State.RUNNING
@@ -123,7 +124,8 @@ class TestLocalTaskJob(unittest.TestCase):
         job1.heartbeat_callback(session=None)
 
         mock_pid.return_value = 2
-        self.assertRaises(AirflowException, job1.heartbeat_callback)
+        with pytest.raises(AirflowException):
+            job1.heartbeat_callback()  # pylint: disable=no-value-for-parameter
 
     def test_heartbeat_failed_fast(self):
         """
@@ -160,13 +162,13 @@ class TestLocalTaskJob(unittest.TestCase):
             heartbeat_records = []
             job.heartbeat_callback = lambda session: heartbeat_records.append(job.latest_heartbeat)
             job._execute()
-            self.assertGreater(len(heartbeat_records), 2)
+            assert len(heartbeat_records) > 2
             for i in range(1, len(heartbeat_records)):
                 time1 = heartbeat_records[i - 1]
                 time2 = heartbeat_records[i]
                 # Assert that difference small enough
                 delta = (time2 - time1).total_seconds()
-                self.assertAlmostEqual(delta, job.heartrate, delta=0.05)
+                assert abs(delta - job.heartrate) < 0.05
 
     @pytest.mark.quarantined
     def test_mark_success_no_kill(self):
@@ -202,15 +204,15 @@ class TestLocalTaskJob(unittest.TestCase):
                 break
             time.sleep(0.1)
             ti.refresh_from_db()
-        self.assertEqual(State.RUNNING, ti.state)
+        assert State.RUNNING == ti.state
         ti.state = State.SUCCESS
         session.merge(ti)
         session.commit()
 
         process.join(timeout=10)
-        self.assertFalse(process.is_alive())
+        assert not process.is_alive()
         ti.refresh_from_db()
-        self.assertEqual(State.SUCCESS, ti.state)
+        assert State.SUCCESS == ti.state
 
     def test_localtaskjob_double_trigger(self):
         dagbag = DagBag(
@@ -247,8 +249,8 @@ class TestLocalTaskJob(unittest.TestCase):
             mock_method.assert_not_called()
 
         ti = dr.get_task_instance(task_id=task.task_id, session=session)
-        self.assertEqual(ti.pid, 1)
-        self.assertEqual(ti.state, State.RUNNING)
+        assert ti.pid == 1
+        assert ti.state == State.RUNNING
 
         session.close()
 
@@ -290,18 +292,18 @@ class TestLocalTaskJob(unittest.TestCase):
             with patch.object(StandardTaskRunner, 'return_code') as mock_ret_code:
                 mock_ret_code.side_effect = multi_return_code
                 job1.run()
-                self.assertEqual(mock_start.call_count, 1)
-                self.assertEqual(mock_ret_code.call_count, 2)
+                assert mock_start.call_count == 1
+                assert mock_ret_code.call_count == 2
         time_end = time.time()
 
-        self.assertEqual(self.mock_base_job_sleep.call_count, 1)
-        self.assertEqual(job1.state, State.SUCCESS)
+        assert self.mock_base_job_sleep.call_count == 1
+        assert job1.state == State.SUCCESS
 
         # Consider we have patched sleep call, it should not be sleeping to
         # keep up with the heart rate in other unpatched places
         #
         # We already make sure patched sleep call is only called once
-        self.assertLess(time_end - time_start, job1.heartrate)
+        assert time_end - time_start < job1.heartrate
         session.close()
 
     def test_mark_failure_on_failure_callback(self):
@@ -312,13 +314,13 @@ class TestLocalTaskJob(unittest.TestCase):
         data = {'called': False}
 
         def check_failure(context):
-            self.assertEqual(context['dag_run'].dag_id, 'test_mark_failure')
+            assert context['dag_run'].dag_id == 'test_mark_failure'
             data['called'] = True
 
         def task_function(ti):
             print("python_callable run in pid %s", os.getpid())
             with create_session() as session:
-                self.assertEqual(State.RUNNING, ti.state)
+                assert State.RUNNING == ti.state
                 ti.log.info("Marking TI as failed 'externally'")
                 ti.state = State.FAILED
                 session.merge(ti)
@@ -355,11 +357,9 @@ class TestLocalTaskJob(unittest.TestCase):
             job1.run()
 
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.FAILED)
-        self.assertTrue(data['called'])
-        self.assertNotIn(
-            'reached_end_of_sleep', data, 'Task should not have been allowed to run to completion'
-        )
+        assert ti.state == State.FAILED
+        assert data['called']
+        assert 'reached_end_of_sleep' not in data, 'Task should not have been allowed to run to completion'
 
     @pytest.mark.quarantined
     def test_mark_success_on_success_callback(self):
@@ -370,7 +370,7 @@ class TestLocalTaskJob(unittest.TestCase):
         data = {'called': False}
 
         def success_callback(context):
-            self.assertEqual(context['dag_run'].dag_id, 'test_mark_success')
+            assert context['dag_run'].dag_id == 'test_mark_success'
             data['called'] = True
 
         dag = DAG(dag_id='test_mark_success', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
@@ -401,15 +401,15 @@ class TestLocalTaskJob(unittest.TestCase):
                 break
             time.sleep(0.1)
             ti.refresh_from_db()
-        self.assertEqual(State.RUNNING, ti.state)
+        assert State.RUNNING == ti.state
         ti.state = State.SUCCESS
         session.merge(ti)
         session.commit()
 
         job1.heartbeat_callback(session=None)
-        self.assertTrue(data['called'])
+        assert data['called']
         process.join(timeout=10)
-        self.assertFalse(process.is_alive())
+        assert not process.is_alive()
 
 
 @pytest.fixture()

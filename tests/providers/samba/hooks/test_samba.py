@@ -20,6 +20,7 @@ import unittest
 from unittest import mock
 from unittest.mock import call
 
+import pytest
 import smbclient
 
 from airflow.exceptions import AirflowException
@@ -31,7 +32,7 @@ connection = Connection(host='ip', schema='share', login='username', password='p
 
 class TestSambaHook(unittest.TestCase):
     def test_get_conn_should_fail_if_conn_id_does_not_exist(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             SambaHook('conn')
 
     @mock.patch('airflow.hooks.base.BaseHook.get_connection')
@@ -39,7 +40,7 @@ class TestSambaHook(unittest.TestCase):
         get_conn_mock.return_value = connection
         hook = SambaHook('samba_default')
 
-        self.assertEqual(smbclient.SambaClient, type(hook.get_conn()))
+        assert isinstance(hook.get_conn(), smbclient.SambaClient)
         get_conn_mock.assert_called_once_with('samba_default')
 
     @mock.patch('airflow.providers.samba.hooks.samba.SambaHook.get_conn')

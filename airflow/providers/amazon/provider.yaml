@@ -336,6 +336,9 @@ transfers:
   - source-integration-name: SSH File Transfer Protocol (SFTP)
     target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.amazon.aws.transfers.sftp_to_s3
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: File Transfer Protocol (FTP)
+    python-module: airflow.providers.amazon.aws.transfers.s3_to_ftp
 
 hook-class-names:
   - airflow.providers.amazon.aws.hooks.s3.S3Hook

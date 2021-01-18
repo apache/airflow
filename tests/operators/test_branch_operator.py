@@ -83,12 +83,12 @@ class TestBranchOperator(unittest.TestCase):
 
             for ti in tis:
                 if ti.task_id == 'make_choice':
-                    self.assertEqual(ti.state, State.SUCCESS)
+                    assert ti.state == State.SUCCESS
                 elif ti.task_id == 'branch_1':
                     # should exist with state None
-                    self.assertEqual(ti.state, State.NONE)
+                    assert ti.state == State.NONE
                 elif ti.task_id == 'branch_2':
-                    self.assertEqual(ti.state, State.SKIPPED)
+                    assert ti.state == State.SKIPPED
                 else:
                     raise Exception
 
@@ -115,7 +115,7 @@ class TestBranchOperator(unittest.TestCase):
 
             for ti in tis:
                 if ti.task_id in expected:
-                    self.assertEqual(ti.state, expected[ti.task_id])
+                    assert ti.state == expected[ti.task_id]
                 else:
                     raise Exception
 
@@ -137,11 +137,11 @@ class TestBranchOperator(unittest.TestCase):
         tis = dagrun.get_task_instances()
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEqual(ti.state, State.SUCCESS)
+                assert ti.state == State.SUCCESS
             elif ti.task_id == 'branch_1':
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.SKIPPED)
+                assert ti.state == State.SKIPPED
             else:
                 raise Exception
 
@@ -163,10 +163,10 @@ class TestBranchOperator(unittest.TestCase):
         tis = dagrun.get_task_instances()
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEqual(ti.state, State.SUCCESS)
+                assert ti.state == State.SUCCESS
             elif ti.task_id == 'branch_1':
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             else:
                 raise Exception

@@ -428,53 +428,33 @@ way as when you enter the environment. You can do it multiple times and open as 
     </div>
 
 
-CLIs for cloud providers
-------------------------
+Additional tools
+----------------
 
-For development convenience we installed simple wrappers for the most common cloud providers CLIs. Those
-CLIs are not installed when you build or pull the image - they will be downloaded as docker images
-the first time you attempt to use them. It is downloaded and executed in your host's docker engine so once
-it is downloaded, it will stay until you remove the downloaded images from your host container.
+To shrink a Docker image, not all tools are installed in the Docker image. Some of you have to install
+or yourself, but we made sure it was an easy process.
 
-For each of those CLI credentials are taken (automatically) from the credentials you have defined in
-your ${HOME} directory on host.
+Additional tools are installed in ``/files/bin``. This path is added to ``$PATH``, so you shell will
+automatically autocomplete files that are in that directory. You can also keep your tools in this directory
+if you need to.
 
-Those tools also have host Airflow source directory mounted in /opt/airflow path
-so you can directly transfer files to/from your airflow host sources.
+**Installation scripts**
 
-Those are currently installed CLIs (they are available as aliases to the docker commands):
+For the development convenience, we also provided install script for common used tools. They are
+installed to ``/files/opt/``, so they are preserved after restarting the Breeze environment. Each script
+is also available in ``$PATH``, so just type ``install_<TAB>`` to get a list of tools.
 
-+-----------------------+----------+-------------------------------------------------+-------------------+
-| Cloud Provider        | CLI tool | Docker image                                    | Configuration dir |
-+=======================+==========+=================================================+===================+
-| Amazon Web Services   | aws      | amazon/aws-cli:latest                           | .aws              |
-+-----------------------+----------+-------------------------------------------------+-------------------+
-| Microsoft Azure       | az       | mcr.microsoft.com/azure-cli:latest              | .azure            |
-+-----------------------+----------+-------------------------------------------------+-------------------+
-| Google Cloud          | bq       | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
-|                       +----------+-------------------------------------------------+-------------------+
-|                       | gcloud   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
-|                       +----------+-------------------------------------------------+-------------------+
-|                       | gsutil   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
-+-----------------------+----------+-------------------------------------------------+-------------------+
+Currently available scripts:
 
-For each of the CLIs we have also an accompanying ``*-update`` alias (for example ``aws-update``) which
-will pull the latest image for the tool. Note that all Google Cloud tools are served by one
-image and they are updated together.
-
-Also - in case you run several different Breeze containers in parallel (from different directories,
-with different versions) - they docker images for CLI Cloud Providers tools are shared so if you update it
-for one Breeze container, they will also get updated for all the other containers.
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1072">
-        <img src="images/breeze/overlayed_breeze_cloud_tools.png" width="640"
-             alt="Airflow Breeze - Cloud tools">
-      </a>
-    </div>
-
+* ``install_aws.sh`` - installs `the AWS CLI <https://aws.amazon.com/cli/>`__ including
+* ``install_az.sh`` - installs `the Azure CLI <https://github.com/Azure/azure-cli>`__ including
+* ``install_gcloud.sh`` - installs `the Google Cloud SDK <https://cloud.google.com/sdk>`__ including
+  ``gcloud``, ``gsutil``.
+* ``install_imgcat.sh`` - installs `imgcat - Inline Images Protocol <https://iterm2.com/documentation-images.html>`__
+  for iTem2 (Mac OS only)
+* ``install_java.sh`` - installs `the OpenJDK 8u41 <https://openjdk.java.net/>`__
+* ``install_kubectl.sh`` - installs `the Kubernetes command-line tool, kubectl <https://kubernetes.io/docs/reference/kubectl/kubectl/>`__
+* ``install_terraform.sh`` - installs `the Terraform <https://www.terraform.io/docs/index.html>`__
 
 Launching Breeze integrations
 -----------------------------
@@ -1299,6 +1279,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image.
           This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
+  --installation-method INSTALLATION_METHOD
+          Method of installing airflow - either from the sources ('.') or from package
+          'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
@@ -1309,6 +1295,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --upgrade-to-newer-dependencies
           Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  --continue-on-pip-check-failure
+          Continue even if 'pip check' fails.
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -2410,6 +2399,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image.
           This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
+  --installation-method INSTALLATION_METHOD
+          Method of installing airflow - either from the sources ('.') or from package
+          'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
@@ -2420,6 +2415,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --upgrade-to-newer-dependencies
           Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  --continue-on-pip-check-failure
+          Continue even if 'pip check' fails.
 
   ****************************************************************************************************
    Credentials

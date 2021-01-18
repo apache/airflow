@@ -118,31 +118,31 @@ class TestSparkSubmitOperator(unittest.TestCase):
             'spark_binary': 'sparky',
         }
 
-        self.assertEqual(conn_id, operator._conn_id)
-        self.assertEqual(expected_dict['application'], operator._application)
-        self.assertEqual(expected_dict['conf'], operator._conf)
-        self.assertEqual(expected_dict['files'], operator._files)
-        self.assertEqual(expected_dict['py_files'], operator._py_files)
-        self.assertEqual(expected_dict['archives'], operator._archives)
-        self.assertEqual(expected_dict['driver_class_path'], operator._driver_class_path)
-        self.assertEqual(expected_dict['jars'], operator._jars)
-        self.assertEqual(expected_dict['packages'], operator._packages)
-        self.assertEqual(expected_dict['exclude_packages'], operator._exclude_packages)
-        self.assertEqual(expected_dict['repositories'], operator._repositories)
-        self.assertEqual(expected_dict['total_executor_cores'], operator._total_executor_cores)
-        self.assertEqual(expected_dict['executor_cores'], operator._executor_cores)
-        self.assertEqual(expected_dict['executor_memory'], operator._executor_memory)
-        self.assertEqual(expected_dict['keytab'], operator._keytab)
-        self.assertEqual(expected_dict['principal'], operator._principal)
-        self.assertEqual(expected_dict['proxy_user'], operator._proxy_user)
-        self.assertEqual(expected_dict['name'], operator._name)
-        self.assertEqual(expected_dict['num_executors'], operator._num_executors)
-        self.assertEqual(expected_dict['status_poll_interval'], operator._status_poll_interval)
-        self.assertEqual(expected_dict['verbose'], operator._verbose)
-        self.assertEqual(expected_dict['java_class'], operator._java_class)
-        self.assertEqual(expected_dict['driver_memory'], operator._driver_memory)
-        self.assertEqual(expected_dict['application_args'], operator._application_args)
-        self.assertEqual(expected_dict['spark_binary'], operator._spark_binary)
+        assert conn_id == operator._conn_id
+        assert expected_dict['application'] == operator._application
+        assert expected_dict['conf'] == operator._conf
+        assert expected_dict['files'] == operator._files
+        assert expected_dict['py_files'] == operator._py_files
+        assert expected_dict['archives'] == operator._archives
+        assert expected_dict['driver_class_path'] == operator._driver_class_path
+        assert expected_dict['jars'] == operator._jars
+        assert expected_dict['packages'] == operator._packages
+        assert expected_dict['exclude_packages'] == operator._exclude_packages
+        assert expected_dict['repositories'] == operator._repositories
+        assert expected_dict['total_executor_cores'] == operator._total_executor_cores
+        assert expected_dict['executor_cores'] == operator._executor_cores
+        assert expected_dict['executor_memory'] == operator._executor_memory
+        assert expected_dict['keytab'] == operator._keytab
+        assert expected_dict['principal'] == operator._principal
+        assert expected_dict['proxy_user'] == operator._proxy_user
+        assert expected_dict['name'] == operator._name
+        assert expected_dict['num_executors'] == operator._num_executors
+        assert expected_dict['status_poll_interval'] == operator._status_poll_interval
+        assert expected_dict['verbose'] == operator._verbose
+        assert expected_dict['java_class'] == operator._java_class
+        assert expected_dict['driver_memory'] == operator._driver_memory
+        assert expected_dict['application_args'] == operator._application_args
+        assert expected_dict['spark_binary'] == operator._spark_binary
 
     def test_render_template(self):
         # Given
@@ -166,5 +166,5 @@ class TestSparkSubmitOperator(unittest.TestCase):
             'args should keep embdedded spaces',
         ]
         expected_name = 'spark_submit_job'
-        self.assertListEqual(expected_application_args, getattr(operator, '_application_args'))
-        self.assertEqual(expected_name, getattr(operator, '_name'))
+        assert expected_application_args == getattr(operator, '_application_args')
+        assert expected_name == getattr(operator, '_name')

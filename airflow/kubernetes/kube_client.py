@@ -58,6 +58,11 @@ try:
         else:
             return client.CoreV1Api()
 
+    def _disable_verify_ssl() -> None:
+        configuration = Configuration()
+        configuration.verify_ssl = False
+        Configuration.set_default(configuration)
+
 
 except ImportError as e:
     # We need an exception class to be able to use it in ``except`` elsewhere
@@ -122,6 +127,9 @@ def get_kube_client(
 
     if conf.getboolean('kubernetes', 'enable_tcp_keepalive', fallback=False):
         _enable_tcp_keepalive()
+
+    if not conf.getboolean('kubernetes', 'verify_ssl', fallback=True):
+        _disable_verify_ssl()
 
     client_conf = _get_kube_config(in_cluster, cluster_context, config_file)
     return _get_client_with_patched_configuration(client_conf)

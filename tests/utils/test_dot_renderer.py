@@ -45,14 +45,14 @@ class TestDotRenderer(unittest.TestCase):
         dot = dot_renderer.render_dag(dag)
         source = dot.source
         # Should render DAG title
-        self.assertIn("label=DAG_ID", source)
-        self.assertIn("first", source)
-        self.assertIn("second", source)
-        self.assertIn("third", source)
-        self.assertIn("first -> second", source)
-        self.assertIn("first -> third", source)
-        self.assertIn('fillcolor="#f0ede4"', source)
-        self.assertIn('fillcolor="#f0ede4"', source)
+        assert "label=DAG_ID" in source
+        assert "first" in source
+        assert "second" in source
+        assert "third" in source
+        assert "first -> second" in source
+        assert "first -> third" in source
+        assert 'fillcolor="#f0ede4"' in source
+        assert 'fillcolor="#f0ede4"' in source
 
     def test_should_render_dag_with_task_instances(self):
         dag = DAG(dag_id="DAG_ID")
@@ -71,10 +71,10 @@ class TestDotRenderer(unittest.TestCase):
         dot = dot_renderer.render_dag(dag, tis=tis)
         source = dot.source
         # Should render DAG title
-        self.assertIn("label=DAG_ID", source)
-        self.assertIn('first [color=black fillcolor=tan shape=rectangle style="filled,rounded"]', source)
-        self.assertIn('second [color=white fillcolor=green shape=rectangle style="filled,rounded"]', source)
-        self.assertIn('third [color=black fillcolor=lime shape=rectangle style="filled,rounded"]', source)
+        assert "label=DAG_ID" in source
+        assert 'first [color=black fillcolor=tan shape=rectangle style="filled,rounded"]' in source
+        assert 'second [color=white fillcolor=green shape=rectangle style="filled,rounded"]' in source
+        assert 'third [color=black fillcolor=lime shape=rectangle style="filled,rounded"]' in source
 
     def test_should_render_dag_orientation(self):
         orientation = "TB"
@@ -94,8 +94,8 @@ class TestDotRenderer(unittest.TestCase):
         dot = dot_renderer.render_dag(dag, tis=tis)
         source = dot.source
         # Should render DAG title with orientation
-        self.assertIn("label=DAG_ID", source)
-        self.assertIn(f'label=DAG_ID labelloc=t rankdir={orientation}', source)
+        assert "label=DAG_ID" in source
+        assert f'label=DAG_ID labelloc=t rankdir={orientation}' in source
 
         # Change orientation
         orientation = "LR"
@@ -103,5 +103,5 @@ class TestDotRenderer(unittest.TestCase):
         dot = dot_renderer.render_dag(dag, tis=tis)
         source = dot.source
         # Should render DAG title with orientation
-        self.assertIn("label=DAG_ID", source)
-        self.assertIn(f'label=DAG_ID labelloc=t rankdir={orientation}', source)
+        assert "label=DAG_ID" in source
+        assert f'label=DAG_ID labelloc=t rankdir={orientation}' in source

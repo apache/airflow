@@ -72,12 +72,12 @@ function verify_prod_image_has_airflow_and_providers() {
     done
     if [[ ${error} == "true" ]]; then
         echo
-        echo "${COLOR_RED_ERROR} Some expected providers are not installed!${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR: Some expected providers are not installed!${COLOR_RESET}"
         echo
         exit 1
     else
         echo
-        echo "${COLOR_GREEN_OK} All expected providers installed!${COLOR_RESET}"
+        echo "${COLOR_GREEN}OK. All expected providers installed!${COLOR_RESET}"
         echo
     fi
     start_end::group_end
@@ -90,13 +90,13 @@ function verify_prod_image_dependencies() {
     run_command_in_image 'pip check'
     local res=$?
     if [[ ${res} != "0" ]]; then
-        echo "${COLOR_RED_ERROR} ^^^ Some dependencies are conflicting. See instructions below on how to deal with it.  ${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR: ^^^ Some dependencies are conflicting. See instructions below on how to deal with it.  ${COLOR_RESET}"
         echo
         build_images::inform_about_pip_check "--production "
         exit ${res}
     else
         echo
-        echo "${COLOR_GREEN_OK} The ${AIRFLOW_PROD_IMAGE} image dependencies are consistent.  ${COLOR_RESET}"
+        echo "${COLOR_GREEN}OK. The ${AIRFLOW_PROD_IMAGE} image dependencies are consistent.  ${COLOR_RESET}"
         echo
     fi
     set -e
@@ -180,11 +180,11 @@ function verify_production_image_features() {
 
     if [[ ${FEATURES_OK} == "true" ]]; then
         echo
-        echo "${COLOR_GREEN_OK} The ${AIRFLOW_PROD_IMAGE} features are all OK.  ${COLOR_RESET}"
+        echo "${COLOR_GREEN}OK. The ${AIRFLOW_PROD_IMAGE} features are all OK.  ${COLOR_RESET}"
         echo
     else
         echo
-        echo "${COLOR_RED_ERROR} Some features were not ok!${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR: Some features were not ok!${COLOR_RESET}"
         echo
         exit 1
     fi

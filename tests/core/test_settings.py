@@ -22,6 +22,8 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, call
 
+import pytest
+
 from airflow.exceptions import AirflowClusterPolicyViolation
 from tests.test_utils.config import conf_vars
 
@@ -112,7 +114,7 @@ class TestLocalSettings(unittest.TestCase):
 
             settings.import_local_settings()
 
-            with self.assertRaises(AttributeError):
+            with pytest.raises(AttributeError):
                 settings.not_policy()  # pylint: disable=no-member
 
     def test_import_with_dunder_all(self):
@@ -179,7 +181,7 @@ class TestLocalSettings(unittest.TestCase):
 
             task_instance = MagicMock()
             task_instance.owner = 'airflow'
-            with self.assertRaises(AirflowClusterPolicyViolation):
+            with pytest.raises(AirflowClusterPolicyViolation):
                 settings.task_must_have_owners(task_instance)  # pylint: disable=no-member
 
 
@@ -190,10 +192,10 @@ class TestUpdatedConfigNames(unittest.TestCase):
     def test_updates_deprecated_session_timeout_config_val_when_new_config_val_is_default(self):
         from airflow import settings
 
-        with self.assertWarns(DeprecationWarning):
+        with pytest.warns(DeprecationWarning):
             session_lifetime_config = settings.get_session_lifetime_config()
             minutes_in_five_days = 5 * 24 * 60
-            self.assertEqual(session_lifetime_config, minutes_in_five_days)
+            assert session_lifetime_config == minutes_in_five_days
 
     @conf_vars(
         {("webserver", "session_lifetime_days"): '5', ("webserver", "session_lifetime_minutes"): '43201'}
@@ -202,7 +204,7 @@ class TestUpdatedConfigNames(unittest.TestCase):
         from airflow import settings
 
         session_lifetime_config = settings.get_session_lifetime_config()
-        self.assertEqual(session_lifetime_config, 43201)
+        assert session_lifetime_config == 43201
 
     @conf_vars({("webserver", "session_lifetime_days"): ''})
     def test_uses_updated_session_timeout_config_by_default(self):
@@ -210,4 +212,4 @@ class TestUpdatedConfigNames(unittest.TestCase):
 
         session_lifetime_config = settings.get_session_lifetime_config()
         default_timeout_minutes = 30 * 24 * 60
-        self.assertEqual(session_lifetime_config, default_timeout_minutes)
+        assert session_lifetime_config == default_timeout_minutes

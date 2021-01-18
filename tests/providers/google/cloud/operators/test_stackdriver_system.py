@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,21 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
+import pytest
 
-import jmespath
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_STACKDRIVER
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
-from tests.helm_template_generator import render_chart
 
-
-class CeleryKubernetesPodLauncherRole(unittest.TestCase):
-    def test_should_allow_both_scheduler_pod_launching_and_worker_pod_launching(self):
-        docs = render_chart(
-            values={"executor": "CeleryKubernetesExecutor"},
-            show_only=[
-                "templates/rbac/pod-launcher-rolebinding.yaml",
-            ],
-        )
-
-        self.assertEqual(jmespath.search("subjects[0].name", docs[0]), "RELEASE-NAME-scheduler")
-        self.assertEqual(jmespath.search("subjects[1].name", docs[0]), "RELEASE-NAME-worker")
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.credential_file(GCP_STACKDRIVER)
+class GCPTextToSpeechExampleDagSystemTest(GoogleSystemTest):
+    @provide_gcp_context(GCP_STACKDRIVER)
+    def test_run_example_dag(self):
+        self.run_dag("example_stackdriver", CLOUD_DAG_FOLDER)
