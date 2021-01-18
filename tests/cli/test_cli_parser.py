@@ -154,12 +154,38 @@ class TestCli(TestCase):
         self.assertIn("Commands", stdout)
         self.assertIn("Groups", stdout)
 
+    def test_dag_parser_commands_and_comamnd_group_sections(self):
+        parser = cli_parser.get_parser(dag_parser=True)
+
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            with self.assertRaises(SystemExit):
+                parser.parse_args(['--help'])
+            stdout = stdout.getvalue()
+        self.assertIn("Commands", stdout)
+        self.assertIn("Groups", stdout)
+
     def test_should_display_help(self):
         parser = cli_parser.get_parser()
 
         all_command_as_args = [
             command_as_args
             for top_command in cli_parser.airflow_commands
+            for command_as_args in (
+                [[top_command.name]]
+                if isinstance(top_command, cli_parser.ActionCommand)
+                else [[top_command.name, nested_command.name] for nested_command in top_command.subcommands]
+            )
+        ]
+        for cmd_args in all_command_as_args:
+            with self.assertRaises(SystemExit):
+                parser.parse_args([*cmd_args, '--help'])
+
+    def test_dag_cli_should_display_help(self):
+        parser = cli_parser.get_parser(dag_parser=True)
+
+        all_command_as_args = [
+            command_as_args
+            for top_command in cli_parser.dag_cli_commands
             for command_as_args in (
                 [[top_command.name]]
                 if isinstance(top_command, cli_parser.ActionCommand)
