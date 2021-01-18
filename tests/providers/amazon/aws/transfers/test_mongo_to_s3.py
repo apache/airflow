@@ -72,7 +72,7 @@ class TestMongoToS3Operator(unittest.TestCase):
             's3_bucket',
             's3_key',
             'mongo_query',
-            'mongo_collection'
+            'mongo_collection',
         )
 
     def test_render_template(self):
