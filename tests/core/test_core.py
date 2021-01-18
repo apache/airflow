@@ -190,9 +190,9 @@ class TestCore(unittest.TestCase):
         # Annoying workaround for nonlocal not existing in python 2
         data = {'called': False}
 
-        def check_failure(context, test_case=self):
+        def check_failure(context, test_case=self):  # pylint: disable=unused-argument
             data['called'] = True
-            error = context.get('exception')
+            error = context.get("exception")
             test_case.assertIsInstance(error, AirflowException)
 
         op = BashOperator(

@@ -589,7 +589,7 @@ class DagFileProcessor(LoggingMixin):
                 ti.state = simple_ti.state
                 ti.test_mode = self.UNIT_TEST_MODE
                 if request.is_failure_callback:
-                    ti.handle_failure(request.msg, ti.test_mode, ti.get_template_context())
+                    ti.handle_failure_with_callback(error=request.msg, test_mode=ti.test_mode)
                     self.log.info('Executed failure callback for %s in state %s', ti, ti.state)
 
     @provide_session
@@ -1731,8 +1731,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         pools = models.Pool.slots_stats(session=session)
         for pool_name, slot_stats in pools.items():
             Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats["open"])
-            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats[State.QUEUED])
-            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats[State.RUNNING])
+            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats[State.QUEUED])  # type: ignore
+            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats[State.RUNNING])  # type: ignore
 
     @provide_session
     def heartbeat_callback(self, session: Session = None) -> None:
