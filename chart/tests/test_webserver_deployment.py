@@ -124,3 +124,22 @@ class WebserverDeploymentTest(unittest.TestCase):
             "subPath": "webserver_config.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    def test_should_add_extra_containers(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "webserver": {
+                    "extraContainers": [
+                        {
+                            "name": "test-container",
+                            "image": "test-registry/test-repo:test-tag",
+                            "imagePullPolicy": "Always",
+                        }
+                    ],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "test-container" == jmespath.search("spec.template.spec.containers[-1].name", docs[0])
