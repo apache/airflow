@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.configuration import conf
 from airflow.upgrade.rules.base_rule import BaseRule
 
 
@@ -30,8 +29,8 @@ To load a custom executor, you have to provide a full path to the the custom exe
                   """
 
     def check(self):
-        executor = conf.get(section="core", key="executor")
-        if executor.count(".") <= 1:
+        from airflow.plugins_manager import executors_modules
+        if executors_modules:
             return (
                 "Deprecation Warning: you do not need to load your custom executor via a plugin."
                 "In Airflow 2.0, you only need to provide a full path to the the custom executor module."

@@ -18,11 +18,12 @@
 from unittest import TestCase
 
 from airflow.upgrade.rules.custom_executors_require_full_path_rule import CustomExecutorsRequireFullPathRule
-from tests.test_utils.config import conf_vars
+from tests.compat import patch
 
 
 class TestCustomExecutorsRequireFullPath(TestCase):
-    @conf_vars({("core", "executor"): "my_plugin.MyCustomExecutor"})
+    @patch('airflow.plugins_manager.executors_modules',
+           ["my_plugin.MyCustomExecutor", "my_acme.executors.MyCustomExecutor"])
     def test_invalid_check(self):
         rule = CustomExecutorsRequireFullPathRule()
 
@@ -38,7 +39,7 @@ class TestCustomExecutorsRequireFullPath(TestCase):
 
         assert msg == rule.check()
 
-    @conf_vars({("core", "executor"): "my_acme.executors.MyCustomExecutor"})
+    @patch('airflow.plugins_manager.executors_modules', [])
     def test_check(self):
         rule = CustomExecutorsRequireFullPathRule()
 
