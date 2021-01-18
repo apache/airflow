@@ -27,6 +27,7 @@ import math
 import os
 import socket
 import traceback
+from flask_login import current_user
 from collections import defaultdict
 from datetime import timedelta
 from urllib.parse import unquote
@@ -86,6 +87,7 @@ from flask_wtf.csrf import CSRFProtect
 from airflow.utils.curve import get_curve, get_result, get_task_instances_by_entity_ids
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.www_rbac.api.experimental.endpoints import do_remove_curve_from_curve_template
+from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 
 csrf = CSRFProtect()
 
@@ -426,6 +428,10 @@ class Airflow(AirflowBaseView):
                      and _has_access('set_final_state_nok', 'TaskInstanceModelView')
         display_keys = Variable.get('view_curve_page_keys', deserialize_json=True,
                                     default_var={})
+
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE'], '查看单条曲线')
+        logging.info(msg)
+
         return self.render_template('airflow/curve.html', task_instance=ti, result=result,
                                     curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
                                     resultErrorMessageMapping=result_error_message_mapping,
@@ -451,6 +457,10 @@ class Airflow(AirflowBaseView):
 
         if curve_template is None:
             return None
+
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE_TEMPLATE'], '查看曲线模板')
+        logging.info(msg)
+
         return self.render_template('airflow/curve_template.html', can_delete=can_delete,
                                     curve_template=curve_template, bolt_no=bolt_no,
                                     craft_type=craft_type)
@@ -471,6 +481,9 @@ class Airflow(AirflowBaseView):
         try:
             new_template = do_remove_curve_from_curve_template(bolt_no, craft_type, version, mode, group_center_idx,
                                                                curve_idx)
+            msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'],
+                                           CUSTOM_PAGE_NAME_MAP['CURVE_TEMPLATE'], '删除曲线模板')
+            logging.info(msg)
             return {'data': new_template}
         except Exception as e:
             return {'error': str(e)}
@@ -2252,6 +2265,9 @@ class CurvesView(BaseCRUDView):
             }
         widgets = self._list()
 
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['VIEW_CURVES'], '曲线对比页面')
+        logging.info(msg)
+
         return self.render_template('airflow/curves.html', tasks=lst, page=page, page_size=page_size, count=count,
                                     modelview_name=view_name,
                                     selected_curves=curves_list,
@@ -2509,8 +2525,20 @@ class ErrorTagModelView(AirflowModelView):
     def action_muldelete(self, items):
         self.datamodel.delete_all(items)
         self.update_redirect()
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '删除错误标签')
+        logging.info(msg)
         return redirect(self.get_redirect())
 
+    # 重写list
+    @expose("/list/")
+    @has_access
+    def list(self):
+        widgets = self._list()
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '查看错误标签')
+        logging.info(msg)
+        return self.render_template(
+            self.list_template, title=self.list_title, widgets=widgets
+        )
 
 class TighteningControllerView(AirflowModelView):
     route_base = '/tightening_controller'
@@ -2543,7 +2571,19 @@ class TighteningControllerView(AirflowModelView):
     def action_muldelete(self, items):
         self.datamodel.delete_all(items)
         self.update_redirect()
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'], '删除控制器')
+        logging.info(msg)
         return redirect(self.get_redirect())
+
+    @expose("/list/")
+    @has_access
+    def list(self):
+        widgets = self._list()
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'], '查看控制器')
+        logging.info(msg)
+        return self.render_template(
+            self.list_template, title=self.list_title, widgets=widgets
+        )
 
 
 class PoolModelView(AirflowModelView):
@@ -2644,11 +2684,15 @@ class VariableModelView(AirflowModelView):
 
     def pre_add(self, item):
         super(VariableModelView, self).pre_add(item)
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['ADD'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板维护：增加变量')
+        logging.info(msg)
         if item.is_curve_template:
             item.key = self.generateCurveParamKey(item.key)
 
     def pre_update(self, item: models.Variable):
         super(VariableModelView, self).pre_update(item)
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['EDIT'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板维护：修改变量')
+        logging.info(msg)
         if item.is_curve_template and self.is_curve_param_key(item.key):
             return
         if item.is_curve_template:
@@ -2687,6 +2731,8 @@ class VariableModelView(AirflowModelView):
     def action_muldelete(self, items):
         self.datamodel.delete_all(items)
         self.update_redirect()
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板维护：删除变量')
+        logging.info(msg)
         return redirect(self.get_redirect())
 
     @action('varexport', 'Export', '', single=False)

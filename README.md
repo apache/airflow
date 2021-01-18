@@ -58,6 +58,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 1. `git clone https://github.com/masami10/airflow.git`
 1. `cd airflow`
 1. 创建python3.7虚拟环境
+1. `sudo apt-get install $(grep -vE "^\s*#" apt-requirements.txt  | tr "\n" " ")`
 1. 安装依赖：`pip install -r ./requirements.txt`
 1. 初始化数据库：`python ./airflow/bin/airflow init db`
 
