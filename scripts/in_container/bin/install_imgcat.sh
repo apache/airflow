@@ -19,8 +19,15 @@
 
 set -euo pipefail
 
+BIN_PATH="/files/bin/imgcat"
+
+if [[ $# != "0" && ${1} == "--reinstall" ]]; then
+    rm -f "${BIN_PATH}"
+fi
+
 if command -v imgcat; then
     echo 'The "imgcat" command found. Installation not needed.'
+    echo "Run with --reinstall to reinstall."
     exit 1
 fi
 
@@ -28,8 +35,8 @@ DOWNLOAD_URL="https://iterm2.com/utilities/imgcat"
 
 mkdir -p "/files/bin/"
 echo "Downloading from ${DOWNLOAD_URL}"
-curl -# --fail "${DOWNLOAD_URL}" --output "/files/bin/imgcat"
-chmod +x "/files/bin/imgcat"
+curl -# --fail "${DOWNLOAD_URL}" --output "${BIN_PATH}"
+chmod +x "${BIN_PATH}"
 
 # Sanity check
 if ! command -v imgcat > /dev/null; then

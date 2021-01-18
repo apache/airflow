@@ -19,18 +19,25 @@
 
 set -euo pipefail
 
+BIN_PATH="/files/bin/kubectl"
+
+if [[ $# != "0" && ${1} == "--reinstall" ]]; then
+    rm -f "${BIN_PATH}"
+fi
+
+hash -r
+
 if command -v kubectl; then
-    echo 'The "kubectl" command found. Installation not needed.'
+    echo 'The "kubectl" command found. Installation not needed. Run with --reinstall to reinstall'
     exit 1
 fi
 
 KUBECTL_VERSION="$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)"
 DOWNLOAD_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
-BIN_PATH="/files/bin/kubectl"
 
 if [[ -e ${BIN_PATH} ]]; then
     echo "The binary file (${BIN_PATH}) already exists. This may mean kubectl is already installed."
-    echo "Please delete this file to start the installation."
+    echo "Run with --reinstall to reinstall."
     exit 1
 fi
 

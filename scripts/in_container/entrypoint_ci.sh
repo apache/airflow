@@ -58,12 +58,6 @@ RUN_TESTS=${RUN_TESTS:="false"}
 CI=${CI:="false"}
 INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
-if [[ ${GITHUB_ACTIONS:="false"} == "false" ]]; then
-    # Create links for useful CLI tools
-    # shellcheck source=scripts/in_container/run_cli_tool.sh
-    source <(bash scripts/in_container/run_cli_tool.sh)
-fi
-
 if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
     export RUN_AIRFLOW_1_10="true"
 else

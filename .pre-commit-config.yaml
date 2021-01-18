@@ -418,6 +418,7 @@ repos:
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
+        exclude: activate$
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
       - id: bats-tests
         name: Run BATS bash tests for changed Breeze bash files

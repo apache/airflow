@@ -19,37 +19,51 @@
 
 set -euo pipefail
 
-BIN_PATH="/files/bin/terraform"
+INSTALL_DIR="/files/opt/az"
+BIN_PATH="/files/bin/az"
 
 if [[ $# != "0" && ${1} == "--reinstall" ]]; then
+    rm -rf "${INSTALL_DIR}"
     rm -f "${BIN_PATH}"
 fi
 
 hash -r
 
-if command -v terraform; then
-    echo 'The "terraform" command found. Installation not needed. Run with --reinstall to reinstall'
+if command -v az; then
+    echo 'The "az" command found. Installation not needed. Run with --reinstall to reinstall'
     exit 1
 fi
 
-TERRAFORM_VERSION="0.14.4"
-TERRAFORM_BASE_URL="https://releases.hashicorp.com/terraform"
-TERRAFORM_ZIP="terraform_${TERRAFORM_VERSION}_$(uname | tr '[:upper:]' '[:lower:]')_amd64.zip"
-DOWNLOAD_URL="${TERRAFORM_BASE_URL}/${TERRAFORM_VERSION}/${TERRAFORM_ZIP}"
-TMP_DIR="$(mktemp -d)"
 
-# shellcheck disable=SC2064
-trap "rm -rf ${TMP_DIR}" EXIT
+if [[ -e ${INSTALL_DIR} ]]; then
+    echo "The install directory (${INSTALL_DIR}) already exists. This may mean az CLI is already installed."
+    echo "Run with --reinstall to reinstall."
+    exit 1
+fi
 
-mkdir -p "/files/bin/"
-echo "Downloading from ${DOWNLOAD_URL}"
-curl -# --fail "${DOWNLOAD_URL}" --output "${TMP_DIR}/terraform.zip"
-echo "Extracting archive"
-unzip "${TMP_DIR}/terraform.zip" -d /files/bin
+virtualenv /files/opt/az
+
+# ignore the source
+# shellcheck source=/dev/null
+source /files/opt/az/bin/activate
+
+pip install azure-cli
+
+cat >/files/opt/az/az <<EOF
+#!/usr/bin/env bash
+
+source /files/opt/az/bin/activate
+
+az "\${@}"
+EOF
+
+chmod a+x /files/opt/az/az
+
+ln -s /files/opt/az/az "${BIN_PATH}"
 
 # Sanity check
-if ! command -v terraform > /dev/null; then
-    echo 'Installation failed. The command "terraform" was not found.'
+if ! command -v az > /dev/null; then
+    echo 'Installation failed. The command "az" was not found.'
     exit 1
 fi
 

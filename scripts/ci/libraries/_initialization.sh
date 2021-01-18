@@ -288,9 +288,6 @@ function initialization::initialize_host_variables() {
     # Home directory of the host user
     export HOST_HOME="${HOME}"
 
-    # Sources of Airflow on the host.
-    export HOST_AIRFLOW_SOURCES="${HOST_AIRFLOW_SOURCES:=${AIRFLOW_SOURCES}}"
-
     # In case of MacOS we need to use gstat - gnu version of the stats
     export STAT_BIN=stat
     if [[ "${OSTYPE}" == "darwin"* ]]; then
@@ -600,7 +597,6 @@ Host variables:
     HOST_GROUP_ID=${HOST_GROUP_ID}
     HOST_OS=${HOST_OS}
     HOST_HOME=${HOST_HOME}
-    HOST_AIRFLOW_SOURCES=${HOST_AIRFLOW_SOURCES}
 
 Version suffix variables:
 
@@ -729,7 +725,6 @@ function initialization::make_constants_read_only() {
 
     readonly HOST_USER_ID
     readonly HOST_GROUP_ID
-    readonly HOST_AIRFLOW_SOURCES
     readonly HOST_HOME
     readonly HOST_OS
 
