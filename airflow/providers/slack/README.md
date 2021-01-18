@@ -61,7 +61,7 @@ You can install this package on top of an existing airflow 2.* installation via
 
 | PIP package   | Version required   |
 |:--------------|:-------------------|
-| slackclient   | &gt;=2.0.0,&lt;3.0.0     |
+| slack_sdk   | &gt;=3.0.0,&lt;4.0.0     |
 
 ## Cross provider package dependencies
 

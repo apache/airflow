@@ -417,7 +417,7 @@ sentry = [
 ]
 singularity = ['spython>=0.0.56']
 slack = [
-    'slackclient>=2.0.0,<3.0.0',
+    'slack_sdk>=3.0.0,<4.0.0',
 ]
 snowflake = [
     # The `azure` provider uses legacy `azure-storage` library, where `snowflake` uses the
