@@ -49,11 +49,11 @@ class MongoToS3Operator(BaseOperator):
     :param mongo_db: reference to a specific mongo database
     :type mongo_db: str
     :param replace: whether or not to replace the file in S3 if it previously existed
-    :param replace: bool
+    :type replace: bool
     :param allow_disk_use: in the case you are retrieving a lot of data, you may have
         to use the disk to save it instead of saving all in the RAM
-    :param allow_disk_use: bool
-    :param compression: Type of compression to use when saving the file in S3. Currently only gzip is supported.
+    :type allow_disk_use: bool
+    :param compression: type of compression to use for output file in S3. Currently only gzip is supported.
     :type compression: str
     """
 
