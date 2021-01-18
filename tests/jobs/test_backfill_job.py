@@ -33,6 +33,7 @@ from airflow.cli import cli_parser
 from airflow.exceptions import (
     AirflowException,
     AirflowTaskTimeout,
+    BackfillUnfinished,
     DagConcurrencyLimitReached,
     NoAvailablePoolSlot,
     TaskConcurrencyLimitReached,
@@ -40,6 +41,7 @@ from airflow.exceptions import (
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DAG, DagBag, Pool, TaskInstance as TI
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -672,6 +674,61 @@ class TestBackfillJob(unittest.TestCase):
         )
 
         with pytest.raises(AirflowException):
+            job.run()
+
+    def test_backfill_retry_intermittent_failed_task(self):
+        dag = DAG(
+            dag_id='test_intermittent_failure_job',
+            start_date=DEFAULT_DATE,
+            schedule_interval="@daily",
+            default_args={
+                'retries': 2,
+                'retry_delay': datetime.timedelta(seconds=0),
+            },
+        )
+        task1 = DummyOperator(task_id="task1", dag=dag)
+        dag.clear()
+
+        executor = MockExecutor(parallelism=16)
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)
+        ] = State.UP_FOR_RETRY
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)
+        ] = State.UP_FOR_RETRY
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+        )
+        job.run()
+
+    def test_backfill_retry_always_failed_task(self):
+        dag = DAG(
+            dag_id='test_always_failure_job',
+            start_date=DEFAULT_DATE,
+            schedule_interval="@daily",
+            default_args={
+                'retries': 1,
+                'retry_delay': datetime.timedelta(seconds=0),
+            },
+        )
+        task1 = DummyOperator(task_id="task1", dag=dag)
+        dag.clear()
+
+        executor = MockExecutor(parallelism=16)
+        executor.mock_task_results[
+            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)
+        ] = State.UP_FOR_RETRY
+        executor.mock_task_fail(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+        )
+        with self.assertRaises(BackfillUnfinished):
             job.run()
 
     def test_backfill_ordered_concurrent_execute(self):

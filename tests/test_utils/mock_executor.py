@@ -69,6 +69,7 @@ class MockExecutor(BaseExecutor):
             for index in range(min((open_slots, len(sorted_queue)))):
                 (key, (_, _, _, ti)) = sorted_queue[index]
                 self.queued_tasks.pop(key)
+                ti._try_number += 1
                 state = self.mock_task_results[key]
                 ti.set_state(state, session=session)
                 self.change_state(key, state)
