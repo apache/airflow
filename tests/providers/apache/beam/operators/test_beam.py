@@ -22,6 +22,7 @@ from airflow.providers.apache.beam.operators.beam import (
     BeamRunJavaPipelineOperator,
     BeamRunPythonPipelineOperator,
 )
+from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
 from airflow.version import version
 
 TASK_ID = 'test-beam-operator'
@@ -53,7 +54,6 @@ class TestBeamRunPythonPipelineOperator(unittest.TestCase):
             py_options=PY_OPTIONS,
             default_pipeline_options=DEFAULT_OPTIONS_PYTHON,
             pipeline_options=ADDITIONAL_OPTIONS,
-            job_name=JOB_NAME,
         )
 
     def test_init(self):
@@ -65,7 +65,6 @@ class TestBeamRunPythonPipelineOperator(unittest.TestCase):
         self.assertEqual(self.operator.py_interpreter, PY_INTERPRETER)
         self.assertEqual(self.operator.default_pipeline_options, DEFAULT_OPTIONS_PYTHON)
         self.assertEqual(self.operator.pipeline_options, EXPECTED_ADDITIONAL_OPTIONS)
-        self.assertEqual(self.operator.job_name, JOB_NAME)
 
     @mock.patch('airflow.providers.apache.beam.operators.beam.BeamHook')
     @mock.patch('airflow.providers.apache.beam.operators.beam.GCSHook')
@@ -86,53 +85,74 @@ class TestBeamRunPythonPipelineOperator(unittest.TestCase):
         gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
         start_python_hook.assert_called_once_with(
             variables=expected_options,
-            py_file=mock.ANY,
+            py_file=gcs_provide_file.return_value.__enter__.return_value.name,
             py_options=PY_OPTIONS,
             py_interpreter=PY_INTERPRETER,
             py_requirements=None,
             py_system_site_packages=False,
+            process_line_callback=None,
         )
 
+    @mock.patch('airflow.providers.apache.beam.operators.beam.BeamHook')
     @mock.patch('airflow.providers.apache.beam.operators.beam.DataflowHook')
     @mock.patch('airflow.providers.apache.beam.operators.beam.GCSHook')
-    def test_exec_dataflow_runner(self, gcs_hook, dataflow_mock):
+    def test_exec_dataflow_runner(self, gcs_hook, dataflow_hook_mock, beam_hook_mock):
         """Test DataflowHook is created and the right args are passed to
         start_python_dataflow.
         """
+        dataflow_config = DataflowConfiguration()
         self.operator.runner = "DataflowRunner"
-        start_python_hook = dataflow_mock.return_value.start_python_dataflow
+        self.operator.dataflow_config = dataflow_config
         gcs_provide_file = gcs_hook.return_value.provide_file
         self.operator.execute(None)
-        dataflow_mock.assert_called_once_with(gcp_conn_id=self.operator.gcp_conn_id)
+        job_name = dataflow_hook_mock.build_dataflow_job_name.return_value
+        self.assertEqual(job_name, self.operator._dataflow_job_name)
+        dataflow_hook_mock.assert_called_once_with(
+            gcp_conn_id=dataflow_config.gcp_conn_id,
+            delegate_to=dataflow_config.delegate_to,
+            poll_sleep=dataflow_config.poll_sleep,
+            impersonation_chain=dataflow_config.impersonation_chain,
+            drain_pipeline=dataflow_config.drain_pipeline,
+            cancel_timeout=dataflow_config.cancel_timeout,
+            wait_until_finished=dataflow_config.wait_until_finished,
+        )
         expected_options = {
-            'project': 'test',
+            'project': dataflow_hook_mock.return_value.project_id,
+            'job_name': job_name,
             'staging_location': 'gs://test/staging',
             'output': 'gs://test/output',
             'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION},
+            'region': 'us-central1',
         }
         gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
-        start_python_hook.assert_called_once_with(
-            job_name=JOB_NAME,
+        beam_hook_mock.return_value.start_python_pipeline.assert_called_once_with(
             variables=expected_options,
-            dataflow=mock.ANY,
+            py_file=gcs_provide_file.return_value.__enter__.return_value.name,
             py_options=PY_OPTIONS,
             py_interpreter=PY_INTERPRETER,
             py_requirements=None,
             py_system_site_packages=False,
-            on_new_job_id_callback=mock.ANY,
-            project_id=None,
+            process_line_callback=mock.ANY,
+        )
+        dataflow_hook_mock.return_value.wait_for_done.assert_called_once_with(
+            job_id=self.operator.dataflow_job_id,
+            job_name=job_name,
+            location='us-central1',
+            multiple_jobs=False,
         )
 
-    #
-    @mock.patch('airflow.providers.apache.beam.operators.beam.DataflowHook')
+    @mock.patch('airflow.providers.apache.beam.operators.beam.BeamHook')
     @mock.patch('airflow.providers.apache.beam.operators.beam.GCSHook')
-    def test_on_kill_dataflow_runner(self, _, dataflow_mock):
+    @mock.patch('airflow.providers.apache.beam.operators.beam.DataflowHook')
+    def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, __):
         self.operator.runner = "DataflowRunner"
-        self.operator.job_id = JOB_ID
-        dataflow_cancel_job = dataflow_mock.return_value.cancel_job
+        dataflow_cancel_job = dataflow_hook_mock.return_value.cancel_job
         self.operator.execute(None)
+        self.operator.dataflow_job_id = JOB_ID
         self.operator.on_kill()
-        dataflow_cancel_job.assert_called_once_with(job_id=JOB_ID, project_id=None)
+        dataflow_cancel_job.assert_called_once_with(
+            job_id=JOB_ID, project_id=self.operator.dataflow_config.project_id
+        )
 
     @mock.patch('airflow.providers.apache.beam.operators.beam.BeamHook')
     @mock.patch('airflow.providers.apache.beam.operators.beam.DataflowHook')
@@ -149,7 +169,6 @@ class TestBeamRunJavaPipelineOperator(unittest.TestCase):
         self.operator = BeamRunJavaPipelineOperator(
             task_id=TASK_ID,
             jar=JAR_FILE,
-            job_name=JOB_NAME,
             job_class=JOB_CLASS,
             default_pipeline_options=DEFAULT_OPTIONS_JAVA,
             pipeline_options=ADDITIONAL_OPTIONS,
@@ -158,7 +177,6 @@ class TestBeamRunJavaPipelineOperator(unittest.TestCase):
     def test_init(self):
         """Test BeamRunJavaPipelineOperator instance is properly initialized."""
         self.assertEqual(self.operator.task_id, TASK_ID)
-        self.assertEqual(self.operator.job_name, JOB_NAME)
         self.assertEqual(self.operator.runner, DEFAULT_RUNNER)
         self.assertEqual(self.operator.default_pipeline_options, DEFAULT_OPTIONS_JAVA)
         self.assertEqual(self.operator.job_class, JOB_CLASS)
@@ -174,47 +192,77 @@ class TestBeamRunJavaPipelineOperator(unittest.TestCase):
         start_java_hook = beam_hook_mock.return_value.start_java_pipeline
         gcs_provide_file = gcs_hook.return_value.provide_file
         self.operator.execute(None)
+
         beam_hook_mock.assert_called_once_with(runner=DEFAULT_RUNNER)
-        self.assertTrue(beam_hook_mock.called)
         gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
         start_java_hook.assert_called_once_with(
             variables={**DEFAULT_OPTIONS_JAVA, **ADDITIONAL_OPTIONS},
-            jar=mock.ANY,
+            jar=gcs_provide_file.return_value.__enter__.return_value.name,
             job_class=JOB_CLASS,
+            process_line_callback=None,
         )
 
+    @mock.patch('airflow.providers.apache.beam.operators.beam.BeamHook')
     @mock.patch('airflow.providers.apache.beam.operators.beam.DataflowHook')
     @mock.patch('airflow.providers.apache.beam.operators.beam.GCSHook')
-    def test_exec_dataflow_runner(self, gcs_hook, dataflow_mock):
+    def test_exec_dataflow_runner(self, gcs_hook, dataflow_hook_mock, beam_hook_mock):
         """Test DataflowHook is created and the right args are passed to
         start_java_dataflow.
         """
+        dataflow_config = DataflowConfiguration()
         self.operator.runner = "DataflowRunner"
-        start_java_hook = dataflow_mock.return_value.start_java_dataflow
-        dataflow_mock.return_value.is_job_dataflow_running.return_value = False
+        self.operator.dataflow_config = dataflow_config
         gcs_provide_file = gcs_hook.return_value.provide_file
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         self.operator.execute(None)
-        self.assertTrue(dataflow_mock.called)
+        job_name = dataflow_hook_mock.build_dataflow_job_name.return_value
+        self.assertEqual(job_name, self.operator._dataflow_job_name)
+        dataflow_hook_mock.assert_called_once_with(
+            gcp_conn_id=dataflow_config.gcp_conn_id,
+            delegate_to=dataflow_config.delegate_to,
+            poll_sleep=dataflow_config.poll_sleep,
+            impersonation_chain=dataflow_config.impersonation_chain,
+            drain_pipeline=dataflow_config.drain_pipeline,
+            cancel_timeout=dataflow_config.cancel_timeout,
+            wait_until_finished=dataflow_config.wait_until_finished,
+        )
         gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
-        start_java_hook.assert_called_once_with(
-            job_name=JOB_NAME,
-            variables={**DEFAULT_OPTIONS_JAVA, **ADDITIONAL_OPTIONS},
-            jar=mock.ANY,
+
+        expected_options = {
+            'project': dataflow_hook_mock.return_value.project_id,
+            'jobName': job_name,
+            'stagingLocation': 'gs://test/staging',
+            'region': 'us-central1',
+            'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION},
+            'output': 'gs://test/output',
+        }
+
+        beam_hook_mock.return_value.start_java_pipeline.assert_called_once_with(
+            variables=expected_options,
+            jar=gcs_provide_file.return_value.__enter__.return_value.name,
             job_class=JOB_CLASS,
-            on_new_job_id_callback=mock.ANY,
-            project_id=None,
+            process_line_callback=mock.ANY,
+        )
+        dataflow_hook_mock.return_value.wait_for_done.assert_called_once_with(
+            job_id=self.operator.dataflow_job_id,
+            job_name=job_name,
+            location='us-central1',
+            multiple_jobs=dataflow_config.multiple_jobs,
         )
 
-    @mock.patch('airflow.providers.apache.beam.operators.beam.DataflowHook')
+    @mock.patch('airflow.providers.apache.beam.operators.beam.BeamHook')
     @mock.patch('airflow.providers.apache.beam.operators.beam.GCSHook')
-    def test_on_kill_dataflow_runner(self, _, dataflow_mock):
+    @mock.patch('airflow.providers.apache.beam.operators.beam.DataflowHook')
+    def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, __):
         self.operator.runner = "DataflowRunner"
-        self.operator.job_id = JOB_ID
-        dataflow_cancel_job = dataflow_mock.return_value.cancel_job
-        dataflow_mock.return_value.is_job_dataflow_running.return_value = False
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
+        dataflow_cancel_job = dataflow_hook_mock.return_value.cancel_job
         self.operator.execute(None)
+        self.operator.dataflow_job_id = JOB_ID
         self.operator.on_kill()
-        dataflow_cancel_job.assert_called_once_with(job_id=JOB_ID, project_id=None)
+        dataflow_cancel_job.assert_called_once_with(
+            job_id=JOB_ID, project_id=self.operator.dataflow_config.project_id
+        )
 
     @mock.patch('airflow.providers.apache.beam.operators.beam.BeamHook')
     @mock.patch('airflow.providers.apache.beam.operators.beam.DataflowHook')

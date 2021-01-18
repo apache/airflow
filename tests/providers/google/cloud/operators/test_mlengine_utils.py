@@ -106,9 +106,14 @@ class TestCreateEvaluateOps(unittest.TestCase):
             )
             assert success_message['predictionOutput'] == result
 
-        with patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook') as mock_dataflow_hook:
-            hook_instance = mock_dataflow_hook.return_value
-            hook_instance.start_python_dataflow.return_value = None
+        with patch(
+            'airflow.providers.google.cloud.operators.dataflow.DataflowHook'
+        ) as mock_dataflow_hook, patch(
+            'airflow.providers.google.cloud.operators.dataflow.BeamHook'
+        ) as mock_beam_hook:
+            dataflow_hook_instance = mock_dataflow_hook.return_value
+            dataflow_hook_instance.start_python_dataflow.return_value = None
+            beam_hook_instance = mock_beam_hook.return_value
             summary.execute(None)
             mock_dataflow_hook.assert_called_once_with(
                 gcp_conn_id='google_cloud_default',
@@ -117,23 +122,28 @@ class TestCreateEvaluateOps(unittest.TestCase):
                 drain_pipeline=False,
                 cancel_timeout=600,
                 wait_until_finished=None,
+                impersonation_chain=None,
             )
-            hook_instance.start_python_dataflow.assert_called_once_with(
-                job_name='{{task.task_id}}',
+            mock_beam_hook.assert_called_once_with(runner="DataflowRunner")
+            beam_hook_instance.start_python_pipeline.assert_called_once_with(
                 variables={
                     'prediction_path': 'gs://legal-bucket/fake-output-path',
                     'labels': {'airflow-version': TEST_VERSION},
                     'metric_keys': 'err',
                     'metric_fn_encoded': self.metric_fn_encoded,
+                    'project': 'test-project',
+                    'region': 'us-central1',
+                    'job_name': mock.ANY,
                 },
-                dataflow=mock.ANY,
+                py_file=mock.ANY,
                 py_options=[],
-                py_requirements=['apache-beam[gcp]>=2.14.0'],
                 py_interpreter='python3',
+                py_requirements=['apache-beam[gcp]>=2.14.0'],
                 py_system_site_packages=False,
-                on_new_job_id_callback=ANY,
-                project_id='test-project',
-                location='us-central1',
+                process_line_callback=mock.ANY,
+            )
+            dataflow_hook_instance.wait_for_done.assert_called_once_with(
+                job_name=mock.ANY, location='us-central1', job_id=mock.ANY, multiple_jobs=False
             )
 
         with patch('airflow.providers.google.cloud.utils.mlengine_operator_utils.GCSHook') as mock_gcs_hook:

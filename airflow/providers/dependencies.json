@@ -35,6 +35,7 @@
   ],
   "google": [
     "amazon",
+    "apache.beam",
     "apache.cassandra",
     "cncf.kubernetes",
     "facebook",

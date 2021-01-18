@@ -30,15 +30,19 @@ import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
+from airflow.providers.apache.beam.hooks.beam import BeamCommandRunner, BeamHook
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
     DataflowJobStatus,
     DataflowJobType,
     _DataflowJobsController,
-    _DataflowRunner,
     _fallback_to_project_id_from_variables,
+    process_line_and_extract_dataflow_job_id_callback,
 )
+
+DEFAULT_RUNNER = "DirectRunner"
+BEAM_STRING = 'airflow.providers.apache.beam.hooks.beam.{}'
 
 TASK_ID = 'test-dataflow-operator'
 JOB_NAME = 'test-dataflow-pipeline'
@@ -183,6 +187,7 @@ class TestDataflowHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'), new=mock_init):
             self.dataflow_hook = DataflowHook(gcp_conn_id='test')
+            self.dataflow_hook.beam_hook = MagicMock()
 
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.build")
@@ -194,186 +199,229 @@ class TestDataflowHook(unittest.TestCase):
         assert mock_build.return_value == result
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
-    def test_start_python_dataflow(self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid):
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.wait_for_done'))
+    @mock.patch(DATAFLOW_STRING.format('process_line_and_extract_dataflow_job_id_callback'))
+    def test_start_python_dataflow(self, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid):
+        mock_beam_start_python_pipeline = self.dataflow_hook.beam_hook.start_python_pipeline
         mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
-        self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME,
-            variables=DATAFLOW_VARIABLES_PY,
-            dataflow=PY_FILE,
+        on_new_job_id_callback = MagicMock()
+        py_requirements = ["pands", "numpy"]
+        job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
+
+        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+                job_name=JOB_NAME,
+                variables=DATAFLOW_VARIABLES_PY,
+                dataflow=PY_FILE,
+                py_options=PY_OPTIONS,
+                py_interpreter=DEFAULT_PY_INTERPRETER,
+                py_requirements=py_requirements,
+                on_new_job_id_callback=on_new_job_id_callback,
+            )
+
+        expected_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+        expected_variables["job_name"] = job_name
+        expected_variables["region"] = DEFAULT_DATAFLOW_LOCATION
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback)
+        mock_beam_start_python_pipeline.assert_called_once_with(
+            variables=expected_variables,
+            py_file=PY_FILE,
+            py_interpreter=DEFAULT_PY_INTERPRETER,
             py_options=PY_OPTIONS,
+            py_requirements=py_requirements,
+            py_system_site_packages=False,
+            process_line_callback=mock_callback_on_job_id.return_value,
         )
-        expected_cmd = [
-            "python3",
-            '-m',
-            PY_FILE,
-            '--region=us-central1',
-            '--runner=DataflowRunner',
-            '--project=test',
-            '--labels=foo=bar',
-            '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
-        ]
-        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
+
+        mock_dataflow_wait_for_done.assert_called_once_with(
+            job_id=mock.ANY, job_name=job_name, location=DEFAULT_DATAFLOW_LOCATION
+        )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.wait_for_done'))
+    @mock.patch(DATAFLOW_STRING.format('process_line_and_extract_dataflow_job_id_callback'))
     def test_start_python_dataflow_with_custom_region_as_variable(
-        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
+        self, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid
     ):
+        mock_beam_start_python_pipeline = self.dataflow_hook.beam_hook.start_python_pipeline
         mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
-        variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
-        variables['region'] = TEST_LOCATION
-        self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME,
-            variables=variables,
-            dataflow=PY_FILE,
+        on_new_job_id_callback = MagicMock()
+        py_requirements = ["pands", "numpy"]
+        job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
+
+        passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+        passed_variables["region"] = TEST_LOCATION
+
+        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+                job_name=JOB_NAME,
+                variables=passed_variables,
+                dataflow=PY_FILE,
+                py_options=PY_OPTIONS,
+                py_interpreter=DEFAULT_PY_INTERPRETER,
+                py_requirements=py_requirements,
+                on_new_job_id_callback=on_new_job_id_callback,
+            )
+
+        expected_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+        expected_variables["job_name"] = job_name
+        expected_variables["region"] = TEST_LOCATION
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback)
+        mock_beam_start_python_pipeline.assert_called_once_with(
+            variables=expected_variables,
+            py_file=PY_FILE,
+            py_interpreter=DEFAULT_PY_INTERPRETER,
             py_options=PY_OPTIONS,
+            py_requirements=py_requirements,
+            py_system_site_packages=False,
+            process_line_callback=mock_callback_on_job_id.return_value,
         )
-        expected_cmd = [
-            "python3",
-            '-m',
-            PY_FILE,
-            f'--region={TEST_LOCATION}',
-            '--runner=DataflowRunner',
-            '--project=test',
-            '--labels=foo=bar',
-            '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
-        ]
-        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
+
+        mock_dataflow_wait_for_done.assert_called_once_with(
+            job_id=mock.ANY, job_name=job_name, location=TEST_LOCATION
+        )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.wait_for_done'))
+    @mock.patch(DATAFLOW_STRING.format('process_line_and_extract_dataflow_job_id_callback'))
     def test_start_python_dataflow_with_custom_region_as_parameter(
-        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
+        self, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid
     ):
+        mock_beam_start_python_pipeline = self.dataflow_hook.beam_hook.start_python_pipeline
         mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
-        self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME,
-            variables=DATAFLOW_VARIABLES_PY,
-            dataflow=PY_FILE,
+        on_new_job_id_callback = MagicMock()
+        py_requirements = ["pands", "numpy"]
+        job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
+
+        passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+
+        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+                job_name=JOB_NAME,
+                variables=passed_variables,
+                dataflow=PY_FILE,
+                py_options=PY_OPTIONS,
+                py_interpreter=DEFAULT_PY_INTERPRETER,
+                py_requirements=py_requirements,
+                on_new_job_id_callback=on_new_job_id_callback,
+                location=TEST_LOCATION,
+            )
+
+        expected_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+        expected_variables["job_name"] = job_name
+        expected_variables["region"] = TEST_LOCATION
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback)
+        mock_beam_start_python_pipeline.assert_called_once_with(
+            variables=expected_variables,
+            py_file=PY_FILE,
+            py_interpreter=DEFAULT_PY_INTERPRETER,
             py_options=PY_OPTIONS,
-            location=TEST_LOCATION,
+            py_requirements=py_requirements,
+            py_system_site_packages=False,
+            process_line_callback=mock_callback_on_job_id.return_value,
         )
-        expected_cmd = [
-            "python3",
-            '-m',
-            PY_FILE,
-            f'--region={TEST_LOCATION}',
-            '--runner=DataflowRunner',
-            '--project=test',
-            '--labels=foo=bar',
-            '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
-        ]
-        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
+
+        mock_dataflow_wait_for_done.assert_called_once_with(
+            job_id=mock.ANY, job_name=job_name, location=TEST_LOCATION
+        )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.wait_for_done'))
+    @mock.patch(DATAFLOW_STRING.format('process_line_and_extract_dataflow_job_id_callback'))
     def test_start_python_dataflow_with_multiple_extra_packages(
-        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
+        self, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid
     ):
+        mock_beam_start_python_pipeline = self.dataflow_hook.beam_hook.start_python_pipeline
         mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
-        variables: Dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_PY)
-        variables['extra-package'] = ['a.whl', 'b.whl']
+        on_new_job_id_callback = MagicMock()
+        py_requirements = ["pands", "numpy"]
+        job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME,
-            variables=variables,
-            dataflow=PY_FILE,
+        passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+        passed_variables['extra-package'] = ['a.whl', 'b.whl']
+
+        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+                job_name=JOB_NAME,
+                variables=passed_variables,
+                dataflow=PY_FILE,
+                py_options=PY_OPTIONS,
+                py_interpreter=DEFAULT_PY_INTERPRETER,
+                py_requirements=py_requirements,
+                on_new_job_id_callback=on_new_job_id_callback,
+            )
+
+        expected_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+        expected_variables["job_name"] = job_name
+        expected_variables["region"] = DEFAULT_DATAFLOW_LOCATION
+        expected_variables['extra-package'] = ['a.whl', 'b.whl']
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback)
+        mock_beam_start_python_pipeline.assert_called_once_with(
+            variables=expected_variables,
+            py_file=PY_FILE,
+            py_interpreter=DEFAULT_PY_INTERPRETER,
             py_options=PY_OPTIONS,
+            py_requirements=py_requirements,
+            py_system_site_packages=False,
+            process_line_callback=mock_callback_on_job_id.return_value,
         )
-        expected_cmd = [
-            "python3",
-            '-m',
-            PY_FILE,
-            '--extra-package=a.whl',
-            '--extra-package=b.whl',
-            '--region=us-central1',
-            '--runner=DataflowRunner',
-            '--project=test',
-            '--labels=foo=bar',
-            '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
-        ]
-        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
+
+        mock_dataflow_wait_for_done.assert_called_once_with(
+            job_id=mock.ANY, job_name=job_name, location=DEFAULT_DATAFLOW_LOCATION
+        )
 
     @parameterized.expand(
         [
-            ('default_to_python3', 'python3'),
-            ('major_version_2', 'python2'),
-            ('major_version_3', 'python3'),
-            ('minor_version', 'python3.6'),
+            ('python3',),
+            ('python2',),
+            ('python3',),
+            ('python3.6',),
         ]
     )
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.wait_for_done'))
+    @mock.patch(DATAFLOW_STRING.format('process_line_and_extract_dataflow_job_id_callback'))
     def test_start_python_dataflow_with_custom_interpreter(
-        self,
-        name,
-        py_interpreter,
-        mock_conn,
-        mock_dataflow,
-        mock_dataflowjob,
-        mock_uuid,
+        self, py_interpreter, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid
     ):
-        del name  # unused variable
+        mock_beam_start_python_pipeline = self.dataflow_hook.beam_hook.start_python_pipeline
         mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
-        self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME,
-            variables=DATAFLOW_VARIABLES_PY,
-            dataflow=PY_FILE,
-            py_options=PY_OPTIONS,
+        on_new_job_id_callback = MagicMock()
+        job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
+
+        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+                job_name=JOB_NAME,
+                variables=DATAFLOW_VARIABLES_PY,
+                dataflow=PY_FILE,
+                py_options=PY_OPTIONS,
+                py_interpreter=py_interpreter,
+                py_requirements=None,
+                on_new_job_id_callback=on_new_job_id_callback,
+            )
+
+        expected_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+        expected_variables["job_name"] = job_name
+        expected_variables["region"] = DEFAULT_DATAFLOW_LOCATION
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback)
+        mock_beam_start_python_pipeline.assert_called_once_with(
+            variables=expected_variables,
+            py_file=PY_FILE,
             py_interpreter=py_interpreter,
+            py_options=PY_OPTIONS,
+            py_requirements=None,
+            py_system_site_packages=False,
+            process_line_callback=mock_callback_on_job_id.return_value,
         )
-        expected_cmd = [
-            py_interpreter,
-            '-m',
-            PY_FILE,
-            '--region=us-central1',
-            '--runner=DataflowRunner',
-            '--project=test',
-            '--labels=foo=bar',
-            '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
-        ]
-        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
+
+        mock_dataflow_wait_for_done.assert_called_once_with(
+            job_id=mock.ANY, job_name=job_name, location=DEFAULT_DATAFLOW_LOCATION
+        )
 
     @parameterized.expand(
         [
@@ -382,225 +430,229 @@ class TestDataflowHook(unittest.TestCase):
             ([], True),
         ]
     )
-    @mock.patch(DATAFLOW_STRING.format('prepare_virtualenv'))
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.wait_for_done'))
+    @mock.patch(DATAFLOW_STRING.format('process_line_and_extract_dataflow_job_id_callback'))
     def test_start_python_dataflow_with_non_empty_py_requirements_and_without_system_packages(
         self,
         current_py_requirements,
         current_py_system_site_packages,
-        mock_conn,
-        mock_dataflow,
-        mock_dataflowjob,
+        mock_callback_on_job_id,
+        mock_dataflow_wait_for_done,
         mock_uuid,
-        mock_virtualenv,
     ):
+        mock_beam_start_python_pipeline = self.dataflow_hook.beam_hook.start_python_pipeline
         mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
-        mock_virtualenv.return_value = '/dummy_dir/bin/python'
-        self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME,
-            variables=DATAFLOW_VARIABLES_PY,
-            dataflow=PY_FILE,
-            py_options=PY_OPTIONS,
-            py_requirements=current_py_requirements,
-            py_system_site_packages=current_py_system_site_packages,
-        )
-        expected_cmd = [
-            '/dummy_dir/bin/python',
-            '-m',
-            PY_FILE,
-            '--region=us-central1',
-            '--runner=DataflowRunner',
-            '--project=test',
-            '--labels=foo=bar',
-            '--staging_location=gs://test/staging',
-            f'--job_name={JOB_NAME}-{MOCK_UUID_PREFIX}',
-        ]
-        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
+        on_new_job_id_callback = MagicMock()
+        job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
-    def test_start_python_dataflow_with_empty_py_requirements_and_without_system_packages(
-        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
-    ):
-        mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
-        with pytest.raises(AirflowException, match="Invalid method invocation."):
+        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
                 dataflow=PY_FILE,
                 py_options=PY_OPTIONS,
-                py_requirements=[],
+                py_interpreter=DEFAULT_PY_INTERPRETER,
+                py_requirements=current_py_requirements,
+                py_system_site_packages=current_py_system_site_packages,
+                on_new_job_id_callback=on_new_job_id_callback,
             )
 
-    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
-    def test_start_java_dataflow(self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid):
-        mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
-        self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_JAVA, jar=JAR_FILE
+        expected_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+        expected_variables["job_name"] = job_name
+        expected_variables["region"] = DEFAULT_DATAFLOW_LOCATION
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback)
+        mock_beam_start_python_pipeline.assert_called_once_with(
+            variables=expected_variables,
+            py_file=PY_FILE,
+            py_interpreter=DEFAULT_PY_INTERPRETER,
+            py_options=PY_OPTIONS,
+            py_requirements=current_py_requirements,
+            py_system_site_packages=current_py_system_site_packages,
+            process_line_callback=mock_callback_on_job_id.return_value,
         )
-        expected_cmd = [
-            'java',
-            '-jar',
-            JAR_FILE,
-            '--region=us-central1',
-            '--runner=DataflowRunner',
-            '--project=test',
-            '--stagingLocation=gs://test/staging',
-            '--labels={"foo":"bar"}',
-            f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
-        ]
-        assert sorted(expected_cmd) == sorted(mock_dataflow.call_args[1]["cmd"])
+
+        mock_dataflow_wait_for_done.assert_called_once_with(
+            job_id=mock.ANY, job_name=job_name, location=DEFAULT_DATAFLOW_LOCATION
+        )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.wait_for_done'))
+    def test_start_python_dataflow_with_empty_py_requirements_and_without_system_packages(
+        self, mock_dataflow_wait_for_done, mock_uuid
+    ):
+        self.dataflow_hook.beam_hook = BeamHook(runner="DataflowRunner")
+        mock_uuid.return_value = MOCK_UUID
+        on_new_job_id_callback = MagicMock()
+
+        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"), self.assertRaisesRegex(
+            AirflowException, "Invalid method invocation."
+        ):
+            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+                job_name=JOB_NAME,
+                variables=DATAFLOW_VARIABLES_PY,
+                dataflow=PY_FILE,
+                py_options=PY_OPTIONS,
+                py_interpreter=DEFAULT_PY_INTERPRETER,
+                py_requirements=[],
+                on_new_job_id_callback=on_new_job_id_callback,
+            )
+
+        mock_dataflow_wait_for_done.assert_not_called()
+
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.wait_for_done'))
+    @mock.patch(DATAFLOW_STRING.format('process_line_and_extract_dataflow_job_id_callback'))
+    def test_start_java_dataflow(self, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid):
+        mock_beam_start_java_pipeline = self.dataflow_hook.beam_hook.start_java_pipeline
+        mock_uuid.return_value = MOCK_UUID
+        on_new_job_id_callback = MagicMock()
+        job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
+
+        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+            self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
+                job_name=JOB_NAME,
+                variables=DATAFLOW_VARIABLES_JAVA,
+                jar=JAR_FILE,
+                job_class=JOB_CLASS,
+                on_new_job_id_callback=on_new_job_id_callback,
+            )
+
+        expected_variables = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
+        expected_variables["jobName"] = job_name
+        expected_variables["region"] = DEFAULT_DATAFLOW_LOCATION
+        expected_variables["labels"] = '{"foo":"bar"}'
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback)
+        mock_beam_start_java_pipeline.assert_called_once_with(
+            variables=expected_variables,
+            jar=JAR_FILE,
+            job_class=JOB_CLASS,
+            process_line_callback=mock_callback_on_job_id.return_value,
+        )
+
+        mock_dataflow_wait_for_done.assert_called_once_with(
+            job_id=mock.ANY, job_name=job_name, location=DEFAULT_DATAFLOW_LOCATION, multiple_jobs=False
+        )
+
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.wait_for_done'))
+    @mock.patch(DATAFLOW_STRING.format('process_line_and_extract_dataflow_job_id_callback'))
     def test_start_java_dataflow_with_multiple_values_in_variables(
-        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
+        self, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid
     ):
+        mock_beam_start_java_pipeline = self.dataflow_hook.beam_hook.start_java_pipeline
         mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
-        variables: Dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
-        variables['mock-option'] = ['a.whl', 'b.whl']
+        on_new_job_id_callback = MagicMock()
+        job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=variables, jar=JAR_FILE
+        passed_variables: Dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
+        passed_variables['mock-option'] = ['a.whl', 'b.whl']
+
+        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+            self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
+                job_name=JOB_NAME,
+                variables=passed_variables,
+                jar=JAR_FILE,
+                job_class=JOB_CLASS,
+                on_new_job_id_callback=on_new_job_id_callback,
+            )
+
+        expected_variables = copy.deepcopy(passed_variables)
+        expected_variables["jobName"] = job_name
+        expected_variables["region"] = DEFAULT_DATAFLOW_LOCATION
+        expected_variables["labels"] = '{"foo":"bar"}'
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback)
+        mock_beam_start_java_pipeline.assert_called_once_with(
+            variables=expected_variables,
+            jar=JAR_FILE,
+            job_class=JOB_CLASS,
+            process_line_callback=mock_callback_on_job_id.return_value,
         )
-        expected_cmd = [
-            'java',
-            '-jar',
-            JAR_FILE,
-            '--mock-option=a.whl',
-            '--mock-option=b.whl',
-            '--region=us-central1',
-            '--runner=DataflowRunner',
-            '--project=test',
-            '--stagingLocation=gs://test/staging',
-            '--labels={"foo":"bar"}',
-            f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
-        ]
-        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
+
+        mock_dataflow_wait_for_done.assert_called_once_with(
+            job_id=mock.ANY, job_name=job_name, location=DEFAULT_DATAFLOW_LOCATION, multiple_jobs=False
+        )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.wait_for_done'))
+    @mock.patch(DATAFLOW_STRING.format('process_line_and_extract_dataflow_job_id_callback'))
     def test_start_java_dataflow_with_custom_region_as_variable(
-        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
+        self, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid
     ):
+        mock_beam_start_java_pipeline = self.dataflow_hook.beam_hook.start_java_pipeline
         mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
+        on_new_job_id_callback = MagicMock()
+        job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        variables = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
-        variables['region'] = TEST_LOCATION
+        passed_variables: Dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
+        passed_variables['region'] = TEST_LOCATION
 
-        self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=variables, jar=JAR_FILE
+        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+            self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
+                job_name=JOB_NAME,
+                variables=passed_variables,
+                jar=JAR_FILE,
+                job_class=JOB_CLASS,
+                on_new_job_id_callback=on_new_job_id_callback,
+            )
+
+        expected_variables = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
+        expected_variables["jobName"] = job_name
+        expected_variables["region"] = TEST_LOCATION
+        expected_variables["labels"] = '{"foo":"bar"}'
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback)
+        mock_beam_start_java_pipeline.assert_called_once_with(
+            variables=expected_variables,
+            jar=JAR_FILE,
+            job_class=JOB_CLASS,
+            process_line_callback=mock_callback_on_job_id.return_value,
         )
-        expected_cmd = [
-            'java',
-            '-jar',
-            JAR_FILE,
-            f'--region={TEST_LOCATION}',
-            '--runner=DataflowRunner',
-            '--project=test',
-            '--stagingLocation=gs://test/staging',
-            '--labels={"foo":"bar"}',
-            f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
-        ]
-        assert sorted(expected_cmd) == sorted(mock_dataflow.call_args[1]["cmd"])
+
+        mock_dataflow_wait_for_done.assert_called_once_with(
+            job_id=mock.ANY, job_name=job_name, location=TEST_LOCATION, multiple_jobs=False
+        )
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.wait_for_done'))
+    @mock.patch(DATAFLOW_STRING.format('process_line_and_extract_dataflow_job_id_callback'))
     def test_start_java_dataflow_with_custom_region_as_parameter(
-        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
+        self, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid
     ):
+        mock_beam_start_java_pipeline = self.dataflow_hook.beam_hook.start_java_pipeline
         mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
+        on_new_job_id_callback = MagicMock()
+        job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        variables = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
-        variables['region'] = TEST_LOCATION
+        with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
+            self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
+                job_name=JOB_NAME,
+                variables=DATAFLOW_VARIABLES_JAVA,
+                jar=JAR_FILE,
+                job_class=JOB_CLASS,
+                on_new_job_id_callback=on_new_job_id_callback,
+                location=TEST_LOCATION,
+            )
 
-        self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=variables, jar=JAR_FILE
+        expected_variables = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
+        expected_variables["jobName"] = job_name
+        expected_variables["region"] = TEST_LOCATION
+        expected_variables["labels"] = '{"foo":"bar"}'
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback)
+        mock_beam_start_java_pipeline.assert_called_once_with(
+            variables=expected_variables,
+            jar=JAR_FILE,
+            job_class=JOB_CLASS,
+            process_line_callback=mock_callback_on_job_id.return_value,
         )
-        expected_cmd = [
-            'java',
-            '-jar',
-            JAR_FILE,
-            f'--region={TEST_LOCATION}',
-            '--runner=DataflowRunner',
-            '--project=test',
-            '--stagingLocation=gs://test/staging',
-            '--labels={"foo":"bar"}',
-            f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
-        ]
-        assert sorted(expected_cmd) == sorted(mock_dataflow.call_args[1]["cmd"])
 
-    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
-    def test_start_java_dataflow_with_job_class(self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid):
-        mock_uuid.return_value = MOCK_UUID
-        mock_conn.return_value = None
-        dataflow_instance = mock_dataflow.return_value
-        dataflow_instance.wait_for_done.return_value = None
-        dataflowjob_instance = mock_dataflowjob.return_value
-        dataflowjob_instance.wait_for_done.return_value = None
-        self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
-            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_JAVA, jar=JAR_FILE, job_class=JOB_CLASS
+        mock_dataflow_wait_for_done.assert_called_once_with(
+            job_id=mock.ANY, job_name=job_name, location=TEST_LOCATION, multiple_jobs=False
         )
-        expected_cmd = [
-            'java',
-            '-cp',
-            JAR_FILE,
-            JOB_CLASS,
-            '--region=us-central1',
-            '--runner=DataflowRunner',
-            '--project=test',
-            '--stagingLocation=gs://test/staging',
-            '--labels={"foo":"bar"}',
-            f'--jobName={JOB_NAME}-{MOCK_UUID_PREFIX}',
-        ]
-        assert sorted(mock_dataflow.call_args[1]["cmd"]) == sorted(expected_cmd)
 
     @parameterized.expand(
         [
@@ -616,17 +668,20 @@ class TestDataflowHook(unittest.TestCase):
     )
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'), return_value=MOCK_UUID)
     def test_valid_dataflow_job_name(self, expected_result, job_name, append_job_name, mock_uuid4):
-        job_name = self.dataflow_hook._build_dataflow_job_name(
+        job_name = self.dataflow_hook.build_dataflow_job_name(
             job_name=job_name, append_job_name=append_job_name
         )
 
-        assert expected_result == job_name
+        self.assertEqual(expected_result, job_name)
 
+    #
     @parameterized.expand([("1dfjob@",), ("dfjob@",), ("df^jo",)])
     def test_build_dataflow_job_name_with_invalid_value(self, job_name):
-        with pytest.raises(ValueError):
-            self.dataflow_hook._build_dataflow_job_name(job_name=job_name, append_job_name=False)
+        self.assertRaises(
+            ValueError, self.dataflow_hook.build_dataflow_job_name, job_name=job_name, append_job_name=False
+        )
 
+    #
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_get_job(self, mock_conn, mock_dataflowjob):
@@ -641,6 +696,7 @@ class TestDataflowHook(unittest.TestCase):
         )
         method_fetch_job_by_id.assert_called_once_with(TEST_JOB_ID)
 
+    #
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_fetch_job_metrics_by_id(self, mock_conn, mock_dataflowjob):
@@ -705,6 +761,34 @@ class TestDataflowHook(unittest.TestCase):
             location=TEST_LOCATION,
         )
         method_fetch_job_autoscaling_events_by_id.assert_called_once_with(TEST_JOB_ID)
+
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_wait_for_done(self, mock_conn, mock_dataflowjob):
+        method_wait_for_done = mock_dataflowjob.return_value.wait_for_done
+
+        self.dataflow_hook.wait_for_done(
+            job_name="JOB_NAME",
+            project_id=TEST_PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            location=TEST_LOCATION,
+            multiple_jobs=False,
+        )
+        mock_conn.assert_called_once()
+        mock_dataflowjob.assert_called_once_with(
+            dataflow=mock_conn.return_value,
+            project_number=TEST_PROJECT_ID,
+            name="JOB_NAME",
+            location=TEST_LOCATION,
+            poll_sleep=self.dataflow_hook.poll_sleep,
+            job_id=TEST_JOB_ID,
+            num_retries=self.dataflow_hook.num_retries,
+            multiple_jobs=False,
+            drain_pipeline=self.dataflow_hook.drain_pipeline,
+            cancel_timeout=self.dataflow_hook.cancel_timeout,
+            wait_until_finished=self.dataflow_hook.wait_until_finished,
+        )
+        method_wait_for_done.assert_called_once_with()
 
 
 class TestDataflowTemplateHook(unittest.TestCase):
@@ -1691,13 +1775,32 @@ class TestDataflow(unittest.TestCase):
     def test_data_flow_valid_job_id(self, log):
         echos = ";".join([f"echo {shlex.quote(line)}" for line in log.split("\n")])
         cmd = ["bash", "-c", echos]
-        assert _DataflowRunner(cmd).wait_for_done() == TEST_JOB_ID
+        found_job_id = None
+
+        def callback(job_id):
+            nonlocal found_job_id
+            found_job_id = job_id
+
+        BeamCommandRunner(
+            cmd, process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback)
+        ).wait_for_done()
+        self.assertEqual(found_job_id, TEST_JOB_ID)
 
     def test_data_flow_missing_job_id(self):
         cmd = ['echo', 'unit testing']
-        assert _DataflowRunner(cmd).wait_for_done() is None
+        found_job_id = None
 
-    @mock.patch('airflow.providers.google.cloud.hooks.dataflow._DataflowRunner.log')
+        def callback(job_id):
+            nonlocal found_job_id
+            found_job_id = job_id
+
+        BeamCommandRunner(
+            cmd, process_line_callback=process_line_and_extract_dataflow_job_id_callback(callback)
+        ).wait_for_done()
+
+        self.assertEqual(found_job_id, None)
+
+    @mock.patch('airflow.providers.apache.beam.hooks.beam.BeamCommandRunner.log')
     @mock.patch('subprocess.Popen')
     @mock.patch('select.select')
     def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen, mock_logging):
@@ -1718,7 +1821,6 @@ class TestDataflow(unittest.TestCase):
         mock_proc_poll.side_effect = [None, poll_resp_error]
         mock_proc.poll = mock_proc_poll
         mock_popen.return_value = mock_proc
-        dataflow = _DataflowRunner(['test', 'cmd'])
+        dataflow = BeamCommandRunner(['test', 'cmd'])
         mock_logging.info.assert_called_once_with('Running command: %s', 'test cmd')
-        with pytest.raises(Exception):
-            dataflow.wait_for_done()
+        self.assertRaises(Exception, dataflow.wait_for_done)

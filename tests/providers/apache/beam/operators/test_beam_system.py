@@ -31,6 +31,9 @@ class BeamExampleDagsSystemTest(SystemTest):
     def test_run_example_dag_beam_python(self):
         self.run_dag('example_beam_native_python', BEAM_DAG_FOLDER)
 
+    def test_run_example_dag_beam_python_dataflow_async(self):
+        self.run_dag('example_beam_native_python_dataflow_async', BEAM_DAG_FOLDER)
+
     def test_run_example_dag_beam_java_direct_runner(self):
         self.run_dag('example_beam_native_java_direct_runner', BEAM_DAG_FOLDER)
 

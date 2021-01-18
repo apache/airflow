@@ -22,7 +22,7 @@ import shlex
 import subprocess
 import textwrap
 from tempfile import TemporaryDirectory
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -30,13 +30,70 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.python_virtualenv import prepare_virtualenv
 
 
-class _BeamRunner(LoggingMixin):
+class BeamRunnerType:
+    """
+    Helper class for listing runner types.
+    For more information about runners see:
+    https://beam.apache.org/documentation/
+    """
+
+    DataflowRunner = "DataflowRunner"
+    DirectRunner = "DirectRunner"
+    SparkRunner = "SparkRunner"
+    FlinkRunner = "FlinkRunner"
+    SamzaRunner = "SamzaRunner"
+    NemoRunner = "NemoRunner"
+    JetRunner = "JetRunner"
+    Twister2Runner = "Twister2Runner"
+
+
+def beam_options_to_args(options: dict) -> List[str]:
+    """
+    Returns a formatted pipeline options from a dictionary of arguments
+
+    The logic of this method should be compatible with Apache Beam:
+    https://github.com/apache/beam/blob/b56740f0e8cd80c2873412847d0b336837429fb9/sdks/python/
+    apache_beam/options/pipeline_options.py#L230-L251
+
+    :param options: Dictionary with options
+    :type options: dict
+    :return: List of arguments
+    :rtype: List[str]
+    """
+    if not options:
+        return []
+
+    args: List[str] = []
+    for attr, value in options.items():
+        if value is None or (isinstance(value, bool) and value):
+            args.append(f"--{attr}")
+        elif isinstance(value, list):
+            args.extend([f"--{attr}={v}" for v in value])
+        else:
+            args.append(f"--{attr}={value}")
+    return args
+
+
+class BeamCommandRunner(LoggingMixin):
+    """
+    Class responsible for running pipeline command in subprocess
+
+    :param cmd: Parts of the command to be run in subprocess
+    :type cmd: List[str]
+    :param process_line_callback: Optional callback which can be used to process
+        stdout and stderr to detect job id
+    :type process_line_callback: Optional[Callable[[str], None]]
+    """
+
     def __init__(
         self,
         cmd: List[str],
+        process_line_callback: Optional[Callable[[str], None]] = None,
     ) -> None:
         super().__init__()
         self.log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
+        self.process_line_callback = process_line_callback
+        self.job_id: Optional[str] = None
         self._proc = subprocess.Popen(
             cmd,
             shell=False,
@@ -56,6 +113,8 @@ class _BeamRunner(LoggingMixin):
                 line = self._proc.stderr.readline().decode()
                 if not line:
                     return
+                if self.process_line_callback:
+                    self.process_line_callback(line)
                 self.log.warning(line.rstrip("\n"))
 
         if fd == self._proc.stdout:
@@ -63,6 +122,8 @@ class _BeamRunner(LoggingMixin):
                 line = self._proc.stdout.readline().decode()
                 if not line:
                     return
+                if self.process_line_callback:
+                    self.process_line_callback(line)
                 self.log.info(line.rstrip("\n"))
 
         raise Exception("No data in stderr or in stdout.")
@@ -100,6 +161,9 @@ class BeamHook(BaseHook):
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
+
+    :param runner: Runner type
+    :type runner: str
     """
 
     def __init__(
@@ -113,30 +177,18 @@ class BeamHook(BaseHook):
         self,
         variables: dict,
         command_prefix: List[str],
+        process_line_callback: Optional[Callable[[str], None]] = None,
     ) -> None:
         cmd = command_prefix + [
             f"--runner={self.runner}",
         ]
         if variables:
-            cmd.extend(self._options_to_args(variables))
-        _BeamRunner(cmd=cmd).wait_for_done()
-
-    @staticmethod
-    def _options_to_args(variables: dict) -> List[str]:
-        if not variables:
-            return []
-        # The logic of this method should be compatible with Apache Beam:
-        # https://github.com/apache/beam/blob/b56740f0e8cd80c2873412847d0b336837429fb9/sdks/python/
-        # apache_beam/options/pipeline_options.py#L230-L251
-        args: List[str] = []
-        for attr, value in variables.items():
-            if value is None or (isinstance(value, bool) and value):
-                args.append(f"--{attr}")
-            elif isinstance(value, list):
-                args.extend([f"--{attr}={v}" for v in value])
-            else:
-                args.append(f"--{attr}={value}")
-        return args
+            cmd.extend(beam_options_to_args(variables))
+        cmd_runner = BeamCommandRunner(
+            cmd=cmd,
+            process_line_callback=process_line_callback,
+        )
+        cmd_runner.wait_for_done()
 
     def start_python_pipeline(  # pylint: disable=too-many-arguments
         self,
@@ -146,6 +198,7 @@ class BeamHook(BaseHook):
         py_interpreter: str = "python3",
         py_requirements: Optional[List[str]] = None,
         py_system_site_packages: bool = False,
+        process_line_callback: Optional[Callable[[str], None]] = None,
     ):
         """
         Starts Apache Beam python pipeline.
@@ -158,6 +211,7 @@ class BeamHook(BaseHook):
             If None, this defaults to the python3.
             To track python versions supported by beam and related
             issues check: https://issues.apache.org/jira/browse/BEAM-1251
+        :type py_interpreter: str
         :param py_requirements: Additional python package(s) to install.
             If a value is passed to this parameter, a new virtual environment has been created with
             additional packages installed.
@@ -169,7 +223,9 @@ class BeamHook(BaseHook):
             See virtualenv documentation for more information.
 
             This option is only relevant if the ``py_requirements`` parameter is not None.
-        :type py_interpreter: str
+        :type py_system_site_packages: bool
+        :param on_new_job_id_callback: Callback called when the job ID is known.
+        :type on_new_job_id_callback: callable
         """
         if "labels" in variables:
             variables["labels"] = [f"{key}={value}" for key, value in variables["labels"].items()]
@@ -200,6 +256,7 @@ class BeamHook(BaseHook):
                 self._start_pipeline(
                     variables=variables,
                     command_prefix=command_prefix,
+                    process_line_callback=process_line_callback,
                 )
         else:
             command_prefix = [py_interpreter] + py_options + [py_file]
@@ -207,6 +264,7 @@ class BeamHook(BaseHook):
             self._start_pipeline(
                 variables=variables,
                 command_prefix=command_prefix,
+                process_line_callback=process_line_callback,
             )
 
     def start_java_pipeline(
@@ -214,6 +272,7 @@ class BeamHook(BaseHook):
         variables: dict,
         jar: str,
         job_class: Optional[str] = None,
+        process_line_callback: Optional[Callable[[str], None]] = None,
     ) -> None:
         """
         Starts Apache Beam Java pipeline.
@@ -232,4 +291,5 @@ class BeamHook(BaseHook):
         self._start_pipeline(
             variables=variables,
             command_prefix=command_prefix,
+            process_line_callback=process_line_callback,
         )

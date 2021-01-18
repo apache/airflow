@@ -27,14 +27,21 @@ from airflow.providers.apache.beam.operators.beam import (
     BeamRunJavaPipelineOperator,
     BeamRunPythonPipelineOperator,
 )
+from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
+from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
+from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.dates import days_ago
 
+GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCS_INPUT = os.environ.get('APACHE_BEAM_PYTHON', 'gs://apache-beam-samples/shakespeare/kinglear.txt')
 GCS_TMP = os.environ.get('APACHE_BEAM_GCS_TMP', 'gs://test-dataflow-example/temp/')
 GCS_STAGING = os.environ.get('APACHE_BEAM_GCS_STAGING', 'gs://test-dataflow-example/staging/')
 GCS_OUTPUT = os.environ.get('APACHE_BEAM_GCS_OUTPUT', 'gs://test-dataflow-example/output')
 GCS_PYTHON = os.environ.get('APACHE_BEAM_PYTHON', 'gs://test-dataflow-example/wordcount_debugging.py')
+GCS_PYTHON_DATAFLOW_ASYNC = os.environ.get(
+    'APACHE_BEAM_PYTHON_DATAFLOW_ASYNC', 'gs://test-dataflow-example/wordcount_debugging.py'
+)
 
 GCS_JAR_DIRECT_RUNNER = os.environ.get(
     'APACHE_BEAM_DIRECT_RUNNER_JAR',
@@ -88,19 +95,17 @@ with models.DAG(
         filename="/tmp/beam_wordcount_direct_runner_{{ ds_nodash }}.jar",
     )
 
-    start_java_job_direct_runner = BeamRunJavaPipelineOperator(
-        task_id="start_java_job_direct_runner",
-        runner="DirectRunner",
+    start_java_pipeline_direct_runner = BeamRunJavaPipelineOperator(
+        task_id="start_java_pipeline_direct_runner",
         jar="/tmp/beam_wordcount_direct_runner_{{ ds_nodash }}.jar",
-        job_name='{{task.task_id}}',
         pipeline_options={
-            'output': '/tmp/start_java_job_direct_runner',
+            'output': '/tmp/start_java_pipeline_direct_runner',
             'inputFile': GCS_INPUT,
         },
         job_class='org.apache.beam.examples.WordCount',
     )
 
-    jar_to_local_direct_runner >> start_java_job_direct_runner
+    jar_to_local_direct_runner >> start_java_pipeline_direct_runner
 
 with models.DAG(
     "example_beam_native_java_dataflow_runner",
@@ -116,20 +121,20 @@ with models.DAG(
         filename="/tmp/beam_wordcount_dataflow_runner_{{ ds_nodash }}.jar",
     )
 
-    start_java_job_dataflow = BeamRunJavaPipelineOperator(
-        task_id="start_java_job_dataflow",
+    start_java_pipeline_dataflow = BeamRunJavaPipelineOperator(
+        task_id="start_java_pipeline_dataflow",
         runner="DataflowRunner",
         jar="/tmp/beam_wordcount_dataflow_runner_{{ ds_nodash }}.jar",
-        job_name='{{task.task_id}}',
         pipeline_options={
             'tempLocation': GCS_TMP,
             'stagingLocation': GCS_STAGING,
             'output': GCS_OUTPUT,
         },
         job_class='org.apache.beam.examples.WordCount',
+        dataflow_config={"job_name": "{{task.task_id}}", "location": "us-central1"},
     )
 
-    jar_to_local_dataflow_runner >> start_java_job_dataflow
+    jar_to_local_dataflow_runner >> start_java_pipeline_dataflow
 
 with models.DAG(
     "example_beam_native_java_spark_runner",
@@ -145,19 +150,18 @@ with models.DAG(
         filename="/tmp/beam_wordcount_spark_runner_{{ ds_nodash }}.jar",
     )
 
-    start_java_job_spark_runner = BeamRunJavaPipelineOperator(
-        task_id="start_java_job_spark_runner",
+    start_java_pipeline_spark_runner = BeamRunJavaPipelineOperator(
+        task_id="start_java_pipeline_spark_runner",
         runner="SparkRunner",
         jar="/tmp/beam_wordcount_spark_runner_{{ ds_nodash }}.jar",
-        job_name='{{task.task_id}}',
         pipeline_options={
-            'output': '/tmp/start_java_job_spark_runner',
+            'output': '/tmp/start_java_pipeline_spark_runner',
             'inputFile': GCS_INPUT,
         },
         job_class='org.apache.beam.examples.WordCount',
     )
 
-    jar_to_local_spark_runner >> start_java_job_spark_runner
+    jar_to_local_spark_runner >> start_java_pipeline_spark_runner
 
 with models.DAG(
     "example_beam_native_java_flink_runner",
@@ -173,19 +177,18 @@ with models.DAG(
         filename="/tmp/beam_wordcount_flink_runner_{{ ds_nodash }}.jar",
     )
 
-    start_java_job_flink_runner = BeamRunJavaPipelineOperator(
-        task_id="start_java_job_flink_runner",
+    start_java_pipeline_flink_runner = BeamRunJavaPipelineOperator(
+        task_id="start_java_pipeline_flink_runner",
         runner="FlinkRunner",
         jar="/tmp/beam_wordcount_flink_runner_{{ ds_nodash }}.jar",
-        job_name='{{task.task_id}}',
         pipeline_options={
-            'output': '/tmp/start_java_job_flink_runner',
+            'output': '/tmp/start_java_pipeline_flink_runner',
             'inputFile': GCS_INPUT,
         },
         job_class='org.apache.beam.examples.WordCount',
     )
 
-    jar_to_local_flink_runner >> start_java_job_flink_runner
+    jar_to_local_flink_runner >> start_java_pipeline_flink_runner
 
 
 with models.DAG(
@@ -196,8 +199,8 @@ with models.DAG(
     tags=['example'],
 ) as dag_native_python:
 
-    start_python_job_local_direct_runner = BeamRunPythonPipelineOperator(
-        task_id="start_python_job_local_direct_runner",
+    start_python_pipeline_local_direct_runner = BeamRunPythonPipelineOperator(
+        task_id="start_python_pipeline_local_direct_runner",
         py_file='apache_beam.examples.wordcount',
         py_options=['-m'],
         py_requirements=['apache-beam[gcp]==2.26.0'],
@@ -205,8 +208,8 @@ with models.DAG(
         py_system_site_packages=False,
     )
 
-    start_python_job_direct_runner = BeamRunPythonPipelineOperator(
-        task_id="start_python_job_direct_runner",
+    start_python_pipeline_direct_runner = BeamRunPythonPipelineOperator(
+        task_id="start_python_pipeline_direct_runner",
         py_file=GCS_PYTHON,
         py_options=[],
         pipeline_options={"output": GCS_OUTPUT},
@@ -215,8 +218,8 @@ with models.DAG(
         py_system_site_packages=False,
     )
 
-    start_python_job_dataflow_runner = BeamRunPythonPipelineOperator(
-        task_id="start_python_job_dataflow_runner",
+    start_python_pipeline_dataflow_runner = BeamRunPythonPipelineOperator(
+        task_id="start_python_pipeline_dataflow_runner",
         runner="DataflowRunner",
         py_file=GCS_PYTHON,
         pipeline_options={
@@ -225,14 +228,16 @@ with models.DAG(
             'output': GCS_OUTPUT,
         },
         py_options=[],
-        job_name='{{task.task_id}}',
         py_requirements=['apache-beam[gcp]==2.26.0'],
         py_interpreter='python3',
         py_system_site_packages=False,
+        dataflow_config=DataflowConfiguration(
+            job_name='{{task.task_id}}', project_id=GCP_PROJECT_ID, location="us-central1"
+        ),
     )
 
-    start_python_job_local_spark_runner = BeamRunPythonPipelineOperator(
-        task_id="start_python_job_local_spark_runner",
+    start_python_pipeline_local_spark_runner = BeamRunPythonPipelineOperator(
+        task_id="start_python_pipeline_local_spark_runner",
         py_file='apache_beam.examples.wordcount',
         runner="SparkRunner",
         py_options=['-m'],
@@ -241,13 +246,13 @@ with models.DAG(
         py_system_site_packages=False,
     )
 
-    start_python_job_local_flink_runner = BeamRunPythonPipelineOperator(
-        task_id="start_python_job_local_flink_runner",
+    start_python_pipeline_local_flink_runner = BeamRunPythonPipelineOperator(
+        task_id="start_python_pipeline_local_flink_runner",
         py_file='apache_beam.examples.wordcount',
         runner="FlinkRunner",
         py_options=['-m'],
         pipeline_options={
-            'output': '/tmp/start_python_job_local_flink_runner',
+            'output': '/tmp/start_python_pipeline_local_flink_runner',
         },
         py_requirements=['apache-beam[gcp]==2.26.0'],
         py_interpreter='python3',
@@ -255,6 +260,45 @@ with models.DAG(
     )
 
     [
-        start_python_job_local_direct_runner,
-        start_python_job_direct_runner,
-    ] >> start_python_job_local_flink_runner >> start_python_job_local_spark_runner
+        start_python_pipeline_local_direct_runner,
+        start_python_pipeline_direct_runner,
+    ] >> start_python_pipeline_local_flink_runner >> start_python_pipeline_local_spark_runner
+
+
+with models.DAG(
+    "example_beam_native_python_dataflow_async",
+    default_args=default_args,
+    start_date=days_ago(1),
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
+) as dag_native_python_dataflow_async:
+    start_python_job_dataflow_runner_async = BeamRunPythonPipelineOperator(
+        task_id="start_python_job_dataflow_runner_async",
+        runner="DataflowRunner",
+        py_file=GCS_PYTHON_DATAFLOW_ASYNC,
+        pipeline_options={
+            'tempLocation': GCS_TMP,
+            'stagingLocation': GCS_STAGING,
+            'output': GCS_OUTPUT,
+        },
+        py_options=[],
+        py_requirements=['apache-beam[gcp]==2.26.0'],
+        py_interpreter='python3',
+        py_system_site_packages=False,
+        dataflow_config=DataflowConfiguration(
+            job_name='{{task.task_id}}',
+            project_id=GCP_PROJECT_ID,
+            location="us-central1",
+            wait_until_finished=False,
+        ),
+    )
+
+    wait_for_python_job_dataflow_runner_async_done = DataflowJobStatusSensor(
+        task_id="wait-for-python-job-async-done",
+        job_id="{{task_instance.xcom_pull('start_python_job_dataflow_runner_async')['dataflow_job_id']}}",
+        expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
+        project_id=GCP_PROJECT_ID,
+        location='us-central1',
+    )
+
+    start_python_job_dataflow_runner_async >> wait_for_python_job_dataflow_runner_async_done
