@@ -594,19 +594,18 @@ All Tests are inside ./tests directory.
 .. code-block:: bash
 
    root@df8927308887:/opt/airflow# ./scripts/in_container/
-    _in_container_script_init.sh            run_generate_constraints.sh
-    check_environment.sh                    run_init_script.sh
-    entrypoint_ci.sh                        run_mypy.sh
-    entrypoint_exec.sh                      run_prepare_provider_packages.sh
-    prod/                                   run_prepare_provider_readme.sh
-    refresh_pylint_todo.sh                  run_pylint.sh
-    run_ci_tests.sh                         run_system_tests.sh
-    run_clear_tmp.sh                        run_test_package_import_all_classes.sh
-    run_cli_tool.sh                         run_test_package_install.sh
-    run_docs_build.sh                       run_tmux.sh
-    run_extract_tests.sh                    run_tmux_welcome.sh
-    run_fix_ownership.sh                    stop_tmux_airflow.sh
-    run_flake8.sh                           update_quarantined_test_status.py
+      bin/                                        run_flake8.sh*
+      check_environment.sh*                       run_generate_constraints.sh*
+      entrypoint_ci.sh*                           run_init_script.sh*
+      entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
+      _in_container_script_init.sh*               run_mypy.sh*
+      prod/                                       run_prepare_provider_packages.sh*
+      refresh_pylint_todo.sh*                     run_prepare_provider_readme.sh*
+      run_ci_tests.sh*                            run_pylint.sh*
+      run_clear_tmp.sh*                           run_system_tests.sh*
+      run_docs_build.sh*                          run_tmux_welcome.sh*
+      run_extract_tests.sh*                       stop_tmux_airflow.sh*
+      run_fix_ownership.sh*                       update_quarantined_test_status.py*
 
    root@df8927308887:/opt/airflow# ./scripts/in_container/run_docs_build.sh
 
@@ -810,19 +809,19 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 .. code-block:: bash
 
    root@df8927308887:/opt/airflow# ./scripts/in_container/
-    _in_container_script_init.sh            run_generate_constraints.sh
-    check_environment.sh                    run_init_script.sh
-    entrypoint_ci.sh                        run_mypy.sh
-    entrypoint_exec.sh                      run_prepare_provider_packages.sh
-    prod/                                   run_prepare_provider_readme.sh
-    refresh_pylint_todo.sh                  run_pylint.sh
-    run_ci_tests.sh                         run_system_tests.sh
-    run_clear_tmp.sh                        run_test_package_import_all_classes.sh
-    run_cli_tool.sh                         run_test_package_install.sh
-    run_docs_build.sh                       run_tmux.sh
-    run_extract_tests.sh                    run_tmux_welcome.sh
-    run_fix_ownership.sh                    stop_tmux_airflow.sh
-    run_flake8.sh                           update_quarantined_test_status.py
+      bin/                                        run_flake8.sh*
+      check_environment.sh*                       run_generate_constraints.sh*
+      entrypoint_ci.sh*                           run_init_script.sh*
+      entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
+      _in_container_script_init.sh*               run_mypy.sh*
+      prod/                                       run_prepare_provider_packages.sh*
+      refresh_pylint_todo.sh*                     run_prepare_provider_readme.sh*
+      run_ci_tests.sh*                            run_pylint.sh*
+      run_clear_tmp.sh*                           run_system_tests.sh*
+      run_docs_build.sh*                          run_tmux_welcome.sh*
+      run_extract_tests.sh*                       stop_tmux_airflow.sh*
+      run_fix_ownership.sh*                       update_quarantined_test_status.py*
+
 
    root@df8927308887:/opt/airflow# ./scripts/in_container/run_docs_build.sh
 

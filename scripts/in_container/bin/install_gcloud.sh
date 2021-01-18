@@ -19,18 +19,27 @@
 
 set -euo pipefail
 
+INSTALL_DIR="/files/opt/google-cloud-sdk"
+BIN_PATH="/files/bin/gcloud"
+
+if [[ $# != "0" && ${1} == "--reinstall" ]]; then
+    rm -rf "${INSTALL_DIR}"
+    rm -f "${BIN_PATH}"
+fi
+
+hash -r
+
 if command -v gcloud; then
-    echo 'The "gcloud" command found. Installation not needed.'
+    echo 'The "gcloud" command found. Installation not needed.  Run with --reinstall to reinstall'
     exit 1
 fi
 
 CLOUD_SDK_VERSION=322.0.0
 DOWNLOAD_URL="https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${CLOUD_SDK_VERSION}-linux-x86_64.tar.gz"
-INSTALL_DIR="/files/opt/google-cloud-sdk"
 
 if [[ -e ${INSTALL_DIR} ]]; then
     echo "The install directory (${INSTALL_DIR}) already exists. This may mean Cloud SDK is already installed."
-    echo "Please delete this directory to start the installation."
+    echo "Run with --reinstall to reinstall."
     exit 1
 fi
 
@@ -55,7 +64,7 @@ echo 'Symlinking executables files to /files/bin'
 mkdir -p "/files/bin/"
 while IPS='' read -r line; do
     BIN_NAME="$(basename "${line}")"
-    ln -s "${line}" "/files/bin/${BIN_NAME}"
+    ln -sf "${line}" "/files/bin/${BIN_NAME}"
 done < <(find "${INSTALL_DIR}/bin/" -type f)
 
 # Sanity check

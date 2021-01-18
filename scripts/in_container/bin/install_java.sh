@@ -19,17 +19,26 @@
 
 set -euo pipefail
 
+INSTALL_DIR="/files/opt/java"
+BIN_PATH="/files/bin/java"
+
+if [[ $# != "0" && ${1} == "--reinstall" ]]; then
+    rm -rf "${INSTALL_DIR}"
+    rm -f "${BIN_PATH}"
+fi
+
+hash -r
+
 if command -v java; then
-    echo 'The "java" command found. Installation not needed.'
+    echo 'The "java" command found. Installation not needed. Run with --reinstall to reinstall'
     exit 1
 fi
 
 DOWNLOAD_URL='https://download.java.net/openjdk/jdk8u41/ri/openjdk-8u41-b04-linux-x64-14_jan_2020.tar.gz'
-INSTALL_DIR="/files/opt/java"
 
 if [[ -e ${INSTALL_DIR} ]]; then
     echo "The install directory (${INSTALL_DIR}) already exists. This may mean java is already installed."
-    echo "Please delete this directory to start the installation."
+    echo "Run with --reinstall to reinstall."
     exit 1
 fi
 
