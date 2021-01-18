@@ -17,12 +17,12 @@
 
 .. contents:: :local:
 
-Committers and PMS's
+Committers and PMC's
 ====================
 
-This document assumes that you know how our community works in our community, but you would like to learn more about the rules by which we add new members.
+This document assumes that you know how Airflow's community work, but you would like to learn more about the rules by which we add new members.
 
-Before reading this document, you should be familiar with `Contributor guides <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__.
+Before reading this document, you should be familiar with `Contributor's guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__.
 
 Becoming a Committer
 --------------------
