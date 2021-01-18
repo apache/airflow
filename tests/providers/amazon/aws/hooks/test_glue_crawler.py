@@ -81,6 +81,7 @@ mock_config = {
 
 
 class TestAwsGlueCrawlerHook(unittest.TestCase):
+    @classmethod
     def setUp(cls):
         cls.hook = AwsGlueCrawlerHook(aws_conn_id="aws_default")
 

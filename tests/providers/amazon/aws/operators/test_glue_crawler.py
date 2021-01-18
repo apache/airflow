@@ -18,8 +18,6 @@
 import unittest
 from unittest import mock
 
-from airflow.configuration import conf
-from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
 from airflow.providers.amazon.aws.operators.glue_crawler import AwsGlueCrawlerOperator
 
 mock_crawler_name = 'test-crawler'
