@@ -158,7 +158,7 @@ google-cloud-bigtable==1.6.1
 google-cloud-container==1.0.1
 google-cloud-core==1.5.0
 google-cloud-datacatalog==3.0.0
-google-cloud-dataproc==1.1.1
+google-cloud-dataproc==2.2.0
 google-cloud-dlp==1.0.0
 google-cloud-kms==2.2.0
 google-cloud-language==1.3.0
