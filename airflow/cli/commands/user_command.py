@@ -98,7 +98,7 @@ def users_manage_role(args, remove=False):
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     user = appbuilder.sm.find_user(username=args.username) or appbuilder.sm.find_user(email=args.email)
     if not user:
-        raise SystemExit('User "{}" does not exist'.format(args.username or args.email))
+        raise SystemExit(f'User "{args.username or args.email}" does not exist')
 
     role = appbuilder.sm.find_role(args.role)
     if not role:
@@ -144,7 +144,7 @@ def users_export(args):
 
     with open(args.export, 'w') as file:
         file.write(json.dumps(users, sort_keys=True, indent=4))
-        print("{} users successfully exported to {}".format(len(users), file.name))
+        print(f"{len(users)} users successfully exported to {file.name}")
 
 
 @cli_utils.action_logging
@@ -191,7 +191,7 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
 
         existing_user = appbuilder.sm.find_user(email=user['email'])
         if existing_user:
-            print("Found existing user with email '{}'".format(user['email']))
+            print(f"Found existing user with email '{user['email']}'")
             existing_user.roles = roles
             existing_user.first_name = user['firstname']
             existing_user.last_name = user['lastname']
@@ -206,7 +206,7 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
             appbuilder.sm.update_user(existing_user)
             users_updated.append(user['email'])
         else:
-            print("Creating new user with email '{}'".format(user['email']))
+            print(f"Creating new user with email '{user['email']}'")
             appbuilder.sm.add_user(
                 username=user['username'],
                 first_name=user['firstname'],

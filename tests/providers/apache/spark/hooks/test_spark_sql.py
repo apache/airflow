@@ -60,11 +60,11 @@ class TestSparkSqlHook(unittest.TestCase):
         cmd = ' '.join(hook._prepare_command(""))
 
         # Check all the parameters
-        assert "--executor-cores {}".format(self._config['executor_cores']) in cmd
-        assert "--executor-memory {}".format(self._config['executor_memory']) in cmd
-        assert "--keytab {}".format(self._config['keytab']) in cmd
-        assert "--name {}".format(self._config['name']) in cmd
-        assert "--num-executors {}".format(self._config['num_executors']) in cmd
+        assert f"--executor-cores {self._config['executor_cores']}" in cmd
+        assert f"--executor-memory {self._config['executor_memory']}" in cmd
+        assert f"--keytab {self._config['keytab']}" in cmd
+        assert f"--name {self._config['name']}" in cmd
+        assert f"--num-executors {self._config['num_executors']}" in cmd
         sql_path = get_after('-f', hook._prepare_command(""))
         assert self._config['sql'].strip() == sql_path
 

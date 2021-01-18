@@ -166,7 +166,7 @@ def set_is_paused(is_paused, args):
         is_paused=is_paused,
     )
 
-    print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
+    print(f"Dag: {args.dag_id}, paused: {is_paused}")
 
 
 def dag_show(args):

@@ -55,7 +55,7 @@ class UriTestCaseConfig:
 
     @staticmethod
     def uri_test_name(func, num, param):
-        return "{}_{}_{}".format(func.__name__, num, param.args[0].description.replace(' ', '_'))
+        return f"{func.__name__}_{num}_{param.args[0].description.replace(' ', '_')}"
 
 
 class TestConnection(unittest.TestCase):

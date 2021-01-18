@@ -1538,7 +1538,7 @@ class DAG(LoggingMixin):
             dttm = timezone.utcnow()
             pickled = pickle.dumps(self)
             d['pickle_len'] = len(pickled)
-            d['pickling_duration'] = "{}".format(timezone.utcnow() - dttm)
+            d['pickling_duration'] = str(timezone.utcnow() - dttm)
         except Exception as e:
             self.log.debug(e)
             d['is_picklable'] = False

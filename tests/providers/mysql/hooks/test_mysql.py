@@ -431,10 +431,8 @@ class TestMySql(unittest.TestCase):
             from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
             assert mock_execute.call_count == 1
-            query = """
+            query = f"""
                 SELECT * INTO OUTFILE '{tmp_file}'
                 FROM {table}
-            """.format(
-                tmp_file=tmp_file, table=table
-            )
+            """
             assert_equal_ignore_multiple_spaces(self, mock_execute.call_args[0][0], query)

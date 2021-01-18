@@ -175,7 +175,7 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             poke_interval=0,
         )
-        generated_messages = ['test-prefix/obj%s' % i for i in range(5)]
+        generated_messages = [f'test-prefix/obj{i}' for i in range(5)]
         mock_hook.return_value.list.return_value = generated_messages
 
         response = task.execute(None)

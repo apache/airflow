@@ -28,7 +28,7 @@ from airflow.providers.google.cloud.utils import mlengine_operator_utils
 from airflow.version import version
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
-TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
+TEST_VERSION = f"v{version.replace('.', '-').replace('+', '-')}"
 
 
 class TestCreateEvaluateOps(unittest.TestCase):
@@ -80,7 +80,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
             input_paths=input_with_model['inputPaths'],
             prediction_path=input_with_model['outputPath'],
             metric_fn_and_keys=(self.metric_fn, ['err']),
-            validate_fn=(lambda x: 'err=%.1f' % x['err']),
+            validate_fn=(lambda x: f"err={x['err']:.1f}"),
             dag=self.dag,
             py_interpreter="python3",
         )
@@ -168,7 +168,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
             'input_paths': input_with_model['inputPaths'],
             'prediction_path': input_with_model['outputPath'],
             'metric_fn_and_keys': (self.metric_fn, ['err']),
-            'validate_fn': (lambda x: 'err=%.1f' % x['err']),
+            'validate_fn': (lambda x: f"err={x['err']:.1f}"),
         }
 
         with pytest.raises(AirflowException, match='Missing model origin'):

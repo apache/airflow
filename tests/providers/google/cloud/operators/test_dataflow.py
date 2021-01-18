@@ -55,7 +55,7 @@ DEFAULT_OPTIONS_TEMPLATE = {
     'zone': 'us-central1-f',
 }
 ADDITIONAL_OPTIONS = {'output': 'gs://test/output', 'labels': {'foo': 'bar'}}
-TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
+TEST_VERSION = f"v{version.replace('.', '-').replace('+', '-')}"
 EXPECTED_ADDITIONAL_OPTIONS = {
     'output': 'gs://test/output',
     'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION},

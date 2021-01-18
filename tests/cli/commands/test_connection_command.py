@@ -496,7 +496,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new0",
-                    "--conn-uri=%s" % TEST_URL,
+                    f"--conn-uri={TEST_URL}",
                     "--conn-description=new0 description",
                 ],
                 "Successfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
@@ -516,7 +516,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new1",
-                    "--conn-uri=%s" % TEST_URL,
+                    f"--conn-uri={TEST_URL}",
                     "--conn-description=new1 description",
                 ],
                 "Successfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
@@ -536,7 +536,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new2",
-                    "--conn-uri=%s" % TEST_URL,
+                    f"--conn-uri={TEST_URL}",
                     "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
@@ -557,7 +557,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new3",
-                    "--conn-uri=%s" % TEST_URL,
+                    f"--conn-uri={TEST_URL}",
                     "--conn-extra",
                     "{'extra': 'yes'}",
                     "--conn-description",
@@ -651,12 +651,12 @@ class TestCliAddConnections(unittest.TestCase):
     def test_cli_connections_add_duplicate(self):
         conn_id = "to_be_duplicated"
         connection_command.connections_add(
-            self.parser.parse_args(["connections", "add", conn_id, "--conn-uri=%s" % TEST_URL])
+            self.parser.parse_args(["connections", "add", conn_id, f"--conn-uri={TEST_URL}"])
         )
         # Check for addition attempt
         with pytest.raises(SystemExit, match=rf"A connection with `conn_id`={conn_id} already exists"):
             connection_command.connections_add(
-                self.parser.parse_args(["connections", "add", conn_id, "--conn-uri=%s" % TEST_URL])
+                self.parser.parse_args(["connections", "add", conn_id, f"--conn-uri={TEST_URL}"])
             )
 
     def test_cli_connections_add_delete_with_missing_parameters(self):
@@ -671,7 +671,7 @@ class TestCliAddConnections(unittest.TestCase):
         # Attempt to add with invalid uri
         with pytest.raises(SystemExit, match=r"The URI provided to --conn-uri is invalid: nonsense_uri"):
             connection_command.connections_add(
-                self.parser.parse_args(["connections", "add", "new1", "--conn-uri=%s" % "nonsense_uri"])
+                self.parser.parse_args(["connections", "add", "new1", f"--conn-uri={'nonsense_uri'}"])
             )
 
 

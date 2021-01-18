@@ -368,7 +368,7 @@ class TestPoolApiExperimental(TestBase):
         clear_db_pools()
         self.pools = [Pool.get_default_pool()]
         for i in range(self.USER_POOL_COUNT):
-            name = 'experimental_%s' % (i + 1)
+            name = f'experimental_{i + 1}'
             pool = Pool(
                 pool=name,
                 slots=i,

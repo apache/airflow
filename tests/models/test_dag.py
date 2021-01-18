@@ -476,7 +476,7 @@ class TestDag(unittest.TestCase):
 
     def test_user_defined_filters(self):
         def jinja_udf(name):
-            return 'Hello %s' % name
+            return f'Hello {name}'
 
         dag = models.DAG('test-dag', start_date=DEFAULT_DATE, user_defined_filters={"hello": jinja_udf})
         jinja_env = dag.get_template_env()
@@ -1540,7 +1540,7 @@ class TestDag(unittest.TestCase):
             )
 
             for i in range(2):
-                DummyOperator(task_id='{}-task-{}'.format(child_dag_name, i + 1), dag=dag_subdag)
+                DummyOperator(task_id=f'{child_dag_name}-task-{i + 1}', dag=dag_subdag)
 
             return dag_subdag
 

@@ -35,7 +35,7 @@ class TestPubSubPullSensor(unittest.TestCase):
     def _generate_messages(self, count):
         return [
             ReceivedMessage(
-                ack_id="%s" % i,
+                ack_id=f"{i}",
                 message={
                     "data": f'Message {i}'.encode('utf8'),
                     "attributes": {"type": "generated message"},

@@ -43,9 +43,7 @@ class TestHelpers(unittest.TestCase):
         filename_template = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
 
         ts = ti.get_template_context()['ts']
-        expected_filename = "{dag_id}/{task_id}/{ts}/{try_number}.log".format(
-            dag_id=dag_id, task_id=task_id, ts=ts, try_number=try_number
-        )
+        expected_filename = f"{dag_id}/{task_id}/{ts}/{try_number}.log"
 
         rendered_filename = helpers.render_log_filename(ti, try_number, filename_template)
 

@@ -128,14 +128,14 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, window=
     is_disabled = 'disabled' if current_page <= 0 else ''
     output.append(
         first_node.format(
-            href_link="?{}".format(get_params(page=0, search=search, status=status)),  # noqa
+            href_link=f"?{get_params(page=0, search=search, status=status)}",  # noqa
             disabled=is_disabled,
         )
     )
 
     page_link = void_link
     if current_page > 0:
-        page_link = '?{}'.format(get_params(page=(current_page - 1), search=search, status=status))
+        page_link = f'?{get_params(page=current_page - 1, search=search, status=status)}'
 
     output.append(previous_node.format(href_link=page_link, disabled=is_disabled))  # noqa
 
@@ -157,7 +157,7 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, window=
             'is_active': 'active' if is_current(current_page, page) else '',
             'href_link': void_link
             if is_current(current_page, page)
-            else '?{}'.format(get_params(page=page, search=search, status=status)),
+            else f'?{get_params(page=page, search=search, status=status)}',
             'page_num': page + 1,
         }
         output.append(page_node.format(**vals))  # noqa
@@ -167,13 +167,13 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, window=
     page_link = (
         void_link
         if current_page >= num_of_pages - 1
-        else '?{}'.format(get_params(page=current_page + 1, search=search, status=status))
+        else f'?{get_params(page=current_page + 1, search=search, status=status)}'
     )
 
     output.append(next_node.format(href_link=page_link, disabled=is_disabled))  # noqa
     output.append(
         last_node.format(
-            href_link="?{}".format(get_params(page=last_page, search=search, status=status)),  # noqa
+            href_link=f"?{get_params(page=last_page, search=search, status=status)}",  # noqa
             disabled=is_disabled,
         )
     )

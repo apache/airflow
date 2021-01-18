@@ -729,9 +729,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 for s in self.sql
             ]
         else:
-            raise AirflowException(
-                "argument 'sql' of type {} is neither a string nor an iterable".format(type(str))
-            )
+            raise AirflowException(f"argument 'sql' of type {type(str)} is neither a string nor an iterable")
         context['task_instance'].xcom_push(key='job_id', value=job_id)
 
     def on_kill(self) -> None:

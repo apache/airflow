@@ -54,7 +54,7 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Optio
         response_headers = response.headers
         if response_body is None:
             raise jenkins.EmptyResponseException(
-                "Error communicating with server[%s]: empty response" % jenkins_server.server
+                f"Error communicating with server[{jenkins_server.server}]: empty response"
             )
         return {'body': response_body.decode('utf-8'), 'headers': response_headers}
     except HTTPError as e:
@@ -66,9 +66,9 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Optio
         else:
             raise
     except socket.timeout as e:
-        raise jenkins.TimeoutException('Error in request: %s' % e)
+        raise jenkins.TimeoutException(f'Error in request: {e}')
     except URLError as e:
-        raise JenkinsException('Error in request: %s' % e.reason)
+        raise JenkinsException(f'Error in request: {e.reason}')
     return None
 
 

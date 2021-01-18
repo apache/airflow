@@ -317,8 +317,8 @@ class TestTransfer(unittest.TestCase):
             with hook.get_conn() as conn:
                 conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
                 conn.execute(
-                    """
-                    CREATE TABLE {} (
+                    f"""
+                    CREATE TABLE {mysql_table} (
                         c0 TINYINT,
                         c1 SMALLINT,
                         c2 MEDIUMINT,
@@ -326,9 +326,7 @@ class TestTransfer(unittest.TestCase):
                         c4 BIGINT,
                         c5 TIMESTAMP
                     )
-                """.format(
-                        mysql_table
-                    )
+                """
                 )
 
             op = MySqlToHiveOperator(
@@ -368,14 +366,12 @@ class TestTransfer(unittest.TestCase):
             with hook.get_conn() as conn:
                 conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
                 conn.execute(
-                    """
-                    CREATE TABLE {} (
+                    f"""
+                    CREATE TABLE {mysql_table} (
                         c0 VARCHAR(25),
                         c1 VARCHAR(25)
                     )
-                """.format(
-                        mysql_table
-                    )
+                """
                 )
                 conn.execute(
                     """
@@ -475,8 +471,8 @@ class TestTransfer(unittest.TestCase):
             with hook.get_conn() as conn:
                 conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
                 conn.execute(
-                    """
-                    CREATE TABLE {} (
+                    f"""
+                    CREATE TABLE {mysql_table} (
                         c0 TINYINT   UNSIGNED,
                         c1 SMALLINT  UNSIGNED,
                         c2 MEDIUMINT UNSIGNED,
@@ -488,9 +484,7 @@ class TestTransfer(unittest.TestCase):
                         c8 INT,
                         c9 BIGINT
                     )
-                """.format(
-                        mysql_table
-                    )
+                """
                 )
                 conn.execute(
                     """

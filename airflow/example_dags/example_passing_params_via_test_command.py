@@ -42,7 +42,7 @@ def my_py_command(test_mode, params):
             )
         )
     # Print out the value of "miff", passed in below via the Python Operator
-    print(" 'miff' was passed in via task params = {}".format(params["miff"]))
+    print(f" 'miff' was passed in via task params = {params['miff']}")
     return 1
 
 
@@ -53,8 +53,8 @@ def print_env_vars(test_mode):
     --env-vars '{"foo":"bar"}'`
     """
     if test_mode:
-        print("foo={}".format(os.environ.get('foo')))
-        print("AIRFLOW_TEST_MODE={}".format(os.environ.get('AIRFLOW_TEST_MODE')))
+        print(f"foo={os.environ.get('foo')}")
+        print(f"AIRFLOW_TEST_MODE={os.environ.get('AIRFLOW_TEST_MODE')}")
 
 
 with DAG(

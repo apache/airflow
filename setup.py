@@ -168,7 +168,7 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
 
     :param str filename: Destination file to write
     """
-    text = "{}".format(git_version(version))
+    text = f"{git_version(version)}"
     with open(filename, 'w') as file:
         file.write(text)
 

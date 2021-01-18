@@ -324,8 +324,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
             if len(pod_list.items) > 1 and self.reattach_on_restart:
                 raise AirflowException(
-                    'More than one pod running with labels: '
-                    '{label_selector}'.format(label_selector=label_selector)
+                    f'More than one pod running with labels: {label_selector}'
                 )
 
             launcher = pod_launcher.PodLauncher(kube_client=client, extract_xcom=self.do_xcom_push)

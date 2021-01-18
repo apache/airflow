@@ -530,7 +530,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         # This is based on the configparser.RawConfigParser.write method code to add support for
         # reading options from environment variables.
         if space_around_delimiters:
-            delimiter = " {} ".format(self._delimiters[0])
+            delimiter = f" {self._delimiters[0]} "
         else:
             delimiter = self._delimiters[0]
         if self._defaults:

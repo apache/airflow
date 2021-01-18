@@ -125,4 +125,4 @@ def post_connection(session):
         session.add(connection)
         session.commit()
         return connection_schema.dump(connection)
-    raise AlreadyExists(detail="Connection already exist. ID: %s" % conn_id)
+    raise AlreadyExists(detail=f"Connection already exist. ID: {conn_id}")
