@@ -235,7 +235,7 @@ For example:
   apache/airflow:2.0.0-python3.6                 - production image for 2.0.0 release
   apache/airflow:python3.6-master                - base python image for the master branch
 
-You can see DockerHub images at `<https://hub.docker.com/repository/docker/apache/airflow>`_
+You can see DockerHub images at `<https://hub.docker.com/r/apache/airflow>`_
 
 By default DockerHub registry is used when you push or pull such images.
 However for CI builds we keep the images in GitHub registry as well - this way we can easily push
