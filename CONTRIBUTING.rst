@@ -1356,7 +1356,7 @@ as "apache" so you can refer to it easily:
    You can configure different merge tools with it. You can also use IntelliJ/PyCharm's excellent merge tool.
    When you open a project in PyCharm which has conflicts, you can go to VCS > Git > Resolve Conflicts and there
    you have a very intuitive and helpful merge tool. For more information, see
-   `Resolve conflicts <https://www.jetbrains.com/help/idea/resolving-conflicts.html.>`_.
+   `Resolve conflicts <https://www.jetbrains.com/help/idea/resolving-conflicts.html>`_.
 
 8. After you've solved your conflict run:
 
