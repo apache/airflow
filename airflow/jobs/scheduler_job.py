@@ -1125,7 +1125,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         :type session: sqlalchemy.orm.Session
         :return: Number of task instance with state changed.
         """
-        max_tis = min(self.max_tis_per_query, self.executor.slots_available)
+        if self.max_tis_per_query == 0:
+            max_tis = self.executor.slots_available
+        else:
+            max_tis = min(self.max_tis_per_query, self.executor.slots_available)
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
         self._enqueue_task_instances_with_queued_state(queued_tis)

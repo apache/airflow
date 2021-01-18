@@ -1681,6 +1681,56 @@ class TestSchedulerJob(unittest.TestCase):
             ti.refresh_from_db()
             assert State.QUEUED == ti.state
 
+    def test_execute_task_instances_unlimited(self):
+        """Test that max_tis_per_query=0 is unlimited"""
+
+        dag_id = 'SchedulerJobTest.test_execute_task_instances_unlimited'
+        task_id_1 = 'dummy_task'
+        task_id_2 = 'dummy_task_2'
+
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=1024)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        task2 = DummyOperator(dag=dag, task_id=task_id_2)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        scheduler = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+
+        dag_model = DagModel(
+            dag_id=dag_id,
+            is_paused=False,
+            concurrency=dag.concurrency,
+            has_task_concurrency_limits=False,
+        )
+        session.add(dag_model)
+        date = dag.start_date
+        tis = []
+        for _ in range(0, 20):
+            dr = dag.create_dagrun(
+                run_type=DagRunType.SCHEDULED,
+                execution_date=date,
+                state=State.RUNNING,
+            )
+            date = dag.following_schedule(date)
+            ti1 = TaskInstance(task1, dr.execution_date)
+            ti2 = TaskInstance(task2, dr.execution_date)
+            tis.append(ti1)
+            tis.append(ti2)
+            ti1.refresh_from_db()
+            ti2.refresh_from_db()
+            ti1.state = State.SCHEDULED
+            ti2.state = State.SCHEDULED
+            session.merge(ti1)
+            session.merge(ti2)
+            session.flush()
+        scheduler.max_tis_per_query = 0
+        scheduler.executor = MagicMock(slots_available=36)
+
+        res = scheduler._critical_section_execute_task_instances(session)
+        # 20 dag runs * 2 tasks each = 40, but limited by number of slots available
+        self.assertEqual(36, res)
+        session.rollback()
+
     def test_change_state_for_tis_without_dagrun(self):
         dag1 = DAG(dag_id='test_change_state_for_tis_without_dagrun', start_date=DEFAULT_DATE)
 
