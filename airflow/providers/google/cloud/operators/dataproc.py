@@ -17,7 +17,6 @@
 # under the License.
 #
 """This module contains Google Dataproc operators."""
-# pylint: disable=C0302
 
 import inspect
 import ntpath
@@ -31,12 +30,9 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry, exponential_sleep_generator
-from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-module
-    Cluster,
-    Duration,
-    FieldMask,
-)
-from google.protobuf.json_format import MessageToDict
+from google.cloud.dataproc_v1beta2 import Cluster  # pylint: disable=no-name-in-module
+from google.protobuf.duration_pb2 import Duration
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -562,7 +558,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         )
 
     def _handle_error_state(self, hook: DataprocHook, cluster: Cluster) -> None:
-        if cluster.status.state != cluster.status.ERROR:
+        if cluster.status.state != cluster.status.State.ERROR:
             return
         self.log.info("Cluster is in ERROR state")
         gcs_uri = hook.diagnose_cluster(
@@ -590,7 +586,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         time_left = self.timeout
         cluster = self._get_cluster(hook)
         for time_to_sleep in exponential_sleep_generator(initial=10, maximum=120):
-            if cluster.status.state != cluster.status.CREATING:
+            if cluster.status.state != cluster.status.State.CREATING:
                 break
             if time_left < 0:
                 raise AirflowException(f"Cluster {self.cluster_name} is still CREATING state, aborting")
@@ -613,18 +609,18 @@ class DataprocCreateClusterOperator(BaseOperator):
 
         # Check if cluster is not in ERROR state
         self._handle_error_state(hook, cluster)
-        if cluster.status.state == cluster.status.CREATING:
+        if cluster.status.state == cluster.status.State.CREATING:
             # Wait for cluster to be be created
             cluster = self._wait_for_cluster_in_creating_state(hook)
             self._handle_error_state(hook, cluster)
-        elif cluster.status.state == cluster.status.DELETING:
+        elif cluster.status.state == cluster.status.State.DELETING:
             # Wait for cluster to be deleted
             self._wait_for_cluster_in_deleting_state(hook)
             # Create new cluster
             cluster = self._create_cluster(hook)
             self._handle_error_state(hook, cluster)
 
-        return MessageToDict(cluster)
+        return Cluster.to_dict(cluster)
 
 
 class DataprocScaleClusterOperator(BaseOperator):
@@ -1790,7 +1786,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type wait_timeout: int
     """
 
-    template_fields = ('project_id', 'location', 'job', 'impersonation_chain')
+    template_fields = ('project_id', 'location', 'job', 'impersonation_chain', 'request_id')
     template_fields_renderers = {"job": "json"}
 
     @apply_defaults
@@ -1876,14 +1872,14 @@ class DataprocUpdateClusterOperator(BaseOperator):
         example, to change the number of workers in a cluster to 5, the ``update_mask`` parameter would be
         specified as ``config.worker_config.num_instances``, and the ``PATCH`` request body would specify the
         new value. If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.cloud.dataproc_v1beta2.types.FieldMask`
-    :type update_mask: Union[Dict, google.cloud.dataproc_v1beta2.types.FieldMask]
+        :class:`~google.protobuf.field_mask_pb2.FieldMask`
+    :type update_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
     :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decommissioning. Graceful
         decommissioning allows removing nodes from the cluster without interrupting jobs in progress. Timeout
         specifies how long to wait for jobs in progress to finish before forcefully removing nodes (and
         potentially interrupting jobs). Default timeout is 0 (for forceful decommission), and the maximum
         allowed timeout is 1 day.
-    :type graceful_decommission_timeout: Union[Dict, google.cloud.dataproc_v1beta2.types.Duration]
+    :type graceful_decommission_timeout: Union[Dict, google.protobuf.duration_pb2.Duration]
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``UpdateClusterRequest`` requests with the same id, then the second request will be ignored and the
         first ``google.longrunning.Operation`` created and stored in the backend is returned.
@@ -1909,7 +1905,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('impersonation_chain',)
+    template_fields = ('impersonation_chain', 'cluster_name')
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments

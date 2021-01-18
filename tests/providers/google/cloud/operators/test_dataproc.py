@@ -204,8 +204,9 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
         assert_warning("Default region value", warning)
         self.assertEqual(op_default_region.region, 'global')
 
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, to_dict_mock):
         op = DataprocCreateClusterOperator(
             task_id=TASK_ID,
             region=GCP_LOCATION,
@@ -233,9 +234,11 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+        to_dict_mock.assert_called_once_with(mock_hook().create_cluster().result())
 
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_if_cluster_exists(self, mock_hook):
+    def test_execute_if_cluster_exists(self, mock_hook, to_dict_mock):
         mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
         mock_hook.return_value.get_cluster.return_value.status.state = 0
         op = DataprocCreateClusterOperator(
@@ -273,6 +276,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+        to_dict_mock.assert_called_once_with(mock_hook.return_value.get_cluster.return_value)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_if_cluster_exists_do_not_use(self, mock_hook):
@@ -300,7 +304,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
         mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
         cluster_status = mock_hook.return_value.get_cluster.return_value.status
         cluster_status.state = 0
-        cluster_status.ERROR = 0
+        cluster_status.State.ERROR = 0
 
         op = DataprocCreateClusterOperator(
             task_id=TASK_ID,
@@ -335,11 +339,11 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
     ):
         cluster = mock.MagicMock()
         cluster.status.state = 0
-        cluster.status.DELETING = 0
+        cluster.status.State.DELETING = 0  # pylint: disable=no-member
 
         cluster2 = mock.MagicMock()
         cluster2.status.state = 0
-        cluster2.status.ERROR = 0
+        cluster2.status.State.ERROR = 0  # pylint: disable=no-member
 
         mock_create_cluster.side_effect = [AlreadyExists("test"), cluster2]
         mock_generator.return_value = [0]
