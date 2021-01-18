@@ -431,7 +431,7 @@ The following components are part of the CI infrastructure
 * **GitHub Private Image Registry**- image registry used as build cache for CI  jobs.
   It is at https://docker.pkg.github.com/apache/airflow/airflow
 * **DockerHub Public Image Registry** - publicly available image registry at DockerHub.
-  It is at https://hub.docker.com/repository/docker/apache/airflow
+  It is at https://hub.docker.com/r/apache/airflow
 * **DockerHub Build Workers** - virtual machines running build jibs at DockerHub
 * **Official Images** (future) - these are official images that are prominently visible in DockerHub.
   We aim our images to become official images so that you will be able to pull them
