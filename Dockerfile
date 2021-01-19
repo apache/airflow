@@ -146,8 +146,7 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT}
 COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
 COPY docker-context-files /docker-context-files
 # fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/install_mysql.sh
-RUN ./scripts/docker/install_mysql.sh dev
+RUN bash ./scripts/docker/install_mysql.sh dev
 
 ARG AIRFLOW_REPO=apache/airflow
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}
@@ -194,8 +193,6 @@ ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
 # Only copy install_airflow_from_latest_master.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_airflow_from_latest_master.sh /scripts/docker/install_airflow_from_latest_master.sh
-# fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/install_airflow_from_latest_master.sh
 
 # By default we do not upgrade to latest dependencies
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
@@ -209,7 +206,7 @@ ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 # account for removed dependencies (we do not install them in the first place)
 RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
-        /scripts/docker/install_airflow_from_latest_master.sh; \
+        bash /scripts/docker/install_airflow_from_latest_master.sh; \
     fi
 
 # By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
@@ -270,28 +267,24 @@ ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
 
 # Copy all install scripts here
 COPY scripts/docker/install*.sh /scripts/docker/
-# fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/instal*.sh
 
 # hadolint ignore=SC2086, SC2010
 RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        /scripts/docker/install_airflow.sh; \
+        bash /scripts/docker/install_airflow.sh; \
     fi; \
     if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        /scripts/docker/install_from_docker_context_files.sh; \
+        bash /scripts/docker/install_from_docker_context_files.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        /scripts/docker/install_additional_dependencies.sh; \
+        bash /scripts/docker/install_additional_dependencies.sh; \
     fi; \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true
 
 # Copy compile_www_assets.sh install scripts here
 COPY scripts/docker/compile_www_assets.sh /scripts/docker/compile_www_assets.sh
-# fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/compile_www_assets.sh
 
-RUN /scripts/docker/compile_www_assets.sh
+RUN bash /scripts/docker/compile_www_assets.sh
 
 # make sure that all directories and files in .local are also group accessible
 RUN find /root/.local -executable -print0 | xargs --null chmod g+x && \
