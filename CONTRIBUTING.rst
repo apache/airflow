@@ -100,7 +100,7 @@ Roles
 
 There are several roles within the Airflow Open-Source community.
 
-For detailed information for each role, see: `Committers and PMS's <./COMMITTERS.rst>`__.
+For detailed information for each role, see: `Committers and PMC's <./COMMITTERS.rst>`__.
 
 PMC Member
 -----------
