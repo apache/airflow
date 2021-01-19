@@ -31,8 +31,8 @@ class S3ToFTPOperator(BaseOperator):
     :param ftp_conn_id: The ftp connection id. The name or identifier for
         establishing a connection to the FTP server.
     :type ftp_conn_id: str
-    :param ftp_path: The ftp remote path. This is the specified file path for
-        uploading file to the FTP server.
+    :param ftp_path: The ftp remote path where put the file. The desired
+        file name must be included here.
     :type ftp_path: str
     :param s3_conn_id: The s3 connection id. The name or identifier for
         establishing a connection to S3.
@@ -45,7 +45,7 @@ class S3ToFTPOperator(BaseOperator):
     :type s3_key: str
     """
 
-    template_fields = ('s3_bucket', 's3_key')
+    template_fields = ('s3_bucket', 's3_key', 'ftp_path')
 
     @apply_defaults
     def __init__(
