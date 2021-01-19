@@ -267,19 +267,19 @@ Images built as "Run ID snapshot":
 
 .. code-block:: bash
 
-  ghcr.io/apache/airflow/<BRANCH>-pythonX.Y-ci-gcr-v1:<RUNID>    - for CI images
-  ghcr.io/apache/airflow/<BRANCH>-pythonX.Y-gcr-v1:<RUNID>       - for production images
-  ghcr.io/apache/airflow/<BRANCH>-pythonX.Y-build-gcr-v1:<RUNID> - for production build stage
-  ghcr.io/apache/airflow/pythonX.Y-<BRANCH>-gcr-v1:X.Y-slim-buster-<RUN_ID>  - for base python images
+  docker.pkg.github.com.io/apache-airflow/<BRANCH>-pythonX.Y-ci-v2:<RUNID>    - for CI images
+  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-v2:<RUNID>       - for production images
+  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-build-v2:<RUNID> - for production build stage
+  docker.pkg.github.com/apache-airflow/pythonX.Y-<BRANCH>-v2:X.Y-slim-buster-<RUN_ID>  - for base python images
 
 Latest images (pushed when master merge succeeds):
 
 .. code-block:: bash
 
-  ghcr.io/apache/airflow/<BRANCH>-pythonX.Y-ci-gcr-v1:latest    - for CI images
-  ghcr.io/apache/airflow/<BRANCH>-pythonX.Y-gcr-v1:latest       - for production images
-  ghcr.io/apache/airflow/<BRANCH>-pythonX.Y-build-gcr-v1:latest - for production build stage
-  ghcr.io/apache/airflow/python-<BRANCH>-gcr-v1:X.Y-slim-buster - for base python images
+  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
+  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-v2:latest       - for production images
+  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
+  docker.pkg.github.com/apache/airflow/python-<BRANCH>-v1:X.Y-slim-buster - for base python images
 
 
 Naming convention for GitHub Container Registry
@@ -289,24 +289,23 @@ Images built as "Run ID snapshot":
 
 .. code-block:: bash
 
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-gcr-v1:<RUNID>    - for CI images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-gcr-v1:<RUNID>       - for production images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-gcr-v1:<RUNID> - for production build stage
-  ghcr.io/apache/airflow-pythonX.Y-<BRANCH>-gcr-v1:X.Y-slim-buster-<RUN_ID>  - for base python images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:<RUNID>                - for CI images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:<RUNID>                   - for production images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:<RUNID>             - for production build stage
+  ghcr.io/apache/airflow-pythonX.Y-<BRANCH>-v2:X.Y-slim-buster-<RUN_ID>  - for base python images
 
 Latest images (pushed when master merge succeeds):
 
 .. code-block:: bash
 
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-gcr-v1:latest    - for CI images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-gcr-v1:latest       - for production images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-gcr-v1:latest - for production build stage
-  ghcr.io/apache/airflow-python-<BRANCH>-gcr-v1:X.Y-slim-buster - for base python images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:latest       - for production images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
+  ghcr.io/apache/airflow-python-<BRANCH>-v2:X.Y-slim-buster - for base python images
 
 Note that we never push or pull "release" images to GitHub registry. It is only used for CI builds
 
 You can see all the current GitHub images at `<https://github.com/apache/airflow/packages>`_
-
 
 
 In order to interact with the GitHub images you need to add ``--use-github-registry`` flag to the pull/push

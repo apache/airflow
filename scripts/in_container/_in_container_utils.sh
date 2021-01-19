@@ -405,12 +405,12 @@ function verify_suffix_versions_for_package_preparation() {
 
     VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
 
-    if [[ ${VERSION_SUFFIX_FOR_PYPI} != "" ]]; then
+    if [[ -n "${VERSION_SUFFIX_FOR_PYPI}" ]]; then
         echo
         echo "Version suffix for PyPI = ${VERSION_SUFFIX_FOR_PYPI}"
         echo
     fi
-    if [[ ${VERSION_SUFFIX_FOR_SVN} != "" ]]; then
+    if [[ -n "${VERSION_SUFFIX_FOR_SVN}" ]]; then
         echo
         echo "Version suffix for SVN  = ${VERSION_SUFFIX_FOR_SVN}"
         echo

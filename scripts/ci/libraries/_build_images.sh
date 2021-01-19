@@ -26,7 +26,7 @@ function build_images::add_build_args_for_remote_install() {
         "--build-arg" "AIRFLOW_SOURCES_FROM=empty"
         "--build-arg" "AIRFLOW_SOURCES_TO=/empty"
     )
-    if [[ ${AIRFLOW_CONSTRAINTS_REFERENCE} != "" ]]; then
+    if [[ -n "${AIRFLOW_CONSTRAINTS_REFERENCE}" ]]; then
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE}"
         )
@@ -59,7 +59,7 @@ function build_images::add_build_args_for_remote_install() {
             )
         fi
     fi
-    if [[ "${AIRFLOW_CONSTRAINTS_LOCATION}" != "" ]]; then
+    if [[ -n "${AIRFLOW_CONSTRAINTS_LOCATION}" ]]; then
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"
         )
@@ -330,7 +330,7 @@ function build_images::compare_local_and_remote_build_cache_hash() {
     local local_hash
     local_hash=$(cat "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}")
 
-    if [[ ${remote_hash} != "${local_hash}" || ${local_hash} == "" ]] \
+    if [[ ${remote_hash} != "${local_hash}" || -z ${local_hash} ]] \
         ; then
         echo
         echo
@@ -373,7 +373,7 @@ function build_images::get_docker_image_names() {
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
 
     # Base production image tag - used to build kubernetes tag as well
-    if [[ ${FORCE_AIRFLOW_PROD_BASE_TAG=} == "" ]]; then
+    if [[ -z "${FORCE_AIRFLOW_PROD_BASE_TAG=}" ]]; then
         export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
     else
         export AIRFLOW_PROD_BASE_TAG="${FORCE_AIRFLOW_PROD_BASE_TAG}"
@@ -452,9 +452,10 @@ function build_images::get_docker_image_names() {
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
 # either GITHUB_TOKEN or CONTAINER_REGISTRY_TOKEN depending on the registry.
 # In case Personal Access token is not set, skip logging in
-function build_image::login_to_github_container_registry_if_github_registry_enabled() {
+# Also enable experimental features of docker (we need `docker manifest` command)
+function build_image::configure_github_docker_registry() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        start_end::group_start "Determine Github Registry token used"
+        start_end::group_start "Determine Github Registry token used and login if needed"
         local token=""
         if [[ "${GITHUB_REGISTRY}" == "ghcr.io" ]]; then
             # For now ghcr.io can only authenticate using Personal Access Token with package access scope.
@@ -474,48 +475,29 @@ function build_image::login_to_github_container_registry_if_github_registry_enab
             echo
             exit 1
         fi
-        if [[ "${token}" == "" ]] ; then
+        if [[ -z "${token}" ]] ; then
             echo
             echo "Skip logging in to Github Registry. No Token available!"
             echo
         fi
-        start_end::group_end
-        if [[ "${token}" != "" ]]; then
-            start_end::group_start "Login to GitHub Registry ${GITHUB_REGISTRY}"
+        if [[ -n "${token}" ]]; then
             echo "${token}" | docker login \
                 --username "${GITHUB_USERNAME:-apache}" \
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
-            start_end::group_end
         else
-            start_end::group_start "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
-            start_end::group_end
+            echo "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
         fi
-    fi
-}
-
-function build_image::enable_docker_experimental_features_if_github_registry_enabled() {
-    if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        start_end::group_start "Enable experimental features in Docker ('docker manifest' command)"
-        python <<EOF
-import json
-from os.path import expanduser, join
-
-DOCKER_CONFIG_FILE=join(expanduser("~"), ".docker", 'config.json')
-with open(DOCKER_CONFIG_FILE) as f:
-    config = json.load(f)
-print("\nBefore:\n")
-print(json.dumps(config, indent=4))
-print("\nAdding experimental flag to enable docker manifest command\n")
-config['experimental'] = "enabled"
-print("\nAfter:\n")
-print(json.dumps(config, indent=4))
-with open(DOCKER_CONFIG_FILE,"wt") as f:
-    json.dump(config, f)
-EOF
+        echo "Make sure experimental docker features are enabled"
+        local new_config
+        new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json")
+        echo "${new_config}" > "${HOME}/.docker/config.json"
+        echo "Docker config after change:"
+        echo "${new_config}"
         start_end::group_end
     fi
 }
+
 
 # Prepares all variables needed by the CI build. Depending on the configuration used (python version
 # DockerHub user etc. the variables are set so that other functions can use those variables.
@@ -532,8 +514,7 @@ function build_images::prepare_ci_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    build_image::login_to_github_container_registry_if_github_registry_enabled
-    build_image::enable_docker_experimental_features_if_github_registry_enabled
+    build_image::configure_github_docker_registry
     sanity_checks::go_to_airflow_sources
     permissions::fix_group_permissions
 }
@@ -710,7 +691,7 @@ function build_images::build_ci_image() {
         "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
     )
 
-    if [[ "${AIRFLOW_CONSTRAINTS_LOCATION}" != "" ]]; then
+    if [[ -n "${AIRFLOW_CONSTRAINTS_LOCATION}" ]]; then
         EXTRA_DOCKER_CI_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"
         )
@@ -737,18 +718,18 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     set +u
 
     local additional_dev_args=()
-    if [[ ${DEV_APT_DEPS} != "" ]]; then
+    if [[ -n "${DEV_APT_DEPS}" ]]; then
         additional_dev_args+=("--build-arg" "DEV_APT_DEPS=\"${DEV_APT_DEPS}\"")
     fi
-    if [[ ${DEV_APT_COMMAND} != "" ]]; then
+    if [[ -n "${DEV_APT_COMMAND}" ]]; then
         additional_dev_args+=("--build-arg" "DEV_APT_COMMAND=\"${DEV_APT_COMMAND}\"")
     fi
 
     local additional_runtime_args=()
-    if [[ ${RUNTIME_APT_DEPS} != "" ]]; then
+    if [[ -n "${RUNTIME_APT_DEPS}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_DEPS=\"${RUNTIME_APT_DEPS}\"")
     fi
-    if [[ ${RUNTIME_APT_COMMAND} != "" ]]; then
+    if [[ -n "${RUNTIME_APT_COMMAND}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
     docker build \
@@ -843,8 +824,7 @@ function build_images::prepare_prod_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    build_image::login_to_github_container_registry_if_github_registry_enabled
-    build_image::enable_docker_experimental_features_if_github_registry_enabled
+    build_image::configure_github_docker_registry
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
     sanity_checks::go_to_airflow_sources
 }
@@ -889,10 +869,10 @@ function build_images::build_prod_images() {
     fi
     set +u
     local additional_dev_args=()
-    if [[ ${DEV_APT_DEPS} != "" ]]; then
+    if [[ -n "${DEV_APT_DEPS}" ]]; then
         additional_dev_args+=("--build-arg" "DEV_APT_DEPS=\"${DEV_APT_DEPS}\"")
     fi
-    if [[ ${DEV_APT_COMMAND} != "" ]]; then
+    if [[ -n "${DEV_APT_COMMAND}" ]]; then
         additional_dev_args+=("--build-arg" "DEV_APT_COMMAND=\"${DEV_APT_COMMAND}\"")
     fi
     docker build \
@@ -924,10 +904,10 @@ function build_images::build_prod_images() {
         --target "airflow-build-image" \
         . -f Dockerfile
     local additional_runtime_args=()
-    if [[ ${RUNTIME_APT_DEPS} != "" ]]; then
+    if [[ -n "${RUNTIME_APT_DEPS}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_DEPS=\"${RUNTIME_APT_DEPS}\"")
     fi
-    if [[ ${RUNTIME_APT_COMMAND} != "" ]]; then
+    if [[ -n "${RUNTIME_APT_COMMAND}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
     docker build \
