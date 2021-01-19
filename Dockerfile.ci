@@ -107,9 +107,7 @@ RUN mkdir -pv /usr/share/man/man1 \
 
 # Only copy install_mysql.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
-# fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/install_mysql.sh
-RUN /scripts/docker/install_mysql.sh dev
+RUN bash /scripts/docker/install_mysql.sh dev
 
 RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
@@ -216,7 +214,6 @@ ENV PATH "/opt/bats/bin/:${PATH}"
 
 # Additional scripts for managing BATS addons
 COPY scripts/docker/load.bash /opt/bats/lib/
-RUN chmod a+x /opt/bats/lib/load.bash
 
 # Optimizing installation of Cassandra driver
 # Speeds up building the image - cassandra driver without CYTHON saves around 10 minutes
@@ -288,8 +285,6 @@ RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # Only copy install_airflow_from_latest_master.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_airflow_from_latest_master.sh /scripts/docker/install_airflow_from_latest_master.sh
-# fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/install_airflow_from_latest_master.sh
 
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
@@ -303,7 +298,7 @@ ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 # account for removed dependencies (we do not install them in the first place)
 RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
-        /scripts/docker/install_airflow_from_latest_master.sh; \
+        bash /scripts/docker/install_airflow_from_latest_master.sh; \
     fi
 
 # Generate random hex dump file so that we can determine whether it's faster to rebuild the image
@@ -344,8 +339,6 @@ ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
 
 # Only copy install_airflow.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_airflow.sh /scripts/docker/install_airflow.sh
-# fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/install_airflow.sh
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
@@ -354,20 +347,18 @@ RUN chmod a+x /scripts/docker/install_airflow.sh
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
 RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        /scripts/docker/install_airflow.sh; \
+        bash /scripts/docker/install_airflow.sh; \
     fi
 
 # Only copy install_from_docker_context_files.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_from_docker_context_files.sh /scripts/docker/install_from_docker_context_files.sh
-# fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/install_from_docker_context_files.sh
 
 # If wheel files are found in /docker-context-files during installation
 # they are also installed additionally to whatever is installed from Airflow.
 COPY docker-context-files/ /docker-context-files/
 
 RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        /scripts/docker/install_from_docker_context_files.sh; \
+        bash /scripts/docker/install_from_docker_context_files.sh; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY
@@ -375,8 +366,9 @@ RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
 COPY airflow/www/webpack.config.js ${AIRFLOW_SOURCES}/airflow/www/
 COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
 COPY airflow/www/compile_assets.sh ${AIRFLOW_SOURCES}/airflow/www/compile_assets.sh
+
 # Package JS/css for production
-RUN airflow/www/compile_assets.sh
+RUN bash airflow/www/compile_assets.sh
 
 COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
