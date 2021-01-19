@@ -21,5 +21,3 @@
 build_airflow_packages::build_airflow_packages
 
 cd "${AIRFLOW_SOURCES}/dist" || exit 1
-
-echo "Airflow packages are in dist folder"

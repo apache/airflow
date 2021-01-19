@@ -18,55 +18,6 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-setup_provider_packages
-
-cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
-
-PREPARE_PROVIDER_PACKAGES_PY="${AIRFLOW_SOURCES}/dev/provider_packages/prepare_provider_packages.py"
-readonly PREPARE_PROVIDER_PACKAGES_PY
-
-verify_suffix_versions_for_package_preparation
-
-function check_missing_providers() {
-    PACKAGE_ERROR="false"
-
-    pushd "${AIRFLOW_SOURCES}/airflow/providers" >/dev/null 2>&1 || exit 1
-
-    LIST_OF_DIRS_FILE=$(mktemp)
-    find . -type d | sed 's!./!!; s!/!.!g' | grep -E 'hooks|operators|sensors|secrets|utils' \
-        > "${LIST_OF_DIRS_FILE}"
-
-    popd >/dev/null 2>&1 || exit 1
-
-    # Check if all providers are included
-    for PACKAGE in "${PROVIDER_PACKAGES[@]}"
-    do
-        if ! grep -E "^${PACKAGE}" <"${LIST_OF_DIRS_FILE}" >/dev/null; then
-            echo "The package ${PACKAGE} is not available in providers dir"
-            PACKAGE_ERROR="true"
-        fi
-        sed -i "/^${PACKAGE}.*/d" "${LIST_OF_DIRS_FILE}"
-    done
-
-    if [[ ${PACKAGE_ERROR} == "true" ]]; then
-        echo
-        echo "ERROR! Some packages from dev/provider_packages/prepare_provider_packages.py are missing in providers dir"
-        exit 1
-    fi
-
-    if [[ $(wc -l < "${LIST_OF_DIRS_FILE}") != "0" ]]; then
-        echo "ERROR! Some folders from providers package are not defined"
-        echo "       Please add them to dev/provider_packages/prepare_provider_packages.py:"
-        echo
-        cat "${LIST_OF_DIRS_FILE}"
-        echo
-
-        rm "$LIST_OF_DIRS_FILE"
-        exit 1
-    fi
-    rm "$LIST_OF_DIRS_FILE"
-}
-
 function copy_sources() {
     if [[ ${BACKPORT_PACKAGES} == "true" ]]; then
         group_start "Copy and refactor sources"
@@ -80,107 +31,128 @@ function copy_sources() {
         echo "==================================================================================="
     fi
 
-    python3 "${AIRFLOW_SOURCES}/dev/provider_packages/refactor_provider_packages.py"
+    pushd "${AIRFLOW_SOURCES}"
+    python3 "${PROVIDER_PACKAGES_DIR}/copy_provider_package_sources.py" "${OPTIONAL_BACKPORT_FLAG[@]}"
+    popd
 
     group_end
 }
 
-
-function get_providers_to_act_on() {
-    group_start "Get all providers"
-    if [[ -z "$*" ]]; then
-        if [[ ${BACKPORT_PACKAGES} == "true" ]]; then
-          list_subcmd="list-backportable-packages"
-        else
-          list_subcmd="list-providers-packages"
-        fi
-        while IFS='' read -r line; do PROVIDER_PACKAGES+=("$line"); done < <(
-          python3 "${PREPARE_PROVIDER_PACKAGES_PY}" "$list_subcmd"
-        )
-
-        if [[ "$BACKPORT_PACKAGES" != "true" ]]; then
-            # Don't check for missing packages when we are building backports -- we have filtered some out,
-            # and the non-backport build will check for any missing.
-            check_missing_providers
-        fi
-    else
-        if [[ "${1}" == "--help" ]]; then
-            echo
-            echo "Builds all provider packages."
-            echo
-            echo "You can provide list of packages to build out of:"
-            echo
-            python3 "${PREPARE_PROVIDER_PACKAGES_PY}" list-providers-packages | tr '\n ' ' ' | fold -w 100 -s
-            echo
-            echo
-            exit
-        fi
-    fi
-    group_end
-}
 
 function build_provider_packages() {
     rm -rf dist/*
+    local package_format_args=()
+    if [[ ${PACKAGE_FORMAT=} != "" ]]; then
+        package_format_args=("--package-format" "${PACKAGE_FORMAT}")
+    fi
 
-    for PROVIDER_PACKAGE in "${PROVIDER_PACKAGES[@]}"
+    local prepared_packages=()
+    local skipped_packages=()
+    local error_packages=()
+
+    local provider_package
+    for provider_package in "${PROVIDER_PACKAGES[@]}"
     do
-        group_start " Preparing ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} format: ${PACKAGE_FORMAT}"
         rm -rf -- *.egg-info build/
-        LOG_FILE=$(mktemp)
-        python3 "${PREPARE_PROVIDER_PACKAGES_PY}" --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
-            generate-setup-files "${PROVIDER_PACKAGE}"
+        local res
+        set +e
+        python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
+            "${OPTIONAL_BACKPORT_FLAG[@]}" \
+            --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
+            generate-setup-files "${provider_package}"
+        res=$?
+        set -e
+        if [[ ${res} == "64" ]]; then
+            skipped_packages+=("${provider_package}")
+            continue
+        fi
+        if [[ ${res} != "0" ]]; then
+            error_packages+=("${provider_package}")
+            continue
+        fi
+        group_start "Determine suffix of package for '${COLOR_GREEN}${provider_package}${COLOR_RESET}'"
+        echo "-----------------------------------------------------------------------------------"
         if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' && "${VERSION_SUFFIX_FOR_SVN}" == ''
                 && ${FILE_VERSION_SUFFIX} == '' ]]; then
             echo
-            echo "Preparing official version"
+            echo "Preparing official version of ${provider_package} with no suffixes"
             echo
         elif [[ ${FILE_VERSION_SUFFIX} != '' ]]; then
             echo
-            echo " Preparing release candidate with file version suffix only: ${FILE_VERSION_SUFFIX}"
+            echo " Preparing release candidate of ${provider_package} with file version suffix only (ersulting file will be renamed): ${FILE_VERSION_SUFFIX}"
             echo
         elif [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' ]]; then
             echo
-            echo " Package Version for SVN release candidate: ${TARGET_VERSION_SUFFIX}"
+            echo " Package Version of ${provider_package} of set for SVN version): ${TARGET_VERSION_SUFFIX}"
             echo
         elif [[ "${VERSION_SUFFIX_FOR_SVN}" == '' ]]; then
             echo
-            echo " Package Version for PyPI release candidate: ${TARGET_VERSION_SUFFIX}"
+            echo " Package Version of ${provider_package} suffix set for PyPI version: ${TARGET_VERSION_SUFFIX}"
             echo
         else
             # Both SV/PYPI are set to the same version here!
             echo
-            echo " Pre-release version: ${TARGET_VERSION_SUFFIX}"
+            echo " Pre-release version (alpha beta) suffix set in both SVN/PyPI: ${TARGET_VERSION_SUFFIX}"
             echo
         fi
         echo "-----------------------------------------------------------------------------------"
+        group_end
         set +e
         package_suffix=""
-        if [[ -z "${VERSION_SUFFIX_FOR_SVN}" && -n ${VERSION_SUFFIX_FOR_PYPI} ]]; then
-            # only adds suffix to setup.py if version suffix for PyPI is set but the SVN one is not
+        if [[ -z "${VERSION_SUFFIX_FOR_SVN}" && -n ${VERSION_SUFFIX_FOR_PYPI} ||
+              -n "${VERSION_SUFFIX_FOR_SVN}" && -n "${VERSION_SUFFIX_FOR_PYPI}" ]]; then
+            # only adds suffix to setup.py if version suffix for PyPI is set but the SVN one is not set
+            # (so when rc is prepared)
+            # or when they are both set (so when we prepare alpha/beta/dev)
             package_suffix="${VERSION_SUFFIX_FOR_PYPI}"
         fi
-        python3 "${PREPARE_PROVIDER_PACKAGES_PY}" --version-suffix "${package_suffix}" \
-            --packages "${PROVIDER_PACKAGE}">"${LOG_FILE}" 2>&1
-        RES="${?}"
+        python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
+            "${OPTIONAL_BACKPORT_FLAG[@]}" \
+            --version-suffix "${package_suffix}" \
+            "${package_format_args[@]}" \
+            build-provider-packages \
+            "${provider_package}"
+        res=$?
         set -e
-        if [[ ${RES} != "0" ]]; then
-            cat "${LOG_FILE}"
-            exit "${RES}"
+        if [[ ${res} == "64" ]]; then
+            skipped_packages+=("${provider_package}")
+            continue
         fi
-        echo "==================================================================================="
-        echo "${COLOR_GREEN}OK Prepared ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} format ${PACKAGE_FORMAT}${COLOR_RESET}"
-        echo "==================================================================================="
-        group_end
+        if [[ ${res} != "0" ]]; then
+            error_packages+=("${provider_package}")
+            echo "${COLOR_RED}Error when preparing ${provider_package} package${COLOR_RESET}"
+            continue
+        fi
+        prepared_packages+=("${provider_package}")
     done
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    echo
+    echo "Summary of prepared packages:"
+    echo
+    if [[ "${#prepared_packages[@]}" != "0" ]]; then
+        echo "${COLOR_GREEN}    Prepared:${COLOR_RESET}"
+        echo "${prepared_packages[*]}" | fold -w 100
+    fi
+    if [[ "${#skipped_packages[@]}" != "0" ]]; then
+        echo "${COLOR_YELLOW}    Skipped:${COLOR_RESET}"
+        echo "${skipped_packages[*]}" | fold -w 100
+    fi
+    if [[ "${#error_packages[@]}" != "0" ]]; then
+        echo "${COLOR_RED}    Errors:${COLOR_RESET}"
+        echo "${error_packages[*]}" | fold -w 100
+    fi
+    echo
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    if [[ ${#error_packages[@]} != "0" ]]; then
+        echo
+        echo "${COLOR_RED}There were errors when preparing packages. Exiting! ${COLOR_RESET}"
+        exit 1
+    fi
 }
 
 function rename_packages_if_needed() {
-    group_start "Renaming packages if needed"
-
     cd "${AIRFLOW_SOURCES}" || exit 1
-
     pushd dist >/dev/null 2>&1 || exit 1
-
     if [[ -n "${FILE_VERSION_SUFFIX}" ]]; then
         # In case we have FILE_VERSION_SUFFIX we rename prepared files
         if [[ "${PACKAGE_FORMAT}" == "sdist" || "${PACKAGE_FORMAT}" == "both" ]]; then
@@ -196,18 +168,25 @@ function rename_packages_if_needed() {
             done
         fi
     fi
-
     popd >/dev/null
-    echo
-    echo "${COLOR_GREEN}OK Airflow packages are prepared in dist folder${COLOR_RESET}"
-    echo
-
-    group_end
 }
 
-PROVIDER_PACKAGES=("${@}")
+install_remaining_dependencies
+setup_provider_packages
 
+cd "${PROVIDER_PACKAGES_DIR}" || exit 1
+
+verify_suffix_versions_for_package_preparation
+
+install_supported_pip_version
+
+PROVIDER_PACKAGES=("${@}")
 get_providers_to_act_on "${@}"
+
 copy_sources
 build_provider_packages
 rename_packages_if_needed
+
+echo
+echo "${COLOR_GREEN}All good! Airflow packages are prepared in dist folder${COLOR_RESET}"
+echo

@@ -17,11 +17,11 @@
  under the License.
  -->
 
-# Migration Guide
+# Changelog
 
-## 2.0.0
+## TODO: BACKPORT PACKAGE VERSION HERE
 
-### Update ``google-cloud-*`` libraries
+## Updated ``google-cloud-*`` libraries
 
 This release of the provider package contains third-party library updates, which may require updating your DAG files or custom hooks and operators, if you were using objects from those libraries. Updating of these libraries is necessary to be able to use new features made available by new versions of the libraries and to obtain bug fixes that are only available for new versions of the library.
 
@@ -39,7 +39,7 @@ Details are covered in the UPDATING.md files for each library, but there are som
 | [``google-cloud-tasks``](https://pypi.org/project/google-cloud-tasks/) | ``>=1.2.1,<2.0.0`` | ``>=2.0.0,<3.0.0``  | [`UPGRADING.md`](https://github.com/googleapis/python-tasks/blob/master/UPGRADING.md) |
 
 
-### The field names use the snake_case convention
+## The field names use the snake_case convention
 
 If your DAG uses an object from the above mentioned libraries passed by XCom, it is necessary to update the naming convention of the fields that are read. Previously, the fields used the CamelSnake convention, now the snake_case convention is used.
 

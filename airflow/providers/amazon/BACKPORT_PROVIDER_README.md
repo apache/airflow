@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-amazon
 
-Release: 2020.11.23
+Release: 2021.2.5
 
 **Table of contents**
 
@@ -60,6 +60,14 @@ While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade pyth
 want to use this backport package.
 
 
+## Change in import paths
+
+If you are upgrading from 2020.10.5 note the following changes in import paths
+
+| Old path                                                        | New path                                                    |
+| --------------------------------------------------------------- | ----------------------------------------------------------- |
+| airflow.providers.amazon.aws.hooks.aws_dynamodb.AwsDynamoDBHook | airflow.providers.amazon.aws.hooks.dynamodb.AwsDynamoDBHook |
+
 
 ## Installation
 
@@ -70,8 +78,9 @@ You can install this package on top of an existing airflow 1.10.* installation v
 
 | PIP package   | Version required   |
 |:--------------|:-------------------|
-| boto3         | &gt;=1.12.0,&lt;2.0.0    |
-| watchtower    | ~=0.7.3            |
+| `boto3`       | `>=1.15.0,<1.16.0` |
+| `botocore`    | `>=1.18.0,<1.19.0` |
+| `watchtower`  | `~=0.7.3`          |
 
 ## Cross provider package dependencies
 
@@ -84,15 +93,17 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 pip install apache-airflow-backport-providers-amazon[apache.hive]
 ```
 
-| Dependent package                                                                                                            | Extra       |
-|:-----------------------------------------------------------------------------------------------------------------------------|:------------|
-| [apache-airflow-backport-providers-apache-hive](https://github.com/apache/airflow/tree/master/airflow/providers/apache/hive) | apache.hive |
-| [apache-airflow-backport-providers-google](https://github.com/apache/airflow/tree/master/airflow/providers/google)           | google      |
-| [apache-airflow-backport-providers-imap](https://github.com/apache/airflow/tree/master/airflow/providers/imap)               | imap        |
-| [apache-airflow-backport-providers-mongo](https://github.com/apache/airflow/tree/master/airflow/providers/mongo)             | mongo       |
-| [apache-airflow-backport-providers-mysql](https://github.com/apache/airflow/tree/master/airflow/providers/mysql)             | mysql       |
-| [apache-airflow-backport-providers-postgres](https://github.com/apache/airflow/tree/master/airflow/providers/postgres)       | postgres    |
-| [apache-airflow-backport-providers-ssh](https://github.com/apache/airflow/tree/master/airflow/providers/ssh)                 | ssh         |
+| Dependent package                                                                                                            | Extra         |
+|:-----------------------------------------------------------------------------------------------------------------------------|:--------------|
+| [apache-airflow-backport-providers-apache-hive](https://github.com/apache/airflow/tree/master/airflow/providers/apache/hive) | `apache.hive` |
+| [apache-airflow-backport-providers-exasol](https://github.com/apache/airflow/tree/master/airflow/providers/exasol)           | `exasol`      |
+| [apache-airflow-backport-providers-ftp](https://github.com/apache/airflow/tree/master/airflow/providers/ftp)                 | `ftp`         |
+| [apache-airflow-backport-providers-google](https://github.com/apache/airflow/tree/master/airflow/providers/google)           | `google`      |
+| [apache-airflow-backport-providers-imap](https://github.com/apache/airflow/tree/master/airflow/providers/imap)               | `imap`        |
+| [apache-airflow-backport-providers-mongo](https://github.com/apache/airflow/tree/master/airflow/providers/mongo)             | `mongo`       |
+| [apache-airflow-backport-providers-mysql](https://github.com/apache/airflow/tree/master/airflow/providers/mysql)             | `mysql`       |
+| [apache-airflow-backport-providers-postgres](https://github.com/apache/airflow/tree/master/airflow/providers/postgres)       | `postgres`    |
+| [apache-airflow-backport-providers-ssh](https://github.com/apache/airflow/tree/master/airflow/providers/ssh)                 | `ssh`         |
 
 # Provider classes summary
 
@@ -116,6 +127,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.operators.emr_modify_cluster.EmrModifyClusterOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/emr_modify_cluster.py)                                               |
 | [aws.operators.glacier.GlacierCreateJobOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/glacier.py)                                                                     |
 | [aws.operators.glue.AwsGlueJobOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/glue.py)                                                                                 |
+| [aws.operators.glue_crawler.AwsGlueCrawlerOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/glue_crawler.py)                                                             |
 | [aws.operators.s3_bucket.S3CreateBucketOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/s3_bucket.py)                                                                   |
 | [aws.operators.s3_bucket.S3DeleteBucketOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/s3_bucket.py)                                                                   |
 | [aws.operators.s3_file_transform.S3FileTransformOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/operators/s3_file_transform.py)                                                  |
@@ -155,8 +167,10 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | New Airflow 2.0 transfers: `airflow.providers.amazon` package                                                                                               |
 |:------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [aws.transfers.exasol_to_s3.ExasolToS3Operator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/exasol_to_s3.py)       |
 | [aws.transfers.glacier_to_gcs.GlacierToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/glacier_to_gcs.py) |
 | [aws.transfers.mysql_to_s3.MySQLToS3Operator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/mysql_to_s3.py)          |
+| [aws.transfers.s3_to_ftp.S3ToFTPOperator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/s3_to_ftp.py)                |
 
 
 ### Moved transfer operators
@@ -187,7 +201,9 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.sensors.ec2_instance_state.EC2InstanceStateSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/ec2_instance_state.py)                |
 | [aws.sensors.glacier.GlacierJobOperationSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/glacier.py)                                   |
 | [aws.sensors.glue.AwsGlueJobSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/glue.py)                                                  |
+| [aws.sensors.glue_crawler.AwsGlueCrawlerSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/glue_crawler.py)                              |
 | [aws.sensors.redshift.AwsRedshiftClusterSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/redshift.py)                                  |
+| [aws.sensors.s3_key.S3KeySizeSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/s3_key.py)                                               |
 | [aws.sensors.s3_keys_unchanged.S3KeysUnchangedSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/s3_keys_unchanged.py)                   |
 | [aws.sensors.sagemaker_training.SageMakerTrainingSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/sagemaker_training.py)               |
 | [aws.sensors.step_function_execution.StepFunctionExecutionSensor](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/sensors/step_function_execution.py) |
@@ -225,6 +241,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [aws.hooks.elasticache_replication_group.ElastiCacheReplicationGroupHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/elasticache_replication_group.py) |
 | [aws.hooks.glacier.GlacierHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/glacier.py)                                                                 |
 | [aws.hooks.glue.AwsGlueJobHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/glue.py)                                                                    |
+| [aws.hooks.glue_crawler.AwsGlueCrawlerHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/glue_crawler.py)                                                |
 | [aws.hooks.kinesis.AwsFirehoseHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/kinesis.py)                                                             |
 | [aws.hooks.redshift.RedshiftHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/redshift.py)                                                              |
 | [aws.hooks.secrets_manager.SecretsManagerHook](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/hooks/secrets_manager.py)                                          |
@@ -269,7 +286,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                                        |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
-| [19b7e4565](https://github.com/apache/airflow/commit/19b7e4565e6372d50ef0fbb5678a484a7afbdbee) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427)             |
+| [4873d9759](https://github.com/apache/airflow/commit/4873d9759dfdec1dd3663074f9e64ad69fa881cc) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427)             |
 | [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                 |
 | [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                         |
 | [c94b1241a](https://github.com/apache/airflow/commit/c94b1241a144294f5f1c5f461d5e3b92e4a8fc38) | 2020-11-13  | Add extra error handling to S3 remote logging (#9908)                          |
