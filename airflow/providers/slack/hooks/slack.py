@@ -18,7 +18,7 @@
 """Hook for Slack"""
 from typing import Any, Optional
 
-from slack import WebClient
+from slack_sdk import WebClient
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook

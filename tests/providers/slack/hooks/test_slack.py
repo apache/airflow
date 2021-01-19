@@ -20,7 +20,7 @@ import unittest
 from unittest import mock
 
 import pytest
-from slack.errors import SlackApiError
+from slack_sdk.errors import SlackApiError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.slack.hooks.slack import SlackHook
