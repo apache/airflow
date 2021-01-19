@@ -566,7 +566,7 @@ jobs:
           retention-days: 7
 
   tests-postgres:
-    timeout-minutes: 80
+    timeout-minutes: 130
     name: >
       Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.testTypes}}
@@ -624,7 +624,7 @@ jobs:
           retention-days: 7
 
   tests-mysql:
-    timeout-minutes: 80
+    timeout-minutes: 130
     name: >
       MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
     runs-on: ubuntu-20.04
@@ -680,7 +680,7 @@ jobs:
           retention-days: 7
 
   tests-sqlite:
-    timeout-minutes: 80
+    timeout-minutes: 130
     name: >
       Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
     runs-on: ubuntu-20.04
