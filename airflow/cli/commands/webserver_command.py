@@ -260,7 +260,8 @@ class GunicornMonitor(LoggingMixin):
                 new_worker_count = min(
                     self.num_workers_expected - num_workers_running, self.worker_refresh_batch_size
                 )
-                self.log.debug(
+                # log at info since we are trying fix an error logged just above
+                self.log.info(
                     '[%d / %d] Spawning %d workers',
                     num_ready_workers_running,
                     num_workers_running,
