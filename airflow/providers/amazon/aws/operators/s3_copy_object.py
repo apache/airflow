@@ -63,7 +63,8 @@ class S3CopyObjectOperator(BaseOperator):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
-    :param acl_policy
+    :param acl_policy: String specifying the canned ACL policy for the file being
+        uploaded to the S3 bucket.
     :type acl_policy: str
     """
 
@@ -92,7 +93,7 @@ class S3CopyObjectOperator(BaseOperator):
         self.source_version_id = source_version_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.acl_policy acl_policy
+        self.acl_policy = acl_policy
 
     def execute(self, context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
