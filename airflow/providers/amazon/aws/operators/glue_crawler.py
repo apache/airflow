@@ -63,10 +63,11 @@ class AwsGlueCrawlerOperator(BaseOperator):
 
         :return: the name of the current glue crawler.
         """
-        if self.hook.has_crawler(self.config['Name']):
-            crawler_name = self.hook.get_crawler(**self.config)
+        crawler_name = self.config['Name']
+        if self.hook.has_crawler(crawler_name):
+            self.hook.update_crawler(**self.config)
         else:
-            crawler_name = self.hook.create_crawler(**self.config)
+            self.hook.create_crawler(**self.config)
 
         self.log.info("Triggering AWS Glue Crawler")
         self.hook.start_crawler(crawler_name)

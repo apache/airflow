@@ -76,13 +76,13 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         except self.glue_client.exceptions.EntityNotFoundException:
             return False
 
-    def get_crawler(self, **crawler_kwargs) -> str:
+    def update_crawler(self, **crawler_kwargs) -> str:
         """
-        Updates crawler configurations and gets the crawler's name
+        Updates crawler configurations
 
         :param crawler_kwargs = Keyword args that define the configurations used for the crawler
         :type crawler_kwargs = any
-        :return: Name of the crawler
+        :return: True if crawler was updated and false otherwise
         """
         crawler_name = crawler_kwargs['Name']
         current_crawler = self.glue_client.get_crawler(Name=crawler_name)['Crawler']
@@ -94,8 +94,9 @@ class AwsGlueCrawlerHook(AwsBaseHook):
             self.log.info("Updating crawler: %s", crawler_name)
             self.glue_client.update_crawler(**crawler_kwargs)
             self.log.info("Updated configurations: %s", update_config)
-
-        return crawler_name
+            return True
+        else:
+            return False
 
     def create_crawler(self, **crawler_kwargs) -> str:
         """

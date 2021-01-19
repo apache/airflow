@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from copy import deepcopy
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
@@ -106,17 +107,26 @@ class TestAwsGlueCrawlerHook(unittest.TestCase):
         mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
-    def test_get_crawler(self, mock_get_conn):
-
+    def test_update_crawler_needed(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {'Crawler': mock_config}
-        result = self.hook.get_crawler(**mock_config)
 
-        self.assertEqual(mock_crawler_name, result)
+        mock_config_two = deepcopy(mock_config)
+        mock_config_two['Role'] = 'test-2-role'
+        response = self.hook.update_crawler(**mock_config_two)
+        self.assertEqual(response, True)
+        mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
+        mock_get_conn.return_value.update_crawler.assert_called_once_with(**mock_config_two)
+
+    @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
+    def test_update_crawler_not_needed(self, mock_get_conn):
+        mock_get_conn.return_value.get_crawler.return_value = {'Crawler': mock_config}
+        response = self.hook.update_crawler(**mock_config)
+        self.assertEqual(response, False)
+        mock_get_conn.return_value.get_crawler.assert_called_once_with(Name=mock_crawler_name)
 
     @mock.patch.object(AwsGlueCrawlerHook, "get_conn")
     def test_create_crawler(self, mock_get_conn):
         mock_get_conn.return_value.create_crawler.return_value = {'Crawler': {'Name': mock_crawler_name}}
-
         glue_crawler = self.hook.create_crawler(**mock_config)
 
         self.assertEqual(glue_crawler, mock_crawler_name)

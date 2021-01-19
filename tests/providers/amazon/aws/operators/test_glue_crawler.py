@@ -93,10 +93,8 @@ class TestAwsGlueCrawlerOperator(unittest.TestCase):
             [
                 mock.call('aws_default'),
                 mock.call().has_crawler('test-crawler'),
-                mock.call().get_crawler(**mock_config),
-                mock.call().start_crawler(mock_hook.return_value.get_crawler.return_value),
-                mock.call().wait_for_crawler_completion(
-                    crawler_name=mock_hook.return_value.get_crawler.return_value, poll_interval=5
-                ),
+                mock.call().update_crawler(**mock_config),
+                mock.call().start_crawler(mock_crawler_name),
+                mock.call().wait_for_crawler_completion(crawler_name=mock_crawler_name, poll_interval=5),
             ]
         )
