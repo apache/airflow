@@ -20,6 +20,7 @@
 
 import os
 from datetime import timedelta
+from textwrap import dedent
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
@@ -67,10 +68,12 @@ with DAG(
     tags=['example'],
 ) as dag:
 
-    my_templated_command = """
+    my_templated_command = dedent(
+        """
         echo " 'foo was passed in via Airflow CLI Test command with value {{ params.foo }} "
         echo " 'miff was passed in via BashOperator with value {{ params.miff }} "
     """
+    )
 
     run_this = PythonOperator(
         task_id='run_this',
