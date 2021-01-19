@@ -458,7 +458,7 @@ class Airflow(AirflowBaseView):
         if curve_template is None:
             return None
 
-        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE_TEMPLATE'], '查看曲线模板')
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE_TEMPLATE'], '查看曲线模板页面')
         logging.info(msg)
 
         return self.render_template('airflow/curve_template.html', can_delete=can_delete,
@@ -2265,7 +2265,7 @@ class CurvesView(BaseCRUDView):
             }
         widgets = self._list()
 
-        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['VIEW_CURVES'], '曲线对比页面')
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['VIEW_CURVES'], '查看曲线对比页面')
         logging.info(msg)
 
         return self.render_template('airflow/curves.html', tasks=lst, page=page, page_size=page_size, count=count,
@@ -2519,13 +2519,28 @@ class ErrorTagModelView(AirflowModelView):
     }
     base_order = ('id', 'asc')
 
+    def post_add(self, item):
+        super(ErrorTagModelView, self).post_add(item)
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['ADD'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '增加错误标签')
+        logging.info(msg)
+
+    def post_update(self, item):
+        super(ErrorTagModelView, self).post_update(item)
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['UPDATE'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '修改错误标签')
+        logging.info(msg)
+
+    def post_delete(self, item):
+        super(ErrorTagModelView, self).post_delete(item)
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '删除错误标签')
+        logging.info(msg)
+
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
             single=False)
     @has_dag_access(can_dag_edit=True)
     def action_muldelete(self, items):
         self.datamodel.delete_all(items)
         self.update_redirect()
-        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '删除错误标签')
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '删除选中错误标签')
         logging.info(msg)
         return redirect(self.get_redirect())
 
@@ -2565,13 +2580,28 @@ class TighteningControllerView(AirflowModelView):
 
     base_order = ('id', 'asc')
 
+    def post_add(self, item):
+        super(TighteningControllerView, self).post_add(item)
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['ADD'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'], '增加控制器')
+        logging.info(msg)
+
+    def post_update(self, item):
+        super(TighteningControllerView, self).post_update(item)
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['UPDATE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'], '修改控制器')
+        logging.info(msg)
+
+    def post_delete(self, item):
+        super(TighteningControllerView, self).post_delete(item)
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'], '删除控制器')
+        logging.info(msg)
+
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
             single=False)
     @has_dag_access(can_dag_edit=True)
     def action_muldelete(self, items):
         self.datamodel.delete_all(items)
         self.update_redirect()
-        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'], '删除控制器')
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'], '删除选中控制器')
         logging.info(msg)
         return redirect(self.get_redirect())
 
@@ -2684,15 +2714,16 @@ class VariableModelView(AirflowModelView):
 
     def pre_add(self, item):
         super(VariableModelView, self).pre_add(item)
-        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['ADD'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板维护：增加变量')
-        logging.info(msg)
         if item.is_curve_template:
             item.key = self.generateCurveParamKey(item.key)
 
+    def post_add(self, item):
+        super(VariableModelView, self).post_add(item)
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['ADD'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板：增加变量')
+        logging.info(msg)
+
     def pre_update(self, item: models.Variable):
         super(VariableModelView, self).pre_update(item)
-        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['EDIT'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板维护：修改变量')
-        logging.info(msg)
         if item.is_curve_template and self.is_curve_param_key(item.key):
             return
         if item.is_curve_template:
@@ -2701,6 +2732,11 @@ class VariableModelView(AirflowModelView):
         if self.is_curve_param_key(item.key):
             item.key = item.key.split('@@')[0]
             return
+
+    def post_update(self, item):
+        super(VariableModelView, self).post_update(item)
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['UPDATE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板：修改变量')
+        logging.info(msg)
 
     def hidden_field_formatter(attr):
         if isinstance(attr, str):
@@ -2726,12 +2762,17 @@ class VariableModelView(AirflowModelView):
         if wwwutils.should_hide_value_for_key(form.key.data):
             form.val.data = '*' * 8
 
+    def post_delete(self, item):
+        super(VariableModelView, self).post_delete(item)
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板：删除变量')
+        logging.info(msg)
+
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
             single=False)
     def action_muldelete(self, items):
         self.datamodel.delete_all(items)
         self.update_redirect()
-        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板维护：删除变量')
+        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板：删除选中变量')
         logging.info(msg)
         return redirect(self.get_redirect())
 

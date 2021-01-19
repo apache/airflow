@@ -16,7 +16,7 @@ CUSTOM_EVENT_NAME_MAP = {'DOUBLE_CONFIRM': '10001',
                          'VIEW': '10004',
                          'ADD': '10005',
                          'DELETE': '10006',
-                         'EDIT': '10007', }
+                         'UPDATE': '10007', }
 
 CUSTOM_PAGE_NAME_MAP = {'LOGIN': '50001',
                         'LOGOUT': '50002',
