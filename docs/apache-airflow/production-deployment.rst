@@ -56,10 +56,10 @@ Once that is done, you can run -
 Multi-Node Cluster
 ==================
 
-Airflow uses :class:`airflow.executors.sequential_executor.SequentialExecutor` by default. However, by it
+Airflow uses :class:`~airflow.executors.sequential_executor.SequentialExecutor` by default. However, by it
 nature, the user is limited to executing at most one task at a time. ``Sequential Executor`` also pauses
 the scheduler when it runs a task, hence not recommended in a production setup. You should use the
-:class:`Local executor <airflow.executors.local_executor.LocalExecutor>` for a single machine.
+:class:`~airflow.executors.local_executor.LocalExecutor` for a single machine.
 For a multi-node setup, you should use the :doc:`Kubernetes executor <../executor/kubernetes>` or
 the :doc:`Celery executor <../executor/celery>`.
 
@@ -787,7 +787,7 @@ In case Postgres or MySQL DB is used, the entrypoint will wait until the airflow
 available. This happens always when you use the default entrypoint.
 
 The script detects backend type depending on the URL schema and assigns default port numbers if not specified
-in the URL. Then it loops until connection to the host/port specified can be established
+in the URL. Then it loops until the connection to the host/port specified can be established
 It tries ``CONNECTION_CHECK_MAX_COUNT`` times and sleeps ``CONNECTION_CHECK_SLEEP_TIME`` between checks
 
 Supported schemes:
@@ -801,7 +801,7 @@ In case of SQLite backend, there is no connection to establish and waiting is sk
 Upgrading Airflow DB
 ....................
 
-If you set ``_AIRFLOW_DB_UPGRADE`` variable to a non-empty value, the entrypoint will perform
+If you set ``_AIRFLOW_DB_UPGRADE`` variable to a non-empty value, the entrypoint will run
 the ``airflow db upgrade`` command right after verifying the connection. You can also use this
 when you are running airflow with internal SQLite database (default) to upgrade the db and create
 admin users at entrypoint, so that you can start the webserver immediately. Note - using SQLite is
@@ -812,31 +812,31 @@ comes to concurrency.
 Creating admin user
 ...................
 
-The entrypoint can also create www admin user automatically when you enter it. you need to set
+The entrypoint can also create webserver user automatically when you enter it. you need to set
 ``_AIRFLOW_WWW_USER_CREATE`` to a non-empty value in order to do that. This is not intended for
-production, it is only useful if you run a quick test with the production image.
-You need to pass at lest password to create such user via ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` or
+production, it is only useful if you would like to run a quick test with the production image.
+You need to pass at least password to create such user via ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` or
 ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` similarly like for other ``*_CMD`` variables, the content of
 the ``*_CMD`` will be evaluated as shell command and it's output will be set ass password.
 
 User creation will fail if none of the ``PASSWORD`` variables are set - there is no default for
 password for security reasons.
 
-+-----------+--------------------------+--------------------------------------------------------------+
-| Parameter | Default                  | Environment variable                                         |
-+===========+==========================+==============================================================+
-| username  | admin                    | _AIRFLOW_WWW_USER_USERNAME                                   |
-+-----------+--------------------------+--------------------------------------------------------------+
-| password  |                          | _AIRFLOW_WWW_USER_PASSWORD_CMD or _AIRFLOW_WWW_USER_PASSWORD |
-+-----------+--------------------------+--------------------------------------------------------------+
-| firstname | Airflow                  | _AIRFLOW_WWW_USER_FIRSTNAME                                  |
-+-----------+--------------------------+--------------------------------------------------------------+
-| lastname  | Admin                    | _AIRFLOW_WWW_USER_LASTNAME                                   |
-+-----------+--------------------------+--------------------------------------------------------------+
-| email     | airflowadmin@example.com | _AIRFLOW_WWW_USER_EMAIL                                      |
-+-----------+--------------------------+--------------------------------------------------------------+
-| role      | Admin                    | _AIRFLOW_WWW_USER_ROLE                                       |
-+-----------+--------------------------+--------------------------------------------------------------+
++-----------+--------------------------+----------------------------------------------------------------------+
+| Parameter | Default                  | Environment variable                                                 |
++===========+==========================+======================================================================+
+| username  | admin                    | ``_AIRFLOW_WWW_USER_USERNAME``                                       |
++-----------+--------------------------+----------------------------------------------------------------------+
+| password  |                          | ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` or ``_AIRFLOW_WWW_USER_PASSWORD`` |
++-----------+--------------------------+----------------------------------------------------------------------+
+| firstname | Airflow                  | ``_AIRFLOW_WWW_USER_FIRSTNAME``                                      |
++-----------+--------------------------+----------------------------------------------------------------------+
+| lastname  | Admin                    | ``_AIRFLOW_WWW_USER_LASTNAME``                                       |
++-----------+--------------------------+----------------------------------------------------------------------+
+| email     | airflowadmin@example.com | ``_AIRFLOW_WWW_USER_EMAIL``                                          |
++-----------+--------------------------+----------------------------------------------------------------------+
+| role      | Admin                    | ``_AIRFLOW_WWW_USER_ROLE``                                           |
++-----------+--------------------------+----------------------------------------------------------------------+
 
 In case the password is specified, the user will be attempted to be created, but the entrypoint will
 not fail if the attempt fails (this accounts for the case that the user is already created).
@@ -990,7 +990,7 @@ to the Google API.
 IAM and Service Accounts
 ------------------------
 
-You should do not rely on internal network segmentation or firewalling as our primary security mechanisms.
+You should not rely on internal network segmentation or firewalling as our primary security mechanisms.
 To protect your organization's data, every request you make should contain sender identity. In the case of
 Google Cloud, the identity is provided by
 `the IAM and Service account <https://cloud.google.com/iam/docs/service-accounts>`__. Each Compute Engine
