@@ -135,7 +135,7 @@ function create_www_user() {
     fi
     if [[ -z ${local_password} ]]; then
         echo
-        echo ERROR! Airflow Admin password not set via _AIRFLOW_WWW_USER_PASSWORD or _AIRFLOW_WWW_USER_PASSWORD_CMD variables!
+        echo "ERROR! Airflow Admin password not set via _AIRFLOW_WWW_USER_PASSWORD or _AIRFLOW_WWW_USER_PASSWORD_CMD variables!"
         echo
         exit 1
     fi
