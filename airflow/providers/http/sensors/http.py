@@ -30,8 +30,8 @@ class HttpSensor(BaseSensorOperator):
 
     HTTP Error codes other than 404 (like 403) or Connection Refused Error
     would raise an exception and fail the sensor itself directly (no more poking).
-    To avoid fail the task for other codes than 404, the argument `extra_option`
-    can be passed with the value `{'check_response': False}`. It will make the `response_check`
+    To avoid failing the task for other codes than 404, the argument ``extra_option``
+    can be passed with the value ``{'check_response': False}``. It will make the ``response_check``
     be execute for any http status code.
 
     The response check can access the template context to the operator:
