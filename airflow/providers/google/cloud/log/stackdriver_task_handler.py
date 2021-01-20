@@ -164,8 +164,7 @@ class StackdriverTaskHandler(logging.Handler):
         :type metadata: Dict
         :return: a tuple of (
             list of (one element tuple with two element tuple - hostname and logs)
-            and list of metadata
-        )
+            and list of metadata)
         :rtype: Tuple[List[Tuple[Tuple[str, str]]], List[Dict[str, str]]]
         """
         if try_number is not None and try_number < 1:
@@ -257,6 +256,8 @@ class StackdriverTaskHandler(logging.Handler):
                     log_filter=log_filter, page_token=next_page_token
                 )
                 messages.append(new_messages)
+                if not messages:
+                    break
 
             end_of_log = True
             next_page_token = None
