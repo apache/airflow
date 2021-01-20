@@ -219,7 +219,7 @@ class DockerOperator(BaseOperator):
             tls=self.__get_tls_config(),
         )
 
-    def _run_image(self) -> Optional[str]:
+    def _run_image(self) -> Optional[bytes]:
         """Run a Docker container with the provided image"""
         self.log.info('Starting docker container from image %s', self.image)
 
@@ -279,7 +279,7 @@ class DockerOperator(BaseOperator):
 
             return ret
 
-    def execute(self, context) -> Optional[str]:
+    def execute(self, context) -> Optional[bytes]:
         self.cli = self._get_cli()
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
