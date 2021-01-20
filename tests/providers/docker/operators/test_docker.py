@@ -41,8 +41,8 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock = mock.Mock(spec=APIClient)
         self.client_mock.create_container.return_value = {'Id': 'some_id'}
         self.client_mock.images.return_value = []
-        self.client_mock.attach.return_value = ['container log']
-        self.client_mock.logs.return_value = ['container log']
+        self.client_mock.attach.return_value = [b'container log']
+        self.client_mock.logs.return_value = b'container log'  # logs(..., stream=False) returns bytes
         self.client_mock.pull.return_value = {"status": "pull log"}
         self.client_mock.wait.return_value = {"StatusCode": 0}
         self.client_mock.create_host_config.return_value = mock.Mock()
