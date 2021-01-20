@@ -85,7 +85,6 @@ class TestSecret(unittest.TestCase):
                 'labels': {'app': 'myapp'},
                 'name': 'myapp-pod.cf4a56d281014217b0272af6216feb48',
                 'namespace': 'default',
-
             },
             'spec': {
                 'containers': [
