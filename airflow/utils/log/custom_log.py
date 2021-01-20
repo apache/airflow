@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 import os
-import time
 
 APP_NAME = os.getenv('ENV_APP_NAME', 'QCOS')
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
-LOCAL_TIME = time.asctime(time.localtime(time.time()))
 
-CUSTOM_LOG_FORMAT = u'%s@@@%s@@@%s@@@{}@@@{}@@@{}@@@{}@@@{}' % (
-    LOCAL_TIME, APP_NAME, FACTORY_CODE)
-# {USER_NAME}@@@{USER_DOMAIN_NAME}@@@{EVENT_NAME}@@@{PAGE_NAME}@@@{EXTRA_INFO}
+CUSTOM_LOG_FORMAT = u'{}@@@%s@@@%s@@@{}@@@{}@@@{}@@@{}@@@{}' % (
+    APP_NAME, FACTORY_CODE)
+# {LOCAL_TIME}...{USER_NAME}@@@{USER_DOMAIN_NAME}@@@{EVENT_NAME}@@@{PAGE_NAME}@@@{EXTRA_INFO}
 
 CUSTOM_EVENT_NAME_MAP = {'DOUBLE_CONFIRM': '10001',
                          'LOGIN': '10002',

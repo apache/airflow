@@ -23,6 +23,7 @@ from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from sqlalchemy import or_, and_
 from flask_appbuilder.security.views import AuthDBView
+from datetime import datetime
 
 from airflow import models
 from airflow.exceptions import AirflowException
@@ -30,6 +31,7 @@ from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www_rbac.app import appbuilder
 from airflow.www_rbac.utils import CustomSQLAInterface
+from airflow.settings import TIMEZONE
 
 EXISTING_ROLES = {
     'Admin',
@@ -95,15 +97,21 @@ class CustomAuthDBView(AuthDBView):
         ret = super(CustomAuthDBView, self).login()
         msg = ''
         if not current_user.is_active:
-            msg = CUSTOM_LOG_FORMAT.format('null', 'null', CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '查看登录页面')
+            msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                           'null', 'null',
+                                           CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '查看登录页面')
         else:
-            msg = CUSTOM_LOG_FORMAT.format(current_user,  current_user.last_name, CUSTOM_EVENT_NAME_MAP['LOGIN'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '登录')
+            msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                           current_user,  current_user.last_name,
+                                           CUSTOM_EVENT_NAME_MAP['LOGIN'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '登录')
         logging.info(msg)
         return ret
 
     @expose("/logout/")
     def logout(self):
-        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['LOGOUT'], CUSTOM_PAGE_NAME_MAP['LOGOUT'], '登出')
+        msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                       current_user, current_user.last_name,
+                                       CUSTOM_EVENT_NAME_MAP['LOGOUT'], CUSTOM_PAGE_NAME_MAP['LOGOUT'], '登出')
         ret = super(CustomAuthDBView, self).logout()
         logging.info(msg)
         return ret
@@ -168,15 +176,21 @@ class AuthOAuthView(AV):
         session.commit()
         msg = ''
         if not current_user.is_active:
-            msg = CUSTOM_LOG_FORMAT.format('null', 'null', CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '查看登录页面')
+            msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                           'null', 'null',
+                                           CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '查看登录页面')
         else:
-            msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['LOGIN'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '登录')
+            msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                           current_user, current_user.last_name,
+                                           CUSTOM_EVENT_NAME_MAP['LOGIN'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '登录')
         logging.info(msg)
         return redirect(url_for('Airflow.index'))
 
     @expose("/logout/")
     def logout(self):
-        msg = CUSTOM_LOG_FORMAT.format(current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['LOGOUT'], CUSTOM_PAGE_NAME_MAP['LOGOUT'], '登出')
+        msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                       current_user, current_user.last_name,
+                                       CUSTOM_EVENT_NAME_MAP['LOGOUT'], CUSTOM_PAGE_NAME_MAP['LOGOUT'], '登出')
         logging.info(msg)
         logout_user()
         if ENV_PORTAL_INDEX_URL and RUNTIME_ENV == 'prod':
