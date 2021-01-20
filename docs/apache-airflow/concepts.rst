@@ -1140,13 +1140,6 @@ TaskGroup can be created using ``@taskgroup decorator``, it takes one mandatory 
       return task_2(task_1(value))
 
 
-Here is an example of how to use taskgroup decorator :
-
-.. exampleinclude:: /../airflow/example_dags/example_task_group_decorator.py
-    :language: python
-    :start-after: [START task_group_decorator_usage]
-    :end-before: [END task_group_decorator_usage]
-
 
 SLAs
 ====
