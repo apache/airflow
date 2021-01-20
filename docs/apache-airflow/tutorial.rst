@@ -109,6 +109,7 @@ instantiated from an operator is called a task. The first argument
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
+    :dedent: 4
     :start-after: [START basic_task]
     :end-before: [END basic_task]
 
@@ -144,6 +145,7 @@ stamp").
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
+    :dedent: 4
     :start-after: [START jinja_template]
     :end-before: [END jinja_template]
 
@@ -186,6 +188,7 @@ json, yaml.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
+    :dedent: 4
     :start-after: [START documentation]
     :end-before: [END documentation]
 

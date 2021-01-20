@@ -69,6 +69,7 @@ as shown below. The function name acts as a unique identifier for the task.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
+    :dedent: 4
     :start-after: [START extract]
     :end-before: [END extract]
 
@@ -83,6 +84,7 @@ we can move to the main part of the DAG.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
+    :dedent: 4
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
@@ -119,6 +121,7 @@ in the middle of the data pipeline. In Airflow 1.x, this task is defined as show
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_etl_dag.py
     :language: python
+    :dedent: 4
     :start-after: [START transform_function]
     :end-before: [END transform_function]
 
@@ -130,6 +133,7 @@ Contrasting that with Taskflow API in Airflow 2.0 as shown below.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
+    :dedent: 4
     :start-after: [START transform]
     :end-before: [END transform]
 
@@ -143,6 +147,7 @@ dependencies specified as shown below.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_etl_dag.py
     :language: python
+    :dedent: 4
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
@@ -151,6 +156,7 @@ the dependencies as shown below.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
+    :dedent: 4
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
