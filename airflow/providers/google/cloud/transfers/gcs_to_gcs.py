@@ -293,7 +293,8 @@ class GCSToGCSOperator(BaseOperator):
             if self.destination_object is None:
                 destination_object = source_obj
             else:
-                destination_object = self.destination_object
+                destination_object = source_obj.replace(prefix,
+                                                           self.destination_object, 1)
             self._copy_single_object(
                 hook=hook, source_object=source_obj, destination_object=destination_object
             )
