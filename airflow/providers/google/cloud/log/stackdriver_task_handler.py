@@ -21,9 +21,12 @@ from urllib.parse import urlencode
 
 from cached_property import cached_property
 from google.api_core.gapic_v1.client_info import ClientInfo
+from google.auth.credentials import Credentials
 from google.cloud import logging as gcp_logging
+from google.cloud.logging import Resource
 from google.cloud.logging.handlers.transports import BackgroundThreadTransport, Transport
-from google.cloud.logging.resource import Resource
+from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
+from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
 
 from airflow import version
 from airflow.models import TaskInstance
@@ -102,14 +105,29 @@ class StackdriverTaskHandler(logging.Handler):
         self.task_instance_hostname = 'default-hostname'
 
     @cached_property
-    def _client(self) -> gcp_logging.Client:
-        """Google Cloud Library API client"""
+    def _credentials_and_project(self) -> Tuple[Credentials, str]:
         credentials, project = get_credentials_and_project_id(
             key_path=self.gcp_key_path, scopes=self.scopes, disable_logging=True
         )
+        return credentials, project
+
+    @property
+    def _client(self) -> gcp_logging.Client:
+        """The Cloud Library API client"""
+        credentials, project = self._credentials_and_project
         client = gcp_logging.Client(
             credentials=credentials,
             project=project,
+            client_info=ClientInfo(client_library_version='airflow_v' + version.version),
+        )
+        return client
+
+    @property
+    def _logging_service_client(self) -> LoggingServiceV2Client:
+        """The Cloud logging service v2 client."""
+        credentials, _ = self._credentials_and_project
+        client = LoggingServiceV2Client(
+            credentials=credentials,
             client_info=ClientInfo(client_library_version='airflow_v' + version.version),
         )
         return client
@@ -214,9 +232,10 @@ class StackdriverTaskHandler(logging.Handler):
             escaped_value = value.replace("\\", "\\\\").replace('"', '\\"')
             return f'"{escaped_value}"'
 
+        _, project = self._credentials_and_project
         log_filters = [
             f'resource.type={escale_label_value(self.resource.type)}',
-            f'logName="projects/{self._client.project}/logs/{self.name}"',
+            f'logName="projects/{project}/logs/{self.name}"',
         ]
 
         for key, value in self.resource.labels.items():
@@ -277,17 +296,21 @@ class StackdriverTaskHandler(logging.Handler):
         :return: Downloaded logs and next page token
         :rtype: Tuple[str, str]
         """
-        entries = self._client.list_entries(
-            filter_=log_filter, page_token=page_token, order_by='timestamp asc', page_size=1000
+        _, project = self._credentials_and_project
+        request = ListLogEntriesRequest(
+            resource_names=[f'projects/{project}'],
+            filter=log_filter,
+            page_token=page_token,
+            order_by='timestamp asc',
+            page_size=1000,
         )
-        page = next(entries.pages)
-        next_page_token = entries.next_page_token
+        response = self._logging_service_client.list_log_entries(request=request)
+        page: ListLogEntriesResponse = next(response.pages)
         messages = []
-        for entry in page:
-            if "message" in entry.payload:
-                messages.append(entry.payload["message"])
-
-        return "\n".join(messages), next_page_token
+        for entry in page.entries:
+            if "message" in entry.json_payload:
+                messages.append(entry.json_payload["message"])
+        return "\n".join(messages), page.next_page_token
 
     @classmethod
     def _task_instance_to_labels(cls, ti: TaskInstance) -> Dict[str, str]:
@@ -323,7 +346,7 @@ class StackdriverTaskHandler(logging.Handler):
         :return: URL to the external log collection service
         :rtype: str
         """
-        project_id = self._client.project
+        _, project_id = self._credentials_and_project
 
         ti_labels = self._task_instance_to_labels(task_instance)
         ti_labels[self.LABEL_TRY_NUMBER] = str(try_number)
