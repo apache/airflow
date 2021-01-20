@@ -398,7 +398,7 @@ paths:
       description: >
         Presents only information available in database (DAGModel).
 
-        If you need detailed information, consider using GET /dags/{dag_id}/detail.
+        If you need detailed information, consider using GET /dags/{dag_id}/details.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dag
       tags: [DAG]
@@ -1685,6 +1685,20 @@ components:
           readOnly: true
           nullable: true
 
+    Parameter:
+      type: object
+      properties:
+        key:
+          type: string
+          readOnly: true
+        value:
+          readOnly: true
+
+    Parameters:
+      type: array
+      description: Parameters that are made accessible in templates, namespaced under `params`.
+      items:
+        $ref: '#/components/schemas/Parameter'
 
     Pool:
       description: The pool
@@ -1947,6 +1961,8 @@ components:
             default_view:
               type: string
               readOnly: true
+            params:
+              $ref: '#/components/schemas/Parameters'
 
     ExtraLink:
       type: object
