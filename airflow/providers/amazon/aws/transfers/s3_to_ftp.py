@@ -43,14 +43,14 @@ class S3ToFTPOperator(BaseOperator):
     template_fields = ('s3_bucket', 's3_key', 'ftp_path')
 
     def __init__(
-            self,
-            *,
-            s3_bucket,
-            s3_key,
-            ftp_path,
-            aws_conn_id='aws_default',
-            ftp_conn_id='ftp_default',
-            **kwargs,
+        self,
+        *,
+        s3_bucket,
+        s3_key,
+        ftp_path,
+        aws_conn_id='aws_default',
+        ftp_conn_id='ftp_default',
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
