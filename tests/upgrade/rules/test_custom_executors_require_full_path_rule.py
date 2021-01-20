@@ -31,10 +31,14 @@ class TestCustomExecutorsRequireFullPath(TestCase):
         assert isinstance(rule.description, str)
 
         msg = (
-            "Deprecation Warning: you do not need to load your custom executor via a plugin."
-            "In Airflow 2.0, you only need to provide a full path to the the custom executor module."
-            "see 'Custom executors is loaded using full import path' section at the link below:"
-            "https://github.com/apache/airflow/blob/master/UPDATING.md"
+            "Deprecation Warning: Found Custom Executor imported via a plugin."
+            "From Airflow 2.0, you should use regular Python Modules to import Custom Executor."
+            "You should provide a full path to the the custom executor module."
+            "See the link below for more details:"
+            "https://github.com/apache/airflow/blob/2.0.0/"
+            "UPDATING.md#custom-executors-is-loaded-using-full-import-path \n"
+            "Following Executors were imported using Plugins: \n"
+            "['my_plugin.MyCustomExecutor', 'my_acme.executors.MyCustomExecutor']"
         )
 
         assert msg == rule.check()
