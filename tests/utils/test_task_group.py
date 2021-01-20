@@ -17,7 +17,6 @@
 # under the License.
 
 import pendulum
-import pytest
 
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
@@ -527,42 +526,6 @@ def test_dag_edges():
     ]
 
 
-def test_duplicate_group_id():
-    from airflow.exceptions import DuplicateTaskIdFound
-
-    execution_date = pendulum.parse("20200101")
-
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'task1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = DummyOperator(task_id="task1")
-            with TaskGroup("task1"):
-                pass
-
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = DummyOperator(task_id="task1")
-            with TaskGroup("group1", prefix_group_id=False):
-                with TaskGroup("group1"):
-                    pass
-
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            with TaskGroup("group1", prefix_group_id=False):
-                _ = DummyOperator(task_id="group1")
-
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.downstream_join_id' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = DummyOperator(task_id="task1")
-            with TaskGroup("group1"):
-                _ = DummyOperator(task_id="downstream_join_id")
-
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.upstream_join_id' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = DummyOperator(task_id="task1")
-            with TaskGroup("group1"):
-                _ = DummyOperator(task_id="upstream_join_id")
-
-
 def test_task_without_dag():
     """
     Test that if a task doesn't have a DAG when it's being set as the relative of another task which
@@ -886,6 +849,63 @@ def test_duplicate_task_group_id():
             },
             {'id': 'task_group1__1', 'children': [{'id': 'task_group1__1.task1'}]},
             {'id': 'task_group1__2', 'children': [{'id': 'task_group1__2.end_task'}]},
+        ],
+    }
+
+    assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
+
+
+def test_call_taskgroup_twice():
+    """Test for using same taskgroup decorated function twice"""
+    from airflow.operators.python import task
+
+    @task(task_id='start_task')
+    def task_start():
+        """Dummy Task which is First Task of Dag """
+        print('[Task_start]')
+
+    @task(task_id='end_task')
+    def task_end():
+        """Dummy Task which is Last Task of Dag"""
+        print('[Task_End]')
+
+    # Creating Tasks
+    @task(task_id='task')
+    def task_1():
+        """ Dummy Task1"""
+        print('[Task1]')
+
+    @taskgroup
+    def task_group1(name: str):
+        print(f'Starting taskgroup {name}')
+        task_start()
+        task_1()
+        task_end()
+
+    execution_date = pendulum.parse("20201109")
+    with DAG(dag_id="example_multi_call_task_groups", start_date=execution_date, tags=["example"]) as dag:
+        task_group1('Call1')
+        task_group1('Call2')
+
+    node_ids = {
+        'id': None,
+        'children': [
+            {
+                'id': 'task_group1',
+                'children': [
+                    {'id': 'task_group1.end_task'},
+                    {'id': 'task_group1.start_task'},
+                    {'id': 'task_group1.task'},
+                ],
+            },
+            {
+                'id': 'task_group1__1',
+                'children': [
+                    {'id': 'task_group1__1.end_task'},
+                    {'id': 'task_group1__1.start_task'},
+                    {'id': 'task_group1__1.task'},
+                ],
+            },
         ],
     }
 
