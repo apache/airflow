@@ -94,4 +94,8 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
 
             task_log_reader = TaskLogReader()
             logs = "\n".join(task_log_reader.read_log_stream(ti, try_number=None, metadata={}))
+            # Preview content
+            print("=" * 80)
+            print(logs)
+            print("=" * 80)
             assert expected_message in logs

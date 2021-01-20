@@ -99,6 +99,7 @@ class StackdriverTaskHandler(logging.Handler):
         self.resource: Resource = resource
         self.labels: Optional[Dict[str, str]] = labels
         self.task_instance_labels: Optional[Dict[str, str]] = {}
+        self.task_instance_hostname = 'default-hostname'
 
     @cached_property
     def _client(self) -> gcp_logging.Client:
@@ -146,10 +147,11 @@ class StackdriverTaskHandler(logging.Handler):
         :type task_instance:  :class:`airflow.models.TaskInstance`
         """
         self.task_instance_labels = self._task_instance_to_labels(task_instance)
+        self.task_instance_hostname = task_instance.hostname
 
     def read(
         self, task_instance: TaskInstance, try_number: Optional[int] = None, metadata: Optional[Dict] = None
-    ) -> Tuple[List[str], List[Dict]]:
+    ) -> Tuple[List[Tuple[Tuple[str, str]]], List[Dict[str, str]]]:
         """
         Read logs of given task instance from Stackdriver logging.
 
@@ -160,12 +162,15 @@ class StackdriverTaskHandler(logging.Handler):
         :type try_number: Optional[int]
         :param metadata: log metadata. It is used for steaming log reading and auto-tailing.
         :type metadata: Dict
-        :return: a tuple of list of logs and list of metadata
-        :rtype: Tuple[List[str], List[Dict]]
+        :return: a tuple of (
+            list of (one element tuple with two element tuple - hostname and logs)
+            and list of metadata
+        )
+        :rtype: Tuple[List[Tuple[Tuple[str, str]]], List[Dict[str, str]]]
         """
         if try_number is not None and try_number < 1:
-            logs = [f"Error fetching the logs. Try number {try_number} is invalid."]
-            return logs, [{"end_of_log": "true"}]
+            logs = f"Error fetching the logs. Try number {try_number} is invalid."
+            return [((self.task_instance_hostname, logs),)], [{"end_of_log": "true"}]
 
         if not metadata:
             metadata = {}
@@ -188,7 +193,7 @@ class StackdriverTaskHandler(logging.Handler):
         if next_page_token:
             new_metadata['next_page_token'] = next_page_token
 
-        return [messages], [new_metadata]
+        return [((self.task_instance_hostname, messages),)], [new_metadata]
 
     def _prepare_log_filter(self, ti_labels: Dict[str, str]) -> str:
         """
@@ -271,7 +276,9 @@ class StackdriverTaskHandler(logging.Handler):
         :return: Downloaded logs and next page token
         :rtype: Tuple[str, str]
         """
-        entries = self._client.list_entries(filter_=log_filter, page_token=page_token)
+        entries = self._client.list_entries(
+            filter_=log_filter, page_token=page_token, order_by='timestamp asc', page_size=1000
+        )
         page = next(entries.pages)
         next_page_token = entries.next_page_token
         messages = []
@@ -331,3 +338,6 @@ class StackdriverTaskHandler(logging.Handler):
 
         url = f"{self.LOG_VIEWER_BASE_URL}?{urlencode(url_query_string)}"
         return url
+
+    def close(self) -> None:
+        self._transport.flush()
