@@ -59,6 +59,7 @@ class EmrAddStepsOperator(BaseOperator):
         cluster_states: Optional[List[str]] = None,
         aws_conn_id: str = 'aws_default',
         steps: Optional[Union[List[dict], str]] = None,
+        region_name: Optional[str] = None,
         **kwargs,
     ):
         if kwargs.get('xcom_push') is not None:
@@ -73,9 +74,10 @@ class EmrAddStepsOperator(BaseOperator):
         self.job_flow_name = job_flow_name
         self.cluster_states = cluster_states
         self.steps = steps
+        self.region_name = region_name 
 
     def execute(self, context: Dict[str, Any]) -> List[str]:
-        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
+        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
         emr = emr_hook.get_conn()
 
