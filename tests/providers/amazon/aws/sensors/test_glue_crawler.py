@@ -32,17 +32,23 @@ class TestAwsGlueCrawlerSensor(unittest.TestCase):
             aws_conn_id='aws_default',
         )
 
-    @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler_state', side_effect=("SUCCEEDED",))
-    def test_poke_success(self, mock_get_crawler_state):
+    @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler')
+    def test_poke_success(self, mock_get_crawler):
+        mock_get_crawler.return_value['LastCrawl']['Status'] = "SUCCEEDED"
         self.assertFalse(self.sensor.poke(None))
+        mock_get_crawler.assert_called_once_with('aws_test_glue_crawler')
 
-    @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler_state', side_effect=("FAILED",))
-    def test_poke_fail(self, mock_get_crawler_state):
+    @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler')
+    def test_poke_failed(self, mock_get_crawler):
+        mock_get_crawler.return_value['LastCrawl']['Status'] = "FAILED"
         self.assertFalse(self.sensor.poke(None))
+        mock_get_crawler.assert_called_once_with('aws_test_glue_crawler')
 
-    @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler_state', side_effect=("CANCELLED",))
-    def test_poke_cancel(self, mock_get_crawler_state):
+    @mock.patch.object(AwsGlueCrawlerHook, 'get_crawler')
+    def test_poke_cancelled(self, mock_get_crawler):
+        mock_get_crawler.return_value['LastCrawl']['Status'] = "CANCELLED"
         self.assertFalse(self.sensor.poke(None))
+        mock_get_crawler.assert_called_once_with('aws_test_glue_crawler')
 
 
 if __name__ == '__main__':

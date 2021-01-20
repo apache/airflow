@@ -46,10 +46,10 @@ class AwsGlueCrawlerSensor(BaseSensorOperator):
     def poke(self, context):
         hook = self.get_hook()
         self.log.info("Poking for AWS Glue crawler: %s", self.crawler_name)
-        crawler_state = hook.get_crawler_state(self.crawler_name)
+        crawler_state = hook.get_crawler(self.crawler_name)['State']
         if crawler_state == 'READY':
             self.log.info("State: %s", crawler_state)
-            crawler_status = hook.get_last_crawl_status(crawler_name=self.crawler_name)
+            crawler_status = hook.get_crawler(self.crawler_name)['LastCrawl']['Status']
             if crawler_status == self.success_statuses:
                 self.log.info("Status: %s", crawler_status)
                 return True
