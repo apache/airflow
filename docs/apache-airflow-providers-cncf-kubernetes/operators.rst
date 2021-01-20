@@ -22,13 +22,195 @@ KubernetesPodOperator Guide
 .. contents:: :local:
 
 
+
+KubernetesPodOperator with YAML file / JSON Spec
+================================================
+
+- Creating a Pod Template file
+
+.. code-block:: yaml
+
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    labels:
+      app: myapp
+    name: myapp-pod
+    namespace: default
+  spec:
+    containers:
+      - name: base
+        image: alpine
+        env:
+          - name: TIME_OUT
+            value: '15'
+          - name: ENV_TYPE
+            value: 'test'
+        envFrom:
+          - secretRef:
+              name: db-credentials
+        volumeMounts:
+          - name: myapp-volume
+            mountPath: /root/myapp
+        resources:
+          limits:
+            cpu: 2
+            memory: "200Mi"
+          requests:
+            cpu: 1
+            memory: "100Mi"
+        command: ['sh', '-c', 'echo "myapp-pod created from YAML pod template."']
+    volumes:
+      - name: myapp-volume
+        persistentVolumeClaim:
+          claimName: myapp-pvc-rw
+
+
+- Creating pod from a template using KubernetesPodOperator
+
+.. code-block:: python
+
+  from airflow import DAG
+  from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+  from airflow.utils.dates import days_ago
+
+  with DAG(dag_id="example_k8s_yaml_config", start_date=days_ago(1),
+           schedule_interval='@once', tags=["example"]) as dag:
+
+      pod_template_path = '/abs/path/to/file/k8s_pod_template.yaml'
+      task1 = KubernetesPodOperator(task_id='k8s_pod_yaml_config_task',
+                                    pod_template_file=pod_template_path,
+                                    namespace='default',
+                                    name='airflow_pod_yaml_config',
+                                    startup_timeout_seconds=60,)
+
+
+- After executing / debugging example and checking the logs
+
+.. code-block:: bash
+
+  {taskinstance.py:1230} INFO - Exporting the following env vars:
+  AIRFLOW_CTX_DAG_OWNER=airflow
+  AIRFLOW_CTX_DAG_ID=example_k8s_yaml_config
+  AIRFLOW_CTX_TASK_ID=k8s_pod_yaml_config_task
+  AIRFLOW_CTX_EXECUTION_DATE=2020-12-05T00:00:00+00:00
+  AIRFLOW_CTX_DAG_RUN_ID=backfill__2020-12-05T00:00:00+00:00
+  {pod_launcher.py:176} INFO - Event: myapp-pod had an event of type Pending
+  {pod_launcher.py:113} WARNING - Pod not yet started: myapp-pod
+  {pod_launcher.py:176} INFO - Event: myapp-pod had an event of type Succeeded
+  {pod_launcher.py:289} INFO - Event with job id myapp-pod Succeeded
+
+  {pod_launcher.py:136} INFO - myapp-pod created from YAML pod template.
+
+  {taskinstance.py:1136} INFO - Marking task as SUCCESS. dag_id=example_k8s_yaml_config, task_id=
+  k8s_pod_yaml_config_task, execution_date=20201205T000000, start_date=20201206T130803, end_date=20201206T130818
+  {taskinstance.py:1195} INFO - 0 downstream tasks scheduled from follow-on schedule check
+  {dagrun.py:447} INFO - Marking run <DagRun example_k8s_yaml_config @ 2020-12-05 00:00:00+00:00:
+  backfill__2020-12-05T00:00:00+00:00, externally triggered: False> successful
+  {backfill_job.py:377} INFO - [backfill progress] | finished run 1 of 1 | tasks waiting: 0 | succeeded: 1 |
+  running: 0 | failed: 0 | skipped: 0 | deadlocked: 0 | not ready: 0
+  {backfill_job.py:830} INFO - Backfill done. Exiting.
+
+
+- Examining pod configuration
+
+.. code-block:: bash
+
+  $ kubectl describe pod myapp-pod
+
+  Name:         myapp-pod
+  Namespace:    default
+  Priority:     0
+  Node:         minikube/192.168.49.2
+  Start Time:   Sun, 06 Dec 2020 18:38:08 +0530
+  Labels:       app=myapp
+  Annotations:  <none>
+  Status:       Succeeded
+  IP:           172.17.0.7
+  IPs:
+    IP:  172.17.0.7
+  Containers:
+    base:
+      Container ID:  docker://41a9d68a3f7d8c74c356f6c46d1fe09924d463e2ac0c7161c06d256374478546
+      Image:         alpine
+      Image ID:      docker-pullable://alpine@sha256:c0e9560cda118f9ec63ddefb4a173a2b2a0347082d7dff7dc14272e7841a5b5a
+      Port:          <none>
+      Host Port:     <none>
+      Command:
+        sh
+        -c
+        echo "myapp-pod created from YAML pod template."
+      State:          Terminated
+        Reason:       Completed
+        Exit Code:    0
+        Started:      Sun, 06 Dec 2020 18:38:15 +0530
+        Finished:     Sun, 06 Dec 2020 18:38:15 +0530
+      Ready:          False
+      Restart Count:  0
+      Limits:
+        cpu:     2
+        memory:  200Mi
+      Requests:
+        cpu:     1
+        memory:  100Mi
+      Environment Variables from:
+        db-credentials  Secret  Optional: false
+      Environment:
+        TIME_OUT:  15
+        ENV_TYPE:  test
+      Mounts:
+        /root/myapp from myapp-volume (rw)
+        /var/run/secrets/kubernetes.io/serviceaccount from default-token-ltgdm (ro)
+  Conditions:
+    Type              Status
+    Initialized       True
+    Ready             False
+    ContainersReady   False
+    PodScheduled      True
+  Volumes:
+    myapp-volume:
+      Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+      ClaimName:  myapp-pvc-rw
+      ReadOnly:   false
+    default-token-ltgdm:
+      Type:        Secret (a volume populated by a Secret)
+      SecretName:  default-token-ltgdm
+      Optional:    false
+  QoS Class:       Burstable
+  Node-Selectors:  <none>
+  Tolerations:     node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                   node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+  Events:
+    Type    Reason     Age    From               Message
+    ----    ------     ----   ----               -------
+    Normal  Scheduled  4m53s  default-scheduler  Successfully assigned default/myapp-pod to minikube
+    Normal  Pulling    4m53s  kubelet            Pulling image "alpine"
+    Normal  Pulled     4m47s  kubelet            Successfully pulled image "alpine" in 5.837110465s
+    Normal  Created    4m47s  kubelet            Created container base
+    Normal  Started    4m47s  kubelet            Started container base
+
+
+
 .. _howto/operator:KubernetesPodOperator:
 
 Kubernetes Pod Operator "Hello World!"
 ======================================
 
-- Creating Task using KubernetesPodOperator which prints "Hello World [HOSTNAME]".  Add ``in_cluster=False`` to
-  KubernetesPodOperator constructor when running examples with minikube.
+
+How does this operator work?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` uses the
+Kubernetes API to launch a pod in a Kubernetes cluster. By supplying an
+image URL and a command with optional arguments, the operator uses the Kube Python Client to generate a Kubernetes API
+request that dynamically launches those individual pods.
+Users can specify a kubeconfig file using the ``config_file`` parameter, otherwise the operator will default
+to ``~/.kube/config``.
+
+The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` enables task-level
+resource configuration and is optimal for custom Python
+dependencies that are not available through the public PyPI repository. It also allows users to supply a template
+YAML file using the ``pod_template_file`` parameter.
+Ultimately, it allows Airflow to act a job orchestrator - no matter the language those jobs are written in.
 
 
 .. code-block:: python
@@ -44,7 +226,7 @@ Kubernetes Pod Operator "Hello World!"
                                     startup_timeout_seconds=60,
                                     )
 
-- Executing / Debugging example and checking the logs
+- After executing / debugging example and checking the logs
 
 .. code-block:: bash
 
@@ -145,6 +327,15 @@ Kubernetes Pod Operator "Hello World!"
       Normal  Started    15m   kubelet            Started container base
 
 
+Difference between ``KubernetesPodOperator`` and Kubernetes object spec
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` can be considered
+a substitute for a Kubernetes object spec definition that is able
+to be run in the Airflow scheduler in the DAG context. If using the operator, there is no need to create the
+equivalent YAML/JSON object spec for the Pod you would like to run.
+The YAML file can still be provided with the ``pod_template_file`` or even the Pod Spec constructed in Python via
+the ``full_pod_spec`` parameter which requires a Kubernetes ``V1Pod``.
+
 
 Defining Environment Variables for Pod
 ======================================
@@ -177,7 +368,7 @@ Defining Environment Variables for Pod
                                     )
 
 
-- Running / Debugging dag
+- After executing / debugging example and checking the logs
 
 .. code-block:: bash
 
@@ -276,7 +467,7 @@ Accessing ConfigMap
                                     )
 
 
-- Running / Debugging Dag
+- After executing / debugging example and checking the logs
 
 .. code-block:: bash
 
@@ -355,7 +546,7 @@ Accessing Secrets
                                     )
 
 
-- Running / Debugging Dag
+- After executing / debugging example and checking the logs
 
 .. code-block:: bash
 
@@ -469,7 +660,7 @@ Mounting Persistent  Volume to Pod
 
 
 
-- Running / Debugging Dag
+- After executing / debugging example and checking the logs
 
 .. code-block:: bash
 
@@ -547,7 +738,7 @@ Mounting Secrets as Volume
 
 
 
-- Running / Debugging Dag
+- After executing / debugging example and checking the logs
 
 .. code-block:: bash
 
@@ -620,7 +811,7 @@ Defining Pod resource Requirements and Limits
                                     )
 
 
-- Debugging / Running Dag
+- After executing / debugging example and checking the logs
 
 .. code-block:: bash
 
@@ -701,8 +892,18 @@ Defining Pod resource Requirements and Limits
 
 
 
+
 Using XCOM with KubernetesPodOperator
 =====================================
+
+How does XCom work?
+^^^^^^^^^^^^^^^^^^^
+The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` handles
+XCom values differently than other operators. In order to pass a XCom value
+from your Pod you must specify the ``do_xcom_push`` as ``True``. This will create a sidecar container that runs
+alongside the Pod. The Pod must write the XCom value into this location at the ``/airflow/xcom/return.json`` path.
+
+See the following example on how this occurs:
 
 
 - Example Dag : KubernetesPodOperator task writes contents to be returned to ``/airflow/xcom/return.json`` and reading
@@ -744,7 +945,7 @@ Using XCOM with KubernetesPodOperator
       start_1 >> end_1
 
 
-- Running / Debugging Dag
+- After executing / debugging example and checking the logs
 
 .. code-block:: bash
 
@@ -793,177 +994,20 @@ Using XCOM with KubernetesPodOperator
 
 
 
-KubernetesPodOperator with YAML file / JSON Spec
-================================================
-
-- Creating a Pod Template file
-
-.. code-block:: yaml
-
-  apiVersion: v1
-  kind: Pod
-  metadata:
-    labels:
-      app: myapp
-    name: myapp-pod
-    namespace: default
-  spec:
-    containers:
-      - name: base
-        image: alpine
-        env:
-          - name: TIME_OUT
-            value: '15'
-          - name: ENV_TYPE
-            value: 'test'
-        envFrom:
-          - secretRef:
-              name: db-credentials
-        volumeMounts:
-          - name: myapp-volume
-            mountPath: /root/myapp
-        resources:
-          limits:
-            cpu: 2
-            memory: "200Mi"
-          requests:
-            cpu: 1
-            memory: "100Mi"
-        command: ['sh', '-c', 'echo "myapp-pod created from YAML pod template."']
-    volumes:
-      - name: myapp-volume
-        persistentVolumeClaim:
-          claimName: myapp-pvc-rw
-
-
-- Creating pod from a template using KubernetesPodOperator
-
-.. code-block:: python
-
-  from airflow import DAG
-  from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-  from airflow.utils.dates import days_ago
-
-  with DAG(dag_id="example_k8s_yaml_config", start_date=days_ago(1),
-           schedule_interval='@once', tags=["example"]) as dag:
-
-      pod_template_path = '/abs/path/to/file/k8s_pod_template.yaml'
-      task1 = KubernetesPodOperator(task_id='k8s_pod_yaml_config_task',
-                                    pod_template_file=pod_template_path,
-                                    namespace='default',
-                                    name='airflow_pod_yaml_config',
-                                    startup_timeout_seconds=60,)
-
-
-- Running / Debugging Dag
-
-.. code-block:: bash
-
-  {taskinstance.py:1230} INFO - Exporting the following env vars:
-  AIRFLOW_CTX_DAG_OWNER=airflow
-  AIRFLOW_CTX_DAG_ID=example_k8s_yaml_config
-  AIRFLOW_CTX_TASK_ID=k8s_pod_yaml_config_task
-  AIRFLOW_CTX_EXECUTION_DATE=2020-12-05T00:00:00+00:00
-  AIRFLOW_CTX_DAG_RUN_ID=backfill__2020-12-05T00:00:00+00:00
-  {pod_launcher.py:176} INFO - Event: myapp-pod had an event of type Pending
-  {pod_launcher.py:113} WARNING - Pod not yet started: myapp-pod
-  {pod_launcher.py:176} INFO - Event: myapp-pod had an event of type Succeeded
-  {pod_launcher.py:289} INFO - Event with job id myapp-pod Succeeded
-
-  {pod_launcher.py:136} INFO - myapp-pod created from YAML pod template.
-
-  {taskinstance.py:1136} INFO - Marking task as SUCCESS. dag_id=example_k8s_yaml_config, task_id=
-  k8s_pod_yaml_config_task, execution_date=20201205T000000, start_date=20201206T130803, end_date=20201206T130818
-  {taskinstance.py:1195} INFO - 0 downstream tasks scheduled from follow-on schedule check
-  {dagrun.py:447} INFO - Marking run <DagRun example_k8s_yaml_config @ 2020-12-05 00:00:00+00:00:
-  backfill__2020-12-05T00:00:00+00:00, externally triggered: False> successful
-  {backfill_job.py:377} INFO - [backfill progress] | finished run 1 of 1 | tasks waiting: 0 | succeeded: 1 |
-  running: 0 | failed: 0 | skipped: 0 | deadlocked: 0 | not ready: 0
-  {backfill_job.py:830} INFO - Backfill done. Exiting.
-
-
-- Examining pod configuration
-
-.. code-block:: bash
-
-  $ kubectl describe pod myapp-pod
-
-  Name:         myapp-pod
-  Namespace:    default
-  Priority:     0
-  Node:         minikube/192.168.49.2
-  Start Time:   Sun, 06 Dec 2020 18:38:08 +0530
-  Labels:       app=myapp
-  Annotations:  <none>
-  Status:       Succeeded
-  IP:           172.17.0.7
-  IPs:
-    IP:  172.17.0.7
-  Containers:
-    base:
-      Container ID:  docker://41a9d68a3f7d8c74c356f6c46d1fe09924d463e2ac0c7161c06d256374478546
-      Image:         alpine
-      Image ID:      docker-pullable://alpine@sha256:c0e9560cda118f9ec63ddefb4a173a2b2a0347082d7dff7dc14272e7841a5b5a
-      Port:          <none>
-      Host Port:     <none>
-      Command:
-        sh
-        -c
-        echo "myapp-pod created from YAML pod template."
-      State:          Terminated
-        Reason:       Completed
-        Exit Code:    0
-        Started:      Sun, 06 Dec 2020 18:38:15 +0530
-        Finished:     Sun, 06 Dec 2020 18:38:15 +0530
-      Ready:          False
-      Restart Count:  0
-      Limits:
-        cpu:     2
-        memory:  200Mi
-      Requests:
-        cpu:     1
-        memory:  100Mi
-      Environment Variables from:
-        db-credentials  Secret  Optional: false
-      Environment:
-        TIME_OUT:  15
-        ENV_TYPE:  test
-      Mounts:
-        /root/myapp from myapp-volume (rw)
-        /var/run/secrets/kubernetes.io/serviceaccount from default-token-ltgdm (ro)
-  Conditions:
-    Type              Status
-    Initialized       True
-    Ready             False
-    ContainersReady   False
-    PodScheduled      True
-  Volumes:
-    myapp-volume:
-      Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
-      ClaimName:  myapp-pvc-rw
-      ReadOnly:   false
-    default-token-ltgdm:
-      Type:        Secret (a volume populated by a Secret)
-      SecretName:  default-token-ltgdm
-      Optional:    false
-  QoS Class:       Burstable
-  Node-Selectors:  <none>
-  Tolerations:     node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
-                   node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
-  Events:
-    Type    Reason     Age    From               Message
-    ----    ------     ----   ----               -------
-    Normal  Scheduled  4m53s  default-scheduler  Successfully assigned default/myapp-pod to minikube
-    Normal  Pulling    4m53s  kubelet            Pulling image "alpine"
-    Normal  Pulled     4m47s  kubelet            Successfully pulled image "alpine" in 5.837110465s
-    Normal  Created    4m47s  kubelet            Created container base
-    Normal  Started    4m47s  kubelet            Started container base
 
 
 
 
 Accessing private docker images
-================================================
+================================
+
+How to use private images (container registry)?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+By default, the :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` will
+look for images hosted publicly on Dockerhub.
+To pull images from a private registry (such as ECR, GCR, Quay, or others), you must create a
+Kubernetes Secret that represents the credentials for accessing images from the private registry that is ultimately
+specified in the ``image_pull_secrets`` parameter.
 
 - Login to docker and creating secret  ``regcred``
 
@@ -1004,7 +1048,7 @@ Accessing private docker images
                                     )
 
 
-- Running / Debugging Dag
+- After executing / debugging example and checking the logs
 
 .. code-block:: bash
 
