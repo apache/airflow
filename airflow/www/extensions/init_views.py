@@ -147,6 +147,20 @@ def init_error_handlers(app: Flask):
     app.register_error_handler(404, views.circles)
 
 
+def set_cors_headers_on_response(response):
+    """Add response headers"""
+    allow_headers = conf.get('api', 'access_control_allow_headers')
+    allow_methods = conf.get('api', 'access_control_allow_methods')
+    allow_origin = conf.get('api', 'access_control_allow_origin')
+    if allow_headers is not None:
+        response.headers['Access-Control-Allow-Headers'] = allow_headers
+    if allow_methods is not None:
+        response.headers['Access-Control-Allow-Methods'] = allow_methods
+    if allow_origin is not None:
+        response.headers['Access-Control-Allow-Origin'] = allow_origin
+    return response
+
+
 def init_api_connexion(app: Flask) -> None:
     """Initialize Stable API"""
     base_path = '/api/v1'
@@ -171,6 +185,9 @@ def init_api_connexion(app: Flask) -> None:
     api_bp = connexion_app.add_api(
         specification='v1.yaml', base_path=base_path, validate_responses=True, strict_validation=True
     ).blueprint
+    # Like "api_bp.after_request", but the BP is already registered, so we have
+    # to register it in the app directly.
+    app.after_request_funcs.setdefault(api_bp.name, []).append(set_cors_headers_on_response)
     app.register_error_handler(ProblemException, common_error_handler)
     app.extensions['csrf'].exempt(api_bp)
 

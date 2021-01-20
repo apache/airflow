@@ -162,24 +162,24 @@ class SmartSensorTest(unittest.TestCase):
         # Confirm initial state
         smart = self._make_smart_operator(0)
         smart.flush_cached_sensor_poke_results()
-        self.assertEqual(len(smart.cached_dedup_works), 0)
-        self.assertEqual(len(smart.cached_sensor_exceptions), 0)
+        assert len(smart.cached_dedup_works) == 0
+        assert len(smart.cached_sensor_exceptions) == 0
 
         si1.run(ignore_all_deps=True)
         # Test single sensor
         smart._load_sensor_works()
-        self.assertEqual(len(smart.sensor_works), 1)
-        self.assertEqual(len(smart.cached_dedup_works), 0)
-        self.assertEqual(len(smart.cached_sensor_exceptions), 0)
+        assert len(smart.sensor_works) == 1
+        assert len(smart.cached_dedup_works) == 0
+        assert len(smart.cached_sensor_exceptions) == 0
 
         si2.run(ignore_all_deps=True)
         si3.run(ignore_all_deps=True)
 
         # Test multiple sensors with duplication
         smart._load_sensor_works()
-        self.assertEqual(len(smart.sensor_works), 3)
-        self.assertEqual(len(smart.cached_dedup_works), 0)
-        self.assertEqual(len(smart.cached_sensor_exceptions), 0)
+        assert len(smart.sensor_works) == 3
+        assert len(smart.cached_dedup_works) == 0
+        assert len(smart.cached_sensor_exceptions) == 0
 
     def test_execute_single_task_with_dup(self):
         sensor_dr = self._make_sensor_dag_run()
@@ -195,7 +195,7 @@ class SmartSensorTest(unittest.TestCase):
         smart.flush_cached_sensor_poke_results()
 
         smart._load_sensor_works()
-        self.assertEqual(len(smart.sensor_works), 3)
+        assert len(smart.sensor_works) == 3
 
         for sensor_work in smart.sensor_works:
             _, task_id, _ = sensor_work.ti_key
@@ -203,16 +203,16 @@ class SmartSensorTest(unittest.TestCase):
                 smart._execute_sensor_work(sensor_work)
                 break
 
-        self.assertEqual(len(smart.cached_dedup_works), 1)
+        assert len(smart.cached_dedup_works) == 1
 
         tis = sensor_dr.get_task_instances()
         for ti in tis:
             if ti.task_id == SENSOR_OP + "1":
-                self.assertEqual(ti.state, State.SUCCESS)
+                assert ti.state == State.SUCCESS
             if ti.task_id == SENSOR_OP + "2":
-                self.assertEqual(ti.state, State.SUCCESS)
+                assert ti.state == State.SUCCESS
             if ti.task_id == SENSOR_OP + "3":
-                self.assertEqual(ti.state, State.SENSING)
+                assert ti.state == State.SENSING
 
         for sensor_work in smart.sensor_works:
             _, task_id, _ = sensor_work.ti_key
@@ -220,7 +220,7 @@ class SmartSensorTest(unittest.TestCase):
                 smart._execute_sensor_work(sensor_work)
                 break
 
-        self.assertEqual(len(smart.cached_dedup_works), 1)
+        assert len(smart.cached_dedup_works) == 1
 
         time.sleep(1)
         for sensor_work in smart.sensor_works:
@@ -229,13 +229,13 @@ class SmartSensorTest(unittest.TestCase):
                 smart._execute_sensor_work(sensor_work)
                 break
 
-        self.assertEqual(len(smart.cached_dedup_works), 2)
+        assert len(smart.cached_dedup_works) == 2
 
         tis = sensor_dr.get_task_instances()
         for ti in tis:
             # Timeout=0, the Failed poke lead to task fail
             if ti.task_id == SENSOR_OP + "3":
-                self.assertEqual(ti.state, State.FAILED)
+                assert ti.state == State.FAILED
 
     def test_smart_operator_timeout(self):
         sensor_dr = self._make_sensor_dag_run()
@@ -256,7 +256,7 @@ class SmartSensorTest(unittest.TestCase):
         sis = sensor_dr.get_task_instances()
         for sensor_instance in sis:
             if sensor_instance.task_id == SENSOR_OP + "1":
-                self.assertEqual(sensor_instance.state, State.SENSING)
+                assert sensor_instance.state == State.SENSING
 
         date2 = date1 + datetime.timedelta(seconds=smart.poke_interval)
         with freeze_time(date2):
@@ -269,7 +269,7 @@ class SmartSensorTest(unittest.TestCase):
         sis = sensor_dr.get_task_instances()
         for sensor_instance in sis:
             if sensor_instance.task_id == SENSOR_OP + "1":
-                self.assertEqual(sensor_instance.state, State.SENSING)
+                assert sensor_instance.state == State.SENSING
 
         date3 = date2 + datetime.timedelta(seconds=smart.poke_interval)
         with freeze_time(date3):
@@ -282,12 +282,12 @@ class SmartSensorTest(unittest.TestCase):
         sis = sensor_dr.get_task_instances()
         for sensor_instance in sis:
             if sensor_instance.task_id == SENSOR_OP + "1":
-                self.assertEqual(sensor_instance.state, State.FAILED)
+                assert sensor_instance.state == State.FAILED
 
     def test_register_in_sensor_service(self):
         si1 = self._make_sensor_instance(1, True)
         si1.run(ignore_all_deps=True)
-        self.assertEqual(si1.state, State.SENSING)
+        assert si1.state == State.SENSING
 
         session = settings.Session()
 
@@ -300,6 +300,6 @@ class SmartSensorTest(unittest.TestCase):
             .first()
         )
 
-        self.assertIsNotNone(sensor_instance)
-        self.assertEqual(sensor_instance.state, State.SENSING)
-        self.assertEqual(sensor_instance.operator, "DummySensor")
+        assert sensor_instance is not None
+        assert sensor_instance.state == State.SENSING
+        assert sensor_instance.operator == "DummySensor"

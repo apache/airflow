@@ -65,7 +65,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=operations, expected_statuses={GcpTransferOperationStatus.SUCCESS}
         )
-        self.assertTrue(result)
+        assert result
 
     @mock.patch(
         'airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook'
@@ -86,7 +86,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=mock.ANY, expected_statuses={GcpTransferOperationStatus.SUCCESS}
         )
-        self.assertTrue(result)
+        assert result
 
     @mock.patch(
         'airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceHook'
@@ -126,7 +126,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         context = {'ti': (mock.Mock(**{'xcom_push.return_value': None}))}
 
         result = op.poke(context)
-        self.assertFalse(result)
+        assert not result
 
         mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=operations_set[0], expected_statuses={GcpTransferOperationStatus.SUCCESS}
@@ -134,7 +134,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         mock_tool.operations_contain_expected_statuses.reset_mock()
 
         result = op.poke(context)
-        self.assertTrue(result)
+        assert result
 
         mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=operations_set[1], expected_statuses={GcpTransferOperationStatus.SUCCESS}
@@ -177,7 +177,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):
         context = {'ti': (mock.Mock(**{'xcom_push.return_value': None}))}
 
         result = op.poke(context)
-        self.assertFalse(result)
+        assert not result
 
         mock_tool.operations_contain_expected_statuses.assert_called_once_with(
             operations=operations, expected_statuses=received_status

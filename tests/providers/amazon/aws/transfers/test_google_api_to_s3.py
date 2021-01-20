@@ -19,6 +19,8 @@
 import unittest
 from unittest.mock import Mock, patch
 
+import pytest
+
 from airflow import models
 from airflow.configuration import load_test_config
 from airflow.models.xcom import MAX_XCOM_SIZE
@@ -139,7 +141,8 @@ class TestGoogleApiToS3(unittest.TestCase):
         }
         context['task_instance'].xcom_pull.return_value = {}
 
-        self.assertRaises(RuntimeError, GoogleApiToS3Operator(**self.kwargs, **xcom_kwargs).execute, context)
+        with pytest.raises(RuntimeError):
+            GoogleApiToS3Operator(**self.kwargs, **xcom_kwargs).execute(context)
 
         mock_google_api_hook_query.assert_called_once_with(
             endpoint=self.kwargs['google_api_endpoint_path'],

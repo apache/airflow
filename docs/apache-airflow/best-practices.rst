@@ -118,7 +118,7 @@ DAG Loader Test
 This test should ensure that your DAG does not contain a piece of code that raises error while loading.
 No additional code needs to be written by the user to run this test.
 
-.. code-block::
+.. code-block:: bash
 
  python your-dag-file.py
 
@@ -133,7 +133,7 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
 
 **Unit test for loading a DAG:**
 
-.. code-block::
+.. code-block:: python
 
  from airflow.models import DagBag
  import unittest
@@ -145,24 +145,23 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
 
     def test_dag_loaded(self):
         dag = self.dagbag.get_dag(dag_id='hello_world')
-        self.assertDictEqual(self.dagbag.import_errors, {})
-        self.assertIsNotNone(dag)
-        self.assertEqual(len(dag.tasks), 1)
+        assert self.dagbag.import_errors == {}
+        assert dag is not None
+        assert len(dag.tasks) == 1
 
 **Unit test a DAG structure:**
 This is an example test want to verify the structure of a code-generated DAG against a dict object
 
-.. code-block::
+.. code-block:: python
 
  import unittest
  class testClass(unittest.TestCase):
      def assertDagDictEqual(self,source,dag):
-         self.assertEqual(dag.task_dict.keys(),source.keys())
-         for task_id,downstream_list in source.items():
-             self.assertTrue(dag.has_task(task_id), msg="Missing task_id: {} in dag".format(task_id))
+         assert dag.task_dict.keys() == source.keys()
+         for task_id, downstream_list in source.items():
+             assert dag.has_task(task_id)
              task = dag.get_task(task_id)
-             self.assertEqual(task.downstream_task_ids, set(downstream_list),
-                              msg="unexpected downstream link in {}".format(task_id))
+             assert task.downstream_task_ids == set(downstream_list)
      def test_dag(self):
          self.assertDagDictEqual({
            "DummyInstruction_0": ["DummyInstruction_1"],
@@ -173,7 +172,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
 **Unit test for custom operator:**
 
-.. code-block::
+.. code-block:: python
 
  import unittest
  from airflow.utils.state import State
@@ -193,8 +192,8 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     def test_execute_no_trigger(self):
         self.ti.run(ignore_ti_state=True)
-        self.assertEqual(self.ti.state, State.SUCCESS)
-        #Assert something related to tasks results
+        assert self.ti.state == State.SUCCESS
+        # Assert something related to tasks results
 
 Self-Checks
 ------------
@@ -206,16 +205,16 @@ make sure that the partition is created in S3 and perform some simple checks to 
 
 Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.providers.http.sensors.http.HttpSensor`.
 
-.. code-block::
+.. code-block:: python
 
- task = PushToS3(...)
- check = S3KeySensor(
-    task_id='check_parquet_exists',
-    bucket_key="s3://bucket/key/foo.parquet",
-    poke_interval=0,
-    timeout=0
- )
- task >> check
+   task = PushToS3(...)
+   check = S3KeySensor(
+      task_id='check_parquet_exists',
+      bucket_key="s3://bucket/key/foo.parquet",
+      poke_interval=0,
+      timeout=0
+   )
+   task >> check
 
 
 
@@ -228,11 +227,36 @@ Do not hard code values inside the DAG and then change them manually according t
 
 You can use environment variables to parameterize the DAG.
 
-.. code-block::
+.. code-block:: python
 
- import os
+   import os
 
- dest = os.environ.get(
-    "MY_DAG_DEST_PATH",
-    "s3://default-target/path/"
- )
+   dest = os.environ.get(
+      "MY_DAG_DEST_PATH",
+      "s3://default-target/path/"
+   )
+
+Mocking variables and connections
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When you write tests for code that uses variables or a connection, you must ensure that they exist when you run the tests. The obvious solution is to save these objects to the database so they can be read while your code is executing. However, reading and writing objects to the database are burdened with additional time overhead. In order to speed up the test execution, it is worth simulating the existence of these objects without saving them to the database. For this, you can create environment variables with mocking :any:`os.environ` using :meth:`unittest.mock.patch.dict`.
+
+For variable, use :envvar:`AIRFLOW_VAR_{KEY}`.
+
+.. code-block:: python
+
+    with mock.patch.dict('os.environ', AIRFLOW_VAR_KEY="env-value"):
+        assert "env-value" == Variable.get("key")
+
+For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
+
+.. code-block:: python
+
+    conn = Connection(
+        conn_type="gcpssh",
+        login="cat",
+        host="conn-host",
+    )
+    conn_uri = conn.get_uri()
+    with mock.patch.dict("os.environ", AIRFLOW_CONN_MY_CONN=conn_uri):
+      assert "cat" == Connection.get("my_conn").login

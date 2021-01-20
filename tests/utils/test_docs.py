@@ -44,4 +44,4 @@ class TestGetDocsUrl(unittest.TestCase):
     )
     def test_should_return_link(self, version, page, expected_urk):
         with mock.patch('airflow.version.version', version):
-            self.assertEqual(expected_urk, get_docs_url(page))
+            assert expected_urk == get_docs_url(page)

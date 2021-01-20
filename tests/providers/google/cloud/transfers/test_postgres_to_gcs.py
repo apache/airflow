@@ -76,18 +76,18 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
     def test_init(self):
         """Test PostgresToGoogleCloudStorageOperator instance is properly initialized."""
         op = PostgresToGCSOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
-        self.assertEqual(op.task_id, TASK_ID)
-        self.assertEqual(op.sql, SQL)
-        self.assertEqual(op.bucket, BUCKET)
-        self.assertEqual(op.filename, FILENAME)
+        assert op.task_id == TASK_ID
+        assert op.sql == SQL
+        assert op.bucket == BUCKET
+        assert op.filename == FILENAME
 
     def _assert_uploaded_file_content(self, bucket, obj, tmp_filename, mime_type, gzip):
-        self.assertEqual(BUCKET, bucket)
-        self.assertEqual(FILENAME.format(0), obj)
-        self.assertEqual('application/json', mime_type)
-        self.assertFalse(gzip)
+        assert BUCKET == bucket
+        assert FILENAME.format(0) == obj
+        assert 'application/json' == mime_type
+        assert not gzip
         with open(tmp_filename, 'rb') as file:
-            self.assertEqual(b''.join(NDJSON_LINES), file.read())
+            assert b''.join(NDJSON_LINES) == file.read()
 
     @patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
     def test_exec_success(self, gcs_hook_mock_class):
@@ -127,11 +127,11 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         }
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
-            self.assertEqual(BUCKET, bucket)
-            self.assertEqual('application/json', mime_type)
-            self.assertFalse(gzip)
+            assert BUCKET == bucket
+            assert 'application/json' == mime_type
+            assert not gzip
             with open(tmp_filename, 'rb') as file:
-                self.assertEqual(expected_upload[obj], file.read())
+                assert expected_upload[obj] == file.read()
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -153,7 +153,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):  # pylint: disable=unused-argument
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, 'rb') as file:
-                    self.assertEqual(SCHEMA_JSON, file.read())
+                    assert SCHEMA_JSON == file.read()
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -163,4 +163,4 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         op.execute(None)
 
         # once for the file and once for the schema
-        self.assertEqual(2, gcs_hook_mock.upload.call_count)
+        assert 2 == gcs_hook_mock.upload.call_count

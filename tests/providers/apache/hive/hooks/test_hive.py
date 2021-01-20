@@ -25,6 +25,7 @@ from collections import OrderedDict, namedtuple
 from unittest import mock
 
 import pandas as pd
+import pytest
 from hmsclient import HMSClient
 
 from airflow.exceptions import AirflowException
@@ -199,17 +200,17 @@ class TestHiveCliHook(unittest.TestCase):
             output = hook.run_cli(hql=hql, hive_conf={'key': 'value'})
             process_inputs = " ".join(mock_popen.call_args_list[0][0][0])
 
-            self.assertIn('value', process_inputs)
-            self.assertIn('test_dag_id', process_inputs)
-            self.assertIn('test_task_id', process_inputs)
-            self.assertIn('test_execution_date', process_inputs)
-            self.assertIn('test_dag_run_id', process_inputs)
+            assert 'value' in process_inputs
+            assert 'test_dag_id' in process_inputs
+            assert 'test_task_id' in process_inputs
+            assert 'test_execution_date' in process_inputs
+            assert 'test_dag_run_id' in process_inputs
 
-            self.assertIn('value', output)
-            self.assertIn('test_dag_id', output)
-            self.assertIn('test_task_id', output)
-            self.assertIn('test_execution_date', output)
-            self.assertIn('test_dag_run_id', output)
+            assert 'value' in output
+            assert 'test_dag_id' in output
+            assert 'test_task_id' in output
+            assert 'test_execution_date' in output
+            assert 'test_dag_run_id' in output
 
     @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli')
     def test_load_file_without_create_table(self, mock_run_cli):
@@ -262,16 +263,16 @@ class TestHiveCliHook(unittest.TestCase):
 
         assert mock_to_csv.call_count == 1
         kwargs = mock_to_csv.call_args[1]
-        self.assertEqual(kwargs["header"], False)
-        self.assertEqual(kwargs["index"], False)
-        self.assertEqual(kwargs["sep"], delimiter)
+        assert kwargs["header"] is False
+        assert kwargs["index"] is False
+        assert kwargs["sep"] == delimiter
 
         assert mock_load_file.call_count == 1
         kwargs = mock_load_file.call_args[1]
-        self.assertEqual(kwargs["delimiter"], delimiter)
-        self.assertEqual(kwargs["field_dict"], {"c": "STRING"})
-        self.assertTrue(isinstance(kwargs["field_dict"], OrderedDict))
-        self.assertEqual(kwargs["table"], table)
+        assert kwargs["delimiter"] == delimiter
+        assert kwargs["field_dict"] == {"c": "STRING"}
+        assert isinstance(kwargs["field_dict"], OrderedDict)
+        assert kwargs["table"] == table
 
     @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.load_file')
     @mock.patch('pandas.DataFrame.to_csv')
@@ -284,8 +285,8 @@ class TestHiveCliHook(unittest.TestCase):
 
             assert mock_load_file.call_count == 1
             kwargs = mock_load_file.call_args[1]
-            self.assertEqual(kwargs["create"], create)
-            self.assertEqual(kwargs["recreate"], recreate)
+            assert kwargs["create"] == create
+            assert kwargs["recreate"] == recreate
 
     @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli')
     def test_load_df_with_data_types(self, mock_run_cli):
@@ -332,11 +333,11 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         max_partition = HiveMetastoreHook._get_max_partition_from_part_specs(
             [], 'key1', self.VALID_FILTER_MAP
         )
-        self.assertIsNone(max_partition)
+        assert max_partition is None
 
     # @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook', 'get_metastore_client')
     def test_get_max_partition_from_valid_part_specs_and_invalid_filter_map(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             HiveMetastoreHook._get_max_partition_from_part_specs(
                 [{'key1': 'value1', 'key2': 'value2'}, {'key1': 'value3', 'key2': 'value4'}],
                 'key1',
@@ -344,7 +345,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
             )
 
     def test_get_max_partition_from_valid_part_specs_and_invalid_partition_key(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             HiveMetastoreHook._get_max_partition_from_part_specs(
                 [{'key1': 'value1', 'key2': 'value2'}, {'key1': 'value3', 'key2': 'value4'}],
                 'key3',
@@ -352,7 +353,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
             )
 
     def test_get_max_partition_from_valid_part_specs_and_none_partition_key(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             HiveMetastoreHook._get_max_partition_from_part_specs(
                 [{'key1': 'value1', 'key2': 'value2'}, {'key1': 'value3', 'key2': 'value4'}],
                 None,
@@ -365,7 +366,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         )
 
         # No partition will be filtered out.
-        self.assertEqual(max_partition, 'value3')
+        assert max_partition == 'value3'
 
     def test_get_max_partition_from_valid_part_specs(self):
         max_partition = HiveMetastoreHook._get_max_partition_from_part_specs(
@@ -373,7 +374,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
             'key1',
             self.VALID_FILTER_MAP,
         )
-        self.assertEqual(max_partition, 'value1')
+        assert max_partition == 'value1'
 
     def test_get_max_partition_from_valid_part_specs_return_type(self):
         max_partition = HiveMetastoreHook._get_max_partition_from_part_specs(
@@ -381,7 +382,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
             'key1',
             self.VALID_FILTER_MAP,
         )
-        self.assertIsInstance(max_partition, str)
+        assert isinstance(max_partition, str)
 
     @mock.patch(
         "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
@@ -399,7 +400,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
             find_valid_server.return_value = mock.MagicMock(return_value={})
             metastore_hook = HiveMetastoreHook()
 
-        self.assertIsInstance(metastore_hook.get_conn(), HMSClient)
+        assert isinstance(metastore_hook.get_conn(), HMSClient)
 
     def test_check_for_partition(self):
         # Check for existent partition.
@@ -412,7 +413,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
         metastore.get_partitions_by_filter = mock.MagicMock(return_value=[fake_partition])
 
-        self.assertTrue(self.hook.check_for_partition(self.database, self.table, partition))
+        assert self.hook.check_for_partition(self.database, self.table, partition)
 
         metastore.get_partitions_by_filter(self.database, self.table, partition, 1)
 
@@ -420,7 +421,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         missing_partition = f"{self.partition_by}='{self.next_day}'"
         metastore.get_partitions_by_filter = mock.MagicMock(return_value=[])
 
-        self.assertFalse(self.hook.check_for_partition(self.database, self.table, missing_partition))
+        assert not self.hook.check_for_partition(self.database, self.table, missing_partition)
 
         metastore.get_partitions_by_filter.assert_called_with(self.database, self.table, missing_partition, 1)
 
@@ -432,7 +433,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
         self.hook.metastore.__enter__().check_for_named_partition = mock.MagicMock(return_value=True)
 
-        self.assertTrue(self.hook.check_for_named_partition(self.database, self.table, partition))
+        assert self.hook.check_for_named_partition(self.database, self.table, partition)
 
         self.hook.metastore.__enter__().check_for_named_partition.assert_called_with(
             self.database, self.table, partition
@@ -443,7 +444,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
         self.hook.metastore.__enter__().check_for_named_partition = mock.MagicMock(return_value=False)
 
-        self.assertFalse(self.hook.check_for_named_partition(self.database, self.table, missing_partition))
+        assert not self.hook.check_for_named_partition(self.database, self.table, missing_partition)
         self.hook.metastore.__enter__().check_for_named_partition.assert_called_with(
             self.database, self.table, missing_partition
         )
@@ -490,8 +491,8 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         metastore.get_partitions = mock.MagicMock(return_value=[fake_partition])
 
         partitions = self.hook.get_partitions(schema=self.database, table_name=self.table)
-        self.assertEqual(len(partitions), 1)
-        self.assertEqual(partitions, [{self.partition_by: DEFAULT_DATE_DS}])
+        assert len(partitions) == 1
+        assert partitions == [{self.partition_by: DEFAULT_DATE_DS}]
 
         metastore.get_table.assert_called_with(dbname=self.database, tbl_name=self.table)
         metastore.get_partitions.assert_called_with(
@@ -514,7 +515,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         partition = self.hook.max_partition(
             schema=self.database, table_name=self.table, field=self.partition_by, filter_map=filter_map
         )
-        self.assertEqual(partition, DEFAULT_DATE_DS)
+        assert partition == DEFAULT_DATE_DS
 
         metastore.get_table.assert_called_with(dbname=self.database, tbl_name=self.table)
         metastore.get_partition_names.assert_called_with(
@@ -526,7 +527,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         # Test with existent table.
         self.hook.metastore.__enter__().get_table = mock.MagicMock(return_value=True)
 
-        self.assertTrue(self.hook.table_exists(self.table, db=self.database))
+        assert self.hook.table_exists(self.table, db=self.database)
         self.hook.metastore.__enter__().get_table.assert_called_with(
             dbname='airflow', tbl_name='static_babynames_partitioned'
         )
@@ -534,7 +535,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         # Test with non-existent table.
         self.hook.metastore.__enter__().get_table = mock.MagicMock(side_effect=Exception())
 
-        self.assertFalse(self.hook.table_exists("does-not-exist"))
+        assert not self.hook.table_exists("does-not-exist")
         self.hook.metastore.__enter__().get_table.assert_called_with(
             dbname='default', tbl_name='does-not-exist'
         )
@@ -624,7 +625,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         ):
             results = hook.get_records(query, schema=self.database)
 
-        self.assertListEqual(results, [(1, 1), (2, 2)])
+        assert results == [(1, 1), (2, 2)]
 
         hook.get_conn.assert_called_with(self.database)
         hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_id=test_dag_id')
@@ -651,8 +652,8 @@ class TestHiveServer2Hook(unittest.TestCase):
         ):
             df = hook.get_pandas_df(query, schema=self.database)
 
-        self.assertEqual(len(df), 2)
-        self.assertListEqual(df["hive_server_hook.a"].values.tolist(), [1, 2])
+        assert len(df) == 2
+        assert df["hive_server_hook.a"].values.tolist() == [1, 2]
 
         hook.get_conn.assert_called_with(self.database)
         hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_id=test_dag_id')
@@ -668,7 +669,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         query = f"SELECT * FROM {self.table}"
         results = hook.get_results(query, schema=self.database)
 
-        self.assertListEqual([col[0] for col in results['header']], self.columns)
+        assert [col[0] for col in results['header']] == self.columns
 
     def test_get_results_data(self):
         hook = MockHiveServer2Hook()
@@ -676,7 +677,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         query = f"SELECT * FROM {self.table}"
         results = hook.get_results(query, schema=self.database)
 
-        self.assertListEqual(results['data'], [(1, 1), (2, 2)])
+        assert results['data'] == [(1, 1), (2, 2)]
 
     def test_to_csv(self):
         hook = MockHiveServer2Hook()
@@ -704,9 +705,9 @@ class TestHiveServer2Hook(unittest.TestCase):
             fetch_size=2,
         )
         df = pd.read_csv(csv_filepath, sep=',')
-        self.assertListEqual(df.columns.tolist(), self.columns)
-        self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
-        self.assertEqual(len(df), 2)
+        assert df.columns.tolist() == self.columns
+        assert df[self.columns[0]].values.tolist() == [1, 2]
+        assert len(df) == 2
 
     def test_multi_statements(self):
         sqls = [
@@ -730,7 +731,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         ):
             # df = hook.get_pandas_df(query, schema=self.database)
             results = hook.get_records(sqls, schema=self.database)
-        self.assertListEqual(results, [(1, 1), (2, 2)])
+        assert results == [(1, 1), (2, 2)]
 
         # self.assertEqual(len(df), 2)
         # self.assertListEqual(df["hive_server_hook.a"].values.tolist(), [1, 2])
@@ -790,11 +791,11 @@ class TestHiveServer2Hook(unittest.TestCase):
             output = '\n'.join(
                 res_tuple[0] for res_tuple in hook.get_results(hql=hql, hive_conf={'key': 'value'})['data']
             )
-        self.assertIn('value', output)
-        self.assertIn('test_dag_id', output)
-        self.assertIn('test_task_id', output)
-        self.assertIn('test_execution_date', output)
-        self.assertIn('test_dag_run_id', output)
+        assert 'value' in output
+        assert 'test_dag_id' in output
+        assert 'test_task_id' in output
+        assert 'test_execution_date' in output
+        assert 'test_dag_run_id' in output
 
 
 class TestHiveCli(unittest.TestCase):
@@ -816,4 +817,4 @@ class TestHiveCli(unittest.TestCase):
         result = hook._prepare_cli_cmd()
 
         # Verify
-        self.assertIn('hive.server2.proxy.user=a_user_proxy', result[2])
+        assert 'hive.server2.proxy.user=a_user_proxy' in result[2]

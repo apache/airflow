@@ -32,7 +32,7 @@ class TestAwsSnsHook(unittest.TestCase):
     @mock_sns
     def test_get_conn_returns_a_boto3_connection(self):
         hook = AwsSnsHook(aws_conn_id='aws_default')
-        self.assertIsNotNone(hook.get_conn())
+        assert hook.get_conn() is not None
 
     @mock_sns
     def test_publish_to_target_with_subject(self):

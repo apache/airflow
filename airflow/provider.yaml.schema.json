@@ -15,7 +15,7 @@
       "type": "string"
     },
     "versions": {
-      "description": "List of available versions in Pypi. Sorted descending according to release date.",
+      "description": "List of available versions in PyPI. Sorted descending according to release date.",
       "type": "array",
       "items": {
         "type": "string"
@@ -68,7 +68,7 @@
             "maxItems": 1
           }
         },
-        "additionalProperties": true,
+        "additionalProperties": false,
         "required": [
           "integration-name",
           "external-doc-url",
@@ -93,7 +93,7 @@
             }
           }
         },
-        "additionalProperties": true,
+        "additionalProperties": false,
         "required": [
           "integration-name",
           "python-modules"
@@ -141,7 +141,7 @@
             }
           }
         },
-        "additionalProperties": true,
+        "additionalProperties": false,
         "required": [
           "integration-name",
           "python-modules"
@@ -170,7 +170,7 @@
             "description": "List of python modules containing the transfers."
           }
         },
-        "additionalProperties": true,
+        "additionalProperties": false,
         "required": [
           "source-integration-name",
           "target-integration-name",
@@ -193,7 +193,7 @@
       }
     }
   },
-  "additionalProperties": true,
+  "additionalProperties": false,
   "required": [
     "name",
     "package-name",

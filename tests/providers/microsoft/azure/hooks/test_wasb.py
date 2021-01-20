@@ -58,34 +58,34 @@ class TestWasbHook(unittest.TestCase):
 
     def test_key(self):
         hook = WasbHook(wasb_conn_id='wasb_test_key')
-        self.assertEqual(hook.conn_id, 'wasb_test_key')
-        self.assertIsInstance(hook.connection, BlockBlobService)
+        assert hook.conn_id == 'wasb_test_key'
+        assert isinstance(hook.connection, BlockBlobService)
 
     def test_sas_token(self):
         hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
-        self.assertEqual(hook.conn_id, 'wasb_test_sas_token')
-        self.assertIsInstance(hook.connection, BlockBlobService)
+        assert hook.conn_id == 'wasb_test_sas_token'
+        assert isinstance(hook.connection, BlockBlobService)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.wasb.BlockBlobService', autospec=True)
     def test_check_for_blob(self, mock_service):
         mock_instance = mock_service.return_value
         mock_instance.exists.return_value = True
         hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
-        self.assertTrue(hook.check_for_blob('container', 'blob', timeout=3))
+        assert hook.check_for_blob('container', 'blob', timeout=3)
         mock_instance.exists.assert_called_once_with('container', 'blob', timeout=3)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.wasb.BlockBlobService', autospec=True)
     def test_check_for_blob_empty(self, mock_service):
         mock_service.return_value.exists.return_value = False
         hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
-        self.assertFalse(hook.check_for_blob('container', 'blob'))
+        assert not hook.check_for_blob('container', 'blob')
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.wasb.BlockBlobService', autospec=True)
     def test_check_for_prefix(self, mock_service):
         mock_instance = mock_service.return_value
         mock_instance.list_blobs.return_value = iter(['blob_1'])
         hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
-        self.assertTrue(hook.check_for_prefix('container', 'prefix', timeout=3))
+        assert hook.check_for_prefix('container', 'prefix', timeout=3)
         mock_instance.list_blobs.assert_called_once_with('container', 'prefix', num_results=1, timeout=3)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.wasb.BlockBlobService', autospec=True)
@@ -93,7 +93,7 @@ class TestWasbHook(unittest.TestCase):
         mock_instance = mock_service.return_value
         mock_instance.list_blobs.return_value = iter([])
         hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
-        self.assertFalse(hook.check_for_prefix('container', 'prefix'))
+        assert not hook.check_for_prefix('container', 'prefix')
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.wasb.BlockBlobService', autospec=True)
     def test_load_file(self, mock_service):
@@ -153,18 +153,18 @@ class TestWasbHook(unittest.TestCase):
         mock_instance = mock_service.return_value
         mock_instance.exists.return_value = False
         hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
-        with self.assertRaises(Exception) as context:
+        with pytest.raises(Exception) as ctx:
             hook.delete_file('container', 'nonexisting_blob', is_prefix=False, ignore_if_missing=False)
-        self.assertIsInstance(context.exception, AirflowException)
+        assert isinstance(ctx.value, AirflowException)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.wasb.BlockBlobService', autospec=True)
     def test_delete_multiple_nonexisting_blobs_fails(self, mock_service):
         mock_instance = mock_service.return_value
         mock_instance.list_blobs.return_value = iter([])
         hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
-        with self.assertRaises(Exception) as context:
+        with pytest.raises(Exception) as ctx:
             hook.delete_file('container', 'nonexisting_blob_prefix', is_prefix=True, ignore_if_missing=False)
-        self.assertIsInstance(context.exception, AirflowException)
+        assert isinstance(ctx.value, AirflowException)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.wasb.BlockBlobService', autospec=True)
     def test_get_blobs_list(self, mock_service):

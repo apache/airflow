@@ -47,7 +47,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
 
-def _run_task_by_selected_method(args, dag, ti):
+def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
     """
     Runs the task in one of 3 modes
 
@@ -132,7 +132,7 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 ]
 
 
-def _run_raw_task(args, ti):
+def _run_raw_task(args, ti: TaskInstance) -> None:
     """Runs the main task handling code"""
     unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
 
@@ -149,6 +149,7 @@ def _run_raw_task(args, ti):
         mark_success=args.mark_success,
         job_id=args.job_id,
         pool=args.pool,
+        error_file=args.error_file,
     )
 
 

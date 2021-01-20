@@ -140,7 +140,7 @@ class TestImpersonation(unittest.TestCase):
         ti = models.TaskInstance(task=dag.get_task(task_id), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
     def test_impersonation(self):
         """
@@ -203,7 +203,7 @@ class TestImpersonationWithCustomPythonPath(unittest.TestCase):
         ti = models.TaskInstance(task=dag.get_task(task_id), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
     @mock_custom_module_path(TEST_UTILS_FOLDER)
     def test_impersonation_custom(self):

@@ -162,6 +162,15 @@ info:
     Note that with *Postman*, you can also generate code snippets by selecting a request and clicking on
     the **Code** button.
 
+    ## Enabling CORS
+
+    [Cross-origin resource sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
+    is a browser security feature that restricts HTTP requests that are
+    initiated from scripts running in the browser.
+
+    For details on enabling/configuring CORS, see
+    [Enabling CORS](https://airflow.apache.org/docs/apache-airflow/stable/security/api.html).
+
     # Authentication
 
     To be able to meet the requirements of many organizations, Airflow supports many authentication methods,
@@ -356,6 +365,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /dags:
     get:
@@ -628,6 +639,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /eventLogs:
     get:
@@ -1060,6 +1073,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
     parameters:
@@ -1071,7 +1086,8 @@ paths:
       summary: List XCom entries
       description:
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCOM entries for
-        for all DAGs, DAG runs and task instances.
+        for all DAGs, DAG runs and task instances. XCom values won't be returned as they can be large.
+        Use this endpoint to get a list of XCom entries and then fetch individual entry to get value.
       x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
       operationId: get_xcom_entries
       tags: [XCom]
@@ -1336,7 +1352,7 @@ paths:
 
   /health:
     get:
-      summary: Get a instance status
+      summary: Get instance status
       description: |
         Get the status of Airflow's metadatabase and scheduler. It includes info about
         metadatabase and last heartbeat of scheduler.

@@ -41,7 +41,7 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
 
         # just check that the correct default value in test_default.cfg is used
         test_config_hive_mapred_queue = conf.get('hive', 'default_hive_mapred_queue')
-        self.assertEqual(op.get_hook().mapred_queue, test_config_hive_mapred_queue)
+        assert op.get_hook().mapred_queue == test_config_hive_mapred_queue
 
     def test_hive_airflow_default_config_queue_override(self):
         specific_mapred_queue = 'default'
@@ -54,7 +54,7 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
             dag=self.dag,
         )
 
-        self.assertEqual(op.get_hook().mapred_queue, specific_mapred_queue)
+        assert op.get_hook().mapred_queue == specific_mapred_queue
 
 
 class HiveOperatorTest(TestHiveEnvironment):
@@ -64,7 +64,7 @@ class HiveOperatorTest(TestHiveEnvironment):
             hiveconf_jinja_translate=True, task_id='dry_run_basic_hql', hql=hql, dag=self.dag
         )
         op.prepare_template()
-        self.assertEqual(op.hql, "SELECT {{ num_col }} FROM {{ table }};")
+        assert op.hql == "SELECT {{ num_col }} FROM {{ table }};"
 
     def test_hiveconf(self):
         hql = "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});"
@@ -75,7 +75,7 @@ class HiveOperatorTest(TestHiveEnvironment):
             dag=self.dag,
         )
         op.prepare_template()
-        self.assertEqual(op.hql, "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});")
+        assert op.hql == "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});"
 
     @mock.patch('airflow.providers.apache.hive.operators.hive.HiveOperator.get_hook')
     def test_mapred_job_name(self, mock_get_hook):
@@ -89,11 +89,11 @@ class HiveOperatorTest(TestHiveEnvironment):
         fake_context = {'ti': fake_ti}
 
         op.execute(fake_context)
-        self.assertEqual(
+        assert (
             "Airflow HiveOperator task for {}.{}.{}.{}".format(
                 fake_ti.hostname, self.dag.dag_id, op.task_id, fake_execution_date.isoformat()
-            ),
-            mock_hook.mapred_job_name,
+            )
+            == mock_hook.mapred_job_name
         )
 
 

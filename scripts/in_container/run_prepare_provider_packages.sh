@@ -167,7 +167,8 @@ function build_provider_packages() {
             cat "${LOG_FILE}"
             exit "${RES}"
         fi
-        echo " Prepared ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} format ${PACKAGE_FORMAT}"
+        echo "==================================================================================="
+        echo "${COLOR_GREEN}OK Prepared ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} format ${PACKAGE_FORMAT}${COLOR_RESET}"
         echo "==================================================================================="
         group_end
     done
@@ -196,9 +197,9 @@ function rename_packages_if_needed() {
         fi
     fi
 
-    popd
+    popd >/dev/null
     echo
-    echo "Airflow packages are in dist folder "
+    echo "${COLOR_GREEN}OK Airflow packages are prepared in dist folder${COLOR_RESET}"
     echo
 
     group_end

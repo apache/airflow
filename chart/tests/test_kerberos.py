@@ -29,4 +29,4 @@ class KerberosTest(unittest.TestCase):
             obj for obj in k8s_objects if obj["metadata"]["name"] != "NO-KERBEROS-airflow-config"
         ]
         k8s_objects_to_consider_str = json.dumps(k8s_objects_to_consider)
-        self.assertNotIn("kerberos", k8s_objects_to_consider_str)
+        assert "kerberos" not in k8s_objects_to_consider_str

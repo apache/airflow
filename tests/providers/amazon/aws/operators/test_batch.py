@@ -22,6 +22,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
 from airflow.providers.amazon.aws.operators.batch import AwsBatchOperator
@@ -66,7 +68,7 @@ class TestAwsBatchOperator(unittest.TestCase):
             tags={},
         )
         self.client_mock = self.get_client_type_mock.return_value
-        self.assertEqual(self.batch.hook.client, self.client_mock)  # setup client property
+        assert self.batch.hook.client == self.client_mock  # setup client property
 
         # don't pause in unit tests
         self.mock_delay = mock.Mock(return_value=None)
@@ -75,35 +77,32 @@ class TestAwsBatchOperator(unittest.TestCase):
         self.batch.exponential_delay = self.mock_exponential_delay
 
         # Assign a job ID for most tests, so they don't depend on a job submission.
-        self.assertIsNone(self.batch.job_id)
+        assert self.batch.job_id is None
         self.batch.job_id = JOB_ID
 
     def test_init(self):
-        self.assertEqual(self.batch.job_id, JOB_ID)
-        self.assertEqual(self.batch.job_name, JOB_NAME)
-        self.assertEqual(self.batch.job_queue, "queue")
-        self.assertEqual(self.batch.job_definition, "hello-world")
-        self.assertEqual(self.batch.waiters, None)
-        self.assertEqual(self.batch.hook.max_retries, self.MAX_RETRIES)
-        self.assertEqual(self.batch.hook.status_retries, self.STATUS_RETRIES)
-        self.assertEqual(self.batch.parameters, {})
-        self.assertEqual(self.batch.overrides, {})
-        self.assertEqual(self.batch.array_properties, {})
-        self.assertEqual(self.batch.hook.region_name, "eu-west-1")
-        self.assertEqual(self.batch.hook.aws_conn_id, "airflow_test")
-        self.assertEqual(self.batch.hook.client, self.client_mock)
-        self.assertEqual(self.batch.tags, {})
+        assert self.batch.job_id == JOB_ID
+        assert self.batch.job_name == JOB_NAME
+        assert self.batch.job_queue == "queue"
+        assert self.batch.job_definition == "hello-world"
+        assert self.batch.waiters is None
+        assert self.batch.hook.max_retries == self.MAX_RETRIES
+        assert self.batch.hook.status_retries == self.STATUS_RETRIES
+        assert self.batch.parameters == {}
+        assert self.batch.overrides == {}
+        assert self.batch.array_properties == {}
+        assert self.batch.hook.region_name == "eu-west-1"
+        assert self.batch.hook.aws_conn_id == "airflow_test"
+        assert self.batch.hook.client == self.client_mock
+        assert self.batch.tags == {}
 
         self.get_client_type_mock.assert_called_once_with("batch", region_name="eu-west-1")
 
     def test_template_fields_overrides(self):
-        self.assertEqual(
-            self.batch.template_fields,
-            (
-                "job_name",
-                "overrides",
-                "parameters",
-            ),
+        assert self.batch.template_fields == (
+            "job_name",
+            "overrides",
+            "parameters",
         )
 
     @mock.patch.object(AwsBatchClientHook, "wait_for_job")
@@ -126,14 +125,14 @@ class TestAwsBatchOperator(unittest.TestCase):
             tags={},
         )
 
-        self.assertEqual(self.batch.job_id, JOB_ID)
+        assert self.batch.job_id == JOB_ID
         wait_mock.assert_called_once_with(JOB_ID)
         check_mock.assert_called_once_with(JOB_ID)
 
     def test_execute_with_failures(self):
         self.client_mock.submit_job.return_value = ""
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.batch.execute(None)
 
         self.client_mock.submit_job.assert_called_once_with(

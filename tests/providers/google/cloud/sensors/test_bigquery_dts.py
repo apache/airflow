@@ -43,7 +43,7 @@ class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
         )
         result = op.poke({})
 
-        self.assertEqual(result, False)
+        assert result is False
         mock_hook.return_value.get_transfer_run.assert_called_once_with(
             transfer_config_id=TRANSFER_CONFIG_ID,
             run_id=RUN_ID,
@@ -67,7 +67,7 @@ class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
         )
         result = op.poke({})
 
-        self.assertEqual(result, True)
+        assert result is True
         mock_hook.return_value.get_transfer_run.assert_called_once_with(
             transfer_config_id=TRANSFER_CONFIG_ID,
             run_id=RUN_ID,

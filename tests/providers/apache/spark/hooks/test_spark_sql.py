@@ -21,6 +21,8 @@ import unittest
 from itertools import dropwhile
 from unittest.mock import call, patch
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
@@ -104,24 +106,21 @@ class TestSparkSqlHook(unittest.TestCase):
                 mock_info.assert_called_once_with('Spark-sql communicates using stdout')
 
         # Then
-        self.assertEqual(
-            mock_popen.mock_calls[0],
-            call(
-                [
-                    'spark-sql',
-                    '-e',
-                    'SELECT 1',
-                    '--master',
-                    'yarn',
-                    '--name',
-                    'default-name',
-                    '--verbose',
-                    '--queue',
-                    'default',
-                ],
-                stderr=-2,
-                stdout=-1,
-            ),
+        assert mock_popen.mock_calls[0] == call(
+            [
+                'spark-sql',
+                '-e',
+                'SELECT 1',
+                '--master',
+                'yarn',
+                '--name',
+                'default-name',
+                '--verbose',
+                '--queue',
+                'default',
+            ],
+            stderr=-2,
+            stdout=-1,
         )
 
     @patch('airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen')
@@ -134,26 +133,23 @@ class TestSparkSqlHook(unittest.TestCase):
         hook.run_query('--deploy-mode cluster')
 
         # Then
-        self.assertEqual(
-            mock_popen.mock_calls[0],
-            call(
-                [
-                    'spark-sql',
-                    '-e',
-                    'SELECT 1',
-                    '--master',
-                    'yarn',
-                    '--name',
-                    'default-name',
-                    '--verbose',
-                    '--queue',
-                    'default',
-                    '--deploy-mode',
-                    'cluster',
-                ],
-                stderr=-2,
-                stdout=-1,
-            ),
+        assert mock_popen.mock_calls[0] == call(
+            [
+                'spark-sql',
+                '-e',
+                'SELECT 1',
+                '--master',
+                'yarn',
+                '--name',
+                'default-name',
+                '--verbose',
+                '--queue',
+                'default',
+                '--deploy-mode',
+                'cluster',
+            ],
+            stderr=-2,
+            stdout=-1,
         )
 
     @patch('airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen')
@@ -166,26 +162,23 @@ class TestSparkSqlHook(unittest.TestCase):
         hook.run_query(['--deploy-mode', 'cluster'])
 
         # Then
-        self.assertEqual(
-            mock_popen.mock_calls[0],
-            call(
-                [
-                    'spark-sql',
-                    '-e',
-                    'SELECT 1',
-                    '--master',
-                    'yarn',
-                    '--name',
-                    'default-name',
-                    '--verbose',
-                    '--queue',
-                    'default',
-                    '--deploy-mode',
-                    'cluster',
-                ],
-                stderr=-2,
-                stdout=-1,
-            ),
+        assert mock_popen.mock_calls[0] == call(
+            [
+                'spark-sql',
+                '-e',
+                'SELECT 1',
+                '--master',
+                'yarn',
+                '--name',
+                'default-name',
+                '--verbose',
+                '--queue',
+                'default',
+                '--deploy-mode',
+                'cluster',
+            ],
+            stderr=-2,
+            stdout=-1,
         )
 
     @patch('airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen')
@@ -198,7 +191,7 @@ class TestSparkSqlHook(unittest.TestCase):
         mock_popen.return_value.wait.return_value = status
 
         # When
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             hook = SparkSqlHook(
                 conn_id='spark_default',
                 sql=sql,
@@ -207,9 +200,8 @@ class TestSparkSqlHook(unittest.TestCase):
             hook.run_query(params)
 
         # Then
-        self.assertEqual(
-            str(e.exception),
-            "Cannot execute '{}' on {} (additional parameters: '{}'). Process exit code: {}.".format(
-                sql, master, params, status
-            ),
+        assert str(
+            ctx.value
+        ) == "Cannot execute '{}' on {} (additional parameters: '{}'). Process exit code: {}.".format(
+            sql, master, params, status
         )

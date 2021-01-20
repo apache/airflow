@@ -46,6 +46,7 @@ via ``allowed_states`` and ``failed_states`` parameters.
 
 .. exampleinclude:: /../../airflow/example_dags/example_external_task_marker_dag.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_external_task_sensor]
     :end-before: [END howto_operator_external_task_sensor]
 
@@ -60,5 +61,6 @@ user clears ``parent_task``.
 
 .. exampleinclude:: /../../airflow/example_dags/example_external_task_marker_dag.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_external_task_marker]
     :end-before: [END howto_operator_external_task_marker]

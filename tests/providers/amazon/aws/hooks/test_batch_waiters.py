@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=do-not-use-asserts, missing-docstring, redefined-outer-name
+# pylint: disable=missing-docstring, redefined-outer-name
 
 
 """
@@ -265,12 +265,12 @@ def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_defi
     assert job_complete_waiter.__class__.__name__ == "Batch.Waiter.JobComplete"
 
     # test waiting on a jobId that does not exist (this throws immediately)
-    with pytest.raises(botocore.exceptions.WaiterError) as err:
+    with pytest.raises(botocore.exceptions.WaiterError) as ctx:
         job_exists_waiter.config.delay = 0.2
         job_exists_waiter.config.max_attempts = 2
         job_exists_waiter.wait(jobs=["missing-job"])
-    assert isinstance(err.value, botocore.exceptions.WaiterError)
-    assert "Waiter JobExists failed" in str(err.value)
+    assert isinstance(ctx.value, botocore.exceptions.WaiterError)
+    assert "Waiter JobExists failed" in str(ctx.value)
 
     # Submit a job and wait for various job status indicators;
     # moto transitions the batch job status automatically.
@@ -300,10 +300,10 @@ def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_defi
     # test waiting for job completion with too few attempts (possibly before job is running)
     job_complete_waiter.config.delay = 0.1
     job_complete_waiter.config.max_attempts = 1
-    with pytest.raises(botocore.exceptions.WaiterError) as err:
+    with pytest.raises(botocore.exceptions.WaiterError) as ctx:
         job_complete_waiter.wait(jobs=[job_id])
-    assert isinstance(err.value, botocore.exceptions.WaiterError)
-    assert "Waiter JobComplete failed: Max attempts exceeded" in str(err.value)
+    assert isinstance(ctx.value, botocore.exceptions.WaiterError)
+    assert "Waiter JobComplete failed: Max attempts exceeded" in str(ctx.value)
 
     # wait for job to be running (or complete)
     job_running_waiter.config.delay = 0.25  # sec delays between status checks
@@ -320,9 +320,6 @@ def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_defi
     assert job_status == "SUCCEEDED"
 
 
-# pylint: enable=do-not-use-asserts
-
-
 class TestAwsBatchWaiters(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
@@ -333,8 +330,8 @@ class TestAwsBatchWaiters(unittest.TestCase):
         self.region_name = AWS_REGION
 
         self.batch_waiters = AwsBatchWaitersHook(region_name=self.region_name)
-        self.assertEqual(self.batch_waiters.aws_conn_id, 'aws_default')
-        self.assertEqual(self.batch_waiters.region_name, self.region_name)
+        assert self.batch_waiters.aws_conn_id == 'aws_default'
+        assert self.batch_waiters.region_name == self.region_name
 
         # init the mock client
         self.client_mock = self.batch_waiters.client
@@ -349,48 +346,48 @@ class TestAwsBatchWaiters(unittest.TestCase):
     def test_default_config(self):
         # the default config is used when no custom config is provided
         config = self.batch_waiters.default_config
-        self.assertEqual(config, self.batch_waiters.waiter_config)
+        assert config == self.batch_waiters.waiter_config
 
-        self.assertIsInstance(config, dict)
-        self.assertEqual(config["version"], 2)
-        self.assertIsInstance(config["waiters"], dict)
+        assert isinstance(config, dict)
+        assert config["version"] == 2
+        assert isinstance(config["waiters"], dict)
 
         waiters = list(sorted(config["waiters"].keys()))
-        self.assertEqual(waiters, ["JobComplete", "JobExists", "JobRunning"])
+        assert waiters == ["JobComplete", "JobExists", "JobRunning"]
 
     def test_list_waiters(self):
         # the default config is used when no custom config is provided
         config = self.batch_waiters.waiter_config
 
-        self.assertIsInstance(config["waiters"], dict)
+        assert isinstance(config["waiters"], dict)
         waiters = list(sorted(config["waiters"].keys()))
-        self.assertEqual(waiters, ["JobComplete", "JobExists", "JobRunning"])
-        self.assertEqual(waiters, self.batch_waiters.list_waiters())
+        assert waiters == ["JobComplete", "JobExists", "JobRunning"]
+        assert waiters == self.batch_waiters.list_waiters()
 
     def test_waiter_model(self):
         model = self.batch_waiters.waiter_model
-        self.assertIsInstance(model, botocore.waiter.WaiterModel)
+        assert isinstance(model, botocore.waiter.WaiterModel)
 
         # test some of the default config
-        self.assertEqual(model.version, 2)
+        assert model.version == 2
         waiters = sorted(model.waiter_names)
-        self.assertEqual(waiters, ["JobComplete", "JobExists", "JobRunning"])
+        assert waiters == ["JobComplete", "JobExists", "JobRunning"]
 
         # test errors when requesting a waiter with the wrong name
-        with self.assertRaises(ValueError) as e:
+        with pytest.raises(ValueError) as ctx:
             model.get_waiter("JobExist")
-        self.assertIn("Waiter does not exist: JobExist", str(e.exception))
+        assert "Waiter does not exist: JobExist" in str(ctx.value)
 
         # test some default waiter properties
         waiter = model.get_waiter("JobExists")
-        self.assertIsInstance(waiter, botocore.waiter.SingleWaiterConfig)
-        self.assertEqual(waiter.max_attempts, 100)
+        assert isinstance(waiter, botocore.waiter.SingleWaiterConfig)
+        assert waiter.max_attempts == 100
         waiter.max_attempts = 200
-        self.assertEqual(waiter.max_attempts, 200)
-        self.assertEqual(waiter.delay, 2)
+        assert waiter.max_attempts == 200
+        assert waiter.delay == 2
         waiter.delay = 10
-        self.assertEqual(waiter.delay, 10)
-        self.assertEqual(waiter.operation, "DescribeJobs")
+        assert waiter.delay == 10
+        assert waiter.operation == "DescribeJobs"
 
     def test_wait_for_job(self):
         import sys
@@ -403,18 +400,19 @@ class TestAwsBatchWaiters(unittest.TestCase):
 
             self.batch_waiters.wait_for_job(self.job_id)
 
-            self.assertEqual(
-                get_waiter.call_args_list,
-                [mock.call("JobExists"), mock.call("JobRunning"), mock.call("JobComplete")],
-            )
+            assert get_waiter.call_args_list == [
+                mock.call("JobExists"),
+                mock.call("JobRunning"),
+                mock.call("JobComplete"),
+            ]
 
             mock_waiter = get_waiter.return_value
             mock_waiter.wait.assert_called_with(jobs=[self.job_id])
-            self.assertEqual(mock_waiter.wait.call_count, 3)
+            assert mock_waiter.wait.call_count == 3
 
             mock_config = mock_waiter.config
-            self.assertEqual(mock_config.delay, 0)
-            self.assertEqual(mock_config.max_attempts, sys.maxsize)
+            assert mock_config.delay == 0
+            assert mock_config.max_attempts == sys.maxsize
 
     def test_wait_for_job_raises_for_client_error(self):
         # mock delay for speedy test
@@ -427,12 +425,12 @@ class TestAwsBatchWaiters(unittest.TestCase):
                 error_response={"Error": {"Code": "TooManyRequestsException"}},
                 operation_name="get job description",
             )
-            with self.assertRaises(AirflowException):
+            with pytest.raises(AirflowException):
                 self.batch_waiters.wait_for_job(self.job_id)
 
-            self.assertEqual(get_waiter.call_args_list, [mock.call("JobExists")])
+            assert get_waiter.call_args_list == [mock.call("JobExists")]
             mock_waiter.wait.assert_called_with(jobs=[self.job_id])
-            self.assertEqual(mock_waiter.wait.call_count, 1)
+            assert mock_waiter.wait.call_count == 1
 
     def test_wait_for_job_raises_for_waiter_error(self):
         # mock delay for speedy test
@@ -444,9 +442,9 @@ class TestAwsBatchWaiters(unittest.TestCase):
             mock_waiter.wait.side_effect = botocore.exceptions.WaiterError(
                 name="JobExists", reason="unit test error", last_response={}
             )
-            with self.assertRaises(AirflowException):
+            with pytest.raises(AirflowException):
                 self.batch_waiters.wait_for_job(self.job_id)
 
-            self.assertEqual(get_waiter.call_args_list, [mock.call("JobExists")])
+            assert get_waiter.call_args_list == [mock.call("JobExists")]
             mock_waiter.wait.assert_called_with(jobs=[self.job_id])
-            self.assertEqual(mock_waiter.wait.call_count, 1)
+            assert mock_waiter.wait.call_count == 1
