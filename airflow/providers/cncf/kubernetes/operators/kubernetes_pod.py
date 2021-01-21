@@ -343,7 +343,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 raise AirflowException(f'Pod {self.pod.metadata.name} returned a failure: {status}')
             return result
         except AirflowException as ex:
-            self.patch_already_checked(self.pod)
             raise AirflowException(f'Pod Launching failed: {ex}')
 
     def handle_pod_overlap(

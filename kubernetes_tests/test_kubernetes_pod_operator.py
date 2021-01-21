@@ -1000,30 +1000,5 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             k.execute(context)
             create_mock.assert_called_once()
 
-    def test_reatttach_quick_failure(self):
-        client = kube_client.get_kube_client(in_cluster=False)
-        namespace = "default"
-
-        name = "test"
-        k = KubernetesPodOperator(
-            namespace='default',
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["exit 1"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id=name,
-            in_cluster=False,
-            do_xcom_push=False,
-            is_delete_operator_pod=False,
-            termination_grace_period=0,
-        )
-
-        context = create_context(k)
-        with self.assertRaises(AirflowException):
-            k.execute(context)
-        pod = client.read_namespaced_pod(name=k.pod.metadata.name, namespace=namespace)
-        self.assertEqual(pod.metadata.labels["already_checked"], "True")
-
 
 # pylint: enable=unused-argument
