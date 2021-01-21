@@ -75,7 +75,7 @@ class TestDagEndpoint(unittest.TestCase):
             access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
         )
 
-        with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
+        with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details", params={"foo": 1}) as dag:
             DummyOperator(task_id=cls.task_id)
 
         with DAG(cls.dag2_id, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
@@ -213,6 +213,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": [],
+            "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
                 "days": 1,
@@ -244,6 +245,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": [],
+            "params": {},
             "schedule_interval": {
                 "__type": "TimeDelta",
                 "days": 1,
@@ -312,6 +314,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": [],
+            "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
                 "days": 1,
@@ -347,6 +350,7 @@ class TestGetDagDetails(TestDagEndpoint):
             'is_subdag': False,
             'orientation': 'LR',
             'owners': [],
+            "params": {"foo": 1},
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'microseconds': 0, 'seconds': 0},
             'start_date': '2020-06-15T00:00:00+00:00',
             'tags': None,
