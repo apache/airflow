@@ -122,20 +122,34 @@ Strategies for mitigation:
 Production Container Images
 ===========================
 
+Production-ready reference Image
+--------------------------------
+
+For the ease of deployment in production, the community releases a production-ready reference container
+image.
+
+The docker image provided (as convenience binary package) in the
+`Apache Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_ is a bare image
+that has a few external dependencies and extras installed..
+
+The Apache Airflow image provided as convenience package is optimized for size, so
+it provides just a bare minimal set of the extras and dependencies installed and in most cases
+you want to either extend or customize the image. You can see all possible extras in
+:doc:`extra-packages-ref`. The set of extras used in Airflow Production image are available in the
+`Dockerfile <https://github.com/apache/airflow/blob/2c6c7fdb2308de98e142618836bdf414df9768c8/Dockerfile#L39>`_.
+
+The production images are build in DockerHub from released version and release candidates. There
+are also images published from branches but they are used mainly for development and testing purpose.
+See `Airflow Git Branching <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#airflow-git-branches>`_
+for details.
+
+
 Customizing or extending the Production Image
 ---------------------------------------------
 
 Before you dive-deeply in the way how the Airflow Image is build, named and why we are doing it the
 way we do, you might want to know very quickly how you can extend or customize the existing image
 for Apache Airflow. This chapter gives you a short answer to those questions.
-
-The docker image provided (as convenience binary package) in the
-`Apache Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_ is a bare image
-that has not many external dependencies and extras installed. Apache Airflow has many extras
-that can be installed alongside the "core" airflow image and they often require some additional
-dependencies. The Apache Airflow image provided as convenience package is optimized for size, so
-it provides just a bare minimal set of the extras and dependencies installed and in most cases
-you want to either extend or customize the image.
 
 Airflow Summit 2020's `Production Docker Image <https://youtu.be/wDr3Y7q2XoI>`_ talk provides more
 details about the context, architecture and customization/extension methods for the Production Image.
