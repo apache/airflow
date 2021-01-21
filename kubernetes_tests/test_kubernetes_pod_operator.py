@@ -1025,4 +1025,5 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         pod = client.read_namespaced_pod(name=k.pod.metadata.name, namespace=namespace)
         self.assertEqual(pod.metadata.labels["already_checked"], "True")
 
+
 # pylint: enable=unused-argument
