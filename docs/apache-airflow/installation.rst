@@ -70,27 +70,24 @@ Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wi
 using those tools you should use the :ref:`constraint files <installation:constraints>`  and convert them to appropriate
 format and workflow that your tool requires.
 
-.. _installation:extra_packages:
+.. _installation:airflow_extra_dependencies:
 
-Extra Packages
-''''''''''''''
+Airflow extra dependencies
+''''''''''''''''''''''''''
 
 The ``apache-airflow`` PyPI basic package only installs what's needed to get started.
-Subpackages can be installed depending on what will be useful in your
+Additional packages can be installed depending on what will be useful in your
 environment. For instance, if you don't need connectivity with Postgres,
 you won't have to go through the trouble of installing the ``postgres-devel``
 yum package, or whatever equivalent applies on the distribution you are using.
 
-Behind the scenes, Airflow does conditional imports of operators that require
-these extra dependencies.
-
-Most of the extras are linked to a corresponding providers package. For example "amazon" extra
+Most of the extra dependencies are linked to a corresponding providers package. For example "amazon" extra
 has a corresponding ``apache-airflow-providers-amazon`` providers package to be installed. When you install
 Airflow with such extras, the necessary provider packages are installed automatically (latest versions from
 PyPI for those packages). However you can freely upgrade and install provider packages independently from
 the main Airflow installation.
 
-For the list of the subpackages and what they enable, see: :doc:`extra-packages-ref`.
+For the list of the extras and what they enable, see: :doc:`extra-packages-ref`.
 
 .. _installation:provider_packages:
 
@@ -99,13 +96,32 @@ Provider packages
 
 Unlike Apache Airflow 1.10, the Airflow 2.0 is delivered in multiple, separate, but connected packages.
 The core of Airflow scheduling system is delivered as ``apache-airflow`` package and there are around
-60 providers packages which can be installed separately as so called "Airflow Provider packages".
+60 providers packages which can be installed separately as so called ``Airflow Provider packages``.
 The default Airflow installation doesn't have many integrations and you have to install them yourself.
 
 You can even develop and install your own providers for Airflow. For more information,
 see: :doc:`apache-airflow-providers:index`
 
 For the list of the provider packages and what they enable, see: :doc:`apache-airflow-providers:packages-ref`.
+
+Differences between extras and providers
+''''''''''''''''''''''''''''''''''''''''
+
+Just to prevent confusion of extras versus provider packages: Extras and providers are different things,
+though many extras are leading to installing providers.
+
+Extras are standard Python setuptools feature that allows to add additional set of dependencies as
+optional features to "core" Apache Airflow. One of the type of such optional features are providers
+packages, but not all optional features of Apache Airflow have corresponding providers.
+
+We are using the ``extras`` setuptools features to also install provider packages.
+Most of the extras are also linked (same name) with provider packages - for example adding ``[google]``
+extra also adds ``apache-airflow-providers-google`` as dependency. However there are some extras that do
+not install providers (examples ``github_enterprise``, ``kerberos``, ``async`` - they add some extra
+dependencies which are needed for those ``extra`` features of Airflow mentioned. The three examples
+above add respectively github enterprise oauth authentication, kerberos integration or
+asynchronous workers for gunicorn. None of those have providers, they are just extending Apache Airflow
+"core" package with new functionalities.
 
 System dependencies
 '''''''''''''''''''
@@ -183,7 +199,8 @@ If you don't need to install any extra extra, you can use the command set below:
 
 **Installing with extras**
 
-If you need to install additional :ref:`extra packages <installation:extra_packages>`, you can use the script below.
+If you need to install :ref:`extra dependencies of airflow <installation:airflow_extra_dependencies>`,
+you can use the script below (the example below installs postgres and google extras.
 
 .. code-block:: bash
 
