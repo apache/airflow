@@ -899,7 +899,7 @@ def getsection(*args, **kwargs):  # noqa: D103
         DeprecationWarning,
         stacklevel=2,
     )
-    return conf.getint(*args, **kwargs)
+    return conf.getsection(*args, **kwargs)
 
 
 def has_option(*args, **kwargs):  # noqa: D103
