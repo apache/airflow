@@ -34,7 +34,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.www.utils import CustomSQLAInterface
 from airflow.www.views import (
-    CustomAuthDBView,
     CustomPermissionModelView,
     CustomPermissionViewModelView,
     CustomResetMyPasswordView,
@@ -166,7 +165,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         },
     ]
 
-    authdbview = CustomAuthDBView
     permissionmodelview = CustomPermissionModelView
     permissionviewmodelview = CustomPermissionViewModelView
     rolemodelview = CustomRoleModelView

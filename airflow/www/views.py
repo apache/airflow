@@ -56,7 +56,6 @@ from flask_appbuilder.actions import action
 from flask_appbuilder.fieldwidgets import Select2Widget
 from flask_appbuilder.models.sqla.filters import BaseFilter  # noqa
 from flask_appbuilder.security.views import (
-    AuthDBView,
     PermissionModelView,
     PermissionViewModelView,
     ResetMyPasswordView,
@@ -3805,18 +3804,6 @@ class DagModelView(AirflowModelView):
         return wwwutils.json_response(payload)
 
 
-class CustomAuthDBView(AuthDBView):
-    """Customize permission names for FAB's builtin AuthDBView."""
-
-    class_permission_name = permissions.RESOURCE_LOGIN
-    method_permission_name = {
-        'list': 'create',
-    }
-    base_permissions = [
-        permissions.ACTION_CAN_CREATE,
-    ]
-
-
 class CustomPermissionModelView(PermissionModelView):
     """Customize permission names for FAB's builtin PermissionModelView."""
 
@@ -3906,6 +3893,7 @@ class CustomUserDBModelView(UserDBModelView):
         'resetmypassword': permissions.RESOURCE_MY_PASSWORD,
         'resetpasswords': permissions.RESOURCE_PASSWORD,
         'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE,
     }
 
     method_permission_name = {

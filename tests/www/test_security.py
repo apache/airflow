@@ -191,6 +191,10 @@ class TestSecurity(unittest.TestCase):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_LINK),
@@ -200,17 +204,6 @@ class TestSecurity(unittest.TestCase):
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
-            (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
-            (permissions.ACTION_RESETMYPASSWORD, permissions.RESOURCE_USER_DB_MODELVIEW),
-            (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_USERINFO_EDIT_VIEW),
-            (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_USERINFO_EDIT_VIEW),
-            (permissions.ACTION_USERINFOEDIT, permissions.RESOURCE_USER_DB_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_DB_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OID_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_LDAP_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OAUTH_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_REMOTEUSER_MODELVIEW),
         }
         self.app.config['AUTH_ROLE_PUBLIC'] = 'Viewer'
 

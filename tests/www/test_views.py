@@ -3178,6 +3178,20 @@ class TestDagRunModelView(TestBase):
         self.check_content_in_response("Failed to clear state", resp)
 
 
+class TestCustomizedFABViews(TestBase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
+        cls.session.commit()
+        cls.clear_table(models.DagRun)
+        cls.clear_table(models.TaskInstance)
+
+    def tearDown(self):
+        self.clear_table(models.DagRun)
+        self.clear_table(models.TaskInstance)
+
+
 class TestDecorators(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
 
