@@ -21,7 +21,7 @@ from airflow.utils.db import provide_session
 
 
 class SparkJDBCOperatorConnIdRule(BaseRule):
-    """SparkDefaultConnectionNameRule class to ease upgrade to Airflow 2.0"""
+    """SparkJDBCOperatorConnIdRule class to ease upgrade to Airflow 2.0"""
 
     title = "Check Spark JDBC Operator default connection name"
 
