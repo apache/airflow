@@ -24,7 +24,7 @@ function verify_parameters(){
     echo "Testing if all classes in import packages can be imported"
     echo
 
-    if [[ ${INSTALL_AIRFLOW_VERSION=""} == "" ]]; then
+    if [[ -z "${INSTALL_AIRFLOW_VERSION=""}" ]]; then
         echo
         echo "${COLOR_RED}ERROR: You have to specify airflow version to install.${COLOR_RESET}"
         echo

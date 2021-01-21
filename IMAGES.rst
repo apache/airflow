@@ -249,6 +249,9 @@ For example:
 
 You can see DockerHub images at `<https://hub.docker.com/r/apache/airflow>`_
 
+Using GitHub registries as build cache
+--------------------------------------
+
 By default DockerHub registry is used when you push or pull such images.
 However for CI builds we keep the images in GitHub registry as well - this way we can easily push
 the images automatically after merge requests and use such images for Pull Requests
@@ -259,29 +262,91 @@ significant changes are done in the Dockerfile.CI.
 The images are named differently (in Docker definition of image names - registry URL is part of the
 image name if DockerHub is not used as registry). Also GitHub has its own structure for registries
 each project has its own registry naming convention that should be followed. The name of
-images for GitHub registry are:
+images for GitHub registry are different as they must follow limitation of the registry used.
+
+We are still using Github Packages as registry, but we are in the process of testing and switching
+to GitHub Container Registry, and the naming conventions are slightly different (GitHub Packages
+required all packages to have "organization/repository/" URL prefix ("apache/airflow/",
+where in GitHub Container Registry, all images are in "organization" not in "repository" and they are all
+in organization wide "apache/" namespace rather than in "apache/airflow/" one).
+We are adding "airflow-" as prefix for image names of all Airflow images instead.
+The images are linked to the repository via ``org.opencontainers.image.source`` label in the image.
+
+Naming convention for GitHub Packages
+-------------------------------------
+
+Images built as "Run ID snapshot":
 
 .. code-block:: bash
 
-  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y       - for production images
-  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-ci    - for CI images
-  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-build - for production build state
-  docker.pkg.github.com/apache/airflow/pythonX.Y-<BRANCH>       - for base python images
+  docker.pkg.github.com.io/apache-airflow/<BRANCH>-pythonX.Y-ci-v2:<RUNID>    - for CI images
+  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-v2:<RUNID>       - for production images
+  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-build-v2:<RUNID> - for production build stage
+  docker.pkg.github.com/apache-airflow/pythonX.Y-<BRANCH>-v2:X.Y-slim-buster-<RUN_ID>  - for base python images
 
-Note that we never push or pull TAG images to GitHub registry. It is only used for CI builds
+Latest images (pushed when master merge succeeds):
+
+.. code-block:: bash
+
+  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
+  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-v2:latest       - for production images
+  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
+  docker.pkg.github.com/apache/airflow/python-<BRANCH>-v1:X.Y-slim-buster - for base python images
+
+
+Naming convention for GitHub Container Registry
+-----------------------------------------------
+
+Images built as "Run ID snapshot":
+
+.. code-block:: bash
+
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:<RUNID>                - for CI images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:<RUNID>                   - for production images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:<RUNID>             - for production build stage
+  ghcr.io/apache/airflow-pythonX.Y-<BRANCH>-v2:X.Y-slim-buster-<RUN_ID>  - for base python images
+
+Latest images (pushed when master merge succeeds):
+
+.. code-block:: bash
+
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:latest       - for production images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
+  ghcr.io/apache/airflow-python-<BRANCH>-v2:X.Y-slim-buster - for base python images
+
+Note that we never push or pull "release" images to GitHub registry. It is only used for CI builds
 
 You can see all the current GitHub images at `<https://github.com/apache/airflow/packages>`_
 
-In order to interact with the GitHub images you need to add ``--github-registry`` flag to the pull/push
+
+In order to interact with the GitHub images you need to add ``--use-github-registry`` flag to the pull/push
 commands in Breeze. This way the images will be pulled/pushed from/to GitHub rather than from/to
 DockerHub. Images are build locally as ``apache/airflow`` images but then they are tagged with the right
-GitHub tags for you.
+GitHub tags for you. You can also specify ``--github-registry`` option and choose which of the
+GitHub registries are used (``docker.pkg.github.com`` chooses GitHub Packages and ``ghcr.io`` chooses
+GitHub Container Registry).
 
 You can read more about the CI configuration and how CI builds are using DockerHub/GitHub images
 in `<CI.rst>`_.
 
 Note that you need to be committer and have the right to push to DockerHub and GitHub and you need to
-be logged in. Only committers can push images directly.
+be logged in. Only committers can push images directly. You need to login with your
+Personal Access Token with "packages" scope to be able to push to those repositories or pull from them
+in case of GitHub Packages.
+
+GitHub Packages:
+
+.. code-block:: bash
+
+  docker login docker.pkg.github.com
+
+GitHub Container Registry
+
+.. code-block:: bash
+
+  docker login ghcr.io
+
 
 Technical details of Airflow images
 ===================================

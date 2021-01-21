@@ -33,11 +33,16 @@ env:
   UPGRADE_TO_NEWER_DEPENDENCIES: false
   PYTHON_MAJOR_MINOR_VERSION: 3.6
   USE_GITHUB_REGISTRY: "true"
-  # Since we run this build on schedule, it might be that the image has never been pushed
-  # Because the master merge was cancelled, so we have to rebuild the image for quarantined build
+  # Might be either 'ghcr.io' or 'docker.pkg.github.com'
+  GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
+  # This token is WRITE one - schedule type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # This token should not be empty in schedule type of event.
+  CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
+  # Since we run this build on schedule, it might be that the image has never been pushed
+  # Because the master merge was cancelled, so we have to rebuild the image for quarantined build
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"

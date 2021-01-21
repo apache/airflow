@@ -20,7 +20,7 @@
 
 push_pull_remove_images::check_if_github_registry_wait_for_image_enabled
 
-build_image::login_to_github_registry_if_needed
+build_image::configure_github_docker_registry
 
 export AIRFLOW_CI_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
 

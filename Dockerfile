@@ -296,6 +296,8 @@ ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
+ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
+ARG AIRFLOW_IMAGE_DATE_CREATED
 
 LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.distro.version="buster" \
@@ -304,7 +306,20 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.image="airflow-build-image" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.buildImage.buildId=${BUILD_ID} \
-  org.apache.airflow.buildImage.commitSha=${COMMIT_SHA}
+  org.apache.airflow.buildImage.commitSha=${COMMIT_SHA} \
+  org.opencontainers.image.source=${AIRFLOW_IMAGE_REPOSITORY} \
+  org.opencontainers.image.created=${AIRFLOW_IMAGE_DATE_CREATED} \
+  org.opencontainers.image.authors="dev@airflow.apache.org" \
+  org.opencontainers.image.url="https://airflow.apache.org" \
+  org.opencontainers.image.documentation="https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html" \
+  org.opencontainers.image.source="https://github.com/apache/airflow" \
+  org.opencontainers.image.version="${AIRFLOW_VERSION}" \
+  org.opencontainers.image.revision="${COMMIT_SHA}" \
+  org.opencontainers.image.vendor="Apache Software Foundation" \
+  org.opencontainers.image.licenses="Apache-2.0" \
+  org.opencontainers.image.ref.name="airflow-build-image" \
+  org.opencontainers.image.title="Build Image Segment for Production Airflow Image" \
+  org.opencontainers.image.description="Installed Apache Airflow with build-time dependencies"
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
@@ -467,6 +482,9 @@ ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
+ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
+ARG AIRFLOW_IMAGE_DATE_CREATED
+
 LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.distro.version="buster" \
   org.apache.airflow.module="airflow" \
@@ -475,8 +493,22 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.uid="${AIRFLOW_UID}" \
   org.apache.airflow.gid="${AIRFLOW_GID}" \
-  org.apache.airflow.mainImage.buildId=${BUILD_ID} \
-  org.apache.airflow.mainImage.commitSha=${COMMIT_SHA}
+  org.apache.airflow.mainImage.buildId="${BUILD_ID}" \
+  org.apache.airflow.mainImage.commitSha="${COMMIT_SHA}" \
+  org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \
+  org.opencontainers.image.created=${AIRFLOW_IMAGE_DATE_CREATED} \
+  org.opencontainers.image.authors="dev@airflow.apache.org" \
+  org.opencontainers.image.url="https://airflow.apache.org" \
+  org.opencontainers.image.documentation="https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html" \
+  org.opencontainers.image.source="https://github.com/apache/airflow" \
+  org.opencontainers.image.version="${AIRFLOW_VERSION}" \
+  org.opencontainers.image.revision="${COMMIT_SHA}" \
+  org.opencontainers.image.vendor="Apache Software Foundation" \
+  org.opencontainers.image.licenses="Apache-2.0" \
+  org.opencontainers.image.ref.name="airflow" \
+  org.opencontainers.image.title="Production Airflow Image" \
+  org.opencontainers.image.description="Installed Apache Airflow"
+
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD ["--help"]

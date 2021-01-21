@@ -22,7 +22,7 @@
 # Depending on "USE_GITHUB_REGISTRY" and "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_ci_image_on_ci() {
     build_images::prepare_ci_build
-    start_end::group_start "Prepare CI mage ${AIRFLOW_CI_IMAGE}"
+    start_end::group_start "Prepare CI image ${AIRFLOW_CI_IMAGE}"
 
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
@@ -35,7 +35,7 @@ function build_ci_image_on_ci() {
         # skips further image checks - since we already have the target image
 
         local python_tag_suffix=""
-        if [[ ${GITHUB_REGISTRY_PUSH_IMAGE_TAG} != "latest" ]]; then
+        if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
             python_tag_suffix="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         fi
         # first we pull base python image. We will need it to re-push it after master build

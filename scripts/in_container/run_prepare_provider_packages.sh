@@ -155,7 +155,7 @@ function build_provider_packages() {
         echo "-----------------------------------------------------------------------------------"
         set +e
         package_suffix=""
-        if [[ ${VERSION_SUFFIX_FOR_SVN} == "" && ${VERSION_SUFFIX_FOR_PYPI} != "" ]]; then
+        if [[ -z "${VERSION_SUFFIX_FOR_SVN}" && -n ${VERSION_SUFFIX_FOR_PYPI} ]]; then
             # only adds suffix to setup.py if version suffix for PyPI is set but the SVN one is not
             package_suffix="${VERSION_SUFFIX_FOR_PYPI}"
         fi
@@ -181,7 +181,7 @@ function rename_packages_if_needed() {
 
     pushd dist >/dev/null 2>&1 || exit 1
 
-    if [[ ${FILE_VERSION_SUFFIX} != "" ]]; then
+    if [[ -n "${FILE_VERSION_SUFFIX}" ]]; then
         # In case we have FILE_VERSION_SUFFIX we rename prepared files
         if [[ "${PACKAGE_FORMAT}" == "sdist" || "${PACKAGE_FORMAT}" == "both" ]]; then
             for FILE in *.tar.gz
