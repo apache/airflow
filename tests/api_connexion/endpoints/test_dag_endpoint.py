@@ -206,7 +206,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": [],
-            "params": [{"name": "foo", "value": 1}],
+            "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
                 "days": 1,
@@ -238,7 +238,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": [],
-            "params": [],
+            "params": {},
             "schedule_interval": {
                 "__type": "TimeDelta",
                 "days": 1,
@@ -275,7 +275,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_subdag": False,
             "orientation": "LR",
             "owners": [],
-            "params": [{"name": "foo", "value": 1}],
+            "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
                 "days": 1,
@@ -311,7 +311,7 @@ class TestGetDagDetails(TestDagEndpoint):
             'is_subdag': False,
             'orientation': 'LR',
             'owners': [],
-            "params": [{"name": "foo", "value": 1}],
+            "params": {"foo": 1},
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'microseconds': 0, 'seconds': 0},
             'start_date': '2020-06-15T00:00:00+00:00',
             'tags': None,

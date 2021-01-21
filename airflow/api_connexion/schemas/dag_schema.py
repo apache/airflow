@@ -15,13 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict, List, NamedTuple
+from typing import List, NamedTuple
 
 from itsdangerous import URLSafeSerializer
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow import DAG
 from airflow.api_connexion.schemas.common_schema import ScheduleIntervalSchema, TimeDeltaSchema, TimezoneField
 from airflow.configuration import conf
 from airflow.models.dag import DagModel, DagTag
@@ -82,13 +81,7 @@ class DAGDetailSchema(DAGSchema):
     dag_run_timeout = fields.Nested(TimeDeltaSchema, dump_only=True, attribute="dagrun_timeout")
     doc_md = fields.String(dump_only=True)
     default_view = fields.String(dump_only=True)
-    params = fields.Method("normalize_params", dump_only=True)
-
-    @staticmethod
-    def normalize_params(obj: DAG) -> List[Dict[str, Any]]:
-        """Normalize params"""
-        normalized_params = [{"name": key, "value": value} for key, value in obj.params.items()]
-        return ParameterSchema(many=True).dump(normalized_params)
+    params = fields.Dict(dump_only=True)
 
 
 class DAGCollection(NamedTuple):
@@ -103,13 +96,6 @@ class DAGCollectionSchema(Schema):
 
     dags = fields.List(fields.Nested(DAGSchema))
     total_entries = fields.Int()
-
-
-class ParameterSchema(Schema):
-    """Parameter Schema"""
-
-    name = fields.String(required=True)
-    value = fields.Raw(required=True)
 
 
 dags_collection_schema = DAGCollectionSchema()

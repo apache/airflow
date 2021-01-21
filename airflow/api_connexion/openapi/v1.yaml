@@ -1685,20 +1685,6 @@ components:
           readOnly: true
           nullable: true
 
-    Parameter:
-      type: object
-      properties:
-        key:
-          type: string
-          readOnly: true
-        value:
-          readOnly: true
-
-    Parameters:
-      type: array
-      description: Parameters that are made accessible in templates, namespaced under `params`.
-      items:
-        $ref: '#/components/schemas/Parameter'
 
     Pool:
       description: The pool
@@ -1962,7 +1948,8 @@ components:
               type: string
               readOnly: true
             params:
-              $ref: '#/components/schemas/Parameters'
+              type: object
+              readOnly: true
 
     ExtraLink:
       type: object
