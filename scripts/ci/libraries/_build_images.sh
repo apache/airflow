@@ -442,7 +442,7 @@ function build_images::get_docker_image_names() {
     fi
 
     export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
-    export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${image_name}-${AIRFLOW_PROD_BASE_TAG}${image_separator}build${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}-build${GITHUB_REGISTRY_IMAGE_SUFFIX}"
     export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 
     export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
