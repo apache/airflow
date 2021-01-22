@@ -285,7 +285,7 @@ class DagRun(Base, LoggingMixin):
                 are_runnable_tasks = ready_tis or self._are_premature_tis(
                     unfinished_tasks, finished_tasks, session) or changed_tis
 
-        duration = (timezone.utcnow() - start_dttm).total_seconds() * 1000
+        duration = (timezone.utcnow() - start_dttm)
         Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
 
         leaf_task_ids = {t.task_id for t in dag.leaves}

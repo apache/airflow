@@ -434,8 +434,6 @@ class DagBag(BaseDagBag, LoggingMixin):
                 dag_id_names = str(dag_ids)
 
                 td = timezone.utcnow() - ts
-                td = td.total_seconds() + (
-                    float(td.microseconds) / 1000000)
                 stats.append(FileLoadStat(
                     filepath.replace(settings.DAGS_FOLDER, ''),
                     td,
@@ -487,7 +485,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = self.dagbag_stats
         return report.format(
             dag_folder=self.dag_folder,
-            duration=sum([o.duration for o in stats]),
+            duration=sum([o.duration for o in stats], timedelta()).total_seconds(),
             dag_num=sum([o.dag_num for o in stats]),
             task_num=sum([o.task_num for o in stats]),
             table=pprinttable(stats),
