@@ -83,7 +83,7 @@ class TestAzureFileShareToGCSOperator(unittest.TestCase):
         azure_fileshare_mock_hook.assert_called_once_with(WASB_CONN_ID)
 
         gcs_mock_hook.assert_called_once_with(
-            google_cloud_storage_conn_id=GCS_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
             delegate_to=None,
             impersonation_chain=IMPERSONATION_CHAIN,
         )

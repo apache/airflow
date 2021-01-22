@@ -79,7 +79,7 @@ class TestGoogleCloudStorageObjectSensor(TestCase):
         assert result is True
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.exists.assert_called_once_with(TEST_BUCKET, TEST_OBJECT)
@@ -121,7 +121,7 @@ class TestGoogleCloudStorageObjectUpdatedSensor(TestCase):
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.is_updated_after.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, mock.ANY)
@@ -144,7 +144,7 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
@@ -182,7 +182,7 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)

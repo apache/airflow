@@ -95,7 +95,7 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
         adls_one_mock_hook.assert_called_once_with(azure_data_lake_conn_id=AZURE_CONN_ID)
         adls_two_mock_hook.assert_called_once_with(azure_data_lake_conn_id=AZURE_CONN_ID)
         gcs_mock_hook.assert_called_once_with(
-            google_cloud_storage_conn_id=GCS_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
             delegate_to=None,
             impersonation_chain=IMPERSONATION_CHAIN,
         )

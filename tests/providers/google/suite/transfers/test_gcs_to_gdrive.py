@@ -48,7 +48,7 @@ class TestGcsToGDriveOperator(unittest.TestCase):
             [
                 mock.call(
                     delegate_to=None,
-                    google_cloud_storage_conn_id="google_cloud_default",
+                    gcp_conn_id="google_cloud_default",
                     impersonation_chain=None,
                 ),
                 mock.call().download(
@@ -93,7 +93,7 @@ class TestGcsToGDriveOperator(unittest.TestCase):
             [
                 mock.call(
                     delegate_to=None,
-                    google_cloud_storage_conn_id="google_cloud_default",
+                    gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
@@ -137,7 +137,7 @@ class TestGcsToGDriveOperator(unittest.TestCase):
             [
                 mock.call(
                     delegate_to=None,
-                    google_cloud_storage_conn_id="google_cloud_default",
+                    gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),

@@ -935,7 +935,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         if not self.schema_fields and self.gcs_schema_object:
             gcs_bucket, gcs_object = _parse_gcs_url(self.gcs_schema_object)
             gcs_hook = GCSHook(
-                google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+                gcp_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
@@ -1176,7 +1176,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
         if not self.schema_fields and self.schema_object and self.source_format != 'DATASTORE_BACKUP':
             gcs_hook = GCSHook(
-                google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+                gcp_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )

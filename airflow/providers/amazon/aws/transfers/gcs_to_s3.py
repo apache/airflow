@@ -140,7 +140,7 @@ class GCSToS3Operator(BaseOperator):
     def execute(self, context) -> List[str]:
         # list all files in an Google Cloud Storage bucket
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
