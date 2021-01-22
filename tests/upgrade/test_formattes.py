@@ -16,12 +16,13 @@
 # under the License.
 import json
 from tempfile import NamedTemporaryFile
-from tests.compat import mock
 
 import pytest
 
 from airflow.bin import cli
+from airflow.upgrade.checker import run
 from airflow.upgrade.rules.base_rule import BaseRule
+from tests.compat import mock
 
 MESSAGES = ["msg1", "msg2"]
 
@@ -62,7 +63,7 @@ class TestJSONFormatter:
         with NamedTemporaryFile("w+", suffix=".json") as temp:
             with pytest.raises(SystemExit):
                 args = parser.parse_args(['upgrade_check', '-s', temp.name])
-                args.func(args)
+                run(args)
             content = temp.read()
 
         assert json.loads(content) == expected
