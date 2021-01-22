@@ -21,10 +21,10 @@
 import json
 import unittest
 from unittest import mock
+
 import pytest
-
-
 from azure.storage.blob import BlobServiceClient
+
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -123,7 +123,7 @@ class TestWasbHook(unittest.TestCase):
     def test_check_for_prefix(self, get_blobs_list):
         get_blobs_list.return_value = ['blobs']
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
-        assert hook.check_for_prefix(hook.check_for_prefix('container', 'prefix', timeout=3))
+        assert hook.check_for_prefix('container', 'prefix', timeout=3)
         get_blobs_list.assert_called_once_with(container_name='container', prefix='prefix', timeout=3)
 
     @mock.patch.object(WasbHook, 'get_blobs_list')
