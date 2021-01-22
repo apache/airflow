@@ -95,6 +95,14 @@ class StreamLogWriter(object):
         self.level = level
         self._buffer = str()
 
+    def close(self):
+        """
+        Provide close method, for compatibility with the io.IOBase interface.
+
+        This is a no-op method.
+        """
+        pass
+
     @property
     def closed(self):
         """
