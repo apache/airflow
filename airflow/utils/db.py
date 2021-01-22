@@ -604,17 +604,13 @@ def check_migrations(timeout):
 def check_conn_id_duplicates(session=None) -> str:
     """
     Check unique conn_id in connection table
+
     :param session:  session of the sqlalchemy
     :rtype: str
     """
     dups = []
     try:
-        dups = (
-            session.query(Connection, func.count(Connection.conn_id))
-            .group_by(Connection.conn_id)
-            .having(func.count(Connection.conn_id) > 1)
-            .all()
-        )
+        dups = session.query(Connection.conn_id).group_by(Connection.conn_id).having(func.count() > 1).all()
     except (exc.OperationalError, exc.ProgrammingError):
         # fallback if tables hasn't been created yet
         pass
@@ -623,7 +619,7 @@ def check_conn_id_duplicates(session=None) -> str:
             'Seems you have non unique conn_id in connection table.\n'
             'You have to manage those duplicate connections '
             'before upgrading the database.\n'
-            f'Duplicated conn_id: {[dup[0] for dup in dups]}'
+            f'Duplicated conn_id: {[dup.conn_id for dup in dups]}'
         )
 
     return ''

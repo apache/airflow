@@ -51,16 +51,16 @@ class TestPagerdutyHook(unittest.TestCase):
         )
         session.commit()
         hook = PagerdutyHook(pagerduty_conn_id="pagerduty_no_extra")
-        self.assertEqual(hook.token, 'pagerduty_token_without_extra', 'token initialised.')
-        self.assertEqual(hook.routing_key, None, 'default routing key skipped.')
+        assert hook.token == 'pagerduty_token_without_extra', 'token initialised.'
+        assert hook.routing_key is None, 'default routing key skipped.'
 
     def test_get_token_from_password(self):
         hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
-        self.assertEqual(hook.token, 'pagerduty_token', 'token initialised.')
+        assert hook.token == 'pagerduty_token', 'token initialised.'
 
     def test_token_parameter_override(self):
         hook = PagerdutyHook(token="pagerduty_param_token", pagerduty_conn_id=DEFAULT_CONN_ID)
-        self.assertEqual(hook.token, 'pagerduty_param_token', 'token initialised.')
+        assert hook.token == 'pagerduty_param_token', 'token initialised.'
 
     @requests_mock.mock()
     def test_get_service(self, m):
@@ -76,7 +76,7 @@ class TestPagerdutyHook(unittest.TestCase):
         m.get('https://api.pagerduty.com/services/PZYX321', json={"service": mock_response_body})
         session = hook.get_session()
         resp = session.rget('/services/PZYX321')
-        self.assertEqual(resp, mock_response_body)
+        assert resp == mock_response_body
 
     @requests_mock.mock()
     def test_create_event(self, m):
@@ -93,4 +93,4 @@ class TestPagerdutyHook(unittest.TestCase):
             source="airflow_test",
             severity="error",
         )
-        self.assertEqual(resp, mock_response_body)
+        assert resp == mock_response_body

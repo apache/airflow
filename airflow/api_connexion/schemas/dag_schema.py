@@ -81,6 +81,7 @@ class DAGDetailSchema(DAGSchema):
     dag_run_timeout = fields.Nested(TimeDeltaSchema, dump_only=True, attribute="dagrun_timeout")
     doc_md = fields.String(dump_only=True)
     default_view = fields.String(dump_only=True)
+    params = fields.Dict(dump_only=True)
 
 
 class DAGCollection(NamedTuple):

@@ -71,14 +71,14 @@ class TestCheckOperator(unittest.TestCase):
     def test_execute_no_records(self, mock_get_db_hook):
         mock_get_db_hook.return_value.get_first.return_value = []
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             CheckOperator(sql="sql").execute()
 
     @mock.patch.object(CheckOperator, "get_db_hook")
     def test_execute_not_all_records_are_true(self, mock_get_db_hook):
         mock_get_db_hook.return_value.get_first.return_value = ["data", ""]
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             CheckOperator(sql="sql").execute()
 
 
@@ -105,8 +105,8 @@ class TestValueCheckOperator(unittest.TestCase):
 
         operator.render_template_fields({"ds": pass_value_str})
 
-        self.assertEqual(operator.task_id, self.task_id)
-        self.assertEqual(operator.pass_value, pass_value_str)
+        assert operator.task_id == self.task_id
+        assert operator.pass_value == pass_value_str
 
     def test_pass_value_template_string_float(self):
         pass_value_float = 4.0
@@ -114,8 +114,8 @@ class TestValueCheckOperator(unittest.TestCase):
 
         operator.render_template_fields({})
 
-        self.assertEqual(operator.task_id, self.task_id)
-        self.assertEqual(operator.pass_value, str(pass_value_float))
+        assert operator.task_id == self.task_id
+        assert operator.pass_value == str(pass_value_float)
 
     @mock.patch.object(ValueCheckOperator, "get_db_hook")
     def test_execute_pass(self, mock_get_db_hook):
@@ -137,7 +137,7 @@ class TestValueCheckOperator(unittest.TestCase):
 
         operator = self._construct_operator("select value from tab1 limit 1;", 5, 1)
 
-        with self.assertRaisesRegex(AirflowException, "Tolerance:100.0%"):
+        with pytest.raises(AirflowException, match="Tolerance:100.0%"):
             operator.execute()
 
 
@@ -152,7 +152,7 @@ class TestIntervalCheckOperator(unittest.TestCase):
         )
 
     def test_invalid_ratio_formula(self):
-        with self.assertRaisesRegex(AirflowException, "Invalid diff_method"):
+        with pytest.raises(AirflowException, match="Invalid diff_method"):
             self._construct_operator(
                 table="test_table",
                 metric_thresholds={
@@ -177,7 +177,7 @@ class TestIntervalCheckOperator(unittest.TestCase):
             ignore_zero=False,
         )
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             operator.execute()
 
     @mock.patch.object(IntervalCheckOperator, "get_db_hook")
@@ -224,7 +224,7 @@ class TestIntervalCheckOperator(unittest.TestCase):
             ignore_zero=True,
         )
 
-        with self.assertRaisesRegex(AirflowException, "f0, f1, f2"):
+        with pytest.raises(AirflowException, match="f0, f1, f2"):
             operator.execute()
 
     @mock.patch.object(IntervalCheckOperator, "get_db_hook")
@@ -254,7 +254,7 @@ class TestIntervalCheckOperator(unittest.TestCase):
             ignore_zero=True,
         )
 
-        with self.assertRaisesRegex(AirflowException, "f0, f1"):
+        with pytest.raises(AirflowException, match="f0, f1"):
             operator.execute()
 
 
@@ -288,7 +288,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
 
         operator = self._construct_operator("Select avg(val) from table1 limit 1", 20, 100)
 
-        with self.assertRaisesRegex(AirflowException, "10.*20.0.*100.0"):
+        with pytest.raises(AirflowException, match="10.*20.0.*100.0"):
             operator.execute()
 
     @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
@@ -309,7 +309,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
 
         operator = self._construct_operator("Select 10", "Select 20", "Select 100")
 
-        with self.assertRaisesRegex(AirflowException, "10.*20.*100"):
+        with pytest.raises(AirflowException, match="10.*20.*100"):
             operator.execute()
 
     @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
@@ -330,7 +330,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
 
         operator = self._construct_operator("Select 155", "Select 45", 100)
 
-        with self.assertRaisesRegex(AirflowException, "155.*45.*100.0"):
+        with pytest.raises(AirflowException, match="155.*45.*100.0"):
             operator.execute()
 
 
@@ -376,7 +376,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             dag=self.dag,
         )
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_invalid_conn(self):
@@ -390,7 +390,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             dag=self.dag,
         )
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_invalid_follow_task_true(self):
@@ -404,7 +404,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             dag=self.dag,
         )
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_invalid_follow_task_false(self):
@@ -418,7 +418,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             dag=self.dag,
         )
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @pytest.mark.backend("mysql")
@@ -480,11 +480,11 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         tis = dr.get_task_instances()
         for ti in tis:
             if ti.task_id == "make_choice":
-                self.assertEqual(ti.state, State.SUCCESS)
+                assert ti.state == State.SUCCESS
             elif ti.task_id == "branch_1":
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             elif ti.task_id == "branch_2":
-                self.assertEqual(ti.state, State.SKIPPED)
+                assert ti.state == State.SKIPPED
             else:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
 
@@ -522,11 +522,11 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":
-                    self.assertEqual(ti.state, State.SUCCESS)
+                    assert ti.state == State.SUCCESS
                 elif ti.task_id == "branch_1":
-                    self.assertEqual(ti.state, State.NONE)
+                    assert ti.state == State.NONE
                 elif ti.task_id == "branch_2":
-                    self.assertEqual(ti.state, State.SKIPPED)
+                    assert ti.state == State.SKIPPED
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
@@ -564,11 +564,11 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":
-                    self.assertEqual(ti.state, State.SUCCESS)
+                    assert ti.state == State.SUCCESS
                 elif ti.task_id == "branch_1":
-                    self.assertEqual(ti.state, State.SKIPPED)
+                    assert ti.state == State.SKIPPED
                 elif ti.task_id == "branch_2":
-                    self.assertEqual(ti.state, State.NONE)
+                    assert ti.state == State.NONE
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
@@ -606,13 +606,13 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         tis = dr.get_task_instances()
         for ti in tis:
             if ti.task_id == "make_choice":
-                self.assertEqual(ti.state, State.SUCCESS)
+                assert ti.state == State.SUCCESS
             elif ti.task_id == "branch_1":
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             elif ti.task_id == "branch_2":
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             elif ti.task_id == "branch_3":
-                self.assertEqual(ti.state, State.SKIPPED)
+                assert ti.state == State.SKIPPED
             else:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
 
@@ -644,7 +644,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
         mock_get_records.return_value = ["Invalid Value"]
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     @mock.patch("airflow.operators.sql.BaseHook")
@@ -681,11 +681,11 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":
-                    self.assertEqual(ti.state, State.SUCCESS)
+                    assert ti.state == State.SUCCESS
                 elif ti.task_id == "branch_1":
-                    self.assertEqual(ti.state, State.NONE)
+                    assert ti.state == State.NONE
                 elif ti.task_id == "branch_2":
-                    self.assertEqual(ti.state, State.NONE)
+                    assert ti.state == State.NONE
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
 
@@ -723,10 +723,10 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             tis = dr.get_task_instances()
             for ti in tis:
                 if ti.task_id == "make_choice":
-                    self.assertEqual(ti.state, State.SUCCESS)
+                    assert ti.state == State.SUCCESS
                 elif ti.task_id == "branch_1":
-                    self.assertEqual(ti.state, State.SKIPPED)
+                    assert ti.state == State.SKIPPED
                 elif ti.task_id == "branch_2":
-                    self.assertEqual(ti.state, State.NONE)
+                    assert ti.state == State.NONE
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")

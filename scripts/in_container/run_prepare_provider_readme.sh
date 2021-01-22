@@ -27,17 +27,16 @@ export PYTHONPATH="${AIRFLOW_SOURCES}"
 
 verify_suffix_versions_for_package_preparation
 
+pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+
 # TODO: remove it when devel_all == devel_ci
-echo
-echo "Installing remaining packages from 'all' extras"
-echo
-pip install -e ".[devel_all]"
+install_remaining_dependencies
+reinstall_azure_storage_blob
 
 cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
 
-PREPARE_PROVIDER_PACKAGES_PY="${AIRFLOW_SOURCES}/dev/provider_packages/prepare_provider_packages.py"
-
-python3 "${PREPARE_PROVIDER_PACKAGES_PY}" --version-suffix "${TARGET_VERSION_SUFFIX}" \
+python3 "${AIRFLOW_SOURCES}/dev/provider_packages/prepare_provider_packages.py" \
+    --version-suffix "${TARGET_VERSION_SUFFIX}" \
     update-package-release-notes "$@"
 
 AIRFLOW_PROVIDER_README_TGZ_FILE="/files/airflow-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"

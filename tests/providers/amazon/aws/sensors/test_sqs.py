@@ -20,6 +20,7 @@
 import unittest
 from unittest import mock
 
+import pytest
 from moto import mock_sqs
 
 from airflow.exceptions import AirflowException
@@ -49,23 +50,22 @@ class TestSQSSensor(unittest.TestCase):
         self.sqs_hook.send_message(queue_url='test', message_body='hello')
 
         result = self.sensor.poke(self.mock_context)
-        self.assertTrue(result)
+        assert result
 
-        self.assertTrue(
-            "'Body': 'hello'" in str(self.mock_context['ti'].method_calls),
-            "context call should contain message hello",
-        )
+        assert "'Body': 'hello'" in str(
+            self.mock_context['ti'].method_calls
+        ), "context call should contain message hello"
 
     @mock_sqs
     def test_poke_no_message_failed(self):
 
         self.sqs_hook.create_queue('test')
         result = self.sensor.poke(self.mock_context)
-        self.assertFalse(result)
+        assert not result
 
         context_calls = []
 
-        self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
+        assert self.mock_context['ti'].method_calls == context_calls, "context call  should be same"
 
     @mock.patch.object(SQSHook, 'get_conn')
     def test_poke_delete_raise_airflow_exception(self, mock_conn):
@@ -95,15 +95,15 @@ class TestSQSSensor(unittest.TestCase):
             'Failed': [{'Id': '22f67273-4dbc-4c19-83b5-aee71bfeb832'}]
         }
 
-        with self.assertRaises(AirflowException) as context:
+        with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(self.mock_context)
 
-        self.assertTrue('Delete SQS Messages failed' in context.exception.args[0])
+        assert 'Delete SQS Messages failed' in ctx.value.args[0]
 
     @mock.patch.object(SQSHook, 'get_conn')
     def test_poke_receive_raise_exception(self, mock_conn):
         mock_conn.return_value.receive_message.side_effect = Exception('test exception')
-        with self.assertRaises(Exception) as context:
+        with pytest.raises(Exception) as ctx:
             self.sensor.poke(self.mock_context)
 
-        self.assertTrue('test exception' in context.exception.args[0])
+        assert 'test exception' in ctx.value.args[0]

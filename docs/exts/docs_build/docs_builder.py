@@ -99,7 +99,7 @@ class AirflowDocsBuilder:
         os.makedirs(api_dir, exist_ok=True)
         os.makedirs(self._build_dir, exist_ok=True)
 
-    def check_spelling(self):
+    def check_spelling(self, verbose):
         """Checks spelling."""
         spelling_errors = []
         with TemporaryDirectory() as tmp_dir, NamedTemporaryFile() as output:
@@ -118,13 +118,19 @@ class AirflowDocsBuilder:
                 tmp_dir,
             ]
             print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
-            print("The output is hidden until an error occurs.")
+            if not verbose:
+                print("The output is hidden until an error occurs.")
             env = os.environ.copy()
             env['AIRFLOW_PACKAGE_NAME'] = self.package_name
             if self.for_production:
                 env['AIRFLOW_FOR_PRODUCTION'] = 'true'
             completed_proc = run(  # pylint: disable=subprocess-run-check
-                build_cmd, cwd=self._src_dir, env=env, stdout=output, stderr=output, timeout=PROCESS_TIMEOUT
+                build_cmd,
+                cwd=self._src_dir,
+                env=env,
+                stdout=output if not verbose else None,
+                stderr=output if not verbose else None,
+                timeout=PROCESS_TIMEOUT,
             )
             if completed_proc.returncode != 0:
                 output.seek(0)
@@ -150,7 +156,7 @@ class AirflowDocsBuilder:
                 spelling_errors.extend(parse_spelling_warnings(warning_text, self._src_dir))
         return spelling_errors
 
-    def build_sphinx_docs(self) -> List[DocBuildError]:
+    def build_sphinx_docs(self, verbose) -> List[DocBuildError]:
         """Build Sphinx documentation"""
         build_errors = []
         with NamedTemporaryFile() as tmp_file, NamedTemporaryFile() as output:
@@ -170,7 +176,8 @@ class AirflowDocsBuilder:
                 self._build_dir,  # path to output directory
             ]
             print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
-            print("The output is hidden until an error occurs.")
+            if not verbose:
+                print("The output is hidden until an error occurs.")
 
             env = os.environ.copy()
             env['AIRFLOW_PACKAGE_NAME'] = self.package_name
@@ -178,10 +185,16 @@ class AirflowDocsBuilder:
                 env['AIRFLOW_FOR_PRODUCTION'] = 'true'
 
             completed_proc = run(  # pylint: disable=subprocess-run-check
-                build_cmd, cwd=self._src_dir, env=env, stdout=output, stderr=output, timeout=PROCESS_TIMEOUT
+                build_cmd,
+                cwd=self._src_dir,
+                env=env,
+                stdout=output if not verbose else None,
+                stderr=output if not verbose else None,
+                timeout=PROCESS_TIMEOUT,
             )
             if completed_proc.returncode != 0:
-                print(completed_proc.stdout.decode())
+                output.seek(0)
+                print(output.read().decode())
                 build_errors.append(
                     DocBuildError(
                         file_path=None,
@@ -204,6 +217,9 @@ class AirflowDocsBuilder:
         pretty_target = pretty_format_path(output_dir, AIRFLOW_SITE_DIR)
         print(f"Copy directory: {pretty_source} => {pretty_target}")
         shutil.copytree(self._build_dir, output_dir)
+        if self.is_versioned:
+            with open(os.path.join(output_dir, "..", "stable.txt"), "w") as stable_file:
+                stable_file.write(self._current_version)
         print()
 
 

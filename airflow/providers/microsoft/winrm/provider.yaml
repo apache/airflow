@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Windows Remote Management (WinRM)
     external-doc-url: https://docs.microsoft.com/en-us/windows/win32/winrm/portal
+    logo: /integration-logos/winrm/WinRM.png
     tags: [protocol]
 
 operators:

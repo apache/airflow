@@ -20,6 +20,8 @@
 import datetime
 import unittest
 
+import pytest
+
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG
 from airflow.sensors.bash import BashSensor
@@ -51,5 +53,5 @@ class TestBashSensor(unittest.TestCase):
             timeout=2,
             dag=self.dag,
         )
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             op.execute(None)

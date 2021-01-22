@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Elasticsearch
     external-doc-url: https://www.elastic.co/elasticsearch
+    logo: /integration-logos/elasticsearch/Elasticsearch.png
     tags: [software]
 
 hooks:

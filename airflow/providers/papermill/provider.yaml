@@ -28,6 +28,7 @@ integrations:
     external-doc-url: https://github.com/nteract/papermill
     how-to-guide:
       - /docs/apache-airflow-providers-papermill/operators.rst
+    logo: /integration-logos/papermill/Papermill.png
     tags: [software]
 
 operators:

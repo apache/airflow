@@ -15,7 +15,7 @@
       "type": "string"
     },
     "versions": {
-      "description": "List of available versions in Pypi. Sorted descending according to release date.",
+      "description": "List of available versions in PyPI. Sorted descending according to release date.",
       "type": "array",
       "items": {
         "type": "string"
@@ -41,6 +41,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "logo": {
+            "description": "Path to the logo for the integration. The path must start with '/integration-logos/'",
+            "type": "string"
           },
           "tags": {
             "description": "List of tags describing the integration. While we're using RST, only one tag is supported per integration.",
@@ -117,7 +121,7 @@
           "integration-name",
           "python-modules"
         ],
-        "additionalProperties": false
+        "additionalProperties": true
       }
     },
     "hooks": {

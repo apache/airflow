@@ -51,13 +51,13 @@ class TestRedisPubSubSensor(unittest.TestCase):
         }
 
         result = sensor.poke(self.mock_context)
-        self.assertTrue(result)
+        assert result
 
         context_calls = [
             call.xcom_push(key='message', value={'type': 'message', 'channel': b'test', 'data': b'd1'})
         ]
 
-        self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
+        assert self.mock_context['ti'].method_calls == context_calls, "context call  should be same"
 
     @patch('airflow.providers.redis.hooks.redis.RedisHook.get_conn')
     def test_poke_mock_false(self, mock_redis_conn):
@@ -72,10 +72,10 @@ class TestRedisPubSubSensor(unittest.TestCase):
         }
 
         result = sensor.poke(self.mock_context)
-        self.assertFalse(result)
+        assert not result
 
         context_calls = []
-        self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context calls should be same")
+        assert self.mock_context['ti'].method_calls == context_calls, "context calls should be same"
 
     @pytest.mark.integration("redis")
     def test_poke_true(self):
@@ -88,18 +88,18 @@ class TestRedisPubSubSensor(unittest.TestCase):
         redis.publish('test', 'message')
 
         result = sensor.poke(self.mock_context)
-        self.assertFalse(result)
+        assert not result
         result = sensor.poke(self.mock_context)
-        self.assertTrue(result)
+        assert result
         context_calls = [
             call.xcom_push(
                 key='message',
                 value={'type': 'message', 'pattern': None, 'channel': b'test', 'data': b'message'},
             )
         ]
-        self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context calls should be same")
+        assert self.mock_context['ti'].method_calls == context_calls, "context calls should be same"
         result = sensor.poke(self.mock_context)
-        self.assertFalse(result)
+        assert not result
 
     @pytest.mark.integration("redis")
     def test_poke_false(self):
@@ -108,8 +108,8 @@ class TestRedisPubSubSensor(unittest.TestCase):
         )
 
         result = sensor.poke(self.mock_context)
-        self.assertFalse(result)
-        self.assertTrue(self.mock_context['ti'].method_calls == [], "context calls should be same")
+        assert not result
+        assert self.mock_context['ti'].method_calls == [], "context calls should be same"
         result = sensor.poke(self.mock_context)
-        self.assertFalse(result)
-        self.assertTrue(self.mock_context['ti'].method_calls == [], "context calls should be same")
+        assert not result
+        assert self.mock_context['ti'].method_calls == [], "context calls should be same"

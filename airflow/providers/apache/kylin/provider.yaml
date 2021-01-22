@@ -17,7 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-kylin
-name: Apache Hive
+name: Apache Kylin
 description: |
     `Apache Kylin <https://kylin.apache.org/>`__
 
@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Apache Kylin
     external-doc-url: https://kylin.apache.org/
+    logo: /integration-logos/apache/kylin.png
     tags: [apache]
 
 operators:

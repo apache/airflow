@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "package-name": {
+      "description": "Package name available under which the package is available in the PyPI repository.",
+      "type": "string"
+    },
+    "name": {
+      "description": "Provider name",
+      "type": "string"
+    },
+    "description": {
+      "description": "Information about the package in RST format",
+      "type": "string"
+    },
+    "hook-class-names": {
+      "type": "array",
+      "description": "Hook class names that provide connection types to core",
+      "items": {
+        "type": "string"
+      }
+    },
+    "extra-links": {
+      "type": "array",
+      "description": "Class name that provide extra link functionality",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "name",
+    "package-name",
+    "description",
+    "versions"
+  ]
+}

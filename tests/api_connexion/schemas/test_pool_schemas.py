@@ -37,23 +37,20 @@ class TestPoolSchema(unittest.TestCase):
         session.commit()
         pool_instance = session.query(Pool).filter(Pool.pool == pool_model.pool).first()
         serialized_pool = pool_schema.dump(pool_instance)
-        self.assertEqual(
-            serialized_pool,
-            {
-                "name": "test_pool",
-                "slots": 2,
-                "occupied_slots": 0,
-                "running_slots": 0,
-                "queued_slots": 0,
-                "open_slots": 2,
-            },
-        )
+        assert serialized_pool == {
+            "name": "test_pool",
+            "slots": 2,
+            "occupied_slots": 0,
+            "running_slots": 0,
+            "queued_slots": 0,
+            "open_slots": 2,
+        }
 
     @provide_session
     def test_deserialize(self, session):
         pool_dict = {"name": "test_pool", "slots": 3}
         deserialized_pool = pool_schema.load(pool_dict, session=session)
-        self.assertNotIsInstance(deserialized_pool, Pool)  # Checks if load_instance is set to True
+        assert not isinstance(deserialized_pool, Pool)  # Checks if load_instance is set to True
 
 
 class TestPoolCollectionSchema(unittest.TestCase):
@@ -67,27 +64,24 @@ class TestPoolCollectionSchema(unittest.TestCase):
         pool_model_a = Pool(pool="test_pool_a", slots=3)
         pool_model_b = Pool(pool="test_pool_b", slots=3)
         instance = PoolCollection(pools=[pool_model_a, pool_model_b], total_entries=2)
-        self.assertEqual(
-            {
-                "pools": [
-                    {
-                        "name": "test_pool_a",
-                        "slots": 3,
-                        "occupied_slots": 0,
-                        "running_slots": 0,
-                        "queued_slots": 0,
-                        "open_slots": 3,
-                    },
-                    {
-                        "name": "test_pool_b",
-                        "slots": 3,
-                        "occupied_slots": 0,
-                        "running_slots": 0,
-                        "queued_slots": 0,
-                        "open_slots": 3,
-                    },
-                ],
-                "total_entries": 2,
-            },
-            pool_collection_schema.dump(instance),
-        )
+        assert {
+            "pools": [
+                {
+                    "name": "test_pool_a",
+                    "slots": 3,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "open_slots": 3,
+                },
+                {
+                    "name": "test_pool_b",
+                    "slots": 3,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "open_slots": 3,
+                },
+            ],
+            "total_entries": 2,
+        } == pool_collection_schema.dump(instance)

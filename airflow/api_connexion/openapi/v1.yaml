@@ -22,7 +22,7 @@ info:
   description: |
     # Overview
 
-    To facilitate management, the Apache Airflow supports a range of REST API endpoints across its
+    To facilitate management, Apache Airflow supports a range of REST API endpoints across its
     objects.
     This section provides an overview of the API design, methods, and supported use cases.
 
@@ -57,7 +57,7 @@ info:
 
     ### Read
 
-    An HTTP `GET` request can be used to read a resource or to list a number of resources.
+    The HTTP `GET` request can be used to read a resource or to list a number of resources.
 
     A resource's `id` can be submitted in the request parameters to read a specific resource.
     The response usually returns a `200 OK` response code upon success, with the resource's metadata in
@@ -131,7 +131,7 @@ info:
 
     | Airflow version | Description |
     |-|-|
-    | v2.0 | Initial releaase |
+    | v2.0 | Initial release |
 
     # Trying the API
 
@@ -162,6 +162,15 @@ info:
     Note that with *Postman*, you can also generate code snippets by selecting a request and clicking on
     the **Code** button.
 
+    ## Enabling CORS
+
+    [Cross-origin resource sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
+    is a browser security feature that restricts HTTP requests that are
+    initiated from scripts running in the browser.
+
+    For details on enabling/configuring CORS, see
+    [Enabling CORS](https://airflow.apache.org/docs/apache-airflow/stable/security/api.html).
+
     # Authentication
 
     To be able to meet the requirements of many organizations, Airflow supports many authentication methods,
@@ -176,12 +185,12 @@ info:
     The default is to deny all requests.
 
     For details on configuring the authentication, see
-    [API Authorization](https://airflow.apache.org/docs/stable/security/api.html).
+    [API Authorization](https://airflow.apache.org/docs/apache-airflow/stable/security/api.html).
 
     # Errors
 
     We follow the error response format proposed in [RFC 7807](https://tools.ietf.org/html/rfc7807)
-    also known as Problem Details for HTTP APIs.  As with our normal API responses,
+    also known as Problem Details for HTTP APIs. As with our normal API responses,
     your client must be prepared to gracefully handle additional members of the response.
 
     ## Unauthenticated
@@ -356,6 +365,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /dags:
     get:
@@ -387,7 +398,7 @@ paths:
       description: >
         Presents only information available in database (DAGModel).
 
-        If you need detailed information, consider using GET /dags/{dag_id}/detail.
+        If you need detailed information, consider using GET /dags/{dag_id}/details.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dag
       tags: [DAG]
@@ -628,6 +639,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /eventLogs:
     get:
@@ -1060,6 +1073,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
     parameters:
@@ -1071,7 +1086,8 @@ paths:
       summary: List XCom entries
       description:
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCOM entries for
-        for all DAGs, DAG runs and task instances.
+        for all DAGs, DAG runs and task instances. XCom values won't be returned as they can be large.
+        Use this endpoint to get a list of XCom entries and then fetch individual entry to get value.
       x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
       operationId: get_xcom_entries
       tags: [XCom]
@@ -1336,9 +1352,9 @@ paths:
 
   /health:
     get:
-      summary: Get a instance status
+      summary: Get instance status
       description: |
-        Get the status of Airflow's metadatabase and scheduler. It incluse info about
+        Get the status of Airflow's metadatabase and scheduler. It includes info about
         metadatabase and last heartbeat of scheduler.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
@@ -1883,7 +1899,7 @@ components:
             $ref: '#/components/schemas/XComCollectionItem'
 
     XCom:
-      description: Full representaiton of XCom entry.
+      description: Full representations of XCom entry.
       allOf:
         - $ref: '#/components/schemas/XComCollectionItem'
         - type: object
@@ -1901,7 +1917,7 @@ components:
         DAG details.
 
         For details see:
-        (airflow.models.DAG)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.DAG]
+        (airflow.models.DAG)[https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG]
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -1931,6 +1947,9 @@ components:
             default_view:
               type: string
               readOnly: true
+            params:
+              type: object
+              readOnly: true
 
     ExtraLink:
       type: object
@@ -1958,7 +1977,7 @@ components:
       type: object
       description: |
         For details see:
-        (airflow.models.BaseOperator)[https://airflow.apache.org/docs/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
+        (airflow.models.BaseOperator)[https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -2784,8 +2803,8 @@ components:
         items:
           type: string
       description: |
-        The fields to update on the connection (connection, pool etc). If absent or empty, all
-        modifiable fields are updated. A comma-separated list of fully qualified names of fields.
+        The fields to update on the resource. If absent or empty, all modifiable fields are updated.
+        A comma-separated list of fully qualified names of fields.
       style: form
       explode: false
 
@@ -2893,4 +2912,4 @@ tags:
 
 
 externalDocs:
-  url: https://airflow.apache.org/docs/stable/
+  url: https://airflow.apache.org/docs/apache-airflow/stable/

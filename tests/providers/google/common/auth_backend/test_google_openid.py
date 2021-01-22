@@ -63,10 +63,10 @@ class TestGoogleOpenID(unittest.TestCase):
             response = test_client.get(
                 "/api/experimental/pools", headers={"Authorization": "bearer JWT_TOKEN"}
             )
-            self.assertEqual("test@fab.org", current_user.email)
+            assert "test@fab.org" == current_user.email
 
-        self.assertEqual(200, response.status_code)
-        self.assertIn("Default pool", str(response.json))
+        assert 200 == response.status_code
+        assert "Default pool" in str(response.json)
 
     @parameterized.expand([("bearer",), ("JWT_TOKEN",), ("bearer ",)])
     @mock.patch("google.oauth2.id_token.verify_token")
@@ -80,8 +80,8 @@ class TestGoogleOpenID(unittest.TestCase):
         with self.app.test_client() as test_client:
             response = test_client.get("/api/experimental/pools", headers={"Authorization": auth_header})
 
-        self.assertEqual(403, response.status_code)
-        self.assertEqual("Forbidden", response.data.decode())
+        assert 403 == response.status_code
+        assert "Forbidden" == response.data.decode()
 
     @mock.patch("google.oauth2.id_token.verify_token")
     def test_invalid_iss_in_jwt_token(self, mock_verify_token):
@@ -96,8 +96,8 @@ class TestGoogleOpenID(unittest.TestCase):
                 "/api/experimental/pools", headers={"Authorization": "bearer JWT_TOKEN"}
             )
 
-        self.assertEqual(403, response.status_code)
-        self.assertEqual("Forbidden", response.data.decode())
+        assert 403 == response.status_code
+        assert "Forbidden" == response.data.decode()
 
     @mock.patch("google.oauth2.id_token.verify_token")
     def test_user_not_exists(self, mock_verify_token):
@@ -112,16 +112,16 @@ class TestGoogleOpenID(unittest.TestCase):
                 "/api/experimental/pools", headers={"Authorization": "bearer JWT_TOKEN"}
             )
 
-        self.assertEqual(403, response.status_code)
-        self.assertEqual("Forbidden", response.data.decode())
+        assert 403 == response.status_code
+        assert "Forbidden" == response.data.decode()
 
     @conf_vars({("api", "auth_backend"): "airflow.providers.google.common.auth_backend.google_openid"})
     def test_missing_id_token(self):
         with self.app.test_client() as test_client:
             response = test_client.get("/api/experimental/pools")
 
-        self.assertEqual(403, response.status_code)
-        self.assertEqual("Forbidden", response.data.decode())
+        assert 403 == response.status_code
+        assert "Forbidden" == response.data.decode()
 
     @conf_vars({("api", "auth_backend"): "airflow.providers.google.common.auth_backend.google_openid"})
     @mock.patch("google.oauth2.id_token.verify_token")
@@ -133,5 +133,5 @@ class TestGoogleOpenID(unittest.TestCase):
                 "/api/experimental/pools", headers={"Authorization": "bearer JWT_TOKEN"}
             )
 
-        self.assertEqual(403, response.status_code)
-        self.assertEqual("Forbidden", response.data.decode())
+        assert 403 == response.status_code
+        assert "Forbidden" == response.data.decode()

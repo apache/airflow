@@ -18,6 +18,8 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
+reinstall_azure_storage_blob
+
 echo
 echo "Starting the tests with those pytest arguments:" "${@}"
 echo
@@ -39,7 +41,7 @@ elif [[ "${RES}" != "0" ]]; then
         EXTRA_ARGS="--mysql-version ${MYSQL_VERSION} "
     fi
     echo """
-${COLOR_RED_ERROR}
+${COLOR_RED}ERROR:
 ***********************************************************************************************
 *
 * ERROR! Some tests failed, unfortunately. Those might be transient errors,
@@ -53,14 +55,14 @@ ${COLOR_RED_ERROR}
 *
 *     Run all tests:
 *
-*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE}  tests
+*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} tests
 *
 *     Enter docker shell:
 *
-*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE}  shell
+*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} shell
 *
 """
-    if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} != "" ]]; then
+    if [[ -n "${GITHUB_REGISTRY_PULL_IMAGE_TAG=}" ]]; then
         echo """
 *   When you do not have sources:
 *

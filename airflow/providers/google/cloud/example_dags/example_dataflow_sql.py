@@ -39,6 +39,7 @@ with models.DAG(
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag_sql:
+    # [START howto_operator_start_sql_job]
     start_sql = DataflowStartSqlJobOperator(
         task_id="start_sql_query",
         job_name=DATAFLOW_SQL_JOB_NAME,
@@ -61,3 +62,4 @@ with models.DAG(
         location=DATAFLOW_SQL_LOCATION,
         do_xcom_push=True,
     )
+    # [END howto_operator_start_sql_job]

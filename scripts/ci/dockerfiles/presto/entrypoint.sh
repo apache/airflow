@@ -32,14 +32,14 @@ function check_service {
         RES=$?
         set -e
         if [[ ${RES} == 0 ]]; then
-            echo  "${COLOR_GREEN_OK}  ${COLOR_RESET}"
+            echo  "${COLOR_GREEN}OK.  ${COLOR_RESET}"
             break
         else
             echo -n "."
             MAX_CHECK=$((MAX_CHECK-1))
         fi
         if [[ ${MAX_CHECK} == 0 ]]; then
-            echo "${COLOR_RED_ERROR} Maximum number of retries while checking service. Exiting.${COLOR_RESET}"
+            echo "${COLOR_RED}ERROR: Maximum number of retries while checking service. Exiting.${COLOR_RESET}"
             break
         else
             sleep 1

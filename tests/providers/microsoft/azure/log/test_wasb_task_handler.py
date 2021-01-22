@@ -57,7 +57,7 @@ class TestWasbTaskHandler(unittest.TestCase):
     @conf_vars({('logging', 'remote_log_conn_id'): 'wasb_default'})
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlockBlobService")
     def test_hook(self, mock_service):
-        self.assertIsInstance(self.wasb_task_handler.hook, WasbHook)
+        assert isinstance(self.wasb_task_handler.hook, WasbHook)
 
     @conf_vars({('logging', 'remote_log_conn_id'): 'wasb_default'})
     def test_hook_raises(self):
@@ -80,11 +80,11 @@ class TestWasbTaskHandler(unittest.TestCase):
     def test_set_context_raw(self):
         self.ti.raw = True
         self.wasb_task_handler.set_context(self.ti)
-        self.assertFalse(self.wasb_task_handler.upload_on_close)
+        assert not self.wasb_task_handler.upload_on_close
 
     def test_set_context_not_raw(self):
         self.wasb_task_handler.set_context(self.ti)
-        self.assertTrue(self.wasb_task_handler.upload_on_close)
+        assert self.wasb_task_handler.upload_on_close
 
     # The `azure` provider uses legacy `azure-storage` library, where `snowflake` uses the
     # newer and more stable versions of those libraries. Most of `azure` operators and hooks work
@@ -114,21 +114,18 @@ class TestWasbTaskHandler(unittest.TestCase):
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_read(self, mock_hook):
         mock_hook.return_value.read_file.return_value = 'Log line'
-        self.assertEqual(self.wasb_task_handler.wasb_read(self.remote_log_location), "Log line")
-        self.assertEqual(
-            self.wasb_task_handler.read(self.ti),
-            (
+        assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
+        assert self.wasb_task_handler.read(self.ti) == (
+            [
                 [
-                    [
-                        (
-                            '',
-                            '*** Reading remote log from wasb://container/remote/log/location/1.log.\n'
-                            'Log line\n',
-                        )
-                    ]
-                ],
-                [{'end_of_log': True}],
-            ),
+                    (
+                        '',
+                        '*** Reading remote log from wasb://container/remote/log/location/1.log.\n'
+                        'Log line\n',
+                    )
+                ]
+            ],
+            [{'end_of_log': True}],
         )
 
     def test_wasb_read_raises(self):

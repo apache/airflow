@@ -89,27 +89,26 @@ class TestGetEventLog(TestEventLogEndpoint):
             f"/api/v1/eventLogs/{event_log_id}", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        self.assertEqual(
-            response.json,
-            {
-                "event_log_id": event_log_id,
-                "event": "TEST_EVENT",
-                "dag_id": "TEST_DAG_ID",
-                "task_id": "TEST_TASK_ID",
-                "execution_date": self.default_time,
-                "owner": 'airflow',
-                "when": self.default_time,
-                "extra": None,
-            },
-        )
+        assert response.json == {
+            "event_log_id": event_log_id,
+            "event": "TEST_EVENT",
+            "dag_id": "TEST_DAG_ID",
+            "task_id": "TEST_TASK_ID",
+            "execution_date": self.default_time,
+            "owner": 'airflow',
+            "when": self.default_time,
+            "extra": None,
+        }
 
     def test_should_respond_404(self):
         response = self.client.get("/api/v1/eventLogs/1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
-        self.assertEqual(
-            {'detail': None, 'status': 404, 'title': 'Event Log not found', 'type': EXCEPTIONS_LINK_MAP[404]},
-            response.json,
-        )
+        assert {
+            'detail': None,
+            'status': 404,
+            'title': 'Event Log not found',
+            'type': EXCEPTIONS_LINK_MAP[404],
+        } == response.json
 
     @provide_session
     def test_should_raises_401_unauthenticated(self, session):
@@ -152,44 +151,41 @@ class TestGetEventLogs(TestEventLogEndpoint):
         session.commit()
         response = self.client.get("/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        self.assertEqual(
-            response.json,
-            {
-                "event_logs": [
-                    {
-                        "event_log_id": log_model_1.id,
-                        "event": "TEST_EVENT_1",
-                        "dag_id": "TEST_DAG_ID",
-                        "task_id": "TEST_TASK_ID",
-                        "execution_date": self.default_time,
-                        "owner": 'airflow',
-                        "when": self.default_time,
-                        "extra": None,
-                    },
-                    {
-                        "event_log_id": log_model_2.id,
-                        "event": "TEST_EVENT_2",
-                        "dag_id": "TEST_DAG_ID",
-                        "task_id": "TEST_TASK_ID",
-                        "execution_date": self.default_time,
-                        "owner": 'airflow',
-                        "when": self.default_time_2,
-                        "extra": None,
-                    },
-                    {
-                        "event_log_id": log_model_3.id,
-                        "event": "cli_scheduler",
-                        "dag_id": None,
-                        "task_id": None,
-                        "execution_date": None,
-                        "owner": 'root',
-                        "when": self.default_time_2,
-                        "extra": '{"host_name": "e24b454f002a"}',
-                    },
-                ],
-                "total_entries": 3,
-            },
-        )
+        assert response.json == {
+            "event_logs": [
+                {
+                    "event_log_id": log_model_1.id,
+                    "event": "TEST_EVENT_1",
+                    "dag_id": "TEST_DAG_ID",
+                    "task_id": "TEST_TASK_ID",
+                    "execution_date": self.default_time,
+                    "owner": 'airflow',
+                    "when": self.default_time,
+                    "extra": None,
+                },
+                {
+                    "event_log_id": log_model_2.id,
+                    "event": "TEST_EVENT_2",
+                    "dag_id": "TEST_DAG_ID",
+                    "task_id": "TEST_TASK_ID",
+                    "execution_date": self.default_time,
+                    "owner": 'airflow',
+                    "when": self.default_time_2,
+                    "extra": None,
+                },
+                {
+                    "event_log_id": log_model_3.id,
+                    "event": "cli_scheduler",
+                    "dag_id": None,
+                    "task_id": None,
+                    "execution_date": None,
+                    "owner": 'root',
+                    "when": self.default_time_2,
+                    "extra": '{"host_name": "e24b454f002a"}',
+                },
+            ],
+            "total_entries": 3,
+        }
 
     @provide_session
     def test_should_raises_401_unauthenticated(self, session):
@@ -258,9 +254,9 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
 
-        self.assertEqual(response.json["total_entries"], 10)
+        assert response.json["total_entries"] == 10
         events = [event_log["event"] for event_log in response.json["event_logs"]]
-        self.assertEqual(events, expected_events)
+        assert events == expected_events
 
     @provide_session
     def test_should_respect_page_size_limit_default(self, session):
@@ -271,8 +267,8 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         response = self.client.get("/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
 
-        self.assertEqual(response.json["total_entries"], 200)
-        self.assertEqual(len(response.json["event_logs"]), 100)  # default 100
+        assert response.json["total_entries"] == 200
+        assert len(response.json["event_logs"]) == 100  # default 100
 
     @provide_session
     @conf_vars({("api", "maximum_page_limit"): "150"})
@@ -283,7 +279,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
 
         response = self.client.get("/api/v1/eventLogs?limit=180", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        self.assertEqual(len(response.json['event_logs']), 150)
+        assert len(response.json['event_logs']) == 150
 
     def _create_event_logs(self, count):
         return [

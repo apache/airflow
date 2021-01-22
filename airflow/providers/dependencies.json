@@ -1,6 +1,7 @@
 {
   "amazon": [
     "apache.hive",
+    "ftp",
     "google",
     "imap",
     "mongo",
@@ -36,6 +37,7 @@
     "microsoft.azure",
     "microsoft.mssql",
     "mysql",
+    "oracle",
     "postgres",
     "presto",
     "salesforce",

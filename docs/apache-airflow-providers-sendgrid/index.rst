@@ -27,3 +27,9 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/sendgrid/index>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
+
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-sendgrid/>

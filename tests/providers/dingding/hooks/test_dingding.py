@@ -19,6 +19,8 @@
 import json
 import unittest
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.dingding.hooks.dingding import DingdingHook
 from airflow.utils import db
@@ -40,7 +42,7 @@ class TestDingdingHook(unittest.TestCase):
     def test_get_endpoint_conn_id(self):
         hook = DingdingHook(dingding_conn_id=self.conn_id)
         endpoint = hook._get_endpoint()
-        self.assertEqual('robot/send?access_token=you_token_here', endpoint)
+        assert 'robot/send?access_token=you_token_here' == endpoint
 
     def test_build_text_message_not_remind(self):
         config = {
@@ -57,7 +59,7 @@ class TestDingdingHook(unittest.TestCase):
         }
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_text_message_remind_specific(self):
         config = {
@@ -74,7 +76,7 @@ class TestDingdingHook(unittest.TestCase):
         }
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_text_message_remind_all(self):
         config = {
@@ -90,7 +92,7 @@ class TestDingdingHook(unittest.TestCase):
         }
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_markdown_message_remind_specific(self):
         msg = {
@@ -112,7 +114,7 @@ class TestDingdingHook(unittest.TestCase):
         }
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_markdown_message_remind_all(self):
         msg = {
@@ -129,7 +131,7 @@ class TestDingdingHook(unittest.TestCase):
         expect = {'msgtype': 'markdown', 'markdown': msg, 'at': {'atMobiles': None, 'isAtAll': True}}
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_link_message(self):
         msg = {
@@ -142,7 +144,7 @@ class TestDingdingHook(unittest.TestCase):
         expect = {'msgtype': 'link', 'link': msg}
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_single_action_card_message(self):
         msg = {
@@ -159,7 +161,7 @@ class TestDingdingHook(unittest.TestCase):
         expect = {'msgtype': 'actionCard', 'actionCard': msg}
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_multi_action_card_message(self):
         msg = {
@@ -178,7 +180,7 @@ class TestDingdingHook(unittest.TestCase):
         expect = {'msgtype': 'actionCard', 'actionCard': msg}
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_feed_card_message(self):
         msg = {
@@ -204,7 +206,7 @@ class TestDingdingHook(unittest.TestCase):
         expect = {'msgtype': 'feedCard', 'feedCard': msg}
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_send_not_support_type(self):
         config = {
@@ -213,4 +215,5 @@ class TestDingdingHook(unittest.TestCase):
             'message': 'Airflow dingding text message remind no one',
         }
         hook = DingdingHook(**config)
-        self.assertRaises(ValueError, hook.send)
+        with pytest.raises(ValueError):
+            hook.send()

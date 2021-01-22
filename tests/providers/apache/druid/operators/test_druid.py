@@ -67,4 +67,4 @@ class TestDruidOperator(unittest.TestCase):
                 }
             }
         '''
-        self.assertEqual(expected, getattr(operator, 'json_index_file'))
+        assert expected == getattr(operator, 'json_index_file')

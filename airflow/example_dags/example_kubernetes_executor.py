@@ -52,16 +52,15 @@ with DAG(
 
     tolerations = [{'key': 'dedicated', 'operator': 'Equal', 'value': 'airflow'}]
 
-    def use_zip_binary():
+    def assert_zip_binary():
         """
         Checks whether Zip is installed.
 
-        :return: True if it is installed, False if not.
-        :rtype: bool
+        :raises SystemError: if zip is not installed
         """
         return_code = os.system("zip")
         if return_code != 0:
-            raise SystemError("The zip binary is missing")
+            raise SystemError("The zip binary is not found")
 
     # You don't have to use any special KubernetesExecutor configuration if you don't want to
     start_task = PythonOperator(task_id="start_task", python_callable=print_stuff)
@@ -76,7 +75,7 @@ with DAG(
     # Use the zip binary, which is only found in this special docker image
     two_task = PythonOperator(
         task_id="two_task",
-        python_callable=use_zip_binary,
+        python_callable=assert_zip_binary,
         executor_config={"KubernetesExecutor": {"image": "airflow/ci_zip:latest"}},
     )
 

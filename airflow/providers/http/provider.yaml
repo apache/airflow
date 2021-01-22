@@ -29,6 +29,7 @@ integrations:
     external-doc-url: https://www.w3.org/Protocols/
     how-to-guide:
       - /docs/apache-airflow-providers-http/operators.rst
+    logo: /integration-logos/http/HTTP.png
     tags: [protocol]
 
 operators:

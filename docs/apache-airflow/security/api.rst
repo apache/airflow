@@ -57,6 +57,10 @@ If you wish to have the experimental API work, and aware of the risks of enablin
     [api]
     auth_backend = airflow.api.auth.backend.default
 
+.. note::
+
+    You can only disable authentication for experimental API, not the stable REST API.
+
 See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 
 Kerberos authentication
@@ -103,7 +107,7 @@ Here is a sample curl command you can use to validate the setup:
 
 .. code-block:: bash
 
-    ENDPOINT_URL="http://locahost:8080/"
+    ENDPOINT_URL="http://localhost:8080/"
     curl -X GET  \
         --user "username:password" \
         "${ENDPOINT_URL}/api/v1/pools"
@@ -130,6 +134,26 @@ After writing your backend module, provide the fully qualified module name in th
 section of ``airflow.cfg``.
 
 Additional options to your auth backend can be configured in ``airflow.cfg``, as a new option.
+
+Enabling CORS
+---------------
+
+`Cross-origin resource sharing (CORS) <https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS>`_
+is a browser security feature that restricts HTTP requests that are initiated
+from scripts running in the browser.
+
+``Access-Control-Allow-Headers``, ``Access-Control-Allow-Methods``, and
+``Access-Control-Allow-Origin`` headers can be added by setting values for
+``access_control_allow_headers``, ``access_control_allow_methods``, and
+``access_control_allow_origin`` options in the ``[api]`` section of the
+``airflow.cfg`` file.
+
+.. code-block:: ini
+
+    [api]
+    access_control_allow_headers = origin, content-type, accept
+    access_control_allow_methods = POST, GET, OPTIONS, DELETE
+    access_control_allow_origin = https://exampleclientapp.com
 
 Page size limit
 ---------------

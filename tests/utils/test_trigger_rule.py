@@ -23,13 +23,13 @@ from airflow.utils.trigger_rule import TriggerRule
 
 class TestTriggerRule(unittest.TestCase):
     def test_valid_trigger_rules(self):
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_SUCCESS))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_FAILED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_DONE))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ONE_SUCCESS))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ONE_FAILED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.NONE_FAILED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.NONE_FAILED_OR_SKIPPED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.NONE_SKIPPED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.DUMMY))
-        self.assertEqual(len(TriggerRule.all_triggers()), 9)
+        assert TriggerRule.is_valid(TriggerRule.ALL_SUCCESS)
+        assert TriggerRule.is_valid(TriggerRule.ALL_FAILED)
+        assert TriggerRule.is_valid(TriggerRule.ALL_DONE)
+        assert TriggerRule.is_valid(TriggerRule.ONE_SUCCESS)
+        assert TriggerRule.is_valid(TriggerRule.ONE_FAILED)
+        assert TriggerRule.is_valid(TriggerRule.NONE_FAILED)
+        assert TriggerRule.is_valid(TriggerRule.NONE_FAILED_OR_SKIPPED)
+        assert TriggerRule.is_valid(TriggerRule.NONE_SKIPPED)
+        assert TriggerRule.is_valid(TriggerRule.DUMMY)
+        assert len(TriggerRule.all_triggers()) == 9

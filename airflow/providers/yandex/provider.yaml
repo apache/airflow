@@ -27,12 +27,14 @@ versions:
 integrations:
   - integration-name: Yandex.Cloud
     external-doc-url: https://cloud.yandex.com/
+    logo: /integration-logos/yandex/Yandex-Cloud.png
     tags: [service]
 
   - integration-name: Yandex.Cloud Dataproc
     external-doc-url: https://cloud.yandex.com/dataproc
     how-to-guide:
       - /docs/apache-airflow-providers-yandex/operators.rst
+    logo: /integration-logos/yandex/Yandex-Cloud.png
     tags: [service]
 
 operators:

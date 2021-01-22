@@ -20,6 +20,8 @@ import json
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.datadog.hooks.datadog import DatadogHook
@@ -60,9 +62,9 @@ class TestDatadogHook(unittest.TestCase):
     @mock.patch('airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection')
     def test_api_key_required(self, mock_get_connection, mock_initialize):
         mock_get_connection.return_value = Connection()
-        with self.assertRaises(AirflowException) as ctx:
+        with pytest.raises(AirflowException) as ctx:
             DatadogHook()
-        self.assertEqual(str(ctx.exception), 'api_key must be specified in the Datadog connection details')
+        assert str(ctx.value) == 'api_key must be specified in the Datadog connection details'
 
     def test_validate_response_valid(self):
         try:
@@ -71,7 +73,7 @@ class TestDatadogHook(unittest.TestCase):
             self.fail('Unexpected AirflowException raised')
 
     def test_validate_response_invalid(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.hook.validate_response({'status': 'error'})
 
     @mock.patch('airflow.providers.datadog.hooks.datadog.api.Metric.send')

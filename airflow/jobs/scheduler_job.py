@@ -363,15 +363,12 @@ class DagFileProcessor(LoggingMixin):
     This includes:
 
     1. Execute the file and look for DAG objects in the namespace.
-    2. Pickle the DAG and save it to the DB (if necessary).
-    3. For each DAG, see what tasks should run and create appropriate task
-    instances in the DB.
-    4. Record any errors importing the file into ORM
-    5. Kill (in ORM) any task instances belonging to the DAGs that haven't
-    issued a heartbeat in a while.
+    2. Execute any Callbacks if passed to DagFileProcessor.process_file
+    3. Serialize the DAGs and save it to DB (or update existing record in the DB).
+    4. Pickle the DAG and save it to the DB (if necessary).
+    5. Record any errors importing the file into ORM
 
-    Returns a list of SimpleDag objects that represent the DAGs found in
-    the file
+    Returns a tuple of 'number of dags found' and 'the count of import errors'
 
     :param dag_ids: If specified, only look at these DAG ID's
     :type dag_ids: List[str]
@@ -480,6 +477,7 @@ class DagFileProcessor(LoggingMixin):
             <pre><code>{task_list}\n<code></pre>
             Blocking tasks:
             <pre><code>{blocking_task_list}<code></pre>
+            Airflow Webserver URL: {conf.get(section='webserver', key='base_url')}
             """
 
             tasks_missed_sla = []
@@ -592,7 +590,7 @@ class DagFileProcessor(LoggingMixin):
                 ti.state = simple_ti.state
                 ti.test_mode = self.UNIT_TEST_MODE
                 if request.is_failure_callback:
-                    ti.handle_failure(request.msg, ti.test_mode, ti.get_template_context())
+                    ti.handle_failure_with_callback(error=request.msg, test_mode=ti.test_mode)
                     self.log.info('Executed failure callback for %s in state %s', ti, ti.state)
 
     @provide_session
@@ -609,10 +607,10 @@ class DagFileProcessor(LoggingMixin):
         This includes:
 
         1. Execute the file and look for DAG objects in the namespace.
-        2. Pickle the DAG and save it to the DB (if necessary).
-        3. For each DAG, see what tasks should run and create appropriate task
-        instances in the DB.
-        4. Record any errors importing the file into ORM
+        2. Execute any Callbacks if passed to this method.
+        3. Serialize the DAGs and save it to DB (or update existing record in the DB).
+        4. Pickle the DAG and save it to the DB (if necessary).
+        5. Record any errors importing the file into ORM
 
         :param file_path: the path to the Python file that should be executed
         :type file_path: str
@@ -733,7 +731,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.max_tis_per_query: int = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent: Optional[DagFileProcessorAgent] = None
 
-        self.dagbag = DagBag(read_dags_from_db=True)
+        self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True)
 
     def register_signals(self) -> None:
         """Register signals that stop child processes"""
@@ -1128,7 +1126,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         :type session: sqlalchemy.orm.Session
         :return: Number of task instance with state changed.
         """
-        max_tis = min(self.max_tis_per_query, self.executor.slots_available)
+        if self.max_tis_per_query == 0:
+            max_tis = self.executor.slots_available
+        else:
+            max_tis = min(self.max_tis_per_query, self.executor.slots_available)
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
         self._enqueue_task_instances_with_queued_state(queued_tis)
@@ -1267,7 +1268,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
             self.register_signals()
 
-            # Start after resetting orphaned tasks to avoid stressing out DB.
             self.processor_agent.start()
 
             execute_start_time = timezone.utcnow()
@@ -1503,7 +1503,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 )
                 .filter(
                     TI.dag_id.in_(list({dag_run.dag_id for dag_run in dag_runs})),
-                    TI.state.notin_(list(State.finished)),
+                    TI.state.notin_(list(State.finished) + [State.REMOVED]),
                 )
                 .group_by(TI.dag_id, TI.execution_date)
             )
@@ -1732,8 +1732,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         pools = models.Pool.slots_stats(session=session)
         for pool_name, slot_stats in pools.items():
             Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats["open"])
-            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats[State.QUEUED])
-            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats[State.RUNNING])
+            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats[State.QUEUED])  # type: ignore
+            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats[State.RUNNING])  # type: ignore
 
     @provide_session
     def heartbeat_callback(self, session: Session = None) -> None:

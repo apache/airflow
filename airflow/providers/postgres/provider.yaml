@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-postgres
 name: PostgreSQL
 description: |
-    `PostgreSQL <https://www.postgresql.org/>`__
+  `PostgreSQL <https://www.postgresql.org/>`__
 
 versions:
   - 1.0.0
@@ -27,6 +27,9 @@ versions:
 integrations:
   - integration-name: PostgreSQL
     external-doc-url: https://www.postgresql.org/
+    how-to-guide:
+      - /docs/apache-airflow-providers-postgres/operators/postgres_operator_howto_guide.rst
+    logo: /integration-logos/postgress/Postgress.png
     tags: [software]
 
 operators:

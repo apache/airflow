@@ -19,6 +19,7 @@
 
 import unittest
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowSensorTimeout
@@ -67,7 +68,7 @@ class TestDayOfWeekSensor(unittest.TestCase):
             task_id='weekday_sensor_check_true', week_day=week_day, use_task_execution_day=True, dag=self.dag
         )
         op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(op.week_day, week_day)
+        assert op.week_day == week_day
 
     def test_weekday_sensor_false(self):
         op = DayOfWeekSensor(
@@ -78,12 +79,12 @@ class TestDayOfWeekSensor(unittest.TestCase):
             use_task_execution_day=True,
             dag=self.dag,
         )
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
 
     def test_invalid_weekday_number(self):
         invalid_week_day = 'Thsday'
-        with self.assertRaisesRegex(AttributeError, f'Invalid Week Day passed: "{invalid_week_day}"'):
+        with pytest.raises(AttributeError, match=f'Invalid Week Day passed: "{invalid_week_day}"'):
             DayOfWeekSensor(
                 task_id='weekday_sensor_invalid_weekday_num',
                 week_day=invalid_week_day,
@@ -93,9 +94,9 @@ class TestDayOfWeekSensor(unittest.TestCase):
 
     def test_weekday_sensor_with_invalid_type(self):
         invalid_week_day = ['Thsday']
-        with self.assertRaisesRegex(
+        with pytest.raises(
             TypeError,
-            'Unsupported Type for week_day parameter:'
+            match='Unsupported Type for week_day parameter:'
             ' {}. It should be one of str, set or '
             'Weekday enum type'.format(type(invalid_week_day)),
         ):
@@ -115,5 +116,5 @@ class TestDayOfWeekSensor(unittest.TestCase):
             use_task_execution_day=True,
             dag=self.dag,
         )
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)

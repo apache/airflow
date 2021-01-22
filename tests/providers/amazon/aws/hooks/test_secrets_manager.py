@@ -34,7 +34,7 @@ class TestSecretsManagerHook(unittest.TestCase):
     @mock_secretsmanager
     def test_get_conn_returns_a_boto3_connection(self):
         hook = SecretsManagerHook(aws_conn_id='aws_default')
-        self.assertIsNotNone(hook.get_conn())
+        assert hook.get_conn() is not None
 
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
@@ -51,7 +51,7 @@ class TestSecretsManagerHook(unittest.TestCase):
         hook.get_conn().put_secret_value(**param)
 
         secret = hook.get_secret(secret_name)
-        self.assertEqual(secret, secret_value)
+        assert secret == secret_value
 
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
@@ -68,7 +68,7 @@ class TestSecretsManagerHook(unittest.TestCase):
         hook.get_conn().put_secret_value(**param)
 
         secret = hook.get_secret_as_dict(secret_name)
-        self.assertEqual(secret, json.loads(secret_value))
+        assert secret == json.loads(secret_value)
 
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
@@ -85,4 +85,4 @@ class TestSecretsManagerHook(unittest.TestCase):
         hook.get_conn().put_secret_value(**param)
 
         secret = hook.get_secret(secret_name)
-        self.assertEqual(secret, base64.b64decode(secret_value_binary))
+        assert secret == base64.b64decode(secret_value_binary)

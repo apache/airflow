@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Slack
     external-doc-url: https://slack.com/
+    logo: /integration-logos/slack/Slack.png
     tags: [service]
 
 operators:

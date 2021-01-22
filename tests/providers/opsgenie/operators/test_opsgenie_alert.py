@@ -84,23 +84,23 @@ class TestOpsgenieAlertOperator(unittest.TestCase):
         payload = operator._build_opsgenie_payload()
 
         # Then
-        self.assertEqual(self.expected_payload_dict, payload)
+        assert self.expected_payload_dict == payload
 
     def test_properties(self):
         # Given / When
         operator = OpsgenieAlertOperator(task_id='opsgenie_alert_job', dag=self.dag, **self._config)
 
-        self.assertEqual('opsgenie_default', operator.opsgenie_conn_id)
-        self.assertEqual(self._config['message'], operator.message)
-        self.assertEqual(self._config['alias'], operator.alias)
-        self.assertEqual(self._config['description'], operator.description)
-        self.assertEqual(self._config['responders'], operator.responders)
-        self.assertEqual(self._config['visible_to'], operator.visible_to)
-        self.assertEqual(self._config['actions'], operator.actions)
-        self.assertEqual(self._config['tags'], operator.tags)
-        self.assertEqual(self._config['details'], operator.details)
-        self.assertEqual(self._config['entity'], operator.entity)
-        self.assertEqual(self._config['source'], operator.source)
-        self.assertEqual(self._config['priority'], operator.priority)
-        self.assertEqual(self._config['user'], operator.user)
-        self.assertEqual(self._config['note'], operator.note)
+        assert 'opsgenie_default' == operator.opsgenie_conn_id
+        assert self._config['message'] == operator.message
+        assert self._config['alias'] == operator.alias
+        assert self._config['description'] == operator.description
+        assert self._config['responders'] == operator.responders
+        assert self._config['visible_to'] == operator.visible_to
+        assert self._config['actions'] == operator.actions
+        assert self._config['tags'] == operator.tags
+        assert self._config['details'] == operator.details
+        assert self._config['entity'] == operator.entity
+        assert self._config['source'] == operator.source
+        assert self._config['priority'] == operator.priority
+        assert self._config['user'] == operator.user
+        assert self._config['note'] == operator.note

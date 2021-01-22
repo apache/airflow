@@ -19,6 +19,8 @@ import unittest
 from datetime import timedelta
 from unittest.mock import patch
 
+import pytest
+
 from airflow import AirflowException, example_dags as example_dags_module
 from airflow.models import DagBag
 from airflow.models.dagcode import DagCode
@@ -98,7 +100,7 @@ class TestDagCode(unittest.TestCase):
         """Dag code detects duplicate key."""
         mock_hash.return_value = 0
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self._write_two_example_dags()
 
     def _compare_example_dags(self, example_dags):
@@ -106,7 +108,7 @@ class TestDagCode(unittest.TestCase):
             for dag in example_dags.values():
                 if dag.is_subdag:
                     dag.fileloc = dag.parent_dag.fileloc
-                self.assertTrue(DagCode.has_dag(dag.fileloc))
+                assert DagCode.has_dag(dag.fileloc)
                 dag_fileloc_hash = DagCode.dag_fileloc_hash(dag.fileloc)
                 result = (
                     session.query(DagCode.fileloc, DagCode.fileloc_hash, DagCode.source_code)
@@ -115,10 +117,10 @@ class TestDagCode(unittest.TestCase):
                     .one()
                 )
 
-                self.assertEqual(result.fileloc, dag.fileloc)
+                assert result.fileloc == dag.fileloc
                 with open_maybe_zipped(dag.fileloc, 'r') as source:
                     source_code = source.read()
-                self.assertEqual(result.source_code, source_code)
+                assert result.source_code == source_code
 
     @conf_vars({('core', 'store_dag_code'): 'True'})
     @patch("airflow.models.dag.settings.STORE_DAG_CODE", True)
@@ -137,7 +139,7 @@ class TestDagCode(unittest.TestCase):
             dag_code = DagCode.get_code_by_fileloc(example_dag.fileloc)
 
             for test_string in ['example_bash_operator', 'also_run_this', 'run_this_last']:
-                self.assertIn(test_string, dag_code)
+                assert test_string in dag_code
 
     @conf_vars({('core', 'store_dag_code'): 'True'})
     @patch("airflow.models.dag.settings.STORE_DAG_CODE", True)
@@ -149,8 +151,8 @@ class TestDagCode(unittest.TestCase):
         with create_session() as session:
             result = session.query(DagCode).filter(DagCode.fileloc == example_dag.fileloc).one()
 
-            self.assertEqual(result.fileloc, example_dag.fileloc)
-            self.assertIsNotNone(result.source_code)
+            assert result.fileloc == example_dag.fileloc
+            assert result.source_code is not None
 
         with patch('airflow.models.dagcode.os.path.getmtime') as mock_mtime:
             mock_mtime.return_value = (result.last_updated + timedelta(seconds=1)).timestamp()
@@ -162,6 +164,6 @@ class TestDagCode(unittest.TestCase):
                 with create_session() as session:
                     new_result = session.query(DagCode).filter(DagCode.fileloc == example_dag.fileloc).one()
 
-                    self.assertEqual(new_result.fileloc, example_dag.fileloc)
-                    self.assertEqual(new_result.source_code, "# dummy code")
-                    self.assertGreater(new_result.last_updated, result.last_updated)
+                    assert new_result.fileloc == example_dag.fileloc
+                    assert new_result.source_code == "# dummy code"
+                    assert new_result.last_updated > result.last_updated

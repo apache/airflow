@@ -44,7 +44,12 @@ log = logging.getLogger(__name__)
 DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint('core', 'KILLED_TASK_CLEANUP_TIME')
 
 
-def reap_process_group(pgid, logger, sig=signal.SIGTERM, timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
+def reap_process_group(
+    pgid: int,
+    logger,
+    sig: 'signal.Signals' = signal.SIGTERM,
+    timeout: int = DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM,
+) -> Dict[int, int]:
     """
     Tries really hard to terminate all processes in the group (including grandchildren). Will send
     sig (SIGTERM) to the process group of pid. If any process is alive after timeout

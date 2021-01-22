@@ -19,6 +19,7 @@
 import unittest
 from unittest.mock import ANY, Mock, PropertyMock, patch
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -93,7 +94,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
         mock_text_to_speech_hook,
         mock_gcp_hook,
     ):
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             CloudTextToSpeechSynthesizeOperator(
                 project_id="project-id",
                 input_data=input_data,
@@ -104,7 +105,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
                 task_id="id",
             ).execute(context={"task_instance": Mock()})
 
-        err = e.exception
-        self.assertIn(missing_arg, str(err))
+        err = ctx.value
+        assert missing_arg in str(err)
         mock_text_to_speech_hook.assert_not_called()
         mock_gcp_hook.assert_not_called()

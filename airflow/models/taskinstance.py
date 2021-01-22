@@ -21,10 +21,12 @@ import hashlib
 import logging
 import math
 import os
+import pickle
 import signal
 import warnings
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from tempfile import NamedTemporaryFile
+from typing import IO, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
@@ -103,6 +105,29 @@ def set_current_context(context: Context):
                 context,
                 expected_state,
             )
+
+
+def load_error_file(fd: IO[bytes]) -> Optional[Union[str, Exception]]:
+    """Load and return error from error file"""
+    fd.seek(0, os.SEEK_SET)
+    data = fd.read()
+    if not data:
+        return None
+    try:
+        return pickle.loads(data)
+    except Exception:  # pylint: disable=broad-except
+        return "Failed to load task run error"
+
+
+def set_error_file(error_file: str, error: Union[str, Exception]) -> None:
+    """Write error into error file by path"""
+    with open(error_file, "wb") as fd:
+        try:
+            pickle.dump(error, fd)
+        except Exception:  # pylint: disable=broad-except
+            # local class objects cannot be pickled, so we fallback
+            # to store the string representation instead
+            pickle.dump(str(error), fd)
 
 
 def clear_task_instances(
@@ -1053,6 +1078,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         test_mode: bool = False,
         job_id: Optional[str] = None,
         pool: Optional[str] = None,
+        error_file: Optional[str] = None,
         session=None,
     ) -> None:
         """
@@ -1111,7 +1137,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             return
         except AirflowFailException as e:
             self.refresh_from_db()
-            self.handle_failure(e, test_mode, context, force_fail=True)
+            self.handle_failure(e, test_mode, force_fail=True, error_file=error_file)
             raise
         except AirflowException as e:
             self.refresh_from_db()
@@ -1120,15 +1146,13 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             if self.state in {State.SUCCESS, State.FAILED}:
                 return
             else:
-                self.handle_failure(e, test_mode, context)
+                self.handle_failure(e, test_mode, error_file=error_file)
                 raise
         except (Exception, KeyboardInterrupt) as e:
-            self.handle_failure(e, test_mode, context)
+            self.handle_failure(e, test_mode, error_file=error_file)
             raise
         finally:
             Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
-
-        self._run_success_callback(context, task)
 
         # Recording SUCCESS
         self.end_date = timezone.utcnow()
@@ -1275,16 +1299,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         # Raise exception for sensing state
         raise AirflowSmartSensorException("Task successfully registered in smart sensor.")
 
-    def _run_success_callback(self, context, task):
-        """Functions that need to be run if Task is successful"""
-        # Success callback
-        try:
-            if task.on_success_callback:
-                task.on_success_callback(context)
-        except Exception as exc:  # pylint: disable=broad-except
-            self.log.error("Failed when executing success callback")
-            self.log.exception(exc)
-
     def _execute_task(self, context, task_copy):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""
         # If a timeout is specified for the task, make it fail
@@ -1303,7 +1317,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             self.xcom_push(key=XCOM_RETURN_KEY, value=result)
         return result
 
-    def _run_execute_callback(self, context, task):
+    def _run_execute_callback(self, context: Context, task):
         """Functions that need to be run before a Task is executed"""
         try:
             if task.on_execute_callback:
@@ -1311,6 +1325,31 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         except Exception as exc:  # pylint: disable=broad-except
             self.log.error("Failed when executing execute callback")
             self.log.exception(exc)
+
+    def _run_finished_callback(self, error: Optional[Union[str, Exception]] = None) -> None:
+        """
+        Call callback defined for finished state change.
+
+        NOTE: Only invoke this function from caller of self._run_raw_task or
+        self.run
+        """
+        if self.state == State.FAILED:
+            task = self.task
+            if task.on_failure_callback is not None:
+                context = self.get_template_context()
+                context["exception"] = error
+                task.on_failure_callback(context)
+        elif self.state == State.SUCCESS:
+            task = self.task
+            if task.on_success_callback is not None:
+                context = self.get_template_context()
+                task.on_success_callback(context)
+        elif self.state == State.UP_FOR_RETRY:
+            task = self.task
+            if task.on_retry_callback is not None:
+                context = self.get_template_context()
+                context["exception"] = error
+                task.on_retry_callback(context)
 
     @provide_session
     def run(  # pylint: disable=too-many-arguments
@@ -1339,10 +1378,23 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             pool=pool,
             session=session,
         )
-        if res:
+        if not res:
+            return
+
+        try:
+            error_fd = NamedTemporaryFile(delete=True)
             self._run_raw_task(
-                mark_success=mark_success, test_mode=test_mode, job_id=job_id, pool=pool, session=session
+                mark_success=mark_success,
+                test_mode=test_mode,
+                job_id=job_id,
+                pool=pool,
+                error_file=error_fd.name,
+                session=session,
             )
+        finally:
+            error = None if self.state == State.SUCCESS else load_error_file(error_fd)
+            error_fd.close()
+            self._run_finished_callback(error=error)
 
     def dry_run(self):
         """Only Renders Templates for the TI"""
@@ -1386,14 +1438,25 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
     @provide_session
-    def handle_failure(self, error, test_mode=None, context=None, force_fail=False, session=None):
+    def handle_failure(
+        self,
+        error: Union[str, Exception],
+        test_mode: Optional[bool] = None,
+        force_fail: bool = False,
+        error_file: Optional[str] = None,
+        session=None,
+    ) -> None:
         """Handle Failure for the TaskInstance"""
         if test_mode is None:
             test_mode = self.test_mode
-        if context is None:
-            context = self.get_template_context()
 
-        self.log.exception(error)
+        if error:
+            self.log.exception(error)
+            # external monitoring process provides pickle file so _run_raw_task
+            # can send its runtime errors for access by failure callback
+            if error_file:
+                set_error_file(error_file, error)
+
         task = self.task
         self.end_date = timezone.utcnow()
         self.set_duration()
@@ -1405,11 +1468,12 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         # Log failure duration
         session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
 
-        if context is not None:
-            context['exception'] = error
+        # Set state correctly and figure out how to log it and decide whether
+        # to email
 
-        # Set state correctly and figure out how to log it,
-        # what callback to call if any, and how to decide whether to email
+        # Note, callback invocation needs to be handled by caller of
+        # _run_raw_task to avoid race conditions which could lead to duplicate
+        # invocations or miss invocation.
 
         # Since this function is called only when the TaskInstance state is running,
         # try_number contains the current try_number (not the next). We
@@ -1423,12 +1487,10 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             else:
                 log_message = "Marking task as FAILED."
             email_for_state = task.email_on_failure
-            callback = task.on_failure_callback
         else:
             self.state = State.UP_FOR_RETRY
             log_message = "Marking task as UP_FOR_RETRY."
             email_for_state = task.email_on_retry
-            callback = task.on_retry_callback
 
         self.log.info(
             '%s dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
@@ -1446,17 +1508,20 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 self.log.error('Failed to send email to: %s', task.email)
                 self.log.exception(exec2)
 
-        # Handling callbacks pessimistically
-        if callback:
-            try:
-                callback(context)
-            except Exception as exec3:  # pylint: disable=broad-except
-                self.log.error("Failed at executing callback")
-                self.log.exception(exec3)
-
         if not test_mode:
             session.merge(self)
         session.commit()
+
+    @provide_session
+    def handle_failure_with_callback(
+        self,
+        error: Union[str, Exception],
+        test_mode: Optional[bool] = None,
+        force_fail: bool = False,
+        session=None,
+    ) -> None:
+        self.handle_failure(error=error, test_mode=test_mode, force_fail=force_fail, session=session)
+        self._run_finished_callback(error=error)
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""

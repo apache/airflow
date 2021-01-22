@@ -27,8 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Master](#master)
-- [Airflow 2.0.0b1](#airflow-200b1)
-- [Airflow 2.0.0a1](#airflow-200a1)
+- [Airflow 2.0.0](#airflow-200)
 - [Airflow 1.10.14](#airflow-11014)
 - [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
@@ -52,6 +51,24 @@ assists users migrating to a new version.
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Master
+
+### Default `[celery] worker_concurrency` is changed to `16`
+
+The default value for `[celery] worker_concurrency` was `16` for Airflow <2.0.0.
+However, it was unintentionally changed to `8` in 2.0.0.
+
+From Airflow 2.0.1, we revert to the old default of `16`.
+
+### Default `[scheduler] min_file_process_interval` is changed to `30`
+
+The default value for `[scheduler] min_file_process_interval` was `0`,
+due to which the CPU Usage mostly stayed around 100% as the DAG files are parsed
+constantly.
+
+From Airflow 2.0.0, the scheduling decisions have been moved from
+DagFileProcessor to Scheduler, so we can keep the default a bit higher: `30`.
+
+## Airflow 2.0.0
 
 ### The experimental REST API is disabled by default
 
@@ -117,8 +134,6 @@ extras at all.
 
 ### Context variables `prev_execution_date_success` and `prev_execution_date_success` are now `pendulum.DateTime`
 
-## Airflow 2.0.0b1
-
 ### Rename policy to task_policy
 
 Because Airflow introduced DAG level policy (`dag_policy`) we decided to rename existing `policy`
@@ -179,7 +194,7 @@ The pickle type for XCom messages has been replaced to JSON by default to preven
 Note that JSON serialization is stricter than pickling, so for example if you want to pass
 raw bytes through XCom you must encode them using an encoding like ``base64``.
 If you understand the risk and still want to use [pickling](https://docs.python.org/3/library/pickle.html),
-set `enable_xcom_pickling = False` in your Airflow config's `core` section.
+set `enable_xcom_pickling = True` in your Airflow config's `core` section.
 
 ### Airflowignore of base path
 
@@ -216,8 +231,6 @@ def execution_date_fn(execution_date, ds_nodash, dag):
 
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
 `[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
-
-## Airflow 2.0.0a1
 
 The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
 and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
@@ -1537,7 +1550,7 @@ Migrated are:
 
 #### `airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator`
 
-The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
+The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidentally set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
 versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new
 changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is
 solved.
@@ -1699,9 +1712,9 @@ you should use `pip install apache-airflow[apache.atlas]`.
 NOTE!
 
 On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
 of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-`pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`pip install --upgrade pip==20.2.4` or, in case you use Pip 20.3, you need to add option
 `--use-deprecated legacy-resolver` to your pip install command.
 
 

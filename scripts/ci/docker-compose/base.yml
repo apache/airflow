@@ -24,7 +24,6 @@ services:
       - ADDITIONAL_PATH=~/.local/bin
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
       - KUBECONFIG=/files/.kube/config
-      - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
       - HOST_HOME=${HOME}
     env_file:
       - _docker.env
@@ -35,3 +34,7 @@ services:
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"
       - "${FLOWER_HOST_PORT}:5555"
+volumes:
+  sqlite-db-volume:
+  postgres-db-volume:
+  mysql-db-volume:

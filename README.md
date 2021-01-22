@@ -44,6 +44,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Project Focus](#project-focus)
 - [Principles](#principles)
 - [Requirements](#requirements)
+- [Support for Python versions](#support-for-python-versions)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
 - [Official source code](#official-source-code)
@@ -77,22 +78,40 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|              | Master version (2.0.0dev) | Stable version (1.10.14) |
-| ------------ | ------------------------- | ------------------------ |
-| Python       | 3.6, 3.7, 3.8             | 2.7, 3.5, 3.6, 3.7, 3.8  |
-| PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
-| MySQL        | 5.7, 8                    | 5.6, 5.7                 |
-| SQLite       | latest stable             | latest stable            |
-| Kubernetes   | 1.16.9, 1.17.5, 1.18.6    | 1.16.9, 1.17.5, 1.18.6   |
+|              | Master version (dev)      | Stable version (2.0.0)   | Previous version (1.10.14) |
+| ------------ | ------------------------- | ------------------------ | -------------------------  |
+| Python       | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
+| PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
+| MySQL        | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
+| SQLite       | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
+| Kubernetes   | 1.16.9, 1.17.5, 1.18.6    | 1.16.9, 1.17.5, 1.18.6   | 1.16.9, 1.17.5, 1.18.6     |
 
-**Note:** MariaDB and MySQL 5.x are unable to or have limitations with
-running multiple schedulers -- please see the "Scheduler" docs.
+**Note:** MySQL 5.x versions are unable to or have limitations with
+running multiple schedulers -- please see the "Scheduler" docs. MariaDB is not tested/recommended.
 
-**Note:** SQLite is used in Airflow tests. Do not use it in production.
+**Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
+using the latest stable version of SQLite for local development.
+
+## Support for Python versions
+
+As of Airflow 2.0 we agreed to certain rules we follow for Python support. They are based on the official
+release schedule of Python, nicely summarized in the
+[Python Developer's Guide](https://devguide.python.org/#status-of-python-branches)
+
+1. We finish support for python versions when they reach EOL (For python 3.6 it means that we will remove it
+   from being supported on 23.12.2021).
+
+2. The "oldest" supported version of Python is the default one. "Default" is only meaningful in terms of
+   "smoke tests" in CI PRs which are run using this default version.
+
+3. We support a new version of Python after it is officially released, as soon as we manage to make
+   it works in our CI pipeline (which might not be immediate) and release a new version of Airflow
+   (non-Patch version) based on this CI set-up.
 
 ### Additional notes on Python version requirements
 
-* Stable version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3 when using Python 3
+* Previous version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3
+  when using Python 3
 
 ## Getting started
 
@@ -115,35 +134,47 @@ produce unusable Airflow installation.
 
 In order to have repeatable installation, however, introduced in **Airflow 1.10.10** and updated in
 **Airflow 1.10.12** we also keep a set of "known-to-be-working" constraint files in the
-orphan `constraints-master` and `constraints-1-10` branches. We keep those "known-to-be-working"
+orphan `constraints-master`, `constraints-2-0` and `constraints-1-10` branches. We keep those "known-to-be-working"
 constraints files separately per major/minor python version.
 You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
 correct Airflow tag/version/branch and python versions in the URL.
+
 
 1. Installing just Airflow:
 
 NOTE!!!
 
 On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
-of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-`pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
-`--use-deprecated legacy-resolver` to your pip install command.
+might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
+depend on your choice of extras. In order to install Airflow reliably, you might need to either downgrade
+pip to version 20.2.4 `pip install --upgrade pip==20.2.4` or, in case you use Pip 20.3,
+you might need to add option] `--use-deprecated legacy-resolver` to your pip install command.
+While `pip 20.3.3` solved most of the `teething` problems of 20.3, this note will remain here until we
+set `pip 20.3` as official version in our CI pipeline where we are testing the installation as well.
+Due to those constraints, only `pip` installation is currently officially supported.
+
+While they are some successes with using other tools like [poetry](https://python-poetry.org) or
+[pip-tools](https://pypi.org/project/pip-tools), they do not share the same workflow as
+`pip` - especially when it comes to constraint vs. requirements management.
+Installing via `Poetry` or `pip-tools` is not currently supported.
+
+If you wish to install airflow using those tools you should use the constraint files and convert
+them to appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install apache-airflow==1.10.14 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
+pip install apache-airflow==2.0.0 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
-pip install apache-airflow[postgres,google]==1.10.14 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
+pip install apache-airflow[postgres,google]==2.0.0 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 ```
 
-For information on installing backport providers check [/docs/backport-providers.rst][/docs/backport-providers.rst].
+For information on installing backport providers check [backport-providers.rst](docs/apache-airflow/backport-providers.rst).
 
 ## Official source code
 
@@ -168,7 +199,7 @@ who do not want to build the software themselves.
 Those are - in the order of most common ways people install Airflow:
 
 - [PyPI releases](https://pypi.org/project/apache-airflow/) to install Airflow using standard `pip` tool
-- [Docker Images](https://hub.docker.com/repository/docker/apache/airflow) to install airflow via
+- [Docker Images](https://hub.docker.com/r/apache/airflow) to install airflow via
   `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm` etc. You can
   read more about using, customising, and extending the images in the
   [Latest docs](https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html), and
@@ -221,7 +252,7 @@ Airflow is the work of the [community](https://github.com/apache/airflow/graphs/
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
 are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
 If you would like to become a maintainer, please review the Apache Airflow
-[committer requirements](https://airflow.apache.org/docs/stable/project.html#committers).
+[committer requirements](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#guidelines-to-become-an-airflow-committer).
 
 ## Can I use the Apache Airflow logo in my presentation?
 

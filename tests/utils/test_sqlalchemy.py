@@ -67,14 +67,14 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             session=self.session,
         )
 
-        self.assertEqual(execution_date, run.execution_date)
-        self.assertEqual(start_date, run.start_date)
+        assert execution_date == run.execution_date
+        assert start_date == run.start_date
 
-        self.assertEqual(execution_date.utcoffset().total_seconds(), 0.0)
-        self.assertEqual(start_date.utcoffset().total_seconds(), 0.0)
+        assert execution_date.utcoffset().total_seconds() == 0.0
+        assert start_date.utcoffset().total_seconds() == 0.0
 
-        self.assertEqual(iso_date, run.run_id)
-        self.assertEqual(run.start_date.isoformat(), run.run_id)
+        assert iso_date == run.run_id
+        assert run.start_date.isoformat() == run.run_id
 
         dag.clear()
 
@@ -89,7 +89,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=start_date)
         dag.clear()
 
-        with self.assertRaises((ValueError, StatementError)):
+        with pytest.raises((ValueError, StatementError)):
             dag.create_dagrun(
                 run_id=start_date.isoformat,
                 state=State.NONE,
@@ -127,7 +127,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         session = mock.Mock()
         session.bind.dialect.name = dialect
         session.bind.dialect.supports_for_update_of = supports_for_update_of
-        self.assertEqual(skip_locked(session=session), expected_return_value)
+        assert skip_locked(session=session) == expected_return_value
 
     @parameterized.expand(
         [
@@ -159,7 +159,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         session = mock.Mock()
         session.bind.dialect.name = dialect
         session.bind.dialect.supports_for_update_of = supports_for_update_of
-        self.assertEqual(nowait(session=session), expected_return_value)
+        assert nowait(session=session) == expected_return_value
 
     def test_prohibit_commit(self):
         with prohibit_commit(self.session) as guard:

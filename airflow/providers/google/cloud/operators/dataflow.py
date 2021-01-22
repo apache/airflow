@@ -87,6 +87,10 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         For more detail on job submission have a look at the reference:
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowCreateJavaJobOperator`
+
     :param jar: The reference to a self executing DataFlow jar (templated).
     :type jar: str
     :param job_name: The 'jobName' to use when executing the DataFlow job
@@ -321,6 +325,10 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     Start a Templated Cloud DataFlow job. The parameters of the operation
     will be passed to the job.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowTemplatedJobStartOperator`
+
     :param template: The reference to the DataFlow template.
     :type template: str
     :param job_name: The 'jobName' to use when executing the DataFlow template
@@ -543,6 +551,10 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
     """
     Starts flex templates with the Dataflow pipeline.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowStartFlexTemplateOperator`
+
     :param body: The request body. See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.locations.flexTemplates/launch#request-body
     :param location: The location of the Dataflow job (for example europe-west1)
@@ -659,6 +671,14 @@ class DataflowStartSqlJobOperator(BaseOperator):
     """
     Starts Dataflow SQL query.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowStartSqlJobOperator`
+
+    .. warning::
+        This operator requires ``gcloud`` command (Google Cloud SDK) must be installed on the Airflow worker
+        <https://cloud.google.com/sdk/docs/install>`__
+
     :param job_name: The unique name to assign to the Cloud Dataflow job.
     :type job_name: str
     :param query: The SQL query to execute.
@@ -763,6 +783,10 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     .. seealso::
         For more detail on job submission have a look at the reference:
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowCreatePythonJobOperator`
 
     :param py_file: Reference to the python dataflow pipeline file.py, e.g.,
         /some/local/file/path/to/your/python/pipeline/file. (templated)

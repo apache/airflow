@@ -288,7 +288,7 @@ def dag_link(attr):
     dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, execution_date=execution_date)
-    return Markup('<a href="{}">{}</a>').format(url, dag_id)  # noqa
+    return Markup('<a href="{}">{}</a>').format(url, dag_id) if dag_id else Markup('None')  # noqa
 
 
 def dag_run_link(attr):
@@ -326,7 +326,7 @@ def wrapped_markdown(s, css_class=None):
     if s is None:
         return None
 
-    return Markup(f'<div class="{css_class}" >' + markdown.markdown(s) + "</div>")
+    return Markup(f'<div class="{css_class}" >' + markdown.markdown(s, extensions=['tables']) + "</div>")
 
 
 # pylint: disable=no-member

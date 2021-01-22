@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import re
 import unittest
 
 from airflow.providers_manager import ProvidersManager
@@ -56,6 +57,7 @@ ALL_PROVIDERS = [
     'apache-airflow-providers-microsoft-winrm',
     'apache-airflow-providers-mongo',
     'apache-airflow-providers-mysql',
+    'apache-airflow-providers-neo4j',
     'apache-airflow-providers-odbc',
     'apache-airflow-providers-openfaas',
     'apache-airflow-providers-opsgenie',
@@ -74,7 +76,8 @@ ALL_PROVIDERS = [
     'apache-airflow-providers-sftp',
     'apache-airflow-providers-singularity',
     'apache-airflow-providers-slack',
-    'apache-airflow-providers-snowflake',
+    # Uncomment when https://github.com/apache/airflow/issues/12881 is fixed
+    # 'apache-airflow-providers-snowflake',
     'apache-airflow-providers-sqlite',
     'apache-airflow-providers-ssh',
     'apache-airflow-providers-telegram',
@@ -120,6 +123,7 @@ CONNECTIONS_LIST = [
     'mongo',
     'mssql',
     'mysql',
+    'neo4j',
     'odbc',
     'oracle',
     'pig_cli',
@@ -131,7 +135,8 @@ CONNECTIONS_LIST = [
     'samba',
     'segment',
     'sftp',
-    'snowflake',
+    #  Uncomment when https://github.com/apache/airflow/issues/12881 is fixed
+    # 'snowflake',
     'spark',
     'spark_jdbc',
     'spark_sql',
@@ -197,26 +202,26 @@ class TestProviderManager(unittest.TestCase):
         for provider in provider_list:
             package_name = provider_manager.providers[provider][1]['package-name']
             version = provider_manager.providers[provider][0]
-            self.assertRegex(version, r'[0-9]*\.[0-9]*\.[0-9]*.*')
-            self.assertEqual(package_name, provider)
-        self.assertEqual(ALL_PROVIDERS, provider_list)
+            assert re.search(r'[0-9]*\.[0-9]*\.[0-9]*.*', version)
+            assert package_name == provider
+        assert ALL_PROVIDERS == provider_list
 
     def test_hooks(self):
         provider_manager = ProvidersManager()
         connections_list = list(provider_manager.hooks.keys())
-        self.assertEqual(CONNECTIONS_LIST, connections_list)
+        assert CONNECTIONS_LIST == connections_list
 
     def test_connection_form_widgets(self):
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
-        self.assertEqual(CONNECTION_FORM_WIDGETS, connections_form_widgets)
+        assert CONNECTION_FORM_WIDGETS == connections_form_widgets
 
     def test_field_behaviours(self):
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
-        self.assertEqual(CONNECTIONS_WITH_FIELD_BEHAVIOURS, connections_with_field_behaviours)
+        assert CONNECTIONS_WITH_FIELD_BEHAVIOURS == connections_with_field_behaviours
 
     def test_extra_links(self):
         provider_manager = ProvidersManager()
         extra_link_class_names = list(provider_manager.extra_links_class_names)
-        self.assertEqual(EXTRA_LINKS, extra_link_class_names)
+        assert EXTRA_LINKS == extra_link_class_names

@@ -38,7 +38,7 @@ function run_check_license() {
             --exclude-file /opt/airflow/.rat-excludes \
             --d /opt/airflow | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
         echo
-        echo  "${COLOR_RED_ERROR} RAT exited abnormally  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: RAT exited abnormally  ${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -49,13 +49,13 @@ function run_check_license() {
     set -e
     if test ! -z "${errors}"; then
         echo
-        echo  "${COLOR_RED_ERROR} Could not find Apache license headers in the following files:  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Could not find Apache license headers in the following files:  ${COLOR_RESET}"
         echo
         echo "${errors}"
         exit 1
     else
         echo
-        echo "${COLOR_GREEN_OK} RAT checks passed.  ${COLOR_RESET}"
+        echo "${COLOR_GREEN}OK. RAT checks passed.  ${COLOR_RESET}"
         echo
     fi
 }

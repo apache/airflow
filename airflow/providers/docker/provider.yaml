@@ -26,9 +26,11 @@ versions:
 integrations:
   - integration-name: Docker
     external-doc-url: https://docs.docker.com/
+    logo: /integration-logos/docker/Docker.png
     tags: [software]
   - integration-name: Docker Swarm
     external-doc-url: https://docs.docker.com/engine/swarm/
+    logo: /integration-logos/docker/Docker-Swarm.png
     tags: [software]
 
 operators:

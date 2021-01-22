@@ -28,6 +28,7 @@ integrations:
     external-doc-url: https://oapi.dingtalk.com
     how-to-guide:
       - /docs/apache-airflow-providers-dingding/operators.rst
+    logo: /integration-logos/dingding/Dingding.png
     tags: [service]
 
 operators:

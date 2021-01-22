@@ -32,4 +32,4 @@ class TestCliVersion(unittest.TestCase):
     def test_cli_version(self):
         with redirect_stdout(io.StringIO()) as stdout:
             airflow.cli.commands.version_command.version(self.parser.parse_args(['version']))
-        self.assertIn(version, stdout.getvalue())
+        assert version in stdout.getvalue()

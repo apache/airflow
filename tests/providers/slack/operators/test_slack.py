@@ -94,20 +94,20 @@ class TestSlackAPIPostOperator(unittest.TestCase):
         test_slack_conn_id = 'test_slack_conn_id'
 
         slack_api_post_operator = self.__construct_operator(test_token, None, self.test_api_params)
-        self.assertEqual(slack_api_post_operator.token, test_token)
-        self.assertEqual(slack_api_post_operator.slack_conn_id, None)
-        self.assertEqual(slack_api_post_operator.method, self.expected_method)
-        self.assertEqual(slack_api_post_operator.text, self.test_text)
-        self.assertEqual(slack_api_post_operator.channel, self.test_channel)
-        self.assertEqual(slack_api_post_operator.api_params, self.test_api_params)
-        self.assertEqual(slack_api_post_operator.username, self.test_username)
-        self.assertEqual(slack_api_post_operator.icon_url, self.test_icon_url)
-        self.assertEqual(slack_api_post_operator.attachments, self.test_attachments)
-        self.assertEqual(slack_api_post_operator.blocks, self.test_blocks)
+        assert slack_api_post_operator.token == test_token
+        assert slack_api_post_operator.slack_conn_id is None
+        assert slack_api_post_operator.method == self.expected_method
+        assert slack_api_post_operator.text == self.test_text
+        assert slack_api_post_operator.channel == self.test_channel
+        assert slack_api_post_operator.api_params == self.test_api_params
+        assert slack_api_post_operator.username == self.test_username
+        assert slack_api_post_operator.icon_url == self.test_icon_url
+        assert slack_api_post_operator.attachments == self.test_attachments
+        assert slack_api_post_operator.blocks == self.test_blocks
 
         slack_api_post_operator = self.__construct_operator(None, test_slack_conn_id)
-        self.assertEqual(slack_api_post_operator.token, None)
-        self.assertEqual(slack_api_post_operator.slack_conn_id, test_slack_conn_id)
+        assert slack_api_post_operator.token is None
+        assert slack_api_post_operator.slack_conn_id == test_slack_conn_id
 
     @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
     def test_api_call_params_with_default_args(self, mock_hook):
@@ -132,7 +132,7 @@ class TestSlackAPIPostOperator(unittest.TestCase):
             'attachments': '[]',
             'blocks': '[]',
         }
-        self.assertEqual(expected_api_params, slack_api_post_operator.api_params)
+        assert expected_api_params == slack_api_post_operator.api_params
 
 
 class TestSlackAPIFileOperator(unittest.TestCase):
@@ -173,19 +173,19 @@ class TestSlackAPIFileOperator(unittest.TestCase):
         test_slack_conn_id = 'test_slack_conn_id'
 
         slack_api_post_operator = self.__construct_operator(test_token, None, self.test_api_params)
-        self.assertEqual(slack_api_post_operator.token, test_token)
-        self.assertEqual(slack_api_post_operator.slack_conn_id, None)
-        self.assertEqual(slack_api_post_operator.method, self.expected_method)
-        self.assertEqual(slack_api_post_operator.initial_comment, self.test_initial_comment)
-        self.assertEqual(slack_api_post_operator.channel, self.test_channel)
-        self.assertEqual(slack_api_post_operator.api_params, self.test_api_params)
-        self.assertEqual(slack_api_post_operator.filename, self.test_filename)
-        self.assertEqual(slack_api_post_operator.filetype, self.test_filetype)
-        self.assertEqual(slack_api_post_operator.content, self.test_content)
+        assert slack_api_post_operator.token == test_token
+        assert slack_api_post_operator.slack_conn_id is None
+        assert slack_api_post_operator.method == self.expected_method
+        assert slack_api_post_operator.initial_comment == self.test_initial_comment
+        assert slack_api_post_operator.channel == self.test_channel
+        assert slack_api_post_operator.api_params == self.test_api_params
+        assert slack_api_post_operator.filename == self.test_filename
+        assert slack_api_post_operator.filetype == self.test_filetype
+        assert slack_api_post_operator.content == self.test_content
 
         slack_api_post_operator = self.__construct_operator(None, test_slack_conn_id)
-        self.assertEqual(slack_api_post_operator.token, None)
-        self.assertEqual(slack_api_post_operator.slack_conn_id, test_slack_conn_id)
+        assert slack_api_post_operator.token is None
+        assert slack_api_post_operator.slack_conn_id == test_slack_conn_id
 
     @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
     def test_api_call_params_with_default_args(self, mock_hook):
@@ -205,4 +205,4 @@ class TestSlackAPIFileOperator(unittest.TestCase):
             'filetype': 'csv',
             'content': 'default,content,csv,file',
         }
-        self.assertEqual(expected_api_params, slack_api_post_operator.api_params)
+        assert expected_api_params == slack_api_post_operator.api_params
