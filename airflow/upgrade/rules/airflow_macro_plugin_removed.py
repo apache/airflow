@@ -39,9 +39,12 @@ class AirflowMacroPluginRemovedRule(BaseRule):
         problems = []
         class_name_to_check = self.MACRO_PLUGIN_CLASS.split(".")[-1]
         with open(file_path, "r") as file_pointer:
-            for line_number, line in enumerate(file_pointer, 1):
-                if class_name_to_check in line:
-                    problems.append(self._change_info(file_path, line_number))
+            try:
+                for line_number, line in enumerate(file_pointer, 1):
+                    if class_name_to_check in line:
+                        problems.append(self._change_info(file_path, line_number))
+            except UnicodeDecodeError:
+                problems.append("Unable to read python file {}".format(file_path))
         return problems
 
     def check(self):
@@ -49,5 +52,7 @@ class AirflowMacroPluginRemovedRule(BaseRule):
         file_paths = list_py_file_paths(directory=dag_folder, include_examples=False)
         problems = []
         for file_path in file_paths:
+            if not file_path.endswith(".py"):
+                continue
             problems.extend(self._check_file(file_path))
         return problems
