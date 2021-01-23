@@ -91,13 +91,11 @@ class WasbHook(BaseHook):
             return BlobServiceClient(account_url=extra.get('sas_token'))
         if sas_token and not sas_token.startswith('https'):
             return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/" + sas_token)
-        if conn.login:
+        else:
             # Fall back to old auth
             return BlobServiceClient(
                 account_url=f"https://{conn.login}.blob.core.windows.net/", credential=conn.password, **extra
             )
-        else:
-            raise AirflowException('Unknown connection type')
 
     def _get_container_client(self, container_name: str) -> ContainerClient:
         """
