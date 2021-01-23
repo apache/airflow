@@ -669,7 +669,7 @@ There are build arguments that determine the installation mechanism of Apache Ai
 production image. There are three types of build:
 
 * From local sources (by default for example when you use ``docker build .``)
-* You can build the image from released PyPi airflow package (used to build the official Docker image)
+* You can build the image from released PyPI airflow package (used to build the official Docker image)
 * You can build the image from any version in GitHub repository(this is used mostly for system testing).
 
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+

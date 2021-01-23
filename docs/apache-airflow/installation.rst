@@ -22,7 +22,7 @@ Installation
 .. contents:: :local:
 
 This page describes installations using the ``apache-airflow`` package `published in
-Pypi <https://pypi.org/project/apache-airflow/>`__, but some information may be useful during
+PyPI <https://pypi.org/project/apache-airflow/>`__, but some information may be useful during
 installation with other tools as well.
 
 .. note::

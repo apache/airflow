@@ -612,7 +612,7 @@ Some of the packages have cross-dependencies with other providers packages. This
 transfer operators where operators use hooks from the other providers in case they are transferring
 data between the providers. The list of dependencies is maintained (automatically with pre-commits)
 in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
-The dependency list is automatically used during pypi packages generation.
+The dependency list is automatically used during PyPI packages generation.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
 the other provider package you can install it adding [extra] after the
@@ -822,7 +822,7 @@ constraints file when installing Apache Airflow - either from the sources:
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
-or from the pypi package:
+or from the PyPI package:
 
 .. code-block:: bash
 
