@@ -67,10 +67,10 @@ spec:
         - name: redis
           image: {{ template "redis_image" . }}
           imagePullPolicy: {{ .Values.images.redis.pullPolicy }}
-          command: ["/bin/sh"]
+          command: ["/bin/sh", "-c"]
           resources:
 {{ toYaml .Values.redis.resources | indent 12 }}
-          args: ["-c", "redis-server --requirepass ${REDIS_PASSWORD}"]
+          args: ["redis-server --requirepass ${REDIS_PASSWORD}"]
           ports:
             - name: redis-db
               containerPort: {{ .Values.ports.redisDB }}
