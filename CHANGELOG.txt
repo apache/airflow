@@ -4053,7 +4053,7 @@ Airflow 1.7.1, 2016-05-19
 - Rename user table to users to avoid conflict with postgres
 - Beware of negative pool slots.
 - Add support for calling_format from boto to S3_Hook
-- Add pypi meta data and sync version number
+- Add PyPI meta data and sync version number
 - Set dags_are_paused_at_creation's default value to True
 - Resurface S3Log class eaten by rebase/push -f
 - Add missing session.commit() at end of initdb
@@ -4135,7 +4135,7 @@ Airflow 1.7.1, 2016-05-19
 - Pointing to a reqs file
 - Some linting
 - Adding a .landscape.yml file
-- badge for pypi version
+- badge for PyPI version
 - Add license and ignore for sql and csv
 - Use correct connection id
 - Use correct table name

@@ -558,7 +558,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | have a separate step to verify image.    |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_FROM_PYPI``                    | ``true``                                 | If set to true, Airflow is installed     |
-|                                          |                                          | from pypi. If you want to install        |
+|                                          |                                          | from PyPI. If you want to install        |
 |                                          |                                          | Airflow from externally provided binary  |
 |                                          |                                          | package you can set it to false, place   |
 |                                          |                                          | the package in ``docker-context-files``  |

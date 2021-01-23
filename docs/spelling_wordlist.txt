@@ -1103,7 +1103,6 @@ pymssql
 pymysql
 pyodbc
 pypa
-pypi
 pytest
 pythonpath
 pywinrm
