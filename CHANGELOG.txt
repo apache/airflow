@@ -2347,7 +2347,7 @@ Airflow 1.10.0, 2018-08-03
 - [AIRFLOW-2545] Eliminate DeprecationWarning
 - [AIRFLOW-2500] Fix MySqlToHiveTransfer to transfer unsigned type properly
 - [AIRFLOW-2462] Change PasswordUser setter to correct syntax
-- [AIRFLOW-2525] Fix a bug introduced by commit dabf1b9
+- [AIRFLOW-2525] Fix a bug introduced by commit ``dabf1b9``
 - [AIRFLOW-2553] Add webserver.pid to .gitignore
 - [AIRFLOW-1863][AIRFLOW-2529] Add dag run selection widgets to gantt view
 - [AIRFLOW-2504] Log username correctly and add extra to search columns
@@ -2594,7 +2594,7 @@ Airflow 1.10.0, 2018-08-03
 - [AIRFLOW-2259] Dataflow Hook Index out of range
 - [AIRFLOW-2233] Update updating.md to include the info of hdfs_sensors renaming
 - [AIRFLOW-2217] Add Slack webhook operator
-- [AIRFLOW-1729] improve dagBag time
+- [AIRFLOW-1729] improve DagBag time
 - [AIRFLOW-2264] Improve create_user cli help message
 - [AIRFLOW-2260] [AIRFLOW-2260] SSHOperator add command template .sh files
 - [AIRFLOW-2261] Check config/env for remote base log folder
