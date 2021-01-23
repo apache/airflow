@@ -174,6 +174,7 @@ class TestGetConnections(TestConnectionEndpoint):
                     "login": None,
                     'schema': None,
                     'port': None,
+                    'extra': None,
                 },
                 {
                     "connection_id": "test-connection-id-2",
@@ -182,6 +183,7 @@ class TestGetConnections(TestConnectionEndpoint):
                     "login": None,
                     'schema': None,
                     'port': None,
+                    'extra': None,
                 },
             ],
             'total_entries': 2,
