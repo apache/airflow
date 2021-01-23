@@ -21,6 +21,7 @@ import itertools
 import json
 import logging
 import math
+import re
 import socket
 import sys
 import traceback
@@ -2903,6 +2904,52 @@ class ConnectionModelView(AirflowModelView):
     def action_muldelete(self, items):
         """Multiple delete."""
         self.datamodel.delete_all(items)
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action('mulcopy', 'Copy', 'Are you sure you want to Duplicate selected connections?', single=False)
+    @provide_session
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
+        ]
+    )
+    def action_mulcopy(self, connections, session=None):
+        """Copy multiple connections"""
+        for selected_con in connections:
+            connection_ids = {conn[0] for conn in session.query(Connection.conn_id).all()}
+            new_conn_id = selected_con.conn_id
+            base = re.split(r'__\d+$', selected_con.conn_id)[0]
+            suffixes = sorted(
+                [
+                    int(re.split(r'^.+__', conn_id)[1])
+                    for conn_id in connection_ids
+                    if re.match(rf'^{base}__\d+$', conn_id)
+                ]
+            )
+            if not suffixes:
+                new_conn_id += '__1'
+            else:
+                new_conn_id = f'{base}__{suffixes[-1] + 1}'
+
+            if hasattr(selected_con, 'uri'):
+                dup_conn = Connection(new_conn_id, selected_con.uri)
+            else:
+                dup_conn = Connection(
+                    new_conn_id,
+                    selected_con.conn_type,
+                    selected_con.description,
+                    selected_con.host,
+                    selected_con.login,
+                    selected_con.password,
+                    selected_con.schema,
+                    selected_con.port,
+                    selected_con.extra,
+                )
+
+            session.add(dup_conn)
+            session.flush()
+
         self.update_redirect()
         return redirect(self.get_redirect())
 
