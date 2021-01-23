@@ -37,6 +37,7 @@ class ConnectionCollectionItemSchema(SQLAlchemySchema):
     login = auto_field()
     schema = auto_field()
     port = auto_field()
+    extra = auto_field()
 
 
 class ConnectionSchema(ConnectionCollectionItemSchema):  # pylint: disable=too-many-ancestors
