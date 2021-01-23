@@ -436,12 +436,12 @@ Following are some of important topics of Breeze documentation:
    Breeze environment</a>
 
 
-- |CLIs for cloud providers|
+- |Installing Additional tools to the Docker Image|
 
-.. |CLIs for cloud providers| raw:: html
+.. |Installing Additional tools to the Docker Image| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#clis-for-cloud-providers" target="_blank">CLIs for
-   cloud providers</a>
+   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#additional-tools" target="_blank">Installing
+   Additional tools to the Docker Image</a>
 
 
 - |Internal details of Breeze|
