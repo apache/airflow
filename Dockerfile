@@ -198,6 +198,11 @@ COPY scripts/docker/install_airflow_from_latest_master.sh /scripts/docker/instal
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
+# By changing CI build epoch we can force reinstalling Airflow from the current master
+# It can also be overwritten manually by setting the AIRFLOW_BUILD_EPOCH environment variable.
+ARG AIRFLOW_BUILD_EPOCH="1"
+ENV AIRFLOW_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
+
 # In case of Production build image segment we want to pre-install master version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 # The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")

@@ -31,7 +31,6 @@ pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # TODO: remove it when devel_all == devel_ci
 install_remaining_dependencies
-reinstall_azure_storage_blob
 
 cd "${AIRFLOW_SOURCES}/provider_packages" || exit 1
 

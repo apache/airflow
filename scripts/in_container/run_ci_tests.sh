@@ -18,8 +18,6 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-reinstall_azure_storage_blob
-
 echo
 echo "Starting the tests with those pytest arguments:" "${@}"
 echo
