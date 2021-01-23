@@ -74,8 +74,8 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         """
         Updates crawler configurations
 
-        :param crawler_kwargs = Keyword args that define the configurations used for the crawler
-        :type crawler_kwargs = any
+        :param crawler_kwargs: Keyword args that define the configurations used for the crawler
+        :type crawler_kwargs: any
         :return: True if crawler was updated and false otherwise
         """
         crawler_name = crawler_kwargs['Name']
@@ -96,8 +96,8 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         """
         Creates an AWS Glue Crawler
 
-        :param crawler_kwargs = Keyword args that define the configurations used to create the crawler
-        :type crawler_kwargs = any
+        :param crawler_kwargs: Keyword args that define the configurations used to create the crawler
+        :type crawler_kwargs: any
         :return: Name of the crawler
         """
         crawler_name = crawler_kwargs['Name']
