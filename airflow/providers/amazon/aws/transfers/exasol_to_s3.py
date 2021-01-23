@@ -97,7 +97,7 @@ class ExasolToS3Operator(BaseOperator):
 
         with NamedTemporaryFile("w+") as file:
             exasol_hook.export_to_file(
-                file_name=file.name,
+                filename=file.name,
                 query_or_table=self.query_or_table,
                 export_params=self.export_params,
                 query_params=self.query_params,

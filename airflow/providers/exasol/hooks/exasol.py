@@ -110,7 +110,7 @@ class ExasolHook(DbApiHook):
 
     def export_to_file(
         self,
-        file_name: str,
+        filename: str,
         query_or_table: str,
         query_params: Optional[Dict] = None,
         export_params: Optional[Dict] = None,
@@ -118,8 +118,8 @@ class ExasolHook(DbApiHook):
         """
         Exports data to a file.
 
-        :param file_name: Path to the file to which the data has to be exported
-        :type file_name: str
+        :param filename: Path to the file to which the data has to be exported
+        :type filename: str
         :param query_or_table: the sql statement to be executed or table name to export
         :type query_or_table: str
         :param query_params: Query parameters passed to underlying ``export_to_file``
@@ -132,12 +132,12 @@ class ExasolHook(DbApiHook):
         self.log.info("Getting data from exasol")
         with closing(self.get_conn()) as conn:
             conn.export_to_file(
-                dst=file_name,
+                dst=filename,
                 query_or_table=query_or_table,
                 query_params=query_params,
                 export_params=export_params,
             )
-        self.log.info("Data saved to %s", file_name)
+        self.log.info("Data saved to %s", filename)
 
     def run(self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None) -> None:
         """
