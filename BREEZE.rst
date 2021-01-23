@@ -1705,7 +1705,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  wheel,sdist,both
 
-          Default: 
+          Default: wheel
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -2132,7 +2132,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  wheel,sdist,both
 
-          Default: 
+          Default: wheel
 
   -S, --version-suffix-for-pypi SUFFIX
           Adds optional suffix to the version in the generated backport package. It can be used

@@ -218,7 +218,7 @@ azure = [
     'azure-mgmt-containerinstance>=1.5.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage>=0.34.0, <0.37.0',
+    'azure-storage-file>=2.1.0',
 ]
 cassandra = [
     'cassandra-driver>=3.13.0,<3.21.0',
