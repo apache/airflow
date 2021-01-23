@@ -132,6 +132,7 @@ class TestGetConnection(TestConnectionEndpoint):
             "login": 'login',
             'schema': 'testschema',
             'port': 80,
+            'extra': None,
         }
 
     def test_should_respond_404(self):
