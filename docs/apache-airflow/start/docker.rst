@@ -26,45 +26,62 @@ Before you begin
 Follow these steps to install the necessary tools.
 
 1. Install `Docker Community Edition (CE) <https://docs.docker.com/engine/installation/>`__ on your workstation.
-2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ on your workstation.
+2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.27.0 and newer on your workstation.
+
+Older versions of ``docker-compose`` do not support all features required by ``docker-compose.yaml`` file, so double check that it meets the minimum version requirements.
 
 ``docker-compose.yaml``
 =======================
 
-To deploy Airflow on Docker Compose, you should download `docker-compose.yaml <../docker-compose.yaml>`__. This file contains several service definitions:
+To deploy Airflow on Docker Compose, you should fetch `docker-compose.yaml <../docker-compose.yaml>`__.
+
+.. jinja:: quick_start_ctx
+
+    .. code-block:: bash
+
+        curl -LfO '{{ doc_root_url }}docker-compose.yaml'
+
+This file contains several service definitions:
 
 - ``airflow-scheduler`` - The :doc:`scheduler </scheduler>` monitors all tasks and DAGs, then triggers the
   task instances once their dependencies are complete.
 - ``airflow-webserver`` - The webserver available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
+- ``airflow-init`` - The initialization service.
 - ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment. It is available at ``http://localhost:8080``.
 - ``postgres`` - The database.
 - ``redis`` - `The redis <https://redis.io/>`__ - broker that forwards messages from scheduler to worker.
 
 All these services allow you to run Airflow with :doc:`CeleryExecutor </executor/celery>`. For more information, see :ref:`architecture`.
 
+Some directories in the container are mounted, which means that their contents are synchronized between your computer and the container.
+
+- ``./dags`` - you can put your DAG files here.
+- ``./logs`` - contains logs from task execution and scheduler.
+- ``./plugins`` - you can put your :doc:`custom plugins </plugins>` here.
+
+Initializing Database
+=====================
+
+Before starting Airflow for the first time, you need to execute database migrations and create the first user account. To do it, run.
+
+.. code-block:: bash
+
+    docker-compose up --rm airflow-init
+
+After initialization is complete, you should see a message like below.
+
+.. code-block:: bash
+
+    airflow-init_1       | Upgrades done
+    airflow-init_1       | Admin user airflow created
+    airflow-init_1       | 2.1.0.dev0
+    start_airflow-init_1 exited with code 0
+
+The account created has the login ``airflow`` and the password ``airflow``.
+
 Running Airflow
 ===============
-
-Before starting Airflow for the first time, you need to initialize the database. To do it, run.
-
-.. code-block:: bash
-
-    docker-compose run --rm airflow-webserver \
-        airflow db init
-
-Access to the web server requires a user account, to create it, run:
-
-.. code-block:: bash
-
-    docker-compose run --rm airflow-webserver \
-        airflow users create \
-            --role Admin \
-            --username airflow \
-            --password airflow \
-            --email airflow@airflow.com \
-            --firstname airflow \
-            --lastname airflow
 
 Now you can start all services:
 
@@ -85,12 +102,42 @@ In the second terminal you can check the condition of the containers and make su
     74f3bbe506eb   postgres:9.5           "docker-entrypoint.s…"   18 minutes ago   Up 17 minutes (healthy)   5432/tcp                           compose_postgres_1
     0bd6576d23cb   redis:latest           "docker-entrypoint.s…"   10 hours ago     Up 17 minutes (healthy)   0.0.0.0:6379->6379/tcp             compose_redis_1
 
-Testing
-=======
-
-Once the cluster has started up, you can log in to the web interface and try to run some tasks. The webserver available at: ``http://localhost:8080``.
+Once the cluster has started up, you can log in to the web interface and try to run some tasks. The webserver available at: ``http://localhost:8080``. The default account has the login ``airflow`` and the password ``airflow``.
 
 .. image:: /img/dags.png
+
+Accessing Command Line Interface
+================================
+
+You can also run :doc:`CLI commands <usage-cli>`, but you have to do it in one of the defined ``airflow-*`` services. For example, to run ``airflow info``, run the following command:
+
+.. code-block:: bash
+
+    docker-compose run airflow-worker airflow info
+
+If you have Linux or Mac OS, you can make your work easier and download a optional wrapper scripts that will allow you to run commands with a simpler command.
+
+.. jinja:: quick_start_ctx
+
+    .. code-block:: bash
+
+        curl -LfO '{{ doc_root_url }}airflow.sh'
+        chmod +x airflow.sh
+
+Now you can run commands easier.
+
+.. code-block:: bash
+
+    ./airflow.sh info
+
+Cleaning up
+===========
+
+To stop and delete containers, delete volumes with database data and download images, run:
+
+.. code-block:: bash
+
+    docker-compose down --volumes --rmi all
 
 Notes
 =====
