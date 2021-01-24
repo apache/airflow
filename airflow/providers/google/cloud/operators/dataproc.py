@@ -1464,9 +1464,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
         self.log.info("Uploading %s to %s", local_file, temp_filename)
 
-        GCSHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
-        ).upload(
+        GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain).upload(
             bucket_name=bucket,
             object_name=temp_filename,
             mime_type='application/x-python',
