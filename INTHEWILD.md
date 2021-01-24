@@ -57,6 +57,7 @@ Currently, **officially** using Airflow:
 1. [Auth0](https://auth0.com) [[@scottypate](https://github.com/scottypate)], [[@dm03514](https://github.com/dm03514)], [[@karangale](https://github.com/karangale)]
 1. [Automattic](https://automattic.com/) [[@anandnalya](https://github.com/anandnalya), [@bperson](https://github.com/bperson), [@khrol](https://github.com/Khrol), [@xyu](https://github.com/xyu)]
 1. [Avesta Technologies](https://avestatechnologies.com) [[@TheRum](https://github.com/TheRum)]
+1. [Aviva plc](https://www.aviva.com) [[@panatimahesh](https://github.com/panatimahesh)]
 1. [Away](https://awaytravel.com) [[@trunsky](https://github.com/trunsky)]
 1. [Axesor designeted activity company](https://www.axesor.es/)
 1. [Azri Solutions](http://www.azrisolutions.com/) [[@userimack](https://github.com/userimack)]
