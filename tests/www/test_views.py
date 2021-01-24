@@ -253,9 +253,10 @@ class TestConnectionModelView(TestBase):
         cmv = ConnectionModelView()
         cmv.prefill_form(form=mock_form, pk=1)
 
-    def test_copy_connection(self):
-        """ Test copy multiple connection with suffix(already copied )"""
 
+class TestCopyConnectionModelView(TestBase):
+    def setUp(self):
+        super().setUp()
         conn1 = Connection(
             conn_id='aws_mongo',
             conn_type='FTP',
@@ -287,6 +288,13 @@ class TestConnectionModelView(TestBase):
         self.clear_table(Connection)
         self.session.add_all([conn1, conn2, conn3])
         self.session.commit()
+
+    def tearDown(self):
+        self.clear_table(Connection)
+        super().tearDown()
+
+    def test_copy_connection(self):
+        """ Test copy multiple connection with suffix(already copied )"""
 
         mock_form = mock.Mock()
         mock_form.data = {"action": "mulcopy", "rowid": [1, 2, 3]}
