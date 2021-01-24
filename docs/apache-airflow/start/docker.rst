@@ -80,7 +80,7 @@ On **all operating system**, you need to run database migrations and create the 
 
 After initialization is complete, you should see a message like below.
 
-.. code-block:: bash
+.. code-block:: text
 
     airflow-init_1       | Upgrades done
     airflow-init_1       | Admin user airflow created
