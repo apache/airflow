@@ -118,7 +118,7 @@ Once the cluster has started up, you can log in to the web interface and try to 
 Accessing Command Line Interface
 ================================
 
-You can also run :doc:`CLI commands <usage-cli>`, but you have to do it in one of the defined ``airflow-*`` services. For example, to run ``airflow info``, run the following command:
+You can also run :doc:`CLI commands </usage-cli>`, but you have to do it in one of the defined ``airflow-*`` services. For example, to run ``airflow info``, run the following command:
 
 .. code-block:: bash
 
