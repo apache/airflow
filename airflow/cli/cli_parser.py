@@ -513,6 +513,18 @@ ARG_UMASK = Arg(
     help="Set the umask of celery worker in daemon mode",
     default=conf.get('celery', 'worker_umask'),
 )
+ARG_WITHOUT_MINGLE = Arg(
+    ("--without-mingle",),
+    default=False,
+    help="Don’t synchronize with other workers at start-up",
+    action="store_true",
+)
+ARG_WITHOUT_GOSSIP = Arg(
+    ("--without-gossip",),
+    default=False,
+    help="Don’t subscribe to other workers events",
+    action="store_true",
+)
 
 # flower
 ARG_BROKER_API = Arg(("-a", "--broker-api"), help="Broker API")
@@ -1292,6 +1304,8 @@ CELERY_COMMANDS = (
             ARG_LOG_FILE,
             ARG_AUTOSCALE,
             ARG_SKIP_SERVE_LOGS,
+            ARG_WITHOUT_MINGLE,
+            ARG_WITHOUT_GOSSIP,
         ),
     ),
     ActionCommand(
