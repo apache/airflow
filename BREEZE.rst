@@ -333,8 +333,8 @@ Managing CI environment:
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
     * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
 
-You can optionally reset database if specified as extra ``--db-reset`` flag and for CI image you can also
-start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
+You can optionally reset the Airflow metada database if specified as extra ``--db-reset`` flag and for CI image
+you can also start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
@@ -431,16 +431,16 @@ way as when you enter the environment. You can do it multiple times and open as 
 Additional tools
 ----------------
 
-To shrink a Docker image, not all tools are installed in the Docker image. Some of you have to install
-or yourself, but we made sure it was an easy process.
+To shrink the Docker image, not all tools are pre-installed in the Docker image. But we have made sure that there
+is an easy process to install additional tools.
 
-Additional tools are installed in ``/files/bin``. This path is added to ``$PATH``, so you shell will
-automatically autocomplete files that are in that directory. You can also keep your tools in this directory
-if you need to.
+Additional tools are installed in ``/files/bin``. This path is added to ``$PATH``, so your shell will
+automatically autocomplete files that are in that directory. You can also keep the binaries for your tools
+in this directory if you need to.
 
 **Installation scripts**
 
-For the development convenience, we also provided install script for common used tools. They are
+For the development convenience, we have also provided installation scripts for commonly used tools. They are
 installed to ``/files/opt/``, so they are preserved after restarting the Breeze environment. Each script
 is also available in ``$PATH``, so just type ``install_<TAB>`` to get a list of tools.
 
@@ -451,10 +451,10 @@ Currently available scripts:
 * ``install_gcloud.sh`` - installs `the Google Cloud SDK <https://cloud.google.com/sdk>`__ including
   ``gcloud``, ``gsutil``.
 * ``install_imgcat.sh`` - installs `imgcat - Inline Images Protocol <https://iterm2.com/documentation-images.html>`__
-  for iTem2 (Mac OS only)
+  for iTerm2 (Mac OS only)
 * ``install_java.sh`` - installs `the OpenJDK 8u41 <https://openjdk.java.net/>`__
 * ``install_kubectl.sh`` - installs `the Kubernetes command-line tool, kubectl <https://kubernetes.io/docs/reference/kubectl/kubectl/>`__
-* ``install_terraform.sh`` - installs `the Terraform <https://www.terraform.io/docs/index.html>`__
+* ``install_terraform.sh`` - installs `Terraform <https://www.terraform.io/docs/index.html>`__
 
 Launching Breeze integrations
 -----------------------------
@@ -597,7 +597,7 @@ Building Production images
 --------------------------
 
 The **Production image** is also maintained on the DockerHub in the
-```apache/airflow`` repository. This Docker image (and Dockerfile) contains size-optimised Airflow
+``apache/airflow`` repository. This Docker image (and Dockerfile) contains size-optimised Airflow
 installation with selected extras and dependencies. Its tag follows the pattern of
 ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>`` (for example, ``apache/airflow:master-python3.6``
 or ``apache/airflow:v1-10-test-python3.6``).
