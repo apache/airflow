@@ -238,6 +238,24 @@ class TestConnectionModelView(TestBase):
             'password': 'admin',
         }
 
+    def tearDown(self):
+        self.clear_table(Connection)
+        super().tearDown()
+
+    def test_create_connection(self):
+        resp = self.client.post('/connection/add', data=self.connection, follow_redirects=True)
+        self.check_content_in_response('Added Row', resp)
+
+    def test_prefill_form_null_extra(self):
+        mock_form = mock.Mock()
+        mock_form.data = {"conn_id": "test", "extra": None}
+
+        cmv = ConnectionModelView()
+        cmv.prefill_form(form=mock_form, pk=1)
+
+    def test_copy_connection(self):
+        """ Test copy multiple connection with suffix(already copied )"""
+
         conn1 = Connection(
             conn_id='aws_mongo',
             conn_type='FTP',
@@ -257,33 +275,32 @@ class TestConnectionModelView(TestBase):
             port='5567',
         )
 
-        self.session.add_all([conn1, conn2])
+        conn3 = Connection(
+            conn_id='aws_mysql',
+            conn_type='FTP',
+            description='MongoDB2',
+            host='192.168.55.12',
+            schema='airflow',
+            port='5567',
+        )
+
+        self.clear_table(Connection)
+        self.session.add_all([conn1, conn2, conn3])
         self.session.commit()
 
-    def tearDown(self):
-        self.clear_table(Connection)
-        super().tearDown()
-
-    def test_create_connection(self):
-        resp = self.client.post('/connection/add', data=self.connection, follow_redirects=True)
-        self.check_content_in_response('Added Row', resp)
-
-    def test_prefill_form_null_extra(self):
         mock_form = mock.Mock()
-        mock_form.data = {"conn_id": "test", "extra": None}
-
-        cmv = ConnectionModelView()
-        cmv.prefill_form(form=mock_form, pk=1)
-
-    def test_copy_connection(self):
-        """ Test copy multiple connection with suffix(already copied )"""
-
-        mock_form = mock.Mock()
-        mock_form.data = {"action": "mulcopy", "rowid": [1, 2]}
+        mock_form.data = {"action": "mulcopy", "rowid": [1, 2, 3]}
         resp = self.client.post('/connection/action_post', data=mock_form.data, follow_redirects=True)
 
-        expected_result = {'aws_mongo', 'aws_mongo__1', 'aws_mongo__2', 'aws_mongo__3'}
-        response = {conn[0] for conn in self.session.query(Connection.conn_id).all()}
+        expected_result = {
+            'aws_mongo',
+            'aws_mongo__1',
+            'aws_mongo__2',
+            'aws_mongo__3',
+            'aws_mysql',
+            'aws_mysql__1',
+        }
+        response = {conn[0].strip() for conn in self.session.query(Connection.conn_id).all()}
 
         assert resp.status_code == 200
         assert expected_result == response
