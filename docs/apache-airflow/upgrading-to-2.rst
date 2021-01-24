@@ -286,7 +286,11 @@ When DAGs are initialized with the ``access_control`` variable set, any usage of
 .. warning::
     Breaking change
 
-    Previously we were using two versions of the UI. This was difficult to maintain, because it meant we
+    Previously we were using two versions of the UI:
+        - non-RBAC UI
+        - Flask App Builder RBAC UI
+
+    This was difficult to maintain, because it meant we
     had to implement/update features in two places. With this release, we have removed the older UI in
     favor of the Flask App Builder RBAC UI, reducing a huge maintenance burden.
     There is no longer a need to set the RBAC UI explicitly in the configuration,
