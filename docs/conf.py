@@ -34,12 +34,13 @@
 import glob
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
 import airflow
-from airflow.configuration import default_config_yaml
+from airflow.configuration import AirflowConfigParser, default_config_yaml
 from docs.exts.docs_build.third_party_inventories import (  # pylint: disable=no-name-in-module,wrong-import-order
     THIRD_PARTY_INDEXES,
 )
@@ -308,8 +309,14 @@ html_context = {
 
 # Jinja context
 if PACKAGE_NAME == 'apache-airflow':
+    deprecated_options: Dict[str, Dict[str, Tuple[str, str, str]]] = defaultdict(dict)
+    for (section, key), (
+        (deprecated_section, deprecated_key, since_version)
+    ) in AirflowConfigParser.deprecated_options.items():
+        deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
+
     jinja_contexts = {
-        'config_ctx': {"configs": default_config_yaml()},
+        'config_ctx': {"configs": default_config_yaml(), "deprecated_options": deprecated_options},
         'quick_start_ctx': {
             'doc_root_url': (f'https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/')
             if FOR_PRODUCTION
