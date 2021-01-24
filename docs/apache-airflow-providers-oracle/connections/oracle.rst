@@ -28,7 +28,7 @@ Dsn (required)
 
 Host(optional)
     Connect descriptor string for the data source name.
-    
+
 Sid (optional)
     The Oracle System ID. The uniquely identify a particular database on a system.
 
@@ -115,5 +115,3 @@ Extra (optional)
     .. code-block:: bash
 
         export AIRFLOW_CONN_ORACLE_DEFAULT='oracle://oracle_user:XXXXXXXXXXXX@1.1.1.1:1521?encoding=UTF-8&nencoding=UTF-8&threaded=False&events=False&mode=sysdba&purity=new'
-
-
