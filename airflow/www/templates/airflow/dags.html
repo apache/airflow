@@ -390,7 +390,7 @@
       $('.js-loading-last-run').remove();
     }
 
-    function drawDagStatsForDag(dag_id, stats) {
+    function drawDagStatsForDag(dag_id, states) {
       g = d3.select('svg#dag-run-' + dag_id.replace(/\./g, '__dot__'))
         .attr('height', diameter + (stroke_width_hover * 2))
         .attr('width', '110px')
