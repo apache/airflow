@@ -139,6 +139,17 @@ Now you can run commands easier.
 
     ./airflow.sh info
 
+You can also use ``bash`` as parameter to enter interactive bash shell in the container or ``python`` to enter
+python container.
+
+.. code-block:: bash
+
+    ./airflow.sh bash
+
+.. code-block:: bash
+
+    ./airflow.sh python
+
 Cleaning up
 ===========
 
