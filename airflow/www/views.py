@@ -2932,22 +2932,17 @@ class ConnectionModelView(AirflowModelView):
             else:
                 new_conn_id = f'{base}__{suffixes[-1] + 1}'
 
-            if hasattr(selected_con, 'uri'):
-                dup_conn = Connection(
-                    conn_id=new_conn_id, description=selected_con.description, uri=selected_con.uri
-                )
-            else:
-                dup_conn = Connection(
-                    new_conn_id,
-                    selected_con.conn_type,
-                    selected_con.description,
-                    selected_con.host,
-                    selected_con.login,
-                    selected_con.password,
-                    selected_con.schema,
-                    selected_con.port,
-                    selected_con.extra,
-                )
+            dup_conn = Connection(
+                new_conn_id,
+                selected_con.conn_type,
+                selected_con.description,
+                selected_con.host,
+                selected_con.login,
+                selected_con.password,
+                selected_con.schema,
+                selected_con.port,
+                selected_con.extra,
+            )
 
             session.add(dup_conn)
             session.flush()
