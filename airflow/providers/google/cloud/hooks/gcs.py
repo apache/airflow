@@ -650,6 +650,70 @@ class GCSHook(GoogleBaseHook):
                 break
         return ids
 
+    def list_by_timespan(
+        self,
+        bucket_name: str,
+        timespan_start: datetime,
+        timespan_end: datetime,
+        versions: bool = None,
+        max_results: int = None,
+        prefix: str = None,
+        delimiter: str = None,
+    ) -> list:
+        """
+        List all objects from the bucket with the give string prefix in name that were
+        updated in the time between ``timespan_start`` and ``timespan_end``.
+
+        :param bucket_name: bucket name
+        :type bucket_name: str
+        :param timespan_start: will return objects that were updated at or after this datetime (UTC)
+        :type timespan_start: datetime
+        :param timespan_end: will return objects that were updated before this datetime (UTC)
+        :type timespan_end: datetime
+        :param versions: if true, list all versions of the objects
+        :type versions: bool
+        :param max_results: max count of items to return in a single page of responses
+        :type max_results: int
+        :param prefix: prefix string which filters objects whose name begin with
+            this prefix
+        :type prefix: str
+        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        :type delimiter: str
+        :return: a stream of object names matching the filtering criteria
+        """
+        client = self.get_conn()
+        bucket = client.bucket(bucket_name)
+
+        ids = []
+        page_token = None
+        import dateutil.tz
+
+        while True:
+            blobs = bucket.list_blobs(
+                max_results=max_results,
+                page_token=page_token,
+                prefix=prefix,
+                delimiter=delimiter,
+                versions=versions,
+            )
+
+            blob_names = []
+            for blob in blobs:
+                if timespan_start <= blob.updated.replace(tzinfo=dateutil.tz.tzutc()) < timespan_end:
+                    blob_names.append(blob.name)
+
+            prefixes = blobs.prefixes
+            if prefixes:
+                ids += list(prefixes)
+            else:
+                ids += blob_names
+
+            page_token = blobs.next_page_token
+            if page_token is None:
+                # empty next page token
+                break
+        return ids
+
     def get_size(self, bucket_name: str, object_name: str) -> int:
         """
         Gets the size of a file in Google Cloud Storage.
