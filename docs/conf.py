@@ -232,7 +232,10 @@ if PACKAGE_NAME == 'apache-airflow':
 else:
     html_js_files = []
 if PACKAGE_NAME == 'apache-airflow':
-    html_extra_path = [f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml"]
+    html_extra_path = [
+        f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
+        f"{ROOT_DIR}/docs/apache-airflow/start/airflow.sh",
+    ]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.

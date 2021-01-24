@@ -24,17 +24,16 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 set -euo pipefail
 
-DOCKER_ARGS=(
-  --interactive
+COMPOSE_ARGS=(
 )
 
 # Only allocate TTY if we detect one
 if [ -t 0 ] && [ -t 1 ]; then
-  DOCKER_ARGS+=(
-    --tty
+  COMPOSE_ARGS+=(
+    -T
   )
 fi
 
 export COMPOSE_FILE=${PROJECT_DIR}/docker-compose.yaml
 # shellcheck disable=SC2048,SC2086
-exec docker-compose run airflow-worker "${DOCKER_ARGS[@]}" airflow ${*}
+exec docker-compose run "${DOCKER_ARGS[@]}" airflow-worker ${*}
