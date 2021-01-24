@@ -123,10 +123,10 @@ class ExasolHook(DbApiHook):
         :param query_or_table: the sql statement to be executed or table name to export
         :type query_or_table: str
         :param query_params: Query parameters passed to underlying ``export_to_file``
-            method of ``ExaConnection``.
+            method of :class:`~pyexasol.connection.ExaConnection`.
         :type query_params: dict
         :param export_params: Extra parameters passed to underlying ``export_to_file``
-            method of ``ExaConnection``.
+            method of :class:`~pyexasol.connection.ExaConnection`.
         :type export_params: dict
         """
         self.log.info("Getting data from exasol")

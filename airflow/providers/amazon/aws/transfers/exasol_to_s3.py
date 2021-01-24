@@ -49,10 +49,10 @@ class ExasolToS3Operator(BaseOperator):
         uploaded to the S3 bucket.
     :type acl_policy: str
     :param query_params: Query parameters passed to underlying ``export_to_file``
-        method of ``ExaConnection``.
+        method of :class:`~pyexasol.connection.ExaConnection`.
     :type query_params: dict
     :param export_params: Extra parameters passed to underlying ``export_to_file``
-        method of ``ExaConnection``.
+        method of :class:`~pyexasol.connection.ExaConnection`.
     :type export_params: dict
     """
 
