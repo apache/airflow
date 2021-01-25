@@ -41,7 +41,7 @@ class PostgresOperator(BaseOperator):
     :type database: str
     """
 
-    template_fields = ('sql',)
+    template_fields = ('sql', 'op_args', 'op_kwargs')
     template_fields_renderers = {'sql': 'sql'}
     template_ext = ('.sql',)
     ui_color = '#ededed'
