@@ -112,13 +112,6 @@
           Refresh
         </a>
       </li>
-      <li>
-        <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, root=root) }}"
-        onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')">
-        <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></span>
-        Delete
-        </a>
-      </li>
     </ul>
   </div>
   <hr>
@@ -490,16 +483,6 @@ function updateQueryStringParameter(uri, key, value) {
         postAsForm(link.href, {});
       }
       // Never follow the link
-      return false;
-    }
-
-    function confirmDeleteDag(link, dag_id){
-      if (confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
-        This option will delete ALL metadata, DAG runs, etc.\n\
-        EXCEPT Log.\n\
-        This cannot be undone.")) {
-        postAsForm(link.href, {});
-      }
       return false;
     }
 
