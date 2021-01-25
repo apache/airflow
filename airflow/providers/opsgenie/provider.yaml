@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Opsgenie
     external-doc-url: https://www.opsgenie.com/
+    logo: /integration-logos/opsgenie/Opsgenie.png
     tags: [service]
 
 operators:

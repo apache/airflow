@@ -19,7 +19,6 @@
 Example Airflow DAG for Google Cloud Memorystore service.
 """
 import os
-from urllib.parse import urlparse
 
 from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import FailoverInstanceRequest, Instance
@@ -51,20 +50,21 @@ from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
-MEMORYSTORE_REDIS_INSTANCE_NAME = os.environ.get("GCP_MEMORYSTORE_INSTANCE_NAME", "test-memorystoreredis-")
+MEMORYSTORE_REDIS_INSTANCE_NAME = os.environ.get(
+    "GCP_MEMORYSTORE_REDIS_INSTANCE_NAME", "test-memorystore-redis"
+)
 MEMORYSTORE_REDIS_INSTANCE_NAME_2 = os.environ.get(
-    "GCP_MEMORYSTORE_INSTANCE_NAME2", "test-memorystore-redis-2"
+    "GCP_MEMORYSTORE_REDIS_INSTANCE_NAME_2", "test-memorystore-redis-2"
 )
 MEMORYSTORE_REDIS_INSTANCE_NAME_3 = os.environ.get(
-    "GCP_MEMORYSTORE_INSTANCE_NAME3", "test-memorystore-redis-3"
+    "GCP_MEMORYSTORE_REDIS_INSTANCE_NAME_3", "test-memorystore-redis-3"
 )
 MEMORYSTORE_MEMCACHED_INSTANCE_NAME = os.environ.get(
-    "GCP_MEMORYSTORE_INSTANCE_NAME4", "test-memorystore-memcached-1"
+    "GCP_MEMORYSTORE_MEMCACHED_INSTANCE_NAME", "test-memorystore-memcached-1"
 )
 
-EXPORT_GCS_URL = os.environ.get("GCP_MEMORYSTORE_EXPORT_GCS_URL", "gs://test-memorystore/my-export.rdb")
-EXPORT_GCS_URL_PARTS = urlparse(EXPORT_GCS_URL)
-BUCKET_NAME = EXPORT_GCS_URL_PARTS.netloc
+BUCKET_NAME = os.environ.get("GCP_MEMORYSTORE_BUCKET", "test-memorystore-bucket")
+EXPORT_GCS_URL = f"gs://{BUCKET_NAME}/my-export.rdb"
 
 # [START howto_operator_instance]
 FIRST_INSTANCE = {"tier": Instance.Tier.BASIC, "memory_size_gb": 1}

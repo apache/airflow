@@ -85,6 +85,7 @@ if [[ ! "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
     )
     (
         export INSTALL_FROM_PYPI="false"
+        export INSTALL_PROVIDERS_FROM_SOURCES="false"
         export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
         export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
         export DOCKER_CACHE="pulled"
@@ -112,8 +113,6 @@ else
     export DOCKER_CACHE="local"
     # Name the image based on the TAG rather than based on the branch name
     export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
-    export AIRFLOW_SOURCES_FROM="empty"
-    export AIRFLOW_SOURCES_TO="/empty"
     export INSTALL_AIRFLOW_VERSION="${DOCKER_TAG%-python*}"
     export AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${INSTALL_AIRFLOW_VERSION}"
 

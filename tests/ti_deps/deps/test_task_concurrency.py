@@ -34,20 +34,20 @@ class TestTaskConcurrencyDep(unittest.TestCase):
         task = self._get_task(start_date=datetime(2016, 1, 1))
         dep_context = DepContext()
         ti = Mock(task=task, execution_date=datetime(2016, 1, 1))
-        self.assertTrue(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
+        assert TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context)
 
     def test_not_reached_concurrency(self):
         task = self._get_task(start_date=datetime(2016, 1, 1), task_concurrency=1)
         dep_context = DepContext()
         ti = Mock(task=task, execution_date=datetime(2016, 1, 1))
         ti.get_num_running_task_instances = lambda x: 0
-        self.assertTrue(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
+        assert TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context)
 
     def test_reached_concurrency(self):
         task = self._get_task(start_date=datetime(2016, 1, 1), task_concurrency=2)
         dep_context = DepContext()
         ti = Mock(task=task, execution_date=datetime(2016, 1, 1))
         ti.get_num_running_task_instances = lambda x: 1
-        self.assertTrue(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
+        assert TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context)
         ti.get_num_running_task_instances = lambda x: 2
-        self.assertFalse(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
+        assert not TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context)

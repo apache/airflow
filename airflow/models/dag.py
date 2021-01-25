@@ -348,6 +348,12 @@ class DAG(LoggingMixin):
         self.partial = False
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
+
+        # To keep it in parity with Serialized DAGs
+        # and identify if DAG has on_*_callback without actually storing them in Serialized JSON
+        self.has_on_success_callback = self.on_success_callback is not None
+        self.has_on_failure_callback = self.on_failure_callback is not None
+
         self.doc_md = doc_md
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
@@ -578,7 +584,7 @@ class DAG(LoggingMixin):
         next_run_date = None
         if not date_last_automated_dagrun:
             # First run
-            task_start_dates = [t.start_date for t in self.tasks]
+            task_start_dates = [t.start_date for t in self.tasks if t.start_date]
             if task_start_dates:
                 next_run_date = self.normalize_schedule(min(task_start_dates))
                 self.log.debug("Next run date based on tasks %s", next_run_date)
@@ -1532,7 +1538,7 @@ class DAG(LoggingMixin):
             dttm = timezone.utcnow()
             pickled = pickle.dumps(self)
             d['pickle_len'] = len(pickled)
-            d['pickling_duration'] = "{}".format(timezone.utcnow() - dttm)
+            d['pickling_duration'] = str(timezone.utcnow() - dttm)
         except Exception as e:
             self.log.debug(e)
             d['is_picklable'] = False
@@ -2028,6 +2034,9 @@ class DAG(LoggingMixin):
                 'on_failure_callback',
                 'template_undefined',
                 'jinja_environment_kwargs',
+                # has_on_*_callback are only stored if the value is True, as the default is False
+                'has_on_success_callback',
+                'has_on_failure_callback',
             }
         return cls.__serialized_fields
 

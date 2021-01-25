@@ -118,7 +118,7 @@ function kind::perform_kind_cluster_operation() {
     set +u
     if [[ -z "${1=}" ]]; then
         echo
-        echo  "${COLOR_RED_ERROR} Operation must be provided as first parameter. One of: ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Operation must be provided as first parameter. One of: ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -201,7 +201,7 @@ function kind::perform_kind_cluster_operation() {
                 -v "${KUBECONFIG}:/root/.kube/config" quay.io/derailed/k9s
         else
             echo
-            echo  "${COLOR_RED_ERROR} Wrong cluster operation: ${OPERATION}. Should be one of: ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Wrong cluster operation: ${OPERATION}. Should be one of: ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
             echo
             exit 1
         fi
@@ -219,12 +219,12 @@ function kind::perform_kind_cluster_operation() {
             kind::create_cluster
         elif [[ ${OPERATION} == "stop" || ${OPERATION} == "deploy" || ${OPERATION} == "test" || ${OPERATION} == "shell" ]]; then
             echo
-            echo  "${COLOR_RED_ERROR} Cluster ${KIND_CLUSTER_NAME} does not exist. It should exist for ${OPERATION} operation  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Cluster ${KIND_CLUSTER_NAME} does not exist. It should exist for ${OPERATION} operation  ${COLOR_RESET}"
             echo
             exit 1
         else
             echo
-            echo  "${COLOR_RED_ERROR} Wrong cluster operation: ${OPERATION}. Should be one of ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Wrong cluster operation: ${OPERATION}. Should be one of ${ALLOWED_KIND_OPERATIONS}  ${COLOR_RESET}"
             echo
             exit 1
         fi
@@ -297,7 +297,7 @@ function kind::wait_for_webserver_healthy() {
         num_tries=$((num_tries + 1))
         if [[ ${num_tries} == "${MAX_NUM_TRIES_FOR_HEALTH_CHECK}" ]]; then
             echo
-            echo  "${COLOR_RED_ERROR} Timeout while waiting for the webserver health check  ${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Timeout while waiting for the webserver health check  ${COLOR_RESET}"
             echo
         fi
     done

@@ -278,7 +278,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
             self.log.info("Container had exit code: %s", exit_code)
             if exit_code != 0:
-                raise AirflowException("Container had a non-zero exit code, %s" % exit_code)
+                raise AirflowException(f"Container had a non-zero exit code, {exit_code}")
             return exit_code
 
         except CloudError:

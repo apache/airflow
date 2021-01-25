@@ -31,6 +31,7 @@ integrations:
     tags: [aws]
   - integration-name: Amazon CloudFormation
     external-doc-url: https://aws.amazon.com/cloudformation/
+    logo: /integration-logos/aws/AWS-CloudFormation_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon CloudWatch Logs
     external-doc-url: https://aws.amazon.com/cloudwatch/
@@ -51,9 +52,11 @@ integrations:
     tags: [aws]
   - integration-name: Amazon ECS
     external-doc-url: https://aws.amazon.com/ecs/
+    logo: /integration-logos/aws/Amazon-Elastic-Container-Service_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon ElastiCache
     external-doc-url: https://aws.amazon.com/elasticache/redis//
+    logo: /integration-logos/aws/Amazon-ElastiCache_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon EMR
     external-doc-url: https://aws.amazon.com/emr/
@@ -63,6 +66,7 @@ integrations:
     tags: [aws]
   - integration-name: Amazon Glacier
     external-doc-url: https://aws.amazon.com/glacier/
+    logo: /integration-logos/aws/Amazon-S3-Glacier_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/glacier.rst
     tags: [aws]
@@ -80,9 +84,11 @@ integrations:
     tags: [aws]
   - integration-name: Amazon SecretsManager
     external-doc-url: https://aws.amazon.com/secrets-manager/
+    logo: /integration-logos/aws/AWS-Secrets-Manager_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Simple Email Service (SES)
     external-doc-url: https://aws.amazon.com/ses/
+    logo: /integration-logos/aws/Amazon-Simple-Email-Service-SES_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/ecs.rst
     tags: [aws]
@@ -100,6 +106,7 @@ integrations:
     tags: [aws]
   - integration-name: Amazon Web Services
     external-doc-url: https://aws.amazon.com/
+    logo: /integration-logos/aws/AWS-Cloud-alt_light-bg@4x.png
     tags: [aws]
   - integration-name: AWS Batch
     external-doc-url: https://aws.amazon.com/batch/
@@ -107,6 +114,7 @@ integrations:
     tags: [aws]
   - integration-name: AWS DataSync
     external-doc-url: https://aws.amazon.com/datasync/
+    logo: /integration-logos/aws/AWS-DataSync_light-bg@4x.png
     tags: [aws]
   - integration-name: AWS Glue
     external-doc-url: https://aws.amazon.com/glue/
@@ -118,6 +126,7 @@ integrations:
     tags: [aws]
   - integration-name: AWS Step Functions
     external-doc-url: https://aws.amazon.com/step-functions/
+    logo: /integration-logos/aws/AWS-Step-Functions_light-bg@4x.png
     tags: [aws]
 
 operators:
@@ -152,6 +161,7 @@ operators:
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.operators.glue
+      - airflow.providers.amazon.aws.operators.glue_crawler
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3_bucket
@@ -201,6 +211,7 @@ sensors:
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.sensors.glue
+      - airflow.providers.amazon.aws.sensors.glue_crawler
       - airflow.providers.amazon.aws.sensors.glue_catalog_partition
   - integration-name: Amazon Redshift
     python-modules:
@@ -260,6 +271,7 @@ hooks:
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.hooks.glue
+      - airflow.providers.amazon.aws.hooks.glue_crawler
       - airflow.providers.amazon.aws.hooks.glue_catalog
   - integration-name: Amazon Kinesis Data Firehose
     python-modules:
@@ -336,6 +348,12 @@ transfers:
   - source-integration-name: SSH File Transfer Protocol (SFTP)
     target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.amazon.aws.transfers.sftp_to_s3
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: File Transfer Protocol (FTP)
+    python-module: airflow.providers.amazon.aws.transfers.s3_to_ftp
+  - source-integration-name: Exasol
+    target-integration-name: Amazon Simple Storage Service (S3)
+    python-module: airflow.providers.amazon.aws.transfers.exasol_to_s3
 
 hook-class-names:
   - airflow.providers.amazon.aws.hooks.s3.S3Hook

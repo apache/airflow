@@ -92,6 +92,6 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
             max_ingestion_time=self.max_ingestion_time,
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException('Sagemaker Tuning Job creation failed: %s' % response)
+            raise AirflowException(f'Sagemaker Tuning Job creation failed: {response}')
         else:
             return {'Tuning': self.hook.describe_tuning_job(self.config['HyperParameterTuningJobName'])}

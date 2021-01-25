@@ -23,7 +23,7 @@ Context: Airflow 2.0 operators, hooks, and secrets
 ''''''''''''''''''''''''''''''''''''''''''''''''''
 
 We already have a lot of changes in the operators, transfers, hooks, sensors, secrets for many external systems, but
-they are not used nor tested widely because they are part of the master/2.0 release.
+they are not used nor tested widely because they are part of the **master/2.0** release.
 
 As a part of Airflow 2.0, following AIP-21 "change in import paths" all the non-core interfaces to external systems of
 Apache Airflow have been moved to the ``airflow.providers`` package.

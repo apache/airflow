@@ -66,6 +66,7 @@ class DebugExecutor(BaseExecutor):
                 self.log.info("Executor is terminated! Stopping %s to %s", ti.key, State.FAILED)
                 ti.set_state(State.FAILED)
                 self.change_state(ti.key, State.FAILED)
+                ti._run_finished_callback()  # pylint: disable=protected-access
                 continue
 
             task_succeeded = self._run_task(ti)
@@ -77,9 +78,12 @@ class DebugExecutor(BaseExecutor):
             params = self.tasks_params.pop(ti.key, {})
             ti._run_raw_task(job_id=ti.job_id, **params)  # pylint: disable=protected-access
             self.change_state(key, State.SUCCESS)
+            ti._run_finished_callback()  # pylint: disable=protected-access
             return True
         except Exception as e:  # pylint: disable=broad-except
+            ti.set_state(State.FAILED)
             self.change_state(key, State.FAILED)
+            ti._run_finished_callback()  # pylint: disable=protected-access
             self.log.exception("Failed to execute task: %s.", str(e))
             return False
 

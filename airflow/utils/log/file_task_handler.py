@@ -120,7 +120,7 @@ class FileTaskHandler(logging.Handler):
                     log += "".join(file.readlines())
             except Exception as e:  # pylint: disable=broad-except
                 log = f"*** Failed to load local log file: {location}\n"
-                log += "*** {}\n".format(str(e))
+                log += f"*** {str(e)}\n"
         elif conf.get('core', 'executor') == 'KubernetesExecutor':  # pylint: disable=too-many-nested-blocks
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
@@ -158,7 +158,7 @@ class FileTaskHandler(logging.Handler):
                     log += line.decode()
 
             except Exception as f:  # pylint: disable=broad-except
-                log += '*** Unable to fetch logs from worker pod {} ***\n{}\n\n'.format(ti.hostname, str(f))
+                log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
         else:
             url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
                 ti=ti, worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
@@ -180,7 +180,7 @@ class FileTaskHandler(logging.Handler):
 
                 log += '\n' + response.text
             except Exception as e:  # pylint: disable=broad-except
-                log += "*** Failed to fetch log file from worker. {}\n".format(str(e))
+                log += f"*** Failed to fetch log file from worker. {str(e)}\n"
 
         return log, {'end_of_log': True}
 

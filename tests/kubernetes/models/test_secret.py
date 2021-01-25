@@ -29,32 +29,24 @@ from airflow.kubernetes.secret import Secret
 class TestSecret(unittest.TestCase):
     def test_to_env_secret(self):
         secret = Secret('env', 'name', 'secret', 'key')
-        self.assertEqual(
-            secret.to_env_secret(),
-            k8s.V1EnvVar(
-                name='NAME',
-                value_from=k8s.V1EnvVarSource(
-                    secret_key_ref=k8s.V1SecretKeySelector(name='secret', key='key')
-                ),
-            ),
+        assert secret.to_env_secret() == k8s.V1EnvVar(
+            name='NAME',
+            value_from=k8s.V1EnvVarSource(secret_key_ref=k8s.V1SecretKeySelector(name='secret', key='key')),
         )
 
     def test_to_env_from_secret(self):
         secret = Secret('env', None, 'secret')
-        self.assertEqual(
-            secret.to_env_from_secret(), k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='secret'))
+        assert secret.to_env_from_secret() == k8s.V1EnvFromSource(
+            secret_ref=k8s.V1SecretEnvSource(name='secret')
         )
 
     @mock.patch('uuid.uuid4')
     def test_to_volume_secret(self, mock_uuid):
         mock_uuid.return_value = '0'
         secret = Secret('volume', '/etc/foo', 'secret_b')
-        self.assertEqual(
-            secret.to_volume_secret(),
-            (
-                k8s.V1Volume(name='secretvol0', secret=k8s.V1SecretVolumeSource(secret_name='secret_b')),
-                k8s.V1VolumeMount(mount_path='/etc/foo', name='secretvol0', read_only=True),
-            ),
+        assert secret.to_volume_secret() == (
+            k8s.V1Volume(name='secretvol0', secret=k8s.V1SecretVolumeSource(secret_name='secret_b')),
+            k8s.V1VolumeMount(mount_path='/etc/foo', name='secretvol0', read_only=True),
         )
 
     @mock.patch('uuid.uuid4')
@@ -62,14 +54,11 @@ class TestSecret(unittest.TestCase):
         mock_uuid.return_value = '0'
         items = [k8s.V1KeyToPath(key="my-username", path="/extra/path")]
         secret = Secret('volume', '/etc/foo', 'secret_b', items=items)
-        self.assertEqual(
-            secret.to_volume_secret(),
-            (
-                k8s.V1Volume(
-                    name='secretvol0', secret=k8s.V1SecretVolumeSource(secret_name='secret_b', items=items)
-                ),
-                k8s.V1VolumeMount(mount_path='/etc/foo', name='secretvol0', read_only=True),
+        assert secret.to_volume_secret() == (
+            k8s.V1Volume(
+                name='secretvol0', secret=k8s.V1SecretVolumeSource(secret_name='secret_b', items=items)
             ),
+            k8s.V1VolumeMount(mount_path='/etc/foo', name='secretvol0', read_only=True),
         )
 
     @mock.patch('uuid.uuid4')
@@ -89,60 +78,57 @@ class TestSecret(unittest.TestCase):
         k8s_client = ApiClient()
         pod = append_to_pod(pod, secrets)
         result = k8s_client.sanitize_for_serialization(pod)
-        self.assertEqual(
-            result,
-            {
-                'apiVersion': 'v1',
-                'kind': 'Pod',
-                'metadata': {
-                    'labels': {'app': 'myapp'},
-                    'name': 'myapp-pod-cf4a56d281014217b0272af6216feb48',
-                    'namespace': 'default',
-                },
-                'spec': {
-                    'containers': [
-                        {
-                            'command': ['sh', '-c', 'echo Hello Kubernetes!'],
-                            'env': [
-                                {'name': 'ENVIRONMENT', 'value': 'prod'},
-                                {'name': 'LOG_LEVEL', 'value': 'warning'},
-                                {
-                                    'name': 'TARGET',
-                                    'valueFrom': {'secretKeyRef': {'key': 'source_b', 'name': 'secret_b'}},
-                                },
-                            ],
-                            'envFrom': [
-                                {'configMapRef': {'name': 'configmap_a'}},
-                                {'secretRef': {'name': 'secret_a'}},
-                            ],
-                            'image': 'busybox',
-                            'name': 'base',
-                            'ports': [{'containerPort': 1234, 'name': 'foo'}],
-                            'resources': {'limits': {'memory': '200Mi'}, 'requests': {'memory': '100Mi'}},
-                            'volumeMounts': [
-                                {'mountPath': '/airflow/xcom', 'name': 'xcom'},
-                                {
-                                    'mountPath': '/etc/foo',
-                                    'name': 'secretvol' + str(static_uuid),
-                                    'readOnly': True,
-                                },
-                            ],
-                        },
-                        {
-                            'command': ['sh', '-c', 'trap "exit 0" INT; while true; do sleep 30; done;'],
-                            'image': 'alpine',
-                            'name': 'airflow-xcom-sidecar',
-                            'resources': {'requests': {'cpu': '1m'}},
-                            'volumeMounts': [{'mountPath': '/airflow/xcom', 'name': 'xcom'}],
-                        },
-                    ],
-                    'hostNetwork': True,
-                    'imagePullSecrets': [{'name': 'pull_secret_a'}, {'name': 'pull_secret_b'}],
-                    'securityContext': {'fsGroup': 2000, 'runAsUser': 1000},
-                    'volumes': [
-                        {'emptyDir': {}, 'name': 'xcom'},
-                        {'name': 'secretvol' + str(static_uuid), 'secret': {'secretName': 'secret_b'}},
-                    ],
-                },
+        assert result == {
+            'apiVersion': 'v1',
+            'kind': 'Pod',
+            'metadata': {
+                'labels': {'app': 'myapp'},
+                'name': 'myapp-pod-cf4a56d281014217b0272af6216feb48',
+                'namespace': 'default',
             },
-        )
+            'spec': {
+                'containers': [
+                    {
+                        'command': ['sh', '-c', 'echo Hello Kubernetes!'],
+                        'env': [
+                            {'name': 'ENVIRONMENT', 'value': 'prod'},
+                            {'name': 'LOG_LEVEL', 'value': 'warning'},
+                            {
+                                'name': 'TARGET',
+                                'valueFrom': {'secretKeyRef': {'key': 'source_b', 'name': 'secret_b'}},
+                            },
+                        ],
+                        'envFrom': [
+                            {'configMapRef': {'name': 'configmap_a'}},
+                            {'secretRef': {'name': 'secret_a'}},
+                        ],
+                        'image': 'busybox',
+                        'name': 'base',
+                        'ports': [{'containerPort': 1234, 'name': 'foo'}],
+                        'resources': {'limits': {'memory': '200Mi'}, 'requests': {'memory': '100Mi'}},
+                        'volumeMounts': [
+                            {'mountPath': '/airflow/xcom', 'name': 'xcom'},
+                            {
+                                'mountPath': '/etc/foo',
+                                'name': 'secretvol' + str(static_uuid),
+                                'readOnly': True,
+                            },
+                        ],
+                    },
+                    {
+                        'command': ['sh', '-c', 'trap "exit 0" INT; while true; do sleep 30; done;'],
+                        'image': 'alpine',
+                        'name': 'airflow-xcom-sidecar',
+                        'resources': {'requests': {'cpu': '1m'}},
+                        'volumeMounts': [{'mountPath': '/airflow/xcom', 'name': 'xcom'}],
+                    },
+                ],
+                'hostNetwork': True,
+                'imagePullSecrets': [{'name': 'pull_secret_a'}, {'name': 'pull_secret_b'}],
+                'securityContext': {'fsGroup': 2000, 'runAsUser': 1000},
+                'volumes': [
+                    {'emptyDir': {}, 'name': 'xcom'},
+                    {'name': 'secretvol' + str(static_uuid), 'secret': {'secretName': 'secret_b'}},
+                ],
+            },
+        }

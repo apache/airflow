@@ -54,25 +54,25 @@ class TestCliRoles(unittest.TestCase):
                 self.appbuilder.sm.delete_role(role_name)
 
     def test_cli_create_roles(self):
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
+        assert self.appbuilder.sm.find_role('FakeTeamA') is None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is None
 
         args = self.parser.parse_args(['roles', 'create', 'FakeTeamA', 'FakeTeamB'])
         role_command.roles_create(args)
 
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
+        assert self.appbuilder.sm.find_role('FakeTeamA') is not None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is not None
 
     def test_cli_create_roles_is_reentrant(self):
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
+        assert self.appbuilder.sm.find_role('FakeTeamA') is None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is None
 
         args = self.parser.parse_args(['roles', 'create', 'FakeTeamA', 'FakeTeamB'])
 
         role_command.roles_create(args)
 
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
+        assert self.appbuilder.sm.find_role('FakeTeamA') is not None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is not None
 
     def test_cli_list_roles(self):
         self.appbuilder.sm.add_role('FakeTeamA')
@@ -82,8 +82,8 @@ class TestCliRoles(unittest.TestCase):
             role_command.roles_list(self.parser.parse_args(['roles', 'list']))
             stdout = stdout.getvalue()
 
-        self.assertIn('FakeTeamA', stdout)
-        self.assertIn('FakeTeamB', stdout)
+        assert 'FakeTeamA' in stdout
+        assert 'FakeTeamB' in stdout
 
     def test_cli_list_roles_with_args(self):
         role_command.roles_list(self.parser.parse_args(['roles', 'list', '--output', 'yaml']))

@@ -66,29 +66,29 @@ class TestLineage(unittest.TestCase):
         # prepare with manual inlets and outlets
         op1.pre_execute(ctx1)
 
-        self.assertEqual(len(op1.inlets), 1)
-        self.assertEqual(op1.inlets[0].url, f1s.format(DEFAULT_DATE))
+        assert len(op1.inlets) == 1
+        assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
 
-        self.assertEqual(len(op1.outlets), 1)
-        self.assertEqual(op1.outlets[0].url, f2s.format(DEFAULT_DATE))
+        assert len(op1.outlets) == 1
+        assert op1.outlets[0].url == f2s.format(DEFAULT_DATE)
 
         # post process with no backend
         op1.post_execute(ctx1)
 
         op2.pre_execute(ctx2)
-        self.assertEqual(len(op2.inlets), 0)
+        assert len(op2.inlets) == 0
         op2.post_execute(ctx2)
 
         op3.pre_execute(ctx3)
-        self.assertEqual(len(op3.inlets), 1)
-        self.assertEqual(op3.inlets[0].url, f2s.format(DEFAULT_DATE))
-        self.assertEqual(op3.outlets[0], file3)
+        assert len(op3.inlets) == 1
+        assert op3.inlets[0].url == f2s.format(DEFAULT_DATE)
+        assert op3.outlets[0] == file3
         op3.post_execute(ctx3)
 
         # skip 4
 
         op5.pre_execute(ctx5)
-        self.assertEqual(len(op5.inlets), 2)
+        assert len(op5.inlets) == 2
         op5.post_execute(ctx5)
 
     def test_lineage_render(self):
@@ -109,5 +109,5 @@ class TestLineage(unittest.TestCase):
         ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
 
         op1.pre_execute(ctx1)
-        self.assertEqual(op1.inlets[0].url, f1s.format(DEFAULT_DATE))
-        self.assertEqual(op1.outlets[0].url, f1s.format(DEFAULT_DATE))
+        assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
+        assert op1.outlets[0].url == f1s.format(DEFAULT_DATE)

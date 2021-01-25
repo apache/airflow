@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Jenkins
     external-doc-url: https://jenkins.io/
+    logo: /integration-logos/jenkins/Jenkins.png
     tags: [software]
 
 operators:

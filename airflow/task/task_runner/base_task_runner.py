@@ -20,9 +20,12 @@ import getpass
 import os
 import subprocess
 import threading
+from tempfile import NamedTemporaryFile
+from typing import Optional, Union
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.models.taskinstance import load_error_file
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -81,16 +84,25 @@ class BaseTaskRunner(LoggingMixin):
             # - the runner can read/execute those values as it needs
             cfg_path = tmp_configuration_copy(chmod=0o600)
 
+        self._error_file = NamedTemporaryFile(delete=True)
         self._cfg_path = cfg_path
-        self._command = popen_prepend + self._task_instance.command_as_list(
-            raw=True,
-            pickle_id=local_task_job.pickle_id,
-            mark_success=local_task_job.mark_success,
-            job_id=local_task_job.id,
-            pool=local_task_job.pool,
-            cfg_path=cfg_path,
+        self._command = (
+            popen_prepend
+            + self._task_instance.command_as_list(
+                raw=True,
+                pickle_id=local_task_job.pickle_id,
+                mark_success=local_task_job.mark_success,
+                job_id=local_task_job.id,
+                pool=local_task_job.pool,
+                cfg_path=cfg_path,
+            )
+            + ["--error-file", self._error_file.name]
         )
         self.process = None
+
+    def deserialize_run_error(self) -> Optional[Union[str, Exception]]:
+        """Return task runtime error if its written to provided error file."""
+        return load_error_file(self._error_file)
 
     def _read_task_logs(self, stream):
         while True:
@@ -144,7 +156,7 @@ class BaseTaskRunner(LoggingMixin):
         """Start running the task instance in a subprocess."""
         raise NotImplementedError()
 
-    def return_code(self):
+    def return_code(self) -> Optional[int]:
         """
         :return: The return code associated with running the task instance or
             None if the task is not yet done.
@@ -152,14 +164,15 @@ class BaseTaskRunner(LoggingMixin):
         """
         raise NotImplementedError()
 
-    def terminate(self):
-        """Kill the running task instance."""
+    def terminate(self) -> None:
+        """Force kill the running task instance."""
         raise NotImplementedError()
 
-    def on_finish(self):
+    def on_finish(self) -> None:
         """A callback that should be called when this is done running."""
         if self._cfg_path and os.path.isfile(self._cfg_path):
             if self.run_as_user:
                 subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
             else:
                 os.remove(self._cfg_path)
+        self._error_file.close()

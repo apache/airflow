@@ -47,7 +47,7 @@
   - name: AIRFLOW__CELERY__BROKER_URL
     valueFrom:
       secretKeyRef:
-        name: {{ .Release.Name }}-broker-url
+        name: {{ default (printf "%s-broker-url" .Release.Name) .Values.data.brokerUrlSecretName }}
         key: connection
   {{- end }}
   {{- if .Values.elasticsearch.enabled }}

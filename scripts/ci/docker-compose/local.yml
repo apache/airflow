@@ -56,7 +56,6 @@ services:
       - ../../../tests:/opt/airflow/tests:cached
       - ../../../kubernetes_tests:/opt/airflow/kubernetes_tests:cached
       - ../../../chart:/opt/airflow/chart:cached
-      - ../../../tmp:/tmp:cached
       - ../../../metastore_browser:/opt/airflow/metastore_browser:cached
       # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
     ports:

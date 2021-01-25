@@ -41,6 +41,7 @@ import jsonpath_ng
 import jsonschema
 import yaml
 from packaging.version import Version
+from rich import print
 
 PROVIDER_TEMPLATE_PREFIX = "PROVIDER_"
 BACKPORT_PROVIDER_TEMPLATE_PREFIX = "BACKPORT_PROVIDER_"
@@ -58,6 +59,8 @@ GENERATED_PROVIDERS_PATH = os.path.join(GENERATED_AIRFLOW_PATH, "providers")
 PROVIDER_2_0_0_DATA_SCHEMA_PATH = os.path.join(
     SOURCE_DIR_PATH, "airflow", "deprecated_schemas", "provider-2.0.0.yaml.schema.json"
 )
+
+PROVIDER_RUNTIME_DATA_SCHEMA_PATH = os.path.join(SOURCE_DIR_PATH, "airflow", "provider_info.schema.json")
 
 sys.path.insert(0, SOURCE_DIR_PATH)
 
@@ -86,7 +89,7 @@ def with_group(title):
     https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
     """
     if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
-        print("#" * 20, title, "#" * 20)
+        print("[blue]", "#" * 20, title, "#" * 20, "[/]")
         yield
         return
     print(f"::group::{title}")
@@ -606,7 +609,7 @@ def print_wrong_naming(entity_type: EntityType, wrong_classes: List[Tuple[type, 
     :param wrong_classes: list of wrong entities
     """
     if wrong_classes:
-        print(f"\nThere are wrongly named entities of type {entity_type}:\n", file=sys.stderr)
+        print(f"\n[red]There are wrongly named entities of type {entity_type}:[/]\n", file=sys.stderr)
         for entity_type, message in wrong_classes:
             print(f"{entity_type}: {message}", file=sys.stderr)
 
@@ -868,7 +871,7 @@ def get_all_releases(provider_package_path: str, backport_packages: bool) -> Lis
                 content = changes_file.read()
             found = re.search(r'/([a-z0-9]*)\)', content, flags=re.MULTILINE)
             if not found:
-                print("No commit found. This seems to be first time you run it", file=sys.stderr)
+                print("[yellow]No commit found. This seems to be first time you run it[/]", file=sys.stderr)
             else:
                 last_commit_hash = found.group(1)
                 release_version = file_name[len(changes_file_prefix) :][:-3]
@@ -953,8 +956,8 @@ def check_if_release_version_ok(
     if previous_release_version:
         if Version(current_release_version) < Version(previous_release_version):
             print(
-                f"The release {current_release_version} must be not less than "
-                f"{previous_release_version} - last release for the package",
+                f"[red]The release {current_release_version} must be not less than "
+                f"{previous_release_version} - last release for the package[/]",
                 file=sys.stderr,
             )
             sys.exit(2)
@@ -990,8 +993,8 @@ def make_sure_remote_apache_exists_and_fetch():
     except subprocess.CalledProcessError as e:
         if e.returncode == 128:
             print(
-                "The remote `apache-https-for-providers` already exists. If you have trouble running "
-                "git log delete the remote",
+                "[yellow]The remote `apache-https-for-providers` already exists. If you have trouble running "
+                "git log delete the remote[/]",
                 file=sys.stderr,
             )
         else:
@@ -1112,14 +1115,14 @@ def check_if_classes_are_properly_named(
             error_encountered = False
             if not is_camel_case_with_acronyms(class_name):
                 print(
-                    f"The class {class_full_name} is wrongly named. The "
-                    f"class name should be CamelCaseWithACRONYMS !"
+                    f"[red]The class {class_full_name} is wrongly named. The "
+                    f"class name should be CamelCaseWithACRONYMS ![/]"
                 )
                 error_encountered = True
             if not class_name.endswith(class_suffix):
                 print(
-                    f"The class {class_full_name} is wrongly named. It is one of the {entity_type.value}"
-                    f" so it should end with {class_suffix}"
+                    f"[red]The class {class_full_name} is wrongly named. It is one of the {entity_type.value}"
+                    f" so it should end with {class_suffix}[/]"
                 )
                 error_encountered = True
             total_class_number += 1
@@ -1137,54 +1140,89 @@ def get_package_pip_name(provider_package_id: str, backport_packages: bool):
 
 def validate_provider_info_with_2_0_0_schema(provider_info: Dict[str, Any]) -> None:
     """
-    Validates provider info against 2.0.0 schema.
+    Validates provider info against 2.0.0 schema. We need to run this validation until we make Airflow
+    2.0.0 yank and add apache-airflow>=2.0.1 (possibly) to provider dependencies.
+
     :param provider_info: provider info to validate
     """
 
-    def _load_schema() -> Dict[str, Any]:
-        with open(PROVIDER_2_0_0_DATA_SCHEMA_PATH) as schema_file:
-            content = json.load(schema_file)
-        return content
-
-    schema = _load_schema()
+    with open(PROVIDER_2_0_0_DATA_SCHEMA_PATH) as schema_file:
+        schema = json.load(schema_file)
     try:
         jsonschema.validate(provider_info, schema=schema)
+        print("[green]Provider info validated against 2.0.0 schema[/]")
     except jsonschema.ValidationError as e:
         raise Exception(
             "Error when validating schema. The schema must be Airflow 2.0.0 compatible. "
-            "If you added any fields please remove them via 'remove_extra_fields' method.",
+            "If you added any fields please remove them via 'convert_to_provider_info' method.",
             e,
         )
 
 
-def remove_logo_field(original_provider_info: Dict[str, Any]):
-    updated_provider_info = deepcopy(original_provider_info)
-    expression = jsonpath_ng.parse("integrations..logo")
-    updated_provider_info = expression.filter(lambda x: True, updated_provider_info)
-    return updated_provider_info
+def validate_provider_info_with_runtime_schema(provider_info: Dict[str, Any]) -> None:
+    """
+    Validates provider info against the runtime schema. This way we check if the provider info in the
+    packages is future-compatible. The Runtime Schema should only change when there is a major version
+    change.
+
+    :param provider_info: provider info to validate
+    """
+
+    with open(PROVIDER_RUNTIME_DATA_SCHEMA_PATH) as schema_file:
+        schema = json.load(schema_file)
+    try:
+        jsonschema.validate(provider_info, schema=schema)
+        print("[green]Provider info validated against runtime schema[/]")
+    except jsonschema.ValidationError as e:
+        raise Exception(
+            "Error when validating schema. The schema must be compatible with "
+            + "airflow/provider_info.schema.json. "
+            + "If you added any fields please remove them via 'convert_to_provider_info' method.",
+            e,
+        )
 
 
-def remove_extra_fields(provider_info: Dict[str, Any]) -> Dict[str, Any]:
+def convert_to_provider_info(provider_info: Dict[str, Any]) -> Dict[str, Any]:
     """
     In Airflow 2.0.0 we set 'additionalProperties" to 'false' in provider's schema, which makes the schema
-    non future-compatible. While we changed tho additionalProperties to 'true' in 2.0.1, we have to
+    non future-compatible.
+
+    While we changed tho additionalProperties to 'true' in 2.0.1, we have to
     make sure that the returned provider_info when preparing package is compatible with the older version
     of the schema and remove all the newly added fields until we deprecate (possibly even yank) 2.0.0
     and make provider packages depend on Airflow >=2.0.1.
+
+    Currently we have two provider schemas:
+    * provider.yaml.schema.json that is used to verify the schema while it is developed (it has, for example
+      additionalProperties set to false, to avoid typos in field names). This is the full set of
+      fields that are used for both: runtime information and documentation building.
+    * provider_info.schema.json that is used to verify the schema at runtime - it only contains
+      fields from provider.yaml that are necessary for runtime provider discovery.
+
+      This method converts the full provider.yaml schema into the limited version needed at runtime.
     """
-    provider_info = remove_logo_field(provider_info)
-    return provider_info
+    updated_provider_info = deepcopy(provider_info)
+    expression = jsonpath_ng.parse("[hooks,operators,integrations,sensors,transfers]")
+    return expression.filter(lambda x: True, updated_provider_info)
 
 
-def get_provider_info(provider_package_id: str) -> Dict[str, Any]:
+def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
+    """
+    Retrieves provider info from the provider yaml file. The provider yaml file contains more information
+    than provider_info that is used at runtime. This method converts the full provider yaml file into
+    stripped-down provider info and validates it against deprecated 2.0.0 schema and runtime schema.
+    :param provider_package_id: package id to retrieve provider.yaml from
+    :return: provider_info dictionary
+    """
     provider_yaml_file_name = os.path.join(get_source_package_path(provider_package_id), "provider.yaml")
     if not os.path.exists(provider_yaml_file_name):
         raise Exception(f"The provider.yaml file is missing: {provider_yaml_file_name}")
     with open(provider_yaml_file_name) as provider_file:
-        provider_info = yaml.safe_load(provider_file.read())
-    stripped_provider_info = remove_extra_fields(provider_info)
-    validate_provider_info_with_2_0_0_schema(stripped_provider_info)
-    return stripped_provider_info
+        provider_yaml_dict = yaml.safe_load(provider_file.read())
+    provider_info = convert_to_provider_info(provider_yaml_dict)
+    validate_provider_info_with_2_0_0_schema(provider_info)
+    validate_provider_info_with_runtime_schema(provider_info)
+    return provider_info
 
 
 def update_generated_files_for_package(
@@ -1255,7 +1293,7 @@ def update_generated_files_for_package(
         "EXTRAS_REQUIREMENTS": get_package_extras(
             provider_package_id=provider_package_id, backport_packages=backport_packages
         ),
-        "PROVIDER_INFO": get_provider_info(provider_package_id),
+        "PROVIDER_INFO": get_provider_info_from_provider_yaml(provider_package_id),
     }
     if update_release_notes:
         git_cmd = get_git_command(previous_release)
@@ -1299,7 +1337,7 @@ def update_generated_files_for_package(
     bad = bad + sum([len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values()])
     if bad != 0:
         print()
-        print(f"ERROR! There are {bad} errors of {total} entities for {provider_package_id}")
+        print(f"[red]There are {bad} errors of {total} entities for {provider_package_id}[/]")
         print()
     return total, bad
 
@@ -1396,7 +1434,10 @@ def prepare_setup_cfg_file(context):
 def prepare_get_provider_info_py_file(context, provider_package_id: str):
     get_provider_template_name = "get_provider_info"
     get_provider_file_path = os.path.abspath(
-        os.path.join(get_target_providers_package_folder(provider_package_id), "get_provider_info.py")
+        os.path.join(
+            get_target_providers_package_folder(provider_package_id),
+            "get_provider_info.py",
+        )
     )
     get_provider_content = render_template(
         template_name=get_provider_template_name,
@@ -1473,7 +1514,7 @@ def update_release_notes_for_packages(
             bad += inc_bad
     if bad == 0:
         print()
-        print(f"All good! All {total} entities are properly named")
+        print(f"[green]All good! All {total} entities are properly named[/]")
         print()
         print("Totals:")
         print()
@@ -1489,7 +1530,7 @@ def update_release_notes_for_packages(
         print()
     else:
         print()
-        print(f"ERROR! There are in total: {bad} entities badly named out of {total} entities ")
+        print(f"[red]There are in total: {bad} entities badly named out of {total} entities[/]")
         print()
         sys.exit(1)
 
@@ -1547,14 +1588,14 @@ def copy_readme_and_changelog(provider_package_id: str, backport_packages: bool)
                 outfile.write(line)
 
 
-def print_provider_packages_list(args):
+def print_provider_packages_list(_):
     """List all provider packages."""
     providers = list(PROVIDERS_REQUIREMENTS.keys())
     for provider in providers:
         print(provider)
 
 
-def print_backport_packages_list(args):
+def print_backport_packages_list(_):
     """Lists all packages that are backportable."""
     providers = get_all_backportable_providers()
     for provider in providers:
@@ -1565,7 +1606,7 @@ def get_version_suffix(version_suffix):
     return version_suffix if version_suffix is not None else ""
 
 
-def update_package_release_notes(args):
+def update_package_release_notes(_):
     """Updates package release notes."""
     release_ver = ""
     suffix = get_version_suffix(args.version_suffix)
@@ -1590,7 +1631,7 @@ def update_package_release_notes(args):
     )
 
 
-def generate_setup_files(args):
+def generate_setup_files(args: Any):
     """Generates setup files for the package."""
     print()
     print()
@@ -1627,6 +1668,7 @@ def build_provider_package(args):
     subprocess.check_call(
         command,
     )
+    print(f"[green]Prepared provider package {_provider_package} in format ${package_format}[/]")
 
 
 def get_parser():

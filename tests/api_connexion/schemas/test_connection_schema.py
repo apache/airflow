@@ -18,6 +18,7 @@ import re
 import unittest
 
 import marshmallow
+import pytest
 
 from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection,
@@ -52,17 +53,14 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
         session.commit()
         connection_model = session.query(Connection).first()
         deserialized_connection = connection_collection_item_schema.dump(connection_model)
-        self.assertEqual(
-            deserialized_connection,
-            {
-                'connection_id': "mysql_default",
-                'conn_type': 'mysql',
-                'host': 'mysql',
-                'login': 'login',
-                'schema': 'testschema',
-                'port': 80,
-            },
-        )
+        assert deserialized_connection == {
+            'connection_id': "mysql_default",
+            'conn_type': 'mysql',
+            'host': 'mysql',
+            'login': 'login',
+            'schema': 'testschema',
+            'port': 80,
+        }
 
     def test_deserialize(self):
         connection_dump_1 = {
@@ -80,32 +78,26 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
         result_1 = connection_collection_item_schema.load(connection_dump_1)
         result_2 = connection_collection_item_schema.load(connection_dump_2)
 
-        self.assertEqual(
-            result_1,
-            {
-                'conn_id': "mysql_default_1",
-                'conn_type': 'mysql',
-                'host': 'mysql',
-                'login': 'login',
-                'schema': 'testschema',
-                'port': 80,
-            },
-        )
-        self.assertEqual(
-            result_2,
-            {
-                'conn_id': "mysql_default_2",
-                'conn_type': "postgres",
-            },
-        )
+        assert result_1 == {
+            'conn_id': "mysql_default_1",
+            'conn_type': 'mysql',
+            'host': 'mysql',
+            'login': 'login',
+            'schema': 'testschema',
+            'port': 80,
+        }
+        assert result_2 == {
+            'conn_id': "mysql_default_2",
+            'conn_type': "postgres",
+        }
 
     def test_deserialize_required_fields(self):
         connection_dump_1 = {
             'connection_id': "mysql_default_2",
         }
-        with self.assertRaisesRegex(
+        with pytest.raises(
             marshmallow.exceptions.ValidationError,
-            re.escape("{'conn_type': ['Missing data for required field.']}"),
+            match=re.escape("{'conn_type': ['Missing data for required field.']}"),
         ):
             connection_collection_item_schema.load(connection_dump_1)
 
@@ -127,30 +119,27 @@ class TestConnectionCollectionSchema(unittest.TestCase):
         session.commit()
         instance = ConnectionCollection(connections=connections, total_entries=2)
         deserialized_connections = connection_collection_schema.dump(instance)
-        self.assertEqual(
-            deserialized_connections,
-            {
-                'connections': [
-                    {
-                        "connection_id": "mysql_default_1",
-                        "conn_type": "test-type",
-                        "host": None,
-                        "login": None,
-                        'schema': None,
-                        'port': None,
-                    },
-                    {
-                        "connection_id": "mysql_default_2",
-                        "conn_type": "test-type2",
-                        "host": None,
-                        "login": None,
-                        'schema': None,
-                        'port': None,
-                    },
-                ],
-                'total_entries': 2,
-            },
-        )
+        assert deserialized_connections == {
+            'connections': [
+                {
+                    "connection_id": "mysql_default_1",
+                    "conn_type": "test-type",
+                    "host": None,
+                    "login": None,
+                    'schema': None,
+                    'port': None,
+                },
+                {
+                    "connection_id": "mysql_default_2",
+                    "conn_type": "test-type2",
+                    "host": None,
+                    "login": None,
+                    'schema': None,
+                    'port': None,
+                },
+            ],
+            'total_entries': 2,
+        }
 
 
 class TestConnectionSchema(unittest.TestCase):
@@ -177,18 +166,15 @@ class TestConnectionSchema(unittest.TestCase):
         session.commit()
         connection_model = session.query(Connection).first()
         deserialized_connection = connection_schema.dump(connection_model)
-        self.assertEqual(
-            deserialized_connection,
-            {
-                'connection_id': "mysql_default",
-                'conn_type': 'mysql',
-                'host': 'mysql',
-                'login': 'login',
-                'schema': 'testschema',
-                'port': 80,
-                'extra': "{'key':'string'}",
-            },
-        )
+        assert deserialized_connection == {
+            'connection_id': "mysql_default",
+            'conn_type': 'mysql',
+            'host': 'mysql',
+            'login': 'login',
+            'schema': 'testschema',
+            'port': 80,
+            'extra': "{'key':'string'}",
+        }
 
     def test_deserialize(self):
         den = {
@@ -201,15 +187,12 @@ class TestConnectionSchema(unittest.TestCase):
             'extra': "{'key':'string'}",
         }
         result = connection_schema.load(den)
-        self.assertEqual(
-            result,
-            {
-                'conn_id': "mysql_default",
-                'conn_type': 'mysql',
-                'host': 'mysql',
-                'login': 'login',
-                'schema': 'testschema',
-                'port': 80,
-                'extra': "{'key':'string'}",
-            },
-        )
+        assert result == {
+            'conn_id': "mysql_default",
+            'conn_type': 'mysql',
+            'host': 'mysql',
+            'login': 'login',
+            'schema': 'testschema',
+            'port': 80,
+            'extra': "{'key':'string'}",
+        }

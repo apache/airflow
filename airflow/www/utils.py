@@ -128,14 +128,14 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, window=
     is_disabled = 'disabled' if current_page <= 0 else ''
     output.append(
         first_node.format(
-            href_link="?{}".format(get_params(page=0, search=search, status=status)),  # noqa
+            href_link=f"?{get_params(page=0, search=search, status=status)}",  # noqa
             disabled=is_disabled,
         )
     )
 
     page_link = void_link
     if current_page > 0:
-        page_link = '?{}'.format(get_params(page=(current_page - 1), search=search, status=status))
+        page_link = f'?{get_params(page=current_page - 1, search=search, status=status)}'
 
     output.append(previous_node.format(href_link=page_link, disabled=is_disabled))  # noqa
 
@@ -157,7 +157,7 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, window=
             'is_active': 'active' if is_current(current_page, page) else '',
             'href_link': void_link
             if is_current(current_page, page)
-            else '?{}'.format(get_params(page=page, search=search, status=status)),
+            else f'?{get_params(page=page, search=search, status=status)}',
             'page_num': page + 1,
         }
         output.append(page_node.format(**vals))  # noqa
@@ -167,13 +167,13 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, window=
     page_link = (
         void_link
         if current_page >= num_of_pages - 1
-        else '?{}'.format(get_params(page=current_page + 1, search=search, status=status))
+        else f'?{get_params(page=current_page + 1, search=search, status=status)}'
     )
 
     output.append(next_node.format(href_link=page_link, disabled=is_disabled))  # noqa
     output.append(
         last_node.format(
-            href_link="?{}".format(get_params(page=last_page, search=search, status=status)),  # noqa
+            href_link=f"?{get_params(page=last_page, search=search, status=status)}",  # noqa
             disabled=is_disabled,
         )
     )
@@ -288,7 +288,7 @@ def dag_link(attr):
     dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, execution_date=execution_date)
-    return Markup('<a href="{}">{}</a>').format(url, dag_id)  # noqa
+    return Markup('<a href="{}">{}</a>').format(url, dag_id) if dag_id else Markup('None')  # noqa
 
 
 def dag_run_link(attr):
@@ -326,7 +326,7 @@ def wrapped_markdown(s, css_class=None):
     if s is None:
         return None
 
-    return Markup(f'<div class="{css_class}" >' + markdown.markdown(s) + "</div>")
+    return Markup(f'<div class="{css_class}" >' + markdown.markdown(s, extensions=['tables']) + "</div>")
 
 
 # pylint: disable=no-member

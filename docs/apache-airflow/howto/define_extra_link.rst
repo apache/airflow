@@ -27,11 +27,12 @@ will be available on the task page:
 
 .. image:: ../img/operator_extra_link.png
 
-The following code shows how to add extra links to an operator:
+The following code shows how to add extra links to an operator via Plugins:
 
 .. code-block:: python
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.plugins_manager import AirflowPlugin
     from airflow.utils.decorators import apply_defaults
 
 
@@ -53,6 +54,13 @@ The following code shows how to add extra links to an operator:
 
         def execute(self, context):
             self.log.info("Hello World!")
+
+    # Defining the plugin class
+    class AirflowExtraLinkPlugin(AirflowPlugin):
+        name = "extra_link_plugin"
+        operator_extra_links = [GoogleLink(), ]
+
+.. note:: Operator Extra Links should be registered via Airflow Plugins or custom Airflow Provider to work.
 
 You can also add a global operator extra link that will be available to
 all the operators through an airflow plugin or through airflow providers. You can learn more about it in the

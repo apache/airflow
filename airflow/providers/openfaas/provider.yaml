@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: OpenFaaS
     external-doc-url: https://www.openfaas.com/
+    logo: /integration-logos/openfaas/OpenFaaS.png
     tags: [software]
 
 hooks:

@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Exasol
     external-doc-url: https://docs.exasol.com/home.htm
+    logo: /integration-logos/exasol/Exasol.png
     tags: [software]
 
 operators:

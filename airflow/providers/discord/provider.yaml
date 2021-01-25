@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Discord
     external-doc-url: https://discordapp.com
+    logo: /integration-logos/discord/Discord.png
     tags: [service]
 
 operators:

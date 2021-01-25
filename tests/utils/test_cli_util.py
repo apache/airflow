@@ -25,6 +25,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from unittest import mock
 
+import pytest
 from parameterized import parameterized
 
 from airflow import settings
@@ -47,24 +48,24 @@ class TestCliUtil(unittest.TestCase):
             'execution_date': exec_date,
         }
         for k, v in expected.items():
-            self.assertEqual(v, metrics.get(k))
+            assert v == metrics.get(k)
 
-        self.assertTrue(metrics.get('start_datetime') <= datetime.utcnow())
-        self.assertTrue(metrics.get('full_command'))
+        assert metrics.get('start_datetime') <= datetime.utcnow()
+        assert metrics.get('full_command')
 
         log_dao = metrics.get('log')
-        self.assertTrue(log_dao)
-        self.assertEqual(log_dao.dag_id, metrics.get('dag_id'))
-        self.assertEqual(log_dao.task_id, metrics.get('task_id'))
-        self.assertEqual(log_dao.execution_date, metrics.get('execution_date'))
-        self.assertEqual(log_dao.owner, metrics.get('user'))
+        assert log_dao
+        assert log_dao.dag_id == metrics.get('dag_id')
+        assert log_dao.task_id == metrics.get('task_id')
+        assert log_dao.execution_date == metrics.get('execution_date')
+        assert log_dao.owner == metrics.get('user')
 
     def test_fail_function(self):
         """
         Actual function is failing and fail needs to be propagated.
         :return:
         """
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             fail_func(Namespace())
 
     def test_success_function(self):
@@ -77,16 +78,16 @@ class TestCliUtil(unittest.TestCase):
             success_func(Namespace())
 
     def test_process_subdir_path_with_placeholder(self):
-        self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
+        assert os.path.join(settings.DAGS_FOLDER, 'abc') == cli.process_subdir('DAGS_FOLDER/abc')
 
     def test_get_dags(self):
         dags = cli.get_dags(None, "example_subdag_operator")
-        self.assertEqual(len(dags), 1)
+        assert len(dags) == 1
 
         dags = cli.get_dags(None, "subdag", True)
-        self.assertGreater(len(dags), 1)
+        assert len(dags) > 1
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             cli.get_dags(None, "foobar", True)
 
     @parameterized.expand(
@@ -123,30 +124,30 @@ class TestCliUtil(unittest.TestCase):
         with mock.patch.object(sys, "argv", args):
             metrics = cli._build_metrics(args[1], namespace)
 
-        self.assertTrue(metrics.get('start_datetime') <= datetime.utcnow())
+        assert metrics.get('start_datetime') <= datetime.utcnow()
 
         log = metrics.get('log')
         command = json.loads(log.extra).get('full_command')  # type: str
         # Replace single quotes to double quotes to avoid json decode error
         command = json.loads(command.replace("'", '"'))
-        self.assertEqual(command, expected_command)
+        assert command == expected_command
 
     def test_setup_locations_relative_pid_path(self):
         relative_pid_path = "fake.pid"
         pid_full_path = os.path.join(os.getcwd(), relative_pid_path)
         pid, _, _, _ = cli.setup_locations(process="fake_process", pid=relative_pid_path)
-        self.assertEqual(pid, pid_full_path)
+        assert pid == pid_full_path
 
     def test_setup_locations_absolute_pid_path(self):
         abs_pid_path = os.path.join(os.getcwd(), "fake.pid")
         pid, _, _, _ = cli.setup_locations(process="fake_process", pid=abs_pid_path)
-        self.assertEqual(pid, abs_pid_path)
+        assert pid == abs_pid_path
 
     def test_setup_locations_none_pid_path(self):
         process_name = "fake_process"
         default_pid_path = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process_name}.pid")
         pid, _, _, _ = cli.setup_locations(process=process_name)
-        self.assertEqual(pid, default_pid_path)
+        assert pid == default_pid_path
 
 
 @contextmanager

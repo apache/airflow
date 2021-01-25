@@ -149,7 +149,7 @@ class TestGoogleCloudStorageListOperator(unittest.TestCase):
         mock_hook.return_value.list.assert_called_once_with(
             bucket_name=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
         )
-        self.assertEqual(sorted(files), sorted(MOCK_FILES))
+        assert sorted(files) == sorted(MOCK_FILES)
 
 
 class TestGCSFileTransformOperator(unittest.TestCase):
@@ -235,7 +235,7 @@ class TestGoogleCloudStorageSync(unittest.TestCase):
         )
         task.execute({})
         mock_hook.assert_called_once_with(
-            google_cloud_storage_conn_id='GCP_CONN_ID',
+            gcp_conn_id='GCP_CONN_ID',
             delegate_to='DELEGATE_TO',
             impersonation_chain=IMPERSONATION_CHAIN,
         )

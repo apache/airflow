@@ -50,7 +50,7 @@ mkdir -p "${GO_CLIENT_PATH}"
 # generate client for target patch
 mkdir -p "${GO_TARGET_CLIENT_PATH}"
 
-git reset --hard "${previous_mainline_commit}"
+git checkout "${previous_mainline_commit}" -- "$SPEC_FILE"
 ./clients/gen/go.sh "${SPEC_FILE}" "${GO_TARGET_CLIENT_PATH}"
 
 diff -u "${GO_TARGET_CLIENT_PATH}" "${GO_CLIENT_PATH}" || true

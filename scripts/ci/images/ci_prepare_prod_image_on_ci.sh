@@ -17,6 +17,7 @@
 # under the License.
 
 export INSTALL_FROM_PYPI="false"
+export INSTALL_PROVIDERS_FROM_SOURCES="false"
 export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
 export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
 export DOCKER_CACHE="pulled"

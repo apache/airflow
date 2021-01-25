@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: SSH File Transfer Protocol (SFTP)
     external-doc-url: https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/
+    logo: /integration-logos/sftp/SFTP.png
     tags: [protocol]
 
 operators:

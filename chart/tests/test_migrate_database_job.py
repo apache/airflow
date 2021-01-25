@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import re
 import unittest
 
 import jmespath
@@ -29,7 +30,5 @@ class MigrateDatabaseJobTest(unittest.TestCase):
             show_only=["templates/migrate-database-job.yaml"],
         )
 
-        self.assertRegex(docs[0]["kind"], "Job")
-        self.assertEqual(
-            "run-airflow-migrations", jmespath.search("spec.template.spec.containers[0].name", docs[0])
-        )
+        assert re.search("Job", docs[0]["kind"])
+        assert "run-airflow-migrations" == jmespath.search("spec.template.spec.containers[0].name", docs[0])

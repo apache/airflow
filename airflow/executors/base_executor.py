@@ -64,6 +64,9 @@ class BaseExecutor(LoggingMixin):
         self.running: Set[TaskInstanceKey] = set()
         self.event_buffer: Dict[TaskInstanceKey, EventBufferValueType] = {}
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(parallelism={self.parallelism})"
+
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
 

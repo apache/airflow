@@ -179,7 +179,7 @@ class TestPinotAdminHook(unittest.TestCase):
         mock_popen.return_value = mock_proc
 
         params = ["foo", "bar", "baz"]
-        with self.assertRaises(AirflowException, msg=msg):
+        with pytest.raises(AirflowException):
             self.db_hook.run_cli(params)
         params.insert(0, self.conn.extra_dejson.get('cmd_path'))
         mock_popen.assert_called_once_with(
@@ -195,7 +195,7 @@ class TestPinotAdminHook(unittest.TestCase):
 
         self.db_hook.pinot_admin_system_exit = True
         params = ["foo", "bar", "baz"]
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.db_hook.run_cli(params)
         params.insert(0, self.conn.extra_dejson.get('cmd_path'))
         env = os.environ.copy()
@@ -232,29 +232,29 @@ class TestPinotDbApiHook(unittest.TestCase):
         Test on getting a pinot connection uri
         """
         db_hook = self.db_hook()
-        self.assertEqual(db_hook.get_uri(), 'http://host:1000/query/sql')
+        assert db_hook.get_uri() == 'http://host:1000/query/sql'
 
     def test_get_conn(self):
         """
         Test on getting a pinot connection
         """
         conn = self.db_hook().get_conn()
-        self.assertEqual(conn.host, 'host')
-        self.assertEqual(conn.port, '1000')
-        self.assertEqual(conn.conn_type, 'http')
-        self.assertEqual(conn.extra_dejson.get('endpoint'), 'query/sql')
+        assert conn.host == 'host'
+        assert conn.port == '1000'
+        assert conn.conn_type == 'http'
+        assert conn.extra_dejson.get('endpoint') == 'query/sql'
 
     def test_get_records(self):
         statement = 'SQL'
         result_sets = [('row1',), ('row2',)]
         self.cur.fetchall.return_value = result_sets
-        self.assertEqual(result_sets, self.db_hook().get_records(statement))
+        assert result_sets == self.db_hook().get_records(statement)
 
     def test_get_first(self):
         statement = 'SQL'
         result_sets = [('row1',), ('row2',)]
         self.cur.fetchone.return_value = result_sets[0]
-        self.assertEqual(result_sets[0], self.db_hook().get_first(statement))
+        assert result_sets[0] == self.db_hook().get_first(statement)
 
     def test_get_pandas_df(self):
         statement = 'SQL'
@@ -263,9 +263,9 @@ class TestPinotDbApiHook(unittest.TestCase):
         self.cur.description = [(column,)]
         self.cur.fetchall.return_value = result_sets
         df = self.db_hook().get_pandas_df(statement)
-        self.assertEqual(column, df.columns[0])
+        assert column == df.columns[0]
         for i in range(len(result_sets)):  # pylint: disable=consider-using-enumerate
-            self.assertEqual(result_sets[i][0], df.values.tolist()[i][0])
+            assert result_sets[i][0] == df.values.tolist()[i][0]
 
 
 class TestPinotDbApiHookIntegration(unittest.TestCase):
@@ -275,4 +275,4 @@ class TestPinotDbApiHookIntegration(unittest.TestCase):
         hook = PinotDbApiHook()
         sql = "select playerName from baseballStats  ORDER BY playerName limit 5"
         records = hook.get_records(sql)
-        self.assertEqual([["A. Harry"], ["A. Harry"], ["Aaron"], ["Aaron Albert"], ["Aaron Albert"]], records)
+        assert [["A. Harry"], ["A. Harry"], ["Aaron"], ["Aaron Albert"], ["Aaron Albert"]] == records

@@ -41,4 +41,4 @@ class TestAzureDataLakeStorageListOperator(unittest.TestCase):
 
         files = operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(path=TEST_PATH)
-        self.assertEqual(sorted(files), sorted(MOCK_FILES))
+        assert sorted(files) == sorted(MOCK_FILES)

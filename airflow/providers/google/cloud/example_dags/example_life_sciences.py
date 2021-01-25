@@ -23,7 +23,7 @@ from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesR
 from airflow.utils import dates
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project-id")
-BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-bucket")
+BUCKET = os.environ.get("GCP_GCS_LIFE_SCIENCES_BUCKET", "example-life-sciences-bucket")
 FILENAME = os.environ.get("GCP_GCS_LIFE_SCIENCES_FILENAME", 'input.in')
 LOCATION = os.environ.get("GCP_LIFE_SCIENCES_LOCATION", 'us-central1')
 

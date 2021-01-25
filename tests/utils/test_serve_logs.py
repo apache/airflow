@@ -42,5 +42,5 @@ class TestServeLogs(unittest.TestCase):
             sub_proc.start()
             sleep(1)
             log_url = f"http://localhost:{log_port}/log/{basename(f.name)}"
-            self.assertEqual(LOG_DATA, requests.get(log_url).content.decode())
+            assert LOG_DATA == requests.get(log_url).content.decode()
             sub_proc.terminate()

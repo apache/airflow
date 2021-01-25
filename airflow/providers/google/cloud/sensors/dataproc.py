@@ -65,14 +65,18 @@ class DataprocJobSensor(BaseSensorOperator):
         job = hook.get_job(job_id=self.dataproc_job_id, location=self.location, project_id=self.project_id)
         state = job.status.state
 
-        if state == JobStatus.ERROR:
+        if state == JobStatus.State.ERROR:
             raise AirflowException(f'Job failed:\n{job}')
-        elif state in {JobStatus.CANCELLED, JobStatus.CANCEL_PENDING, JobStatus.CANCEL_STARTED}:
+        elif state in {
+            JobStatus.State.CANCELLED,
+            JobStatus.State.CANCEL_PENDING,
+            JobStatus.State.CANCEL_STARTED,
+        }:
             raise AirflowException(f'Job was cancelled:\n{job}')
-        elif JobStatus.DONE == state:
+        elif JobStatus.State.DONE == state:
             self.log.debug("Job %s completed successfully.", self.dataproc_job_id)
             return True
-        elif JobStatus.ATTEMPT_FAILURE == state:
+        elif JobStatus.State.ATTEMPT_FAILURE == state:
             self.log.debug("Job %s attempt has failed.", self.dataproc_job_id)
 
         self.log.info("Waiting for job %s to complete.", self.dataproc_job_id)

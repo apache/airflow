@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Pagerduty
     external-doc-url: https://www.pagerduty.com/
+    logo: /integration-logos/pagerduty/PagerDuty.png
     tags: [service]
 
 

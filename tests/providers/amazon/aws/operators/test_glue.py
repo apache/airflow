@@ -53,4 +53,4 @@ class TestAwsGlueJobOperator(unittest.TestCase):
         self.glue.execute(None)
 
         mock_initialize_job.assert_called_once_with({})
-        self.assertEqual(self.glue.job_name, 'my_test_job')
+        assert self.glue.job_name == 'my_test_job'

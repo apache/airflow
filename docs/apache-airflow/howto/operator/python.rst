@@ -27,6 +27,7 @@ Python callables.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_python]
     :end-before: [END howto_operator_python]
 
@@ -38,6 +39,7 @@ to the Python callable.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_python_kwargs]
     :end-before: [END howto_operator_python_kwargs]
 
@@ -63,6 +65,7 @@ Python callables inside a new Python virtual environment.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_python_venv]
     :end-before: [END howto_operator_python_venv]
 

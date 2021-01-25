@@ -132,9 +132,8 @@ class TestStackdriverHookMethods(unittest.TestCase):
             page_size=None,
             metadata=None,
         )
-        mask = monitoring_v3.types.field_mask_pb2.FieldMask()
+        mask = monitoring_v3.types.field_mask_pb2.FieldMask(paths=["enabled"])
         alert_policy_disabled.enabled.value = True  # pylint: disable=no-member
-        mask.paths.append('enabled')  # pylint: disable=no-member
         mock_policy_client.return_value.update_alert_policy.assert_called_once_with(
             alert_policy=alert_policy_disabled,
             update_mask=mask,
@@ -170,9 +169,8 @@ class TestStackdriverHookMethods(unittest.TestCase):
             page_size=None,
             metadata=None,
         )
-        mask = monitoring_v3.types.field_mask_pb2.FieldMask()
+        mask = monitoring_v3.types.field_mask_pb2.FieldMask(paths=["enabled"])
         alert_policy_enabled.enabled.value = False  # pylint: disable=no-member
-        mask.paths.append('enabled')  # pylint: disable=no-member
         mock_policy_client.return_value.update_alert_policy.assert_called_once_with(
             alert_policy=alert_policy_enabled,
             update_mask=mask,
@@ -230,6 +228,50 @@ class TestStackdriverHookMethods(unittest.TestCase):
             timeout=DEFAULT,
             metadata=None,
         )
+        existing_alert_policy.ClearField('creation_record')
+        existing_alert_policy.ClearField('mutation_record')
+        mock_policy_client.return_value.update_alert_policy.assert_called_once_with(
+            alert_policy=existing_alert_policy, retry=DEFAULT, timeout=DEFAULT, metadata=None
+        )
+
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID),
+    )
+    @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_policy_client')
+    @mock.patch('airflow.providers.google.cloud.hooks.stackdriver.StackdriverHook._get_channel_client')
+    def test_stackdriver_upsert_alert_policy_without_channel(
+        self, mock_channel_client, mock_policy_client, mock_get_creds_and_project_id
+    ):
+        hook = stackdriver.StackdriverHook()
+        existing_alert_policy = ParseDict(TEST_ALERT_POLICY_1, monitoring_v3.types.alert_pb2.AlertPolicy())
+
+        mock_policy_client.return_value.list_alert_policies.return_value = [existing_alert_policy]
+        mock_channel_client.return_value.list_notification_channels.return_value = []
+
+        hook.upsert_alert(
+            alerts=json.dumps({"policies": [TEST_ALERT_POLICY_1, TEST_ALERT_POLICY_2]}),
+            project_id=PROJECT_ID,
+        )
+        mock_channel_client.return_value.list_notification_channels.assert_called_once_with(
+            name=f'projects/{PROJECT_ID}',
+            filter_=None,
+            retry=DEFAULT,
+            timeout=DEFAULT,
+            order_by=None,
+            page_size=None,
+            metadata=None,
+        )
+        mock_policy_client.return_value.list_alert_policies.assert_called_once_with(
+            name=f'projects/{PROJECT_ID}',
+            filter_=None,
+            retry=DEFAULT,
+            timeout=DEFAULT,
+            order_by=None,
+            page_size=None,
+            metadata=None,
+        )
+
         existing_alert_policy.ClearField('creation_record')
         existing_alert_policy.ClearField('mutation_record')
         mock_policy_client.return_value.update_alert_policy.assert_called_once_with(

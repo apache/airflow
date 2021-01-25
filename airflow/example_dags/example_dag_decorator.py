@@ -41,7 +41,7 @@ class GetRequestOperator(BaseOperator):
 
 
 # [START dag_decorator_usage]
-@dag(default_args=DEFAULT_ARGS, schedule_interval=None, start_date=days_ago(2))
+@dag(default_args=DEFAULT_ARGS, schedule_interval=None, start_date=days_ago(2), tags=['example'])
 def example_dag_decorator(email: str = 'example@example.com'):
     """
     DAG to send server IP to email.
