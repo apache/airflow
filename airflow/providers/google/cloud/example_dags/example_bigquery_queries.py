@@ -40,7 +40,7 @@ from airflow.utils.dates import days_ago
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset")
 LOCATION = "southamerica-east1"
-BUCKET_1 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
+BUCKET_1 = os.environ.get("GCP_BIGQUERY_QUERIES_BUCKET", "test-biqgquery-queries-bucket")
 
 
 TABLE_1 = "table1"
