@@ -116,6 +116,7 @@ class TestGetConnection(TestConnectionEndpoint):
             login='login',
             schema='testschema',
             port=80,
+            extra="{'param': 'value'}",
         )
         session.add(connection_model)
         session.commit()
@@ -132,6 +133,7 @@ class TestGetConnection(TestConnectionEndpoint):
             "login": 'login',
             'schema': 'testschema',
             'port': 80,
+            'extra': "{'param': 'value'}",
         }
 
     def test_should_respond_404(self):
