@@ -392,6 +392,8 @@ def get_spc_by_entity_id():
         for result in results:
             entry.append(result.get(mm.get(tType), None))
         data = covert2dArray(entry, SPC_SIZE)
+        if not data:
+            raise AirflowException(u'SPC 数据格式不正确!')
         xr_xbar_part = xbar_rbar(data, SPC_SIZE)
         xr_r_part = rbar(data, SPC_SIZE)
         xs_xbar_part = xbar_sbar(data, SPC_SIZE)

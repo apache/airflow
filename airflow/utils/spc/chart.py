@@ -10,9 +10,10 @@ _logger = logging.getLogger(__name__)
 def covert2dArray(data: List[float], size: int) -> Optional[np.ndarray]:
     b = len(data) % size
     if b != 0:
-        return None
+        _logger.error(u"数据长度不正确!!! 自动截取")
     l = int(len(data) / size)
-    ret = np.array(data).reshape(l, size)
+    offset = len(data) - b
+    ret = np.array(data[:offset]).reshape(l, size)
     return ret
 
 
