@@ -287,7 +287,7 @@ When DAGs are initialized with the ``access_control`` variable set, any usage of
     Breaking change
 
     Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
-    in both versions. With this release we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
+    in both versions. With this release we have removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
     RBAC UI explicitly in the configuration now as this is the only default UI. We did it to avoid
     the huge maintenance burden of two independent user interfaces
 

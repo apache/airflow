@@ -15,22 +15,23 @@
     specific language governing permissions and limitations
     under the License.
 
-Extra Packages Reference
-''''''''''''''''''''''''
+Reference for package extras
+''''''''''''''''''''''''''''
 
-Here's the list of the :ref:`subpackages <installation:extra_packages>` and what they enable.
+Here's the list of all the :ref:`extra dependencies <installation:airflow_extra_dependencies>`.
 
-The entries with ``*`` in the ``Providers`` column indicate that one or more provider will be installed
-automatically when those extras are installed. In those cases, there is a dependency between corresponding
-provider packages and ``apache-airflow`` package (the provider package depends on ``apache-airflow>=2.0.0``).
-For ``provider`` extras - they usually install single ``provider`` package, but for extras that are groups
-of other extras (for example ``all`` or ``devel_all`` or ``all_dbs``) there might be more than one provider
-installed together with the extra.
+Most of the the extras result in installing additional provider packages.
+
+The entries with ``*`` in the ``Providers`` column indicate that one or more provider packages will be
+installed automatically when those extras are used.
+
+For ``provider`` extras - they usually install single provider package.
+
+For ``bundle`` extras - they usually install a group of extras (for example ``all`` or ``devel_all``
+or ``all_dbs``), and thus it will include two or more provider extras.
 
 The entries with ``*`` in the ``Preinstalled`` column indicate that those extras (with providers) are always
-pre-installed when Airflow is installed. In this case dependencies are reverted - the ``apache-airflow``
-package depends on the corresponding providers packages. This is in order to avoid circular dependency that
-can be reported by some tools (even if it is harmless).
+pre-installed when Airflow is installed.
 
 .. note::
   You can disable automated installation of the providers with extras when installing Airflow. You need to
@@ -39,30 +40,10 @@ can be reported by some tools (even if it is harmless).
   providers directly via Airflow sources. This variable is automatically set in ``Breeze``
   development environment. Setting this variable is not needed in editable mode (``pip install -e``).
 
-**Fundamentals:**
 
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
-| extra               | install command                                     | enables                                                              | Providers |
-+=====================+=====================================================+======================================================================+===========+
-| all                 | ``pip install 'apache-airflow[all]'``               | All Airflow user facing features (no devel and doc requirements)     |     *     |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
-| all_dbs             | ``pip install 'apache-airflow[all_dbs]'``           | All databases integrations                                           |     *     |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
-| devel               | ``pip install 'apache-airflow[devel]'``             | Minimum dev tools requirements (without providers)                   |           |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
-| devel_hadoop        | ``pip install 'apache-airflow[devel_hadoop]'``      | Same as ``devel`` + dependencies for developing the Hadoop stack     |     *     |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
-| devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development (``devel_hadoop`` +  providers)    |     *     |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
-| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI build.                              |     *     |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
-| doc                 | ``pip install 'apache-airflow[doc]'``               | Packages needed to build docs (included in ``devel``)                |           |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
-| password            | ``pip install 'apache-airflow[password]'``          | Password authentication for users                                    |           |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
+**Apache Software extras:**
 
-
-**Apache Software:**
+Those are extras that add dependencies needed for integration with other Apache projects.
 
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
 | extra               | install command                                     | enables                                                              | Providers |
@@ -95,7 +76,9 @@ can be reported by some tools (even if it is harmless).
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
 
 
-**Services:**
+**Services extras:**
+
+Those are extras that add dependencies needed for integration with external services - either cloud based or on-premises.
 
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+-----------+
 | extra               | install command                                     | enables                                                                    | Providers |
@@ -109,6 +92,8 @@ can be reported by some tools (even if it is harmless).
 | databricks          | ``pip install 'apache-airflow[databricks]'``        | Databricks hooks and operators                                             |     *     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+-----------+
 | datadog             | ``pip install 'apache-airflow[datadog]'``           | Datadog hooks and sensors                                                  |     *     |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+-----------+
+| dask                | ``pip install 'apache-airflow[dask]'``              | DaskExecutor                                                               |           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+-----------+
 | dingding            | ``pip install 'apache-airflow[dingding]'``          | Dingding hooks and sensors                                                 |     *     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+-----------+
@@ -156,7 +141,9 @@ can be reported by some tools (even if it is harmless).
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+-----------+
 
 
-**Software:**
+**Software extras:**
+
+Those are extras that add dependencies needed for integration with other software packages installed usually as part of the deployment of Airflow.
 
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
 | extra               | install command                                     | enables                                                                            | Providers |
@@ -165,7 +152,7 @@ can be reported by some tools (even if it is harmless).
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
 | celery              | ``pip install 'apache-airflow[celery]'``            | CeleryExecutor                                                                     |     *     |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
-| dask                | ``pip install 'apache-airflow[dask]'``              | DaskExecutor                                                                       |           |
+| cncf.kubernetes     | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor and operator                                                   |     *     |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
 | docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                                                         |     *     |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
@@ -175,7 +162,7 @@ can be reported by some tools (even if it is harmless).
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
 | jenkins             | ``pip install 'apache-airflow[jenkins]'``           | Jenkins hooks and operators                                                        |     *     |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
-| cncf.kubernetes     | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor and operator                                                   |     *     |
+| ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                                      |           |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
 | mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators                                                          |     *     |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
@@ -190,6 +177,8 @@ can be reported by some tools (even if it is harmless).
 | oracle              | ``pip install 'apache-airflow[oracle]'``            | Oracle hooks and operators                                                         |     *     |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
 | postgres            | ``pip install 'apache-airflow[postgres]'``          | PostgreSQL operators and hook                                                      |     *     |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
+| password            | ``pip install 'apache-airflow[password]'``          | Password authentication for users                                                  |           |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
 | presto              | ``pip install 'apache-airflow[presto]'``            | All Presto related operators & hooks                                               |     *     |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
@@ -209,7 +198,9 @@ can be reported by some tools (even if it is harmless).
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+-----------+
 
 
-**Other:**
+**Other extras:**
+
+Those are extras that provide support for integration with external systems via some - usually - standard protocols.
 
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+--------------+
 | extra               | install command                                     | enables                                                              | Providers | Preinstalled |
@@ -226,9 +217,7 @@ can be reported by some tools (even if it is harmless).
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+--------------+
 | jdbc                | ``pip install 'apache-airflow[jdbc]'``              | JDBC hooks and operators                                             |     *     |              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+--------------+
-| kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized Hadoop                           |           |              |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+--------------+
-| ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                        |           |              |
+| kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto)        |           |              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+--------------+
 | papermill           | ``pip install 'apache-airflow[papermill]'``         | Papermill hooks and operators                                        |     *     |              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+--------------+
@@ -241,8 +230,36 @@ can be reported by some tools (even if it is harmless).
 | microsoft.winrm     | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators                                            |     *     |              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+--------------+
 
+**Bundle extras:**
 
-**Deprecated 1.10 Extras**
+Those are extras that install one ore more extras.
+
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
+| extra               | install command                                     | enables                                                              | Providers |
++=====================+=====================================================+======================================================================+===========+
+| all                 | ``pip install 'apache-airflow[all]'``               | All Airflow user facing features (no devel and doc requirements)     |     *     |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
+| all_dbs             | ``pip install 'apache-airflow[all_dbs]'``           | All databases integrations                                           |     *     |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
+| devel               | ``pip install 'apache-airflow[devel]'``             | Minimum dev tools requirements (without providers)                   |           |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
+| devel_hadoop        | ``pip install 'apache-airflow[devel_hadoop]'``      | Same as ``devel`` + dependencies for developing the Hadoop stack     |     *     |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
+| devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development (``devel_hadoop`` +  providers)    |     *     |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
+| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI build.                              |     *     |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
+
+**Doc extras:**
+
+This is the extra that is needed to generated documentation for Airflow. This is used for development time only
+
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
+| doc                 | ``pip install 'apache-airflow[doc]'``               | Packages needed to build docs (included in ``devel``)                |           |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
+
+
+**Deprecated 1.10 extras:**
 
 Those are the extras that have been deprecated in 2.0 and will be removed in Airflow 3.0.0. They were
 all replaced by new extras, which have naming consistent with the names of provider packages.
