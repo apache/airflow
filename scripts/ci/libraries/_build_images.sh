@@ -81,16 +81,6 @@ function build_images::add_build_args_for_remote_install() {
     fi
 }
 
-# Remove files from `docker-context-files` if the directory is not used
-# This causes that Docker cache is consistent across different
-# people who might have some files present in the docker-context files from previous builds
-function build_images::remove-docker-context-files_if_not_used() {
-    if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} != "true" ]]; then
-        find "${AIRFLOW_SOURCES}/docker-context-files" ! -name README.md -type f -print0 | xargs --null rm -f
-    fi
-}
-
-
 # Retrieves version of airflow stored in the production image (used to display the actual
 # Version we use if it was build from PyPI or GitHub
 function build_images::get_airflow_version_from_production_image() {
@@ -742,7 +732,6 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     if [[ -n "${RUNTIME_APT_COMMAND}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
-    build_images::remove-docker-context-files_if_not_used
     docker build \
         "${EXTRA_DOCKER_CI_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
@@ -886,7 +875,6 @@ function build_images::build_prod_images() {
     if [[ -n "${DEV_APT_COMMAND}" ]]; then
         additional_dev_args+=("--build-arg" "DEV_APT_COMMAND=\"${DEV_APT_COMMAND}\"")
     fi
-    build_images::remove-docker-context-files_if_not_used
     docker build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
