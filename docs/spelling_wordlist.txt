@@ -1204,6 +1204,7 @@ skipable
 sku
 sla
 slackclient
+slack_sdk
 slas
 smtp
 sortable

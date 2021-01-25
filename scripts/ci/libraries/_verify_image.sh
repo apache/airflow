@@ -190,7 +190,7 @@ function verify_image::verify_production_image_python_modules() {
     verify_image::check_command "Import: redis" "python -c 'import redis'"
     verify_image::check_command "Import: sendgrid" "python -c 'import sendgrid'"
     verify_image::check_command "Import: sftp/ssh" "python -c 'import paramiko, pysftp, sshtunnel'"
-    verify_image::check_command "Import: slack" "python -c 'import slack'"
+    verify_image::check_command "Import: slack" "python -c 'import slack_sdk'"
     verify_image::check_command "Import: statsd" "python -c 'import statsd'"
     verify_image::check_command "Import: virtualenv" "python -c 'import virtualenv'"
 

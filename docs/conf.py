@@ -391,7 +391,7 @@ autodoc_mock_imports = [
     'qds_sdk',
     'redis',
     'simple_salesforce',
-    'slackclient',
+    'slack_sdk',
     'smbclient',
     'snowflake',
     'sshtunnel',
