@@ -377,10 +377,13 @@ mm = {'torque': 'measure_torque', 'angle': 'measure_angle'}
 @api_experimental.route('/spc', methods=['GET'])
 @requires_authentication
 def get_spc_by_entity_id():
-    spc = {'x-r': {"title": u"Xbar-R 控制图", "data": None}, 'x-s': {"title": u"Xbar-S 控制图", "data": None}}
+    spc = {'x-r': {"title": u"Xbar-R 控制图", "data": []}, 'x-s': {"title": u"Xbar-S 控制图", "data": []}}
+    x_r_entry_list = spc.get('x-r').get('data')
+    x_s_entry_list = spc.get('x-s').get('data')
     try:
         vals = request.args.get('entity_ids')
         tType = request.args.get('type', 'torque')  # 默认是扭矩图
+        spc.update({'type': tType})
         entity_ids = str(vals).split(",")
         if entity_ids is None:
             return jsonify(spc)
@@ -399,6 +402,12 @@ def get_spc_by_entity_id():
         xs_xbar_part = xbar_sbar(data, SPC_SIZE)
         xs_s_part = sbar(data, SPC_SIZE)
         # todo: SPC包
+        # xbar-r chart
+        x_r_entry_list.append(xr_xbar_part)
+        x_r_entry_list.append(xr_r_part)
+        # xbar-s chart
+        x_s_entry_list.append(xs_xbar_part)
+        x_s_entry_list.append(xs_s_part)
         return jsonify(spc=spc)
     except AirflowException as e:
         _log.error("get_spc_by_entity_id", e)
