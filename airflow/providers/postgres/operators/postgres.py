@@ -39,6 +39,13 @@ class PostgresOperator(BaseOperator):
     :type parameters: dict or iterable
     :param database: name of database which overwrite defined one in connection
     :type database: str
+    :param op_args: a list of positional arguments that will get unpacked when
+        calling your callable (templated)
+    :type op_args: list
+    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
+        in your function (templated)
+    :type op_kwargs: dict
+
     """
 
     template_fields = ('sql', 'op_args', 'op_kwargs')
