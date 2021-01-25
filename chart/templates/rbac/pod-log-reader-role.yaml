@@ -16,33 +16,41 @@
 # under the License.
 
 ################################
-## Airflow Worker KEDA Scaler
+## Airflow Pod Reader Role
 #################################
-{{- if (and .Values.workers.keda.enabled ( or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor"))) }}
-apiVersion: keda.k8s.io/v1alpha1
-kind: ScaledObject
+{{- if and .Values.rbacEnabled .Values.webserver.allowPodLogReading }}
+{{- if .Values.multiNamespaceMode }}
+kind: ClusterRole
+{{- else }}
+kind: Role
+{{- end }}
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: {{ .Release.Name }}-worker
+  name: {{ .Release.Name }}-pod-log-reader-role
+{{- if not .Values.multiNamespaceMode }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
   labels:
     tier: airflow
-    component: worker-horizontalpodautoscaler
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    deploymentName: {{ .Release.Name }}-worker
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
-spec:
-  scaleTargetRef:
-    deploymentName: {{ .Release.Name }}-worker
-  pollingInterval:  {{  .Values.workers.keda.pollingInterval }}   # Optional. Default: 30 seconds
-  cooldownPeriod: {{  .Values.workers.keda.cooldownPeriod }}    # Optional. Default: 300 seconds
-  maxReplicaCount: {{  .Values.workers.keda.maxReplicaCount }}   # Optional. Default: 100
-  triggers:
-    - type: postgresql
-      metadata:
-        targetQueryValue: "1"
-        connection: AIRFLOW_CONN_AIRFLOW_DB
-        query: "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance WHERE state='running' OR state='queued'"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - "pods"
+    verbs:
+      - "list"
+      - "get"
+      - "watch"
+  - apiGroups:
+      - ""
+    resources:
+      - "pods/log"
+    verbs:
+      - "get"
 {{- end }}

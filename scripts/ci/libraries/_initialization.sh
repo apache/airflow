@@ -126,9 +126,9 @@ function initialization::initialize_base_variables() {
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC=${DISABLE_RBAC:="false"}
 
-    # if set to true, the ci image will look for wheel packages in dist folder and will install them
+    # if set to true, the ci image will look for packages in dist folder and will install them
     # during entering the container
-    export INSTALL_WHEELS=${INSTALL_WHEELS:="false"}
+    export INSTALL_PACKAGES_FROM_DIST=${INSTALL_PACKAGES_FROM_DIST:="false"}
 
     # If set the specified file will be used to initialize Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
@@ -144,6 +144,29 @@ function initialization::initialize_base_variables() {
     # If no Airflow Home defined - fallback to ${HOME}/airflow
     AIRFLOW_HOME_DIR=${AIRFLOW_HOME:=${HOME}/airflow}
     export AIRFLOW_HOME_DIR
+
+    export INSTALLED_EXTRAS="async,amazon,celery,kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,google,azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+    readonly INSTALLED_EXTRAS
+
+    # default version of PIP USED (This has to be < 20.3 until https://github.com/apache/airflow/issues/12838 is solved)
+    PIP_VERSION=${PIP_VERSION:="20.2.4"}
+    export PIP_VERSION
+
+    # We also pin version of wheel used to get consistent builds
+    WHEEL_VERSION=${WHEEL_VERSION:="0.36.1"}
+    export WHEEL_VERSION
+
+    # Sources by default are installed from local sources when using breeze/ci
+    AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="."}
+    export AIRFLOW_SOURCES_FROM
+
+    # They are copied to /opt/airflow by default (breeze and ci)
+    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/opt/airflow"}
+    export AIRFLOW_SOURCES_TO
+
+    # And installed from there (breeze and ci)
+    AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION:="."}
+    export AIRFLOW_INSTALL_VERSION
 }
 
 # Determine current branch
@@ -212,9 +235,6 @@ function initialization::initialize_mount_variables() {
     # Whether necessary for airflow run local sources are mounted to docker
     export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="true"}
 
-    # Whether files folder from local sources are mounted to docker
-    export MOUNT_FILES=${MOUNT_FILES:="true"}
-
     if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
         verbosity::print_info
         verbosity::print_info "Mounting necessary host volumes to Docker"
@@ -226,16 +246,11 @@ function initialization::initialize_mount_variables() {
         verbosity::print_info
     fi
 
-    if [[ ${MOUNT_FILES} == "true" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Mounting files folder to Docker"
-        verbosity::print_info
-        EXTRA_DOCKER_FLAGS+=("-v" "${AIRFLOW_SOURCES}/files:/files")
-    fi
-
     EXTRA_DOCKER_FLAGS+=(
+        "-v" "${AIRFLOW_SOURCES}/files:/files"
+        "-v" "${AIRFLOW_SOURCES}/dist:/dist"
         "--rm"
-        "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env"
+        "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env"
     )
     export EXTRA_DOCKER_FLAGS
 }
@@ -360,10 +375,10 @@ function initialization::initialize_image_build_variables() {
 
     # whether installation of Airflow should be done via PIP. You can set it to false if you have
     # all the binary packages (including airflow) in the docker-context-files folder and use
-    # AIRFLOW_LOCAL_PIP_WHEELS="true" to install it from there.
-    export INSTALL_AIRFLOW_VIA_PIP="${INSTALL_AIRFLOW_VIA_PIP:="true"}"
+    # INSTALL_FROM_DOCKER_CONTEXT_FILES="true" to install it from there.
+    export INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI:="true"}"
     # whether installation should be performed from the local wheel packages in "docker-context-files" folder
-    export AIRFLOW_LOCAL_PIP_WHEELS="${AIRFLOW_LOCAL_PIP_WHEELS:="false"}"
+    export INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES:="false"}"
     # reference to CONSTRAINTS. they can be overwritten manually or replaced with AIRFLOW_CONSTRAINTS_LOCATION
     export AIRFLOW_CONSTRAINTS_REFERENCE="${AIRFLOW_CONSTRAINTS_REFERENCE:=""}"
     # direct constraints Location - can be URL or path to local file. If empty, it will be calculated
@@ -381,8 +396,6 @@ function initialization::initialize_version_suffixes_for_package_building() {
 
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
-    # By default we assume the kubernetes cluster is not being started
-    export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
     # Currently supported versions of Kubernetes
     CURRENT_KUBERNETES_VERSIONS+=("v1.18.6" "v1.17.5" "v1.16.9")
     export CURRENT_KUBERNETES_VERSIONS
@@ -452,14 +465,39 @@ function initialization::initialize_test_variables() {
     export TEST_TYPE=${TEST_TYPE:=""}
 }
 
+function initialization::initialize_package_variables() {
+    export PACKAGE_FORMAT=${PACKAGE_FORMAT:="wheel"}
+}
+
+
 function initialization::initialize_build_image_variables() {
     REMOTE_IMAGE_CONTAINER_ID_FILE="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image"
     LOCAL_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash"
     REMOTE_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash"
 }
 
+function initialization::set_output_color_variables() {
+    COLOR_BLUE=$'\e[37m'
+    COLOR_GREEN=$'\e[32m'
+    COLOR_GREEN_OK=$'\e[32mOK.'
+    COLOR_RED=$'\e[31m'
+    COLOR_RED_ERROR=$'\e[31mERROR:'
+    COLOR_RESET=$'\e[0m'
+    COLOR_YELLOW=$'\e[33m'
+    COLOR_YELLOW_WARNING=$'\e[33mWARNING:'
+    export COLOR_BLUE
+    export COLOR_GREEN
+    export COLOR_GREEN_OK
+    export COLOR_RED
+    export COLOR_RED_ERROR
+    export COLOR_RESET
+    export COLOR_YELLOW
+    export COLOR_YELLOW_WARNING
+}
+
 # Common environment that is initialized by both Breeze and CI scripts
 function initialization::initialize_common_environment() {
+    initialization::set_output_color_variables
     initialization::create_directories
     initialization::initialize_base_variables
     initialization::initialize_branch_variables
@@ -475,6 +513,7 @@ function initialization::initialize_common_environment() {
     initialization::initialize_git_variables
     initialization::initialize_github_variables
     initialization::initialize_test_variables
+    initialization::initialize_package_variables
     initialization::initialize_build_image_variables
 }
 
@@ -506,7 +545,6 @@ DockerHub variables:
 Mount variables:
 
     MOUNT_LOCAL_SOURCES: ${MOUNT_LOCAL_SOURCES}
-    MOUNT_FILES: ${MOUNT_FILES}
 
 Force variables:
 
@@ -568,15 +606,13 @@ Detected CI build environment:
     CI_BUILD_ID=${CI_BUILD_ID}
     CI_JOB_ID=${CI_JOB_ID}
     CI_EVENT_TYPE=${CI_EVENT_TYPE}
-    CI_SOURCE_REPO=${CI_SOURCE_REPO}
-    CI_SOURCE_BRANCH=${CI_SOURCE_BRANCH}
 
 Initialization variables:
 
     INIT_SCRIPT_FILE: ${INIT_SCRIPT_FILE=}
     LOAD_DEFAULT_CONNECTIONS: ${LOAD_DEFAULT_CONNECTIONS}
     LOAD_EXAMPLES: ${LOAD_EXAMPLES}
-    INSTALL_WHEELS: ${INSTALL_WHEELS=}
+    INSTALL_PACKAGES_FROM_DIST: ${INSTALL_PACKAGES_FROM_DIST=}
     DISABLE_RBAC: ${DISABLE_RBAC}
 
 Test variables:
@@ -600,30 +636,6 @@ function initialization::get_environment_for_builds_on_ci() {
         export CI_JOB_ID="${GITHUB_JOB}"
         export CI_EVENT_TYPE="${GITHUB_EVENT_NAME}"
         export CI_REF="${GITHUB_REF:=}"
-        if [[ ${CI_EVENT_TYPE:=} == "pull_request" ]]; then
-            # default name of the source repo (assuming it's forked without rename)
-            export SOURCE_AIRFLOW_REPO=${SOURCE_AIRFLOW_REPO:="airflow"}
-            # For Pull Requests it's ambiguous to find the PR and we need to
-            # assume that name of repo is airflow but it could be overridden in case it's not
-            export CI_SOURCE_REPO="${GITHUB_ACTOR}/${SOURCE_AIRFLOW_REPO}"
-            export CI_SOURCE_BRANCH="${GITHUB_HEAD_REF}"
-            BRANCH_EXISTS=$(git ls-remote --heads \
-                "https://github.com/${CI_SOURCE_REPO}.git" "${CI_SOURCE_BRANCH}" || true)
-            if [[ -z ${BRANCH_EXISTS=} ]]; then
-                verbosity::print_info
-                verbosity::print_info "https://github.com/${CI_SOURCE_REPO}.git Branch ${CI_SOURCE_BRANCH} does not exist"
-                verbosity::print_info
-                verbosity::print_info
-                verbosity::print_info "Fallback to https://github.com/${CI_TARGET_REPO}.git Branch ${CI_TARGET_BRANCH}"
-                verbosity::print_info
-                # Fallback to the target repository if the repo does not exist
-                export CI_SOURCE_REPO="${CI_TARGET_REPO}"
-                export CI_SOURCE_BRANCH="${CI_TARGET_BRANCH}"
-            fi
-        else
-            export CI_SOURCE_REPO="${CI_TARGET_REPO}"
-            export CI_SOURCE_BRANCH="${CI_TARGET_BRANCH}"
-        fi
     else
         # CI PR settings
         export CI_TARGET_REPO="${CI_TARGET_REPO="apache/airflow"}"
@@ -632,9 +644,6 @@ function initialization::get_environment_for_builds_on_ci() {
         export CI_JOB_ID="${CI_JOB_ID="0"}"
         export CI_EVENT_TYPE="${CI_EVENT_TYPE="pull_request"}"
         export CI_REF="${CI_REF="refs/head/master"}"
-
-        export CI_SOURCE_REPO="${CI_SOURCE_REPO="apache/airflow"}"
-        export CI_SOURCE_BRANCH="${DEFAULT_BRANCH="master"}"
     fi
 
     if [[ ${VERBOSE} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
@@ -660,7 +669,6 @@ function initialization::make_constants_read_only() {
     readonly HOST_HOME
     readonly HOST_OS
 
-    readonly ENABLE_KIND_CLUSTER
     readonly KUBERNETES_MODE
     readonly KUBERNETES_VERSION
     readonly KIND_VERSION
@@ -697,8 +705,8 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
-    readonly INSTALL_AIRFLOW_VIA_PIP
-    readonly AIRFLOW_LOCAL_PIP_WHEELS
+    readonly INSTALL_FROM_PYPI
+    readonly INSTALL_FROM_DOCKER_CONTEXT_FILES
     readonly AIRFLOW_CONSTRAINTS_REFERENCE
     readonly AIRFLOW_CONSTRAINTS_LOCATION
 

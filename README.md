@@ -82,18 +82,22 @@ Apache Airflow is tested with:
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
 | MySQL        | 5.7, 8                    | 5.6, 5.7                 |
 | SQLite       | latest stable             | latest stable            |
-| Kubernetes   | 1.16.2, 1.17.0            | 1.16.2, 1.17.0           |
+| Kubernetes   | 1.16.9, 1.17.5, 1.18.6    | 1.16.9, 1.17.5, 1.18.6   |
 
-**Note:**  SQLite is used primarily for development purpose.
+**Note:** MariaDB and MySQL 5.x are unable to or have limitations with
+running multiple schedulers -- please see the "Scheduler" docs.
+
+**Note:** SQLite is used in Airflow tests. Do not use it in production.
 
 ### Additional notes on Python version requirements
 
 * Stable version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3 when using Python 3
 
 ## Getting started
+
 Visit the official Airflow website documentation (latest **stable** release) for help with [installing Airflow](https://airflow.apache.org/installation.html), [getting started](https://airflow.apache.org/start.html), or walking through a more complete [tutorial](https://airflow.apache.org/tutorial.html).
 
-> Note: If you're looking for documentation for master branch (latest development branch): you can find it on [ReadTheDocs](https://airflow.readthedocs.io/en/latest/).
+> Note: If you're looking for documentation for master branch (latest development branch): you can find it on [s.apache.org/airflow-docs](https://s.apache.org/airflow-docs/).
 
 For more information on Airflow's Roadmap or Airflow Improvement Proposals (AIPs), visit the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home).
 
@@ -117,6 +121,15 @@ correct Airflow tag/version/branch and python versions in the URL.
 
 1. Installing just Airflow:
 
+NOTE!!!
+
+On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+`pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
+`--use-deprecated legacy-resolver` to your pip install command.
+
+
 ```bash
 pip install apache-airflow==1.10.14 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
@@ -130,14 +143,12 @@ depends on your choice of extras. In order to install Airflow you need to either
 pip to version 20.2.4 `pip upgrade --pip==20.2.4` or, in case you use Pip 20.3, you need to add option
 `--use-deprecated legacy-resolver` to your pip install command.
 
-
-2. Installing with extras (for example postgres,gcp)
 ```bash
-pip install apache-airflow[postgres,gcp]==1.10.14 \
+pip install apache-airflow[postgres,google]==1.10.14 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.7.txt"
 ```
 
-For information on installing backport providers check https://airflow.readthedocs.io/en/latest/backport-providers.html.
+For information on installing backport providers check [/docs/backport-providers.rst][/docs/backport-providers.rst].
 
 ## Official source code
 
@@ -165,7 +176,7 @@ Those are - in the order of most common ways people install Airflow:
 - [Docker Images](https://hub.docker.com/repository/docker/apache/airflow) to install airflow via
   `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm` etc. You can
   read more about using, customising, and extending the images in the
-  [Latest docs](https://airflow.readthedocs.io/en/latest/production-deployment.html), and
+  [Latest docs](https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html), and
   learn details on the internals in the [IMAGES.rst](IMAGES.rst) document.
 - [Tags in GitHub](https://github.com/apache/airflow/tags) to retrieve the git project sources that
   were used to generate official source packages via git

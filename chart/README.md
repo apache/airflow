@@ -286,18 +286,12 @@ Confirm it's up:
 kubectl cluster-info --context kind-kind
 ```
 
-**Add Astronomer's Helm repo:**
-
-```
-helm repo add astronomer https://helm.astronomer.io
-helm repo update
-```
 
 **Create namespace + install the chart:**
 
 ```
 kubectl create namespace airflow
-helm install airflow --n airflow astronomer/airflow
+helm install airflow --n airflow .
 ```
 
 It may take a few minutes. Confirm the pods are up:
@@ -312,25 +306,38 @@ to port-forward the Airflow UI to http://localhost:8080/ to confirm Airflow is w
 
 **Build a Docker image from your DAGs:**
 
-1. Start a project using [astro-cli](https://github.com/astronomer/astro-cli), which will generate a Dockerfile, and load your DAGs in. You can test locally before pushing to kind with `astro airflow start`.
+1. Create a project
 
-        mkdir my-airflow-project && cd my-airflow-project
-        astro dev init
+    ```shell script
+    mkdir my-airflow-project && cd my-airflow-project
+    mkdir dags  # put dags here
+    cat <<EOM > Dockerfile
+    FROM apache/airflow
+    COPY . .
+    EOM
+    ```
 
 2. Then build the image:
 
-        docker build -t my-dags:0.0.1 .
+    ```shell script
+    docker build -t my-dags:0.0.1 .
+    ```
 
 3. Load the image into kind:
 
-        kind load docker-image my-dags:0.0.1
+    ```shell script
+    kind load docker-image my-dags:0.0.1
+    ```
 
 4. Upgrade Helm deployment:
 
-        helm upgrade airflow -n airflow \
-            --set images.airflow.repository=my-dags \
-            --set images.airflow.tag=0.0.1 \
-            astronomer/airflow
+    ```shell script
+    # from airflow chart directory
+    helm upgrade airflow -n airflow \
+        --set images.airflow.repository=my-dags \
+        --set images.airflow.tag=0.0.1 \
+        .
+    ```
 
 ## Contributing
 

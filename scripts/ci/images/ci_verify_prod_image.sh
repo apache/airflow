@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../libraries/_script_init.sh"
 
 function verify_prod_image_has_airflow {
     echo
@@ -39,18 +39,18 @@ function verify_prod_image_has_airflow {
     echo
 
     if [[ "${COUNT_AIRFLOW_DIRS}" -lt "${EXPECTED_MIN_AIRFLOW_DIRS_COUNT}" ]]; then
-        >&2 echo
-        >&2 echo Number of airflow folders installed is less than ${EXPECTED_MIN_AIRFLOW_DIRS_COUNT}
-        >&2 echo This is unexpected. Please investigate, looking at the output above!
-        >&2 echo
+        echo
+        echo  "${COLOR_RED_ERROR} Number of airflow folders installed is less than ${EXPECTED_MIN_AIRFLOW_DIRS_COUNT}  ${COLOR_RESET}"
+        echo
+        echo "This is unexpected. Please investigate, looking at the output above!"
+        echo
         exit 1
     else
         echo
-        echo -e " \e[32mOK. Airflow is installed.\e[0m"
+        echo  "${COLOR_GREEN_OK} Airflow is installed.  ${COLOR_RESET}"
         echo
     fi
 }
-
 
 function verify_prod_image_dependencies {
 
@@ -62,14 +62,14 @@ function verify_prod_image_dependencies {
     docker run --rm --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'pip check'
     local res=$?
     if [[ ${res} != "0" ]]; then
-        echo -e " \e[31mERROR: ^^^ Some dependencies are conflicting. See instructions below on how to deal with it.\e[0m"
+        echo "${COLOR_RED_ERROR} ^^^ Some dependencies are conflicting. See instructions below on how to deal with it.  ${COLOR_RESET}"
         echo
         build_images::inform_about_pip_check "--production "
         # TODO(potiuk) - enable the comment once https://github.com/apache/airflow/pull/12188 is merged
         # exit ${res}
     else
         echo
-        echo " \e[32mOK. The ${AIRFLOW_PROD_IMAGE} image dependencies are consistent.\e[0m"
+        echo "${COLOR_GREEN_OK} The ${AIRFLOW_PROD_IMAGE} image dependencies are consistent.  ${COLOR_RESET}"
         echo
     fi
     set -e
@@ -88,6 +88,7 @@ function pull_prod_image() {
 
 build_images::prepare_prod_build
 
+pull_prod_image
 
 verify_prod_image_has_airflow
 

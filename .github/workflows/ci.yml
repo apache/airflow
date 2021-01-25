@@ -21,14 +21,13 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
   push:
-    branches: ['master', 'v1-10-test', 'v1-10-stable']
+    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
   pull_request:
-    branches: ['master', 'v1-10-test', 'v1-10-stable']
+    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
 
 env:
 
   MOUNT_LOCAL_SOURCES: "false"
-  MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
   CHECK_IMAGE_FOR_REBUILD: "true"
@@ -42,6 +41,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+  INSTALL_PROVIDERS_FROM_SOURCES: "true"
 
   # You can switch between building the image in "Build Images" workflow or building them in CI workflow
   # Separately for each job.
@@ -98,13 +98,16 @@ jobs:
       pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
     steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: "Get information about the PR"
-        uses: potiuk/get-workflow-origin@588cc14f9f1cdf1b8be3db816855e96422204fec  # v1_3
+        uses: ./.github/actions/get-workflow-origin
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
       - name: >
           Event: ${{ github.event_name }}
           Repo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
@@ -126,6 +129,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
+          persist-credentials: false
         if: github.event_name  == 'pull_request'
       - name: Selective checks
         id: selective-checks
@@ -155,6 +159,8 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -192,9 +198,13 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Verify CI image Py${{matrix.python-version}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_verify_ci_image.sh
         if: needs.build-info.outputs.waitForImage == 'true'
@@ -205,12 +215,15 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     env:
+      SKIP: "identity"
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -240,13 +253,15 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [build-info]
     env:
-      SKIP: "build,mypy,flake8,pylint,bats-in-container-tests"
+      SKIP: "build,mypy,flake8,pylint,bats-in-container-tests,identity"
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -264,6 +279,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
+          persist-credentials: false
       - name: "Static checks: basic checks only"
         run: |
           ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
@@ -279,6 +295,9 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
@@ -289,6 +308,7 @@ jobs:
         with:
           name: airflow-documentation
           path: "./files/documentation"
+          retention-days: 7
 
   tests-helm:
     timeout-minutes: 20
@@ -307,6 +327,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -323,18 +345,21 @@ jobs:
         with:
           name: airflow-logs-helm
           path: "./files/airflow_logs*"
+          retention-days: 7
       - name: "Upload container logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: container-logs-helm
           path: "./files/container_logs*"
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: >
             coverage-helm
           path: "./files/coverage.xml"
+          retention-days: 7
 
   tests-postgres:
     timeout-minutes: 80
@@ -360,6 +385,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -376,18 +403,21 @@ jobs:
         with:
           name: airflow-logs-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/airflow_logs*"
+          retention-days: 7
       - name: "Upload container logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: container-logs-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/container_logs*"
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: >
             coverage-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/coverage.xml"
+          retention-days: 7
 
   tests-mysql:
     timeout-minutes: 80
@@ -412,6 +442,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -428,20 +460,23 @@ jobs:
         with:
           name: airflow-logs-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/airflow_logs*"
+          retention-days: 7
       - name: "Upload container logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: container-logs-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/container_logs*"
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: coverage-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/coverage.xml"
+          retention-days: 7
 
   tests-sqlite:
-    timeout-minutes: 60
+    timeout-minutes: 80
     name: >
       Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
     runs-on: ubuntu-20.04
@@ -461,6 +496,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -477,17 +514,20 @@ jobs:
         with:
           name: airflow-logs-${{matrix.python-version}}
           path: './files/airflow_logs*'
+          retention-days: 7
       - name: "Upload container logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: container-logs-sqlite-${{matrix.python-version}}
           path: "./files/container_logs*"
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: coverage-sqlite-${{matrix.python-version}}
           path: ./files/coverage.xml
+          retention-days: 7
 
   tests-quarantined:
     timeout-minutes: 60
@@ -515,6 +555,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -543,23 +585,27 @@ jobs:
         with:
           name: quarantined_tests
           path: "files/test_result.xml"
+          retention-days: 7
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: airflow-logs-quarantined-${{ matrix.backend }}
           path: "./files/airflow_logs*"
+          retention-days: 7
       - name: "Upload container logs"
         uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: container-logs-quarantined-${{ matrix.backend }}
           path: "./files/container_logs*"
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: coverage-quarantined-${{ matrix.backend }}
           path: "./files/coverage.xml"
+          retention-days: 7
 
   upload-coverage:
     timeout-minutes: 5
@@ -573,6 +619,11 @@ jobs:
       - tests-mysql
       - tests-quarantined
     steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: "Download all artifacts from the current build"
         uses: actions/download-artifact@v2
         with:
@@ -580,7 +631,7 @@ jobs:
       - name: "Removes unnecessary artifacts"
         run: ls ./coverage-files | grep -v coverage | xargs rm -rf
       - name: "Upload all coverage reports to codecov"
-        uses: codecov/codecov-action@v1
+        uses: ./.github/actions/codecov-action
         with:
           directory: "./coverage-files"
 
@@ -598,6 +649,8 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -629,9 +682,13 @@ jobs:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         if: needs.build-info.outputs.waitForImage == 'true'
+        with:
+          persist-credentials: false
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: needs.build-info.outputs.waitForImage == 'true'
+      - name: "Prepare PROD Image"
+        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
       - name: "Verify PROD image Py${{matrix.python-version}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_verify_prod_image.sh
         if: needs.build-info.outputs.waitForImage == 'true'
@@ -652,7 +709,6 @@ jobs:
       BACKEND: postgres
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
-      ENABLE_KIND_CLUSTER: "true"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       KUBERNETES_MODE: "${{ matrix.kubernetes-mode }}"
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
@@ -662,6 +718,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -705,12 +763,14 @@ jobs:
           name: >
             kind-logs-${{matrix.kubernetes-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           path: /tmp/kind_logs_*
+          retention-days: 7
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: >
             coverage-k8s-${{matrix.kubernetes-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           path: "./files/coverage.xml"
+          retention-days: 7
 
   push-prod-images-to-github-registry:
     timeout-minutes: 10
@@ -727,7 +787,8 @@ jobs:
       - verify-prod-images
       - docs
     if: >
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test') &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test') &&
       github.event_name != 'schedule'
     strategy:
       matrix:
@@ -738,6 +799,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -764,7 +827,8 @@ jobs:
       - verify-ci-images
       - docs
     if: >
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test') &&
       github.event_name != 'schedule'
     strategy:
       matrix:
@@ -775,6 +839,8 @@ jobs:
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -799,10 +865,14 @@ jobs:
       - ci-images
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test'
+    if: >
+      github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -818,6 +888,7 @@ jobs:
         with:
           name: 'constraints-${{matrix.python-version}}'
           path: './files/constraints-${{matrix.python-version}}/constraints-${{matrix.python-version}}.txt'
+          retention-days: 7
 
   constraints-push:
     timeout-minutes: 10
@@ -833,10 +904,15 @@ jobs:
       - tests-mysql
       - tests-postgres
       - tests-kubernetes
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test'
+    if: >
+      github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/v2-0-test'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh
@@ -845,6 +921,7 @@ jobs:
         with:
           path: "repo"
           ref: ${{ steps.constraints-branch.outputs.branch }}
+          persist-credentials: false
       - name: "Get all artifacts (constraints)"
         uses: actions/download-artifact@v2
         with:
@@ -852,7 +929,7 @@ jobs:
       - name: "Commit changed constraint files for ${{needs.build-info.outputs.pythonVersions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
       - name: "Push changes"
-        uses: ad-m/github-push-action@40bf560936a8022e68a3c00e7d2abefaf01305a6  # v0.6.0
+        uses: ./.github/actions/github-push-action
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}

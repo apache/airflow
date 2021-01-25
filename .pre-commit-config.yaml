@@ -21,11 +21,15 @@ default_language_version:
   python: python3
 minimum_pre_commit_version: "1.20.0"
 repos:
+  - repo: meta
+    hooks:
+      - id: identity
+      - id: check-hooks-apply
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.1.9
     hooks:
       - id: forbid-tabs
-        exclude: ^docs/Makefile$|^clients/gen/go.sh
+        exclude: ^docs/Makefile$|^clients/gen/go.sh|\.gitmodules$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
@@ -146,9 +150,6 @@ repos:
         args:
           - "--maxlevel"
           - "2"
-  - repo: meta
-    hooks:
-      - id: check-hooks-apply
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.3.0
     hooks:

@@ -792,6 +792,7 @@ class SchedulerJob(BaseJob):
             run.verify_integrity(session=session)
             ready_tis = run.update_state(session=session)
             if run.state == State.RUNNING:
+                active_dag_runs.append(run)
                 self.log.debug("Examining active DAG run: %s", run)
                 for ti in ready_tis:
                     self.log.debug('Queuing task: %s', ti)

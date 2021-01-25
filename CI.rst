@@ -135,13 +135,6 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | directories) generated locally on the           |
 |                                         |             |             |            | host during development.                        |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``MOUNT_FILES``                         |     true    |     true    |    true    | Determines whether "files" folder from          |
-|                                         |             |             |            | sources is mounted as "/files" folder           |
-|                                         |             |             |            | inside the container. This is used to           |
-|                                         |             |             |            | share results of local actions to the           |
-|                                         |             |             |            | host, as well as to pass host files to          |
-|                                         |             |             |            | inside container for local development.         |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                           Force variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``FORCE_PULL_IMAGES``                   |    true     |    true     |    true    | Determines if images are force-pulled,          |
@@ -203,7 +196,9 @@ You can use those variables when you try to reproduce the build locally.
 |                                                           Image variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_VERSION``             |             |             |            | Installs Airflow version from PyPI when         |
-|                                         |             |             |            | building image.                                 |
+|                                         |             |             |            | building image. Can be "none" to skip airflow   |
+|                                         |             |             |            | installation so that it can be installed from   |
+|                                         |             |             |            | locally prepared packages.                      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_REFERENCE``           |             |             |            | Installs Airflow version from GitHub            |
 |                                         |             |             |            | branch or tag.                                  |
@@ -361,12 +356,6 @@ Note that you need to set "CI" variable to true in order to get the same results
 | CI_EVENT_TYPE                | ``pull_request``     | Type of the event. It can be one of                 |
 |                              |                      | [``pull_request``, ``pull_request_target``,         |
 |                              |                      |  ``schedule``, ``push``]                            |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_SOURCE_REPO               | ``apache/airflow``   | Source repository. This might be different than the |
-|                              |                      | ``CI_TARGET_REPO`` for pull requests                |
-+------------------------------+----------------------+-----------------------------------------------------+
-| CI_SOURCE_BRANCH             | ``master``           | Branch in the source repository that is used to     |
-|                              |                      | make the pull request.                              |
 +------------------------------+----------------------+-----------------------------------------------------+
 | CI_REF                       | ``refs/head/master`` | Branch in the source repository that is used to     |
 |                              |                      | make the pull request.                              |
@@ -700,7 +689,7 @@ We also have a script that can help to clean-up the old artifacts:
 CodeQL scan
 -----------
 
-The CodeQL security scan uses GitHub security scan framework to scan our code for security violations.
+The `CodeQL <https://securitylab.github.com/tools/codeql>`_ security scan uses GitHub security scan framework to scan our code for security violations.
 It is run for JavaScript and python code.
 
 Naming conventions for stored images
@@ -730,15 +719,15 @@ The image names follow the patterns:
 |              |                            | <COMMIT_SHA>                   | It contains only compiled libraries and minimal set of dependencies to run Airflow.        |
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 
-* <BRANCH> might be either "master" or "v1-10-test"
-* <X.Y> - Python version (Major + Minor). For "master" it should be in ["3.6", "3.7", "3.8"]. For
+* <BRANCH> might be either "master" or "v1-10-test" or "v2-0-test"
+* <X.Y> - Python version (Major + Minor). For "master" and "v2-0-test" should be in ["3.6", "3.7", "3.8"]. For
   v1-10-test it should be in ["2.7", "3.5", "3.6". "3.7", "3.8"].
 * <RUN_ID> - GitHub Actions RUN_ID. You can get it from CI action job outputs (run id is printed in
   logs and displayed as part of the step name. All PRs belong to some RUN_ID and this way you can
   pull the very exact version of image used in that RUN_ID
-* <COMMIT_SHA> - for images that get merged to "master" of "v1-10-test" the images are also tagged
+* <COMMIT_SHA> - for images that get merged to "master", "v2-0-test" of "v1-10-test" the images are also tagged
   with the commit SHA of that particular commit. This way you can easily find the image that was used
-  for testing for that "master" or "v1-10-test" test run.
+  for testing for that "master", "v2-0-test" or "v1-10-test" test run.
 
 Reproducing CI Runs locally
 ===========================

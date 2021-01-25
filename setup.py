@@ -345,7 +345,6 @@ papermill = [
     'pyarrow<1.0.0',
     'fsspec<0.8.0;python_version=="3.5"',
     'black==20.8b0;python_version>="3.6"'  # we need to limit black version as we have click < 7
-
 ]
 password = [
     'bcrypt>=2.0.0',
@@ -602,6 +601,7 @@ INSTALL_REQUIREMENTS = [
     # cattrs >= 1.1.0 dropped support for Python 3.6
     'cattrs>=1.0, <1.1.0;python_version<="3.6"',
     'cattrs>=1.0, <2.0;python_version>"3.6"',
+    'click<8.0.0;python_version<"3.0"',  # click >8 is python 3.6 only but not marked as such yet
     'colorlog==4.0.2',
     'configparser>=3.5.0, <3.6.0',
     'croniter>=0.3.17, <0.4',
@@ -622,7 +622,7 @@ INSTALL_REQUIREMENTS = [
     'future>=0.16.0, <0.19',
     'graphviz>=0.12',
     'gunicorn>=19.5.0, <21.0',
-    'importlib-metadata~=2.0; python_version<"3.8"',
+    'importlib-metadata~=2.0; python_version<"3.9"',
     'importlib_resources~=1.4',
     'iso8601>=0.1.12',
     'jinja2>=2.10.1, <2.12.0',
