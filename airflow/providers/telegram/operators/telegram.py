@@ -61,6 +61,7 @@ class TelegramOperator(BaseOperator):
         **kwargs,
     ):
         self.chat_id = chat_id
+        self.text = text or None
         self.token = token
         self.telegram_kwargs = telegram_kwargs or {}
 
