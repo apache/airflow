@@ -54,7 +54,7 @@ class TestSparkJDBCOperatorDefaultConnIdRule(TestCase):
             "Deprecation Warning: From Airflow 2.0, SparkJDBCOperator class 'conn_id' "
             "value has been changed to 'spark_default' to conform with the naming "
             "conventions of all other connection names."
-            "See link below for details:"
+            "Use 'spark_default' instead of 'spark-default'. See the link below for details: "
             "https://github.com/apache/airflow/blob/master/"
             "UPDATING.md#sparkjdbchook-default-connection"
         )
