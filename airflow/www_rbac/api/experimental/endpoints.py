@@ -18,6 +18,7 @@
 # under the License.
 
 import airflow.api
+import numpy as np
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
@@ -34,7 +35,7 @@ from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
 from airflow.utils.curve import trigger_training_dag, get_curve_entity_ids, get_curve, trigger_push_result_to_mq, \
-    do_save_curve_error_tag
+    do_save_curve_error_tag, get_results
 from flask import g, Blueprint, jsonify, request, url_for
 import json
 from airflow.api.common.experimental.mark_tasks import modify_task_instance
@@ -44,6 +45,7 @@ from airflow.models import TaskInstance
 import datetime
 from random import choices
 import pendulum
+from airflow.utils.spc.chart import covert2dArray, xbar_rbar, rbar, xbar_sbar, sbar
 import math
 
 _log = LoggingMixin().log
@@ -51,6 +53,8 @@ _log = LoggingMixin().log
 requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
+
+SPC_SIZE = int(os.getenv('ENV_SPC_SIZE', '5'))
 
 ANALYSIS_NOK_RESULTS = True if os.environ.get('ANALYSIS_NOK_RESULTS', 'False') == 'True' else False
 
@@ -367,6 +371,40 @@ def get_curves():
         return response
 
 
+mm = {'torque': 'measure_torque', 'angle': 'measure_angle'}
+
+
+@api_experimental.route('/spc', methods=['GET'])
+@requires_authentication
+def get_spc_by_entity_id():
+    spc = {'x-r': {"title": u"Xbar-R 控制图", "data": None}, 'x-s': {"title": u"Xbar-S 控制图", "data": None}}
+    try:
+        vals = request.args.get('entity_ids')
+        tType = request.args.get('type', 'torque')  # 默认是扭矩图
+        entity_ids = str(vals).split(",")
+        if entity_ids is None:
+            return jsonify(spc)
+        results = get_results(entity_ids)
+        if not results:
+            raise AirflowException(u'未找到结果!')
+        origin_data = {"torque": [], "angle": []}
+        entry = origin_data.get(tType)
+        for result in results:
+            entry.append(result.get(mm.get(tType), None))
+        data = covert2dArray(entry, SPC_SIZE)
+        xr_xbar_part = xbar_rbar(data, SPC_SIZE)
+        xr_r_part = rbar(data, SPC_SIZE)
+        xs_xbar_part = xbar_sbar(data, SPC_SIZE)
+        xs_s_part = sbar(data, SPC_SIZE)
+        # todo: SPC包
+        return jsonify(spc=spc)
+    except AirflowException as e:
+        _log.error("get_spc_by_entity_id", e)
+        response = jsonify(error="{}".format(repr(e)))
+        response.status_code = e.status_code
+        return response
+
+
 @api_experimental.route(
     '/curves',
     methods=['GET'])
@@ -397,7 +435,7 @@ def get_curves_by_entity_id():
 
         return jsonify(curves=curves)
     except AirflowException as e:
-        _log.info(e)
+        _log.error("get_curves_by_entity_id", e)
         response = jsonify(error="{}".format(repr(e)))
         response.status_code = e.status_code
         return response

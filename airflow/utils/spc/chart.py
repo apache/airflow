@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from airflow.utils.spc.table import A2, A3, D3, D4, B3, B4
-from typing import List, Optional
+from typing import List, Optional, Dict
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ def covert2dArray(data: List[float], size: int) -> Optional[np.ndarray]:
     return ret
 
 
-def xbar_sbar(data: np.ndarray, size: int, newdata=None):
+def xbar_sbar(data: np.ndarray, size: int, newdata=None) -> Optional[Dict]:
     assert size >= 2
     assert size <= 10
     newvalues = None
@@ -38,10 +38,17 @@ def xbar_sbar(data: np.ndarray, size: int, newdata=None):
     lclx = xbar - A3[size] * sbar
     uclx = xbar + A3[size] * sbar
 
-    return X, xbar, lclx, uclx
+    ret = {
+        "data": X,
+        "center": xbar,
+        "lower": lclx,
+        "upper": uclx,
+    }
+
+    return ret
 
 
-def xbar_rbar(data: np.ndarray, size: int, newdata=None):
+def xbar_rbar(data: np.ndarray, size: int, newdata=None) -> Optional[Dict]:
     """
 
     :rtype: 元组，数据，中线，下线，上线
@@ -67,10 +74,17 @@ def xbar_rbar(data: np.ndarray, size: int, newdata=None):
     lcl = Xbar - A2[size] * Rbar
     ucl = Xbar + A2[size] * Rbar
 
-    return X, Xbar, lcl, ucl
+    ret = {
+        "data": X,
+        "center": Xbar,
+        "lower": lcl,
+        "upper": ucl,
+    }
+
+    return ret
 
 
-def rbar(data: np.ndarray, size: int, newdata=None):
+def rbar(data: np.ndarray, size: int, newdata=None)->Optional[Dict]:
     """
 
     :rtype: 元组，数据，中线，下线，上线
@@ -94,10 +108,17 @@ def rbar(data: np.ndarray, size: int, newdata=None):
     lcl = D3[size] * Rbar
     ucl = D4[size] * Rbar
 
-    return R, Rbar, lcl, ucl
+    ret = {
+        "data": R,
+        "center": Rbar,
+        "lower": lcl,
+        "upper": ucl,
+    }
+
+    return ret
 
 
-def u(data: np.ndarray, size: int, newdata=None):
+def u(data: np.ndarray, size: int, newdata=None) ->Optional[Dict]:
     """
     SPC U-charts
     :param data:
@@ -117,10 +138,17 @@ def u(data: np.ndarray, size: int, newdata=None):
         lcl.append(ubar - 3 * np.sqrt(ubar / i))
         ucl.append(ubar + 3 * np.sqrt(ubar / i))
 
-    return data2, ubar, lcl, ucl
+    ret = {
+        "data": data2,
+        "center": ubar,
+        "lower": lcl,
+        "upper": ucl,
+    }
+
+    return ret
 
 
-def np_chart(data: np.ndarray, size: int, newdata=None):
+def np_chart(data: np.ndarray, size: int, newdata=None)->Optional[Dict]:
     sizes, data = data.T
     if size == 1:
         sizes, data = data, sizes
@@ -134,10 +162,17 @@ def np_chart(data: np.ndarray, size: int, newdata=None):
     lcl = pbar - 3 * np.sqrt(pbar * (1 - p))
     ucl = pbar + 3 * np.sqrt(pbar * (1 - p))
 
-    return data, pbar, lcl, ucl
+    ret = {
+        "data": data,
+        "center": pbar,
+        "lower": lcl,
+        "upper": ucl,
+    }
+
+    return ret
 
 
-def sbar(data: np.ndarray, size: int, newdata=None):
+def sbar(data: np.ndarray, size: int, newdata=None)->Optional[Dict]:
     """
 
     :rtype: 元组，数据，中线，下线，上线
@@ -160,7 +195,14 @@ def sbar(data: np.ndarray, size: int, newdata=None):
     lcls = B3[size] * sbar
     ucls = B4[size] * sbar
 
-    return S, sbar, lcls, ucls
+    ret = {
+        "data": S,
+        "center": sbar,
+        "lower": lcls,
+        "upper": ucls,
+    }
+
+    return ret
 
 
 def cpk(data: List, usl, lsl) -> Optional[float]:

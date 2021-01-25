@@ -217,6 +217,15 @@ def get_result(entity_id):
     return result if result else {}
 
 
+def get_results(entity_ids):
+    st = ClsResultStorage(**get_result_args())
+    if not isinstance(entity_ids, list):
+        return []
+    st.metadata = {'entity_id': entity_ids}
+    result = st.query_results()  # 查询多条记录
+    return result if result else []
+
+
 def get_curve(entity_id):
     st = ClsCurveStorage(**get_curve_args())
     st.metadata = {'entity_id': entity_id}

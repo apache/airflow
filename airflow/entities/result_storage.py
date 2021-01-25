@@ -4,6 +4,7 @@ from influxdb_client import InfluxDBClient, Point, WriteApi
 from .entity import ClsEntity
 from airflow.utils.logger import generate_logger
 import os
+import json
 import threading
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
@@ -129,6 +130,32 @@ class ClsResultStorage(ClsEntity):
             return self._write(result)
         except Exception as err:
             raise Exception(u"写入结果失败: {}".format(str(err)))
+
+    def query_results(self):
+        self.ensure_connect()
+        if not self.entity_id:
+            raise BaseException(u'entity_id未指定')
+        if not self._bucket:
+            raise BaseException(u'_bucket未指定')
+        if not isinstance(self.entity_id, list):
+            raise BaseException(u'entity_id必须是列表')
+        query_str = '''from(bucket: "{}")
+          |> range(start: 0, stop: now())
+          |> filter(fn: (r) => r._measurement == "results") and contains(value: r.entity_id, set: {})
+          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")''' \
+            .format(self._bucket, json.dumps(self.entity_id))
+        unused_keys = ['_time', 'table', 'result', '_start', '_stop', '_measurement']
+        data = self._query(query_str)
+        ret = []
+        if not data:
+            return ret
+        for table in data:
+            for record in table.records:
+                a = record.values
+                for key in unused_keys:
+                    a.pop(key)
+                ret.append(record)
+        return ret
 
     def query_result(self):
         self.ensure_connect()

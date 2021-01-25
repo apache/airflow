@@ -3,353 +3,419 @@
 {% import 'appbuilder/general/lib.html' as lib %}
 
 {% block head_css %}
-{{ super() }}
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/bootstrap3-extend.css') }}">
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/curves.css') }}">
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/bootstrap-treeview.min.css') }}">
+  {{ super() }}
+  <link rel="stylesheet" type="text/css"
+        href="{{ url_for('static', filename='css/bootstrap3-extend.css') }}">
+  <link rel="stylesheet" type="text/css"
+        href="{{ url_for('static', filename='css/curves.css') }}">
+  <link rel="stylesheet" type="text/css"
+        href="{{ url_for('static', filename='css/bootstrap-treeview.min.css') }}">
 {% endblock %}
 
 {% block body %}
-<div id="root">
-  <div class="p-0 m-1 ">
-    {% call lib.accordion_tag("accordion1",_("Search"), False) %}
-    {{ widgets.get('search')()|safe }}
-    {% endcall %}
-  </div>
-  {% call panel.panel('曲线列表') %}
-  <div class="d-flex w-100 h-100 flex-column overflow-hidden">
-
-    <div class="panel-body flex-grow-1 overflow-auto p-0">
-      <!--      <div id="tree" class=""></div>-->
-
-      <table class="table position-relative" style="width: 100%; ">
-        <thead>
-        <tr class="result-content-row active">
-          <th class="position-sticky " style="top:0;z-index: 1;">
-            <input id="check_all" class="action_check_all" name="check_all" type="checkbox">
-          </th>
-          <th class="position-sticky " style="top:0;z-index: 1;">{{_('curve')}}</th>
-        </tr>
-        </thead>
-        <tbody id="curves-table">
-        {% for task in tasks %}
-        <tr>
-          <td class="h-100" style="text-align: center;vertical-align: middle;">
-            <div class="d-flex flex-column justify-content-center align-items-center">
-              <input id="{{ task.entity_id }}" class="action_check m-2" name="rowid" value="{{ task.entity_id }}"
-                     data-carCode="{{ task.car_code }}"
-                     data-date="{{ task.execution_date }}"
-                     type="checkbox">
-              <a type="button" class="btn btn-sm btn-default"
-                 href="{{url_for('Airflow.view_curve_page',dag_id=task.dag_id,execution_date=task.execution_date,task_id=task.task_id)}}"
-                 target="_blank">
-                <i class="glyphicon glyphicon-new-window"></i>
-              </a>
-            </div>
-          </td>
-          <td>
-            <button class="btn list-group-item" value="{{ task.entity_id }}">
-              <h4 class="list-group-item-heading">
-                {{ task.entity_id }}
-              </h4>
-              <p class="list-group-item-text ml-4"><span>{{_('Execution Date')}}：</span>{{ task.execution_date }}</p>
-              <p class="list-group-item-text ml-4"><span>{{_('Car Code')}}：</span>{{ task.car_code }}</p>
-              <p class="list-group-item-text ml-4 "><span>{{_('Measure Result')}}：</span>
-                <a
-                  class="badge {{'badge-success' if task.measure_result=='OK' else 'badge-danger' if task.measure_result=='NOK' else 'badge-secondary'}}">{{
-                  task.measure_result if task.measure_result else '无结果' }}</a></p>
-              <p class="list-group-item-text ml-4"><span>{{_('Result')}}：</span>
-                <a
-                  class="badge {{'badge-success' if task.result=='OK' else 'badge-danger' if task.result=='NOK' else 'badge-secondary'}}">{{
-                  task.result if task.result else '未分析'}}</a></p>
-              <p class="list-group-item-text ml-4"><span>{{_('Final State')}}：</span>
-                <a
-                  class="badge {{'badge-success' if task.final_state=='OK' else 'badge-danger' if task.final_state=='NOK' else 'badge-secondary'}}">{{
-                  task.final_state if task.final_state else '未确认' }}</a></p>
-            </button>
-          </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-
+  <div id="root">
+    <div class="p-0 m-1 ">
+      {% call lib.accordion_tag("accordion1",_("Search"), False) %}
+        {{ widgets.get('search')()|safe }}
+      {% endcall %}
     </div>
-    <div class="panel-body" style="display:inline-block !important;">
-      {{ lib.render_pagination(page, page_size, count, modelview_name) }}
-      <div style="display: flex;flex-direction: row;justify-content: space-between;align-items: center">
-        <button id="btn-clear-curves" class="btn btn-danger btn-block m-1" style="width: 30%">清空对比</button>
-        <button id="btn-view-curves" class="btn btn-primary btn-block m-1">查看</button>
+    {% call panel.panel('曲线列表') %}
+      <div class="d-flex w-100 h-100 flex-column overflow-hidden">
+
+        <div class="panel-body flex-grow-1 overflow-auto p-0">
+          <!--      <div id="tree" class=""></div>-->
+
+          <table class="table position-relative" style="width: 100%; ">
+            <thead>
+            <tr class="result-content-row active">
+              <th class="position-sticky " style="top:0;z-index: 1;">
+                <input id="check_all" class="action_check_all" name="check_all" type="checkbox">
+              </th>
+              <th class="position-sticky " style="top:0;z-index: 1;">{{ _('curve') }}</th>
+            </tr>
+            </thead>
+            <tbody id="curves-table">
+            {% for task in tasks %}
+              <tr>
+                <td class="h-100" style="text-align: center;vertical-align: middle;">
+                  <div class="d-flex flex-column justify-content-center align-items-center">
+                    <input id="{{ task.entity_id }}" class="action_check m-2" name="rowid" value="{{ task.entity_id }}"
+                           data-carCode="{{ task.car_code }}"
+                           data-date="{{ task.execution_date }}"
+                           data-measureResult="{{ task.measure_result }}"
+                           type="checkbox">
+                    <a type="button" class="btn btn-sm btn-default"
+                       href="{{ url_for('Airflow.view_curve_page',dag_id=task.dag_id,execution_date=task.execution_date,task_id=task.task_id) }}"
+                       target="_blank">
+                      <i class="glyphicon glyphicon-new-window"></i>
+                    </a>
+                  </div>
+                </td>
+                <td>
+                  <button class="btn list-group-item" value="{{ task.entity_id }}">
+                    <h4 class="list-group-item-heading">
+                      {{ task.entity_id }}
+                    </h4>
+                    <p class="list-group-item-text ml-4">
+                      <span>{{ _('Execution Date') }}：</span>{{ task.execution_date }}</p>
+                    <p class="list-group-item-text ml-4"><span>{{ _('Car Code') }}：</span>{{ task.car_code }}</p>
+                    <p class="list-group-item-text ml-4 "><span>{{ _('Measure Result') }}：</span>
+                      <a
+                              class="badge
+
+                                      {{ 'badge-success' if task.measure_result=='OK' else 'badge-danger' if task.measure_result=='NOK' else 'badge-secondary'}}">{{ task.measure_result if task.measure_result else '无结果' }}</a>
+                    </p>
+                    <p class="list-group-item-text ml-4"><span>{{ _('Result') }}：</span>
+                      <a
+                              class="badge
+
+                                      {{ 'badge-success' if task.result=='OK' else 'badge-danger' if task.result=='NOK' else 'badge-secondary'}}">{{ task.result if task.result else '未分析' }}</a>
+                    </p>
+                    <p class="list-group-item-text ml-4"><span>{{ _('Final State') }}：</span>
+                      <a
+                              class="badge
+
+                                      {{ 'badge-success' if task.final_state=='OK' else 'badge-danger' if task.final_state=='NOK' else 'badge-secondary'}}">{{ task.final_state if task.final_state else '未确认' }}</a>
+                    </p>
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+
+        </div>
+        <div class="panel-body" style="display:inline-block !important;">
+          {{ lib.render_pagination(page, page_size, count, modelview_name) }}
+          <div style="display: flex;flex-direction: row;justify-content: space-between;align-items: center">
+            <button id="btn-clear-curves" class="btn btn-danger btn-block m-1" style="width: 30%">清空对比</button>
+            <button id="btn-view-curves" class="btn btn-primary btn-block m-1" style="width: 30%">查看</button>
+            <button id="btn-view-spc" class="btn btn-primary btn-block m-1">SPC</button>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-  {% endcall %}
-  <script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
+    {% endcall %}
+    <script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
 
-  {% include 'airflow/curve_chart.html' %}
-</div>
+    {% include 'airflow/curve_chart.html' %}
+  </div>
 
 {% endblock %}
 
 
 {% block tail_js %}
-{{ super() }}
-<script src="{{ url_for('static', filename='js/bootstrap-treeview.js') }}" type="text/javascript"></script>
-<script type="text/javascript">
-  let selectedEIds = [];
-  let backendSelectedTasks = JSON.parse('{{ selected_tasks|tojson|safe }}');
-  let curvesData = {};
-  let extraData = {};
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/bootstrap-treeview.js') }}" type="text/javascript"></script>
+  <script type="text/javascript">
+    let selectedEIds = [];
+    let backendSelectedTasks = JSON.parse('{{ selected_tasks|tojson|safe }}');
+    let curvesData = {};
+    let extraData = {};
 
 
-  function entityIdSelect(entityId, data) {
-    const idx = selectedEIds.findIndex(id => id === entityId);
-    if (idx < 0) {
-      selectedEIds.push(entityId);
-      extraData[entityId] = data;
-    }
-  }
-
-  function entityIdUnselect(entityId) {
-    const idx = selectedEIds.findIndex(id => id === entityId);
-    if (idx >= 0) {
-      selectedEIds.splice(idx, 1);
-    }
-  }
-
-  function curvesListInit() {
-    $('.btn.list-group-item').click((ev) => {
-      $(ev.currentTarget).parents('tr').find('.action_check').click();
-    });
-    $('.action_check_all').change((ev) => {
-      const {checked} = ev.currentTarget;
-      if (checked) {
-        $('.action_check:not(:checked)').click();
-      } else {
-        $('.action_check:checked').click();
+    function entityIdSelect(entityId, data) {
+      const idx = selectedEIds.findIndex(id => id === entityId);
+      if (idx < 0) {
+        selectedEIds.push(entityId);
+        extraData[entityId] = data;
       }
-    });
-    $('.action_check').change((ev) => {
-      const {checked, value, dataset} = ev.target;
-      const {carcode: carCode, date} = dataset;
-      if (checked) {
-        entityIdSelect(value, {
-          carCode,
-          date
+    }
+
+    function entityIdUnselect(entityId) {
+      const idx = selectedEIds.findIndex(id => id === entityId);
+      if (idx >= 0) {
+        selectedEIds.splice(idx, 1);
+      }
+    }
+
+    function curvesListInit() {
+      $('.btn.list-group-item').click((ev) => {
+        $(ev.currentTarget).parents('tr').find('.action_check').click();
+      });
+      $('.action_check_all').change((ev) => {
+        const {checked} = ev.currentTarget;
+        if (checked) {
+          $('.action_check:not(:checked)').click();
+        } else {
+          $('.action_check:checked').click();
+        }
+      });
+      $('.action_check').change((ev) => {
+        const {checked, value, dataset} = ev.target;
+        const {carcode: carCode, date, measureResult} = dataset;
+        if (checked) {
+          entityIdSelect(value, {
+            value, //entity id
+            carCode,
+            date,
+            measureResult
+          });
+        } else {
+          entityIdUnselect(value);
+        }
+      });
+    }
+
+    function render() {
+      // renderCurvesTable();
+      renderChart();
+    }
+
+    function genData(entityId, xKey, yKey) {
+      if (!entityId || !curvesData[entityId] || !curvesData[entityId][xKey] || !curvesData[entityId][yKey]) {
+        return [];
+      }
+      const curve = curvesData[entityId];
+      const xData = curve[xKey];
+      const yData = curve[yKey];
+      return xData.map((x, idx) => [xData[idx], yData[idx]]);
+    }
+
+    function genDataSeries() {
+      if ((!curvesData) || Object.keys(curvesData).length === 0) {
+        return [];
+      }
+      const {xKey, yKey} = chartParams;
+      return selectedEIds.map(c => ({
+        name: extraData[c] && `${extraData[c].carCode}@${extraData[c].date}` || c,
+        type: 'line',
+        data: genData(c, xKey, yKey),
+        cursor: 'pointer',
+        showSymbol: false,
+        symbol: 'circle',
+        lineStyle: {
+          width: 3
+        }
+      }));
+    }
+
+    function renderChart() {
+      const {xName, yName} = chartParams;
+      const option = {
+        // title: {
+        //   text: `${xName}-${yName}图`
+        // },
+        toolbox: {
+          show: true,
+          feature: {
+            dataZoom: {},
+            dataView: {readOnly: true},
+            saveAsImage: {}
+          }
+        },
+        legend: {
+          type: 'scroll',
+          data: selectedEIds.map(c => extraData[c] && `${extraData[c].carCode}@${extraData[c].date}`)
+        },
+        grid: {
+          bottom: 100
+        },
+        xAxis: {
+          type: 'value',
+          name: xName,
+          nameLocation: 'middle',
+          nameGap: 30,
+          axisLabel: {
+            fontSize: 16
+          }
+        },
+        yAxis: {
+          type: 'value',
+          name: yName,
+          nameLocation: 'middle',
+          nameRotate: 0,
+          nameGap: 50,
+          axisLabel: {
+            fontSize: 16
+          }
+        },
+        series: genDataSeries(),
+        textStyle: {
+          fontFamily: 'monospace',
+          fontSize: 18
+        },
+        dataZoom: [
+          {
+            type: 'slider',
+            xAxisIndex: 0,
+            filterMode: 'none'
+          },
+          {
+            type: 'slider',
+            yAxisIndex: 0,
+            filterMode: 'none'
+          },
+          {
+            type: 'inside',
+            xAxisIndex: 0,
+            filterMode: 'none'
+          },
+          {
+            type: 'inside',
+            yAxisIndex: 0,
+            filterMode: 'none'
+          }
+        ],
+        tooltip: {
+          trigger: 'axis'
+        }
+      };
+      curveChart.setOption(option, true);
+    }
+
+    function querySPC(selectedEntityIds) {
+      const queryEntityIds = selectedEntityIds.filter(id => extraData[id].measureResult === 'OK');
+      if (queryEntityIds.length === 0) {
+        return new Promise((resolve) => {
+          resolve([]);
         });
-      } else {
-        entityIdUnselect(value);
       }
-    });
-  }
-
-  function render() {
-    // renderCurvesTable();
-    renderChart();
-  }
-
-  function genData(entityId, xKey, yKey) {
-    if (!entityId || !curvesData[entityId] || !curvesData[entityId][xKey] || !curvesData[entityId][yKey]) {
-      return [];
-    }
-    const curve = curvesData[entityId];
-    const xData = curve[xKey];
-    const yData = curve[yKey];
-    return xData.map((x, idx) => [xData[idx], yData[idx]]);
-  }
-
-  function genDataSeries() {
-    if ((!curvesData) || Object.keys(curvesData).length === 0) {
-      return [];
-    }
-    const {xKey, yKey} = chartParams;
-    return selectedEIds.map(c => ({
-      name: extraData[c] && `${extraData[c].carCode}@${extraData[c].date}` || c,
-      type: 'line',
-      data: genData(c, xKey, yKey),
-      cursor: 'pointer',
-      showSymbol: false,
-      symbol: 'circle',
-      lineStyle: {
-        width: 3
-      }
-    }));
-  }
-
-  function renderChart() {
-    const {xName, yName} = chartParams;
-    const option = {
-      // title: {
-      //   text: `${xName}-${yName}图`
-      // },
-      toolbox: {
-        show: true,
-        feature: {
-          dataZoom: {},
-          dataView: {readOnly: true},
-          saveAsImage: {}
-        }
-      },
-      legend: {
-        type: 'scroll',
-        data: selectedEIds.map(c => extraData[c] && `${extraData[c].carCode}@${extraData[c].date}`)
-      },
-      grid: {
-        bottom: 100
-      },
-      xAxis: {
-        type: 'value',
-        name: xName,
-        nameLocation: 'middle',
-        nameGap: 30,
-        axisLabel: {
-          fontSize: 16
-        }
-      },
-      yAxis: {
-        type: 'value',
-        name: yName,
-        nameLocation: 'middle',
-        nameRotate: 0,
-        nameGap: 50,
-        axisLabel: {
-          fontSize: 16
-        }
-      },
-      series: genDataSeries(),
-      textStyle: {
-        fontFamily: 'monospace',
-        fontSize: 18
-      },
-      dataZoom: [
-        {
-          type: 'slider',
-          xAxisIndex: 0,
-          filterMode: 'none'
+      const entityIdsStr = queryEntityIds.join(',');
+      return $.ajax({
+        type: 'GET',
+        url: "{{ url_for('api_experimental.get_spc_by_entity_id') }}",
+        data: {
+          entity_ids: entityIdsStr,
+          type: 'torque',
+          csrf_token: '{{ csrf_token() }}'
         },
-        {
-          type: 'slider',
-          yAxisIndex: 0,
-          filterMode: 'none'
-        },
-        {
-          type: 'inside',
-          xAxisIndex: 0,
-          filterMode: 'none'
-        },
-        {
-          type: 'inside',
-          yAxisIndex: 0,
-          filterMode: 'none'
+        headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+        dataType: 'json',
+        contentType: 'application/json'
+      }).then((resp) => {
+        const {error, curves} = resp;
+        if (error) {
+          throw new Error(error);
         }
-      ],
-      tooltip: {
-        trigger: 'axis'
-      }
-    };
-    curveChart.setOption(option, true);
-  }
-
-
-  function queryCurves(selectedEntityIds) {
-    const queryEntityIds = selectedEntityIds.filter(id => !Object.hasOwnProperty.call(curvesData, id));
-    if (queryEntityIds.length === 0) {
-      return new Promise((resolve) => {
-        resolve([]);
+        if (!curves) {
+          throw new Error('没有选择的曲线数据');
+        }
+        return curves;
       });
     }
-    const entityIdsStr = queryEntityIds.join(',');
-    return $.ajax({
-      type: 'GET',
-      url: "{{ url_for('api_experimental.get_curves_by_entity_id') }}",
-      data: {
-        entity_ids: entityIdsStr,
-        csrf_token: '{{ csrf_token() }}'
-      },
-      headers: {'X-CSRFToken': '{{ csrf_token() }}'},
-      dataType: 'json',
-      contentType: 'application/json'
-    }).then((resp) => {
-      const {error, curves} = resp;
-      if (error) {
-        throw new Error(error);
-      }
-      if (!curves) {
-        throw new Error('没有选择的曲线数据');
-      }
-      return curves;
-    });
-  }
 
-  function viewCurves() {
-    if (backendSelectedTasks && Object.keys(backendSelectedTasks).length > 0) {
-      const backendSelectedEntityIds = Object.keys(backendSelectedTasks);
-      selectedEIds = selectedEIds.concat(backendSelectedEntityIds);
-      extraData = Object.assign(extraData, backendSelectedTasks);
-    }
-    queryCurves(selectedEIds).then((curves) => {
-      const newCurves = {};
-      curves.forEach((c) => {
-        newCurves[c.entity_id] = c.curve;
+    function queryCurves(selectedEntityIds) {
+      const queryEntityIds = selectedEntityIds.filter(id => !Object.hasOwnProperty.call(curvesData, id));
+      if (queryEntityIds.length === 0) {
+        return new Promise((resolve) => {
+          resolve([]);
+        });
+      }
+      const entityIdsStr = queryEntityIds.join(',');
+      return $.ajax({
+        type: 'GET',
+        url: "{{ url_for('api_experimental.get_curves_by_entity_id') }}",
+        data: {
+          entity_ids: entityIdsStr,
+          csrf_token: '{{ csrf_token() }}'
+        },
+        headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+        dataType: 'json',
+        contentType: 'application/json'
+      }).then((resp) => {
+        const {error, curves} = resp;
+        if (error) {
+          throw new Error(error);
+        }
+        if (!curves) {
+          throw new Error('没有选择的曲线数据');
+        }
+        return curves;
       });
-      const prevData = JSON.parse(window.sessionStorage.getItem('curvesData') || '{}');
-      const prevSelectedEIds = JSON.parse(window.sessionStorage.getItem('selectedEIds') || '[]');
-      const prevExtraData = JSON.parse(window.sessionStorage.getItem('extraData') || '{}');
-      selectedEIds = [...(new Set([
-        ...prevSelectedEIds,
-        ...selectedEIds
-      ]))];
-      extraData = {
-        ...prevExtraData,
-        ...extraData
-      };
-      curvesData = {
-        ...prevData,
-        ...curvesData,
-        ...newCurves
-      };
+    }
+
+    function viewSPC() {
+      if (backendSelectedTasks && Object.keys(backendSelectedTasks).length > 0) {
+        const backendSelectedEntityIds = Object.keys(backendSelectedTasks);
+        selectedEIds = selectedEIds.concat(backendSelectedEntityIds);
+        extraData = Object.assign(extraData, backendSelectedTasks);
+      }
+      if (selectedEIds.length === 0) {
+        alert('SPC查看! 请确认! 未选中任意曲线!!!');
+        return;
+      }
+      const isNotOK = selectedEIds.filter(i => extraData[i].measureResult !== 'OK');
+      if (isNotOK.length !== 0) {
+        const v = isNotOK.map(i => `${extraData[i].carCode}@${extraData[i].date}`)
+        const msg = `SPC查看! 请确认! 只能选择OK的曲线!!!,不正确的选择: ${v.join()}`;
+        alert(msg);
+        return;
+      }
+
+    }
+
+    function viewCurves() {
+      if (backendSelectedTasks && Object.keys(backendSelectedTasks).length > 0) {
+        const backendSelectedEntityIds = Object.keys(backendSelectedTasks);
+        selectedEIds = selectedEIds.concat(backendSelectedEntityIds);
+        extraData = Object.assign(extraData, backendSelectedTasks);
+      }
+      if (selectedEIds.length === 0) {
+        alert('查看曲线! 请确认! 未选中任意曲线!!!');
+        return;
+      }
+      queryCurves(selectedEIds).then((curves) => {
+        const newCurves = {};
+        curves.forEach((c) => {
+          newCurves[c.entity_id] = c.curve;
+        });
+        const prevData = JSON.parse(window.sessionStorage.getItem('curvesData') || '{}');
+        const prevSelectedEIds = JSON.parse(window.sessionStorage.getItem('selectedEIds') || '[]');
+        const prevExtraData = JSON.parse(window.sessionStorage.getItem('extraData') || '{}');
+        selectedEIds = [...(new Set([
+          ...prevSelectedEIds,
+          ...selectedEIds
+        ]))];
+        extraData = {
+          ...prevExtraData,
+          ...extraData
+        };
+        curvesData = {
+          ...prevData,
+          ...curvesData,
+          ...newCurves
+        };
+        window.sessionStorage.setItem('curvesData', JSON.stringify(curvesData));
+        window.sessionStorage.setItem('selectedEIds', JSON.stringify(selectedEIds));
+        window.sessionStorage.setItem('extraData', JSON.stringify(extraData));
+        render();
+      });
+    }
+
+    // function renderCurvesTable() {
+    //   selectedEIds.forEach((s) => {
+    //     const row = $('.list-group-item-heading:contains(' + s + ')').parents('tr');
+    //     if (!row) {
+    //       return;
+    //     }
+    //     const $newRow = $(row).clone(true);
+    //     $newRow.children('.action_check:not(:checked)').click();
+    //     $('#curves-table').prepend($newRow);
+    //     $(row).detach();
+    //   });
+    // }
+
+    function resetCurves() {
+      viewCurves();
+    }
+
+    function clearCurves() {
+      selectedEIds = [];
+      curvesData = {};
       window.sessionStorage.setItem('curvesData', JSON.stringify(curvesData));
       window.sessionStorage.setItem('selectedEIds', JSON.stringify(selectedEIds));
-      window.sessionStorage.setItem('extraData', JSON.stringify(extraData));
+      $('.action_check:checked').click();
       render();
+    }
+
+    $(document).ready(() => {
+      resetCurves();
+      chartInit();
+      curvesListInit();
+      render();
+      $('#btn-view-curves').on('click', viewCurves);
+      $('#btn-clear-curves').on('click', clearCurves);
+      $('#btn-view-spc').on('click', viewSPC);
     });
-  }
-
-  // function renderCurvesTable() {
-  //   selectedEIds.forEach((s) => {
-  //     const row = $('.list-group-item-heading:contains(' + s + ')').parents('tr');
-  //     if (!row) {
-  //       return;
-  //     }
-  //     const $newRow = $(row).clone(true);
-  //     $newRow.children('.action_check:not(:checked)').click();
-  //     $('#curves-table').prepend($newRow);
-  //     $(row).detach();
-  //   });
-  // }
-
-  function resetCurves() {
-    viewCurves();
-  }
-
-  function clearCurves() {
-    selectedEIds = [];
-    curvesData = {};
-    window.sessionStorage.setItem('curvesData', JSON.stringify(curvesData));
-    window.sessionStorage.setItem('selectedEIds', JSON.stringify(selectedEIds));
-    $('.action_check:checked').click();
-    render();
-  }
-
-  $(document).ready(() => {
-    resetCurves();
-    chartInit();
-    curvesListInit();
-    render();
-    $('#btn-view-curves').on('click', viewCurves);
-    $('#btn-clear-curves').on('click', clearCurves);
-  });
-</script>
+  </script>
 {% endblock %}
