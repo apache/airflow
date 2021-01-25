@@ -1824,6 +1824,10 @@ class TestDagACLView(TestBase):
             permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
         )
         self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_all_dag)
+        read_perm_on_task_instance = self.appbuilder.sm.find_permission_view_menu(
+            permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE
+        )
+        self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_task_instance)
         self.appbuilder.sm.add_permission_role(all_dag_role, website_permission)
 
         role_user = self.appbuilder.sm.find_role('User')

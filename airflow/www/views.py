@@ -528,7 +528,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 .all()
             )
 
-            user_permissions = current_app.appbuilder.sm.get_all_permissions_views()
+            user_permissions = current_app.appbuilder.sm.get_current_user_permissions()
             all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
 
             for dag in dags:

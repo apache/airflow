@@ -43,7 +43,7 @@ EXISTING_ROLES = {
 }
 
 
-class AirflowSecurityManager(SecurityManager, LoggingMixin):
+class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=too-many-public-methods
     """Custom security manager, which introduces an permission model adapted to Airflow"""
 
     ###########################################################################
@@ -220,8 +220,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             return [current_app.appbuilder.sm.find_role(public_role)] if public_role else []
         return user.roles
 
-    def get_all_permissions_views(self):
-        """Returns a set of tuples with the perm name and view menu name"""
+    def get_current_user_permissions(self):
+        """Returns permissions for logged in user as a set of tuples with the perm name and view menu name"""
         perms_views = set()
         for role in self.get_user_roles():
             perms_views.update(
@@ -363,7 +363,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def _get_and_cache_perms(self):
         """Cache permissions-views"""
-        self.perms = self.get_all_permissions_views()
+        self.perms = self.get_current_user_permissions()
 
     def _has_role(self, role_name_or_list):
         """Whether the user has this role name"""
@@ -439,89 +439,48 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if not permission_view and permission_name and view_menu_name:
             self.add_permission_view_menu(permission_name, view_menu_name)
 
-    @provide_session
-    def create_custom_dag_permission_view(self, session=None):
+    def add_homepage_access_to_custom_roles(self):
         """
-        Workflow:
-        1. Fetch all the existing (permissions, view-menu) from Airflow DB.
-        2. Fetch all the existing dag models that are either active or paused.
-        3. Create both read and write permission view-menus relation for every dags from step 2
-        4. Find out all the dag specific roles(excluded pubic, admin, viewer, op, user)
-        5. Get all the permission-vm owned by the user role.
-        6. Grant all the user role's permission-vm except the all-dag view-menus to the dag roles.
-        7. Commit the updated permission-vm-role into db
+        Add Website.can_read access to all roles.
 
         :return: None.
         """
-        self.log.debug('Fetching a set of all permission, view_menu from FAB meta-table')
+        website_permission = self.add_permission_view_menu(
+            permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE
+        )
+        for role in self.get_all_roles():
+            self.add_permission_role(role, website_permission)
 
-        def merge_pv(perm, view_menu):
-            """Create permission view menu only if it doesn't exist"""
-            if view_menu and perm and (view_menu, perm) not in all_permission_views:
-                self._merge_perm(perm, view_menu)
+        self.get_session.commit()
 
-        all_permission_views = set()
+    def get_all_permissions(self):
+        """Returns all permissions as a set of tuples with the perm name and view menu name"""
+        perms = set()
         for permission_view in self.get_session.query(self.permissionview_model).all():
             if permission_view.permission and permission_view.view_menu:
-                all_permission_views.add((permission_view.permission.name, permission_view.view_menu.name))
+                perms.add((permission_view.permission.name, permission_view.view_menu.name))
 
-        # Get all the active / paused dags and insert them into a set
-        all_dags_models = (
+        return perms
+
+    @provide_session
+    def create_dag_specific_permissions(self, session=None):
+        """
+        Creates 'can_read' and 'can_edit' permissions for all active and paused DAGs.
+
+        :return: None.
+        """
+        perms = self.get_all_permissions()
+        dag_models = (
             session.query(models.DagModel)
             .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))
             .all()
         )
 
-        # create can_edit and can_read permissions for every dag(vm)
-        for dag in all_dags_models:
-            for perm in self.DAG_PERMS:
-                merge_pv(perm, self.prefixed_dag_id(dag.dag_id))
-
-        # for all the dag-level role, add the permission of viewer
-        # with the dag view to ab_permission_view
-        all_roles = self.get_all_roles()
-        user_role = self.find_role('User')
-
-        dag_role = [role for role in all_roles if role.name not in EXISTING_ROLES]
-        update_perm_views = []
-
-        # need to remove all_dag vm from all the existing view-menus
-        dag_vm = self.find_view_menu(permissions.RESOURCE_DAG)
-        ab_perm_view_role = sqla_models.assoc_permissionview_role
-        perm_view = self.permissionview_model
-        view_menu = self.viewmenu_model
-
-        all_perm_view_by_user = (
-            session.query(ab_perm_view_role)
-            .join(
-                perm_view,
-                perm_view.id == ab_perm_view_role.columns.permission_view_id,  # pylint: disable=no-member
-            )
-            .filter(ab_perm_view_role.columns.role_id == user_role.id)  # pylint: disable=no-member
-            .join(view_menu)
-            .filter(perm_view.view_menu_id != dag_vm.id)
-        )
-        all_perm_views = {role.permission_view_id for role in all_perm_view_by_user}
-
-        for role in dag_role:
-            # pylint: disable=no-member
-            # Get all the perm-view of the role
-
-            existing_perm_view_by_user = self.get_session.query(ab_perm_view_role).filter(
-                ab_perm_view_role.columns.role_id == role.id
-            )
-
-            existing_perms_views = {pv.permission_view_id for pv in existing_perm_view_by_user}
-            missing_perm_views = all_perm_views - existing_perms_views
-
-            for perm_view_id in missing_perm_views:
-                update_perm_views.append({'permission_view_id': perm_view_id, 'role_id': role.id})
-
-        if update_perm_views:
-            self.get_session.execute(
-                ab_perm_view_role.insert(), update_perm_views  # pylint: disable=no-value-for-parameter
-            )
-        self.get_session.commit()
+        for dag in dag_models:
+            for perm_name in self.DAG_PERMS:
+                dag_resource_name = self.prefixed_dag_id(dag.dag_id)
+                if dag_resource_name and perm_name and (dag_resource_name, perm_name) not in perms:
+                    self._merge_perm(perm_name, dag_resource_name)
 
     def update_admin_perm_view(self):
         """
@@ -560,13 +519,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         # Create global all-dag VM
         self.create_perm_vm_for_all_dag()
+        self.create_dag_specific_permissions()
 
         # Create default user role.
         for config in self.ROLE_CONFIGS:
             role = config['role']
             perms = config['perms']
             self.init_role(role, perms)
-        self.create_custom_dag_permission_view()
+        self.add_homepage_access_to_custom_roles()
         # init existing roles, the rest role could be created through UI.
         self.update_admin_perm_view()
         self.clean_perms()
