@@ -19,15 +19,7 @@
 
 # Migration Guide
 
-## 3.0.0
+## 2.0.0
+We updated the support for `slack_sdk` from ``>=2.0.0,<3.0.0`` to ``>=3.0.0,<4.0.0``. In most cases, this doesn't mean any breaking changes to the DAG files, but if you used this library directly then you have to make the changes. 
+For details, see the `Migration Guide` (https://slack.dev/python-slack-sdk/v3-migration/index.html#from-slackclient-2-x) for Python Slack SDK.
 
-Reference: https://slack.dev/python-slack-sdk/v3-migration/index.html#from-slackclient-2-x
-
-### Use  ``AsyncWebClient`` for async options
-
-With v3 upgrade, `WebClient` no longer has `run_async` and `aiohttp` specific options. If you still need the option or other `aiohttp` specific options, use `LegacyWebClient` (slackclient v2 compatible) or `AsyncWebClient`
-
-
-### Include ``aiohttp`` in requirements
-
-`aiohttp` is no longer automatically resolved with `slack_sdk`(earlier `slackclient`). So, if working with `AsyncWebClient`, `AsyncWebhookClient`, and `LegacyWebClient`, it needs separate installation.
