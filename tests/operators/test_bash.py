@@ -22,6 +22,8 @@ from subprocess import PIPE, STDOUT
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun
 from airflow.models.dag import DAG
@@ -78,24 +80,24 @@ class TestBashOperator(unittest.TestCase):
 
             with open(tmp_file.name) as file:
                 output = ''.join(file.readlines())
-                self.assertIn('MY_PATH_TO_AIRFLOW_HOME', output)
+                assert 'MY_PATH_TO_AIRFLOW_HOME' in output
                 # exported in run-tests as part of PYTHONPATH
-                self.assertIn('AWESOME_PYTHONPATH', output)
-                self.assertIn('bash_op_test', output)
-                self.assertIn('echo_env_vars', output)
-                self.assertIn(DEFAULT_DATE.isoformat(), output)
-                self.assertIn(DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE), output)
+                assert 'AWESOME_PYTHONPATH' in output
+                assert 'bash_op_test' in output
+                assert 'echo_env_vars' in output
+                assert DEFAULT_DATE.isoformat() in output
+                assert DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE) in output
 
     def test_return_value(self):
         bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_return_value', dag=None)
         return_value = bash_operator.execute(context={})
 
-        self.assertEqual(return_value, 'stdout')
+        assert return_value == 'stdout'
 
     def test_raise_exception_on_non_zero_exit_code(self):
         bash_operator = BashOperator(bash_command='exit 42', task_id='test_return_value', dag=None)
-        with self.assertRaisesRegex(
-            AirflowException, "Bash command failed\\. The command returned a non-zero exit code\\."
+        with pytest.raises(
+            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
         ):
             bash_operator.execute(context={})
 
@@ -104,12 +106,12 @@ class TestBashOperator(unittest.TestCase):
             bash_command='echo "stdout"', task_id='test_task_retries', retries=2, dag=None
         )
 
-        self.assertEqual(bash_operator.retries, 2)
+        assert bash_operator.retries == 2
 
     def test_default_retries(self):
         bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_default_retries', dag=None)
 
-        self.assertEqual(bash_operator.retries, 0)
+        assert bash_operator.retries == 0
 
     @mock.patch.dict('os.environ', clear=True)
     @mock.patch(

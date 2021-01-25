@@ -27,14 +27,13 @@ users to migrate from Airflow 1.10.x to Airflow 2.0.
 Step 1: Upgrade to Python 3
 '''''''''''''''''''''''''''
 
-Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will
-require Python 3.6+ and at this point in time has been tested with Python versions 3.6, 3.7,
-and 3.8, but does not yet support Python 3.9.
+Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0
+requires Python 3.6+ and has been tested with Python versions 3.6, 3.7 and 3.8, but does not yet support Python 3.9.
 
 If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator`` for this.
 
 For a list of breaking changes between Python 2 and Python 3, please refer to this
-[handy blog](https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/)
+`handy blog <https://blog.couchbase.com/tips-and-tricks-for-upgrading-from-python-2-to-python-3/>`_
 from the CouchBaseDB team.
 
 
@@ -47,10 +46,8 @@ that have been backported from Airflow 2.0 to make it easy for users to test the
 environment before upgrading to Airflow 2.0.
 
 We strongly recommend that all users upgrading to Airflow 2.0, first
-upgrade to Airflow 1.10.14 and test their Airflow deployment and only then upgrade to Airflow 2.0. After the
-Airflow 2.0 GA (General Availability) release, it is expected that all future Airflow development would be
-based on Airflow 2.0. The Airflow 1.10.x release tree will be supported for a limited time after the GA
-release of Airflow 2.0.
+upgrade to Airflow 1.10.14 and test their Airflow deployment and only then upgrade to Airflow 2.0.
+The Airflow 1.10.x release tree will be supported for six months from Airflow 2.0 release date.
 
 Features in 1.10.14 include:
 
@@ -59,7 +56,7 @@ that 1.10.14 will process these DAGs the same way as Airflow 2.0. Instead, this 
 compatible DAGs will work in Airflow 1.10.14. This backport will give users time to modify their DAGs over time
 without any service disruption.
 
-2. We have also backported the updated Airflow 2.0 CLI commands to Airflow 1.10.4, so that users can modify their scripts
+2. We have also backported the updated Airflow 2.0 CLI commands to Airflow 1.10.14, so that users can modify their scripts
 to be compatible with Airflow 2.0 before the upgrade.
 
 3. For users of the KubernetesExecutor, we have backported the ``pod_template_file`` capability for the KubernetesExecutor
@@ -98,7 +95,7 @@ Now that you are set up in Airflow 1.10.14 with Python a 3.6+ environment, you a
 
 The most important step in this transition is also the easiest step to do in pieces. All Airflow 2.0 operators are backwards compatible with Airflow 1.10
 using the backport provider packages. In your own time, you can transition to using these backport-providers
-by pip installing the provider via ``pypi`` and changing the import path.
+by pip installing the provider via PyPI and changing the import path.
 
 For example: While historically you might have imported the DockerOperator in this fashion:
 
@@ -300,12 +297,12 @@ As part of this change, a few configuration items in ``[webserver]`` section are
 including ``authenticate``, ``filter_by_owner``, ``owner_mode``, and ``rbac``.
 
 Before upgrading to this release, we recommend activating the new FAB RBAC UI. For that, you should set
-the ``rbac`` options  in ``[webserver]`` in the ``airflow.cfg`` file to ``true``
+the ``rbac`` options  in ``[webserver]`` in the ``airflow.cfg`` file to ``True``
 
 .. code-block:: ini
 
     [webserver]
-    rbac = true
+    rbac = True
 
 In order to login to the interface, you need to create an administrator account.
 
@@ -1189,24 +1186,16 @@ depending on the development packages then you should use ``devel_all``.
 Support for Airflow 1.10.x releases
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As mentioned earlier in Step 2, the 1.10.14 release is intended to be a "bridge release"
-which would be a step in the migration to Airflow 2.0.
+The Airflow 1.10.x release tree will be supported for **six months** from Airflow 2.0 release date.
+Specifically, only "critical fixes" defined as fixes
+to bugs that take down Production systems, will be backported to 1.10.x core for
+**six months** after Airflow 2.0.0 is released.
 
-After the Airflow 2.0 GA (General Availability) release, it expected that all
-future Airflow development would be based on Airflow 2.0, including a series of
-patch releases such as 2.0.1, 2.0.2 and then feature releases such as 2.1.
+In addition, Backport providers within
+1.10.x, will be supported for critical fixes for **three months** from Airflow 2.0.0
+release date.
 
 We plan to take a strict Semantic Versioning approach to our versioning and release process. This
 means that we do not plan to make any backwards-incompatible changes in the 2.* releases. Any
 breaking changes, including the removal of features deprecated in Airflow 2.0 will happen as part
 of the Airflow 3.0 release.
-
-The Airflow 1.10.x release tree will be supported for a limited time after the
-GA release of Airflow 2.0 to give users time to upgrade from one of the Airflow 1.10.x releases.
-Specifically, only "critical fixes" defined as fixes
-to bugs that take down Production systems, will be backported to 1.10.x core for
-six months after Airflow 2.0.0 is released.
-
-In addition, Backport providers within
-1.10.x, will be supported for critical fixes for three months after Airflow 2.0.0
-is released.

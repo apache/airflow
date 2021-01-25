@@ -150,7 +150,7 @@ if __name__ == "__main__":
             except ValueError as exc:
                 print(exc.args[0] % exc.args[1:])
             except Exception as exc:  # pylint: disable=broad-except
-                print('Unknown error: %r' % exc)
+                print(f'Unknown error: {exc!r}')
 
         provider_mapping = _generate_provider_intersphinx_mapping()
 

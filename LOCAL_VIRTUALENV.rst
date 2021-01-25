@@ -64,11 +64,22 @@ Extra Packages
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-   ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-   ``--use-deprecated legacy-resolver`` to your pip install command.
+   might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
+   depend on your choice of extras. In order to install Airflow you might need to either downgrade
+   pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3,
+   you need to add option ``--use-deprecated legacy-resolver`` to your pip install command.
 
+   While ``pip 20.3.3`` solved most of the ``teething`` problems of 20.3, this note will remain here until we
+   set ``pip 20.3`` as official version in our CI pipeline where we are testing the installation as well.
+   Due to those constraints, only ``pip`` installation is currently officially supported.
+
+   While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+   `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
+   ``pip`` - especially when it comes to constraint vs. requirements management.
+   Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
+
+   If you wish to install airflow using those tools you should use the constraint files and convert
+   them to appropriate format and workflow that your tool requires.
 
 
 You can also install extra packages (like ``[ssh]``, etc) via
@@ -127,15 +138,27 @@ To create and initialize the local virtualenv:
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-   ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-   ``--use-deprecated legacy-resolver`` to your pip install command.
+   might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
+   depend on your choice of extras. In order to install Airflow you might need to either downgrade
+   pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3,
+   you need to add option ``--use-deprecated legacy-resolver`` to your pip install command.
+
+   While ``pip 20.3.3`` solved most of the ``teething`` problems of 20.3, this note will remain here until we
+   set ``pip 20.3`` as official version in our CI pipeline where we are testing the installation as well.
+   Due to those constraints, only ``pip`` installation is currently officially supported.
+
+   While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+   `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
+   ``pip`` - especially when it comes to constraint vs. requirements management.
+   Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
+
+   If you wish to install airflow using those tools you should use the constraint files and convert
+   them to appropriate format and workflow that your tool requires.
 
 
    .. code-block:: bash
 
-    pip install -U -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -U -e ".[devel,google,postgres]"
+    pip install --upgrade -e ".[devel,<OTHER EXTRAS>]" # for example: pip install --upgrade -e ".[devel,google,postgres]"
 
 In case you have problems with installing airflow because of some requirements are not installable, you can
 try to install it with the set of working constraints (note that there are different constraint files
@@ -143,8 +166,31 @@ for different python versions:
 
    .. code-block:: bash
 
-    pip install -U -e ".[devel,<OTHER EXTRAS>]" \
+    pip install -e ".[devel,<OTHER EXTRAS>]" \
         --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+
+This will install Airflow in 'editable' mode - where sources of Airflow are taken directly from the source
+code rather than moved to the installation directory. During the installation airflow will install - but then
+automatically remove all provider packages installed from PyPI - instead it will automatically use the
+provider packages available in your local sources.
+
+You can also install Airflow in non-editable mode:
+
+   .. code-block:: bash
+
+    pip install ".[devel,<OTHER EXTRAS>]" \
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+This will copy the sources to directory where usually python packages are installed. You can see the list
+of directories via ``python -m site`` command. In this case the providers are installed from PyPI, not from
+sources, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment variable to ``true``
+
+   .. code-block:: bash
+
+    INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[devel,<OTHER EXTRAS>]" \
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
 
 Note: when you first initialize database (the next step), you may encounter some problems.
 This is because airflow by default will try to load in example dags where some of them requires dependencies ``google`` and ``postgres``.

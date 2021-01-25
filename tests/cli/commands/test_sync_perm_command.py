@@ -57,7 +57,7 @@ class TestCliSyncPerm(unittest.TestCase):
 
         dagbag_mock.assert_called_once_with(read_dags_from_db=True)
         collect_dags_from_db_mock.assert_called_once_with()
-        self.assertEqual(2, len(appbuilder.sm.sync_perm_for_dag.mock_calls))
+        assert 2 == len(appbuilder.sm.sync_perm_for_dag.mock_calls)
         appbuilder.sm.sync_perm_for_dag.assert_any_call(
             'has_access_control', {'Public': {permissions.ACTION_CAN_READ}}
         )

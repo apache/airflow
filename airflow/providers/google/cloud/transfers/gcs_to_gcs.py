@@ -234,7 +234,7 @@ class GCSToGCSOperator(BaseOperator):
     def execute(self, context):
 
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )

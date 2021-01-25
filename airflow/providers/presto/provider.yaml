@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Presto
     external-doc-url: http://prestodb.github.io/
+    logo: /integration-logos/presto/PrestoDB.png
     tags: [software]
 
 hooks:

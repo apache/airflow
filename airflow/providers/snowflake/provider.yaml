@@ -29,6 +29,7 @@ integrations:
     external-doc-url: https://snowflake.com/
     how-to-guide:
       - /docs/apache-airflow-providers-snowflake/operators/snowflake.rst
+    logo: /integration-logos/snowflake/Snowflake.png
     tags: [service]
 
 operators:

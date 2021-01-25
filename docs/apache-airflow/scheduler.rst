@@ -69,6 +69,8 @@ the scheduler won't execute it now but the scheduler will execute it in the futu
 Running More Than One Scheduler
 -------------------------------
 
+.. _scheduler:ha:
+
 .. versionadded: 2.0.0
 
 Airflow supports running more than one scheduler concurrently -- both for performance reasons and for

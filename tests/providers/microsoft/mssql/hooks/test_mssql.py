@@ -39,7 +39,7 @@ class TestMsSqlHook(unittest.TestCase):
         hook = MsSqlHook()
         conn = hook.get_conn()
 
-        self.assertEqual(mssql_get_conn.return_value, conn)
+        assert mssql_get_conn.return_value == conn
         mssql_get_conn.assert_called_once()
 
     @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
@@ -69,4 +69,4 @@ class TestMsSqlHook(unittest.TestCase):
         conn = hook.get_conn()
 
         mssql_get_conn.assert_called_once()
-        self.assertEqual(hook.get_autocommit(conn), 'autocommit_state')
+        assert hook.get_autocommit(conn) == 'autocommit_state'

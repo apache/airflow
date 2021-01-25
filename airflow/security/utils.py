@@ -55,7 +55,7 @@ def replace_hostname_pattern(components, host=None):
     fqdn = host
     if not fqdn or fqdn == '0.0.0.0':
         fqdn = get_hostname()
-    return '{}/{}@{}'.format(components[0], fqdn.lower(), components[2])
+    return f'{components[0]}/{fqdn.lower()}@{components[2]}'
 
 
 def get_fqdn(hostname_or_ip=None):

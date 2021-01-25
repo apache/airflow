@@ -97,7 +97,7 @@ function start_end::script_end {
         fi
         start_end::group_end
         echo
-        echo "${COLOR_RED_ERROR} The previous step completed with error. Please take a look at output above ${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR: The previous step completed with error. Please take a look at output above ${COLOR_RESET}"
         echo
         if [[ ${CI} == "true" ]]; then
             local container

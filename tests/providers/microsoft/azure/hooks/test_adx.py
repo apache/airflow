@@ -21,6 +21,7 @@ import json
 import unittest
 from unittest import mock
 
+import pytest
 from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 
 from airflow.exceptions import AirflowException
@@ -49,9 +50,9 @@ class TestAzureDataExplorerHook(unittest.TestCase):
                 extra=json.dumps({}),
             )
         )
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
-            self.assertIn('missing required parameter: `auth_method`', str(e.exception))
+            assert 'missing required parameter: `auth_method`' in str(ctx.value)
 
     def test_conn_unknown_method(self):
         db.merge_conn(
@@ -64,9 +65,9 @@ class TestAzureDataExplorerHook(unittest.TestCase):
                 extra=json.dumps({'auth_method': 'AAD_OTHER'}),
             )
         )
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
-        self.assertIn('Unknown authentication method: AAD_OTHER', str(e.exception))
+        assert 'Unknown authentication method: AAD_OTHER' in str(ctx.value)
 
     def test_conn_missing_cluster(self):
         db.merge_conn(
@@ -78,9 +79,9 @@ class TestAzureDataExplorerHook(unittest.TestCase):
                 extra=json.dumps({}),
             )
         )
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
-        self.assertIn('Host connection option is required', str(e.exception))
+        assert 'Host connection option is required' in str(ctx.value)
 
     @mock.patch.object(KustoClient, '__init__')
     def test_conn_method_aad_creds(self, mock_init):

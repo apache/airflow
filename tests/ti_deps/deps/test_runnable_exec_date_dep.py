@@ -84,7 +84,7 @@ class TestRunnableExecDateDep(unittest.TestCase):
             op1 = DummyOperator(task_id='op1')
 
         ti = TaskInstance(task=op1, execution_date=datetime(2016, 11, 2))
-        self.assertFalse(RunnableExecDateDep().is_met(ti=ti))
+        assert not RunnableExecDateDep().is_met(ti=ti)
 
     def test_exec_date_after_task_end_date(self):
         """
@@ -96,7 +96,7 @@ class TestRunnableExecDateDep(unittest.TestCase):
             task_end_date=datetime(2016, 1, 1),
             execution_date=datetime(2016, 1, 2),
         )
-        self.assertFalse(RunnableExecDateDep().is_met(ti=ti))
+        assert not RunnableExecDateDep().is_met(ti=ti)
 
     def test_exec_date_after_dag_end_date(self):
         """
@@ -108,7 +108,7 @@ class TestRunnableExecDateDep(unittest.TestCase):
             task_end_date=datetime(2016, 1, 3),
             execution_date=datetime(2016, 1, 2),
         )
-        self.assertFalse(RunnableExecDateDep().is_met(ti=ti))
+        assert not RunnableExecDateDep().is_met(ti=ti)
 
     def test_all_deps_met(self):
         """
@@ -119,4 +119,4 @@ class TestRunnableExecDateDep(unittest.TestCase):
             task_end_date=datetime(2016, 1, 2),
             execution_date=datetime(2016, 1, 1),
         )
-        self.assertTrue(RunnableExecDateDep().is_met(ti=ti))
+        assert RunnableExecDateDep().is_met(ti=ti)

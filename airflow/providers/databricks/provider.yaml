@@ -28,6 +28,7 @@ integrations:
     external-doc-url: https://databricks.com/
     how-to-guide:
       - /docs/apache-airflow-providers-databricks/operators.rst
+    logo: /integration-logos/databricks/Databricks.png
     tags: [service]
 operators:
   - integration-name: Databricks

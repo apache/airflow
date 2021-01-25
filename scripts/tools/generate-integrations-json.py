@@ -73,12 +73,14 @@ with open(os.path.join(AIRFLOW_SITE_DIR, 'landing-pages/site/static/integrations
     f.write(
         json.dumps(
             result_integrations,
-            indent=4,
+            indent=2,
+            sort_keys=True,
         )
     )
 
+target_path = os.path.join(AIRFLOW_SITE_DIR, 'landing-pages/site/static/integration-logos')
+shutil.rmtree(target_path)
 shutil.copytree(
     src=os.path.join(DOCS_DIR, 'integration-logos'),
-    dst=os.path.join(AIRFLOW_SITE_DIR, 'landing-pages/site/static/integration-logos'),
-    dirs_exist_ok=True,
+    dst=target_path,
 )

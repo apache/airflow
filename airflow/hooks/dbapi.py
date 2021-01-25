@@ -248,7 +248,7 @@ class DbApiHook(BaseHook):
             sql = "INSERT INTO "
         else:
             sql = "REPLACE INTO "
-        sql += "{} {} VALUES ({})".format(table, target_fields, ",".join(placeholders))
+        sql += f"{table} {target_fields} VALUES ({','.join(placeholders)})"
         return sql
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000, replace=False, **kwargs):

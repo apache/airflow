@@ -49,9 +49,9 @@ class TestJdbcHook(unittest.TestCase):
     def test_jdbc_conn_connection(self, jdbc_mock):
         jdbc_hook = JdbcHook()
         jdbc_conn = jdbc_hook.get_conn()
-        self.assertTrue(jdbc_mock.called)
-        self.assertIsInstance(jdbc_conn, Mock)
-        self.assertEqual(jdbc_conn.name, jdbc_mock.return_value.name)  # pylint: disable=no-member
+        assert jdbc_mock.called
+        assert isinstance(jdbc_conn, Mock)
+        assert jdbc_conn.name == jdbc_mock.return_value.name  # pylint: disable=no-member
 
     @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
     def test_jdbc_conn_set_autocommit(self, _):

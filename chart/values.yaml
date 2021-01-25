@@ -214,11 +214,12 @@ extraEnvFrom: ~
 #   - configMapRef:
 #       name: '{{ .Release.Name }}-airflow-variables'
 
-# Airflow database config
+# Airflow database & redis config
 data:
   # If secret names are provided, use those secrets
   metadataSecretName: ~
   resultBackendSecretName: ~
+  brokerUrlSecretName: ~
 
   # Otherwise pass connection values in
   metadataConnection:
@@ -235,6 +236,7 @@ data:
     port: 5432
     db: postgres
     sslmode: disable
+  brokerUrl: ~
 
 # Fernet key settings
 fernetKey: ~
@@ -349,6 +351,11 @@ workers:
   extraVolumes: []
   extraVolumeMounts: []
 
+  # Select certain nodes for airflow worker pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
 # Airflow scheduler settings
 scheduler:
   # Airflow 2.0 allows users to run multiple schedulers,
@@ -384,6 +391,11 @@ scheduler:
   # Mount additional volumes into scheduler.
   extraVolumes: []
   extraVolumeMounts: []
+
+  # Select certain nodes for airflow scheduler pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
 
 # Airflow webserver settings
 webserver:
@@ -449,6 +461,11 @@ webserver:
   # Annotations to add to webserver kubernetes service account.
   serviceAccountAnnotations: {}
 
+  # Select certain nodes for airflow webserver pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
 # Flower settings
 flower:
   # Additional network policies as needed
@@ -471,6 +488,11 @@ flower:
   service:
     type: ClusterIP
 
+  # Select certain nodes for airflow flower pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
 # Statsd settings
 statsd:
   enabled: true
@@ -486,6 +508,11 @@ statsd:
 
   service:
     extraAnnotations: {}
+
+  # Select certain nodes for statsd pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
 
 # Pgbouncer settings
 pgbouncer:
@@ -541,7 +568,14 @@ pgbouncer:
     cert: ~
     key: ~
 
+  # Select certain nodes for pgbouncer pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
+# Configuration for the redis provisioned by the chart
 redis:
+  enabled: true
   terminationGracePeriodSeconds: 600
 
   persistence:
@@ -560,17 +594,21 @@ redis:
   #   cpu: 100m
   #   memory: 128Mi
 
-  # If set use as redis secret
+  # If set use as redis secret. Make sure to also set data.brokerUrlSecretName value.
   passwordSecretName: ~
-  brokerURLSecretName: ~
 
   # Else, if password is set, create secret with it,
-  # else generate a new one on install
+  # Otherwise a new password will be generated on install
   password: ~
 
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
+
+  # Select certain nodes for redis pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
 
 # Auth secret for a private registry
 # This is used if pulling airflow images from a private registry
@@ -624,6 +662,11 @@ cleanup:
   # Run every 15 minutes
   schedule: "*/15 * * * *"
 
+  # Select certain nodes for airflow cleanup pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
 # Configuration for postgresql subchart
 # Not recommended for production
 postgresql:
@@ -662,7 +705,6 @@ config:
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
   webserver:
     enable_proxy_fix: 'True'
-    expose_config: 'True'
     rbac: 'True'
   celery:
     default_queue: celery

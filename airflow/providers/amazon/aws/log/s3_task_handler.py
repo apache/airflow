@@ -116,7 +116,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             log_exists = self.s3_log_exists(remote_loc)
         except Exception as error:  # pylint: disable=broad-except
             self.log.exception(error)
-            log = '*** Failed to verify remote log exists {}.\n{}\n'.format(remote_loc, str(error))
+            log = f'*** Failed to verify remote log exists {remote_loc}.\n{str(error)}\n'
 
         if log_exists:
             # If S3 remote file exists, we do not fetch logs from task instance

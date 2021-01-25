@@ -207,7 +207,7 @@ class SparkJDBCHook(SparkSubmitHook):
         if self._jdbc_connection['url']:
             arguments += [
                 '-url',
-                "{}{}/{}".format(jdbc_conn['conn_prefix'], jdbc_conn['url'], jdbc_conn['schema']),
+                f"{jdbc_conn['conn_prefix']}{jdbc_conn['url']}/{jdbc_conn['schema']}",
             ]
         if self._jdbc_connection['user']:
             arguments += ['-user', self._jdbc_connection['user']]

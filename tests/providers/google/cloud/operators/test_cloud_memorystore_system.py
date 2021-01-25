@@ -16,18 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Memorystore operators"""
-import os
-from urllib.parse import urlparse
-
 import pytest
 
+from airflow.providers.google.cloud.example_dags.example_cloud_memorystore import BUCKET_NAME
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_MEMORYSTORE
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
-
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-GCP_ARCHIVE_URL = os.environ.get("GCP_MEMORYSTORE_EXPORT_GCS_URL", "gs://test-memorystore/my-export.rdb")
-GCP_ARCHIVE_URL_PARTS = urlparse(GCP_ARCHIVE_URL)
-GCP_BUCKET_NAME = GCP_ARCHIVE_URL_PARTS.netloc
 
 
 @pytest.mark.backend("mysql", "postgres")
@@ -42,7 +35,7 @@ class CloudMemorystoreSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_MEMORYSTORE)
     def setUp(self):
         super().setUp()
-        self.create_gcs_bucket(GCP_BUCKET_NAME, location="europe-north1")
+        self.create_gcs_bucket(BUCKET_NAME, location="europe-north1")
 
     @provide_gcp_context(GCP_MEMORYSTORE)
     def test_run_example_dag_memorystore_redis(self):
@@ -54,5 +47,5 @@ class CloudMemorystoreSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_MEMORYSTORE)
     def tearDown(self):
-        self.delete_gcs_bucket(GCP_BUCKET_NAME)
+        self.delete_gcs_bucket(BUCKET_NAME)
         super().tearDown()

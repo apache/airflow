@@ -73,6 +73,13 @@ You can now use the derived custom operator as follows:
     with dag:
         hello_task = HelloOperator(task_id='sample-task', name='foo_bar')
 
+You also can keep using your plugins folder for storing your custom operators. If you have the file
+``hello_operator.py`` within the plugins folder, you can import the operator as follows:
+
+.. code-block:: python
+
+    from hello_operator import HelloOperator
+
 If an operator communicates with an external service (API, database, etc) it's a good idea
 to implement the communication layer using a :ref:`custom-operator/hook`. In this way the implemented logic
 can be reused by other users in different operators. Such approach provides better decoupling and

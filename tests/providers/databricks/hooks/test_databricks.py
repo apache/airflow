@@ -22,6 +22,7 @@ import json
 import unittest
 from unittest import mock
 
+import pytest
 from requests import exceptions as requests_exceptions
 
 from airflow import __version__
@@ -171,14 +172,14 @@ class TestDatabricksHook(unittest.TestCase):
 
     def test_parse_host_with_proper_host(self):
         host = self.hook._parse_host(HOST)
-        self.assertEqual(host, HOST)
+        assert host == HOST
 
     def test_parse_host_with_scheme(self):
         host = self.hook._parse_host(HOST_WITH_SCHEME)
-        self.assertEqual(host, HOST)
+        assert host == HOST
 
     def test_init_bad_retry_limit(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             DatabricksHook(retry_limit=0)
 
     def test_do_api_call_retries_with_retryable_error(self):
@@ -193,17 +194,17 @@ class TestDatabricksHook(unittest.TestCase):
                 with mock.patch.object(self.hook.log, 'error') as mock_errors:
                     setup_mock_requests(mock_requests, exception)
 
-                    with self.assertRaises(AirflowException):
+                    with pytest.raises(AirflowException):
                         self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                    self.assertEqual(mock_errors.call_count, self.hook.retry_limit)
+                    assert mock_errors.call_count == self.hook.retry_limit
 
     @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
     def test_do_api_call_does_not_retry_with_non_retryable_error(self, mock_requests):
         setup_mock_requests(mock_requests, requests_exceptions.HTTPError, status_code=400)
 
         with mock.patch.object(self.hook.log, 'error') as mock_errors:
-            with self.assertRaises(AirflowException):
+            with pytest.raises(AirflowException):
                 self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
             mock_errors.assert_not_called()
@@ -224,8 +225,8 @@ class TestDatabricksHook(unittest.TestCase):
 
                     response = self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                    self.assertEqual(mock_errors.call_count, 2)
-                    self.assertEqual(response, {'run_id': '1'})
+                    assert mock_errors.call_count == 2
+                    assert response == {'run_id': '1'}
 
     @mock.patch('airflow.providers.databricks.hooks.databricks.sleep')
     def test_do_api_call_waits_between_retries(self, mock_sleep):
@@ -244,10 +245,10 @@ class TestDatabricksHook(unittest.TestCase):
                     mock_sleep.reset_mock()
                     setup_mock_requests(mock_requests, exception)
 
-                    with self.assertRaises(AirflowException):
+                    with pytest.raises(AirflowException):
                         self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                    self.assertEqual(len(mock_sleep.mock_calls), self.hook.retry_limit - 1)
+                    assert len(mock_sleep.mock_calls) == self.hook.retry_limit - 1
                     calls = [mock.call(retry_delay), mock.call(retry_delay)]
                     mock_sleep.assert_has_calls(calls)
 
@@ -257,7 +258,7 @@ class TestDatabricksHook(unittest.TestCase):
         data = {'cluster_name': 'new_name'}
         patched_cluster_name = self.hook._do_api_call(('PATCH', 'api/2.0/jobs/runs/submit'), data)
 
-        self.assertEqual(patched_cluster_name['cluster_name'], 'new_name')
+        assert patched_cluster_name['cluster_name'] == 'new_name'
         mock_requests.patch.assert_called_once_with(
             submit_run_endpoint(HOST),
             json={'cluster_name': 'new_name'},
@@ -273,7 +274,7 @@ class TestDatabricksHook(unittest.TestCase):
         data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
         run_id = self.hook.submit_run(data)
 
-        self.assertEqual(run_id, '1')
+        assert run_id == '1'
         mock_requests.post.assert_called_once_with(
             submit_run_endpoint(HOST),
             json={
@@ -292,7 +293,7 @@ class TestDatabricksHook(unittest.TestCase):
         data = {'spark_python_task': SPARK_PYTHON_TASK, 'new_cluster': NEW_CLUSTER}
         run_id = self.hook.submit_run(data)
 
-        self.assertEqual(run_id, '1')
+        assert run_id == '1'
         mock_requests.post.assert_called_once_with(
             submit_run_endpoint(HOST),
             json={
@@ -314,7 +315,7 @@ class TestDatabricksHook(unittest.TestCase):
         data = {'notebook_params': NOTEBOOK_PARAMS, 'jar_params': JAR_PARAMS, 'job_id': JOB_ID}
         run_id = self.hook.run_now(data)
 
-        self.assertEqual(run_id, '1')
+        assert run_id == '1'
 
         mock_requests.post.assert_called_once_with(
             run_now_endpoint(HOST),
@@ -331,7 +332,7 @@ class TestDatabricksHook(unittest.TestCase):
 
         run_page_url = self.hook.get_run_page_url(RUN_ID)
 
-        self.assertEqual(run_page_url, RUN_PAGE_URL)
+        assert run_page_url == RUN_PAGE_URL
         mock_requests.get.assert_called_once_with(
             get_run_endpoint(HOST),
             json=None,
@@ -347,7 +348,7 @@ class TestDatabricksHook(unittest.TestCase):
 
         job_id = self.hook.get_job_id(RUN_ID)
 
-        self.assertEqual(job_id, JOB_ID)
+        assert job_id == JOB_ID
         mock_requests.get.assert_called_once_with(
             get_run_endpoint(HOST),
             json=None,
@@ -363,7 +364,7 @@ class TestDatabricksHook(unittest.TestCase):
 
         run_state = self.hook.get_run_state(RUN_ID)
 
-        self.assertEqual(run_state, RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE))
+        assert run_state == RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE)
         mock_requests.get.assert_called_once_with(
             get_run_endpoint(HOST),
             json=None,
@@ -504,10 +505,10 @@ class TestDatabricksHookToken(unittest.TestCase):
         data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
         run_id = self.hook.submit_run(data)
 
-        self.assertEqual(run_id, '1')
+        assert run_id == '1'
         args = mock_requests.post.call_args
         kwargs = args[1]
-        self.assertEqual(kwargs['auth'].token, TOKEN)
+        assert kwargs['auth'].token == TOKEN
 
 
 class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken):
@@ -526,19 +527,19 @@ class TestRunState(unittest.TestCase):
         terminal_states = ['TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
         for state in terminal_states:
             run_state = RunState(state, '', '')
-            self.assertTrue(run_state.is_terminal)
+            assert run_state.is_terminal
 
     def test_is_terminal_false(self):
         non_terminal_states = ['PENDING', 'RUNNING', 'TERMINATING']
         for state in non_terminal_states:
             run_state = RunState(state, '', '')
-            self.assertFalse(run_state.is_terminal)
+            assert not run_state.is_terminal
 
     def test_is_terminal_with_nonexistent_life_cycle_state(self):
         run_state = RunState('blah', '', '')
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             run_state.is_terminal
 
     def test_is_successful(self):
         run_state = RunState('TERMINATED', 'SUCCESS', '')
-        self.assertTrue(run_state.is_successful)
+        assert run_state.is_successful

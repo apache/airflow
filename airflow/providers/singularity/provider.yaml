@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Singularity
     external-doc-url: https://sylabs.io/guides/latest/user-guide/
+    logo: /integration-logos/singularity/Singularity.png
     tags: [software]
 
 operators:

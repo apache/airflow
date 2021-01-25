@@ -18,6 +18,8 @@
 
 import unittest
 
+import pytest
+
 from airflow import models
 from airflow.api.common.experimental.delete_dag import delete_dag
 from airflow.exceptions import DagNotFound
@@ -46,7 +48,7 @@ class TestDeleteDAGCatchError(unittest.TestCase):
         self.dag.clear()
 
     def test_delete_dag_non_existent_dag(self):
-        with self.assertRaises(DagNotFound):
+        with pytest.raises(DagNotFound):
             delete_dag("non-existent DAG")
 
 
@@ -112,23 +114,23 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
 
     def check_dag_models_exists(self):
         with create_session() as session:
-            self.assertEqual(session.query(DM).filter(DM.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(DR).filter(DR.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(TI).filter(TI.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(IE).filter(IE.filename == self.dag_file_path).count(), 1)
+            assert session.query(DM).filter(DM.dag_id == self.key).count() == 1
+            assert session.query(DR).filter(DR.dag_id == self.key).count() == 1
+            assert session.query(TI).filter(TI.dag_id == self.key).count() == 1
+            assert session.query(TF).filter(TF.dag_id == self.key).count() == 1
+            assert session.query(TR).filter(TR.dag_id == self.key).count() == 1
+            assert session.query(LOG).filter(LOG.dag_id == self.key).count() == 1
+            assert session.query(IE).filter(IE.filename == self.dag_file_path).count() == 1
 
     def check_dag_models_removed(self, expect_logs=1):
         with create_session() as session:
-            self.assertEqual(session.query(DM).filter(DM.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(DR).filter(DR.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(TI).filter(TI.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), expect_logs)
-            self.assertEqual(session.query(IE).filter(IE.filename == self.dag_file_path).count(), 0)
+            assert session.query(DM).filter(DM.dag_id == self.key).count() == 0
+            assert session.query(DR).filter(DR.dag_id == self.key).count() == 0
+            assert session.query(TI).filter(TI.dag_id == self.key).count() == 0
+            assert session.query(TF).filter(TF.dag_id == self.key).count() == 0
+            assert session.query(TR).filter(TR.dag_id == self.key).count() == 0
+            assert session.query(LOG).filter(LOG.dag_id == self.key).count() == expect_logs
+            assert session.query(IE).filter(IE.filename == self.dag_file_path).count() == 0
 
     def test_delete_dag_successful_delete(self):
         self.setup_dag_models()

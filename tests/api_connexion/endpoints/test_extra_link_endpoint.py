@@ -129,16 +129,13 @@ class TestGetExtraLinks(unittest.TestCase):
         del name
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
 
-        self.assertEqual(404, response.status_code)
-        self.assertEqual(
-            {
-                "detail": expected_detail,
-                "status": 404,
-                "title": expected_title,
-                "type": EXCEPTIONS_LINK_MAP[404],
-            },
-            response.json,
-        )
+        assert 404 == response.status_code
+        assert {
+            "detail": expected_detail,
+            "status": 404,
+            "title": expected_title,
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
@@ -161,10 +158,10 @@ class TestGetExtraLinks(unittest.TestCase):
             environ_overrides={'REMOTE_USER': "test"},
         )
 
-        self.assertEqual(200, response.status_code, response.data)
-        self.assertEqual(
-            {"BigQuery Console": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID"}, response.json
-        )
+        assert 200 == response.status_code, response.data
+        assert {
+            "BigQuery Console": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID"
+        } == response.json
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_missing_xcom(self):
@@ -173,11 +170,8 @@ class TestGetExtraLinks(unittest.TestCase):
             environ_overrides={'REMOTE_USER': "test"},
         )
 
-        self.assertEqual(200, response.status_code, response.data)
-        self.assertEqual(
-            {"BigQuery Console": None},
-            response.json,
-        )
+        assert 200 == response.status_code, response.data
+        assert {"BigQuery Console": None} == response.json
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links(self):
@@ -193,14 +187,11 @@ class TestGetExtraLinks(unittest.TestCase):
             environ_overrides={'REMOTE_USER': "test"},
         )
 
-        self.assertEqual(200, response.status_code, response.data)
-        self.assertEqual(
-            {
-                "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID_1",
-                "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID_2",
-            },
-            response.json,
-        )
+        assert 200 == response.status_code, response.data
+        assert {
+            "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID_1",
+            "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID_2",
+        } == response.json
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links_missing_xcom(self):
@@ -209,11 +200,8 @@ class TestGetExtraLinks(unittest.TestCase):
             environ_overrides={'REMOTE_USER': "test"},
         )
 
-        self.assertEqual(200, response.status_code, response.data)
-        self.assertEqual(
-            {"BigQuery Console #1": None, "BigQuery Console #2": None},
-            response.json,
-        )
+        assert 200 == response.status_code, response.data
+        assert {"BigQuery Console #1": None, "BigQuery Console #2": None} == response.json
 
     def test_should_respond_200_support_plugins(self):
         class GoogleLink(BaseOperatorLink):
@@ -248,15 +236,12 @@ class TestGetExtraLinks(unittest.TestCase):
                 environ_overrides={'REMOTE_USER': "test"},
             )
 
-            self.assertEqual(200, response.status_code, response.data)
-            self.assertEqual(
-                {
-                    "BigQuery Console": None,
-                    "Google": "https://www.google.com",
-                    "S3": (
-                        "https://s3.amazonaws.com/airflow-logs/"
-                        "TEST_DAG_ID/TEST_SINGLE_QUERY/2020-01-01T00%3A00%3A00%2B00%3A00"
-                    ),
-                },
-                response.json,
-            )
+            assert 200 == response.status_code, response.data
+            assert {
+                "BigQuery Console": None,
+                "Google": "https://www.google.com",
+                "S3": (
+                    "https://s3.amazonaws.com/airflow-logs/"
+                    "TEST_DAG_ID/TEST_SINGLE_QUERY/2020-01-01T00%3A00%3A00%2B00%3A00"
+                ),
+            } == response.json

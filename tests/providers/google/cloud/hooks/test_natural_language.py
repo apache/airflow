@@ -53,8 +53,8 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
         )
-        self.assertEqual(mock_client.return_value, result)
-        self.assertEqual(self.hook._conn, result)
+        assert mock_client.return_value == result
+        assert self.hook._conn == result
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook.get_conn",
@@ -63,7 +63,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         get_conn.return_value.analyze_entities.return_value = API_RESPONSE
         result = self.hook.analyze_entities(document=DOCUMENT, encoding_type=ENCODING_TYPE)
 
-        self.assertEqual(result, API_RESPONSE)
+        assert result == API_RESPONSE
 
         get_conn.return_value.analyze_entities.assert_called_once_with(
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
@@ -76,7 +76,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         get_conn.return_value.analyze_entity_sentiment.return_value = API_RESPONSE
         result = self.hook.analyze_entity_sentiment(document=DOCUMENT, encoding_type=ENCODING_TYPE)
 
-        self.assertEqual(result, API_RESPONSE)
+        assert result == API_RESPONSE
 
         get_conn.return_value.analyze_entity_sentiment.assert_called_once_with(
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
@@ -89,7 +89,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         get_conn.return_value.analyze_sentiment.return_value = API_RESPONSE
         result = self.hook.analyze_sentiment(document=DOCUMENT, encoding_type=ENCODING_TYPE)
 
-        self.assertEqual(result, API_RESPONSE)
+        assert result == API_RESPONSE
 
         get_conn.return_value.analyze_sentiment.assert_called_once_with(
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
@@ -102,7 +102,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         get_conn.return_value.analyze_syntax.return_value = API_RESPONSE
         result = self.hook.analyze_syntax(document=DOCUMENT, encoding_type=ENCODING_TYPE)
 
-        self.assertEqual(result, API_RESPONSE)
+        assert result == API_RESPONSE
 
         get_conn.return_value.analyze_syntax.assert_called_once_with(
             document=DOCUMENT, encoding_type=ENCODING_TYPE, retry=None, timeout=None, metadata=None
@@ -115,7 +115,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         get_conn.return_value.annotate_text.return_value = API_RESPONSE
         result = self.hook.annotate_text(document=DOCUMENT, encoding_type=ENCODING_TYPE, features=None)
 
-        self.assertEqual(result, API_RESPONSE)
+        assert result == API_RESPONSE
 
         get_conn.return_value.annotate_text.assert_called_once_with(
             document=DOCUMENT,
@@ -133,7 +133,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         get_conn.return_value.classify_text.return_value = API_RESPONSE
         result = self.hook.classify_text(document=DOCUMENT)
 
-        self.assertEqual(result, API_RESPONSE)
+        assert result == API_RESPONSE
 
         get_conn.return_value.classify_text.assert_called_once_with(
             document=DOCUMENT, retry=None, timeout=None, metadata=None

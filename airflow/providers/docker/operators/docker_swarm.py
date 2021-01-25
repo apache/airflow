@@ -126,7 +126,7 @@ class DockerSwarmOperator(DockerOperator):
                 restart_policy=types.RestartPolicy(condition='none'),
                 resources=types.Resources(mem_limit=self.mem_limit),
             ),
-            name='airflow-%s' % get_random_string(),
+            name=f'airflow-{get_random_string()}',
             labels={'name': f'airflow__{self.dag_id}__{self.task_id}'},
         )
 

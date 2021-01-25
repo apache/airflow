@@ -21,6 +21,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import pandas as pd
+import pytest
 from numpy import nan
 from simple_salesforce import Salesforce
 
@@ -37,7 +38,7 @@ class TestSalesforceHook(unittest.TestCase):
 
         self.salesforce_hook.get_conn()
 
-        self.assertIsNotNone(self.salesforce_hook.conn.return_value)
+        assert self.salesforce_hook.conn.return_value is not None
 
     @patch(
         "airflow.providers.salesforce.hooks.salesforce.SalesforceHook.get_connection",
@@ -49,7 +50,7 @@ class TestSalesforceHook(unittest.TestCase):
     def test_get_conn(self, mock_salesforce, mock_get_connection):
         self.salesforce_hook.get_conn()
 
-        self.assertEqual(self.salesforce_hook.conn, mock_salesforce.return_value)
+        assert self.salesforce_hook.conn == mock_salesforce.return_value
         mock_salesforce.assert_called_once_with(
             username=mock_get_connection.return_value.login,
             password=mock_get_connection.return_value.password,
@@ -67,7 +68,7 @@ class TestSalesforceHook(unittest.TestCase):
         query_results = self.salesforce_hook.make_query(query, include_deleted=True)
 
         mock_salesforce.return_value.query_all.assert_called_once_with(query, include_deleted=True)
-        self.assertEqual(query_results, mock_salesforce.return_value.query_all.return_value)
+        assert query_results == mock_salesforce.return_value.query_all.return_value
 
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_describe_object(self, mock_salesforce):
@@ -78,7 +79,7 @@ class TestSalesforceHook(unittest.TestCase):
         obj_description = self.salesforce_hook.describe_object(obj)
 
         mock_salesforce.return_value.__getattr__(obj).describe.assert_called_once_with()
-        self.assertEqual(obj_description, mock_salesforce.return_value.__getattr__(obj).describe.return_value)
+        assert obj_description == mock_salesforce.return_value.__getattr__(obj).describe.return_value
 
     @patch("airflow.providers.salesforce.hooks.salesforce.SalesforceHook.get_conn")
     @patch(
@@ -92,7 +93,7 @@ class TestSalesforceHook(unittest.TestCase):
 
         mock_get_conn.assert_called_once_with()
         mock_describe_object.assert_called_once_with(obj)
-        self.assertEqual(available_fields, ["field_1", "field_2"])
+        assert available_fields == ["field_1", "field_2"]
 
     @patch("airflow.providers.salesforce.hooks.salesforce.SalesforceHook.make_query")
     def test_get_object_from_salesforce(self, mock_make_query):
@@ -101,10 +102,10 @@ class TestSalesforceHook(unittest.TestCase):
         )
 
         mock_make_query.assert_called_once_with("SELECT field_1,field_2 FROM obj_name")
-        self.assertEqual(salesforce_objects, mock_make_query.return_value)
+        assert salesforce_objects == mock_make_query.return_value
 
     def test_write_object_to_file_invalid_format(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             self.salesforce_hook.write_object_to_file(query_results=[], filename="test", fmt="test")
 
     @patch(

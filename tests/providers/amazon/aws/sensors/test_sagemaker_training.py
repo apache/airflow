@@ -20,6 +20,8 @@ import unittest
 from datetime import datetime
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
@@ -60,7 +62,8 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
             job_name='test_job_name',
             print_log=False,
         )
-        self.assertRaises(AirflowException, sensor.execute, None)
+        with pytest.raises(AirflowException):
+            sensor.execute(None)
         mock_describe_job.assert_called_once_with('test_job_name')
 
     @mock.patch.object(SageMakerHook, 'get_conn')
@@ -85,7 +88,7 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
         sensor.execute(None)
 
         # make sure we called 3 times(terminated when its completed)
-        self.assertEqual(mock_describe_job.call_count, 3)
+        assert mock_describe_job.call_count == 3
 
         # make sure the hook was initialized with the specific params
         calls = [mock.call(aws_conn_id='aws_test')]
@@ -117,8 +120,8 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
 
         sensor.execute(None)
 
-        self.assertEqual(mock_describe_job_with_log.call_count, 3)
-        self.assertEqual(mock_describe_job.call_count, 1)
+        assert mock_describe_job_with_log.call_count == 3
+        assert mock_describe_job.call_count == 1
 
         calls = [mock.call(aws_conn_id='aws_test')]
         hook_init.assert_has_calls(calls)

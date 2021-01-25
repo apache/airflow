@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Facebook Ads
     external-doc-url: http://business.facebook.com
+    logo: /integration-logos/facebook/Facebook-Ads.png
     tags: [service]
 
 hooks:

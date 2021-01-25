@@ -126,7 +126,7 @@ def secondary_training_status_message(
     for transition in transitions_to_print:
         message = transition['StatusMessage']
         time_str = timezone.convert_to_utc(job_description['LastModifiedTime']).strftime('%Y-%m-%d %H:%M:%S')
-        status_strs.append('{} {} - {}'.format(time_str, transition['Status'], message))
+        status_strs.append(f"{time_str} {transition['Status']} - {message}")
 
     return '\n'.join(status_strs)
 
@@ -740,7 +740,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             if status in non_terminal_states:
                 running = True
             elif status in self.failed_states:
-                raise AirflowException('SageMaker job failed because %s' % response['FailureReason'])
+                raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
             else:
                 running = False
 

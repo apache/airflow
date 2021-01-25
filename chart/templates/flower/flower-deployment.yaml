@@ -19,6 +19,9 @@
 ## Airflow Flower Deployment
 #################################
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+{{- $nodeSelector := or .Values.flower.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.flower.affinity .Values.affinity }}
+{{- $tolerations := or .Values.flower.tolerations .Values.tolerations }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -52,11 +55,11 @@ spec:
 {{- end }}
     spec:
       nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
+{{ toYaml $nodeSelector | indent 8 }}
       affinity:
-{{ toYaml .Values.affinity | indent 8 }}
+{{ toYaml $affinity | indent 8 }}
       tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
+{{ toYaml $tolerations | indent 8 }}
       restartPolicy: Always
       securityContext:
         runAsUser: {{ .Values.uid }}

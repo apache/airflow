@@ -262,7 +262,7 @@ class QuboleHook(BaseHook):
         for key, value in self.kwargs.items():  # pylint: disable=too-many-nested-blocks
             if key in COMMAND_ARGS[cmd_type]:
                 if key in HYPHEN_ARGS:
-                    args.append("--{}={}".format(key.replace('_', '-'), value))
+                    args.append(f"--{key.replace('_', '-')}={value}")
                 elif key in positional_args_list:
                     inplace_args = value
                 elif key == 'tags':
@@ -273,7 +273,7 @@ class QuboleHook(BaseHook):
                 else:
                     args.append(f"--{key}={value}")
 
-        args.append("--tags={}".format(','.join(filter(None, tags))))
+        args.append(f"--tags={','.join(filter(None, tags))}")
 
         if inplace_args is not None:
             args += inplace_args.split(' ')

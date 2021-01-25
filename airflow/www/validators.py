@@ -37,7 +37,7 @@ class GreaterEqualThan(EqualTo):
         try:
             other = form[self.fieldname]
         except KeyError:
-            raise ValidationError(field.gettext("Invalid field name '%s'." % self.fieldname))
+            raise ValidationError(field.gettext(f"Invalid field name '{self.fieldname}'."))
 
         if field.data is None or other.data is None:
             return
@@ -50,7 +50,7 @@ class GreaterEqualThan(EqualTo):
             message = self.message
             if message is None:
                 message = field.gettext(
-                    'Field must be greater than or equal to %(other_label)s.' % message_args
+                    f"Field must be greater than or equal to {message_args['other_label']}."
                 )
             else:
                 message = message % message_args

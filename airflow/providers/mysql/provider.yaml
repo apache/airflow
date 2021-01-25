@@ -28,6 +28,7 @@ integrations:
     external-doc-url: https://www.mysql.com/
     how-to-guide:
       - /docs/apache-airflow-providers-mysql/operators.rst
+    logo: /integration-logos/mysql/MySQL.png
     tags: [software]
 
 operators:

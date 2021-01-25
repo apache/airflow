@@ -31,11 +31,11 @@ Prerequisites
 
 
 Installing Prerequisites on Ubuntu
-###################################
+##################################
 
 
 Docker Community Edition
------------------------------------
+------------------------
 
 
 1. Installing required packages for Docker and setting up docker repo
@@ -84,7 +84,7 @@ Note : After adding user to docker group Logout and Login again for group member
 
 
 Docker Compose
---------------------------
+--------------
 
 1. Installing latest version of Docker Compose
 
@@ -108,8 +108,8 @@ Docker Compose
 
 
 
-pyenv and setting up virtual-env
---------------------------------------------
+Pyenv and setting up virtual-env
+--------------------------------
 
 1. Checking required packages
 
@@ -162,7 +162,28 @@ pyenv and setting up virtual-env
 
 
 Setup Airflow with Breeze and PyCharm
-#####################################################
+#####################################
+
+
+.. note::
+
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
+   depend on your choice of extras. In order to install Airflow you might need to either downgrade
+   pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3,
+   you need to add option ``--use-deprecated legacy-resolver`` to your pip install command.
+
+   While ``pip 20.3.3`` solved most of the ``teething`` problems of 20.3, this note will remain here until we
+   set ``pip 20.3`` as official version in our CI pipeline where we are testing the installation as well.
+   Due to those constraints, only ``pip`` installation is currently officially supported.
+
+   While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+   `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
+   ``pip`` - especially when it comes to constraint vs. requirements management.
+   Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
+
+   If you wish to install airflow using those tools you should use the constraint files and convert
+   them to appropriate format and workflow that your tool requires.
 
 
 Forking and cloning Project
@@ -274,7 +295,7 @@ Setting up Breeze
   source ~/.bashrc
 
 Using Breeze
------------------------------------------
+------------
 
 1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
    In this case python and backend will be picked up from last execution ``./breeze --python 3.8 --backend mysql``)
@@ -415,12 +436,12 @@ Following are some of important topics of Breeze documentation:
    Breeze environment</a>
 
 
-- |CLIs for cloud providers|
+- |Installing Additional tools to the Docker Image|
 
-.. |CLIs for cloud providers| raw:: html
+.. |Installing Additional tools to the Docker Image| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#clis-for-cloud-providers" target="_blank">CLIs for
-   cloud providers</a>
+   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#additional-tools" target="_blank">Installing
+   Additional tools to the Docker Image</a>
 
 
 - |Internal details of Breeze|
@@ -457,7 +478,7 @@ Following are some of important topics of Breeze documentation:
 
 
 Setting up Debug
------------------------------------------
+----------------
 
 1. Configuring Airflow database connection
 
@@ -528,11 +549,11 @@ Setting up Debug
 
 
 Starting development
-###################################
+####################
 
 
 Creating a branch
------------------------------------
+-----------------
 
 1. Click on branch symbol in the bottom right corner of Pycharm
 
@@ -555,7 +576,7 @@ Creating a branch
 
 
 Testing
------------------------------------
+-------
 
 All Tests are inside ./tests directory.
 
@@ -594,19 +615,18 @@ All Tests are inside ./tests directory.
 .. code-block:: bash
 
    root@df8927308887:/opt/airflow# ./scripts/in_container/
-    _in_container_script_init.sh            run_generate_constraints.sh
-    check_environment.sh                    run_init_script.sh
-    entrypoint_ci.sh                        run_mypy.sh
-    entrypoint_exec.sh                      run_prepare_provider_packages.sh
-    prod/                                   run_prepare_provider_readme.sh
-    refresh_pylint_todo.sh                  run_pylint.sh
-    run_ci_tests.sh                         run_system_tests.sh
-    run_clear_tmp.sh                        run_test_package_import_all_classes.sh
-    run_cli_tool.sh                         run_test_package_install.sh
-    run_docs_build.sh                       run_tmux.sh
-    run_extract_tests.sh                    run_tmux_welcome.sh
-    run_fix_ownership.sh                    stop_tmux_airflow.sh
-    run_flake8.sh                           update_quarantined_test_status.py
+      bin/                                        run_flake8.sh*
+      check_environment.sh*                       run_generate_constraints.sh*
+      entrypoint_ci.sh*                           run_init_script.sh*
+      entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
+      _in_container_script_init.sh*               run_mypy.sh*
+      prod/                                       run_prepare_provider_packages.sh*
+      refresh_pylint_todo.sh*                     run_prepare_provider_readme.sh*
+      run_ci_tests.sh*                            run_pylint.sh*
+      run_clear_tmp.sh*                           run_system_tests.sh*
+      run_docs_build.sh*                          run_tmux_welcome.sh*
+      run_extract_tests.sh*                       stop_tmux_airflow.sh*
+      run_fix_ownership.sh*                       update_quarantined_test_status.py*
 
    root@df8927308887:/opt/airflow# ./scripts/in_container/run_docs_build.sh
 
@@ -720,7 +740,7 @@ All Tests are inside ./tests directory.
 
 
 Pre-commit
------------------------------------
+----------
 
 Before committing changes to github or raising a pull request, code needs to be checked for certain quality standards
 such as spell check, code syntax, code formatting, compatibility with Apache License requirements etc. This set of
@@ -810,19 +830,19 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 .. code-block:: bash
 
    root@df8927308887:/opt/airflow# ./scripts/in_container/
-    _in_container_script_init.sh            run_generate_constraints.sh
-    check_environment.sh                    run_init_script.sh
-    entrypoint_ci.sh                        run_mypy.sh
-    entrypoint_exec.sh                      run_prepare_provider_packages.sh
-    prod/                                   run_prepare_provider_readme.sh
-    refresh_pylint_todo.sh                  run_pylint.sh
-    run_ci_tests.sh                         run_system_tests.sh
-    run_clear_tmp.sh                        run_test_package_import_all_classes.sh
-    run_cli_tool.sh                         run_test_package_install.sh
-    run_docs_build.sh                       run_tmux.sh
-    run_extract_tests.sh                    run_tmux_welcome.sh
-    run_fix_ownership.sh                    stop_tmux_airflow.sh
-    run_flake8.sh                           update_quarantined_test_status.py
+      bin/                                        run_flake8.sh*
+      check_environment.sh*                       run_generate_constraints.sh*
+      entrypoint_ci.sh*                           run_init_script.sh*
+      entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
+      _in_container_script_init.sh*               run_mypy.sh*
+      prod/                                       run_prepare_provider_packages.sh*
+      refresh_pylint_todo.sh*                     run_prepare_provider_readme.sh*
+      run_ci_tests.sh*                            run_pylint.sh*
+      run_clear_tmp.sh*                           run_system_tests.sh*
+      run_docs_build.sh*                          run_tmux_welcome.sh*
+      run_extract_tests.sh*                       stop_tmux_airflow.sh*
+      run_fix_ownership.sh*                       update_quarantined_test_status.py*
+
 
    root@df8927308887:/opt/airflow# ./scripts/in_container/run_docs_build.sh
 
@@ -881,7 +901,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 
 Contribution guide
------------------------------------
+------------------
 
 - To know how to contribute to the project visit |CONTRIBUTING.rst|
 
@@ -917,7 +937,7 @@ Contribution guide
 
 
 Raising Pull Request
------------------------------------
+--------------------
 
 1. Go to your Github account and open your fork project and click on Branches
 

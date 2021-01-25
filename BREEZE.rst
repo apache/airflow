@@ -333,8 +333,8 @@ Managing CI environment:
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
     * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
 
-You can optionally reset database if specified as extra ``--db-reset`` flag and for CI image you can also
-start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
+You can optionally reset the Airflow metada database if specified as extra ``--db-reset`` flag and for CI image
+you can also start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
@@ -428,53 +428,33 @@ way as when you enter the environment. You can do it multiple times and open as 
     </div>
 
 
-CLIs for cloud providers
-------------------------
+Additional tools
+----------------
 
-For development convenience we installed simple wrappers for the most common cloud providers CLIs. Those
-CLIs are not installed when you build or pull the image - they will be downloaded as docker images
-the first time you attempt to use them. It is downloaded and executed in your host's docker engine so once
-it is downloaded, it will stay until you remove the downloaded images from your host container.
+To shrink the Docker image, not all tools are pre-installed in the Docker image. But we have made sure that there
+is an easy process to install additional tools.
 
-For each of those CLI credentials are taken (automatically) from the credentials you have defined in
-your ${HOME} directory on host.
+Additional tools are installed in ``/files/bin``. This path is added to ``$PATH``, so your shell will
+automatically autocomplete files that are in that directory. You can also keep the binaries for your tools
+in this directory if you need to.
 
-Those tools also have host Airflow source directory mounted in /opt/airflow path
-so you can directly transfer files to/from your airflow host sources.
+**Installation scripts**
 
-Those are currently installed CLIs (they are available as aliases to the docker commands):
+For the development convenience, we have also provided installation scripts for commonly used tools. They are
+installed to ``/files/opt/``, so they are preserved after restarting the Breeze environment. Each script
+is also available in ``$PATH``, so just type ``install_<TAB>`` to get a list of tools.
 
-+-----------------------+----------+-------------------------------------------------+-------------------+
-| Cloud Provider        | CLI tool | Docker image                                    | Configuration dir |
-+=======================+==========+=================================================+===================+
-| Amazon Web Services   | aws      | amazon/aws-cli:latest                           | .aws              |
-+-----------------------+----------+-------------------------------------------------+-------------------+
-| Microsoft Azure       | az       | mcr.microsoft.com/azure-cli:latest              | .azure            |
-+-----------------------+----------+-------------------------------------------------+-------------------+
-| Google Cloud          | bq       | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
-|                       +----------+-------------------------------------------------+-------------------+
-|                       | gcloud   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
-|                       +----------+-------------------------------------------------+-------------------+
-|                       | gsutil   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
-+-----------------------+----------+-------------------------------------------------+-------------------+
+Currently available scripts:
 
-For each of the CLIs we have also an accompanying ``*-update`` alias (for example ``aws-update``) which
-will pull the latest image for the tool. Note that all Google Cloud tools are served by one
-image and they are updated together.
-
-Also - in case you run several different Breeze containers in parallel (from different directories,
-with different versions) - they docker images for CLI Cloud Providers tools are shared so if you update it
-for one Breeze container, they will also get updated for all the other containers.
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1072">
-        <img src="images/breeze/overlayed_breeze_cloud_tools.png" width="640"
-             alt="Airflow Breeze - Cloud tools">
-      </a>
-    </div>
-
+* ``install_aws.sh`` - installs `the AWS CLI <https://aws.amazon.com/cli/>`__ including
+* ``install_az.sh`` - installs `the Azure CLI <https://github.com/Azure/azure-cli>`__ including
+* ``install_gcloud.sh`` - installs `the Google Cloud SDK <https://cloud.google.com/sdk>`__ including
+  ``gcloud``, ``gsutil``.
+* ``install_imgcat.sh`` - installs `imgcat - Inline Images Protocol <https://iterm2.com/documentation-images.html>`__
+  for iTerm2 (Mac OS only)
+* ``install_java.sh`` - installs `the OpenJDK 8u41 <https://openjdk.java.net/>`__
+* ``install_kubectl.sh`` - installs `the Kubernetes command-line tool, kubectl <https://kubernetes.io/docs/reference/kubectl/kubectl/>`__
+* ``install_terraform.sh`` - installs `Terraform <https://www.terraform.io/docs/index.html>`__
 
 Launching Breeze integrations
 -----------------------------
@@ -617,7 +597,7 @@ Building Production images
 --------------------------
 
 The **Production image** is also maintained on the DockerHub in the
-```apache/airflow`` repository. This Docker image (and Dockerfile) contains size-optimised Airflow
+``apache/airflow`` repository. This Docker image (and Dockerfile) contains size-optimised Airflow
 installation with selected extras and dependencies. Its tag follows the pattern of
 ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>`` (for example, ``apache/airflow:master-python3.6``
 or ``apache/airflow:v1-10-test-python3.6``).
@@ -1299,6 +1279,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image.
           This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
+  --installation-method INSTALLATION_METHOD
+          Method of installing airflow - either from the sources ('.') or from package
+          'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
@@ -1309,6 +1295,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --upgrade-to-newer-dependencies
           Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  --continue-on-pip-check-failure
+          Continue even if 'pip check' fails.
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1427,7 +1416,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -U, --build-cache-pulled
           Uses images pulled from registry (either DockerHub or GitHub depending on
-          --github-registry flag) to build images. The pulled images will be used as cache.
+          --use-github-registry flag) to build images. The pulled images will be used as cache.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
           the registry images are not yet updated. The DockerHub images are updated nightly and the
           GitHub images are updated after merges to master so it might be that the images are still
@@ -1450,16 +1439,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry GITHUB_REGISTRY
+  -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
+
+  --github-registry GITHUB_REGISTRY
+          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          registry.
+
+          Default: docker.pkg.github.com.
+
+          If you use this flag, automatically --use-github-registry flag is enabled.
+
+                 docker.pkg.github.com ghcr.io
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
-          If you use this flag, automatically --github-registry flag is enabled.
+          If you use this flag, automatically --use-github-registry flag is enabled.
 
   -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
@@ -1468,7 +1467,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically pull and use that image so that you can easily reproduce a problem
           that occurred in CI.
 
-          If you use this flag, automatically --github-registry is enabled.
+          If you use this flag, automatically --use-github-registry is enabled.
 
 
           Default: latest.
@@ -1578,14 +1577,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze push_image [FLAGS]
 
         Pushes images to docker registry. You can push the images to DockerHub registry (default)
-        or to the GitHub registry (if --github-registry flag is used).
+        or to the GitHub registry (if --use-github-registry flag is used).
 
         For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
         the repository to push to. For GitHub repository, the --github-repository
         flag can be used for the same purpose. You can also add
         --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to push image with specific
         SHA tag or run id. In case you specify --github-repository or --github-image-id, you
-        do not need to specify --github-registry flag.
+        do not need to specify --use-github-registry flag.
 
         You can also add --production-image flag to switch to production image (default is CI one)
 
@@ -1594,7 +1593,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         'breeze push-image' or
         'breeze push-image --dockerhub-user user' to push to your private registry or
         'breeze push-image --production-image' - to push production image or
-        'breeze push-image --github-registry' - to push to GitHub image registry or
+        'breeze push-image --use-github-registry' - to push to GitHub image registry or
         'breeze push-image \
               --github-repository user/airflow' - to push to your user's fork
         'breeze push-image \
@@ -1610,16 +1609,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry GITHUB_REGISTRY
+  -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
+
+  --github-registry GITHUB_REGISTRY
+          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          registry.
+
+          Default: docker.pkg.github.com.
+
+          If you use this flag, automatically --use-github-registry flag is enabled.
+
+                 docker.pkg.github.com ghcr.io
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
-          If you use this flag, automatically --github-registry flag is enabled.
+          If you use this flag, automatically --use-github-registry flag is enabled.
 
   -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
@@ -1628,7 +1637,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically pull and use that image so that you can easily reproduce a problem
           that occurred in CI.
 
-          If you use this flag, automatically --github-registry is enabled.
+          If you use this flag, automatically --use-github-registry is enabled.
 
 
           Default: latest.
@@ -1696,7 +1705,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  wheel,sdist,both
 
-          Default: 
+          Default: wheel
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -2015,7 +2024,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -U, --build-cache-pulled
           Uses images pulled from registry (either DockerHub or GitHub depending on
-          --github-registry flag) to build images. The pulled images will be used as cache.
+          --use-github-registry flag) to build images. The pulled images will be used as cache.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
           the registry images are not yet updated. The DockerHub images are updated nightly and the
           GitHub images are updated after merges to master so it might be that the images are still
@@ -2123,7 +2132,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  wheel,sdist,both
 
-          Default: 
+          Default: wheel
 
   -S, --version-suffix-for-pypi SUFFIX
           Adds optional suffix to the version in the generated backport package. It can be used
@@ -2159,7 +2168,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-executables-have-shebangs check-hooks-apply check-integrations
                  check-merge-conflict check-xml consistent-pylint daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
-                 fix-encoding-pragma flake8 forbid-tabs helm-lint identity
+                 fix-encoding-pragma flake8 flynt forbid-tabs helm-lint identity
                  incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
                  lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
                  no-providers-in-core-examples no-relative-imports pre-commit-descriptions
@@ -2410,6 +2419,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           image building time in production image and at container entering time for CI image.
           This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
+  --installation-method INSTALLATION_METHOD
+          Method of installing airflow - either from the sources ('.') or from package
+          'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
@@ -2420,6 +2435,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --upgrade-to-newer-dependencies
           Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  --continue-on-pip-check-failure
+          Continue even if 'pip check' fails.
 
   ****************************************************************************************************
    Credentials
@@ -2545,7 +2563,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -U, --build-cache-pulled
           Uses images pulled from registry (either DockerHub or GitHub depending on
-          --github-registry flag) to build images. The pulled images will be used as cache.
+          --use-github-registry flag) to build images. The pulled images will be used as cache.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
           the registry images are not yet updated. The DockerHub images are updated nightly and the
           GitHub images are updated after merges to master so it might be that the images are still
@@ -2571,16 +2589,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry GITHUB_REGISTRY
+  -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
+
+  --github-registry GITHUB_REGISTRY
+          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          registry.
+
+          Default: docker.pkg.github.com.
+
+          If you use this flag, automatically --use-github-registry flag is enabled.
+
+                 docker.pkg.github.com ghcr.io
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
-          If you use this flag, automatically --github-registry flag is enabled.
+          If you use this flag, automatically --use-github-registry flag is enabled.
 
   -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
@@ -2589,7 +2617,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically pull and use that image so that you can easily reproduce a problem
           that occurred in CI.
 
-          If you use this flag, automatically --github-registry is enabled.
+          If you use this flag, automatically --use-github-registry is enabled.
 
 
           Default: latest.

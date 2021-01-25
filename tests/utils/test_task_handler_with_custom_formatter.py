@@ -58,9 +58,9 @@ class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
         logger = ti.log
         ti.log.disabled = False
         handler = next((handler for handler in logger.handlers if handler.name == TASK_HANDLER), None)
-        self.assertIsNotNone(handler)
+        assert handler is not None
 
         # setting the expected value of the formatter
         expected_formatter_value = "test_dag-test_task:" + handler.formatter._fmt
         set_context(logger, ti)
-        self.assertEqual(expected_formatter_value, handler.formatter._fmt)
+        assert expected_formatter_value == handler.formatter._fmt

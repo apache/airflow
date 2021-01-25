@@ -528,7 +528,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 .all()
             )
 
-            user_permissions = current_app.appbuilder.sm.get_all_permissions_views()
+            user_permissions = current_app.appbuilder.sm.get_current_user_permissions()
             all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
 
             for dag in dags:
@@ -1630,7 +1630,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         new_dag_state = set_dag_run_state_to_failed(dag, execution_date, commit=confirmed)
 
         if confirmed:
-            flash('Marked failed on {} task instances'.format(len(new_dag_state)))
+            flash(f'Marked failed on {len(new_dag_state)} task instances')
             return redirect(origin)
 
         else:
@@ -1659,7 +1659,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         new_dag_state = set_dag_run_state_to_success(dag, execution_date, commit=confirmed)
 
         if confirmed:
-            flash('Marked success on {} task instances'.format(len(new_dag_state)))
+            flash(f'Marked success on {len(new_dag_state)} task instances')
             return redirect(origin)
 
         else:
@@ -1743,7 +1743,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 commit=True,
             )
 
-            flash("Marked {} on {} task instances".format(state, len(altered)))
+            flash(f"Marked {state} on {len(altered)} task instances")
             return redirect(origin)
 
         to_be_altered = set_state(
@@ -2810,6 +2810,10 @@ def lazy_add_provider_discovered_options_to_connection_form():
         choices=sorted(_get_connection_types(), key=itemgetter(1)),
         widget=Select2Widget(),
         validators=[InputRequired()],
+        description="""
+            Conn Type missing?
+            Make sure you've installed the corresponding Airflow Provider Package.
+        """,
     )
     for key, value in ProvidersManager().connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)
@@ -2894,9 +2898,13 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         """Process form data."""
-        formdata = form.data
-        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc', 'yandexcloud', 'kubernetes']:
-            extra = {key: formdata[key] for key in self.extra_fields if key in formdata}
+        conn_type = form.data['conn_type']
+        extra = {
+            key: form.data[key]
+            for key in self.extra_fields
+            if key in form.data and key.startswith(f"extra__{conn_type}__")
+        }
+        if extra.keys():
             form.extra.data = json.dumps(extra)
 
     def prefill_form(self, form, pk):
@@ -3391,10 +3399,7 @@ class DagRunModelView(AirflowModelView):
                 cleared_ti_count += len(tis)
                 models.clear_task_instances(tis, session, dag=dag)
 
-            flash(
-                "{count} dag runs and {altered_ti_count} task instances "
-                "were cleared".format(count=count, altered_ti_count=cleared_ti_count)
-            )
+            flash(f"{count} dag runs and {cleared_ti_count} task instances were cleared")
         except Exception:  # noqa pylint: disable=broad-except
             flash('Failed to clear state', 'error')
         return redirect(self.get_default_url())
@@ -3617,7 +3622,7 @@ class TaskInstanceModelView(AirflowModelView):
                 models.clear_task_instances(task_instances_list, session, dag=dag)
 
             session.commit()
-            flash("{} task instances have been cleared".format(len(task_instances)))
+            flash(f"{len(task_instances)} task instances have been cleared")
             self.update_redirect()
             return redirect(self.get_redirect())
         except Exception:  # noqa pylint: disable=broad-except
@@ -3631,11 +3636,7 @@ class TaskInstanceModelView(AirflowModelView):
             for ti in tis:
                 ti.set_state(target_state, session)
             session.commit()
-            flash(
-                "{count} task instances were set to '{target_state}'".format(
-                    count=count, target_state=target_state
-                )
-            )
+            flash(f"{count} task instances were set to '{target_state}'")
         except Exception:  # noqa pylint: disable=broad-except
             flash('Failed to set state', 'error')
 

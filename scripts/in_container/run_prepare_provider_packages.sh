@@ -155,7 +155,7 @@ function build_provider_packages() {
         echo "-----------------------------------------------------------------------------------"
         set +e
         package_suffix=""
-        if [[ ${VERSION_SUFFIX_FOR_SVN} == "" && ${VERSION_SUFFIX_FOR_PYPI} != "" ]]; then
+        if [[ -z "${VERSION_SUFFIX_FOR_SVN}" && -n ${VERSION_SUFFIX_FOR_PYPI} ]]; then
             # only adds suffix to setup.py if version suffix for PyPI is set but the SVN one is not
             package_suffix="${VERSION_SUFFIX_FOR_PYPI}"
         fi
@@ -167,7 +167,8 @@ function build_provider_packages() {
             cat "${LOG_FILE}"
             exit "${RES}"
         fi
-        echo " Prepared ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} format ${PACKAGE_FORMAT}"
+        echo "==================================================================================="
+        echo "${COLOR_GREEN}OK Prepared ${PACKAGE_TYPE} package ${PROVIDER_PACKAGE} format ${PACKAGE_FORMAT}${COLOR_RESET}"
         echo "==================================================================================="
         group_end
     done
@@ -180,7 +181,7 @@ function rename_packages_if_needed() {
 
     pushd dist >/dev/null 2>&1 || exit 1
 
-    if [[ ${FILE_VERSION_SUFFIX} != "" ]]; then
+    if [[ -n "${FILE_VERSION_SUFFIX}" ]]; then
         # In case we have FILE_VERSION_SUFFIX we rename prepared files
         if [[ "${PACKAGE_FORMAT}" == "sdist" || "${PACKAGE_FORMAT}" == "both" ]]; then
             for FILE in *.tar.gz
@@ -196,9 +197,9 @@ function rename_packages_if_needed() {
         fi
     fi
 
-    popd
+    popd >/dev/null
     echo
-    echo "Airflow packages are in dist folder "
+    echo "${COLOR_GREEN}OK Airflow packages are prepared in dist folder${COLOR_RESET}"
     echo
 
     group_end

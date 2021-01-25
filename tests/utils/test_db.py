@@ -72,7 +72,7 @@ class TestDb(unittest.TestCase):
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
 
-        self.assertFalse(diff, 'Database schema and SQLAlchemy model are not in sync: ' + str(diff))
+        assert not diff, 'Database schema and SQLAlchemy model are not in sync: ' + str(diff)
 
     def test_only_single_head_revision_in_migrations(self):
         config = Config()
@@ -87,4 +87,4 @@ class TestDb(unittest.TestCase):
         pattern = re.compile('conn_id=[\"|\'](.*?)[\"|\']', re.DOTALL)
         source = inspect.getsource(create_default_connections)
         src = pattern.findall(source)
-        self.assertListEqual(sorted(src), src)
+        assert sorted(src) == src

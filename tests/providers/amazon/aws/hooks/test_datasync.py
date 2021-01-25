@@ -20,6 +20,7 @@ import unittest
 from unittest import mock
 
 import boto3
+import pytest
 from moto import mock_datasync
 
 from airflow.exceptions import AirflowTaskTimeout
@@ -30,7 +31,7 @@ from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
 class TestAwsDataSyncHook(unittest.TestCase):
     def test_get_conn(self):
         hook = AWSDataSyncHook(aws_conn_id="aws_default")
-        self.assertIsNotNone(hook.get_conn())
+        assert hook.get_conn() is not None
 
 
 # Explanation of: @mock.patch.object(AWSDataSyncHook, 'get_conn')
@@ -100,9 +101,9 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
-        self.assertFalse(self.hook.locations)
-        self.assertFalse(self.hook.tasks)
-        self.assertEqual(self.hook.wait_interval_seconds, 0)
+        assert not self.hook.locations
+        assert not self.hook.tasks
+        assert self.hook.wait_interval_seconds == 0
 
     def test_create_location_smb(self, mock_get_conn):
         # ### Configure mock:
@@ -110,7 +111,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         locations = self.hook.get_conn().list_locations()
-        self.assertEqual(len(locations["Locations"]), 2)
+        assert len(locations["Locations"]) == 2
 
         server_hostname = "my.hostname"
         subdirectory = "my_dir"
@@ -131,18 +132,18 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
             "MountOptions": mount_options,
         }
         location_arn = self.hook.create_location(location_uri, **create_location_kwargs)
-        self.assertIsNotNone(location_arn)
+        assert location_arn is not None
 
         locations = self.client.list_locations()
-        self.assertEqual(len(locations["Locations"]), 3)
+        assert len(locations["Locations"]) == 3
 
         location_desc = self.client.describe_location_smb(LocationArn=location_arn)
-        self.assertEqual(location_desc["LocationArn"], location_arn)
-        self.assertEqual(location_desc["LocationUri"], location_uri)
-        self.assertEqual(location_desc["AgentArns"], agent_arns)
-        self.assertEqual(location_desc["User"], user)
-        self.assertEqual(location_desc["Domain"], domain)
-        self.assertEqual(location_desc["MountOptions"], mount_options)
+        assert location_desc["LocationArn"] == location_arn
+        assert location_desc["LocationUri"] == location_uri
+        assert location_desc["AgentArns"] == agent_arns
+        assert location_desc["User"] == user
+        assert location_desc["Domain"] == domain
+        assert location_desc["MountOptions"] == mount_options
 
     def test_create_location_s3(self, mock_get_conn):
         # ### Configure mock:
@@ -150,7 +151,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         locations = self.hook.get_conn().list_locations()
-        self.assertEqual(len(locations["Locations"]), 2)
+        assert len(locations["Locations"]) == 2
 
         s3_bucket_arn = "some_s3_arn"
         subdirectory = "my_subdir"
@@ -164,15 +165,15 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
             "S3Config": s3_config,
         }
         location_arn = self.hook.create_location(location_uri, **create_location_kwargs)
-        self.assertIsNotNone(location_arn)
+        assert location_arn is not None
 
         locations = self.client.list_locations()
-        self.assertEqual(len(locations["Locations"]), 3)
+        assert len(locations["Locations"]) == 3
 
         location_desc = self.client.describe_location_s3(LocationArn=location_arn)
-        self.assertEqual(location_desc["LocationArn"], location_arn)
-        self.assertEqual(location_desc["LocationUri"], location_uri)
-        self.assertEqual(location_desc["S3Config"], s3_config)
+        assert location_desc["LocationArn"] == location_arn
+        assert location_desc["LocationUri"] == location_uri
+        assert location_desc["S3Config"] == s3_config
 
     def test_create_task(self, mock_get_conn):
         # ### Configure mock:
@@ -207,10 +208,10 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         )
 
         task = self.client.describe_task(TaskArn=task_arn)
-        self.assertEqual(task["TaskArn"], task_arn)
-        self.assertEqual(task["Name"], name)
-        self.assertEqual(task["CloudWatchLogGroupArn"], log_group_arn)
-        self.assertEqual(task["Options"], options)
+        assert task["TaskArn"] == task_arn
+        assert task["Name"] == name
+        assert task["CloudWatchLogGroupArn"] == log_group_arn
+        assert task["Options"] == options
 
     def test_update_task(self, mock_get_conn):
         # ### Configure mock:
@@ -220,13 +221,13 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         task_arn = self.task_arn
 
         task = self.client.describe_task(TaskArn=task_arn)
-        self.assertNotIn("Name", task)
+        assert "Name" not in task
 
         update_task_kwargs = {"Name": "xyz"}
         self.hook.update_task(task_arn, **update_task_kwargs)
 
         task = self.client.describe_task(TaskArn=task_arn)
-        self.assertEqual(task["Name"], "xyz")
+        assert task["Name"] == "xyz"
 
     def test_delete_task(self, mock_get_conn):
         # ### Configure mock:
@@ -236,12 +237,12 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         task_arn = self.task_arn
 
         tasks = self.client.list_tasks()
-        self.assertEqual(len(tasks["Tasks"]), 1)
+        assert len(tasks["Tasks"]) == 1
 
         self.hook.delete_task(task_arn)
 
         tasks = self.client.list_tasks()
-        self.assertEqual(len(tasks["Tasks"]), 0)
+        assert len(tasks["Tasks"]) == 0
 
     def test_get_location_arns(self, mock_get_conn):
         # ### Configure mock:
@@ -258,8 +259,8 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # Verify our self.hook gets the same
         location_arns = self.hook.get_location_arns(location_uri)
 
-        self.assertEqual(len(location_arns), 1)
-        self.assertEqual(location_arns[0], location_arn)
+        assert len(location_arns) == 1
+        assert location_arns[0] == location_arn
 
     def test_get_location_arns_case_sensitive(self, mock_get_conn):
         # ### Configure mock:
@@ -275,10 +276,10 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
 
         # Verify our self.hook can do case sensitive searches
         location_arns = self.hook.get_location_arns(location_uri, case_sensitive=True)
-        self.assertEqual(len(location_arns), 0)
+        assert len(location_arns) == 0
         location_arns = self.hook.get_location_arns(location_uri, case_sensitive=False)
-        self.assertEqual(len(location_arns), 1)
-        self.assertEqual(location_arns[0], location_arn)
+        assert len(location_arns) == 1
+        assert location_arns[0] == location_arn
 
     def test_get_location_arns_trailing_slash(self, mock_get_conn):
         # ### Configure mock:
@@ -294,10 +295,10 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
 
         # Verify our self.hook manages trailing / correctly
         location_arns = self.hook.get_location_arns(location_uri, ignore_trailing_slash=False)
-        self.assertEqual(len(location_arns), 0)
+        assert len(location_arns) == 0
         location_arns = self.hook.get_location_arns(location_uri, ignore_trailing_slash=True)
-        self.assertEqual(len(location_arns), 1)
-        self.assertEqual(location_arns[0], location_arn)
+        assert len(location_arns) == 1
+        assert location_arns[0] == location_arn
 
     def test_get_task_arns_for_location_arns(self, mock_get_conn):
         # ### Configure mock:
@@ -307,11 +308,11 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         task_arns = self.hook.get_task_arns_for_location_arns(
             [self.source_location_arn], [self.destination_location_arn]
         )
-        self.assertEqual(len(task_arns), 1)
-        self.assertEqual(task_arns[0], self.task_arn)
+        assert len(task_arns) == 1
+        assert task_arns[0] == self.task_arn
 
         task_arns = self.hook.get_task_arns_for_location_arns(["foo"], ["bar"])
-        self.assertEqual(len(task_arns), 0)
+        assert len(task_arns) == 0
 
     def test_start_task_execution(self, mock_get_conn):
         # ### Configure mock:
@@ -319,17 +320,17 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         task = self.client.describe_task(TaskArn=self.task_arn)
-        self.assertNotIn("CurrentTaskExecutionArn", task)
+        assert "CurrentTaskExecutionArn" not in task
 
         task_execution_arn = self.hook.start_task_execution(self.task_arn)
-        self.assertIsNotNone(task_execution_arn)
+        assert task_execution_arn is not None
 
         task = self.client.describe_task(TaskArn=self.task_arn)
-        self.assertIn("CurrentTaskExecutionArn", task)
-        self.assertEqual(task["CurrentTaskExecutionArn"], task_execution_arn)
+        assert "CurrentTaskExecutionArn" in task
+        assert task["CurrentTaskExecutionArn"] == task_execution_arn
 
         task_execution = self.client.describe_task_execution(TaskExecutionArn=task_execution_arn)
-        self.assertIn("Status", task_execution)
+        assert "Status" in task_execution
 
     def test_cancel_task_execution(self, mock_get_conn):
         # ### Configure mock:
@@ -337,12 +338,12 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         task_execution_arn = self.hook.start_task_execution(self.task_arn)
-        self.assertIsNotNone(task_execution_arn)
+        assert task_execution_arn is not None
 
         self.hook.cancel_task_execution(task_execution_arn=task_execution_arn)
 
         task = self.client.describe_task(TaskArn=self.task_arn)
-        self.assertNotIn("CurrentTaskExecutionArn", task)
+        assert "CurrentTaskExecutionArn" not in task
 
     def test_get_task_description(self, mock_get_conn):
         # ### Configure mock:
@@ -350,11 +351,11 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         task = self.client.describe_task(TaskArn=self.task_arn)
-        self.assertIn("TaskArn", task)
-        self.assertIn("Status", task)
-        self.assertIn("SourceLocationArn", task)
-        self.assertIn("DestinationLocationArn", task)
-        self.assertNotIn("CurrentTaskExecutionArn", task)
+        assert "TaskArn" in task
+        assert "Status" in task
+        assert "SourceLocationArn" in task
+        assert "DestinationLocationArn" in task
+        assert "CurrentTaskExecutionArn" not in task
 
     def test_get_current_task_execution_arn(self, mock_get_conn):
         # ### Configure mock:
@@ -364,7 +365,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         task_execution_arn = self.hook.start_task_execution(self.task_arn)
 
         current_task_execution = self.hook.get_current_task_execution_arn(self.task_arn)
-        self.assertEqual(current_task_execution, task_execution_arn)
+        assert current_task_execution == task_execution_arn
 
     def test_wait_for_task_execution(self, mock_get_conn):
         # ### Configure mock:
@@ -374,7 +375,7 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         task_execution_arn = self.hook.start_task_execution(self.task_arn)
         result = self.hook.wait_for_task_execution(task_execution_arn, max_iterations=20)
 
-        self.assertIsNotNone(result)
+        assert result is not None
 
     def test_wait_for_task_execution_timeout(self, mock_get_conn):
         # ### Configure mock:
@@ -382,6 +383,6 @@ class TestAWSDataSyncHookMocked(unittest.TestCase):
         # ### Begin tests:
 
         task_execution_arn = self.hook.start_task_execution(self.task_arn)
-        with self.assertRaises(AirflowTaskTimeout):
+        with pytest.raises(AirflowTaskTimeout):
             result = self.hook.wait_for_task_execution(task_execution_arn, max_iterations=1)
-            self.assertIsNone(result)
+            assert result is None

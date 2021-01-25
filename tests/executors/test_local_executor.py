@@ -64,7 +64,7 @@ class TestLocalExecutor(unittest.TestCase):
         executor.start()
 
         success_key = 'success {}'
-        self.assertTrue(executor.result_queue.empty())
+        assert executor.result_queue.empty()
 
         execution_date = datetime.datetime.now()
         for i in range(self.TEST_SUCCESS_COMMANDS):
@@ -79,16 +79,16 @@ class TestLocalExecutor(unittest.TestCase):
 
         executor.end()
         # By that time Queues are already shutdown so we cannot check if they are empty
-        self.assertEqual(len(executor.running), 0)
+        assert len(executor.running) == 0
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
             key_id = success_key.format(i)
             key = key_id, 'fake_ti', execution_date, 0
-            self.assertEqual(executor.event_buffer[key][0], State.SUCCESS)
-        self.assertEqual(executor.event_buffer[fail_key][0], State.FAILED)
+            assert executor.event_buffer[key][0] == State.SUCCESS
+        assert executor.event_buffer[fail_key][0] == State.FAILED
 
         expected = self.TEST_SUCCESS_COMMANDS + 1 if parallelism == 0 else parallelism
-        self.assertEqual(executor.workers_used, expected)
+        assert executor.workers_used == expected
 
     def test_execution_subprocess_unlimited_parallelism(self):
         with mock.patch.object(

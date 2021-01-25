@@ -27,6 +27,9 @@ howto/connection/index.rst howto/connection.rst
 # Web UI
 howto/add-new-role.rst security/access-control.rst
 
+# Set up a database
+howto/initialize-database.rst howto/set-up-database.rst
+
 # Logging & Monitoring
 howto/check-health.rst logging-monitoring/check-health.rst
 errors.rst logging-monitoring/errors.rst

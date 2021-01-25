@@ -81,28 +81,22 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         response_data["import_error_id"] = 1
-        self.assertEqual(
-            {
-                "filename": "Lorem_ipsum.py",
-                "import_error_id": 1,
-                "stack_trace": "Lorem ipsum",
-                "timestamp": "2020-06-10T12:00:00+00:00",
-            },
-            response_data,
-        )
+        assert {
+            "filename": "Lorem_ipsum.py",
+            "import_error_id": 1,
+            "stack_trace": "Lorem ipsum",
+            "timestamp": "2020-06-10T12:00:00+00:00",
+        } == response_data
 
     def test_response_404(self):
         response = self.client.get("/api/v1/importErrors/2", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
-        self.assertEqual(
-            {
-                "detail": "The ImportError with import_error_id: `2` was not found",
-                "status": 404,
-                "title": "Import error not found",
-                "type": EXCEPTIONS_LINK_MAP[404],
-            },
-            response.json,
-        )
+        assert {
+            "detail": "The ImportError with import_error_id: `2` was not found",
+            "status": 404,
+            "title": "Import error not found",
+            "type": EXCEPTIONS_LINK_MAP[404],
+        } == response.json
 
     @provide_session
     def test_should_raises_401_unauthenticated(self, session):
@@ -144,26 +138,23 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         self._normalize_import_errors(response_data['import_errors'])
-        self.assertEqual(
-            {
-                "import_errors": [
-                    {
-                        "filename": "Lorem_ipsum.py",
-                        "import_error_id": 1,
-                        "stack_trace": "Lorem ipsum",
-                        "timestamp": "2020-06-10T12:00:00+00:00",
-                    },
-                    {
-                        "filename": "Lorem_ipsum.py",
-                        "import_error_id": 2,
-                        "stack_trace": "Lorem ipsum",
-                        "timestamp": "2020-06-10T12:00:00+00:00",
-                    },
-                ],
-                "total_entries": 2,
-            },
-            response_data,
-        )
+        assert {
+            "import_errors": [
+                {
+                    "filename": "Lorem_ipsum.py",
+                    "import_error_id": 1,
+                    "stack_trace": "Lorem ipsum",
+                    "timestamp": "2020-06-10T12:00:00+00:00",
+                },
+                {
+                    "filename": "Lorem_ipsum.py",
+                    "import_error_id": 2,
+                    "stack_trace": "Lorem ipsum",
+                    "timestamp": "2020-06-10T12:00:00+00:00",
+                },
+            ],
+            "total_entries": 2,
+        } == response_data
 
     @provide_session
     def test_should_raises_401_unauthenticated(self, session):
@@ -213,7 +204,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
 
         assert response.status_code == 200
         import_ids = [pool["filename"] for pool in response.json["import_errors"]]
-        self.assertEqual(import_ids, expected_import_error_ids)
+        assert import_ids == expected_import_error_ids
 
     @provide_session
     def test_should_respect_page_size_limit_default(self, session):
@@ -229,7 +220,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         session.commit()
         response = self.client.get("/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        self.assertEqual(len(response.json['import_errors']), 100)
+        assert len(response.json['import_errors']) == 100
 
     @provide_session
     @conf_vars({("api", "maximum_page_limit"): "150"})
@@ -248,4 +239,4 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
             "/api/v1/importErrors?limit=180", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        self.assertEqual(len(response.json['import_errors']), 150)
+        assert len(response.json['import_errors']) == 150

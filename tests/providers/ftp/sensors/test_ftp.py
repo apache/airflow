@@ -20,6 +20,8 @@ import unittest
 from ftplib import error_perm
 from unittest import mock
 
+import pytest
+
 from airflow.providers.ftp.hooks.ftp import FTPHook
 from airflow.providers.ftp.sensors.ftp import FTPSensor
 
@@ -36,10 +38,10 @@ class TestFTPSensor(unittest.TestCase):
             None,
         ]
 
-        self.assertFalse(op.poke(None))
-        self.assertFalse(op.poke(None))
-        self.assertFalse(op.poke(None))
-        self.assertTrue(op.poke(None))
+        assert not op.poke(None)
+        assert not op.poke(None)
+        assert not op.poke(None)
+        assert op.poke(None)
 
     @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
     def test_poke_fails_due_error(self, mock_hook):
@@ -49,10 +51,10 @@ class TestFTPSensor(unittest.TestCase):
             "530: Login authentication failed"
         )
 
-        with self.assertRaises(error_perm) as context:
+        with pytest.raises(error_perm) as ctx:
             op.execute(None)
 
-        self.assertTrue("530" in str(context.exception))
+        assert "530" in str(ctx.value)
 
     @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
     def test_poke_fail_on_transient_error(self, mock_hook):
@@ -62,10 +64,10 @@ class TestFTPSensor(unittest.TestCase):
             "434: Host unavailable"
         )
 
-        with self.assertRaises(error_perm) as context:
+        with pytest.raises(error_perm) as ctx:
             op.execute(None)
 
-        self.assertTrue("434" in str(context.exception))
+        assert "434" in str(ctx.value)
 
     @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
     def test_poke_ignore_transient_error(self, mock_hook):
@@ -78,5 +80,5 @@ class TestFTPSensor(unittest.TestCase):
             None,
         ]
 
-        self.assertFalse(op.poke(None))
-        self.assertTrue(op.poke(None))
+        assert not op.poke(None)
+        assert op.poke(None)

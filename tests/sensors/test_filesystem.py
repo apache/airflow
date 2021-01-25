@@ -22,6 +22,8 @@ import shutil
 import tempfile
 import unittest
 
+import pytest
+
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG
 from airflow.sensors.filesystem import FileSensor
@@ -65,7 +67,7 @@ class TestFileSensor(unittest.TestCase):
         )
         task._hook = self.hook
         try:
-            with self.assertRaises(AirflowSensorTimeout):
+            with pytest.raises(AirflowSensorTimeout):
                 task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         finally:
             shutil.rmtree(temp_dir)
@@ -82,7 +84,7 @@ class TestFileSensor(unittest.TestCase):
         )
         task._hook = self.hook
         try:
-            with self.assertRaises(AirflowSensorTimeout):
+            with pytest.raises(AirflowSensorTimeout):
                 task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         finally:
             shutil.rmtree(temp_dir)
@@ -159,6 +161,6 @@ class TestFileSensor(unittest.TestCase):
         )
         task._hook = self.hook
 
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             shutil.rmtree(temp_dir)
