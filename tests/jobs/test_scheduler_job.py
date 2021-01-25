@@ -3560,6 +3560,41 @@ class TestSchedulerJob(unittest.TestCase):
 
         assert dag.get_last_dagrun().creating_job_id == scheduler.id
 
+    def test_scheduler_create_dag_runs_does_not_raise_error(self):
+        """
+        Test that scheduler._create_dag_runs does not raise an error when the DAG does not exist
+        in serialized_dag table
+        """
+        dag = DAG(dag_id='test_scheduler_create_dag_runs_does_not_raise_error', start_date=DEFAULT_DATE)
+
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+        )
+
+        dagbag = DagBag(
+            dag_folder=os.devnull,
+            include_examples=False,
+            read_dags_from_db=False,
+        )
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        # Only write to dag table and not serialized_dag table
+        DAG.bulk_write_to_db(dagbag.dags.values())
+        dag_model = DagModel.get_dagmodel(dag.dag_id)
+
+        scheduler = SchedulerJob(subdir=os.devnull, executor=self.null_exec)
+        scheduler.processor_agent = mock.MagicMock()
+
+        with create_session() as session, self.assertLogs(
+            'airflow.jobs.scheduler_job', level="ERROR"
+        ) as log_output:
+            scheduler._create_dag_runs([dag_model], session)
+
+            assert (
+                "airflow.exceptions.SerializedDagNotFound: DAG "
+                "'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table"
+            ) in log_output.output[0]
+
     def test_do_schedule_max_active_runs_upstream_failed(self):
         """
         Test that tasks in upstream failed don't count as actively running.
