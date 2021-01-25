@@ -21,6 +21,7 @@ body {
   position: relative;
   padding: 70px 0 100px;
   min-height: 100vh;
+  overflow-y: scroll;
   background-color: #fff;
 }
 
