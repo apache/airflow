@@ -48,7 +48,7 @@ import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, exists, func, or_
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.session import Session
 
@@ -897,6 +897,19 @@ class DAG(LoggingMixin):
             query = query.filter(DagRun.external_trigger == external_trigger)
 
         return query.scalar()
+
+    @provide_session
+    def has_dagrun(self, execution_date, session=None) -> bool:
+        """
+        Returns True if DagRun exists for a given Dag ID and execution date, False otherwise
+
+        :param execution_date: The execution date of the DagRun to find.
+        :param session: ORM Session
+        :return: True if DagRun is found, False otherwise.
+        """
+        return session.query(
+            exists().where(and_(DagRun.dag_id == self.dag_id, DagRun.execution_date == execution_date))
+        ).scalar()
 
     @provide_session
     def get_dagrun(self, execution_date, session=None):

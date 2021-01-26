@@ -1571,16 +1571,25 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 continue
 
             dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
-            dag.create_dagrun(
-                run_type=DagRunType.SCHEDULED,
-                execution_date=dag_model.next_dagrun,
-                start_date=timezone.utcnow(),
-                state=State.RUNNING,
-                external_trigger=False,
-                session=session,
-                dag_hash=dag_hash,
-                creating_job_id=self.id,
-            )
+            # Explicitly check if the DagRun already exists. This is an edge case
+            # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
+            # are not updated.
+            # We opted to check DagRun existence instead
+            # of catching an Integrity error and rolling back the session i.e
+            # we need to run self._update_dag_next_dagruns if the Dag Run already exists or if we
+            # create a new one. This is so that in the next Scheduling loop we try to create new runs
+            # instead of falling in a loop of Integrity Error.
+            if not dag.has_dagrun(execution_date=dag_model.next_dagrun, session=session):
+                dag.create_dagrun(
+                    run_type=DagRunType.SCHEDULED,
+                    execution_date=dag_model.next_dagrun,
+                    start_date=timezone.utcnow(),
+                    state=State.RUNNING,
+                    external_trigger=False,
+                    session=session,
+                    dag_hash=dag_hash,
+                    creating_job_id=self.id,
+                )
 
         self._update_dag_next_dagruns(dag_models, session)
 
