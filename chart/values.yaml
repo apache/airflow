@@ -415,6 +415,12 @@ webserver:
   # Number of webservers
   replicas: 1
 
+  # Settings of RollingUpdate strategy.
+  # See https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-update-deployment
+  rollingUpdate:
+    maxUnavailable: 1
+    # maxSurge: 25%
+
   # Additional network policies as needed
   extraNetworkPolicies: []
 

@@ -39,7 +39,7 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 1
+{{ toYaml .Values.webserver.rollingUpdate | indent 6 }}
   selector:
     matchLabels:
       tier: airflow

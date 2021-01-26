@@ -786,6 +786,10 @@
                     "description": "How many Airflow webserver replicas should run.",
                     "type": "integer"
                 },
+                "rollingUpdate": {
+                    "description": "Settings of RollingUpdate strategy.",
+                    "type": "object"
+                },
                 "extraNetworkPolicies": {
                     "description": "Additional network policies as needed.",
                     "type": "array"
