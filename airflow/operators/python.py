@@ -128,7 +128,7 @@ class PythonOperator(BaseOperator):
         return self.python_callable(*self.op_args, **self.op_kwargs)
 
 
-def python_task(**kwargs):
+def python_task(func):
     """
      Decorator for PythonOperator
 
@@ -136,22 +136,28 @@ def python_task(**kwargs):
 
      Defining :
 
-     @python_task(task_id='task1')
-     def some_py_task():
+     @python_task
+     def some_py_task(name):
         do_some_work()
 
     usage:
 
     with DAG(dag_name, default_args=default_args) as dag:
-        t1 = some_py_task()
+
+        t1 = some_py_task(task_id='task1')('Python Task 1')
+        t2 = some_py_task(task_id='task2')('Python Task 2')
+
+        t1 >> t2
 
     """
 
-    def wrapper(func):
+    def wrapper(task_id):
         def wrapped(*op_args, **op_kwargs):
-            task_id = kwargs.pop('task_id', None) or func.__name__
             return PythonOperator(
-                python_callable=func, task_id=task_id, op_args=op_args, op_kwargs=op_kwargs, **kwargs
+                python_callable=func,
+                task_id=task_id,
+                op_args=op_args,
+                op_kwargs=op_kwargs,
             )
 
         return wrapped
