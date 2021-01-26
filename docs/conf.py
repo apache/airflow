@@ -231,6 +231,11 @@ if PACKAGE_NAME == 'apache-airflow':
     html_js_files = ['jira-links.js']
 else:
     html_js_files = []
+if PACKAGE_NAME == 'apache-airflow':
+    html_extra_path = [
+        f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
+        f"{ROOT_DIR}/docs/apache-airflow/start/airflow.sh",
+    ]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
@@ -303,7 +308,16 @@ html_context = {
 
 # Jinja context
 if PACKAGE_NAME == 'apache-airflow':
-    jinja_contexts = {'config_ctx': {"configs": default_config_yaml()}}
+    jinja_contexts = {
+        'config_ctx': {"configs": default_config_yaml()},
+        'quick_start_ctx': {
+            'doc_root_url': (f'https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/')
+            if FOR_PRODUCTION
+            else (
+                'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/'
+            )
+        },
+    }
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
 
     def _load_config():

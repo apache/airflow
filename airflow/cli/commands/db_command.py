@@ -46,6 +46,7 @@ def upgradedb(args):
     """Upgrades the metadata database"""
     print("DB: " + repr(settings.engine.url))
     db.upgradedb()
+    print("Upgrades done")
 
 
 def check_migrations(args):
