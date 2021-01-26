@@ -150,7 +150,11 @@ class SqoopHook(BaseHook):
         if self.conn.port:
             connect_str += f":{self.conn.port}"
         if self.conn.schema:
-            connect_str += f"/{self.conn.schema}"
+            self.log.info("CONNECTION TYPE %s", self.conn.conn_type)
+            if self.conn.conn_type != 'mssql':
+                connect_str += f"/{self.conn.schema}"
+            else:
+                connect_str += f";databaseName={self.conn.schema}"
         connection_cmd += ["--connect", connect_str]
 
         return connection_cmd
