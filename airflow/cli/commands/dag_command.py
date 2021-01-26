@@ -165,7 +165,7 @@ def set_is_paused(is_paused, args):
     dag = DagModel.get_dagmodel(args.dag_id)
 
     if not dag:
-        raise SystemExit(f"DAG: {args.dag_id} does not exit in 'dag' table")
+        raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
 
     dag.set_is_paused(is_paused=is_paused)
 
