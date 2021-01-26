@@ -128,6 +128,37 @@ class PythonOperator(BaseOperator):
         return self.python_callable(*self.op_args, **self.op_kwargs)
 
 
+def python_task(**kwargs):
+    """
+     Decorator for PythonOperator
+
+     If task_id is not given as argument, it takes function name as task_id.
+
+     Defining :
+
+     @python_task(task_id='task1')
+     def some_py_task():
+        do_some_work()
+
+    usage:
+
+    with DAG(dag_name, default_args=default_args) as dag:
+        t1 = some_py_task()
+
+    """
+
+    def wrapper(func):
+        def wrapped(*op_args, **op_kwargs):
+            task_id = kwargs.pop('task_id', None) or func.__name__
+            return PythonOperator(
+                python_callable=func, task_id=task_id, op_args=op_args, op_kwargs=op_kwargs, **kwargs
+            )
+
+        return wrapped
+
+    return wrapper
+
+
 class _PythonDecoratedOperator(BaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
