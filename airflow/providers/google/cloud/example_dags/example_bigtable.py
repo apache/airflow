@@ -105,7 +105,7 @@ with models.DAG(
         instance_type=int(CBT_INSTANCE_TYPE),
         instance_labels=json.loads(CBT_INSTANCE_LABELS),
         cluster_nodes=int(CBT_CLUSTER_NODES),
-        cluster_storage_type=int(int(CBT_CLUSTER_STORAGE_TYPE)),
+        cluster_storage_type=int(CBT_CLUSTER_STORAGE_TYPE),
         task_id='create_instance_task2',
     )
     create_instance_task >> create_instance_task2
