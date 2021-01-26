@@ -20,6 +20,12 @@
           <input id="update-chart-t-w" type="radio" name="chart-type" autocomplete="off">
           时间/角度
         </label>
+        <label class="btn btn-default font-weight-bold " for="update-chart-t-s" id="update-chart-t-s-label"
+               style="z-index: 0"
+               title="Also include past task instances when clearing this one">
+          <input id="update-chart-t-s" type="radio" name="chart-type" autocomplete="off">
+          时间/转速
+        </label>
       </span>
   </div>
   <div style="flex:1">
@@ -33,7 +39,8 @@
   const curKeyMap = {
     cur_w: '角度',
     cur_m: '扭矩',
-    cur_t: '时间'
+    cur_t: '时间',
+    cur_s: '转速'
   };
 
   const chartParams = {
@@ -62,6 +69,11 @@
 
   $('#update-chart-t-w').change(() => {
     setChartParams('cur_t', 'cur_w');
+    renderChart();
+  });
+
+  $('#update-chart-t-s').change(() => {
+    setChartParams('cur_t', 'cur_s');
     renderChart();
   });
 
