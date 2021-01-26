@@ -139,12 +139,14 @@ class ClsResultStorage(ClsEntity):
             raise BaseException(u'_bucket未指定')
         if not isinstance(self.entity_id, list):
             raise BaseException(u'entity_id必须是列表')
+        unused_keys = ['_time', 'table', 'result', '_start', '_stop', '_measurement']
         query_str = '''from(bucket: "{}")
           |> range(start: 0, stop: now())
-          |> filter(fn: (r) => r._measurement == "results") and contains(value: r.entity_id, set: {})
-          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")''' \
+          |> filter(fn: (r) => r._measurement == "results")
+          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+          |> filter(fn: (r) => contains(value: r.entity_id, set: {}))
+          ''' \
             .format(self._bucket, json.dumps(self.entity_id))
-        unused_keys = ['_time', 'table', 'result', '_start', '_stop', '_measurement']
         data = self._query(query_str)
         ret = []
         if not data:
@@ -154,7 +156,7 @@ class ClsResultStorage(ClsEntity):
                 a = record.values
                 for key in unused_keys:
                     a.pop(key)
-                ret.append(record)
+                ret.append(a)
         return ret
 
     def query_result(self):

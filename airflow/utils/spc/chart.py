@@ -206,7 +206,7 @@ def sbar(data: np.ndarray, size: int, newdata=None)->Optional[Dict]:
     return ret
 
 
-def cpk(data: List, usl, lsl) -> Optional[float]:
+def cpk(data: List[float], usl: float, lsl: float) -> Optional[float]:
     if not usl or not lsl:
         return None
     if not data:

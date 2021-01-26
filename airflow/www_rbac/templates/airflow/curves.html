@@ -42,7 +42,7 @@
                     <input id="{{ task.entity_id }}" class="action_check m-2" name="rowid" value="{{ task.entity_id }}"
                            data-carCode="{{ task.car_code }}"
                            data-date="{{ task.execution_date }}"
-                           data-measureResult="{{ task.measure_result }}"
+                           data-measureresult="{{ task.measure_result }}"
                            type="checkbox">
                     <a type="button" class="btn btn-sm btn-default"
                        href="{{ url_for('Airflow.view_curve_page',dag_id=task.dag_id,execution_date=task.execution_date,task_id=task.task_id) }}"
@@ -142,7 +142,7 @@
       });
       $('.action_check').change((ev) => {
         const {checked, value, dataset} = ev.target;
-        const {carcode: carCode, date, measureResult} = dataset;
+        const {carcode: carCode, date, measureresult: measureResult} = dataset;
         if (checked) {
           entityIdSelect(value, {
             value, //entity id
@@ -283,14 +283,14 @@
         dataType: 'json',
         contentType: 'application/json'
       }).then((resp) => {
-        const {error, curves} = resp;
+        const {error, spc} = resp;
         if (error) {
           throw new Error(error);
         }
-        if (!curves) {
-          throw new Error('没有选择的曲线数据');
+        if (!spc) {
+          throw new Error('未获取SPC信息');
         }
-        return curves;
+        return spc;
       });
     }
 
@@ -341,6 +341,9 @@
         alert(msg);
         return;
       }
+      querySPC(selectedEIds).then((spc) => {
+        console.log('spc', spc);
+      });
 
     }
 
@@ -349,10 +352,6 @@
         const backendSelectedEntityIds = Object.keys(backendSelectedTasks);
         selectedEIds = selectedEIds.concat(backendSelectedEntityIds);
         extraData = Object.assign(extraData, backendSelectedTasks);
-      }
-      if (selectedEIds.length === 0) {
-        alert('查看曲线! 请确认! 未选中任意曲线!!!');
-        return;
       }
       queryCurves(selectedEIds).then((curves) => {
         const newCurves = {};

@@ -45,7 +45,7 @@ from airflow.models import TaskInstance
 import datetime
 from random import choices
 import pendulum
-from airflow.utils.spc.chart import covert2dArray, xbar_rbar, rbar, xbar_sbar, sbar
+from airflow.utils.spc.chart import covert2dArray, xbar_rbar, rbar, xbar_sbar, sbar, cpk
 import math
 
 _log = LoggingMixin().log
@@ -55,6 +55,8 @@ requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 api_experimental = Blueprint('api_experimental', __name__)
 
 SPC_SIZE = int(os.getenv('ENV_SPC_SIZE', '5'))
+
+SPC_MIN_LEN = int(os.getenv('ENV_SPC_MIN_LEN', '25'))
 
 ANALYSIS_NOK_RESULTS = True if os.environ.get('ANALYSIS_NOK_RESULTS', 'False') == 'True' else False
 
@@ -371,43 +373,71 @@ def get_curves():
         return response
 
 
-mm = {'torque': 'measure_torque', 'angle': 'measure_angle'}
+TORQUE = "torque"
+ANGLE = "angle"
+CPK = "CPK"
+CMK = "CMK"
+mm = {TORQUE: 'measure_torque', ANGLE: 'measure_angle'}
+mm_max = {TORQUE: 'torque_max', ANGLE: 'angle_max'}
+mm_min = {TORQUE: 'torque_min', ANGLE: 'angle_min'}
 
 
 @api_experimental.route('/spc', methods=['GET'])
 @requires_authentication
 def get_spc_by_entity_id():
-    spc = {'x-r': {"title": u"Xbar-R 控制图", "data": []}, 'x-s': {"title": u"Xbar-S 控制图", "data": []}}
-    x_r_entry_list = spc.get('x-r').get('data')
-    x_s_entry_list = spc.get('x-s').get('data')
+    spc = {'x-r': {"title": u"Xbar-R 控制图", "data": {TORQUE: {}, ANGLE: {}}},
+           'x-s': {"title": u"Xbar-S 控制图", "data": {TORQUE: {}, ANGLE: {}}}}
+    x_r_entry = spc.get('x-r').get('data')
+    x_s_entry = spc.get('x-s').get('data')
     try:
         vals = request.args.get('entity_ids')
         tType = request.args.get('type', 'torque')  # 默认是扭矩图
         spc.update({'type': tType})
         entity_ids = str(vals).split(",")
-        if entity_ids is None:
-            return jsonify(spc)
+        if entity_ids is None or not len(entity_ids):
+            raise AirflowException(u'entityID为空!')
         results = get_results(entity_ids)
-        if not results:
+        ll = len(results)
+        if not results or ll == 0:
             raise AirflowException(u'未找到结果!')
-        origin_data = {"torque": [], "angle": []}
-        entry = origin_data.get(tType)
-        for result in results:
-            entry.append(result.get(mm.get(tType), None))
-        data = covert2dArray(entry, SPC_SIZE)
-        if not data:
-            raise AirflowException(u'SPC 数据格式不正确!')
-        xr_xbar_part = xbar_rbar(data, SPC_SIZE)
-        xr_r_part = rbar(data, SPC_SIZE)
-        xs_xbar_part = xbar_sbar(data, SPC_SIZE)
-        xs_s_part = sbar(data, SPC_SIZE)
-        # todo: SPC包
-        # xbar-r chart
-        x_r_entry_list.append(xr_xbar_part)
-        x_r_entry_list.append(xr_r_part)
-        # xbar-s chart
-        x_s_entry_list.append(xs_xbar_part)
-        x_s_entry_list.append(xs_s_part)
+        if ll < SPC_MIN_LEN:
+            raise AirflowException(u'数据长度: {} 小于设定的SPC最小数据长度: {}!'.format(ll, SPC_MIN_LEN))
+        origin_data = {TORQUE: [], ANGLE: []}
+        for key in origin_data.keys():
+            entry = origin_data.get(key)
+            for result in results:
+                entry.append(result.get(mm.get(key), None))
+            if not all(entry):
+                raise AirflowException(u'')
+            data = covert2dArray(entry, SPC_SIZE)
+            if not data:
+                raise AirflowException(u'SPC 数据格式不正确!')
+            xr_xbar_part = xbar_rbar(data, SPC_SIZE)
+            xr_r_part = rbar(data, SPC_SIZE)
+            xs_xbar_part = xbar_sbar(data, SPC_SIZE)
+            xs_s_part = sbar(data, SPC_SIZE)
+            cpk_data = cpk(entry, results[0].get(mm_max.get(key)), results[0].get(mm_min.get(key)))
+            # todo: SPC包
+            # xbar-r chart
+            xr_ee: dict = x_r_entry.get(key)
+            if not xr_ee:
+                _log.error(u"未找到入口: {}".format(key))
+                continue
+            xr_ee.update({
+                'xbar': xr_xbar_part,
+                'r': xr_r_part,
+                'cpk': cpk_data
+            })
+            # xbar-s chart
+            xs_ee: dict = x_s_entry.get(key)
+            if not xs_ee:
+                _log.error(u"未找到入口: {}".format(key))
+                continue
+            xs_ee.update({
+                'xbar': xs_xbar_part,
+                's': xs_s_part,
+                'cpk': cpk_data
+            })
         return jsonify(spc=spc)
     except AirflowException as e:
         _log.error("get_spc_by_entity_id", e)
