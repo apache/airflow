@@ -25,6 +25,7 @@ import re
 import sys
 import traceback
 import warnings
+from abc import abstractmethod
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from inspect import signature
@@ -107,6 +108,312 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
         query = query.filter(DR.external_trigger == False)  # noqa pylint: disable=singleton-comparison
     query = query.order_by(DR.execution_date.desc())
     return query.first()
+
+
+class AbstractTimetable(LoggingMixin):
+    """Abstract class for Timetable."""
+
+    @abstractmethod
+    def normalized_schedule_interval(self) -> Optional[ScheduleInterval]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def is_fixed_time_schedule(self):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def date_range(
+        self,
+        start_date: datetime,
+        num: Optional[int] = None,
+        end_date: Optional[datetime] = timezone.utcnow(),
+    ) -> List[datetime]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def following_schedule(self, dttm):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def previous_schedule(self, dttm):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def next_dagrun_info(
+        self,
+        date_last_automated_dagrun: Optional[pendulum.DateTime],
+        tasks,
+    ) -> Tuple[Optional[pendulum.DateTime], Optional[pendulum.DateTime]]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_run_dates(self, start_date, end_date=None):
+        raise NotImplementedError()
+
+
+class CronTimetable(AbstractTimetable):
+    """Timetable implementation for Cron."""
+
+    def __init__(
+        self,
+        schedule_interval=None,
+        timezone=None,
+        catchup=None,
+        start_date=None,
+        end_date=None,
+    ):
+        self.schedule_interval = schedule_interval
+        self.timezone = timezone
+        self.catchup = catchup
+        self.start_date = start_date
+        self.end_date = end_date
+
+    def normalized_schedule_interval(self) -> Optional[ScheduleInterval]:
+        """
+        Returns Normalized Schedule Interval. This is used internally by the Scheduler to
+        schedule DAGs.
+
+        1. Converts Cron Preset to a Cron Expression (e.g ``@monthly`` to ``0 0 1 * *``)
+        2. If Schedule Interval is "@once" return "None"
+        3. If not (1) or (2) returns schedule_interval
+        """
+        if isinstance(self.schedule_interval, str) and self.schedule_interval in cron_presets:
+            _schedule_interval = cron_presets.get(self.schedule_interval)  # type: Optional[ScheduleInterval]
+        elif self.schedule_interval == '@once':
+            _schedule_interval = None
+        else:
+            _schedule_interval = self.schedule_interval
+        return _schedule_interval
+
+    def is_fixed_time_schedule(self):
+        """
+        Figures out if the DAG schedule has a fixed time (e.g. 3 AM).
+
+        :return: True if the schedule has a fixed time, False if not.
+        """
+        now = datetime.now()
+        cron = croniter(self.normalized_schedule_interval(), now)
+
+        start = cron.get_next(datetime)
+        cron_next = cron.get_next(datetime)
+
+        if cron_next.minute == start.minute and cron_next.hour == start.hour:
+            return True
+
+        return False
+
+    def date_range(
+        self,
+        start_date: datetime,
+        num: Optional[int] = None,
+        end_date: Optional[datetime] = timezone.utcnow(),
+    ) -> List[datetime]:
+        if num is not None:
+            end_date = None
+        return utils_date_range(
+            start_date=start_date, end_date=end_date, num=num, delta=self.normalized_schedule_interval()
+        )
+
+    def following_schedule(self, dttm):
+        """
+        Calculates the following schedule for this dag in UTC.
+
+        :param dttm: utc datetime
+        :return: utc datetime
+        """
+        if isinstance(self.normalized_schedule_interval(), str):
+            # we don't want to rely on the transitions created by
+            # croniter as they are not always correct
+            dttm = pendulum.instance(dttm)
+            naive = timezone.make_naive(dttm, self.timezone)
+            cron = croniter(self.normalized_schedule_interval(), naive)
+
+            # We assume that DST transitions happen on the minute/hour
+            if not self.is_fixed_time_schedule():
+                # relative offset (eg. every 5 minutes)
+                delta = cron.get_next(datetime) - naive
+                following = dttm.in_timezone(self.timezone) + delta
+            else:
+                # absolute (e.g. 3 AM)
+                naive = cron.get_next(datetime)
+                tz = pendulum.timezone(self.timezone.name)
+                following = timezone.make_aware(naive, tz)
+            return timezone.convert_to_utc(following)
+        elif self.normalized_schedule_interval() is not None:
+            return timezone.convert_to_utc(dttm + self.normalized_schedule_interval())
+
+    def previous_schedule(self, dttm):
+        """
+        Calculates the previous schedule for this dag in UTC
+
+        :param dttm: utc datetime
+        :return: utc datetime
+        """
+        if isinstance(self.normalized_schedule_interval(), str):
+            # we don't want to rely on the transitions created by
+            # croniter as they are not always correct
+            dttm = pendulum.instance(dttm)
+            naive = timezone.make_naive(dttm, self.timezone)
+            cron = croniter(self.normalized_schedule_interval(), naive)
+
+            # We assume that DST transitions happen on the minute/hour
+            if not self.is_fixed_time_schedule():
+                # relative offset (eg. every 5 minutes)
+                delta = naive - cron.get_prev(datetime)
+                previous = dttm.in_timezone(self.timezone) - delta
+            else:
+                # absolute (e.g. 3 AM)
+                naive = cron.get_prev(datetime)
+                tz = pendulum.timezone(self.timezone.name)
+                previous = timezone.make_aware(naive, tz)
+            return timezone.convert_to_utc(previous)
+        elif self.normalized_schedule_interval() is not None:
+            return timezone.convert_to_utc(dttm - self.normalized_schedule_interval())
+
+    def next_dagrun_info(
+        self,
+        date_last_automated_dagrun: Optional[pendulum.DateTime],
+        tasks,
+    ) -> Tuple[Optional[pendulum.DateTime], Optional[pendulum.DateTime]]:
+        """
+        Get information about the next DagRun of this dag after ``date_last_automated_dagrun`` -- the
+        execution date, and the earliest it could be scheduled
+
+        :param date_last_automated_dagrun: The max(execution_date) of existing
+            "automated" DagRuns for this dag (scheduled or backfill, but not
+            manual)
+        """
+        if (
+            self.schedule_interval == "@once" and date_last_automated_dagrun
+        ) or self.schedule_interval is None:
+            # Manual trigger, or already created the run for @once, can short circuit
+            return (None, None)
+        next_execution_date = self._next_dagrun_after_date(date_last_automated_dagrun, tasks)
+
+        if next_execution_date is None:
+            return (None, None)
+
+        if self.schedule_interval == "@once":
+            # For "@once" it can be created "now"
+            return (next_execution_date, next_execution_date)
+
+        return (next_execution_date, self.following_schedule(next_execution_date))
+
+    def _next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime], tasks):
+        """
+        Get the next execution date after the given ``date_last_automated_dagrun``, according to
+        schedule_interval, start_date, end_date etc.  This doesn't check max active run or any other
+        "concurrency" type limits, it only performs calculations based on the various date and interval fields
+        of this dag and it's tasks.
+
+        :param date_last_automated_dagrun: The execution_date of the last scheduler or
+            backfill triggered run for this dag
+        :type date_last_automated_dagrun: pendulum.Pendulum
+        """
+        if not self.schedule_interval:
+            return None
+
+        # don't schedule @once again
+        if self.schedule_interval == '@once' and date_last_automated_dagrun:
+            return None
+
+        # don't do scheduler catchup for dag's that don't have dag.catchup = True
+        if not (self.catchup or self.schedule_interval == '@once'):
+            # The logic is that we move start_date up until
+            # one period before, so that timezone.utcnow() is AFTER
+            # the period end, and the job can be created...
+            now = timezone.utcnow()
+            next_start = self.following_schedule(now)
+            last_start = self.previous_schedule(now)
+            if next_start <= now or isinstance(self.schedule_interval, timedelta):
+                new_start = last_start
+            else:
+                new_start = self.previous_schedule(last_start)
+
+            if self.start_date:
+                if new_start >= self.start_date:
+                    self.start_date = new_start
+            else:
+                self.start_date = new_start
+
+        next_run_date = None
+        if not date_last_automated_dagrun:
+            # First run
+            task_start_dates = [t.start_date for t in tasks if t.start_date]
+            if task_start_dates:
+                next_run_date = self._normalize_schedule(min(task_start_dates))
+                self.log.debug("Next run date based on tasks %s", next_run_date)
+        else:
+            next_run_date = self.following_schedule(date_last_automated_dagrun)
+
+        if date_last_automated_dagrun and next_run_date:
+            while next_run_date <= date_last_automated_dagrun:
+                next_run_date = self.following_schedule(next_run_date)
+
+        # don't ever schedule prior to the dag's start_date
+        if self.start_date:
+            next_run_date = self.start_date if not next_run_date else max(next_run_date, self.start_date)
+            if next_run_date == self.start_date:
+                next_run_date = self._normalize_schedule(self.start_date)
+
+            self.log.debug("Dag start date: %s. Next run date: %s", self.start_date, next_run_date)
+
+        # Don't schedule a dag beyond its end_date (as specified by the dag param)
+        if next_run_date and self.end_date and next_run_date > self.end_date:
+            return None
+
+        # Don't schedule a dag beyond its end_date (as specified by the task params)
+        # Get the min task end date, which may come from the dag.default_args
+        task_end_dates = [t.end_date for t in tasks if t.end_date]
+        if task_end_dates and next_run_date:
+            min_task_end_date = min(task_end_dates)
+            if next_run_date > min_task_end_date:
+                return None
+
+        return next_run_date
+
+    def get_run_dates(self, start_date, end_date=None):
+        """
+        Returns a list of dates between the interval received as parameter using this
+        dag's schedule interval. Returned dates can be used for execution dates.
+
+        :param start_date: the start date of the interval
+        :type start_date: datetime
+        :param end_date: the end date of the interval, defaults to timezone.utcnow()
+        :type end_date: datetime
+        :return: a list of dates within the interval following the dag's schedule
+        :rtype: list
+        """
+        run_dates = []
+
+        using_start_date = start_date
+        using_end_date = end_date
+
+        # dates for dag runs
+        using_start_date = using_start_date or min([t.start_date for t in self.tasks])
+        using_end_date = using_end_date or timezone.utcnow()
+
+        # next run date for a subdag isn't relevant (schedule_interval for subdags
+        # is ignored) so we use the dag run's start date in the case of a subdag
+        next_run_date = self._normalize_schedule(using_start_date) if not self.is_subdag else using_start_date
+
+        while next_run_date and next_run_date <= using_end_date:
+            run_dates.append(next_run_date)
+            next_run_date = self.following_schedule(next_run_date)
+
+        return run_dates
+
+    def _normalize_schedule(self, dttm):
+        """Returns dttm + interval unless dttm is first interval then it returns dttm"""
+        following = self.following_schedule(dttm)
+
+        # in case of @once
+        if not following:
+            return dttm
+        if self.previous_schedule(following) != dttm:
+            return following
+
+        return dttm
 
 
 @functools.total_ordering
@@ -243,6 +550,7 @@ class DAG(LoggingMixin):
         schedule_interval: Optional[ScheduleInterval] = timedelta(days=1),
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        timetable_class: Optional[Callable] = None,
         full_filepath: Optional[str] = None,
         template_searchpath: Optional[Union[str, Iterable[str]]] = None,
         template_undefined: Type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
@@ -318,6 +626,19 @@ class DAG(LoggingMixin):
             self.default_args['end_date'] = timezone.convert_to_utc(self.default_args['end_date'])
 
         self.schedule_interval = schedule_interval
+        self.catchup = catchup
+
+        if not timetable_class or timetable_class == CronTimetable:
+            self.timetable = timetable_class(
+                schedule_interval=self.schedule_interval,
+                timezone=self.timezone,
+                catchup=self.catchup,
+                start_date=self.start_date,
+                end_date=self.end_date,
+            )
+        else:
+            self.timetable = timetable_class()
+
         if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
@@ -342,7 +663,6 @@ class DAG(LoggingMixin):
                 f'Invalid values of dag.orientation: only support '
                 f'{ORIENTATION_PRESETS}, but get {orientation}'
             )
-        self.catchup = catchup
         self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
 
         self.partial = False
@@ -437,228 +757,32 @@ class DAG(LoggingMixin):
         num: Optional[int] = None,
         end_date: Optional[datetime] = timezone.utcnow(),
     ) -> List[datetime]:
-        if num is not None:
-            end_date = None
-        return utils_date_range(
-            start_date=start_date, end_date=end_date, num=num, delta=self.normalized_schedule_interval
-        )
+        self.timetable.date_range(start_date, num, end_date)
 
     def is_fixed_time_schedule(self):
-        """
-        Figures out if the DAG schedule has a fixed time (e.g. 3 AM).
-
-        :return: True if the schedule has a fixed time, False if not.
-        """
-        now = datetime.now()
-        cron = croniter(self.normalized_schedule_interval, now)
-
-        start = cron.get_next(datetime)
-        cron_next = cron.get_next(datetime)
-
-        if cron_next.minute == start.minute and cron_next.hour == start.hour:
-            return True
-
-        return False
+        return self.timetable.is_fixed_time_schedule()
 
     def following_schedule(self, dttm):
-        """
-        Calculates the following schedule for this dag in UTC.
+        self.timetable.following_schedule(dttm)
 
-        :param dttm: utc datetime
-        :return: utc datetime
-        """
-        if isinstance(self.normalized_schedule_interval, str):
-            # we don't want to rely on the transitions created by
-            # croniter as they are not always correct
-            dttm = pendulum.instance(dttm)
-            naive = timezone.make_naive(dttm, self.timezone)
-            cron = croniter(self.normalized_schedule_interval, naive)
-
-            # We assume that DST transitions happen on the minute/hour
-            if not self.is_fixed_time_schedule():
-                # relative offset (eg. every 5 minutes)
-                delta = cron.get_next(datetime) - naive
-                following = dttm.in_timezone(self.timezone) + delta
-            else:
-                # absolute (e.g. 3 AM)
-                naive = cron.get_next(datetime)
-                tz = pendulum.timezone(self.timezone.name)
-                following = timezone.make_aware(naive, tz)
-            return timezone.convert_to_utc(following)
-        elif self.normalized_schedule_interval is not None:
-            return timezone.convert_to_utc(dttm + self.normalized_schedule_interval)
+    @property
+    def normalized_schedule_interval(self) -> Optional[ScheduleInterval]:
+        return self.timetable.normalized_schedule_interval()
 
     def previous_schedule(self, dttm):
-        """
-        Calculates the previous schedule for this dag in UTC
-
-        :param dttm: utc datetime
-        :return: utc datetime
-        """
-        if isinstance(self.normalized_schedule_interval, str):
-            # we don't want to rely on the transitions created by
-            # croniter as they are not always correct
-            dttm = pendulum.instance(dttm)
-            naive = timezone.make_naive(dttm, self.timezone)
-            cron = croniter(self.normalized_schedule_interval, naive)
-
-            # We assume that DST transitions happen on the minute/hour
-            if not self.is_fixed_time_schedule():
-                # relative offset (eg. every 5 minutes)
-                delta = naive - cron.get_prev(datetime)
-                previous = dttm.in_timezone(self.timezone) - delta
-            else:
-                # absolute (e.g. 3 AM)
-                naive = cron.get_prev(datetime)
-                tz = pendulum.timezone(self.timezone.name)
-                previous = timezone.make_aware(naive, tz)
-            return timezone.convert_to_utc(previous)
-        elif self.normalized_schedule_interval is not None:
-            return timezone.convert_to_utc(dttm - self.normalized_schedule_interval)
+        self.timetable.previous_schedule(dttm)
 
     def next_dagrun_info(
         self,
         date_last_automated_dagrun: Optional[pendulum.DateTime],
     ) -> Tuple[Optional[pendulum.DateTime], Optional[pendulum.DateTime]]:
-        """
-        Get information about the next DagRun of this dag after ``date_last_automated_dagrun`` -- the
-        execution date, and the earliest it could be scheduled
-
-        :param date_last_automated_dagrun: The max(execution_date) of existing
-            "automated" DagRuns for this dag (scheduled or backfill, but not
-            manual)
-        """
-        if (
-            self.schedule_interval == "@once" and date_last_automated_dagrun
-        ) or self.schedule_interval is None:
-            # Manual trigger, or already created the run for @once, can short circuit
-            return (None, None)
-        next_execution_date = self.next_dagrun_after_date(date_last_automated_dagrun)
-
-        if next_execution_date is None:
+        if self.is_subdag:
             return (None, None)
 
-        if self.schedule_interval == "@once":
-            # For "@once" it can be created "now"
-            return (next_execution_date, next_execution_date)
-
-        return (next_execution_date, self.following_schedule(next_execution_date))
-
-    def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
-        """
-        Get the next execution date after the given ``date_last_automated_dagrun``, according to
-        schedule_interval, start_date, end_date etc.  This doesn't check max active run or any other
-        "concurrency" type limits, it only performs calculations based on the various date and interval fields
-        of this dag and it's tasks.
-
-        :param date_last_automated_dagrun: The execution_date of the last scheduler or
-            backfill triggered run for this dag
-        :type date_last_automated_dagrun: pendulum.Pendulum
-        """
-        if not self.schedule_interval or self.is_subdag:
-            return None
-
-        # don't schedule @once again
-        if self.schedule_interval == '@once' and date_last_automated_dagrun:
-            return None
-
-        # don't do scheduler catchup for dag's that don't have dag.catchup = True
-        if not (self.catchup or self.schedule_interval == '@once'):
-            # The logic is that we move start_date up until
-            # one period before, so that timezone.utcnow() is AFTER
-            # the period end, and the job can be created...
-            now = timezone.utcnow()
-            next_start = self.following_schedule(now)
-            last_start = self.previous_schedule(now)
-            if next_start <= now or isinstance(self.schedule_interval, timedelta):
-                new_start = last_start
-            else:
-                new_start = self.previous_schedule(last_start)
-
-            if self.start_date:
-                if new_start >= self.start_date:
-                    self.start_date = new_start
-            else:
-                self.start_date = new_start
-
-        next_run_date = None
-        if not date_last_automated_dagrun:
-            # First run
-            task_start_dates = [t.start_date for t in self.tasks if t.start_date]
-            if task_start_dates:
-                next_run_date = self.normalize_schedule(min(task_start_dates))
-                self.log.debug("Next run date based on tasks %s", next_run_date)
-        else:
-            next_run_date = self.following_schedule(date_last_automated_dagrun)
-
-        if date_last_automated_dagrun and next_run_date:
-            while next_run_date <= date_last_automated_dagrun:
-                next_run_date = self.following_schedule(next_run_date)
-
-        # don't ever schedule prior to the dag's start_date
-        if self.start_date:
-            next_run_date = self.start_date if not next_run_date else max(next_run_date, self.start_date)
-            if next_run_date == self.start_date:
-                next_run_date = self.normalize_schedule(self.start_date)
-
-            self.log.debug("Dag start date: %s. Next run date: %s", self.start_date, next_run_date)
-
-        # Don't schedule a dag beyond its end_date (as specified by the dag param)
-        if next_run_date and self.end_date and next_run_date > self.end_date:
-            return None
-
-        # Don't schedule a dag beyond its end_date (as specified by the task params)
-        # Get the min task end date, which may come from the dag.default_args
-        task_end_dates = [t.end_date for t in self.tasks if t.end_date]
-        if task_end_dates and next_run_date:
-            min_task_end_date = min(task_end_dates)
-            if next_run_date > min_task_end_date:
-                return None
-
-        return next_run_date
+        return self.timetable.next_dagrun_info(date_last_automated_dagrun, self.tasks)
 
     def get_run_dates(self, start_date, end_date=None):
-        """
-        Returns a list of dates between the interval received as parameter using this
-        dag's schedule interval. Returned dates can be used for execution dates.
-
-        :param start_date: the start date of the interval
-        :type start_date: datetime
-        :param end_date: the end date of the interval, defaults to timezone.utcnow()
-        :type end_date: datetime
-        :return: a list of dates within the interval following the dag's schedule
-        :rtype: list
-        """
-        run_dates = []
-
-        using_start_date = start_date
-        using_end_date = end_date
-
-        # dates for dag runs
-        using_start_date = using_start_date or min([t.start_date for t in self.tasks])
-        using_end_date = using_end_date or timezone.utcnow()
-
-        # next run date for a subdag isn't relevant (schedule_interval for subdags
-        # is ignored) so we use the dag run's start date in the case of a subdag
-        next_run_date = self.normalize_schedule(using_start_date) if not self.is_subdag else using_start_date
-
-        while next_run_date and next_run_date <= using_end_date:
-            run_dates.append(next_run_date)
-            next_run_date = self.following_schedule(next_run_date)
-
-        return run_dates
-
-    def normalize_schedule(self, dttm):
-        """Returns dttm + interval unless dttm is first interval then it returns dttm"""
-        following = self.following_schedule(dttm)
-
-        # in case of @once
-        if not following:
-            return dttm
-        if self.previous_schedule(following) != dttm:
-            return following
-
-        return dttm
+        return self.timetable.get_run_dates(self, start_date, end_date=None)
 
     @provide_session
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
@@ -773,7 +897,7 @@ class DAG(LoggingMixin):
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_EXEC_DATES and self.schedule_interval is None
+        return settings.ALLOW_FUTURE_EXEC_DATES and self.normalized_schedule_interval is None
 
     @provide_session
     def get_concurrency_reached(self, session=None) -> bool:
@@ -813,24 +937,6 @@ class DAG(LoggingMixin):
             stacklevel=2,
         )
         return self.get_is_paused()
-
-    @property
-    def normalized_schedule_interval(self) -> Optional[ScheduleInterval]:
-        """
-        Returns Normalized Schedule Interval. This is used internally by the Scheduler to
-        schedule DAGs.
-
-        1. Converts Cron Preset to a Cron Expression (e.g ``@monthly`` to ``0 0 1 * *``)
-        2. If Schedule Interval is "@once" return "None"
-        3. If not (1) or (2) returns schedule_interval
-        """
-        if isinstance(self.schedule_interval, str) and self.schedule_interval in cron_presets:
-            _schedule_interval = cron_presets.get(self.schedule_interval)  # type: Optional[ScheduleInterval]
-        elif self.schedule_interval == '@once':
-            _schedule_interval = None
-        else:
-            _schedule_interval = self.schedule_interval
-        return _schedule_interval
 
     @provide_session
     def handle_callback(self, dagrun, success=True, reason=None, session=None):
@@ -2036,6 +2142,7 @@ class DAG(LoggingMixin):
                 # has_on_*_callback are only stored if the value is True, as the default is False
                 'has_on_success_callback',
                 'has_on_failure_callback',
+                'timetable',
             }
         return cls.__serialized_fields
 
@@ -2112,6 +2219,7 @@ class DagModel(Base):
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
     def __init__(self, **kwargs):
+
         super().__init__(**kwargs)
         if self.concurrency is None:
             self.concurrency = conf.getint('core', 'dag_concurrency')
