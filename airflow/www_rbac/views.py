@@ -2733,6 +2733,16 @@ class VariableModelView(AirflowModelView):
 
     base_order = ('key', 'asc')
 
+    @expose("/list/")
+    @has_access
+    def list(self):
+        msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                       current_user, current_user.last_name,
+                                       CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'],
+                                       '曲线模板：查看变量')
+        logging.info(msg)
+        return super(VariableModelView, self).list()
+
     @staticmethod
     def generateCurveParamKey(key):
         return "{}@@{}".format(key, uuid.uuid4())
