@@ -2274,7 +2274,7 @@ class CurvesView(BaseCRUDView):
 
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, current_user.last_name,
-                                       CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['VIEW_CURVES'], '查看曲线对比页面')
+                                       CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVES'], '查看曲线对比页面')
         logging.info(msg)
 
         return self.render_template('airflow/curves.html', tasks=lst, page=page, page_size=page_size, count=count,
