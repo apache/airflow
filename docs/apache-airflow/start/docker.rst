@@ -76,7 +76,7 @@ On **all operating system**, you need to run database migrations and create the 
 
 .. code-block:: bash
 
-    docker-compose up --rm airflow-init
+    docker-compose up airflow-init
 
 After initialization is complete, you should see a message like below.
 
