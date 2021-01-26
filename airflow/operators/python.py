@@ -151,14 +151,9 @@ def python_task(func):
 
     """
 
-    def wrapper(task_id):
+    def wrapper(*args, **kwargs):
         def wrapped(*op_args, **op_kwargs):
-            return PythonOperator(
-                python_callable=func,
-                task_id=task_id,
-                op_args=op_args,
-                op_kwargs=op_kwargs,
-            )
+            return PythonOperator(*args, python_callable=func, op_args=op_args, op_kwargs=op_kwargs, **kwargs)
 
         return wrapped
 
