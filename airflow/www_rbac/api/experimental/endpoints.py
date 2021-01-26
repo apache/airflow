@@ -45,6 +45,10 @@ import datetime
 from random import choices
 import pendulum
 import math
+from airflow.settings import TIMEZONE
+from flask_login import current_user
+from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
+import logging
 
 _log = LoggingMixin().log
 
@@ -320,6 +324,10 @@ def task_info(dag_id, task_id):
 @requires_authentication
 def double_confirm_task(dag_id, task_id, execution_date):
     try:
+        msg = CUSTOM_LOG_FORMAT.format(datetime.datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                       current_user, current_user.last_name,
+                                       CUSTOM_EVENT_NAME_MAP['DOUBLE_CONFIRM'], CUSTOM_PAGE_NAME_MAP['CURVE'], '曲线二次确认')
+        logging.info(msg)
         date = timezone.parse(execution_date)
     except ValueError:
         error_message = (
