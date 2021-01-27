@@ -164,10 +164,12 @@ class SerializedDagModel(Base):
     @property
     def dag(self):
         """The DAG deserialized from the ``data`` column"""
+        SerializedDAG._load_operator_extra_links = self.load_op_links  # pylint: disable=protected-access
+
         if isinstance(self.data, dict):
-            dag = SerializedDAG.from_dict(self.data, load_op_links=self.load_op_links)  # type: Any
+            dag = SerializedDAG.from_dict(self.data)  # type: Any
         else:
-            dag = SerializedDAG.from_json(self.data, load_op_links=self.load_op_links)  # noqa
+            dag = SerializedDAG.from_json(self.data)  # noqa
         return dag
 
     @classmethod

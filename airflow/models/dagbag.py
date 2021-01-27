@@ -81,7 +81,7 @@ class DagBag(LoggingMixin):
     :type read_dags_from_db: bool
     :param load_op_links: Should the extra operator link be loaded via plugins when
         de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
-        are not loaded.
+        are not loaded to not run User code in Scheduler.
     :type load_op_links: bool
     """
 

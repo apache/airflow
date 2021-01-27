@@ -100,6 +100,11 @@ class BaseSerialization:
 
     _json_schema: Optional[Validator] = None
 
+    # Should the extra operator link be loaded via plugins when
+    # de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
+    # are not loaded to not run User code in Scheduler.
+    _load_operator_extra_links = True
+
     _CONSTRUCTOR_PARAMS: Dict[str, Parameter] = {}
 
     SERIALIZER_VERSION = 1
@@ -117,20 +122,18 @@ class BaseSerialization:
         raise NotImplementedError()
 
     @classmethod
-    def from_json(
-        cls, serialized_obj: str, load_op_links: bool = True
-    ) -> Union['BaseSerialization', dict, list, set, tuple]:
+    def from_json(cls, serialized_obj: str) -> Union['BaseSerialization', dict, list, set, tuple]:
         """Deserializes json_str and reconstructs all DAGs and operators it contains."""
-        return cls.from_dict(json.loads(serialized_obj), load_op_links=load_op_links)
+        return cls.from_dict(json.loads(serialized_obj))
 
     @classmethod
     def from_dict(
-        cls, serialized_obj: Dict[Encoding, Any], load_op_links: bool = True
+        cls, serialized_obj: Dict[Encoding, Any]
     ) -> Union['BaseSerialization', dict, list, set, tuple]:
         """Deserializes a python dict stored with type decorators and
         reconstructs all DAGs and operators it contains.
         """
-        return cls._deserialize(serialized_obj, load_op_links=load_op_links)
+        return cls._deserialize(serialized_obj)
 
     @classmethod
     def validate_schema(cls, serialized_obj: Union[str, dict]) -> None:
@@ -250,9 +253,7 @@ class BaseSerialization:
     # pylint: enable=too-many-return-statements
 
     @classmethod
-    def _deserialize(  # pylint: disable=too-many-return-statements
-        cls, encoded_var: Any, load_op_links: bool = True
-    ) -> Any:
+    def _deserialize(cls, encoded_var: Any) -> Any:  # pylint: disable=too-many-return-statements
         """Helper function of depth first search for deserialization."""
         # JSON primitives (except for dict) are not encoded.
         if cls._is_primitive(encoded_var):
@@ -268,7 +269,7 @@ class BaseSerialization:
         if type_ == DAT.DICT:
             return {k: cls._deserialize(v) for k, v in var.items()}
         elif type_ == DAT.DAG:
-            return SerializedDAG.deserialize_dag(var, load_op_links=load_op_links)
+            return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
             return SerializedBaseOperator.deserialize_operator(var)
         elif type_ == DAT.DATETIME:
@@ -409,7 +410,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return serialize_op
 
     @classmethod
-    def deserialize_operator(cls, encoded_op: Dict[str, Any], load_op_links: bool = True) -> BaseOperator:
+    def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> BaseOperator:
         """Deserializes an operator from a JSON object."""
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
 
@@ -421,7 +422,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         op_extra_links_from_plugin = {}
 
         # We don't want to load Extra Operator links in Scheduler
-        if load_op_links:
+        if cls._load_operator_extra_links:  # pylint: disable=too-many-nested-blocks
             from airflow import plugins_manager
 
             plugins_manager.initialize_extra_operators_links_plugins()
@@ -449,7 +450,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "subdag":
-                v = SerializedDAG.deserialize_dag(v, load_op_links=load_op_links)
+                v = SerializedDAG.deserialize_dag(v)
             elif k in {"retry_delay", "execution_timeout"}:
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
@@ -457,7 +458,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
             elif k == "_operator_extra_links":
-                if load_op_links:
+                if cls._load_operator_extra_links:
                     op_predefined_extra_links = cls._deserialize_operator_extra_links(v)
 
                     # If OperatorLinks with the same name exists, Links via Plugin have higher precedence
@@ -657,7 +658,7 @@ class SerializedDAG(DAG, BaseSerialization):
             raise SerializationError(f'Failed to serialize dag {dag.dag_id!r}')
 
     @classmethod
-    def deserialize_dag(cls, encoded_dag: Dict[str, Any], load_op_links: bool = True) -> 'SerializedDAG':
+    def deserialize_dag(cls, encoded_dag: Dict[str, Any]) -> 'SerializedDAG':
         """Deserializes a DAG from a JSON object."""
         dag = SerializedDAG(dag_id=encoded_dag['_dag_id'])
 
@@ -665,12 +666,10 @@ class SerializedDAG(DAG, BaseSerialization):
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "tasks":
-                v = {
-                    task["task_id"]: SerializedBaseOperator.deserialize_operator(
-                        task, load_op_links=load_op_links
-                    )
-                    for task in v
-                }
+                # pylint: disable=protected-access
+                SerializedBaseOperator._load_operator_extra_links = cls._load_operator_extra_links
+                # pylint: enable=protected-access
+                v = {task["task_id"]: SerializedBaseOperator.deserialize_operator(task) for task in v}
                 k = "task_dict"
             elif k == "timezone":
                 v = cls._deserialize_timezone(v)
@@ -738,12 +737,12 @@ class SerializedDAG(DAG, BaseSerialization):
         return json_dict
 
     @classmethod
-    def from_dict(cls, serialized_obj: dict, load_op_links: bool = True) -> 'SerializedDAG':
+    def from_dict(cls, serialized_obj: dict) -> 'SerializedDAG':
         """Deserializes a python dict in to the DAG and operators it contains."""
         ver = serialized_obj.get('__version', '<not present>')
         if ver != cls.SERIALIZER_VERSION:
             raise ValueError(f"Unsure how to deserialize version {ver!r}")
-        return cls.deserialize_dag(serialized_obj['dag'], load_op_links=load_op_links)
+        return cls.deserialize_dag(serialized_obj['dag'])
 
 
 class SerializedTaskGroup(TaskGroup, BaseSerialization):
