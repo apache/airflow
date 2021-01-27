@@ -1236,10 +1236,10 @@ class TestDag(unittest.TestCase):
     def test_create_dagrun_run_type_is_obtained_from_run_id(self):
         dag = DAG(dag_id="run_type_is_obtained_from_run_id")
         dr = dag.create_dagrun(run_id="scheduled__", state=State.NONE)
-        assert dr.run_type == DagRunType.SCHEDULED.value
+        assert dr.run_type == DagRunType.SCHEDULED
 
         dr = dag.create_dagrun(run_id="custom_is_set_to_manual", state=State.NONE)
-        assert dr.run_type == DagRunType.MANUAL.value
+        assert dr.run_type == DagRunType.MANUAL
 
     def test_create_dagrun_job_id_is_set(self):
         job_id = 42
