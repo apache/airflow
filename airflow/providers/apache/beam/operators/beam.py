@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Apache Beam operators."""
-import re
 from contextlib import ExitStack
 from typing import Callable, List, Optional, Union
 
@@ -29,6 +28,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.helpers import convert_camel_to_snake
 from airflow.version import version
 
 
@@ -116,7 +116,7 @@ class BeamRunPythonPipelineOperator(BaseOperator):
 
         This option is only relevant if the ``py_requirements`` parameter is not None.
     :param gcp_conn_id: Optional.
-        The connection ID to use connecting to Google Cloud Storage if pyfile is on GCS.
+        The connection ID to use connecting to Google Cloud Storage if python file is on GCS.
     :type gcp_conn_id: str
     :param delegate_to:  Optional.
         The account to impersonate using domain-wide delegation of authority,
@@ -128,7 +128,7 @@ class BeamRunPythonPipelineOperator(BaseOperator):
     """
 
     template_fields = ["py_file", "runner", "pipeline_options", "default_pipeline_options", "dataflow_config"]
-    template_fields_renderers = {'dataflow_config': 'json'}
+    template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
 
     @apply_defaults
     def __init__(
@@ -177,11 +177,12 @@ class BeamRunPythonPipelineOperator(BaseOperator):
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
         process_line_callback: Optional[Callable] = None
+        is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
 
         if isinstance(self.dataflow_config, dict):
             self.dataflow_config = DataflowConfiguration(**self.dataflow_config)
 
-        if self.runner.lower() == BeamRunnerType.DataflowRunner.lower():
+        if is_dataflow:
             self.dataflow_hook = DataflowHook(
                 gcp_conn_id=self.dataflow_config.gcp_conn_id or self.gcp_conn_id,
                 delegate_to=self.dataflow_config.delegate_to or self.delegate_to,
@@ -213,8 +214,9 @@ class BeamRunPythonPipelineOperator(BaseOperator):
         pipeline_options.update(self.pipeline_options)
 
         # Convert argument names from lowerCamelCase to snake case.
-        camel_to_snake = lambda name: re.sub(r"[A-Z]", lambda x: "_" + x.group(0).lower(), name)
-        formatted_pipeline_options = {camel_to_snake(key): pipeline_options[key] for key in pipeline_options}
+        formatted_pipeline_options = {
+            convert_camel_to_snake(key): pipeline_options[key] for key in pipeline_options
+        }
 
         with ExitStack() as exit_stack:
             if self.py_file.lower().startswith("gs://"):
@@ -234,7 +236,7 @@ class BeamRunPythonPipelineOperator(BaseOperator):
                 process_line_callback=process_line_callback,
             )
 
-            if self.runner.lower() == BeamRunnerType.DataflowRunner.lower():
+            if is_dataflow:
                 self.dataflow_hook.wait_for_done(  # pylint: disable=no-value-for-parameter
                     job_name=dataflow_job_name,
                     location=self.dataflow_config.location,
@@ -245,8 +247,8 @@ class BeamRunPythonPipelineOperator(BaseOperator):
         return {"dataflow_job_id": self.dataflow_job_id}
 
     def on_kill(self) -> None:
-        self.log.info("On kill.")
         if self.dataflow_hook and self.dataflow_job_id:
+            self.log.info('Dataflow job with id: `%s` was requested to be cancelled.', self.dataflow_job_id)
             self.dataflow_hook.cancel_job(
                 job_id=self.dataflow_job_id,
                 project_id=self.dataflow_config.project_id,
@@ -340,7 +342,7 @@ class BeamRunJavaPipelineOperator(BaseOperator):
         "default_pipeline_options",
         "dataflow_config",
     ]
-    template_fields_renderers = {'dataflow_config': 'json'}
+    template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
     ui_color = "#0273d4"
 
     @apply_defaults
@@ -382,11 +384,12 @@ class BeamRunJavaPipelineOperator(BaseOperator):
         self.beam_hook = BeamHook(runner=self.runner)
         pipeline_options = self.default_pipeline_options.copy()
         process_line_callback: Optional[Callable] = None
+        is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
 
         if isinstance(self.dataflow_config, dict):
             self.dataflow_config = DataflowConfiguration(**self.dataflow_config)
 
-        if self.runner.lower() == BeamRunnerType.DataflowRunner.lower():
+        if is_dataflow:
             self.dataflow_hook = DataflowHook(
                 gcp_conn_id=self.dataflow_config.gcp_conn_id or self.gcp_conn_id,
                 delegate_to=self.dataflow_config.delegate_to or self.delegate_to,
@@ -425,16 +428,26 @@ class BeamRunJavaPipelineOperator(BaseOperator):
                 )
                 self.jar = tmp_gcs_file.name
 
-            if self.runner.lower() == BeamRunnerType.DataflowRunner.lower():
+            if is_dataflow:
                 is_running = False
                 if self.dataflow_config.check_if_running != CheckJobRunning.IgnoreJob:
                     is_running = (
+                        # The reason for disable=no-value-for-parameter is that project_id parameter is
+                        # required but here is not passed, moreover it cannot be passed here.
+                        # This method is wrapped by @_fallback_to_project_id_from_variables decorator which
+                        # fallback project_id value from variables and raise error if project_id is
+                        # defined both in variables and as parameter (here is already defined in variables)
                         self.dataflow_hook.is_job_dataflow_running(  # pylint: disable=no-value-for-parameter
                             name=self.dataflow_config.job_name,
                             variables=pipeline_options,
                         )
                     )
                     while is_running and self.dataflow_config.check_if_running == CheckJobRunning.WaitForRun:
+                        # The reason for disable=no-value-for-parameter is that project_id parameter is
+                        # required but here is not passed, moreover it cannot be passed here.
+                        # This method is wrapped by @_fallback_to_project_id_from_variables decorator which
+                        # fallback project_id value from variables and raise error if project_id is
+                        # defined both in variables and as parameter (here is already defined in variables)
                         # pylint: disable=no-value-for-parameter
                         is_running = self.dataflow_hook.is_job_dataflow_running(
                             name=self.dataflow_config.job_name,
@@ -448,11 +461,12 @@ class BeamRunJavaPipelineOperator(BaseOperator):
                         job_class=self.job_class,
                         process_line_callback=process_line_callback,
                     )
-                    self.dataflow_hook.wait_for_done(  # pylint: disable=no-value-for-parameter
+                    self.dataflow_hook.wait_for_done(
                         job_name=self._dataflow_job_name,
                         location=self.dataflow_config.location,
                         job_id=self.dataflow_job_id,
                         multiple_jobs=self.dataflow_config.multiple_jobs,
+                        project_id=self.dataflow_config.project_id,
                     )
 
             else:
@@ -466,8 +480,8 @@ class BeamRunJavaPipelineOperator(BaseOperator):
         return {"dataflow_job_id": self.dataflow_job_id}
 
     def on_kill(self) -> None:
-        self.log.info("On kill.")
         if self.dataflow_hook and self.dataflow_job_id:
+            self.log.info('Dataflow job with id: `%s` was requested to be cancelled.', self.dataflow_job_id)
             self.dataflow_hook.cancel_job(
                 job_id=self.dataflow_job_id,
                 project_id=self.dataflow_config.project_id,

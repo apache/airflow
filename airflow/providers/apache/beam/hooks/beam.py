@@ -108,25 +108,22 @@ class BeamCommandRunner(LoggingMixin):
 
         :param fd: File descriptor.
         """
-        if fd == self._proc.stderr:
-            while True:
-                line = self._proc.stderr.readline().decode()
-                if not line:
-                    return
-                if self.process_line_callback:
-                    self.process_line_callback(line)
-                self.log.warning(line.rstrip("\n"))
+        if fd not in (self._proc.stdout, self._proc.stderr):
+            raise Exception("No data in stderr or in stdout.")
 
-        if fd == self._proc.stdout:
-            while True:
-                line = self._proc.stdout.readline().decode()
-                if not line:
-                    return
-                if self.process_line_callback:
-                    self.process_line_callback(line)
-                self.log.info(line.rstrip("\n"))
+        func_proc, func_log = (
+            (self._proc.stderr, self.log.warning)
+            if fd == self._proc.stderr
+            else (self._proc.stdout, self.log.info)
+        )
 
-        raise Exception("No data in stderr or in stdout.")
+        while True:
+            line = func_proc.readline().decode()
+            if not line:
+                return
+            if self.process_line_callback:
+                self.process_line_callback(line)
+            func_log(line.rstrip("\n"))
 
     def wait_for_done(self) -> None:
         """Waits for Apache Beam pipeline to complete."""
@@ -152,7 +149,7 @@ class BeamCommandRunner(LoggingMixin):
         self.log.info("Process exited with return code: %s", self._proc.returncode)
 
         if self._proc.returncode != 0:
-            raise Exception(f"Apache Beam process failed with return code {self._proc.returncode}")
+            raise AirflowException(f"Apache Beam process failed with return code {self._proc.returncode}")
 
 
 class BeamHook(BaseHook):

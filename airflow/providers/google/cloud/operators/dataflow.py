@@ -176,6 +176,9 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     Start a Java Cloud DataFlow batch job. The parameters of the operation
     will be passed to the job.
 
+    This class is deprecated.
+    Please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
+
     **Example**: ::
 
         default_args = {
@@ -935,6 +938,9 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     execution parameter, and dataflow_default_options is expected to save
     high-level options, for instances, project and zone information, which
     apply to all dataflow operators in the DAG.
+
+    This class is deprecated.
+    Please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
 
     .. seealso::
         For more detail on job submission have a look at the reference:

@@ -39,7 +39,7 @@ DEFAULT_OPTIONS_PYTHON = DEFAULT_OPTIONS_JAVA = {
     'stagingLocation': 'gs://test/staging',
 }
 ADDITIONAL_OPTIONS = {'output': 'gs://test/output', 'labels': {'foo': 'bar'}}
-TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
+TEST_VERSION = f"v{version.replace('.', '-').replace('+', '-')}"
 EXPECTED_ADDITIONAL_OPTIONS = {
     'output': 'gs://test/output',
     'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION},
@@ -106,7 +106,6 @@ class TestBeamRunPythonPipelineOperator(unittest.TestCase):
         gcs_provide_file = gcs_hook.return_value.provide_file
         self.operator.execute(None)
         job_name = dataflow_hook_mock.build_dataflow_job_name.return_value
-        self.assertEqual(job_name, self.operator._dataflow_job_name)
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id=dataflow_config.gcp_conn_id,
             delegate_to=dataflow_config.delegate_to,
@@ -248,6 +247,7 @@ class TestBeamRunJavaPipelineOperator(unittest.TestCase):
             job_name=job_name,
             location='us-central1',
             multiple_jobs=dataflow_config.multiple_jobs,
+            project_id=dataflow_hook_mock.return_value.project_id,
         )
 
     @mock.patch('airflow.providers.apache.beam.operators.beam.BeamHook')
