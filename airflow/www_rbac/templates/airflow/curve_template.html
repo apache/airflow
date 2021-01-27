@@ -56,6 +56,9 @@
     curve: 'curve'
   };
 
+  // 曲线模板没有转速曲线，不显示按钮
+  $('#update-chart-t-s-label').detach();
+
   function randomColor() {
     return `#${(function (color) {
       return (color += '0123456789abcdef'[Math.floor(Math.random() * 16)])
