@@ -3067,14 +3067,15 @@ class TaskInstanceModelView(AirflowModelView):
     page_size = PAGE_SIZE
 
     list_columns = ['state', 'dag_id', 'task_id', 'line_code', 'entity_id', 'execution_date', 'measure_result',
-                    'result',
+                    'result', 'type',
                     'final_state',
                     'start_date', 'end_date', 'duration', 'job_id',
                     'priority_weight', 'try_number',
                     # 'unixname', 'hostname', 'queue', 'queued_dttm', 'operator',
                     'pool', 'log_url']
 
-    search_columns = ['state', 'dag_id', 'entity_id', 'measure_result', 'result', 'final_state', 'task_id',
+    search_columns = ['state', 'type', 'dag_id', 'entity_id', 'measure_result', 'result', 'final_state',
+                      'task_id',
                       'execution_date', 'hostname',
                       'queue', 'pool', 'operator', 'start_date', 'end_date']
 
@@ -3084,6 +3085,7 @@ class TaskInstanceModelView(AirflowModelView):
         'task_id': lazy_gettext('Task Id'),
         'line_code': lazy_gettext('Line Code'),
         'entity_id': lazy_gettext('Entity Id'),
+        'type': lazy_gettext('Task Instance Type'),
         'execution_date': lazy_gettext('Execution Date'),
         'measure_result': lazy_gettext('Measure Result'),
         'result': lazy_gettext('Result'),
@@ -3115,6 +3117,12 @@ class TaskInstanceModelView(AirflowModelView):
         if end_date and duration:
             return timedelta(seconds=duration)
 
+    def type_f(attr):
+        ti_type = attr.get('type')
+        if ti_type == 'rework':
+            return lazy_gettext('Task Instance Rework')
+        return lazy_gettext('Task Instance Normal')
+
     formatters_columns = {
         'log_url': log_url_formatter,
         'task_id': wwwutils.task_instance_link,
@@ -3126,6 +3134,7 @@ class TaskInstanceModelView(AirflowModelView):
         'queued_dttm': wwwutils.datetime_f('queued_dttm'),
         'dag_id': wwwutils.dag_link,
         'duration': duration_f,
+        'type': type_f,
     }
 
     @provide_session
