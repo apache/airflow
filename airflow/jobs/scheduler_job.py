@@ -1466,6 +1466,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         :return: Number of TIs enqueued in this iteration
         :rtype: int
         """
+        os.environ["AIRFLOW_IN_SCHEDULING_LOOP"] = 'True'
+
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
 
@@ -1556,6 +1558,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 raise
 
             guard.commit()
+            del os.environ["AIRFLOW_IN_SCHEDULING_LOOP"]
             return num_queued_tis
 
     def _create_dag_runs(self, dag_models: Iterable[DagModel], session: Session) -> None:
