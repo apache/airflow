@@ -37,7 +37,8 @@ class ClsCurveStorage(ClsEntity):
         self._headersMap = {
             "cur_w": u'角度',
             "cur_m": u'扭矩',
-            "cur_t": u'时间'
+            "cur_t": u'时间',
+            "cur_s": u'转速'
         }
         self._client = None  # type: Optional[Minio]
 
@@ -93,9 +94,9 @@ class ClsCurveStorage(ClsEntity):
         data = Dataset()
         data.headers = self._headersMap.values()
         datamap = [curve.get(key, []) for key in self._headersMap.keys()]
-        if len(datamap) != 3:
-            raise BaseException(u'数据长度不对')
-        zipData = zip(datamap[0], datamap[1], datamap[2])
+        if len(datamap) < 4:
+            raise BaseException(u'数据缺失')
+        zipData = zip(datamap[0], datamap[1], datamap[2], datamap[3])
         for d in zipData:
             data.append(d)
         return data.export('csv').encode('utf-8')
@@ -126,12 +127,13 @@ class ClsCurveStorage(ClsEntity):
         try:
             self.ensure_bucket(self._bucket)
             data = self.convertCSVData(curve)
+            _logger.info(data)
             f = io.BytesIO(data)  # 必须转换成rawIO数据
             self._client.put_object(
                 self._bucket, self.ObjectName, f, length=len(data))
 
         except Exception as err:
-            raise Exception(u"写入曲线失败: {}".format(str(err)))
+            raise Exception(u"写入曲线失败: {}".format(repr(err)))
 
     def csv_data_to_dict(self, data):
         data_set = Dataset()
@@ -141,13 +143,15 @@ class ClsCurveStorage(ClsEntity):
         ret = {
             'cur_w': [],
             'cur_m': [],
-            'cur_t': []
+            'cur_t': [],
+            'cur_s': []
         }
         for row in f.readlines():
             row_data = row.split('\r\n')[0].split(',')
             ret['cur_w'].append(float(row_data[0]))
             ret['cur_m'].append(float(row_data[1]))
             ret['cur_t'].append(float(row_data[2]))
+            ret['cur_s'].append(float(row_data[3]))
         return ret
 
     def query_curve(self):
