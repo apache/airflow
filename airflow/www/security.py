@@ -441,14 +441,15 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     def add_homepage_access_to_custom_roles(self):
         """
-        Add Website.can_read access to all roles.
+        Add Website.can_read access to all custom roles.
 
         :return: None.
         """
         website_permission = self.add_permission_view_menu(
             permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE
         )
-        for role in self.get_all_roles():
+        custom_roles = [role for role in self.get_all_roles() if role.name not in EXISTING_ROLES]
+        for role in custom_roles:
             self.add_permission_role(role, website_permission)
 
         self.get_session.commit()
