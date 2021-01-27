@@ -44,10 +44,20 @@ class TestDagRunEndpoint(unittest.TestCase):
             role_name="Test",
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
                 (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+            ],
+        )
+        create_user(
+            cls.app,  # type: ignore
+            username="test_view_dags",
+            role_name="TestViewDags",
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
             ],
         )
         create_user(
@@ -65,6 +75,7 @@ class TestDagRunEndpoint(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_view_dags")  # type: ignore
         delete_user(cls.app, username="test_granular_permissions")  # type: ignore
         delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
@@ -78,6 +89,12 @@ class TestDagRunEndpoint(unittest.TestCase):
     def tearDown(self) -> None:
         clear_db_runs()
         # clear_db_dags()
+
+    def _create_dag(self, dag_id):
+        dag_instance = DagModel(dag_id=dag_id)
+        with create_session() as session:
+            session.add(dag_instance)
+            session.commit()
 
     def _create_test_dag_run(self, state='running', extra_dag=False, commit=True):
         dag_runs = []
@@ -806,12 +823,9 @@ class TestPostDagRun(TestDagRunEndpoint):
             ("dag_run_id and execution_date missing", {}),
         ]
     )
-    @provide_session
-    def test_should_respond_200(self, name, request_json, session):
+    def test_should_respond_200(self, name, request_json):
         del name
-        dag_instance = DagModel(dag_id="TEST_DAG_ID")
-        session.add(dag_instance)
-        session.commit()
+        self._create_dag("TEST_DAG_ID")
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns", json=request_json, environ_overrides={'REMOTE_USER': "test"}
         )
@@ -833,11 +847,8 @@ class TestPostDagRun(TestDagRunEndpoint):
             ({'execution_date': "2020-11-10T08:25:56P"}, "{'execution_date': ['Not a valid datetime.']}"),
         ]
     )
-    @provide_session
-    def test_should_response_400_for_naive_datetime_and_bad_datetime(self, data, expected, session):
-        dag_instance = DagModel(dag_id="TEST_DAG_ID")
-        session.add(dag_instance)
-        session.commit()
+    def test_should_response_400_for_naive_datetime_and_bad_datetime(self, data, expected):
+        self._create_dag("TEST_DAG_ID")
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns", json=data, environ_overrides={'REMOTE_USER': "test"}
         )
@@ -887,12 +898,9 @@ class TestPostDagRun(TestDagRunEndpoint):
             ),
         ]
     )
-    @provide_session
-    def test_response_400(self, name, url, request_json, expected_response, session):
+    def test_response_400(self, name, url, request_json, expected_response):
         del name
-        dag_instance = DagModel(dag_id="TEST_DAG_ID")
-        session.add(dag_instance)
-        session.commit()
+        self._create_dag("TEST_DAG_ID")
         response = self.client.post(url, json=request_json, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 400, response.data
         assert expected_response == response.json
@@ -926,3 +934,15 @@ class TestPostDagRun(TestDagRunEndpoint):
         )
 
         assert_401(response)
+
+    def test_should_raises_403_unauthorized(self):
+        self._create_dag("TEST_DAG_ID")
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={
+                "dag_run_id": "TEST_DAG_RUN_ID_1",
+                "execution_date": self.default_time,
+            },
+            environ_overrides={'REMOTE_USER': "test_view_dags"},
+        )
+        assert response.status_code == 403
