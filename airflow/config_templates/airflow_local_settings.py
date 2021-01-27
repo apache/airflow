@@ -40,6 +40,8 @@ FAB_LOG_LEVEL = conf.get('core', 'FAB_LOGGING_LEVEL').upper()
 LOG_FORMAT = conf.get('core', 'LOG_FORMAT')
 
 CUSTOM_LOG_FILE_PATH = conf.get('core', 'CUSTOM_LOG_FILE_PATH')
+CUSTOM_LOG_MAX_BYTES = conf.get('core', 'CUSTOM_LOG_MAX_BYTES')
+CUSTOM_LOG_BACKUP_COUNT = conf.get('core', 'CUSTOM_LOG_BACKUP_COUNT')
 
 COLORED_LOG_FORMAT = conf.get('core', 'COLORED_LOG_FORMAT')
 
@@ -79,9 +81,12 @@ DEFAULT_LOGGING_CONFIG = {
             'stream': 'sys.stdout'
         },
         'file': {
-            'class': 'logging.FileHandler',
-            'formatter': 'airflow_coloured',
-            'filename': CUSTOM_LOG_FILE_PATH
+            'class': 'logging.handlers.RotatingFileHandler',
+            'formatter': 'airflow',
+            'filename': CUSTOM_LOG_FILE_PATH,
+            'mode': 'a',
+            'maxBytes': int(CUSTOM_LOG_MAX_BYTES),  # 100MB
+            'backupCount': int(CUSTOM_LOG_BACKUP_COUNT)
         },
         'task': {
             'class': 'airflow.utils.log.file_task_handler.FileTaskHandler',
