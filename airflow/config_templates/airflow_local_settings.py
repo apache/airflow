@@ -39,6 +39,8 @@ FAB_LOG_LEVEL = conf.get('core', 'FAB_LOGGING_LEVEL').upper()
 
 LOG_FORMAT = conf.get('core', 'LOG_FORMAT')
 
+CUSTOM_LOG_FILE_PATH = conf.get('core', 'CUSTOM_LOG_FILE_PATH')
+
 COLORED_LOG_FORMAT = conf.get('core', 'COLORED_LOG_FORMAT')
 
 COLORED_LOG = conf.getboolean('core', 'COLORED_CONSOLE_LOG')
@@ -76,6 +78,11 @@ DEFAULT_LOGGING_CONFIG = {
             'formatter': 'airflow_coloured',
             'stream': 'sys.stdout'
         },
+        'file': {
+            'class': 'logging.FileHandler',
+            'formatter': 'airflow_coloured',
+            'filename': CUSTOM_LOG_FILE_PATH
+        },
         'task': {
             'class': 'airflow.utils.log.file_task_handler.FileTaskHandler',
             'formatter': 'airflow',
@@ -107,7 +114,7 @@ DEFAULT_LOGGING_CONFIG = {
         }
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'file'],
         'level': LOG_LEVEL,
     }
 }  # type: Dict[str, Any]
