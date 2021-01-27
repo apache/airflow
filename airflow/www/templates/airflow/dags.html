@@ -287,14 +287,14 @@
         var query = new URLSearchParams(window.location.search);
         query.set("search", e.target.value.trim());
         query.delete("page");
-        window.location = DAGS_INDEX + "?" + query.toString();
+        window.location = `${DAGS_INDEX}?${query.toString()}`;
         e.preventDefault();
       }
     });
 
     $('#page_size').on('change', function() {
       p_size = $(this).val();
-      window.location = DAGS_INDEX + "?page_size=" + p_size;
+      window.location = `${DAGS_INDEX}?page_size=${p_size}`;
     });
 
     function confirmDeleteDag(link, dag_id){
@@ -344,7 +344,7 @@
         if (search_query) {
           var query = new URLSearchParams(window.location.search);
           query.set('search', search_query);
-          window.location = DAGS_INDEX + "?" + query;
+          window.location = `${DAGS_INDEX}?${query}`;
         }
       }
     });
@@ -353,7 +353,7 @@
       var query = new URLSearchParams(window.location.search);
       query.delete('search');
       query.delete('page');
-      window.location = DAGS_INDEX + "?" + query;
+      window.location = `${DAGS_INDEX}?${query}`;
     });
 
     $('#main_content').show(250);
@@ -377,13 +377,13 @@
         dag_id = json[safe_dag_id].dag_id;
         execution_date = json[safe_dag_id].execution_date;
         start_date = json[safe_dag_id].start_date;
-        g = d3.select('#last-run-' + safe_dag_id)
+        g = d3.select(`#last-run-${safe_dag_id}`)
         g.selectAll('a')
-          .attr('href', '{{ url_for('Airflow.graph') }}?dag_id=' + encodeURIComponent(dag_id) + '&execution_date=' + encodeURIComponent(execution_date))
+          .attr('href', `{{ url_for('Airflow.graph') }}?dag_id=${encodeURIComponent(dag_id)}&execution_date=${encodeURIComponent(execution_date)}`)
           .insert(isoDateToTimeEl.bind(null, execution_date, {title: false}));
         g.selectAll('span')
           // We don't translate the timezone in the tooltip, that stays in UTC.
-          .attr('data-original-title', 'Start Date: ' + start_date)
+          .attr('data-original-title', `Start Date: ${start_date}`)
           .style('display', null);
         g.selectAll('.js-loading-last-run').remove();
       }
@@ -391,7 +391,7 @@
     }
 
     function drawDagStatsForDag(dag_id, states) {
-      g = d3.select('svg#dag-run-' + dag_id.replace(/\./g, '__dot__'))
+      g = d3.select(`svg#dag-run-${dag_id.replace(/\./g, '__dot__')}`)
         .attr('height', diameter + (stroke_width_hover * 2))
         .attr('width', '110px')
         .selectAll("g")
@@ -401,15 +401,15 @@
         .attr('transform', function(d, i) {
           x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
           y = (diameter/2) + stroke_width_hover;
-          return 'translate(' + x + ',' + y + ')';
+          return `translate(${x},${y})`;
         });
 
       g.append('svg:a')
         .attr('href', function(d) {
-          return '{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id=' + dag_id + '&_flt_3_state=' + d.state;
+          return `{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id=${dag_id}&_flt_3_state=${d.state}`;
         })
       .append('circle')
-        .attr('id', function(d) {return 'run-' + dag_id.replace(/\./g, '_') + d.state || 'none'})
+        .attr('id', function(d) {return `run-${dag_id.replace(/\./g, '_')}${d.state || 'none'}`})
         .attr('class', 'has-svg-tooltip')
         .attr('stroke-width', function(d) {
           if (d.count > 0)
@@ -465,7 +465,7 @@
     }
 
     function drawTaskStatsForDag(dag_id, states) {
-      g = d3.select('svg#task-run-' + dag_id.replace(/\./g, '__dot__'))
+      g = d3.select(`svg#task-run-${dag_id.replace(/\./g, '__dot__')}`)
         .attr('height', diameter + (stroke_width_hover * 2))
         .attr('width', (states.length * (diameter + circle_margin)) + circle_margin)
         .selectAll("g")
@@ -475,15 +475,15 @@
         .attr('transform', function(d, i) {
           x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
           y = (diameter/2) + stroke_width_hover;
-          return 'translate(' + x + ',' + y + ')';
+          return `translate(${x},${y})`;
         });
 
       g.append('svg:a')
         .attr('href', function(d) {
-          return '{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=' + dag_id + '&_flt_3_state=' + d.state;
+          return `{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=${dag_id}&_flt_3_state=${d.state}`;
         })
       .append('circle')
-        .attr('id', function(d) {return 'task-' + dag_id.replace(/\./g, '_') + d.state || 'none'})
+        .attr('id', function(d) {return `task-${dag_id.replace(/\./g, '_')}${d.state || 'none'}`})
         .attr('class', 'has-svg-tooltip')
         .attr('stroke-width', function(d) {
           if (d.count > 0)
@@ -565,8 +565,8 @@
       var centeringOffset = tip.width() / 2;
       tip.css({
         'display': 'block',
-        'left': circ.left + 12.5 - centeringOffset + 'px',// 12.5 == half of circle width
-        'top': circ.top - 25 + 'px'// 25 == position above circle
+        'left': `${circ.left + 12.5 - centeringOffset}px`,// 12.5 == half of circle width
+        'top': `${circ.top - 25}px`// 25 == position above circle
       });
     }
 
