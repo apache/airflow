@@ -3676,7 +3676,7 @@ class TestSchedulerJob(unittest.TestCase):
         )
 
         session = settings.Session()
-        assert not dag.has_dagrun(execution_date=DEFAULT_DATE, session=session)
+        assert dag.get_last_dagrun(session) is None
 
         dagbag = DagBag(
             dag_folder=os.devnull,
@@ -3694,7 +3694,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
-        dag.create_dagrun(
+        dagrun = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=dag_model.next_dagrun,
             start_date=timezone.utcnow(),
@@ -3705,7 +3705,7 @@ class TestSchedulerJob(unittest.TestCase):
         )
         session.flush()
 
-        assert dag.has_dagrun(execution_date=DEFAULT_DATE, session=session)
+        assert dag.get_last_dagrun(session) == dagrun
 
         scheduler = SchedulerJob(subdir=os.devnull, executor=self.null_exec)
         scheduler.dagbag = dagbag

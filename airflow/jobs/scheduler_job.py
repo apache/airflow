@@ -34,7 +34,7 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
-from sqlalchemy import and_, func, not_, or_
+from sqlalchemy import and_, func, not_, or_, tuple_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
@@ -1563,6 +1563,20 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
         if/when the next DAGRun should be created
         """
+        # Bulk Fetch DagRuns with dag_id and execution_date same
+        # as DagModel.dag_id and DagModel.next_dagrun
+        # This list is used to verify if the DagRun already exist so that we don't attempt to create
+        # duplicate dag runs
+        active_dagruns = (
+            session.query(DagRun.dag_id, DagRun.execution_date)
+            .filter(
+                tuple_(DagRun.dag_id, DagRun.execution_date).in_(
+                    [(dm.dag_id, dm.next_dagrun) for dm in dag_models]
+                )
+            )
+            .all()
+        )
+
         for dag_model in dag_models:
             try:
                 dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
@@ -1579,7 +1593,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # we need to run self._update_dag_next_dagruns if the Dag Run already exists or if we
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
-            if not dag.has_dagrun(execution_date=dag_model.next_dagrun, session=session):
+            if (dag.dag_id, dag_model.next_dagrun) not in active_dagruns:
                 dag.create_dagrun(
                     run_type=DagRunType.SCHEDULED,
                     execution_date=dag_model.next_dagrun,
