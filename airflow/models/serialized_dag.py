@@ -93,6 +93,7 @@ class SerializedDagModel(Base):
         self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()
         self.dag_hash = hashlib.md5(json.dumps(self.data, sort_keys=True).encode("utf-8")).hexdigest()
+        self.load_op_links = True
 
     def __repr__(self):
         return f"<SerializedDag: {self.dag_id}>"
@@ -164,9 +165,9 @@ class SerializedDagModel(Base):
     def dag(self):
         """The DAG deserialized from the ``data`` column"""
         if isinstance(self.data, dict):
-            dag = SerializedDAG.from_dict(self.data)  # type: Any
+            dag = SerializedDAG.from_dict(self.data, load_op_links=self.load_op_links)  # type: Any
         else:
-            dag = SerializedDAG.from_json(self.data)  # noqa
+            dag = SerializedDAG.from_json(self.data, load_op_links=self.load_op_links)  # noqa
         return dag
 
     @classmethod
