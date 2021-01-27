@@ -20,7 +20,7 @@ THIRD_PARTY_INDEXES = {
     'celery': 'https://docs.celeryproject.org/en/stable',
     'hdfs': 'https://hdfscli.readthedocs.io/en/latest',
     'jinja2': 'https://jinja.palletsprojects.com/en/master',
-    'mongodb': 'https://api.mongodb.com/python/current',
+    'mongodb': 'https://pymongo.readthedocs.io/en/stable/',
     'pandas': 'https://pandas.pydata.org/pandas-docs/stable',
     'python': 'https://docs.python.org/3',
     'requests': 'https://requests.readthedocs.io/en/master',
