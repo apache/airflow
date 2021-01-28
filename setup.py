@@ -279,6 +279,7 @@ flask_oauth = [
 google = [
     'PyOpenSSL',
     'google-ads>=4.0.0,<8.0.0',
+    'google-api-core>=1.25.1,<2.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
     'google-auth>=1.0.0,<2.0.0',
     'google-auth-httplib2>=0.0.1',
@@ -306,6 +307,7 @@ google = [
     'google-cloud-translate>=1.5.0,<2.0.0',
     'google-cloud-videointelligence>=1.7.0,<2.0.0',
     'google-cloud-vision>=0.35.2,<2.0.0',
+    'google-cloud-workflows>=0.1.0,<2.0.0',
     'grpcio-gcp>=0.2.2',
     'json-merge-patch~=0.2',
     'pandas-gbq',

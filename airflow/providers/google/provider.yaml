@@ -277,6 +277,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/natural_language.rst
     logo: /integration-logos/gcp/Cloud-NLP.png
     tags: [gcp]
+  - integration-name: Google Cloud Workflows
+    external-doc-url: https://cloud.google.com/workflows/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/workflows.rst
+    tags: [gcp]
 
 operators:
   - integration-name: Google Ads
@@ -377,6 +382,9 @@ operators:
   - integration-name: Google Cloud Vision
     python-modules:
       - airflow.providers.google.cloud.operators.vision
+  - integration-name: Google Cloud Workflows
+    python-modules:
+      - airflow.providers.google.cloud.operators.workflows
   - integration-name: Google Cloud Firestore
     python-modules:
       - airflow.providers.google.firebase.operators.firestore
@@ -421,6 +429,9 @@ sensors:
   - integration-name: Google Cloud Pub/Sub
     python-modules:
       - airflow.providers.google.cloud.sensors.pubsub
+  - integration-name: Google Cloud Workflows
+    python-modules:
+      - airflow.providers.google.cloud.sensors.workflows
   - integration-name: Google Campaign Manager
     python-modules:
       - airflow.providers.google.marketing_platform.sensors.campaign_manager
@@ -541,6 +552,9 @@ hooks:
   - integration-name: Google Cloud Vision
     python-modules:
       - airflow.providers.google.cloud.hooks.vision
+  - integration-name: Google Cloud Workflows
+    python-modules:
+      - airflow.providers.google.cloud.hooks.workflows
   - integration-name: Google
     python-modules:
       - airflow.providers.google.common.hooks.base_google
