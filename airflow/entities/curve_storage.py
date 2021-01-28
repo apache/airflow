@@ -92,11 +92,9 @@ class ClsCurveStorage(ClsEntity):
 
     def convertCSVData(self, curve: Dict):
         data = Dataset()
-        data.headers = self._headersMap.values()
-        datamap = [curve.get(key, []) for key in self._headersMap.keys()]
-        if len(datamap) < 4:
-            raise BaseException(u'数据缺失')
-        zipData = zip(datamap[0], datamap[1], datamap[2], datamap[3])
+        data.headers = [self._headersMap[k] for k in curve.keys()]
+        datamap = [curve.get(key, []) for key in curve.keys()]
+        zipData = zip(*datamap)
         for d in zipData:
             data.append(d)
         return data.export('csv').encode('utf-8')
@@ -127,7 +125,6 @@ class ClsCurveStorage(ClsEntity):
         try:
             self.ensure_bucket(self._bucket)
             data = self.convertCSVData(curve)
-            _logger.info(data)
             f = io.BytesIO(data)  # 必须转换成rawIO数据
             self._client.put_object(
                 self._bucket, self.ObjectName, f, length=len(data))
@@ -136,22 +133,27 @@ class ClsCurveStorage(ClsEntity):
             raise Exception(u"写入曲线失败: {}".format(repr(err)))
 
     def csv_data_to_dict(self, data):
-        data_set = Dataset()
         f = io.StringIO(data)
-        data_set.headers = self._headersMap.values()
-        headers = f.readline()
         ret = {
             'cur_w': [],
             'cur_m': [],
             'cur_t': [],
             'cur_s': []
         }
+        headers = f.readline().split('\r\n')[0].split(',')
+        positions = []
+        for key in self._headersMap.keys():
+            if self._headersMap[key] not in headers:
+                continue
+            pos = headers.index(self._headersMap[key])
+            positions.append({
+                'key': key,
+                'pos': pos
+            })
         for row in f.readlines():
             row_data = row.split('\r\n')[0].split(',')
-            ret['cur_w'].append(float(row_data[0]))
-            ret['cur_m'].append(float(row_data[1]))
-            ret['cur_t'].append(float(row_data[2]))
-            ret['cur_s'].append(float(row_data[3]))
+            for p in positions:
+                ret[p['key']].append(float(row_data[p['pos']]))
         return ret
 
     def query_curve(self):
