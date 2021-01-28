@@ -65,6 +65,9 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      serviceAccountName: {{ default (printf "%s-pgbouncer" .Release.Name) .Values.pgbouncer.serviceAccount.name }}
+      securityContext:
+        runAsUser: {{ .Values.pgbouncer.uid }}
       restartPolicy: Always
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:

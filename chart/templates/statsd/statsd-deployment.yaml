@@ -62,6 +62,9 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      serviceAccountName: {{ default (printf "%s-statsd" .Release.Name) .Values.statsd.serviceAccount.name }}
+      securityContext:
+        runAsUser: {{ .Values.statsd.uid }}
       restartPolicy: Always
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:

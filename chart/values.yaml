@@ -463,6 +463,17 @@ scheduler:
   affinity: {}
   tolerations: []
 
+# Airflow migration and create user job settings
+jobs:
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
 # Airflow webserver settings
 webserver:
   allowPodLogReading: true
@@ -559,6 +570,17 @@ flower:
   #     cpu: 100m
   #     memory: 128Mi
 
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # A secret containing the connection
   secretName: ~
 
@@ -577,6 +599,18 @@ flower:
 # Statsd settings
 statsd:
   enabled: true
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # Additional network policies as needed
   extraNetworkPolicies: []
   resources: {}
@@ -598,10 +632,24 @@ statsd:
   # Additional mappings for statsd exporter.
   extraMappings: []
 
+  uid: 65534
+
 # Pgbouncer settings
 pgbouncer:
   # Enable pgbouncer
   enabled: false
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # Additional network policies as needed
   extraNetworkPolicies: []
 
@@ -671,6 +719,8 @@ pgbouncer:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  uid: 65534
 
 # Configuration for the redis provisioned by the chart
 redis:
