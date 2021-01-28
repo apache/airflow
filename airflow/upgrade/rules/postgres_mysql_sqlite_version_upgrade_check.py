@@ -21,7 +21,7 @@ from airflow.utils.db import provide_session
 
 
 class DatabaseVersionCheckRule(BaseRule):
-    """DatabaseVersionCheckRule class upgrade check rule"""
+    """DatabaseVersionCheckRule class rule to ease upgrade to Airflow 2.0"""
 
     title = "Check versions of PostgreSQL, MySQL, and SQLite to ease upgrade to Airflow 2.0"
 
@@ -42,9 +42,9 @@ SQLite - 3.15+
         if "sqlite" in conn_str:
             result = session.execute('select sqlite_version();').fetchone()[0]
             if int(result.split('.')[0]) < 3:
-                return "SQLite version below 3.15+ not supported. \n" + more_info
+                return "SQLite version below 3.15 not supported. \n" + more_info
             elif int(result.split('.')[0]) == 3 and int(result.split('.')[1]) < 15:
-                return "SQLite version below 3.15+ not supported. \n" + more_info
+                return "SQLite version below 3.15 not supported. \n" + more_info
 
         elif "postgres" in conn_str:
             result = session.execute('SELECT VERSION();').fetchone()[0]
