@@ -111,12 +111,17 @@ In the second terminal you can check the condition of the containers and make su
     74f3bbe506eb   postgres:13                       "docker-entrypoint.s…"   18 minutes ago   Up 17 minutes (healthy)   5432/tcp                           compose_postgres_1
     0bd6576d23cb   redis:latest                      "docker-entrypoint.s…"   10 hours ago     Up 17 minutes (healthy)   0.0.0.0:6379->6379/tcp             compose_redis_1
 
-Once the cluster has started up, you can log in to the web interface and try to run some tasks. The webserver available at: ``http://localhost:8080``. The default account has the login ``airflow`` and the password ``airflow``.
+Accessing the environment
+=========================
 
-.. image:: /img/dags.png
+After starting Airflow, you can interact with it in 3 ways;
 
-Accessing Command Line Interface
-================================
+* by running :doc:`CLI commands </usage-cli>`.
+* via a browser using :doc:`the web interface </ui>`.
+* using :doc:`the REST API </stable-rest-api-ref>`.
+
+Running the CLI commands
+------------------------
 
 You can also run :doc:`CLI commands </usage-cli>`, but you have to do it in one of the defined ``airflow-*`` services. For example, to run ``airflow info``, run the following command:
 
@@ -149,6 +154,34 @@ python container.
 .. code-block:: bash
 
     ./airflow.sh python
+
+Accessing the web interface
+---------------------------
+
+Once the cluster has started up, you can log in to the web interface and try to run some tasks.
+
+The webserver available at: ``http://localhost:8080``.
+The default account has the login ``airflow`` and the password ``airflow``.
+
+Sending requests to the REST API
+--------------------------------
+
+`Basic username password authentication <https://tools.ietf.org/html/rfc7617
+https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
+supported for the REST API, which means you can use common tools to send requests to the API.
+
+The webserver available at: ``http://localhost:8080``.
+The default account has the login ``airflow`` and the password ``airflow``.
+
+Here is a sample ``curl`` command, which sends a request to retrieve a pool list:
+
+.. code-block:: bash
+
+    ENDPOINT_URL="http://localhost:8080/"
+    curl -X GET  \
+        --user "airflow:airflow" \
+        "${ENDPOINT_URL}/api/v1/pools"
+
 
 Cleaning up
 ===========
