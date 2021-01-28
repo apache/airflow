@@ -26,6 +26,9 @@ Configuring the Connection
 Dsn (required)
     The Data Source Name. The host address for the Oracle server.
 
+Host(optional)
+    Connect descriptor string for the data source name.
+
 Sid (optional)
     The Oracle System ID. The uniquely identify a particular database on a system.
 
@@ -60,8 +63,34 @@ Extra (optional)
     * ``purity`` - one of ``new``, ``self``, ``default``. Specify the session acquired from the pool.
       configuration parameter.
 
-    More details on all Oracle connect parameters supported can be found in
-    `cx_Oracle documentation <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_.
+    Connect using Dsn and Sid, Dsn and Service_name, or only Host `(OracleHook.getconn Documentation) <https://airflow.apache.org/docs/apache-airflow-providers-oracle/stable/_modules/airflow/providers/oracle/hooks/oracle.html#OracleHook.get_conn>`_.
+
+    For example:
+
+    .. code-block:: python
+
+        Host = "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=dbhost.example.com)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb1)))"
+
+    or
+
+    .. code-block:: python
+
+        Dsn = "dbhost.example.com"
+        Service_name = "orclpdb1"
+
+    or
+
+    .. code-block:: python
+
+        Dsn = "dbhost.example.com"
+        Sid = "orcl"
+
+
+    More details on all Oracle connect parameters supported can be found in `cx_Oracle documentation
+    <https://cx-oracle.readthedocs.io/en/latest/api_manual/module.html#cx_Oracle.connect>`_.
+
+    Information on creating an Oracle Connection through the web user interface can be found in Airflow's :doc:`Managing Connections Documentation <apache-airflow:howto/connection>`.
+
 
     Example "extras" field:
 
