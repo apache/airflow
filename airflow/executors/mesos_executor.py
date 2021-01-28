@@ -312,8 +312,6 @@ class MesosExecutor(BaseExecutor):
 
         self.client.set_role(framework_role)
 
-        if framework_failover_timeout:
-            self.client.set_failover_timeout(framework_failover_timeout)
         if framework_checkpoint:
             self.client.set_checkpoint(framework_checkpoint)
 
