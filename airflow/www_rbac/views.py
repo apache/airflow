@@ -2577,14 +2577,11 @@ class ErrorTagModelView(AirflowModelView):
     @expose("/list/")
     @has_access
     def list(self):
-        widgets = self._list()
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, current_user.last_name,
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '查看错误标签')
         logging.info(msg)
-        return self.render_template(
-            self.list_template, title=self.list_title, widgets=widgets
-        )
+        return super(ErrorTagModelView, self).list()
 
 
 class TighteningControllerView(AirflowModelView):
@@ -2652,15 +2649,12 @@ class TighteningControllerView(AirflowModelView):
     @expose("/list/")
     @has_access
     def list(self):
-        widgets = self._list()
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, current_user.last_name,
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'],
                                        '查看控制器')
         logging.info(msg)
-        return self.render_template(
-            self.list_template, title=self.list_title, widgets=widgets
-        )
+        return super(TighteningControllerView, self).list()
 
 
 class PoolModelView(AirflowModelView):
@@ -3144,6 +3138,8 @@ class TaskInstanceModelView(AirflowModelView):
         ret = ''
         try:
             error_tags = attr.get('error_tag').split(',')
+            if not error_tags:
+                return u'无异常标签'
             error_tag_vals = ErrorTag.get_all_dict() or {}
             for tag in error_tags:
                 ret += error_tag_vals.get(tag, '')
