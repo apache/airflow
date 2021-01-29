@@ -535,6 +535,11 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 permissions.RESOURCE_DAG_RUN,
             ) in user_permissions
 
+            can_delete_dag = (
+                permissions.ACTION_CAN_DELETE,
+                permissions.RESOURCE_DAG,
+            ) in user_permissions
+
             for dag in dags:
                 if all_dags_editable:
                     dag.can_edit = True
@@ -542,6 +547,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                     dag_resource_name = permissions.RESOURCE_DAG_PREFIX + dag.dag_id
                     dag.can_edit = (permissions.ACTION_CAN_EDIT, dag_resource_name) in user_permissions
                 dag.can_trigger = dag.can_edit and can_create_dag_run
+                dag.can_delete = can_delete_dag
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
