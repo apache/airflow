@@ -145,7 +145,11 @@ def clear_task_instances(
     :param activate_dag_runs: flag to check for active dag run
     :param dag: DAG object
     """
+    from sqlalchemy import and_, or_
+
     job_ids = []
+
+    tr_filter = []
     for ti in tis:
         if ti.state == State.RUNNING:
             if ti.job_id:
@@ -166,13 +170,22 @@ def clear_task_instances(
                 ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
             ti.state = State.NONE
             session.merge(ti)
-        # Clear all reschedules related to the ti to clear
-        session.query(TR).filter(
-            TR.dag_id == ti.dag_id,
-            TR.task_id == ti.task_id,
-            TR.execution_date == ti.execution_date,
-            TR.try_number == ti.try_number,
-        ).delete()
+
+        tr_filter.append((ti.dag_id, ti.task_id, ti.execution_date, ti.try_number))
+
+    # Clear all reschedules related to the ti to clear
+    tr_qry = session.query(TR).filter(
+        or_(
+            and_(
+                TR.dag_id == dag_id,
+                TR.task_id == task_id,
+                TR.execution_date == execution_date,
+                TR.try_number == try_number,
+            )
+            for dag_id, task_id, execution_date, try_number in tr_filter
+        )
+    )
+    tr_qry.delete()
 
     if job_ids:
         from airflow.jobs.base_job import BaseJob
