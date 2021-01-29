@@ -21,7 +21,6 @@ from airflow.utils.db import provide_session
 
 
 class DatabaseVersionCheckRule(BaseRule):
-    """DatabaseVersionCheckRule class rule to ease upgrade to Airflow 2.0"""
 
     title = "Check versions of PostgreSQL, MySQL, and SQLite to ease upgrade to Airflow 2.0"
 
