@@ -28,6 +28,19 @@ class ErrorTag(Base):
             'value': error_tag.value
         }
 
+    @staticmethod
+    def _error_tag_label(error_tag):
+        return error_tag.label
+
+    @classmethod
+    @provide_session
+    def get_all_dict(cls, session=None):
+        objs = session.query(cls).all()
+        ret = {}
+        for o in objs:
+            ret.update({o.value: cls._error_tag_label(o)})
+        return ret
+
     @classmethod
     @provide_session
     def get_all(cls, session=None):

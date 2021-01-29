@@ -18,6 +18,7 @@
 # under the License.
 
 from future import standard_library  # noqa
+
 standard_library.install_aliases()  # noqa
 
 import functools
@@ -173,9 +174,9 @@ def generate_pages(current_page, num_of_pages,
         vals = {
             'is_active': 'active' if is_current(current_page, page) else '',
             'href_link': void_link if is_current(current_page, page)
-                         else '?{}'.format(get_params(page=page,
-                                                      search=search,
-                                                      showPaused=showPaused)),
+            else '?{}'.format(get_params(page=page,
+                                         search=search,
+                                         showPaused=showPaused)),
             'page_num': page + 1
         }
         output.append(page_node.format(**vals))
@@ -266,6 +267,7 @@ def nobr_f(attr_name):
     def nobr(attr):
         f = attr.get(attr_name)
         return Markup("<nobr>{}</nobr>").format(f)
+
     return nobr
 
 
@@ -280,6 +282,7 @@ def datetime_f(attr_name):
             f = f[5:]
         # The empty title will be replaced in JS code when non-UTC dates are displayed
         return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, f)
+
     return dt
 
 
@@ -433,7 +436,6 @@ class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual
 
 
 class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
-
     conversion_table = (
         (('is_utcdatetime', [UtcAwareFilterEqual,
                              UtcAwareFilterGreater,
@@ -443,6 +445,10 @@ class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     )
 
 
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.error_tag import ErrorTag
+
+
 class CustomSQLAInterface(SQLAInterface):
     """
     FAB does not know how to handle columns with leading underscores because
@@ -450,6 +456,7 @@ class CustomSQLAInterface(SQLAInterface):
     '_' from the key to lookup the column names.
 
     """
+
     def __init__(self, obj, session=None):
         super(CustomSQLAInterface, self).__init__(obj, session=session)
 
@@ -463,14 +470,40 @@ class CustomSQLAInterface(SQLAInterface):
 
         clean_column_names()
 
+    def query(
+        self,
+        filters=None,
+        order_column="",
+        order_direction="",
+        page=None,
+        page_size=None,
+        select_columns=None,
+    ):
+        if filters:
+            for idx, filter in enumerate(filters.filters):
+                if filter.column_name == 'error_tag' and issubclass(filter.model, TaskInstance):
+                    v = filters.values[idx]
+                    d = ErrorTag.get_all()
+                    for dd in d:
+                        if v in dd.get('label'):
+                            filters.values[idx] = dd.get('value')
+                            # fixme: 现在不支持多个查询联合查询，如查询异常，只能包含某个值的数据
+                            break
+        return super(CustomSQLAInterface, self).query(filters=None,
+                                                      order_column="",
+                                                      order_direction="",
+                                                      page=None,
+                                                      page_size=None,
+                                                      select_columns=None)
+
     def is_utcdatetime(self, col_name):
         from airflow.utils.sqlalchemy import UtcDateTime
 
         if col_name in self.list_columns:
             obj = self.list_columns[col_name].type
             return isinstance(obj, UtcDateTime) or \
-                isinstance(obj, sqla.types.TypeDecorator) and \
-                isinstance(obj.impl, UtcDateTime)
+                   isinstance(obj, sqla.types.TypeDecorator) and \
+                   isinstance(obj.impl, UtcDateTime)
         return False
 
     filter_converter_class = UtcAwareFilterConverter
