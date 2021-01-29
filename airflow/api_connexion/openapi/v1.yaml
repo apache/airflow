@@ -1928,6 +1928,7 @@ components:
               type: string
               format: 'date-time'
               readOnly: true
+              nullable: true
             dag_run_timeout:
               nullable: true
               $ref: '#/components/schemas/TimeDelta'

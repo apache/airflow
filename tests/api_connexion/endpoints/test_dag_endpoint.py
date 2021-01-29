@@ -42,6 +42,7 @@ class TestDagEndpoint(unittest.TestCase):
     dag_id = "test_dag"
     task_id = "op1"
     dag2_id = "test_dag2"
+    dag3_id = "test_dag3"
 
     @staticmethod
     def clean_db():
@@ -80,10 +81,16 @@ class TestDagEndpoint(unittest.TestCase):
         with DAG(cls.dag2_id, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
             DummyOperator(task_id=cls.task_id)
 
+        with DAG(cls.dag3_id) as dag3:  # DAG start_date set to None
+            DummyOperator(task_id=cls.task_id, start_date=datetime(2019, 6, 12))
+
         cls.dag = dag  # type:ignore
         cls.dag2 = dag2  # type: ignore
+        cls.dag3 = dag3  # tupe: ignore
+
         dag_bag = DagBag(os.devnull, include_examples=False)
-        dag_bag.dags = {dag.dag_id: dag, dag2.dag_id: dag2}
+        dag_bag.dags = {dag.dag_id: dag, dag2.dag_id: dag2, dag3.dag_id: dag3}
+
         cls.app.dag_bag = dag_bag  # type:ignore
 
     @classmethod
@@ -244,6 +251,38 @@ class TestGetDagDetails(TestDagEndpoint):
                 "seconds": 0,
             },
             "start_date": "2020-06-15T00:00:00+00:00",
+            "tags": None,
+            "timezone": "Timezone('UTC')",
+        }
+        assert response.json == expected
+
+    def test_should_response_200_for_null_start_date(self):
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag3_id}/details", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        expected = {
+            "catchup": True,
+            "concurrency": 16,
+            "dag_id": "test_dag3",
+            "dag_run_timeout": None,
+            "default_view": "tree",
+            "description": None,
+            "doc_md": None,
+            "fileloc": __file__,
+            "file_token": FILE_TOKEN,
+            "is_paused": None,
+            "is_subdag": False,
+            "orientation": "LR",
+            "owners": [],
+            "params": {},
+            "schedule_interval": {
+                "__type": "TimeDelta",
+                "days": 1,
+                "microseconds": 0,
+                "seconds": 0,
+            },
+            "start_date": None,
             "tags": None,
             "timezone": "Timezone('UTC')",
         }
