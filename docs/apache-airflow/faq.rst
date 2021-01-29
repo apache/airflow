@@ -205,7 +205,7 @@ This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server 
 How to reduce airflow dag scheduling latency in production?
 -----------------------------------------------------------
 
-Airflow 2 has low DAG scheduling latency out of the box (particularly when compare with Airflow 1.10.x),
+Airflow 2 has low DAG scheduling latency out of the box (particularly when compared with Airflow 1.10.x),
 however if you need more throughput you can :ref:`start multiple schedulers<scheduler:ha>`.
 
 Why next_ds or prev_ds might not contain expected values?
