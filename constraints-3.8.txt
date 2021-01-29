@@ -145,7 +145,7 @@ gevent==21.1.2
 gitdb==4.0.5
 github3.py==1.3.0
 google-ads==7.0.0
-google-api-core==1.25.0
+google-api-core==1.25.1
 google-api-python-client==1.12.8
 google-auth-httplib2==0.0.4
 google-auth-oauthlib==0.4.2
@@ -177,6 +177,7 @@ google-cloud-texttospeech==1.0.1
 google-cloud-translate==1.7.0
 google-cloud-videointelligence==1.16.1
 google-cloud-vision==1.0.0
+google-cloud-workflows==0.2.0
 google-crc32c==1.1.2
 google-resumable-media==1.2.0
 googleapis-common-protos==1.52.0
