@@ -180,7 +180,7 @@ the parameter value is used.
 Adding dependencies to decorated tasks from regular tasks
 ---------------------------------------------------------
 The above tutorial shows how to create dependencies between python-based tasks. However, it is
-quite possible while writing a DAG to have some pre-existing tasks such as BashOperator or FileSensor
+quite possible while writing a DAG to have some pre-existing tasks such as :class:`~airflow.operators.bash.BashOperator` or :class:`~airflow.sensors.filesystem.FileSensor`
 based tasks which need to be run first before a python-based task is run.
 
 Building this dependency is shown in the code below:
