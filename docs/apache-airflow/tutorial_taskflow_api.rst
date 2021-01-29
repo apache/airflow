@@ -171,6 +171,40 @@ is automatically set to true.
 Note, If you manually set the ``multiple_outputs`` parameter the inference is disabled and
 the parameter value is used.
 
+Adding dependencies to decorated tasks from regular tasks
+---------------------------------------------------------
+The above tutorial shows how to create dependencies between python-based tasks. However, it is
+quite possible while writing a DAG to have some pre-existing tasks such as :class:`~airflow.operators.bash.BashOperator` or :class:`~airflow.sensors.filesystem.FileSensor`
+based tasks which need to be run first before a python-based task is run.
+
+Building this dependency is shown in the code below:
+
+.. code-block:: python
+
+    @task()
+        def extract_from_file():
+        """
+        #### Extract from file task
+        A simple Extract task to get data ready for the rest of the data
+        pipeline, by reading the data from a file into a pandas dataframe
+        """
+        order_data_file = '/tmp/order_data.csv'
+        order_data_df = pd.read_csv(order_data_file)
+
+
+    file_task = FileSensor(task_id='check_file', filepath='/tmp/order_data.csv')
+    order_data = extract_from_file()
+
+    file_task >> order_data
+
+
+In the above code block, a new python-based task is defined as ``extract_from_file`` which
+reads the data from a known file location.
+In the main DAG, a new ``FileSensor`` task is defined to check for this file. Please note
+that this is a Sensor task which waits for the file.
+Finally, a dependency between this Sensor task and the python-based task is specified.
+
+
 What's Next?
 ------------
 
