@@ -38,7 +38,7 @@ class CloudSecretManagerBackendVariableSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
     @mock.patch.dict('os.environ', AIRFLOW__SECRETS__BACKEND=BACKEND_IMPORT_PATH)
     def test_should_read_secret_from_variable(self):
-        cmd = f'echo -n "TEST_CONTENT" | gcloud beta secrets create \
+        cmd = f'echo -n "TEST_CONTENT" | gcloud secrets create \
             {self.secret_name} --data-file=-  --replication-policy=automatic'
         subprocess.run(["bash", "-c", cmd], check=True)
         result = subprocess.check_output(['airflow', 'variables', 'get', self.name])
@@ -59,11 +59,12 @@ class CloudSecretManagerBackendConnectionSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
     @mock.patch.dict('os.environ', AIRFLOW__SECRETS__BACKEND=BACKEND_IMPORT_PATH)
     def test_should_read_secret_from_variable(self):
-        cmd = f'echo -n "mysql://user:pass@example.org" | gcloud beta secrets create \
+        cmd = f'echo -n "mysql://user:pass@example.org" | gcloud secrets create \
             {self.secret_name} --data-file=- --replication-policy=automatic'
         subprocess.run(["bash", "-c", cmd], check=True)
-        result = subprocess.check_output(['airflow', 'connections', 'get', self.name])
-        assert "URI: mysql://user:pass@example.org" in result.decode()
+        result = subprocess.check_output(['airflow', 'connections', 'get', self.name, '--output', 'json'])
+        assert "mysql://user:pass@example.org" in result.decode()
+        assert self.name in result.decode()
 
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY, project_id=GoogleSystemTest._project_id())
     def tearDown(self) -> None:

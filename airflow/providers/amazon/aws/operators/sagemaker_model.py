@@ -53,6 +53,6 @@ class SageMakerModelOperator(SageMakerBaseOperator):
         self.log.info('Creating SageMaker Model %s.', self.config['ModelName'])
         response = self.hook.create_model(self.config)
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException('Sagemaker model creation failed: %s' % response)
+            raise AirflowException(f'Sagemaker model creation failed: {response}')
         else:
             return {'Model': self.hook.describe_model(self.config['ModelName'])}

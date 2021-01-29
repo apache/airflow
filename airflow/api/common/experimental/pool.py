@@ -29,7 +29,7 @@ def get_pool(name, session=None):
 
     pool = session.query(Pool).filter_by(pool=name).first()
     if pool is None:
-        raise PoolNotFound("Pool '%s' doesn't exist" % name)
+        raise PoolNotFound(f"Pool '{name}' doesn't exist")
 
     return pool
 
@@ -49,7 +49,7 @@ def create_pool(name, slots, description, session=None):
     try:
         slots = int(slots)
     except ValueError:
-        raise AirflowBadRequest("Bad value for `slots`: %s" % slots)
+        raise AirflowBadRequest(f"Bad value for `slots`: {slots}")
 
     # Get the length of the pool column
     pool_name_length = Pool.pool.property.columns[0].type.length
@@ -81,7 +81,7 @@ def delete_pool(name, session=None):
 
     pool = session.query(Pool).filter_by(pool=name).first()
     if pool is None:
-        raise PoolNotFound("Pool '%s' doesn't exist" % name)
+        raise PoolNotFound(f"Pool '{name}' doesn't exist")
 
     session.delete(pool)
     session.commit()

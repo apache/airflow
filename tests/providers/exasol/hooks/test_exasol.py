@@ -142,3 +142,23 @@ class TestExasolHook(unittest.TestCase):
 
     def test_serialize_cell(self):
         assert 'foo' == self.db_hook._serialize_cell('foo', None)
+
+    def test_export_to_file(self):
+        file_name = "file_name"
+        query_or_table = "query_or_table"
+        query_params = {"query_params": "1"}
+        export_params = {"export_params": "2"}
+
+        self.db_hook.export_to_file(
+            filename=file_name,
+            query_or_table=query_or_table,
+            query_params=query_params,
+            export_params=export_params,
+        )
+
+        self.conn.export_to_file.assert_called_once_with(
+            dst=file_name,
+            query_or_table=query_or_table,
+            query_params=query_params,
+            export_params=export_params,
+        )

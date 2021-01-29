@@ -310,7 +310,8 @@ function reinstall_azure_storage_blob() {
     echo
     echo "Reinstalling azure-storage-blob"
     echo
-    pip install azure-storage-blob --no-deps --force-reinstall
+    pip uninstall azure-storage azure-storage-blob azure-storage-file --yes
+    pip install azure-storage-blob azure-storage-file --no-deps --force-reinstall
     group_end
 }
 

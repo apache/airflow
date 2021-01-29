@@ -42,7 +42,7 @@ class ClassWithCustomAttributes:
             setattr(self, key, value)
 
     def __str__(self):
-        return "{}({})".format(ClassWithCustomAttributes.__name__, str(self.__dict__))
+        return f"{ClassWithCustomAttributes.__name__}({str(self.__dict__)})"
 
     def __repr__(self):
         return self.__str__()
@@ -154,7 +154,7 @@ class TestBaseOperator(unittest.TestCase):
             ({"user_defined_macros": {"foo": "bar"}}, "{{ foo }}", {}, "bar"),
             ({"user_defined_macros": {"foo": "bar"}}, 1, {}, 1),
             (
-                {"user_defined_filters": {"hello": lambda name: "Hello %s" % name}},
+                {"user_defined_filters": {"hello": lambda name: f"Hello {name}"}},
                 "{{ 'world' | hello }}",
                 {},
                 "Hello world",

@@ -174,7 +174,7 @@ function verify_production_image_features() {
     check_feature "Import: redis" "python -c 'import redis'"
     check_feature "Import: sendgrid" "python -c 'import sendgrid'"
     check_feature "Import: sftp/ssh" "python -c 'import paramiko, pysftp, sshtunnel'"
-    check_feature "Import: slack" "python -c 'import slack'"
+    check_feature "Import: slack" "python -c 'import slack_sdk'"
     check_feature "Import: statsd" "python -c 'import statsd'"
     check_feature "Import: virtualenv" "python -c 'import virtualenv'"
 

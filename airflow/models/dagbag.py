@@ -184,7 +184,7 @@ class DagBag(LoggingMixin):
                     dag_id=dag_id,
                     session=session,
                 )
-                if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
+                if sd_last_updated_datetime and sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
                     self._add_dag_from_db(dag_id=dag_id, session=session)
 
             return self.dags.get(dag_id)
@@ -557,11 +557,11 @@ class DagBag(LoggingMixin):
                 )
                 self.log.debug("Calling the DAG.bulk_sync_to_db method")
                 try:
-                    DAG.bulk_write_to_db(self.dags.values(), session=session)
-
                     # Write Serialized DAGs to DB, capturing errors
                     for dag in self.dags.values():
                         serialize_errors.extend(_serialze_dag_capturing_errors(dag, session))
+
+                    DAG.bulk_write_to_db(self.dags.values(), session=session)
                 except OperationalError:
                     session.rollback()
                     raise

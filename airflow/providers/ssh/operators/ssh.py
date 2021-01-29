@@ -168,7 +168,7 @@ class SSHOperator(BaseOperator):
                     raise AirflowException(f"error running cmd: {self.command}, error: {error_msg}")
 
         except Exception as e:
-            raise AirflowException("SSH operator error: {}".format(str(e)))
+            raise AirflowException(f"SSH operator error: {str(e)}")
 
         return True
 

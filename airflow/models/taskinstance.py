@@ -1594,9 +1594,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         yesterday_ds_nodash = yesterday_ds.replace('-', '')
         tomorrow_ds_nodash = tomorrow_ds.replace('-', '')
 
-        ti_key_str = "{dag_id}__{task_id}__{ds_nodash}".format(
-            dag_id=task.dag_id, task_id=task.task_id, ds_nodash=ds_nodash
-        )
+        ti_key_str = f"{task.dag_id}__{task.task_id}__{ds_nodash}"
 
         if task.params:
             params.update(task.params)

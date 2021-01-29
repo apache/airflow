@@ -27,11 +27,12 @@ from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
-BQ_SQL_DATASET = os.environ.get("DATAFLOW_BQ_SQL_DATASET", "airflow_dataflow_samples")
-BQ_SQL_TABLE_INPUT = os.environ.get("BQ_SQL_TABLE_INPUT", "beam_input")
-BQ_SQL_TABLE_OUTPUT = os.environ.get("BQ_SQL_TABLE_OUTPUT", "beam_output")
-DATAFLOW_SQL_JOB_NAME = os.environ.get("DATAFLOW_SQL_JOB_NAME", "dataflow-sql")
-DATAFLOW_SQL_LOCATION = os.environ.get("DATAFLOW_SQL_LOCATION", "us-west1")
+BQ_SQL_DATASET = os.environ.get("GCP_DATAFLOW_BQ_SQL_DATASET", "airflow_dataflow_samples")
+BQ_SQL_TABLE_INPUT = os.environ.get("GCP_DATAFLOW_BQ_SQL_TABLE_INPUT", "beam_input")
+BQ_SQL_TABLE_OUTPUT = os.environ.get("GCP_DATAFLOW_BQ_SQL_TABLE_OUTPUT", "beam_output")
+DATAFLOW_SQL_JOB_NAME = os.environ.get("GCP_DATAFLOW_SQL_JOB_NAME", "dataflow-sql")
+DATAFLOW_SQL_LOCATION = os.environ.get("GCP_DATAFLOW_SQL_LOCATION", "us-west1")
+
 
 with models.DAG(
     dag_id="example_gcp_dataflow_sql",

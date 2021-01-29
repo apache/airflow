@@ -118,8 +118,8 @@ class TestAwsS3Hook:
         bucket = hook.get_bucket(s3_bucket)
 
         # we don't need to test the paginator that's covered by boto tests
-        keys = ["%s/b" % i for i in range(2)]
-        dirs = ["%s/" % i for i in range(2)]
+        keys = [f"{i}/b" for i in range(2)]
+        dirs = [f"{i}/" for i in range(2)]
         for key in keys:
             bucket.put_object(Key=key, Body=b'a')
 

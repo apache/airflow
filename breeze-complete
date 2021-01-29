@@ -95,6 +95,7 @@ dont-use-safe-filter
 end-of-file-fixer
 fix-encoding-pragma
 flake8
+flynt
 forbid-tabs
 helm-lint
 identity

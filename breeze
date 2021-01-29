@@ -2411,7 +2411,7 @@ function breeze::flag_packages() {
 
 ${FORMATTED_PACKAGE_FORMATS}
 
-        Default: ${_breeze_default_package_formats:=}
+        Default: ${_breeze_default_package_format:=}
 
 "
 }

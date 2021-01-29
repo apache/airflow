@@ -141,11 +141,9 @@ class S3ToSnowflakeOperator(BaseOperator):
                 schema=self.schema, table=self.table, columns=",".join(self.columns_array), base_sql=base_sql
             )
         else:
-            copy_query = """
-                COPY INTO {schema}.{table} {base_sql}
-            """.format(
-                schema=self.schema, table=self.table, base_sql=base_sql
-            )
+            copy_query = f"""
+                COPY INTO {self.schema}.{self.table} {base_sql}
+            """
         copy_query = "\n".join(line.strip() for line in copy_query.splitlines())
 
         self.log.info('Executing COPY command...')

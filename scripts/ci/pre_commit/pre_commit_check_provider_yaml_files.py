@@ -98,16 +98,16 @@ def assert_sets_equal(set1, set2):
     try:
         difference1 = set1.difference(set2)
     except TypeError as e:
-        raise AssertionError('invalid type when attempting set difference: %s' % e)
+        raise AssertionError(f'invalid type when attempting set difference: {e}')
     except AttributeError as e:
-        raise AssertionError('first argument does not support set difference: %s' % e)
+        raise AssertionError(f'first argument does not support set difference: {e}')
 
     try:
         difference2 = set2.difference(set1)
     except TypeError as e:
-        raise AssertionError('invalid type when attempting set difference: %s' % e)
+        raise AssertionError(f'invalid type when attempting set difference: {e}')
     except AttributeError as e:
-        raise AssertionError('second argument does not support set difference: %s' % e)
+        raise AssertionError(f'second argument does not support set difference: {e}')
 
     if not (difference1 or difference2):
         return

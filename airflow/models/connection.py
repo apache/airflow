@@ -165,7 +165,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
     def get_uri(self) -> str:
         """Return connection in URI format"""
-        uri = '{}://'.format(str(self.conn_type).lower().replace('_', '-'))
+        uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
 
         authority_block = ''
         if self.login is not None:
@@ -190,12 +190,12 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
                 host_block += f'@:{self.port}'
 
         if self.schema:
-            host_block += '/{}'.format(quote(self.schema, safe=''))
+            host_block += f"/{quote(self.schema, safe='')}"
 
         uri += host_block
 
         if self.extra_dejson:
-            uri += '?{}'.format(urlencode(self.extra_dejson))
+            uri += f'?{urlencode(self.extra_dejson)}'
 
         return uri
 

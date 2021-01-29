@@ -105,7 +105,7 @@ class TestDagBag(unittest.TestCase):
                 dagbag = models.DagBag(include_examples=False, safe_mode=True)
 
             assert len(dagbag.dagbag_stats) == 1
-            assert dagbag.dagbag_stats[0].file == "/{}".format(os.path.basename(f.name))
+            assert dagbag.dagbag_stats[0].file == f"/{os.path.basename(f.name)}"
 
     def test_safe_mode_heuristic_mismatch(self):
         """With safe mode enabled, a file not matching the discovery heuristics
@@ -122,7 +122,7 @@ class TestDagBag(unittest.TestCase):
             with conf_vars({('core', 'dags_folder'): self.empty_dir}):
                 dagbag = models.DagBag(include_examples=False, safe_mode=False)
             assert len(dagbag.dagbag_stats) == 1
-            assert dagbag.dagbag_stats[0].file == "/{}".format(os.path.basename(f.name))
+            assert dagbag.dagbag_stats[0].file == f"/{os.path.basename(f.name)}"
 
     def test_process_file_that_contains_multi_bytes_char(self):
         """
@@ -298,7 +298,7 @@ class TestDagBag(unittest.TestCase):
         actual_found_dag_ids = list(map(lambda dag: dag.dag_id, actual_found_dags))
 
         for dag_id in expected_dag_ids:
-            actual_dagbag.log.info('validating %s' % dag_id)
+            actual_dagbag.log.info(f'validating {dag_id}')
             assert (
                 dag_id in actual_found_dag_ids
             ) == should_be_found, 'dag "{}" should {}have been found after processing dag "{}"'.format(

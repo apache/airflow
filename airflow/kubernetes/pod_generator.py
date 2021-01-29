@@ -39,8 +39,6 @@ from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.pod_generator_deprecated import PodGenerator as PodGeneratorDeprecated
 from airflow.version import version as airflow_version
 
-MAX_POD_ID_LEN = 253
-
 MAX_LABEL_LEN = 63
 
 
@@ -355,7 +353,7 @@ class PodGenerator:
         pod_override_object: Optional[k8s.V1Pod],
         base_worker_pod: k8s.V1Pod,
         namespace: str,
-        scheduler_job_id: str,
+        scheduler_job_id: int,
     ) -> k8s.V1Pod:
         """
         Construct a pod by gathering and consolidating the configuration from 3 places:
@@ -370,6 +368,10 @@ class PodGenerator:
         except Exception:  # pylint: disable=W0703
             image = kube_image
 
+        task_id = make_safe_label_value(task_id)
+        dag_id = make_safe_label_value(dag_id)
+        scheduler_job_id = make_safe_label_value(str(scheduler_job_id))
+
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
@@ -381,7 +383,7 @@ class PodGenerator:
                 },
                 name=PodGenerator.make_unique_pod_id(pod_id),
                 labels={
-                    'airflow-worker': str(scheduler_job_id),
+                    'airflow-worker': scheduler_job_id,
                     'dag_id': dag_id,
                     'task_id': task_id,
                     'execution_date': datetime_to_label_safe_datestring(date),
@@ -450,11 +452,17 @@ class PodGenerator:
         return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)  # pylint: disable=W0212
 
     @staticmethod
-    def make_unique_pod_id(pod_id):
+    def make_unique_pod_id(pod_id: str) -> str:
         r"""
-        Kubernetes pod names must be <= 253 chars and must pass the following regex for
-        validation
+        Kubernetes pod names must consist of one or more lowercase
+        rfc1035/rfc1123 labels separated by '.' with a maximum length of 253
+        characters. Each label has a maximum length of 63 characters.
+
+        Name must pass the following regex for validation
         ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
+
+        For more details, see:
+        https://github.com/kubernetes/kubernetes/blob/release-1.1/docs/design/identifiers.md
 
         :param pod_id: a dag_id with only alphanumeric characters
         :return: ``str`` valid Pod name of appropriate length
@@ -462,8 +470,9 @@ class PodGenerator:
         if not pod_id:
             return None
 
-        safe_uuid = uuid.uuid4().hex
-        safe_pod_id = pod_id[: MAX_POD_ID_LEN - len(safe_uuid) - 1] + "-" + safe_uuid
+        safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
+        trimmed_pod_id = pod_id[:MAX_LABEL_LEN]
+        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
 
         return safe_pod_id
 

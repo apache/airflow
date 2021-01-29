@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import TestCase
+import os
 
 import pytest
 
@@ -23,10 +23,10 @@ from airflow.providers.google.cloud.hooks.secret_manager import SecretsManagerHo
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_SECRET_MANAGER_KEY
 from tests.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
 
-TEST_SECRET_ID = "test-secret"
-TEST_SECRET_VALUE = "test-secret-value"
-TEST_SECRET_VALUE_UPDATED = "test-secret-value-updated"
-TEST_MISSING_SECRET_ID = "test-missing-secret"
+TEST_SECRET_ID = os.environ.get("GCP_SECRET_MANAGER_SECRET_ID", "test-secret")
+TEST_SECRET_VALUE = os.environ.get("GCP_SECRET_MANAGER_SECRET_VALUE", "test-secret-value")
+TEST_SECRET_VALUE_UPDATED = os.environ.get("GCP_SECRET_MANAGER_VALUE_UPDATED", "test-secret-value-updated")
+TEST_MISSING_SECRET_ID = os.environ.get("GCP_SECRET_MANAGER_MISSING_SECRET_ID", "test-missing-secret")
 
 
 @pytest.fixture
@@ -48,7 +48,7 @@ def helper_two_versions():
 
 @pytest.mark.system("google.secret_manager")
 @pytest.mark.credential_file(GCP_SECRET_MANAGER_KEY)
-class TestSystemSecretsManager(TestCase):
+class TestSystemSecretsManager(GoogleSystemTest):
     @pytest.mark.usefixtures("helper_one_version")
     @provide_gcp_context(GCP_SECRET_MANAGER_KEY)
     def test_read_secret_from_secret_manager(self):

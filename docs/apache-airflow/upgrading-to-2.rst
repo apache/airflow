@@ -95,7 +95,7 @@ Now that you are set up in Airflow 1.10.14 with Python a 3.6+ environment, you a
 
 The most important step in this transition is also the easiest step to do in pieces. All Airflow 2.0 operators are backwards compatible with Airflow 1.10
 using the backport provider packages. In your own time, you can transition to using these backport-providers
-by pip installing the provider via ``pypi`` and changing the import path.
+by pip installing the provider via PyPI and changing the import path.
 
 For example: While historically you might have imported the DockerOperator in this fashion:
 
@@ -287,7 +287,7 @@ When DAGs are initialized with the ``access_control`` variable set, any usage of
     Breaking change
 
     Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
-    in both versions. With this release we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
+    in both versions. With this release we have removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
     RBAC UI explicitly in the configuration now as this is the only default UI. We did it to avoid
     the huge maintenance burden of two independent user interfaces
 

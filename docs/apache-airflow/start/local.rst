@@ -17,8 +17,10 @@
 
 
 
-Quick Start
------------
+Running Airflow locally
+-----------------------
+
+This quick start guide will help you bootstrap a Airflow standalone instance on your local machine.
 
 .. note::
 
@@ -39,7 +41,6 @@ Quick Start
 
    If you wish to install airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
-
 
 The installation of Airflow is painless if you are following the instructions below. Airflow uses
 constraint files to enable reproducible installation, so using ``pip`` and constraint files is recommended.
@@ -106,38 +107,6 @@ run the commands below.
         --start-date 2015-01-01 \
         --end-date 2015-01-02
 
-Basic Airflow architecture
---------------------------
-
-Primarily intended for development use, the basic Airflow architecture with the Local and Sequential executors is an
-excellent starting point for understanding the architecture of Apache Airflow.
-
-.. image:: img/arch-diag-basic.png
-
-
-There are a few components to note:
-
-* **Metadata Database**: Airflow uses a SQL database to store metadata about the data pipelines being run. In the
-  diagram above, this is represented as Postgres which is extremely popular with Airflow.
-  Alternate databases supported with Airflow include MySQL.
-
-* **Web Server** and **Scheduler**: The Airflow web server and Scheduler are separate processes run (in this case)
-  on the local machine and interact with the database mentioned above.
-
-* The **Executor** is shown separately above, since it is commonly discussed within Airflow and in the documentation, but
-  in reality it is NOT a separate process, but run within the Scheduler.
-
-* The **Worker(s)** are separate processes which also interact with the other components of the Airflow architecture and
-  the metadata repository.
-
-* ``airflow.cfg`` is the Airflow configuration file which is accessed by the Web Server, Scheduler, and Workers.
-
-* **DAGs** refers to the DAG files containing Python code, representing the data pipelines to be run by Airflow. The
-  location of these files is specified in the Airflow configuration file, but they need to be accessible by the
-  Web Server, Scheduler, and Workers.
-
-
-
 What's Next?
 ''''''''''''
-From this point, you can head to the :doc:`tutorial` section for further examples or the :doc:`howto/index` section if you're ready to get your hands dirty.
+From this point, you can head to the :doc:`/tutorial` section for further examples or the :doc:`/howto/index` section if you're ready to get your hands dirty.

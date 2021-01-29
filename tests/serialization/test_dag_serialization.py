@@ -193,7 +193,7 @@ def make_user_defined_macro_filter_dag():
         user_defined_macros={
             'next_execution_date': compute_next_execution_date,
         },
-        user_defined_filters={'hello': lambda name: 'Hello %s' % name},
+        user_defined_filters={'hello': lambda name: f'Hello {name}'},
         catchup=False,
     )
     BashOperator(
@@ -727,7 +727,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                 setattr(self, key, value)
 
         def __str__(self):
-            return "{}({})".format(self.__class__.__name__, str(self.__dict__))
+            return f"{self.__class__.__name__}({str(self.__dict__)})"
 
         def __repr__(self):
             return self.__str__()

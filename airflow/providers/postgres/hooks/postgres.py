@@ -223,7 +223,7 @@ class PostgresHook(DbApiHook):
         else:
             target_fields_fragment = ''
 
-        sql = "INSERT INTO {} {} VALUES ({})".format(table, target_fields_fragment, ",".join(placeholders))
+        sql = f"INSERT INTO {table} {target_fields_fragment} VALUES ({','.join(placeholders)})"
 
         if replace:
             if target_fields is None:

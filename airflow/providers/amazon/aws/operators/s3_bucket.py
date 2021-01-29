@@ -39,6 +39,8 @@ class S3CreateBucketOperator(BaseOperator):
     :type region_name: Optional[str]
     """
 
+    template_fields = ("bucket_name",)
+
     @apply_defaults
     def __init__(
         self,
@@ -78,6 +80,8 @@ class S3DeleteBucketOperator(BaseOperator):
         maintained on each worker node).
     :type aws_conn_id: Optional[str]
     """
+
+    template_fields = ("bucket_name",)
 
     def __init__(
         self,

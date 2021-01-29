@@ -27,17 +27,21 @@ from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
-DATAFLOW_FLEX_TEMPLATE_JOB_NAME = os.environ.get('DATAFLOW_FLEX_TEMPLATE_JOB_NAME', "dataflow-flex-template")
+DATAFLOW_FLEX_TEMPLATE_JOB_NAME = os.environ.get(
+    'GCP_DATAFLOW_FLEX_TEMPLATE_JOB_NAME', "dataflow-flex-template"
+)
 
 # For simplicity we use the same topic name as the subscription name.
-PUBSUB_FLEX_TEMPLATE_TOPIC = os.environ.get('DATAFLOW_PUBSUB_FLEX_TEMPLATE_TOPIC', "dataflow-flex-template")
+PUBSUB_FLEX_TEMPLATE_TOPIC = os.environ.get(
+    'GCP_DATAFLOW_PUBSUB_FLEX_TEMPLATE_TOPIC', "dataflow-flex-template"
+)
 PUBSUB_FLEX_TEMPLATE_SUBSCRIPTION = PUBSUB_FLEX_TEMPLATE_TOPIC
 GCS_FLEX_TEMPLATE_TEMPLATE_PATH = os.environ.get(
-    'DATAFLOW_GCS_FLEX_TEMPLATE_TEMPLATE_PATH',
+    'GCP_DATAFLOW_GCS_FLEX_TEMPLATE_TEMPLATE_PATH',
     "gs://test-airflow-dataflow-flex-template/samples/dataflow/templates/streaming-beam-sql.json",
 )
-BQ_FLEX_TEMPLATE_DATASET = os.environ.get('DATAFLOW_BQ_FLEX_TEMPLATE_DATASET', 'airflow_dataflow_samples')
-BQ_FLEX_TEMPLATE_LOCATION = os.environ.get('DATAFLOW_BQ_FLEX_TEMPLATE_LOCAATION>', 'us-west1')
+BQ_FLEX_TEMPLATE_DATASET = os.environ.get('GCP_DATAFLOW_BQ_FLEX_TEMPLATE_DATASET', 'airflow_dataflow_samples')
+BQ_FLEX_TEMPLATE_LOCATION = os.environ.get('GCP_DATAFLOW_BQ_FLEX_TEMPLATE_LOCATION>', 'us-west1')
 
 with models.DAG(
     dag_id="example_gcp_dataflow_flex_template_java",

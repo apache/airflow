@@ -1451,7 +1451,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     @staticmethod
     def _generate_temp_filename(filename):
         date = time.strftime('%Y%m%d%H%M%S')
-        return "{}_{}_{}".format(date, str(uuid.uuid4())[:8], ntpath.basename(filename))
+        return f"{date}_{str(uuid.uuid4())[:8]}_{ntpath.basename(filename)}"
 
     def _upload_file_temp(self, bucket, local_file):
         """Upload a local file to a Google Cloud Storage bucket."""
@@ -1464,9 +1464,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
         self.log.info("Uploading %s to %s", local_file, temp_filename)
 
-        GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
-        ).upload(
+        GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain).upload(
             bucket_name=bucket,
             object_name=temp_filename,
             mime_type='application/x-python',
