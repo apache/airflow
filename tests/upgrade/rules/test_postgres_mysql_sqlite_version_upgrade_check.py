@@ -33,7 +33,7 @@ class TestDatabaseVersionCheckRule(TestCase):
     @conf_vars({("core", "sql_alchemy_conn"): SQLITE_CONN})
     def test_valid_sqlite_check(self, MockSession):
         session = MockSession()
-        session.execute().fetchone.return_value = ('3.34.1',)
+        session.execute().scalar.return_value = '3.34.1'
 
         rule = DatabaseVersionCheckRule()
 
@@ -46,14 +46,14 @@ class TestDatabaseVersionCheckRule(TestCase):
     @conf_vars({("core", "sql_alchemy_conn"): SQLITE_CONN})
     def test_invalid_sqlite_check(self, MockSession):
         session = MockSession()
-        session.execute().fetchone.return_value = ('2.25.2',)
+        session.execute().scalar.return_value = '2.25.2'
 
         rule = DatabaseVersionCheckRule()
 
         assert isinstance(rule.title, str)
         assert isinstance(rule.description, str)
 
-        expected = "SQLite version below 3.15 not supported. \n" + MOCK_MSG
+        expected = "From Airflow 2.0, SQLite version below 3.15 is no longer supported. \n" + MOCK_MSG
 
         msg = rule.check(session=session)
         assert msg == expected
@@ -61,7 +61,7 @@ class TestDatabaseVersionCheckRule(TestCase):
     @conf_vars({("core", "sql_alchemy_conn"): POSTGRES_CONN})
     def test_valid_postgres_check(self, MockSession):
         session = MockSession()
-        session.execute().fetchone.return_value = ('PostgreSQL 12.3 on x86_64-apple-darwin...',)
+        session.execute().scalar.return_value = 'PostgreSQL 12.3 on x86_64-apple-darwin...'
 
         rule = DatabaseVersionCheckRule()
 
@@ -74,14 +74,14 @@ class TestDatabaseVersionCheckRule(TestCase):
     @conf_vars({("core", "sql_alchemy_conn"): POSTGRES_CONN})
     def test_invalid_postgres_check(self, MockSession):
         session = MockSession()
-        session.execute().fetchone.return_value = ('PostgreSQL 9.5 on x86_64-apple-darwin...',)
+        session.execute().scalar.return_value = 'PostgreSQL 9.5 on x86_64-apple-darwin...'
 
         rule = DatabaseVersionCheckRule()
 
         assert isinstance(rule.title, str)
         assert isinstance(rule.description, str)
 
-        expected = "PostgreSQL version below 9.6 not supported. \n" + MOCK_MSG
+        expected = "From Airflow 2.0, PostgreSQL version below 9.6 is no longer supported. \n" + MOCK_MSG
 
         msg = rule.check(session=session)
         assert msg == expected
@@ -89,7 +89,7 @@ class TestDatabaseVersionCheckRule(TestCase):
     @conf_vars({("core", "sql_alchemy_conn"): MYSQL_CONN})
     def test_valid_mysql_check(self, MockSession):
         session = MockSession()
-        session.execute().fetchone.return_value = ('8.0.23',)
+        session.execute().scalar.return_value = '8.0.23'
 
         rule = DatabaseVersionCheckRule()
 
@@ -102,14 +102,14 @@ class TestDatabaseVersionCheckRule(TestCase):
     @conf_vars({("core", "sql_alchemy_conn"): MYSQL_CONN})
     def test_invalid_mysql_check(self, MockSession):
         session = MockSession()
-        session.execute().fetchone.return_value = ('5.6.11',)
+        session.execute().scalar.return_value = '5.6.11'
 
         rule = DatabaseVersionCheckRule()
 
         assert isinstance(rule.title, str)
         assert isinstance(rule.description, str)
 
-        expected = "MySQL version below 5.7 not supported. \n" + MOCK_MSG
+        expected = "From Airflow 2.0, MySQL version below 5.7 is no longer supported. \n" + MOCK_MSG
 
         msg = rule.check(session=session)
         assert msg == expected

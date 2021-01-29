@@ -15,13 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from packaging.version import Version
+
 from airflow.configuration import conf
 from airflow.upgrade.rules.base_rule import BaseRule
 from airflow.utils.db import provide_session
 
 
 class DatabaseVersionCheckRule(BaseRule):
-
     title = "Check versions of PostgreSQL, MySQL, and SQLite to ease upgrade to Airflow 2.0"
 
     description = """\
@@ -39,23 +40,20 @@ SQLite - 3.15+
         conn_str = conf.get(section="core", key="sql_alchemy_conn")
 
         if "sqlite" in conn_str:
-            result = session.execute('select sqlite_version();').fetchone()[0]
-            if int(result.split('.')[0]) < 3:
-                return "SQLite version below 3.15 not supported. \n" + more_info
-            elif int(result.split('.')[0]) == 3 and int(result.split('.')[1]) < 15:
-                return "SQLite version below 3.15 not supported. \n" + more_info
+            min_req_sqlite_version = Version('3.15')
+            installed_sqlite_version = Version(session.execute('select sqlite_version();').scalar())
+            if installed_sqlite_version < min_req_sqlite_version:
+                return "From Airflow 2.0, SQLite version below 3.15 is no longer supported. \n" + more_info
 
         elif "postgres" in conn_str:
-            result = session.execute('SELECT VERSION();').fetchone()[0]
-            version = result.split(' ')[1]
-            if int(version.split('.')[0]) < 9:
-                return "PostgreSQL version below 9.6 not supported. \n" + more_info
-            elif int(version.split('.')[0]) == 9 and int(version.split('.')[1]) < 6:
-                return "PostgreSQL version below 9.6 not supported. \n" + more_info
+            min_req_postgres_version = Version('9.6')
+            query = session.execute('SELECT VERSION();').scalar()
+            installed_postgres_version = Version(query.split(' ')[1])
+            if installed_postgres_version < min_req_postgres_version:
+                return "From Airflow 2.0, PostgreSQL version below 9.6 is no longer supported. \n" + more_info
 
         elif "mysql" in conn_str:
-            result = session.execute('SELECT VERSION();').fetchone()[0]
-            if int(result.split('.')[0]) < 5:
-                return "MySQL version below 5.7 not supported. \n" + more_info
-            elif int(result.split('.')[0]) == 5 and int(result.split('.')[1]) < 7:
-                return "MySQL version below 5.7 not supported. \n" + more_info
+            min_req_mysql_version = Version('5.7')
+            installed_mysql_version = Version(session.execute('SELECT VERSION();').scalar())
+            if installed_mysql_version < min_req_mysql_version:
+                return "From Airflow 2.0, MySQL version below 5.7 is no longer supported. \n" + more_info
