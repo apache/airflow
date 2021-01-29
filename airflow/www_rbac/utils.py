@@ -33,7 +33,7 @@ from past.builtins import basestring
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from flask import request, Response, Markup, url_for
-from flask_appbuilder.forms import DateTimeField, FieldConverter, StringField, BS3TextFieldWidget
+from flask_appbuilder.forms import DateTimeField, FieldConverter, Select2Widget, StringField
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
@@ -437,17 +437,13 @@ class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual
 
 class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     conversion_table = (
-        (('is_error_tag', [fab_sqlafilters.FilterEqual]),) +
+        (('is_errortag', [fab_sqlafilters.FilterContains]),) +
         (('is_utcdatetime', [UtcAwareFilterEqual,
                              UtcAwareFilterGreater,
                              UtcAwareFilterSmaller,
                              UtcAwareFilterNotEqual]),) +
         fab_sqlafilters.SQLAFilterConverter.conversion_table
     )
-
-
-from airflow.models.taskinstance import TaskInstance
-from airflow.models.error_tag import ErrorTag
 
 
 class CustomSQLAInterface(SQLAInterface):
@@ -471,32 +467,6 @@ class CustomSQLAInterface(SQLAInterface):
 
         clean_column_names()
 
-    def query(
-        self,
-        filters=None,
-        order_column="",
-        order_direction="",
-        page=None,
-        page_size=None,
-        select_columns=None,
-    ):
-        if filters:
-            for idx, filter in enumerate(filters.filters):
-                if filter.column_name == 'error_tag' and issubclass(filter.model, TaskInstance):
-                    v = filters.values[idx]
-                    d = ErrorTag.get_all()
-                    for dd in d:
-                        if v in dd.get('label'):
-                            filters.values[idx] = dd.get('value')
-                            # fixme: 现在不支持多个查询联合查询，如查询异常，只能包含某个值的数据
-                            break
-        return super(CustomSQLAInterface, self).query(filters=None,
-                                                      order_column="",
-                                                      order_direction="",
-                                                      page=None,
-                                                      page_size=None,
-                                                      select_columns=None)
-
     def is_utcdatetime(self, col_name):
         from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -507,7 +477,7 @@ class CustomSQLAInterface(SQLAInterface):
                    isinstance(obj.impl, UtcDateTime)
         return False
 
-    def is_error_tag(self, col_name):
+    def is_errortag(self, col_name):
         if col_name == 'error_tag':
             return True
         return False
@@ -515,11 +485,21 @@ class CustomSQLAInterface(SQLAInterface):
     filter_converter_class = UtcAwareFilterConverter
 
 
+from airflow.models.error_tag import ErrorTag
+
+
+class ErrorTagField(StringField):
+    def iter_choices(self):
+        d = ErrorTag.get_all_dict()
+        for value, label in d.items():
+            yield (value, label, self.data is None)
+
+
 # This class is used directly (i.e. we cant tell Fab to use a different
 # subclass) so we have no other option than to edit the converstion table in
 # place
 FieldConverter.conversion_table = (
+    (('is_errortag', ErrorTagField, AirflowDateTimePickerWidget),) +
     (('is_utcdatetime', DateTimeField, AirflowDateTimePickerWidget),) +
-    (('is_error_tag', StringField, BS3TextFieldWidget),) +
     FieldConverter.conversion_table
 )
