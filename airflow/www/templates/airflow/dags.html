@@ -167,10 +167,10 @@
                 <td class="text-center">
                   <div class="btn-group">
                     {% if dag %}
-                        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_trigger else '' }}">
+                        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_trigger }}">
                           <span class="material-icons" aria-hidden="true">play_arrow</span>
                         </a>
-                        <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false" title="Refresh DAG" aria-label="Refresh DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_edit else '' }}">
+                        <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false" title="Refresh DAG" aria-label="Refresh DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_edit }}">
                           <span class="material-icons" aria-hidden="true">refresh</span>
                         </a>
                     {% endif %}
