@@ -153,5 +153,8 @@ class ClsResultStorage(ClsEntity):
                 ret = record.values
                 for key in unused_keys:
                     ret.pop(key)
-                return record.values  # 返回第一条记录
+                for key in ret.keys():
+                    if key in ['step_results']:
+                        ret[key] = json.loads(ret[key])
+                return ret  # 返回第一条记录
         return None
