@@ -1862,6 +1862,13 @@ class BigQueryUpsertTableOperator(BaseOperator):
     :type delegate_to: str
     :param location: The location used for the operation.
     :type location: str
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+        **Example**: ::
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+            }
+    :type encryption_configuration: dict
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1892,6 +1899,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         location: Optional[str] = None,
+        encryption_configuration: Optional[Dict] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
@@ -1912,7 +1920,10 @@ class BigQueryUpsertTableOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.location = location
+        self.encryption_configuration = encryption_configuration
         self.impersonation_chain = impersonation_chain
+
+        self.table_resource['encryptionConfiguration'] = self.encryption_configuration
 
     def execute(self, context) -> None:
         self.log.info('Upserting Dataset: %s with table_resource: %s', self.dataset_id, self.table_resource)
