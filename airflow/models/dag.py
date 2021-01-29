@@ -118,10 +118,6 @@ class AbstractTimetable(LoggingMixin):
         raise NotImplementedError()
 
     @abstractmethod
-    def is_fixed_time_schedule(self):
-        raise NotImplementedError()
-
-    @abstractmethod
     def date_range(
         self,
         start_date: datetime,
@@ -758,9 +754,6 @@ class DAG(LoggingMixin):
         end_date: Optional[datetime] = timezone.utcnow(),
     ) -> List[datetime]:
         self.timetable.date_range(start_date, num, end_date)
-
-    def is_fixed_time_schedule(self):
-        return self.timetable.is_fixed_time_schedule()
 
     def following_schedule(self, dttm):
         self.timetable.following_schedule(dttm)
