@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import io
 import logging
 import os
 import re
@@ -85,7 +84,7 @@ def open_maybe_zipped(fileloc, mode='r'):
     """
     _, archive, filename = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
-        return io.TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
+        return zipfile.ZipFile(archive, mode=mode).open(filename)
     else:
         return open(fileloc, mode=mode)
 
