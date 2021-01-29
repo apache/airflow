@@ -3135,17 +3135,20 @@ class TaskInstanceModelView(AirflowModelView):
             return timedelta(seconds=duration)
 
     def error_tag_f(attr):
-        ret = ''
+        ret = []
         try:
-            error_tags = attr.get('error_tag').split(',')
+            error_tags = json.loads(attr.get('error_tag') or '[]')
             if not error_tags:
                 return u'无异常标签'
             error_tag_vals = ErrorTag.get_all_dict() or {}
             for tag in error_tags:
-                ret += error_tag_vals.get(tag, '')
+                v= error_tag_vals.get(str(tag), '')
+                if not v:
+                    continue
+                ret.append(v)
         except Exception as e:
-            return ret
-        return ret
+            return ','.join(ret)
+        return ','.join(ret)
 
     def type_f(attr):
         ti_type = attr.get('type')
