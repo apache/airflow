@@ -86,6 +86,8 @@ class SerializedDagModel(Base):
         backref=backref('serialized_dag', uselist=False, innerjoin=True),
     )
 
+    load_op_links = True
+
     def __init__(self, dag: DAG):
         self.dag_id = dag.dag_id
         self.fileloc = dag.full_filepath
@@ -93,7 +95,6 @@ class SerializedDagModel(Base):
         self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()
         self.dag_hash = hashlib.md5(json.dumps(self.data, sort_keys=True).encode("utf-8")).hexdigest()
-        self.load_op_links = True
 
     def __repr__(self):
         return f"<SerializedDag: {self.dag_id}>"
