@@ -53,7 +53,7 @@ class TestDatabaseVersionCheckRule(TestCase):
         assert isinstance(rule.title, str)
         assert isinstance(rule.description, str)
 
-        expected = "SQLite version below 3.15+ not supported. \n" + MOCK_MSG
+        expected = "SQLite version below 3.15 not supported. \n" + MOCK_MSG
 
         msg = rule.check(session=session)
         assert msg == expected
