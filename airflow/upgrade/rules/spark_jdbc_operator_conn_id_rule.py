@@ -21,7 +21,6 @@ from airflow.utils.db import provide_session
 
 
 class SparkJDBCOperatorConnIdRule(BaseRule):
-
     title = "Check Spark JDBC Operator default connection name"
 
     description = """\
@@ -35,10 +34,11 @@ of all other connection names.
         for conn in session.query(Connection.conn_id):
             if conn.conn_id == 'spark-default':
                 return (
-                    "Deprecation Warning: From Airflow 2.0, SparkJDBCOperator class 'conn_id' "
-                    "value has been changed to 'spark_default' to conform with the naming "
-                    "conventions of all other connection names."
-                    "Use 'spark_default' instead of 'spark-default'. See the link below for details: "
-                    "https://github.com/apache/airflow/blob/master/"
+                    "Deprecation Warning: From Airflow 2.0, the default value of 'conn_id' argument of "
+                    "SparkJDBCOperator class has been changed to 'spark_default' to conform with the naming "
+                    "conventions of all other connection names. Please rename the connection with "
+                    "id 'spark-default' to 'spark_default' or explicitly pass 'spark-default' "
+                    "to the operator. See the link below for details: "
+                    "https://github.com/apache/airflow/blob/2.0.0/"
                     "UPDATING.md#sparkjdbchook-default-connection"
                 )
