@@ -92,10 +92,9 @@ class RedshiftToS3Operator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
-        self.s3_key = s3_key
+        self.s3_key = f'{s3_key}/{table}_' if (table and table_as_file_name) else s3_key
         self.schema = schema
         self.table = table
-        self.select_query = select_query
         self.redshift_conn_id = redshift_conn_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
@@ -103,6 +102,15 @@ class RedshiftToS3Operator(BaseOperator):
         self.autocommit = autocommit
         self.include_header = include_header
         self.table_as_file_name = table_as_file_name
+
+        self._select_query = None
+        if select_query:
+            self._select_query = select_query
+        elif self.schema and self.table:
+            self._select_query = f"SELECT * FROM {self.schema}.{self.table}"
+        else:
+            self.log.error('Please provide both `schema` and `table` params to fetch the data.')
+            raise ValueError('Please provide both `schema` and `table` params to fetch the data.')
 
         if self.include_header and 'HEADER' not in [uo.upper().strip() for uo in self.unload_options]:
             self.unload_options = list(self.unload_options) + [
@@ -115,15 +123,6 @@ class RedshiftToS3Operator(BaseOperator):
 
         credentials = s3_hook.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
-        s3_key = f'{self.s3_key}/{self.table}_' if (self.table and self.table_as_file_name) else self.s3_key
-        if self.select_query:
-            select_query = self.select_query
-        elif self.schema and self.table:
-            select_query = f"SELECT * FROM {self.schema}.{self.table}"
-        else:
-            self.log.info('Please provide both `schema` and `table` params to fetch the data.')
-            return
-
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'
@@ -131,9 +130,9 @@ class RedshiftToS3Operator(BaseOperator):
                     'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
                     {unload_options};
                     """.format(
-            select_query=select_query,
+            select_query=self._select_query,
             s3_bucket=self.s3_bucket,
-            s3_key=s3_key,
+            s3_key=self.s3_key,
             access_key=credentials.access_key,
             secret_key=credentials.secret_key,
             unload_options=unload_options,
