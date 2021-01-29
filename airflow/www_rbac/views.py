@@ -89,6 +89,7 @@ from flask_wtf.csrf import CSRFProtect
 from airflow.utils.curve import get_curve, get_result, get_task_instances_by_entity_ids
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.www_rbac.api.experimental.endpoints import do_remove_curve_from_curve_template
+from flask_appbuilder.models.sqla.filters import FilterEqualFunction, FilterInFunction
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 
 csrf = CSRFProtect()
@@ -3067,7 +3068,7 @@ class TaskInstanceModelView(AirflowModelView):
     page_size = PAGE_SIZE
 
     list_columns = ['state', 'dag_id', 'task_id', 'line_code', 'entity_id', 'execution_date', 'measure_result',
-                    'result', 'type',
+                    'result', 'error_tag', 'type',
                     'final_state',
                     'start_date', 'end_date', 'duration', 'job_id',
                     'priority_weight', 'try_number',
@@ -3075,12 +3076,13 @@ class TaskInstanceModelView(AirflowModelView):
                     'pool', 'log_url']
 
     search_columns = ['state', 'type', 'dag_id', 'entity_id', 'measure_result', 'result', 'final_state',
-                      'task_id',
+                      'task_id', 'error_tag',
                       'execution_date', 'hostname',
                       'queue', 'pool', 'operator', 'start_date', 'end_date']
 
     label_columns = {
         'state': lazy_gettext('State'),
+        'error_tag': lazy_gettext('Error Tags'),
         'dag_id': lazy_gettext('Dag Id'),
         'task_id': lazy_gettext('Task Id'),
         'line_code': lazy_gettext('Line Code'),
@@ -3117,6 +3119,10 @@ class TaskInstanceModelView(AirflowModelView):
         if end_date and duration:
             return timedelta(seconds=duration)
 
+    def error_tag_f(attr):
+        error_tags = attr.get('error_tag')
+        return error_tags or ''
+
     def type_f(attr):
         ti_type = attr.get('type')
         if ti_type == 'rework':
@@ -3128,6 +3134,7 @@ class TaskInstanceModelView(AirflowModelView):
         'task_id': wwwutils.task_instance_link,
         'hostname': wwwutils.nobr_f('hostname'),
         'state': wwwutils.state_f,
+        'error_tag': error_tag_f,
         'execution_date': wwwutils.datetime_f('execution_date'),
         'start_date': wwwutils.datetime_f('start_date'),
         'end_date': wwwutils.datetime_f('end_date'),
