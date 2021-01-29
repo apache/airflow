@@ -33,7 +33,7 @@ from past.builtins import basestring
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from flask import request, Response, Markup, url_for
-from flask_appbuilder.forms import DateTimeField, FieldConverter
+from flask_appbuilder.forms import DateTimeField, FieldConverter, StringField, BS3TextFieldWidget
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
@@ -437,6 +437,7 @@ class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual
 
 class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     conversion_table = (
+        (('is_error_tag', [fab_sqlafilters.FilterEqual]),) +
         (('is_utcdatetime', [UtcAwareFilterEqual,
                              UtcAwareFilterGreater,
                              UtcAwareFilterSmaller,
@@ -506,6 +507,11 @@ class CustomSQLAInterface(SQLAInterface):
                    isinstance(obj.impl, UtcDateTime)
         return False
 
+    def is_error_tag(self, col_name):
+        if col_name == 'error_tag':
+            return True
+        return False
+
     filter_converter_class = UtcAwareFilterConverter
 
 
@@ -514,5 +520,6 @@ class CustomSQLAInterface(SQLAInterface):
 # place
 FieldConverter.conversion_table = (
     (('is_utcdatetime', DateTimeField, AirflowDateTimePickerWidget),) +
+    (('is_error_tag', StringField, BS3TextFieldWidget),) +
     FieldConverter.conversion_table
 )
