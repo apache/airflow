@@ -14,6 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# pylint: disable=redefined-outer-name
+
 import json
 from unittest.mock import MagicMock
 
@@ -39,7 +42,7 @@ NAME = "testName"
 ID = "testId"
 
 
-def setup_module(module):
+def setup_module():
     connection = Connection(
         conn_id="azure_data_factory_test",
         conn_type="azure_data_factory",
@@ -88,7 +91,7 @@ def parametrize(explicit_factory, implicit_factory):
 
 
 def test_provide_targeted_factory():
-    def echo(self, resource_group_name=None, factory_name=None):
+    def echo(_, resource_group_name=None, factory_name=None):
         return resource_group_name, factory_name
 
     conn = MagicMock()

@@ -63,7 +63,7 @@ integrations:
   - integration-name: Microsoft Azure Data Factory
     external-doc-url: https://azure.microsoft.com/en-us/services/data-factory/
     logo: /integration-logos/azure/Azure Data Factory.svg
-    tags: [azure] 
+    tags: [azure]
   - integration-name: Microsoft Azure
     external-doc-url: https://azure.microsoft.com/
     logo: /integration-logos/azure/Microsoft-Azure.png
