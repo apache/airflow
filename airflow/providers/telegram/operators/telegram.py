@@ -65,9 +65,6 @@ class TelegramOperator(BaseOperator):
         self.telegram_kwargs = telegram_kwargs or {}
         self.text = text
 
-        if self.text is not None:
-            self.telegram_kwargs['text'] = self.text
-
         if telegram_conn_id is None:
             raise AirflowException("No valid Telegram connection id supplied.")
 
@@ -77,6 +74,9 @@ class TelegramOperator(BaseOperator):
 
     def execute(self, **kwargs) -> None:
         """Calls the TelegramHook to post the provided Telegram message"""
+        if self.text:
+            self.telegram_kwargs['text'] = self.text
+
         telegram_hook = TelegramHook(
             telegram_conn_id=self.telegram_conn_id,
             token=self.token,
