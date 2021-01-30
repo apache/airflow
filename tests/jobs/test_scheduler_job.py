@@ -68,6 +68,7 @@ from tests.test_utils.db import (
     set_default_pool_slots,
 )
 from tests.test_utils.mock_executor import MockExecutor
+from tests.test_utils.mock_operators import CustomOperator
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
@@ -3559,6 +3560,42 @@ class TestSchedulerJob(unittest.TestCase):
             scheduler._create_dag_runs([dag_model], session)
 
         assert dag.get_last_dagrun().creating_job_id == scheduler.id
+
+    def test_extra_operator_links_not_loaded_in_scheduler_loop(self):
+        """
+        Test that Operator links are not loaded inside the Scheduling Loop (that does not include
+        DagFileProcessorProcess) especially the critical loop of the Scheduler.
+
+        This is to avoid running User code in the Scheduler and prevent any deadlocks
+        """
+        dag = DAG(dag_id='test_extra_operator_links_not_loaded_in_scheduler', start_date=DEFAULT_DATE)
+
+        # This CustomOperator has Extra Operator Links registered via plugins
+        _ = CustomOperator(task_id='custom_task', dag=dag)
+
+        dagbag = DagBag(
+            dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"),
+            include_examples=False,
+            read_dags_from_db=True,
+        )
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        dagbag.sync_to_db()
+
+        # Get serialized dag
+        s_dag_1 = dagbag.get_dag(dag.dag_id)
+        custom_task = s_dag_1.task_dict['custom_task']
+        # Test that custom_task has >= 1 Operator Links (after de-serialization)
+        assert custom_task.operator_extra_links
+
+        scheduler = SchedulerJob(executor=self.null_exec)
+        scheduler.processor_agent = mock.MagicMock()
+        scheduler._run_scheduler_loop()
+
+        # Get serialized dag
+        s_dag_2 = scheduler.dagbag.get_dag(dag.dag_id)
+        custom_task = s_dag_2.task_dict['custom_task']
+        # Test that custom_task has no Operator Links (after de-serialization) in the Scheduling Loop
+        assert not custom_task.operator_extra_links
 
     def test_scheduler_create_dag_runs_does_not_raise_error(self):
         """

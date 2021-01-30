@@ -79,6 +79,10 @@ class DagBag(LoggingMixin):
     :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
         If ``False`` DAGs are read from python files.
     :type read_dags_from_db: bool
+    :param load_op_links: Should the extra operator link be loaded via plugins when
+        de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
+        are not loaded to not run User code in Scheduler.
+    :type load_op_links: bool
     """
 
     DAGBAG_IMPORT_TIMEOUT = conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
@@ -92,6 +96,7 @@ class DagBag(LoggingMixin):
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
         read_dags_from_db: bool = False,
         store_serialized_dags: Optional[bool] = None,
+        load_op_links: bool = True,
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
@@ -128,6 +133,9 @@ class DagBag(LoggingMixin):
             include_smart_sensor=include_smart_sensor,
             safe_mode=safe_mode,
         )
+        # Should the extra operator link be loaded via plugins?
+        # This flag is set to False in Scheduler so that Extra Operator links are not loaded
+        self.load_op_links = load_op_links
 
     def size(self) -> int:
         """:return: the amount of dags contained in this dagbag"""
@@ -226,6 +234,7 @@ class DagBag(LoggingMixin):
         if not row:
             raise SerializedDagNotFound(f"DAG '{dag_id}' not found in serialized_dag table")
 
+        row.load_op_links = self.load_op_links
         dag = row.dag
         for subdag in dag.subdags:
             self.dags[subdag.dag_id] = subdag
