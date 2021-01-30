@@ -14,11 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 from contextlib import contextmanager
+from tempfile import NamedTemporaryFile
 from unittest import TestCase
 
-from tempfile import NamedTemporaryFile
 from tests.compat import mock
+
+import pytest
 
 from airflow.upgrade.rules.airflow_macro_plugin_removed import (
     AirflowMacroPluginRemovedRule,
@@ -80,6 +83,10 @@ class TestAirflowMacroPluginRemovedRule(TestCase):
             msgs = rule.check()
             assert 0 == len(msgs)
 
+    @pytest.mark.skipif(
+        sys.version_info.major == 2,
+        reason="Test is irrelevant in Python 2.7 because of unicode differences"
+    )
     def test_bad_file_failure(self, mock_list_files):
         # Write a binary file
         with NamedTemporaryFile("wb+", suffix=".py") as temp_file:
