@@ -24,9 +24,12 @@ from typing import Iterable, List, Optional, Set
 
 import yaml
 
+# pylint: disable=wrong-import-order
 import airflow
 from docs.exts.docs_build.docs_builder import ALL_PROVIDER_YAMLS  # pylint: disable=no-name-in-module
 from docs.exts.docs_build.errors import DocBuildError  # pylint: disable=no-name-in-module
+
+# pylint: enable=wrong-import-order
 
 ROOT_PROJECT_DIR = os.path.abspath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir)
