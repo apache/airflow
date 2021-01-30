@@ -524,6 +524,11 @@ At this point, just follow the standard Airflow version upgrade process:
 * Restart Airflow Scheduler, Webserver, and Workers
 
 
+Frequently Asked Questions on Upgrade
+'''''''''''''''''''''''''''''''''''''
+* Q. Why doesn't the list of connection types show up in the Airflow UI after I upgrade to 2.0?
+  * A. It is because Airflow 2.0 does not ship with the provider packages. The connection type list in the Airflow UI is based on the providers you have installed with Airflow 2.0. Please note that these will only show up once you install the provider and restart Airflow. You can read more about providers at :doc:`apache-airflow-providers:index`.
+
 
 Appendix
 ''''''''
