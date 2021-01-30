@@ -1846,7 +1846,6 @@ class DAG(LoggingMixin):
                 or_(
                     DagRun.run_type == DagRunType.BACKFILL_JOB,
                     DagRun.run_type == DagRunType.SCHEDULED,
-                    DagRun.external_trigger.is_(True),
                 ),
             )
             .group_by(DagRun.dag_id)
