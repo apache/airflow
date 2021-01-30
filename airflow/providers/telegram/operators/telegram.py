@@ -63,9 +63,10 @@ class TelegramOperator(BaseOperator):
         self.chat_id = chat_id
         self.token = token
         self.telegram_kwargs = telegram_kwargs or {}
+        self.text = text
 
-        if text is not None:
-            self.telegram_kwargs['text'] = text
+        if self.text is not None:
+            self.telegram_kwargs['text'] = self.text
 
         if telegram_conn_id is None:
             raise AirflowException("No valid Telegram connection id supplied.")
