@@ -47,7 +47,9 @@ def upgrade():  # noqa: D103
 
     if 'known_event' in tables:
         for fkey in inspector.get_foreign_keys(table_name="known_event", referred_table="users"):
-            op.drop_constraint(fkey['name'], 'known_event', type_="foreignkey")
+            if fkey['name']:
+                with op.batch_alter_table(table_name='known_event') as bop:
+                    bop.drop_constraint(fkey['name'], type_="foreignkey")
 
     if "chart" in tables:
         op.drop_table(

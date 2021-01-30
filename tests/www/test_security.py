@@ -169,6 +169,12 @@ class TestSecurity(unittest.TestCase):
 
         assert role_perms_len == new_role_perms_len
 
+    def test_verify_public_role_has_no_permissions(self):
+        with self.app.app_context():
+            public = self.appbuilder.sm.find_role("Public")
+
+            assert public.permissions == []
+
     def test_get_user_roles(self):
         user = mock.MagicMock()
         user.is_anonymous = False

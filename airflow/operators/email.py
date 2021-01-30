@@ -63,6 +63,7 @@ class EmailOperator(BaseOperator):
         bcc: Optional[Union[List[str], str]] = None,
         mime_subtype: str = 'mixed',
         mime_charset: str = 'utf-8',
+        conn_id: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -74,6 +75,7 @@ class EmailOperator(BaseOperator):
         self.bcc = bcc
         self.mime_subtype = mime_subtype
         self.mime_charset = mime_charset
+        self.conn_id = conn_id
 
     def execute(self, context):
         send_email(
@@ -85,4 +87,5 @@ class EmailOperator(BaseOperator):
             bcc=self.bcc,
             mime_subtype=self.mime_subtype,
             mime_charset=self.mime_charset,
+            conn_id=self.conn_id,
         )
