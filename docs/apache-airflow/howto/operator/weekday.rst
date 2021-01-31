@@ -17,21 +17,15 @@
 
 
 
-Using Operators
-===============
+.. _howto/operator:BranchDayOfWeekOperator:
 
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
+BranchDayOfWeekOperator
+=======================
 
-.. note::
-    See the :ref:`Operators Concepts <concepts:operators>` documentation and the
-    :doc:`Operators API Reference </python-api-ref>` for more
-    information.
+Use the :class:`~airflow.operators.weekday.BranchDayOfWeekOperator` to branch your workflow based on week day value.
 
-.. toctree::
-    :maxdepth: 2
-
-    bash
-    python
-    weekday
-    external_task_sensor
+.. exampleinclude:: /../../airflow/example_dags/example_branch_day_of_week_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_day_of_week_branch]
+    :end-before: [END howto_operator_day_of_week_branch]
