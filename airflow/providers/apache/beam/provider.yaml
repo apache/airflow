@@ -27,6 +27,8 @@ versions:
 integrations:
   - integration-name: Apache Beam
     external-doc-url: https://beam.apache.org/
+    how-to-guide:
+      - /docs/apache-airflow-providers-apache-beam/operators.rst
     tags: [apache]
 
 operators:
@@ -38,3 +40,6 @@ hooks:
   - integration-name: Apache Beam
     python-modules:
       - airflow.providers.apache.beam.hooks.beam
+
+hook-class-names:
+  - airflow.providers.apache.beam.hooks.beam.BeamHook

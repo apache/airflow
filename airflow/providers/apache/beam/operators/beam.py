@@ -40,32 +40,9 @@ class BeamRunPythonPipelineOperator(BaseOperator):
     high-level options, for instances, project and zone information, which
     apply to all beam operators in the DAG.
 
-    .. code-block:: python
-
-        default_args = {
-            'default_pipeline_options':
-                {
-                    'labels': 'example-label'
-                }
-        }
-
-        with models.DAG(
-            "example_beam_native_python",
-            default_args=default_args,
-            start_date=days_ago(1),
-            schedule_interval=None,
-            tags=['example'],
-        ) as dag_native_python:
-
-            start_python_job_local_direct_runner = BeamRunPythonPipelineOperator(
-                task_id="start_python_job_local_direct_runner",
-                runner="DirectRunner",
-                py_file='apache_beam.examples.wordcount',
-                py_options=['-m'],
-                py_requirements=['apache-beam[gcp]==2.21.0'],
-                py_interpreter='python3',
-                py_system_site_packages=False,
-            )
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BeamRunPythonPipelineOperator`
 
     .. seealso::
         For more detail on Apache Beam have a look at the reference:
@@ -266,37 +243,18 @@ class BeamRunJavaPipelineOperator(BaseOperator):
     high-level pipeline_options, for instances, project and zone information, which
     apply to all Apache Beam operators in the DAG.
 
-    It's a good practice to define parameters in the default_args of the dag
-    like the project, zone and staging location.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BeamRunJavaPipelineOperator`
 
-    .. code-block:: python
-
-       default_args = {
-            'default_pipeline_options':
-                {
-                    'labels': 'example-label'
-                }
-        }
+    .. seealso::
+        For more detail on Apache Beam have a look at the reference:
+        https://beam.apache.org/documentation/
 
     You need to pass the path to your jar file as a file reference with the ``jar``
     parameter, the jar needs to be a self executing jar (see documentation here:
     https://beam.apache.org/documentation/runners/dataflow/#self-executing-jar).
     Use ``pipeline_options`` to pass on pipeline_options to your job.
-
-    .. code-block:: python
-
-       t1 = BeamRunJavaPipelineOperator(
-           task_id='start_java_job_spark_runner',
-           jar='{{var.value.spark_runner_jar_base}}pipeline/build/libs/pipeline-example-1.0.jar',
-           pipeline_options={
-               'output': '/tmp/start_java_job_spark_runner',
-               'inputFile': 'gs://apache-beam-samples/shakespeare/kinglear.txt,
-           },
-           dag=my-dag)
-
-    .. seealso::
-        For more detail on Apache Beam have a look at the reference:
-        https://beam.apache.org/documentation/
 
     :param jar: The reference to a self executing Apache Beam jar (templated).
     :type jar: str

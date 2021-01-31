@@ -88,6 +88,7 @@ with models.DAG(
     tags=['example'],
 ) as dag_native_java_direct_runner:
 
+    # [START howto_operator_start_java_direct_runner_pipeline]
     jar_to_local_direct_runner = GCSToLocalFilesystemOperator(
         task_id="jar_to_local_direct_runner",
         bucket=GCS_JAR_DIRECT_RUNNER_BUCKET_NAME,
@@ -106,6 +107,7 @@ with models.DAG(
     )
 
     jar_to_local_direct_runner >> start_java_pipeline_direct_runner
+    # [END howto_operator_start_java_direct_runner_pipeline]
 
 with models.DAG(
     "example_beam_native_java_dataflow_runner",
@@ -113,7 +115,7 @@ with models.DAG(
     start_date=days_ago(1),
     tags=['example'],
 ) as dag_native_java_dataflow_runner:
-
+    # [START howto_operator_start_java_dataflow_runner_pipeline]
     jar_to_local_dataflow_runner = GCSToLocalFilesystemOperator(
         task_id="jar_to_local_dataflow_runner",
         bucket=GCS_JAR_DATAFLOW_RUNNER_BUCKET_NAME,
@@ -135,6 +137,7 @@ with models.DAG(
     )
 
     jar_to_local_dataflow_runner >> start_java_pipeline_dataflow
+    # [END howto_operator_start_java_dataflow_runner_pipeline]
 
 with models.DAG(
     "example_beam_native_java_spark_runner",
@@ -199,6 +202,7 @@ with models.DAG(
     tags=['example'],
 ) as dag_native_python:
 
+    # [START howto_operator_start_python_direct_runner_pipeline_local_file]
     start_python_pipeline_local_direct_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_local_direct_runner",
         py_file='apache_beam.examples.wordcount',
@@ -207,7 +211,9 @@ with models.DAG(
         py_interpreter='python3',
         py_system_site_packages=False,
     )
+    # [END howto_operator_start_python_direct_runner_pipeline_local_file]
 
+    # [START howto_operator_start_python_direct_runner_pipeline_gcs_file]
     start_python_pipeline_direct_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_direct_runner",
         py_file=GCS_PYTHON,
@@ -217,7 +223,9 @@ with models.DAG(
         py_interpreter='python3',
         py_system_site_packages=False,
     )
+    # [END howto_operator_start_python_direct_runner_pipeline_gcs_file]
 
+    # [START howto_operator_start_python_dataflow_runner_pipeline_gcs_file]
     start_python_pipeline_dataflow_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_dataflow_runner",
         runner="DataflowRunner",
@@ -235,6 +243,7 @@ with models.DAG(
             job_name='{{task.task_id}}', project_id=GCP_PROJECT_ID, location="us-central1"
         ),
     )
+    # [END howto_operator_start_python_dataflow_runner_pipeline_gcs_file]
 
     start_python_pipeline_local_spark_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_local_spark_runner",
@@ -272,6 +281,7 @@ with models.DAG(
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag_native_python_dataflow_async:
+    # [START howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
     start_python_job_dataflow_runner_async = BeamRunPythonPipelineOperator(
         task_id="start_python_job_dataflow_runner_async",
         runner="DataflowRunner",
@@ -302,3 +312,4 @@ with models.DAG(
     )
 
     start_python_job_dataflow_runner_async >> wait_for_python_job_dataflow_runner_async_done
+    # [END howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
