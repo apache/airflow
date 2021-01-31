@@ -522,7 +522,7 @@ repos:
           - https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
         language: python
         pass_filenames: true
-        files: scripts/ci/docker-compose/.+.yml
+        files: ^scripts/ci/docker-compose/.+\.ya?ml$|docker-compose.ya?ml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema

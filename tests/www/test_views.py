@@ -499,7 +499,7 @@ class TestAirflowBaseViews(TestBase):
                 "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/"
             )
         else:
-            airflow_doc_site = f'https://airflow.apache.org/docs/{version.version}'
+            airflow_doc_site = f'https://airflow.apache.org/docs/apache-airflow/{version.version}'
 
         self.check_content_in_response(airflow_doc_site, resp)
         self.check_content_in_response("/api/v1/ui", resp)
@@ -1822,6 +1822,10 @@ class TestDagACLView(TestBase):
             permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
         )
         self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_all_dag)
+        read_perm_on_task_instance = self.appbuilder.sm.find_permission_view_menu(
+            permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE
+        )
+        self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_task_instance)
         self.appbuilder.sm.add_permission_role(all_dag_role, website_permission)
 
         role_user = self.appbuilder.sm.find_role('User')

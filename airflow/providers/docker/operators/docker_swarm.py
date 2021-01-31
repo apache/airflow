@@ -144,12 +144,14 @@ class DockerSwarmOperator(DockerOperator):
                 self.log.info('Service status before exiting: %s', self._service_status())
                 break
 
-        if self.auto_remove:
+        if self.service and self._service_status() == 'failed':
+            if self.auto_remove:
+                self.cli.remove_service(self.service['ID'])
+            raise AirflowException('Service failed: ' + repr(self.service))
+        elif self.auto_remove:
             if not self.service:
                 raise Exception("The 'service' should be initialized before!")
             self.cli.remove_service(self.service['ID'])
-        if self._service_status() == 'failed':
-            raise AirflowException('Service failed: ' + repr(self.service))
 
     def _service_status(self) -> Optional[str]:
         if not self.cli:

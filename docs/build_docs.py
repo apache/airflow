@@ -75,7 +75,7 @@ def _promote_new_flags():
         print("Still too slow?")
         print()
     print("You can only build one documentation package:")
-    print("    ./breeze build-docs --package-filter <PACKAGE-NAME>")
+    print("    ./breeze build-docs -- --package-filter <PACKAGE-NAME>")
     print()
     print("This usually takes from 20 seconds to 2 minutes.")
     print()

@@ -158,6 +158,12 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- if .Values.workers.kerberosSidecar.enabled }}
+            - name: KRB5_CONFIG
+              value:  {{ .Values.kerberos.configPath | quote }}
+            - name: KRB5CCNAME
+              value:  {{ include "kerberos_ccache_path" . | quote }}
+          {{- end }}
 {{- if $persistence }}
         - name: worker-gc
           image: {{ template "airflow_image" . }}
@@ -167,12 +173,6 @@ spec:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
 {{- end }}
-        {{- if .Values.workers.kerberosSidecar.enabled }}
-            - name: KRB5_CONFIG
-              value:  {{ .Values.kerberos.configPath | quote }}
-            - name: KRB5CCNAME
-              value:  {{ include "kerberos_ccache_path" . | quote }}
-        {{- end }}
         {{- if .Values.workers.kerberosSidecar.enabled }}
         - name: worker-kerberos
           image: {{ template "airflow_image" . }}

@@ -169,6 +169,12 @@ class TestSecurity(unittest.TestCase):
 
         assert role_perms_len == new_role_perms_len
 
+    def test_verify_public_role_has_no_permissions(self):
+        with self.app.app_context():
+            public = self.appbuilder.sm.find_role("Public")
+
+            assert public.permissions == []
+
     def test_get_user_roles(self):
         user = mock.MagicMock()
         user.is_anonymous = False
@@ -226,11 +232,11 @@ class TestSecurity(unittest.TestCase):
             assert perms_views == viewer_role_perms
 
     @mock.patch('airflow.www.security.AirflowSecurityManager.get_user_roles')
-    def test_get_all_permissions_views(self, mock_get_user_roles):
+    def test_get_current_user_permissions(self, mock_get_user_roles):
         role_name = 'MyRole5'
         role_perm = 'can_some_action'
         role_vm = 'SomeBaseView'
-        username = 'get_all_permissions_views'
+        username = 'get_current_user_permissions'
 
         with self.app.app_context():
             user = fab_utils.create_user(
@@ -244,10 +250,10 @@ class TestSecurity(unittest.TestCase):
             role = user.roles[0]
             mock_get_user_roles.return_value = [role]
 
-            assert self.security_manager.get_all_permissions_views() == {(role_perm, role_vm)}
+            assert self.security_manager.get_current_user_permissions() == {(role_perm, role_vm)}
 
             mock_get_user_roles.return_value = []
-            assert len(self.security_manager.get_all_permissions_views()) == 0
+            assert len(self.security_manager.get_current_user_permissions()) == 0
 
     def test_get_accessible_dag_ids(self):
         role_name = 'MyRole1'

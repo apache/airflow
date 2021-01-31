@@ -18,7 +18,7 @@
 """Hook for Slack"""
 from typing import Any, Optional
 
-from slack import WebClient
+from slack_sdk import WebClient
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -41,7 +41,7 @@ class SlackHook(BaseHook):  # noqa
         slack_hook.call("chat.postMessage", json={"channel": "#random", "text": "Hello world!"})
 
         # Call method from Slack SDK (you have to handle errors yourself)
-        #  For more details check https://slack.dev/python-slackclient/basic_usage.html#sending-a-message
+        #  For more details check https://slack.dev/python-slack-sdk/web/index.html#messaging
         slack_hook.client.chat_postMessage(channel="#random", text="Hello world!")
 
     :param token: Slack API token

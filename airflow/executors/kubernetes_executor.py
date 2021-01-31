@@ -42,7 +42,7 @@ from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.kube_config import KubeConfig
 from airflow.kubernetes.kubernetes_helper_functions import create_pod_id
-from airflow.kubernetes.pod_generator import MAX_POD_ID_LEN, PodGenerator
+from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.models import TaskInstance
 from airflow.models.taskinstance import TaskInstanceKey
@@ -367,24 +367,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
         return TaskInstanceKey(dag_id, task_id, execution_date, try_number)
 
-    @staticmethod
-    def _make_safe_pod_id(safe_dag_id: str, safe_task_id: str, safe_uuid: str) -> str:
-        r"""
-        Kubernetes pod names must be <= 253 chars and must pass the following regex for
-        validation
-        ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
-
-        :param safe_dag_id: a dag_id with only alphanumeric characters
-        :param safe_task_id: a task_id with only alphanumeric characters
-        :param safe_uuid: a uuid
-        :return: ``str`` valid Pod name of appropriate length
-        """
-        safe_key = safe_dag_id + safe_task_id
-
-        safe_pod_id = safe_key[: MAX_POD_ID_LEN - len(safe_uuid) - 1] + "-" + safe_uuid
-
-        return safe_pod_id
-
     def _flush_watcher_queue(self) -> None:
         self.log.debug('Executor shutting down, watcher_queue approx. size=%d', self.watcher_queue.qsize())
         while True:
@@ -468,7 +450,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 pod_generator.make_safe_label_value(task.dag_id),
                 pod_generator.make_safe_label_value(task.task_id),
                 pod_generator.datetime_to_label_safe_datestring(task.execution_date),
-                self.scheduler_job_id,
+                pod_generator.make_safe_label_value(str(self.scheduler_job_id)),
             )
             # pylint: enable=protected-access
             kwargs = dict(label_selector=dict_string)
@@ -603,10 +585,16 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         tis_to_flush = [ti for ti in tis if not ti.external_executor_id]
         scheduler_job_ids = [ti.external_executor_id for ti in tis]
         pod_ids = {
-            create_pod_id(dag_id=ti.dag_id, task_id=ti.task_id): ti for ti in tis if ti.external_executor_id
+            create_pod_id(
+                dag_id=pod_generator.make_safe_label_value(ti.dag_id),
+                task_id=pod_generator.make_safe_label_value(ti.task_id),
+            ): ti
+            for ti in tis
+            if ti.external_executor_id
         }
         kube_client: client.CoreV1Api = self.kube_client
         for scheduler_job_id in scheduler_job_ids:
+            scheduler_job_id = pod_generator.make_safe_label_value(str(scheduler_job_id))
             kwargs = {'label_selector': f'airflow-worker={scheduler_job_id}'}
             pod_list = kube_client.list_namespaced_pod(namespace=self.kube_config.kube_namespace, **kwargs)
             for pod in pod_list.items:
@@ -624,7 +612,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         :param pod_ids: pod_ids we expect to patch.
         """
         self.log.info("attempting to adopt pod %s", pod.metadata.name)
-        pod.metadata.labels['airflow-worker'] = str(self.scheduler_job_id)
+        pod.metadata.labels['airflow-worker'] = pod_generator.make_safe_label_value(
+            str(self.scheduler_job_id)
+        )
         dag_id = pod.metadata.labels['dag_id']
         task_id = pod.metadata.labels['task_id']
         pod_id = create_pod_id(dag_id=dag_id, task_id=task_id)
@@ -659,7 +649,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         pod_list = kube_client.list_namespaced_pod(namespace=self.kube_config.kube_namespace, **kwargs)
         for pod in pod_list.items:
             self.log.info("Attempting to adopt pod %s", pod.metadata.name)
-            pod.metadata.labels['airflow-worker'] = str(self.scheduler_job_id)
+            pod.metadata.labels['airflow-worker'] = pod_generator.make_safe_label_value(
+                str(self.scheduler_job_id)
+            )
             try:
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,

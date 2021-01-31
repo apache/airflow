@@ -1248,6 +1248,12 @@
       type: string
       example: ~
       default: "airflow.utils.email.send_email_smtp"
+    - name: email_conn_id
+      description: Email connection to use
+      version_added: ~
+      type: string
+      example: ~
+      default: "smtp_default"
     - name: default_email_on_retry
       description: |
         Whether email alerts should be sent when a task is retried
