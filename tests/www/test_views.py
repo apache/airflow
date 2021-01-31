@@ -499,7 +499,7 @@ class TestAirflowBaseViews(TestBase):
                 "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/"
             )
         else:
-            airflow_doc_site = f'https://airflow.apache.org/docs/{version.version}'
+            airflow_doc_site = f'https://airflow.apache.org/docs/apache-airflow/{version.version}'
 
         self.check_content_in_response(airflow_doc_site, resp)
         self.check_content_in_response("/api/v1/ui", resp)
