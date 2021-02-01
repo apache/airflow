@@ -207,7 +207,7 @@ class FileTaskHandler(logging.Handler):
             logs = [
                 [('default_host', f'Error fetching the logs. Try number {try_number} is invalid.')],
             ]
-            return logs
+            return logs, [{'end_of_log': True}]
         else:
             try_numbers = [try_number]
 
