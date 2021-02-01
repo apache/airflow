@@ -435,9 +435,18 @@ class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual
     pass
 
 
+class FilterReg(fab_sqlafilters.BaseFilter):
+    name = "Reg"
+    arg_name = "ct"
+
+    def apply(self, query, value):
+        query, field = fab_sqlafilters.get_field_setup_query(query, self.model, self.column_name)
+        return query.filter(field.op('~')(r'[^\d]' + value + '[^\d]'))
+
+
 class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     conversion_table = (
-        (('is_errortag', [fab_sqlafilters.FilterContains]),) +
+        (('is_errortag', [FilterReg]),) +
         (('is_utcdatetime', [UtcAwareFilterEqual,
                              UtcAwareFilterGreater,
                              UtcAwareFilterSmaller,
