@@ -29,6 +29,8 @@ import time
 from datetime import timedelta
 from typing import Optional
 from urllib.parse import quote
+from flask_appbuilder.models.decorators import renders
+from flask_babel import lazy_gettext
 
 import dill
 import lazy_object_proxy
@@ -178,6 +180,7 @@ class TaskInstance(Base, LoggingMixin):
     bolt_number = Column(String(1000))  # 螺栓编号
     craft_type = Column(Integer)  # 工艺类型
     car_code = Column(String(1000))  # 车辆编号
+    type = Column(String(100), default="normal")  # 任务实例类型，normal/rework,正常/返修
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
@@ -1684,4 +1687,3 @@ class TaskInstance(Base, LoggingMixin):
             #     qry = qry.limit(limit)
             count += qry.delete()
         return count
-

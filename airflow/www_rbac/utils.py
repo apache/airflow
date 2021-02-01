@@ -18,6 +18,7 @@
 # under the License.
 
 from future import standard_library  # noqa
+
 standard_library.install_aliases()  # noqa
 
 import functools
@@ -32,7 +33,7 @@ from past.builtins import basestring
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from flask import request, Response, Markup, url_for
-from flask_appbuilder.forms import DateTimeField, FieldConverter
+from flask_appbuilder.forms import DateTimeField, FieldConverter, Select2Widget, StringField
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
@@ -173,9 +174,9 @@ def generate_pages(current_page, num_of_pages,
         vals = {
             'is_active': 'active' if is_current(current_page, page) else '',
             'href_link': void_link if is_current(current_page, page)
-                         else '?{}'.format(get_params(page=page,
-                                                      search=search,
-                                                      showPaused=showPaused)),
+            else '?{}'.format(get_params(page=page,
+                                         search=search,
+                                         showPaused=showPaused)),
             'page_num': page + 1
         }
         output.append(page_node.format(**vals))
@@ -266,6 +267,7 @@ def nobr_f(attr_name):
     def nobr(attr):
         f = attr.get(attr_name)
         return Markup("<nobr>{}</nobr>").format(f)
+
     return nobr
 
 
@@ -280,6 +282,7 @@ def datetime_f(attr_name):
             f = f[5:]
         # The empty title will be replaced in JS code when non-UTC dates are displayed
         return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, f)
+
     return dt
 
 
@@ -432,9 +435,18 @@ class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual
     pass
 
 
-class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
+class FilterReg(fab_sqlafilters.BaseFilter):
+    name = "Reg"
+    arg_name = "ct"
 
+    def apply(self, query, value):
+        query, field = fab_sqlafilters.get_field_setup_query(query, self.model, self.column_name)
+        return query.filter(field.op('~')(r'[^\d]' + value + '[^\d]'))
+
+
+class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     conversion_table = (
+        (('is_errortag', [FilterReg]),) +
         (('is_utcdatetime', [UtcAwareFilterEqual,
                              UtcAwareFilterGreater,
                              UtcAwareFilterSmaller,
@@ -450,6 +462,7 @@ class CustomSQLAInterface(SQLAInterface):
     '_' from the key to lookup the column names.
 
     """
+
     def __init__(self, obj, session=None):
         super(CustomSQLAInterface, self).__init__(obj, session=session)
 
@@ -469,17 +482,33 @@ class CustomSQLAInterface(SQLAInterface):
         if col_name in self.list_columns:
             obj = self.list_columns[col_name].type
             return isinstance(obj, UtcDateTime) or \
-                isinstance(obj, sqla.types.TypeDecorator) and \
-                isinstance(obj.impl, UtcDateTime)
+                   isinstance(obj, sqla.types.TypeDecorator) and \
+                   isinstance(obj.impl, UtcDateTime)
+        return False
+
+    def is_errortag(self, col_name):
+        if col_name == 'error_tag':
+            return True
         return False
 
     filter_converter_class = UtcAwareFilterConverter
+
+
+from airflow.models.error_tag import ErrorTag
+
+
+class ErrorTagField(StringField):
+    def iter_choices(self):
+        d = ErrorTag.get_all_dict()
+        for value, label in d.items():
+            yield (value, label, self.data is None)
 
 
 # This class is used directly (i.e. we cant tell Fab to use a different
 # subclass) so we have no other option than to edit the converstion table in
 # place
 FieldConverter.conversion_table = (
+    (('is_errortag', ErrorTagField, Select2Widget),) +
     (('is_utcdatetime', DateTimeField, AirflowDateTimePickerWidget),) +
     FieldConverter.conversion_table
 )

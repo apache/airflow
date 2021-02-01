@@ -6,6 +6,7 @@ from airflow.utils.logger import generate_logger
 import os
 import json
 import threading
+import json
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
@@ -99,6 +100,9 @@ class ClsResultStorage(ClsEntity):
             raise BaseException(u'未定义工具序列号')
         p = Point('results').tag('tool_sn', sn).tag('entity_id', self.entity_id)
         for key, value in data.items():
+            if key in ['step_results']:
+                p.field(key, json.dumps(value))
+                continue
             p.field(key, value)
         return p
 
@@ -129,7 +133,7 @@ class ClsResultStorage(ClsEntity):
             result = self.package_result_point(result_body)
             return self._write(result)
         except Exception as err:
-            raise Exception(u"写入结果失败: {}".format(str(err)))
+            raise Exception(u"写入结果失败: {}, result: {}".format(repr(err), repr(data)))
 
     def query_results(self):
         self.ensure_connect()
@@ -178,5 +182,8 @@ class ClsResultStorage(ClsEntity):
                 ret = record.values
                 for key in unused_keys:
                     ret.pop(key)
-                return record.values  # 返回第一条记录
+                for key in ret.keys():
+                    if key in ['step_results']:
+                        ret[key] = json.loads(ret[key])
+                return ret  # 返回第一条记录
         return None
