@@ -790,8 +790,10 @@ def convert_git_changes_to_table(
                 f"`{message_without_backticks}`" if markdown else f"``{message_without_backticks}``",
             )
         )
-    table = tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
     header = ""
+    if not table_data:
+        return header
+    table = tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
     if not markdown:
         header += f"\n\n{print_version}\n" + "." * len(print_version) + "\n\n"
         release_date = table_data[0][1]
