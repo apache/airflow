@@ -2135,7 +2135,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         and prepare-airflow-packages second.
 
         You can also specify --backport flag to prepare backport providers or --package-format to
-        prepare one or both types of format supported.
+        prepare one or both types of supported formats.
 
         Examples:
 

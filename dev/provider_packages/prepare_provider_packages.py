@@ -48,6 +48,36 @@ from rich import print
 from rich.console import Console
 from rich.syntax import Syntax
 
+INITIAL_CHANGELOG_CONTENT = """
+
+
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+
+Changelog
+---------
+
+1.0.0
+.....
+
+Initial version of the provider.
+"""
+
 HTTPS_REMOTE = "apache-https-for-providers"
 HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/master"
 
@@ -785,9 +815,7 @@ def convert_pip_requirements_to_table(requirements: Iterable[str], markdown: boo
         if found:
             package = found.group(1)
             version_required = found.group(2)
-            if version_required == "":
-                version_required = ""
-            else:
+            if version_required != "":
                 version_required = f"`{version_required}`" if markdown else f'``{version_required}``'
             table_data.append((f"`{package}`" if markdown else f"``{package}``", version_required))
         else:
@@ -946,12 +974,12 @@ def make_sure_remote_apache_exists_and_fetch():
     """
     try:
         check_remote_command = ["git", "remote", "get-url", HTTPS_REMOTE]
+        print(f"Running command: '{' '.join(check_remote_command)}'")
         subprocess.check_call(
             check_remote_command,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        print(f"Running command: '{' '.join(check_remote_command)}'")
     except subprocess.CalledProcessError as ex:
         if ex.returncode == 128:
             remote_add_command = [
@@ -1094,35 +1122,7 @@ def get_changelog_for_package(provider_package_path: str) -> str:
         print("Please add the file with initial content:")
         print()
         syntax = Syntax(
-            """
-
-
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
- ..   http://www.apache.org/licenses/LICENSE-2.0
-
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
-
-Changelog
----------
-
-1.0.0
-.....
-
-Initial version of the provider.
-""",
+            INITIAL_CHANGELOG_CONTENT,
             "rst",
             theme="ansi_dark",
         )
@@ -1312,7 +1312,7 @@ def get_all_changes_for_regular_packages(
             cwd=source_provider_package_path,
             universal_newlines=True,
         )
-        if len(changes) > 0:
+        if changes:
             print(
                 f"[yellow]The provider {provider_package_id} has changes"
                 f" since last release but version is not updated[/]"

@@ -97,7 +97,7 @@ You can run the script with multiple package names if you want to prepare severa
 Before you specify a new version, the last released version is update in case you have any bug fixes
 merged in the master recently, they will be automatically taken into account.
 
-Typically, the first time you run release before release, you run it with target release.date:
+Typically, the first time you run the script before release, you run it with the target release date:
 
 ```
 ./breeze --backports prepare-provider-documentation 2020.05.20 google
