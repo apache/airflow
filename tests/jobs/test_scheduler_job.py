@@ -3695,6 +3695,66 @@ class TestSchedulerJob(unittest.TestCase):
         dag_model = session.query(DagModel).get(dag.dag_id)
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(minutes=1)
 
+    def test_scheduler_create_dag_runs_check_existing_run(self):
+        """
+        Test that if a dag run exists, scheduler._create_dag_runs does not raise an error.
+        And if a Dag Run does not exist it creates next Dag Run. In both cases the Scheduler
+        sets next execution date as DagModel.next_dagrun
+        """
+        dag = DAG(
+            dag_id='test_scheduler_create_dag_runs_check_existing_run',
+            start_date=DEFAULT_DATE,
+            schedule_interval=timedelta(days=1),
+        )
+
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+        )
+
+        session = settings.Session()
+        assert dag.get_last_dagrun(session) is None
+
+        dagbag = DagBag(
+            dag_folder=os.devnull,
+            include_examples=False,
+            read_dags_from_db=False,
+        )
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+
+        # Create DagModel
+        DAG.bulk_write_to_db(dagbag.dags.values())
+        dag_model = DagModel.get_dagmodel(dag.dag_id)
+
+        # Assert dag_model.next_dagrun is set correctly
+        assert dag_model.next_dagrun == DEFAULT_DATE
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        dagrun = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=dag_model.next_dagrun,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            external_trigger=False,
+            session=session,
+            creating_job_id=2,
+        )
+        session.flush()
+
+        assert dag.get_last_dagrun(session) == dagrun
+
+        scheduler = SchedulerJob(subdir=os.devnull, executor=self.null_exec)
+        scheduler.dagbag = dagbag
+        scheduler.processor_agent = mock.MagicMock()
+
+        # Test that this does not raise any error
+        scheduler._create_dag_runs([dag_model], session)
+
+        # Assert dag_model.next_dagrun is set correctly to next execution date
+        assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
+        session.rollback()
+
     def test_do_schedule_max_active_runs_upstream_failed(self):
         """
         Test that tasks in upstream failed don't count as actively running.
