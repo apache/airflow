@@ -49,14 +49,10 @@ While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade pyth
 want to use this backport package.
 
 
-
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
 `pip install apache-airflow-backport-providers-apache-beam`
-
-## PIP requirements
-
 
 ## Cross provider package dependencies
 
@@ -66,12 +62,13 @@ You need to install the specified backport providers package in order to use the
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
 ```bash
-pip install apache-airflow-backport-providers-apache-beam[google]
+pip install apache-airflow-beckport-providers-apache-beam[google]
 ```
 
-| Dependent package                                                                                                   | Extra  |
-|:--------------------------------------------------------------------------------------------------------------------|:-------|
-| [apache-airflow-backport-providers-google](https://github.com/apache/airflow/tree/master/airflow/providers/google/) | google |
+| Dependent package                                                                                         | Extra       |
+|:----------------------------------------------------------------------------------------------------------|:------------|
+| [apache-airflow-providers-apache-google](https://pypi.org/project/apache-airflow-providers-apache-google) | google      |
+
 
 # Provider classes summary
 
@@ -82,20 +79,21 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Operators
 
-### Moved operators
+### New operators
 
-## Transfer operators
+| New Airflow 2.0 operators: `airflow.providers.apache.beam` package                                                                                                                 |
+|:-----------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.beam.BeamRunJavaPipelineOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/beam/operators/beam.py)    |
+| [operators.beam.BeamRunPythonPipelineOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/beam/operators/beam.py)  |
 
-### Moved transfer operators
 
 ## Hooks
 
-### Moved hooks
+### New hooks
+
+| New Airflow 2.0 hooks: `airflow.providers.apache.beam` package                                                   |
+|:-----------------------------------------------------------------------------------------------------------------|
+| [hooks.beam.BeamHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/beam/hooks/beam.py) |
 
 
 ## Releases
-
-### Release
-
-| Commit                                                                                         | Committed   | Subject                                                      |
-|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------|
