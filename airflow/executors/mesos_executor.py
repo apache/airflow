@@ -314,6 +314,7 @@ class MesosExecutor(BaseExecutor):
 
         if framework_checkpoint:
             self.client.set_checkpoint(framework_checkpoint)
+            self.client.set_failover_timeout(framework_failover_timeout)
 
         if conf.getboolean('mesos', 'AUTHENTICATE'):
             if not conf.get('mesos', 'DEFAULT_PRINCIPAL'):
