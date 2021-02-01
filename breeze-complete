@@ -37,7 +37,7 @@ _breeze_allowed_mysql_versions="5.7 8"
 _breeze_allowed_postgres_versions="9.6 10 11 12 13"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell k9s"
 _breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Heisentests Postgres MySQL Helm"
-_breeze_allowed_package_formats="wheel sdist both"
+_breeze_allowed_package_formats="both sdist wheel"
 _breeze_allowed_installation_methods=". apache-airflow"
 
 # shellcheck disable=SC2034
@@ -161,7 +161,7 @@ S: N:
 _breeze_long_options="
 help python: backend: integration:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
-skip-mounting-local-sources install-airflow-version: install-airflow-reference: db-reset
+skip-mounting-local-sources mount-all-local-sources install-airflow-version: install-airflow-reference: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials init-script:
 force-build-images force-pull-images production-image extras: force-clean-images skip-rebuild-check
 build-cache-local build-cache-pulled build-cache-disabled disable-pip-cache
@@ -198,7 +198,7 @@ toggle-suppress-asciiart"
 _breeze_extra_arg_commands="
 docker-compose
 kind-cluster
-prepare-provider-readme
+prepare-provider-documentation
 prepare-provider-packages
 static-check
 tests

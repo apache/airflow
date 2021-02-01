@@ -27,7 +27,7 @@ on:  # yamllint disable-line rule:truthy
 
 env:
 
-  MOUNT_LOCAL_SOURCES: "false"
+  MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
   CHECK_IMAGE_FOR_REBUILD: "true"
@@ -275,7 +275,7 @@ jobs:
     needs: [build-info, ci-images]
     env:
       SKIP: "pylint,identity"
-      MOUNT_LOCAL_SOURCES: "true"
+      MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.basic-checks-only == 'false'
@@ -327,7 +327,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     env:
       SKIP: "build,mypy,flake8,pylint,bats-in-container-tests,identity"
-      MOUNT_LOCAL_SOURCES: "true"
+      MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'true'
     steps:
@@ -380,7 +380,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       # We want to make sure we have latest sources as only in_container scripts are added
       # to the image but we want to static-check all of them
-      MOUNT_LOCAL_SOURCES: "true"
+      MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     steps:
@@ -470,6 +470,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
       VERSION_SUFFIX_FOR_PYPI: "dev"
+      VERSION_SUFFIX_FOR_SVN: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true'
@@ -487,8 +488,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: "!contains(needs.build-info.outputs.runsOn, 'self-hosted')"
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare provider readmes"
-        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider documentation"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_documentation.sh
       - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
       - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
@@ -502,7 +503,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           name: airflow-backport-packages
           path: "./dist/apache*"
           retention-days: 7
-      - name: "Upload readme artifacts"
+      - name: "Upload documentation artifacts"
         uses: actions/upload-artifact@v2
         if: always() && matrix.package-format == 'wheel'
         with:
@@ -520,6 +521,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: "dev"
+      VERSION_SUFFIX_FOR_SVN: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     strategy:
@@ -540,8 +542,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: "!contains(needs.build-info.outputs.runsOn, 'self-hosted')"
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare provider readmes"
-        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider documentation"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_documentation.sh
       - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
       - name: "Prepare airflow packages: ${{ matrix.package-format }}"
@@ -555,13 +557,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           name: airflow-provider-packages
           path: "./dist/apache-*"
           retention-days: 7
-      - name: "Upload readme artifacts"
-        uses: actions/upload-artifact@v2
-        if: always() && matrix.package-format == 'wheel'
-        with:
-          name: airflow-provider-readmes
-          path: "./files/airflow-readme-*"
-          retention-days: 7
 
   test-provider-packages-released-airflow:
     timeout-minutes: 30
@@ -573,6 +568,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: "dev"
+      VERSION_SUFFIX_FOR_SVN: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     strategy:
@@ -593,8 +589,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: "!contains(needs.build-info.outputs.runsOn, 'self-hosted')"
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare provider readmes"
-        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider documentation"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_documentation.sh
       - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
       - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
@@ -606,7 +602,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
     env:
-      MOUNT_LOCAL_SOURCES: "true"
+      MOUNT_SELECTED_LOCAL_SOURCES: "true"
       RUN_TESTS: true
       TEST_TYPES: "Helm"
       BACKEND: "sqlite"

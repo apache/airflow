@@ -68,7 +68,7 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    SUPPRESS_ASCIIART_FILE
 #    MAX_SCREEN_WIDTH
 #    SCREEN_WIDTH
-#    MOUNT_LOCAL_SOURCES
+#    MOUNT_SELECTED_LOCAL_SOURCES
 #    FORCE_PULL_IMAGES
 #    FORWARD_CREDENTIALS
 #    DB_RESET
@@ -105,8 +105,11 @@ function breeze::setup_default_breeze_constants() {
     export MAX_SCREEN_WIDTH=100
     readonly MAX_SCREEN_WIDTH
 
-    # By default we mount local Airflow sources
-    export MOUNT_LOCAL_SOURCES="true"
+    # By default we mount selected local Airflow sources
+    export MOUNT_SELECTED_LOCAL_SOURCES="true"
+
+    # By default we do not mount all local Airflow sources
+    export MOUNT_ALL_LOCAL_SOURCES="false"
 
     # By default we only pull images if we do not have them locally.
     # This can be overridden by '--force-pull-images' flag
@@ -478,7 +481,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_PROD_IMAGE}
-                               Github cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
+                               GitHub cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
                                Airflow source version: $(build_images::get_airflow_version_from_production_image)
 EOF
         else
@@ -488,7 +491,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_CI_IMAGE}
-                               Github cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
+                               GitHub cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
                                Airflow source version: ${AIRFLOW_VERSION}
 EOF
         fi
@@ -513,7 +516,7 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_PROD_IMAGE}
-   Github cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
+   GitHub cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
 EOF
         else
             cat <<EOF
@@ -522,7 +525,7 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_CI_IMAGE}
-   Github cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
+   GitHub cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
 
 EOF
         fi
@@ -659,6 +662,7 @@ function breeze::prepare_command_files() {
     local main_prod_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
     local local_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local.yml
+    local local_all_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local-all-sources.yml
     local files_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/files.yml
     local local_prod_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local-prod.yml
     local remove_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
@@ -667,9 +671,14 @@ function breeze::prepare_command_files() {
     local compose_ci_file=${main_ci_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
     local compose_prod_file=${main_prod_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
 
-    if [[ "${MOUNT_LOCAL_SOURCES}" != "false" ]]; then
+    if [[ "${MOUNT_SELECTED_LOCAL_SOURCES}" != "false" ]]; then
         compose_ci_file=${compose_ci_file}:${local_docker_compose_file}
         compose_prod_file=${compose_prod_file}:${local_prod_docker_compose_file}
+    fi
+
+    if [[ "${MOUNT_ALL_LOCAL_SOURCES}" != "false" ]]; then
+        compose_ci_file=${compose_ci_file}:${local_all_sources_docker_compose_file}
+        compose_prod_file=${compose_prod_file}:${local_all_sources_docker_compose_file}
     fi
 
     if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
@@ -848,8 +857,18 @@ function breeze::parse_arguments() {
             shift 2
             ;;
         -l | --skip-mounting-local-sources)
-            MOUNT_LOCAL_SOURCES="false"
-            echo "Mount local sources: ${MOUNT_LOCAL_SOURCES}"
+            MOUNT_SELECTED_LOCAL_SOURCES="false"
+            MOUNT_ALL_LOCAL_SOURCES="false"
+            echo "Mount selected local sources: ${MOUNT_SELECTED_LOCAL_SOURCES}"
+            echo "Mount all local sources: ${MOUNT_ALL_LOCAL_SOURCES}"
+            echo
+            shift
+            ;;
+        --mount-all-local-sources)
+            MOUNT_ALL_LOCAL_SOURCES="true"
+            MOUNT_SELECTED_LOCAL_SOURCES="false"
+            echo "Mount selected local sources: ${MOUNT_SELECTED_LOCAL_SOURCES}"
+            echo "Mount all local sources: ${MOUNT_ALL_LOCAL_SOURCES}"
             echo
             shift
             ;;
@@ -1007,7 +1026,7 @@ function breeze::parse_arguments() {
             echo "Additional apt dev dependencies: ${ADDITIONAL_DEV_APT_DEPS}"
             shift 2
             ;;
-        --dev-apt-commad)
+        --dev-apt-command)
             export DEV_APT_COMMAND="${2}"
             echo "Apt dev command: ${DEV_APT_COMMAND}"
             shift 2
@@ -1032,7 +1051,7 @@ function breeze::parse_arguments() {
             echo "Additional apt runtime dependencies: ${ADDITIONAL_RUNTIME_APT_DEPS}"
             shift 2
             ;;
-        --runtime-apt-commad)
+        --runtime-apt-command)
             export RUNTIME_APT_COMMAND="${2}"
             echo "Apt runtime command: ${RUNTIME_APT_COMMAND}"
             shift 2
@@ -1312,9 +1331,9 @@ function breeze::parse_arguments() {
             command_to_run="perform_prepare_provider_packages"
             shift
             ;;
-        prepare-provider-readme)
+        prepare-provider-documentation)
             last_subcommand="${1}"
-            command_to_run="perform_prepare_provider_readme"
+            command_to_run="perform_prepare_provider_documentation"
             shift
             ;;
         push-image)
@@ -1328,6 +1347,7 @@ function breeze::parse_arguments() {
             echo "Initializing local virtualenv"
             echo
             command_to_run="perform_initialize_local_virtualenv"
+            export INSTALL_PROVIDERS_FROM_SOURCES="true"
             shift
             ;;
         kind-cluster)
@@ -1602,8 +1622,8 @@ function breeze::prepare_usage() {
     readonly USAGE_GENERATE_CONSTRAINTS
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
     readonly USAGE_INITIALIZE_LOCAL_VIRTUALENV
-    export USAGE_PREPARE_PROVIDER_README="Prepares provider packages readme files"
-    readonly USAGE_PREPARE_PROVIDER_README
+    export USAGE_PREPARE_PROVIDER_DOCUMENTATION="Prepares provider packages documentation"
+    readonly USAGE_PREPARE_PROVIDER_DOCUMENTATION
     export USAGE_PREPARE_AIRFLOW_PACKAGES="Prepares airflow packages"
     readonly USAGE_PREPARE_AIRFLOW_PACKAGES
     export USAGE_PREPARE_PROVIDER_PACKAGES="Prepares provider packages"
@@ -1751,24 +1771,29 @@ $(breeze::flag_verbosity)
       Explains in detail all the flags that can be used with breeze.
 "
     readonly DETAILED_USAGE_FLAGS
-    export DETAILED_USAGE_PREPARE_PROVIDER_README="
-${CMDNAME} prepare-provider-readme [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
+    export DETAILED_USAGE_PREPARE_PROVIDER_DOCUMENTATION="
+${CMDNAME} prepare-provider-documentation [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
 
-      Prepares README.md files for backport packages. You can provide (after --) optional version
-      in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
+      Prepares documentation files for provider packages.
+
+      The command is optionally followed by the list of packages to generate readme for.
       If the first parameter is not formatted as a date, then today is regenerated.
       If no packages are specified, readme for all packages are generated.
       If no date is specified, current date + 3 days is used (allowing for PMC votes to pass).
 
+      You can also specify --backport flag to prepare backport providers documentation and in this
+      case you can also optionally specify CALVER version as first parameter.
+
       Examples:
 
-      '${CMDNAME} prepare-provider-readme' or
-      '${CMDNAME} prepare-provider-readme 2020.05.10' or
-      '${CMDNAME} prepare-provider-readme 2020.05.10 https google amazon'
+      '${CMDNAME} prepare-provider-documentation' or
+      '${CMDNAME} prepare-provider-documentation --version-suffix-for-pypi rc1' or
+      '${CMDNAME} prepare-provider-documentation --backports 2020.05.10' or
+      '${CMDNAME} prepare-provider-documentation --backports 2020.05.10 https google amazon'
 
       General form:
 
-      '${CMDNAME} prepare-provider-readme YYYY.MM.DD <PACKAGE_ID> ...'
+      '${CMDNAME} prepare-provider-documentation YYYY.MM.DD <PACKAGE_ID> ...'
 
       * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
         cannot be earlier than the already released version (the script will fail if it
@@ -1779,9 +1804,11 @@ ${CMDNAME} prepare-provider-readme [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
         '.' for example 'apache.hive'
 
 Flags:
+$(breeze::flag_version_suffix)
+$(breeze::flag_packages)
 $(breeze::flag_verbosity)
 "
-    readonly DETAILED_USAGE_PREPARE_PROVIDER_README
+    readonly DETAILED_USAGE_PREPARE_PROVIDER_DOCUMENTATION
     export DETAILED_USAGE_GENERATE_CONSTRAINTS="
 ${CMDNAME} generate-constraints [FLAGS]
 
@@ -1845,11 +1872,14 @@ ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
       prepared there so make sure you run prepare-provider-packages first,
       and prepare-airflow-packages second.
 
+      You can also specify --backport flag to prepare backport providers or --package-format to
+      prepare one or both types of supported formats.
+
       Examples:
 
       '${CMDNAME} prepare-provider-packages' or
       '${CMDNAME} prepare-provider-packages google' or
-      '${CMDNAME} prepare-provider-packages --package-format both google' or
+      '${CMDNAME} prepare-provider-packages --package-format wheel google' or
       '${CMDNAME} prepare-provider-packages --version-suffix-for-svn rc1 http google amazon' or
       '${CMDNAME} prepare-provider-packages --version-suffix-for-pypi rc1 http google amazon'
       '${CMDNAME} prepare-provider-packages --version-suffix-for-pypi a1
@@ -1857,7 +1887,7 @@ ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
 
       General form:
 
-      '${CMDNAME} prepare-provider-packages [--package-format PACKAGE_FORMAT] \\
+      '${CMDNAME} prepare-provider-packages [--backports] [--package-format PACKAGE_FORMAT] \\
             [--version-suffix-for-svn|--version-suffix-for-pypi] <PACKAGE_ID> ...'
 
       * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
@@ -2120,7 +2150,7 @@ Commands with arguments:
 "
     # shellcheck disable=SC2154
     for subcommand in ${_breeze_extra_arg_commands}; do
-        printf "  %-30s%-10s %s\n" "${subcommand}" "<ARG>" "$(breeze::get_usage "${subcommand}")"
+        printf "  %-35s%-10s %s\n" "${subcommand}" "<ARG>" "$(breeze::get_usage "${subcommand}")"
     done
     echo "
 Help commands:
@@ -2480,6 +2510,10 @@ ${FORMATTED_PACKAGE_FORMATS}
 
         Default: ${_breeze_default_package_format:=}
 
+--backports
+
+        Prepares backport providers rather than regular ones.
+
 "
 }
 
@@ -2694,7 +2728,7 @@ function breeze::flag_pull_push_docker_images() {
         and you need to be committer to push to Apache Airflow' GitHub registry.
 
 --github-registry GITHUB_REGISTRY
-        Github registry used. GitHub has legacy Packages registry and Public Beta Container
+        GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
         registry.
 
         Default: ${_breeze_default_github_registry:=}.
@@ -3260,7 +3294,7 @@ function breeze::run_build_command() {
         fi
         ;;
     build_docs | perform_static_checks | perform_generate_constraints | \
-        perform_prepare_provider_readme | perform_prepare_provider_packages | \
+        perform_prepare_provider_documentation | perform_prepare_provider_packages | \
         perform_prepare_airflow_packages)
         build_images::prepare_ci_build
         build_images::rebuild_ci_image_if_needed
@@ -3433,8 +3467,8 @@ function breeze::run_breeze_command() {
     perform_prepare_provider_packages)
         runs::run_prepare_provider_packages "${@}"
         ;;
-    perform_prepare_provider_readme)
-        runs::run_prepare_provider_readme "${@}"
+    perform_prepare_provider_documentation)
+        runs::run_prepare_provider_documentation "${@}"
         ;;
     perform_push_image)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then

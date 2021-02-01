@@ -16,6 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Can be used to add extra parameters when generating providers
+# We will be able to remove it after we drop backport providers
+OPTIONAL_BACKPORT_FLAG=()
+PROVIDER_PACKAGES_DIR="${AIRFLOW_SOURCES}/dev/provider_packages"
+
 #######################################################################################################
 #
 # Adds trap to the traps already set.
@@ -142,26 +147,14 @@ function in_container_fix_ownership() {
             "/root/.docker"
             "${AIRFLOW_SOURCES}"
         )
-        if [[ ${VERBOSE} == "true" ]]; then
-            echo "Fixing ownership of mounted files"
-        fi
         sudo find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
             sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference ||
             true >/dev/null 2>&1
-        if [[ ${VERBOSE} == "true" ]]; then
-            echo "Fixed ownership of mounted files"
-        fi
     fi
 }
 
 function in_container_clear_tmp() {
-    if [[ ${VERBOSE} == "true" ]]; then
-        echo "Cleaning ${AIRFLOW_SOURCES}/tmp from the container"
-    fi
     rm -rf /tmp/*
-    if [[ ${VERBOSE} == "true" ]]; then
-        echo "Cleaned ${AIRFLOW_SOURCES}/tmp from the container"
-    fi
 }
 
 function in_container_go_to_airflow_sources() {
@@ -282,7 +275,7 @@ function install_airflow_from_wheel() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install "${airflow_package}${1}"
 }
 
 function install_airflow_from_sdist() {
@@ -299,7 +292,7 @@ function install_airflow_from_sdist() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${1}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install "${airflow_package}${1}"
 }
 
 function reinstall_azure_storage_blob() {
@@ -317,18 +310,12 @@ function reinstall_azure_storage_blob() {
 
 function install_remaining_dependencies() {
     group_start "Installs all remaining dependencies that are not installed by '${AIRFLOW_EXTRAS}' "
-    pip install apache-beam[gcp] >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install apache-beam[gcp]
     group_end
 }
 
 function uninstall_airflow() {
-    echo
-    echo "Uninstalling airflow"
-    echo
     pip uninstall -y apache-airflow || true
-    echo
-    echo "Remove all AIRFLOW_HOME remnants"
-    echo
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --
 }
 
@@ -337,9 +324,6 @@ function uninstall_all_pip_packages() {
 }
 
 function uninstall_providers() {
-    echo
-    echo "Uninstalling all provider packages"
-    echo
     local provider_packages_to_uninstall
     provider_packages_to_uninstall=$(pip freeze | grep apache-airflow-providers || true)
     if [[ -n ${provider_packages_to_uninstall} ]]; then
@@ -360,7 +344,7 @@ function install_released_airflow_version() {
     echo
 
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow${extras}==${version}" >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install --upgrade "apache-airflow${extras}==${version}"
 }
 
 function install_local_airflow_with_eager_upgrade() {
@@ -446,7 +430,7 @@ function install_all_provider_packages_from_wheels() {
     echo "Installing all provider packages from wheels"
     echo
     uninstall_providers
-    pip install /dist/apache_airflow*providers_*.whl >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install /dist/apache_airflow*providers_*.whl
 }
 
 function install_all_provider_packages_from_sdist() {
@@ -454,7 +438,7 @@ function install_all_provider_packages_from_sdist() {
     echo "Installing all provider packages from .tar.gz"
     echo
     uninstall_providers
-    pip install /dist/apache-airflow-*providers-*.tar.gz >"${OUTPUT_PRINTED_ONLY_ON_ERROR}" 2>&1
+    pip install /dist/apache-airflow-*providers-*.tar.gz
 }
 
 function setup_provider_packages() {
@@ -463,6 +447,7 @@ function setup_provider_packages() {
         export PACKAGE_PREFIX_UPPERCASE="BACKPORT_"
         export PACKAGE_PREFIX_LOWERCASE="backport_"
         export PACKAGE_PREFIX_HYPHEN="backport-"
+        OPTIONAL_BACKPORT_FLAG+=("--backports")
     else
         export PACKAGE_TYPE="regular"
         export PACKAGE_PREFIX_UPPERCASE=""
@@ -569,6 +554,12 @@ ${COLOR_RESET}
     group_end
 }
 
+function install_supported_pip_version() {
+    group_start "Install supported PIP version ${AIRFLOW_PIP_VERSION}"
+    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+    group_end
+}
+
 function filename_to_python_module() {
     # Turn the file name into a python package name
     file="$1"
@@ -620,6 +611,78 @@ function in_container_set_colors() {
     export COLOR_RED
     export COLOR_RESET
     export COLOR_YELLOW
+}
+
+
+function check_missing_providers() {
+    PACKAGE_ERROR="false"
+
+    pushd "${AIRFLOW_SOURCES}/airflow/providers" >/dev/null 2>&1 || exit 1
+
+    LIST_OF_DIRS_FILE=$(mktemp)
+    find . -type d | sed 's!./!!; s!/!.!g' | grep -E 'hooks|operators|sensors|secrets|utils' \
+        > "${LIST_OF_DIRS_FILE}"
+
+    popd >/dev/null 2>&1 || exit 1
+
+    # Check if all providers are included
+    for PACKAGE in "${PROVIDER_PACKAGES[@]}"
+    do
+        if ! grep -E "^${PACKAGE}" <"${LIST_OF_DIRS_FILE}" >/dev/null; then
+            echo "The package ${PACKAGE} is not available in providers dir"
+            PACKAGE_ERROR="true"
+        fi
+        sed -i "/^${PACKAGE}.*/d" "${LIST_OF_DIRS_FILE}"
+    done
+
+    if [[ ${PACKAGE_ERROR} == "true" ]]; then
+        echo
+        echo "ERROR! Some packages from ${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py are missing in providers dir"
+        exit 1
+    fi
+
+    if [[ $(wc -l < "${LIST_OF_DIRS_FILE}") != "0" ]]; then
+        echo "ERROR! Some folders from providers package are not defined"
+        echo "       Please add them to ${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py:"
+        echo
+        cat "${LIST_OF_DIRS_FILE}"
+        echo
+
+        rm "$LIST_OF_DIRS_FILE"
+        exit 1
+    fi
+    rm "$LIST_OF_DIRS_FILE"
+}
+
+function get_providers_to_act_on() {
+    group_start "Get all providers"
+    if [[ -z "$*" ]]; then
+        while IFS='' read -r line; do PROVIDER_PACKAGES+=("$line"); done < <(
+            python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
+                "${OPTIONAL_BACKPORT_FLAG[@]}" \
+                list-providers-packages
+        )
+        if [[ "$BACKPORT_PACKAGES" != "true" ]]; then
+            # Don't check for missing packages when we are building backports -- we have filtered some out,
+            # and the non-backport build will check for any missing.
+            check_missing_providers
+        fi
+    else
+        if [[ "${1}" == "--help" ]]; then
+            echo
+            echo "Builds all provider packages."
+            echo
+            echo "You can provide list of packages to build out of:"
+            echo
+            python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
+                "${OPTIONAL_BACKPORT_FLAG[@]}" \
+                list-providers-packages | tr '\n ' ' ' | fold -w 100 -s
+            echo
+            echo
+            exit
+        fi
+    fi
+    group_end
 }
 
 # Starts group for Github Actions - makes logs much more readable

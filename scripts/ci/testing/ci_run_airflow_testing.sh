@@ -89,8 +89,11 @@ function run_airflow_testing_in_docker() {
 
 function prepare_tests_to_run() {
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
-    if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
+    if [[ ${MOUNT_SELECTED_LOCAL_SOURCES} == "true" ]]; then
         DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local.yml")
+    fi
+    if [[ ${MOUNT_ALL_LOCAL_SOURCES} == "true" ]]; then
+        DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local-all-sources.yml")
     fi
 
     if [[ ${GITHUB_ACTIONS} == "true" ]]; then

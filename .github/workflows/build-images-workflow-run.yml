@@ -22,7 +22,7 @@ on:  # yamllint disable-line rule:truthy
     workflows: ["CI Build"]
     types: ['requested']
 env:
-  MOUNT_LOCAL_SOURCES: "false"
+  MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
   CHECK_IMAGE_FOR_REBUILD: "true"
@@ -405,6 +405,8 @@ jobs:
       GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.workflow_run.id }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
+      VERSION_SUFFIX_FOR_PYPI: "dev"
+      VERSION_SUFFIX_FOR_SVN: "dev"
     steps:
       - name: >
           Checkout [${{ needs.cancel-workflow-runs.outputs.sourceEvent }}]

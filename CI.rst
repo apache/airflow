@@ -178,7 +178,7 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+----------------------------------------+-------------------------------------------------+
 |                                                           Mount variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``MOUNT_LOCAL_SOURCES``                 |     true    |    false    |    false   | Determines whether local sources are            |
+| ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false    |    false   | Determines whether local sources are            |
 |                                         |             |             |            | mounted to inside the container. Useful for     |
 |                                         |             |             |            | local development, as changes you make          |
 |                                         |             |             |            | locally can be immediately tested in            |
@@ -188,6 +188,15 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | use of artifacts (such as ``egg-info``          |
 |                                         |             |             |            | directories) generated locally on the           |
 |                                         |             |             |            | host during development.                        |
++-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
+| ``MOUNT_ALL_LOCAL_SOURCES``             |     false   |    false    |    false   | Determines whether all local sources are        |
+|                                         |             |             |            | mounted to inside the container. Useful for     |
+|                                         |             |             |            | local development when you need to access .git  |
+|                                         |             |             |            | folders and other folders excluded when         |
+|                                         |             |             |            | ``MOUNT_SELECTED_LOCAL_SOURCES`` is true.       |
+|                                         |             |             |            | You might need to manually delete egg-info      |
+|                                         |             |             |            | folder when you enter breeze and the folder was |
+|                                         |             |             |            | generated using different python versions.      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                           Force variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+

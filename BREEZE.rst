@@ -558,20 +558,19 @@ The below example builds provider packages in the wheel format.
      ./breeze prepare-provider-packages
 
 If you run this command without packages, you will prepare all packages, you can however specify
-providers that you would like to build. By default only ``wheel`` packages are prepared,
-but you can change it providing optional --package-format flag.
-
+providers that you would like to build. By default ``both`` types of packages are prepared (
+``wheel`` and ``sdist``, but you can change it providing optional --package-format flag.
 
 .. code-block:: bash
 
-     ./breeze prepare-provider-packages --package-format=both google amazon
+     ./breeze prepare-provider-packages google amazon
 
 You can also prepare backport provider packages, if you specify ``--backport`` flag. You can read more
 about backport packages in `dev <dev/README.md>`_
 
 .. code-block:: bash
 
-     ./breeze prepare-provider-packages --backports --package-format=both google amazon
+     ./breeze prepare-provider-packages --backports google amazon
 
 You can see all providers available by running this command:
 
@@ -588,11 +587,12 @@ You can also prepare airflow packages using breeze:
 
 This prepares airflow .whl package in the dist folder.
 
-Again, you can specify optional ``--package-format`` flag to build airflow packages.
+Again, you can specify optional ``--package-format`` flag to build selected formats of airflow packages,
+default is to build ``both`` type of packages ``sdist`` and ``wheel``.
 
 .. code-block:: bash
 
-     ./breeze prepare-airflow-packages --package-format=bot
+     ./breeze prepare-airflow-packages --package-format=wheel
 
 
 Building Production images
@@ -1167,12 +1167,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Commands with arguments:
 
-    docker-compose                <ARG>      Executes specified docker-compose command
-    kind-cluster                  <ARG>      Manages KinD cluster on the host
-    prepare-provider-readme       <ARG>      Prepares provider packages readme files
-    prepare-provider-packages     <ARG>      Prepares provider packages
-    static-check                  <ARG>      Performs selected static check for changed files
-    tests                         <ARG>      Runs selected tests in the container
+    docker-compose                     <ARG>      Executes specified docker-compose command
+    kind-cluster                       <ARG>      Manages KinD cluster on the host
+    prepare-provider-documentation     <ARG>      Prepares provider packages documentation
+    prepare-provider-packages          <ARG>      Prepares provider packages
+    static-check                       <ARG>      Performs selected static check for changed files
+    tests                              <ARG>      Runs selected tests in the container
 
   Help commands:
 
@@ -1467,7 +1467,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
   --github-registry GITHUB_REGISTRY
-          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
           Default: docker.pkg.github.com.
@@ -1661,7 +1661,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
   --github-registry GITHUB_REGISTRY
-          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
           Default: docker.pkg.github.com.
@@ -1753,9 +1753,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 wheel,sdist,both
+                 both,sdist,wheel
 
-          Default: wheel
+          Default: both
+
+  --backports
+
+          Prepares backport providers rather than regular ones.
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -2103,26 +2107,31 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ####################################################################################################
 
 
-  Detailed usage for command: prepare-provider-readme
+  Detailed usage for command: prepare-provider-documentation
 
 
-  breeze prepare-provider-readme [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
+  breeze prepare-provider-documentation [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
 
-        Prepares README.md files for backport packages. You can provide (after --) optional version
-        in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
+        Prepares documentation files for provider packages.
+
+        The command is optionally followed by the list of packages to generate readme for.
         If the first parameter is not formatted as a date, then today is regenerated.
         If no packages are specified, readme for all packages are generated.
         If no date is specified, current date + 3 days is used (allowing for PMC votes to pass).
 
+        You can also specify --backport flag to prepare backport providers documentation and in this
+        case you can also optionally specify CALVER version as first parameter.
+
         Examples:
 
-        'breeze prepare-provider-readme' or
-        'breeze prepare-provider-readme 2020.05.10' or
-        'breeze prepare-provider-readme 2020.05.10 https google amazon'
+        'breeze prepare-provider-documentation' or
+        'breeze prepare-provider-documentation --version-suffix-for-pypi rc1' or
+        'breeze prepare-provider-documentation --backports 2020.05.10' or
+        'breeze prepare-provider-documentation --backports 2020.05.10 https google amazon'
 
         General form:
 
-        'breeze prepare-provider-readme YYYY.MM.DD <PACKAGE_ID> ...'
+        'breeze prepare-provider-documentation YYYY.MM.DD <PACKAGE_ID> ...'
 
         * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
           cannot be earlier than the already released version (the script will fail if it
@@ -2133,6 +2142,28 @@ This is the current syntax for  `./breeze <./breeze>`_:
           '.' for example 'apache.hive'
 
   Flags:
+
+  -S, --version-suffix-for-pypi SUFFIX
+          Adds optional suffix to the version in the generated backport package. It can be used
+          to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+  -N, --version-suffix-for-svn SUFFIX
+          Adds optional suffix to the generated names of package. It can be used to generate
+          rc1/rc2 ... versions of the packages to be uploaded to SVN.
+
+  --package-format PACKAGE_FORMAT
+
+          Chooses format of packages to prepare.
+
+          One of:
+
+                 both,sdist,wheel
+
+          Default: both
+
+  --backports
+
+          Prepares backport providers rather than regular ones.
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -2165,11 +2196,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
         prepared there so make sure you run prepare-provider-packages first,
         and prepare-airflow-packages second.
 
+        You can also specify --backport flag to prepare backport providers or --package-format to
+        prepare one or both types of supported formats.
+
         Examples:
 
         'breeze prepare-provider-packages' or
         'breeze prepare-provider-packages google' or
-        'breeze prepare-provider-packages --package-format both google' or
+        'breeze prepare-provider-packages --package-format wheel google' or
         'breeze prepare-provider-packages --version-suffix-for-svn rc1 http google amazon' or
         'breeze prepare-provider-packages --version-suffix-for-pypi rc1 http google amazon'
         'breeze prepare-provider-packages --version-suffix-for-pypi a1
@@ -2177,7 +2211,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         General form:
 
-        'breeze prepare-provider-packages [--package-format PACKAGE_FORMAT] \
+        'breeze prepare-provider-packages [--backports] [--package-format PACKAGE_FORMAT] \
               [--version-suffix-for-svn|--version-suffix-for-pypi] <PACKAGE_ID> ...'
 
         * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
@@ -2192,9 +2226,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 wheel,sdist,both
+                 both,sdist,wheel
 
-          Default: wheel
+          Default: both
+
+  --backports
+
+          Prepares backport providers rather than regular ones.
 
   -S, --version-suffix-for-pypi SUFFIX
           Adds optional suffix to the version in the generated backport package. It can be used
@@ -2667,7 +2705,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
   --github-registry GITHUB_REGISTRY
-          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
           Default: docker.pkg.github.com.

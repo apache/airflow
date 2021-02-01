@@ -621,7 +621,7 @@ All Tests are inside ./tests directory.
       entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
       _in_container_script_init.sh*               run_mypy.sh*
       prod/                                       run_prepare_provider_packages.sh*
-      refresh_pylint_todo.sh*                     run_prepare_provider_readme.sh*
+      refresh_pylint_todo.sh*                     run_prepare_provider_documentation.sh*
       run_ci_tests.sh*                            run_pylint.sh*
       run_clear_tmp.sh*                           run_system_tests.sh*
       run_docs_build.sh*                          run_tmux_welcome.sh*
@@ -836,7 +836,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
       entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
       _in_container_script_init.sh*               run_mypy.sh*
       prod/                                       run_prepare_provider_packages.sh*
-      refresh_pylint_todo.sh*                     run_prepare_provider_readme.sh*
+      refresh_pylint_todo.sh*                     run_prepare_provider_documentation.sh*
       run_ci_tests.sh*                            run_pylint.sh*
       run_clear_tmp.sh*                           run_system_tests.sh*
       run_docs_build.sh*                          run_tmux_welcome.sh*

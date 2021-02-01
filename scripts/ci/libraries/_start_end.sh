@@ -47,14 +47,14 @@ function start_end::group_end {
 #
 function start_end::script_start {
     verbosity::print_info
-    verbosity::print_info "Running $(basename "$0")"
+    verbosity::print_info "Running '${COLOR_GREEN}$(basename "$0")${COLOR_RESET}'"
     verbosity::print_info
-    verbosity::print_info "Log is redirected to ${OUTPUT_LOG}"
+    verbosity::print_info "${COLOR_BLUE}Log is redirected to '${OUTPUT_LOG}'${COLOR_RESET}"
     verbosity::print_info
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         verbosity::print_info
-        verbosity::print_info "Variable VERBOSE_COMMANDS Set to \"true\""
-        verbosity::print_info "You will see a lot of output"
+        verbosity::print_info "${COLOR_BLUE}Variable VERBOSE_COMMANDS Set to \"true\"${COLOR_RESET}"
+        verbosity::print_info "${COLOR_BLUE}You will see a lot of output${COLOR_RESET}"
         verbosity::print_info
         set -x
     else
@@ -69,16 +69,16 @@ function start_end::script_start {
 }
 
 function start_end::dump_container_logs() {
-    start_end::group_start "Dumping container logs ${container}"
+    start_end::group_start "${COLOR_BLUE}Dumping container logs ${container}${COLOR_RESET}"
     local container="${1}"
     local dump_file
     dump_file=${AIRFLOW_SOURCES}/files/container_logs_${container}_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log
-    echo "###########################################################################################"
+    echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
     echo "                   Dumping logs from ${container} container"
-    echo "###########################################################################################"
+    echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
     docker logs "${container}" > "${dump_file}"
     echo "                   Container ${container} logs dumped to ${dump_file}"
-    echo "###########################################################################################"
+    echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
     start_end::group_end
 }
 
@@ -110,9 +110,9 @@ function start_end::script_end {
                 start_end::dump_container_logs "${container}"
             done
         fi
-        verbosity::print_info "###########################################################################################"
-        verbosity::print_info "                   EXITING WITH STATUS CODE ${exit_code}"
-        verbosity::print_info "###########################################################################################"
+        verbosity::print_info "${COLOR_RED}###########################################################################################${COLOR_RESET}"
+        verbosity::print_info "${COLOR_RED}                   EXITING WITH STATUS CODE ${exit_code}${COLOR_RESET}"
+        verbosity::print_info "${COLOR_RED}###########################################################################################${COLOR_RESET}"
     fi
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set +x
@@ -126,9 +126,13 @@ function start_end::script_end {
     RUN_SCRIPT_TIME=$((END_SCRIPT_TIME-START_SCRIPT_TIME))
     if [[ ${BREEZE:=} != "true" ]]; then
         verbosity::print_info
-        verbosity::print_info "Finished the script $(basename "$0")"
-        verbosity::print_info "Elapsed time spent in the script: ${RUN_SCRIPT_TIME} seconds"
-        verbosity::print_info "Exit code ${exit_code}"
+        verbosity::print_info "Finished the script ${COLOR_GREEN}$(basename "$0")${COLOR_RESET}"
+        verbosity::print_info "Elapsed time spent in the script: ${COLOR_BLUE}${RUN_SCRIPT_TIME} seconds${COLOR_RESET}"
+        if [[ ${exit_code} == "0" ]]; then
+            verbosity::print_info "Exit code ${COLOR_GREEN}${exit_code}${COLOR_RESET}"
+        else
+            verbosity::print_info "Exit code ${COLOR_RED}${exit_code}${COLOR_RESET}"
+        fi
         verbosity::print_info
     fi
 }

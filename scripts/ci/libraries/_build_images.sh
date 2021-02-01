@@ -271,7 +271,7 @@ function build_images::get_local_build_cache_hash() {
     set +e
     # Remove the container just in case
     docker rm --force "local-airflow-ci-container" 2>/dev/null >/dev/null
-    if ! docker create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null; then
+    if ! docker inspect "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null; then
         verbosity::print_info
         verbosity::print_info "Local airflow CI image not available"
         verbosity::print_info
@@ -279,7 +279,9 @@ function build_images::get_local_build_cache_hash() {
         export LOCAL_MANIFEST_IMAGE_UNAVAILABLE
         touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
         return
+
     fi
+    docker create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null
     docker cp "local-airflow-ci-container:/build-cache-hash" \
         "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}" 2>/dev/null ||
         touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"

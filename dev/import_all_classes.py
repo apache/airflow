@@ -21,7 +21,9 @@ import pkgutil
 import sys
 import traceback
 from inspect import isclass
-from typing import List
+from typing import List, Set
+
+from rich import print
 
 
 def import_all_classes(
@@ -45,6 +47,7 @@ def import_all_classes(
     """
     imported_classes = []
     tracebacks = []
+    printed_packages: Set[str] = set()
 
     def mk_prefix(provider_id):
         return f'{prefix}{provider_id}'
@@ -66,15 +69,16 @@ def import_all_classes(
                 print(f"Skipping module: {modinfo.name}")
             continue
         if print_imports:
-            print(f"Importing module: {modinfo.name}")
+            package_to_print = ".".join(modinfo.name.split(".")[:-1])
+            if package_to_print not in printed_packages:
+                printed_packages.add(package_to_print)
+                print(f"Importing package: {package_to_print}")
         try:
             _module = importlib.import_module(modinfo.name)
             for attribute_name in dir(_module):
                 class_name = modinfo.name + "." + attribute_name
                 attribute = getattr(_module, attribute_name)
                 if isclass(attribute):
-                    if print_imports:
-                        print(f"Imported {class_name}")
                     imported_classes.append(class_name)
         except Exception:  # noqa
             exception_str = traceback.format_exc()
@@ -82,14 +86,14 @@ def import_all_classes(
     if tracebacks:
         print(
             """
-ERROR: There were some import errors
+[red]ERROR: There were some import errors[/]
 """,
             file=sys.stderr,
         )
         for trace in tracebacks:
-            print("----------------------------------------", file=sys.stderr)
+            print("[red]----------------------------------------[/]", file=sys.stderr)
             print(trace, file=sys.stderr)
-            print("----------------------------------------", file=sys.stderr)
+            print("[red]----------------------------------------[/]", file=sys.stderr)
         sys.exit(1)
     else:
         return imported_classes
@@ -107,7 +111,8 @@ if __name__ == '__main__':
     print()
     classes = import_all_classes(print_imports=True, print_skips=True, paths=args.path, prefix=args.prefix)
     if len(classes) == 0:
-        raise Exception("Something is seriously wrong - no classes imported")
+        print("[red]Something is seriously wrong - no classes imported[/]")
+        sys.exit(1)
     print()
-    print(f"SUCCESS: All provider packages are importable! Imported {len(classes)} classes.")
+    print(f"[green]SUCCESS: All provider packages are importable! Imported {len(classes)} classes.[/]")
     print()

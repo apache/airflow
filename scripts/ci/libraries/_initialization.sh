@@ -222,13 +222,21 @@ EXTRA_DOCKER_FLAGS=()
 function initialization::initialize_mount_variables() {
 
     # Whether necessary for airflow run local sources are mounted to docker
-    export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="true"}
+    export MOUNT_SELECTED_LOCAL_SOURCES=${MOUNT_SELECTED_LOCAL_SOURCES:="true"}
 
-    if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
+    # Whether all airflow sources are mounted to docker
+    export MOUNT_ALL_LOCAL_SOURCES=${MOUNT_ALL_LOCAL_SOURCES:="false"}
+
+    if [[ ${MOUNT_SELECTED_LOCAL_SOURCES} == "true" ]]; then
         verbosity::print_info
         verbosity::print_info "Mounting necessary host volumes to Docker"
         verbosity::print_info
         read -r -a EXTRA_DOCKER_FLAGS <<<"$(local_mounts::convert_local_mounts_to_docker_params)"
+    elif [[ ${MOUNT_ALL_LOCAL_SOURCES} == "true" ]]; then
+        verbosity::print_info
+        verbosity::print_info "Mounting whole airflow volume to Docker"
+        verbosity::print_info
+        EXTRA_DOCKER_FLAGS+=("-v" "${AIRFLOW_SOURCES}:/opt/airflow/:cached")
     else
         verbosity::print_info
         verbosity::print_info "Skip mounting host volumes to Docker"
@@ -441,9 +449,9 @@ function initialization::initialize_image_build_variables() {
 # Determine version suffixes used to build provider packages
 function initialization::initialize_provider_package_building() {
     # Version suffix for PyPI packaging
-    export VERSION_SUFFIX_FOR_PYPI=""
+    export VERSION_SUFFIX_FOR_PYPI="${VERSION_SUFFIX_FOR_PYPI=}"
     # Artifact name suffix for SVN packaging
-    export VERSION_SUFFIX_FOR_SVN=""
+    export VERSION_SUFFIX_FOR_SVN="${VERSION_SUFFIX_FOR_SVN=}"
     # If set to true, the backport provider packages will be built (false will build regular provider packages)
     export BACKPORT_PACKAGES=${BACKPORT_PACKAGES:="false"}
 
@@ -595,7 +603,8 @@ DockerHub variables:
 
 Mount variables:
 
-    MOUNT_LOCAL_SOURCES: ${MOUNT_LOCAL_SOURCES}
+    MOUNT_SELECTED_LOCAL_SOURCES: ${MOUNT_SELECTED_LOCAL_SOURCES}
+    MOUNT_ALL_LOCAL_SOURCES: ${MOUNT_ALL_LOCAL_SOURCES}
 
 Force variables:
 
@@ -754,7 +763,8 @@ function initialization::make_constants_read_only() {
     readonly POSTGRES_VERSION
     readonly MYSQL_VERSION
 
-    readonly MOUNT_LOCAL_SOURCES
+    readonly MOUNT_SELECTED_LOCAL_SOURCES
+    readonly MOUNT_ALL_LOCAL_SOURCES
 
     readonly INSTALL_AIRFLOW_VERSION
     readonly INSTALL_AIRFLOW_REFERENCE
