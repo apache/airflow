@@ -3289,10 +3289,6 @@ function breeze::run_breeze_command() {
     fi
     case "${command_to_run}" in
     enter_breeze)
-        if [[ " ${INTEGRATIONS[*]} " =~ " kerberos " ]]; then
-            kerberos::create_kerberos_network
-        fi
-
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             "${dc_run_file}" run --service-ports --rm airflow "${@}"
             "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
@@ -3312,10 +3308,6 @@ function breeze::run_breeze_command() {
             "/opt/airflow/scripts/in_container/entrypoint_exec.sh" "${@}"
         ;;
     run_tests)
-        if [[ " ${INTEGRATIONS[*]} " =~ " kerberos " ]]; then
-            kerberos::create_kerberos_network
-        fi
-
         export RUN_TESTS="true"
         readonly RUN_TESTS
         "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" run --service-ports --rm airflow "$@"
@@ -3329,9 +3321,6 @@ function breeze::run_breeze_command() {
         fi
         "${dc_run_file}" "${docker_compose_command}" "${EXTRA_DC_OPTIONS[@]}" "$@"
         set -u
-        if [[ "${docker_compose_command}" = "down" ]]; then
-            kerberos::delete_kerberos_network
-        fi
         ;;
     perform_static_checks)
         breeze::make_sure_precommit_is_installed
