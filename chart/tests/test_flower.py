@@ -15,19 +15,40 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
 import jmespath
+import pytest
 
 from tests.helm_template_generator import render_chart
 
 
-class FlowerAuthorizationTest(unittest.TestCase):
+class TestFlower:
+    @pytest.mark.parametrize(
+        "executor,flower_enabled,created",
+        [
+            ("CeleryExecutor", False, False),
+            ("CeleryKubernetesExecutor", False, False),
+            ("KubernetesExecutor", False, False),
+            ("CeleryExecutor", True, True),
+            ("CeleryKubernetesExecutor", True, True),
+            ("KubernetesExecutor", True, False),
+        ],
+    )
+    def test_create_flower(self, executor, flower_enabled, created):
+        docs = render_chart(
+            values={"executor": executor, "flower": {"enabled": flower_enabled}},
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert bool(docs) is created
+        if created:
+            assert "RELEASE-NAME-flower" == jmespath.search("metadata.name", docs[0])
+            assert "flower" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+
     def test_should_create_flower_deployment_with_authorization(self):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "flower": {"username": "flower", "password": "fl0w3r"},
+                "flower": {"enabled": True, "username": "flower", "password": "fl0w3r"},
                 "ports": {"flowerUI": 7777},
             },
             show_only=["templates/flower/flower-deployment.yaml"],
@@ -47,6 +68,7 @@ class FlowerAuthorizationTest(unittest.TestCase):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
+                "flower": {"enabled": True},
                 "ports": {"flowerUI": 7777},
             },
             show_only=["templates/flower/flower-deployment.yaml"],

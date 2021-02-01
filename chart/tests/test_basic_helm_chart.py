@@ -87,6 +87,7 @@ class TestBaseChartTest(unittest.TestCase):
             {
                 "networkPolicies": {"enabled": True},
                 "executor": "CeleryExecutor",
+                "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
             },
         )
