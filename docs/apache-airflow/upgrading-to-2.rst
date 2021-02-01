@@ -286,10 +286,18 @@ When DAGs are initialized with the ``access_control`` variable set, any usage of
 .. warning::
     Breaking change
 
-    Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
-    in both versions. With this release we have removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
-    RBAC UI explicitly in the configuration now as this is the only default UI. We did it to avoid
-    the huge maintenance burden of two independent user interfaces
+    Previously we were using two versions of the UI:
+        - non-RBAC UI
+        - Flask App Builder RBAC UI
+
+    This was difficult to maintain, because it meant we
+    had to implement/update features in two places. With this release, we have removed the older UI in
+    favor of the Flask App Builder RBAC UI, reducing a huge maintenance burden.
+    There is no longer a need to set the RBAC UI explicitly in the configuration,
+    as it is the only default UI.
+
+    If you previously used non-RBAC UI, you have to switch to the new RBAC-UI and create users to be able
+    to access Airflow's webserver. For more details on CLI to create users see :doc:`cli-and-env-variables-ref`
 
 Please note that that custom auth backends will need re-writing to target new FAB based UI.
 
