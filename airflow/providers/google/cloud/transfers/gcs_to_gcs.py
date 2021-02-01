@@ -281,14 +281,18 @@ class GCSToGCSOperator(BaseOperator):
 
     def _copy_source_without_wildcard(self, hook, prefix):
         """
-        For source_objects with no wildcard, this operator would first list 
-        all files in source_objects, using provided delimiter if any. Then copy 
+
+
+        For source_objects with no wildcard, this operator would first list
+        all files in source_objects, using provided delimiter if any. Then copy
         files from source_objects to destination_object and rename each source
         file.
 
         Example 1:
-        The following Operator would copy all the files from ``a/``folder 
-        (i.e a/a.csv, a/b.csv, a/c.csv)in ``data`` bucket to the ``b/`` folder in 
+
+
+        The following Operator would copy all the files from ``a/``folder
+        (i.e a/a.csv, a/b.csv, a/c.csv)in ``data`` bucket to the ``b/`` folder in
         the ``data_backup`` bucket (b/a.csv, b/b.csv, b/c.csv) ::
 
             copy_files = GCSToGCSOperator(
@@ -301,8 +305,10 @@ class GCSToGCSOperator(BaseOperator):
             )
 
         Example 2:
-        The following Operator would copy all avro files from ``a/``folder 
-        (i.e a/a.avro, a/b.avro, a/c.avro)in ``data`` bucket to the ``b/`` folder in 
+
+
+        The following Operator would copy all avro files from ``a/``folder
+        (i.e a/a.avro, a/b.avro, a/c.avro)in ``data`` bucket to the ``b/`` folder in
         the ``data_backup`` bucket (b/a.avro, b/b.avro, b/c.avro) ::
 
             copy_files = GCSToGCSOperator(
