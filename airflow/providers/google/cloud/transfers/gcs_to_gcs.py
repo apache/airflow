@@ -280,7 +280,7 @@ class GCSToGCSOperator(BaseOperator):
                 self._copy_source_without_wildcard(hook=hook, prefix=prefix)
 
     def _copy_source_without_wildcard(self, hook, prefix):
-        '''
+        """
         For source_objects with no wildcard, this operator would first list 
         all files in source_objects, using provided delimiter if any. Then copy 
         files from source_objects to destination_object and rename each source
@@ -289,7 +289,7 @@ class GCSToGCSOperator(BaseOperator):
         Example 1:
         The following Operator would copy all the files from ``a/``folder 
         (i.e a/a.csv, a/b.csv, a/c.csv)in ``data`` bucket to the ``b/`` folder in 
-        the ``data_backup`` bucket (b/a.csv, b/b.csv, b/c.csv):
+        the ``data_backup`` bucket (b/a.csv, b/b.csv, b/c.csv) ::
 
             copy_files = GCSToGCSOperator(
                 task_id='copy_files_without_wildcard',
@@ -303,7 +303,7 @@ class GCSToGCSOperator(BaseOperator):
         Example 2:
         The following Operator would copy all avro files from ``a/``folder 
         (i.e a/a.avro, a/b.avro, a/c.avro)in ``data`` bucket to the ``b/`` folder in 
-        the ``data_backup`` bucket (b/a.avro, b/b.avro, b/c.avro):
+        the ``data_backup`` bucket (b/a.avro, b/b.avro, b/c.avro) ::
 
             copy_files = GCSToGCSOperator(
                 task_id='copy_files_without_wildcard',
@@ -314,7 +314,7 @@ class GCSToGCSOperator(BaseOperator):
                 delimiter='.avro',
                 gcp_conn_id=google_cloud_conn_id
             )
-        '''
+        """
         objects = hook.list(self.source_bucket, prefix=prefix, delimiter=self.delimiter)
 
         # If objects is empty and we have prefix, let's check if prefix is a blob
