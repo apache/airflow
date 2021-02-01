@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Updated documentation and readme files.
+
+Bug fixes
+~~~~~~~~~
+
+* ``Respect LogFormat when using ES logging with Json Format (#13310)``
+
+
 1.0.0
 .....
 

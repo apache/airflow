@@ -19,6 +19,16 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Updated documentation and readme files.
+
+Features
+~~~~~~~~
+
+* ``[AIRFLOW-7044] Host key can be specified via SSH connection extras. (#12944)``
+
 1.0.0
 .....
 

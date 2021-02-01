@@ -19,6 +19,16 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Updated documentation and readme files.
+
+Features
+~~~~~~~~
+
+* ``Add a new argument for HttpSensor to accept a list of http status code``
+
 1.0.0
 .....
 

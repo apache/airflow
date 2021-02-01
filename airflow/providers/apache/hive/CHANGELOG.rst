@@ -19,6 +19,16 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Updated documentation and readme files.
+
+Bug fixes
+~~~~~~~~~
+
+* ``Remove password if in LDAP or CUSTOM mode HiveServer2Hook (#11767)``
+
 1.0.0
 .....
 

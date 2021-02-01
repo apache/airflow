@@ -19,6 +19,12 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Updated documentation and readme files.
+
+
 1.0.0
 .....
 

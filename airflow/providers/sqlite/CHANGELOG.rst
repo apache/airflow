@@ -19,6 +19,13 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Updated documentation and readme files.
+
+* ``Add example DAG & how-to guide for sqlite (#13196)``
+
 1.0.0
 .....
 

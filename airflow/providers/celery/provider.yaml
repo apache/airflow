@@ -22,7 +22,9 @@ description: |
     `Celery <http://www.celeryproject.org/>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
+
 integrations:
   - integration-name: Celery
     external-doc-url: http://www.celeryproject.org/

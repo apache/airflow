@@ -19,6 +19,11 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Updated documentation and readme files. Added HowTo guide for Postgres Operator.
+
 1.0.0
 .....
 

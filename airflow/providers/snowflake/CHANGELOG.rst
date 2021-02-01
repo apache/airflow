@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Updated documentation and readme files.
+
+Features
+~~~~~~~~
+
+* ``Fix S3ToSnowflakeOperator to support uploading all files in the specified stage (#12505)``
+* ``Add connection arguments in S3ToSnowflakeOperator (#12564)``
+
 1.0.0
 .....
 

@@ -4,7 +4,8 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                                 |
 |:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------------------------|
-| [66e82969d](https://github.com/apache/airflow/commit/66e82969dd0ad656618bda4719a545bbaeed5d10) | 2021-01-31  | `Implement provider versioning tools`                                                   |
+| [ac2f72c98](https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b) | 2021-02-01  | `Implement provider versioning tools (#13767)`                                          |
+| [01049ddce](https://github.com/apache/airflow/commit/01049ddce210f475d6eae9b1cb306f750a1d6dd8) | 2021-01-31  | `Add aws ses email backend for use with EmailOperator. (#13986)`                        |
 | [ecfdc60bb](https://github.com/apache/airflow/commit/ecfdc60bb607fe0d13fa7e315476c607813abab6) | 2021-01-29  | `Add bucket_name to template fileds in S3 operators (#13973)`                           |
 | [d0ab7f6d3](https://github.com/apache/airflow/commit/d0ab7f6d3a2976167f9c4fb309c502a4f866f983) | 2021-01-25  | `Add ExasolToS3Operator (#13847)`                                                       |
 | [6d55f329f](https://github.com/apache/airflow/commit/6d55f329f93c5cd1e94973194c0cd7caa65309e1) | 2021-01-25  | `AWS Glue Crawler Integration (#13072)`                                                 |
