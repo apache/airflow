@@ -7,6 +7,7 @@ import logging
 _logger = logging.getLogger(__name__)
 
 
+# 将data截取为每行size个元素的二维数组
 def covert2dArray(data: List[float], size: int) -> Optional[np.ndarray]:
     b = len(data) % size
     if b != 0:

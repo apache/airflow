@@ -1,6 +1,6 @@
 {% extends "appbuilder/base.html" %}
 {% import 'airflow/panel.html' as panel %}
-
+{% import 'airflow/dialog.html' as dialog %}
 
 {% block head_css %}
 {{ super() }}
@@ -35,7 +35,8 @@
   {% endcall %}
 </div>
 
-{% include 'airflow/dialog.html' %}
+{% call dialog.dialog('dialogModal') %}
+{% endcall %}
 {% endblock %}
 
 

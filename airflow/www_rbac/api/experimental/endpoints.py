@@ -390,6 +390,7 @@ mm_max = {TORQUE: 'torque_max', ANGLE: 'angle_max'}
 mm_min = {TORQUE: 'torque_min', ANGLE: 'angle_min'}
 
 
+# 根据传入的曲线entity_id获取spc数据
 @api_experimental.route('/spc', methods=['GET'])
 @requires_authentication
 def get_spc_by_entity_id():
@@ -418,7 +419,7 @@ def get_spc_by_entity_id():
             if not all(entry):
                 raise AirflowException(u'')
             data = covert2dArray(entry, SPC_SIZE)
-            if not data:
+            if data is None:
                 raise AirflowException(u'SPC 数据格式不正确!')
             xr_xbar_part = xbar_rbar(data, SPC_SIZE)
             xr_r_part = rbar(data, SPC_SIZE)
@@ -449,7 +450,7 @@ def get_spc_by_entity_id():
         return jsonify(spc=spc)
     except AirflowException as e:
         _log.error("get_spc_by_entity_id", e)
-        response = jsonify(error="{}".format(repr(e)))
+        response = jsonify(error=str(e))
         response.status_code = e.status_code
         return response
 

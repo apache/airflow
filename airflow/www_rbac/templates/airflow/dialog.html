@@ -1,4 +1,6 @@
-<div class="modal" id="dialogModal" tabindex="-1" role="dialog">
+{% macro dialog(id) %}
+
+<div class="modal" id="{{id}}" tabindex="-1" role="dialog">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -8,6 +10,7 @@
 
       </div>
       <div class="modal-body">
+        {{ caller() }}
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default m-2  px-4 py-2 font-weight-bold " id="btnDialogCancel"
@@ -25,8 +28,10 @@
     const {
       onConfirm, confirmText, onCancel, cancelText, confirmClass, cancelClass,
     } = config;
-    const modal = $('#dialogModal');
-    modal.find('.modal-body').html(body);
+    const modal = $('#{{id}}');
+    if(body){
+          modal.find('.modal-body').html(body);
+    }
     modal.find('.modal-title').html(`${title}<button type="button" class="close align-self-center" data-dismiss="modal" aria-label="Close">
             <span aria-hidden="true" style="height:100%">&times;</span>
           </button>`);
@@ -53,3 +58,5 @@
     modal.modal({});
   }
 </script>
+{%- endmacro %}
+

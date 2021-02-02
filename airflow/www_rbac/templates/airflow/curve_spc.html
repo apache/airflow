@@ -1,0 +1,227 @@
+{% call dialog.dialog('spcModal') %}
+<div style="height: 70vh; display: flex; flex-direction: column; ">
+  <ul class="nav nav-tabs" style="margin-bottom: 5px;">
+    <li id="spc-nav-torque" role="presentation" class="spc-nav active" onclick="onSelectNav('torque')"><a
+      href="#">扭矩</a>
+    </li>
+    <li id="spc-nav-angle" class="spc-nav" role="presentation" onclick="onSelectNav('angle')"><a href="#">角度</a></li>
+  </ul>
+  <ul class="nav nav-pills">
+    <li id="spc-sub-nav-x-r" class="spc-sub-nav active" role="presentation" onclick="onSelectSubNav('x-r')"><a href="#">x-r</a>
+    </li>
+    <li id="spc-sub-nav-x-s" class="spc-sub-nav" role="presentation" onclick="onSelectSubNav('x-s')"><a href="#">x-s</a>
+    </li>
+  </ul>
+
+  <div style="flex:1">
+    <div id="spc-echarts-main" style="width: 100%;height:100%;"></div>
+  </div>
+</div>
+<script>
+  $('#spcModal .modal-dialog').css({
+    'display': 'flex',
+    'flex-direction': 'column',
+    'justify-content': 'center',
+    'align-items': 'center'
+  });
+  $('#spcModal .modal-content').css("width", '80vw');
+</script>
+{% endcall %}
+
+<script>
+  var spc_data = {};
+  var spcCurveChart = null;
+
+  function doQuerySPC(selectedEntityIds, type) {
+    const queryEntityIds = selectedEntityIds.filter(id => extraData[id].measureResult === 'OK');
+    if (queryEntityIds.length === 0) {
+      return new Promise((resolve) => {
+        resolve([]);
+      });
+    }
+    const entityIdsStr = queryEntityIds.join(',');
+    return $.ajax({
+      type: 'GET',
+      url: "{{ url_for('api_experimental.get_spc_by_entity_id') }}",
+      data: {
+        entity_ids: entityIdsStr,
+        type: type,
+        csrf_token: '{{ csrf_token() }}'
+      },
+      headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+      dataType: 'json',
+      contentType: 'application/json'
+    }).then((resp) => {
+      const {error, spc} = resp;
+      if (error) {
+        throw new Error(error);
+      }
+      if (!spc) {
+        throw new Error('未获取SPC信息');
+      }
+      return spc;
+    }).fail((err) => {
+      console.error(err.responseJSON && err.responseJSON.error);
+      alert(err.responseJSON && err.responseJSON.error);
+      // throw new Error(err);
+    });
+  }
+
+  function canDoSPCAnalysis() {
+    if (backendSelectedTasks && Object.keys(backendSelectedTasks).length > 0) {
+      const backendSelectedEntityIds = Object.keys(backendSelectedTasks);
+      selectedEIds = selectedEIds.concat(backendSelectedEntityIds);
+      extraData = Object.assign(extraData, backendSelectedTasks);
+    }
+    if (selectedEIds.length === 0) {
+      alert('SPC查看! 请确认! 未选中任意曲线!!!');
+      return false;
+    }
+    const isNotOK = selectedEIds.filter(i => extraData[i].measureResult !== 'OK');
+    if (isNotOK.length !== 0) {
+      const v = isNotOK.map(i => `${extraData[i].carCode}@${extraData[i].date}`)
+      const msg = `SPC查看! 请确认! 只能选择OK的曲线!!!,不正确的选择: ${v.join()}`;
+      alert(msg);
+      return false;
+    }
+    return true;
+  }
+
+  function viewSPC() {
+    if (!canDoSPCAnalysis()) {
+      return;
+    }
+    spcChartInit();
+
+    showDialog('SPC分析', null, {});
+    onSelectNav('torque');
+  }
+
+  function onSelectNav(type) {
+    if ($('#spc-nav-' + type).hasClass('disabled')) {
+      return;
+    }
+    $('.spc-nav').removeClass('active');
+    $('#spc-nav-' + type).addClass('active');
+    $('.spc-nav').addClass('disabled');
+    querySPC(type);
+  }
+
+  function onSelectSubNav(type) {
+    $('.spc-sub-nav').removeClass('active');
+    $('#spc-sub-nav-' + type).addClass('active');
+    // $('.spc-sub-nav').addClass('disabled');
+    renderSPCChart(type);
+  }
+
+  function querySPC(type) {
+    doQuerySPC(selectedEIds, type).then((spc) => {
+      console.log('spc', spc);
+      spc_data = spc;
+      $('.spc-nav').removeClass('disabled');
+      onSelectSubNav('x-r');
+    });
+  }
+
+  function renderSPCChart(type) {
+    const option = {
+      title: {
+        text: spc_data[type].title
+      },
+      toolbox: {
+        show: true,
+        feature: {
+          dataZoom: {},
+          dataView: {readOnly: true},
+          saveAsImage: {}
+        }
+      },
+      legend: {
+        type: 'scroll',
+        data: []
+      },
+      grid: {
+        bottom: 100
+      },
+      xAxis: {
+        type: 'value',
+        name: 'x',
+        nameLocation: 'middle',
+        nameGap: 30,
+        axisLabel: {
+          fontSize: 16
+        }
+      },
+      yAxis: {
+        type: 'value',
+        name: 'y',
+        nameLocation: 'middle',
+        nameRotate: 0,
+        nameGap: 50,
+        axisLabel: {
+          fontSize: 16
+        }
+      },
+      series: [],
+      textStyle: {
+        fontFamily: 'monospace',
+        fontSize: 18
+      },
+      dataZoom: [
+        {
+          type: 'slider',
+          xAxisIndex: 0,
+          filterMode: 'none'
+        },
+        {
+          type: 'slider',
+          yAxisIndex: 0,
+          filterMode: 'none'
+        },
+        {
+          type: 'inside',
+          xAxisIndex: 0,
+          filterMode: 'none'
+        },
+        {
+          type: 'inside',
+          yAxisIndex: 0,
+          filterMode: 'none'
+        }
+      ],
+      tooltip: {
+        trigger: 'axis'
+      }
+    };
+    if (spcCurveChart) {
+      spcCurveChart.setOption(option, true);
+      spcCurveChart.resize();
+    }
+  }
+
+  function spcChartInit() {
+    spcCurveChart = echarts.init(document.getElementById('spc-echarts-main'), null, {renderer: 'svg'});
+
+    // 指定图表的配置项和数据
+    const option = {};
+
+    // 使用刚指定的配置项和数据显示图表。
+    if (spcCurveChart) {
+      spcCurveChart.setOption(option);
+      spcCurveChart.resize();
+    }
+  }
+
+  $(window).resize(() => {
+    if (!spcCurveChart) {
+      return;
+    }
+    spcCurveChart.resize();
+  });
+
+  $(document).ready(() => {
+    spcChartInit();
+  });
+
+
+</script>
