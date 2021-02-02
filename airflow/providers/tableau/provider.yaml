@@ -16,22 +16,34 @@
 # under the License.
 
 ---
-package-name: apache-airflow-providers-salesforce
-name: Salesforce
+package-name: apache-airflow-providers-tableau
+name: Tableau
 description: |
-    `Salesforce <https://www.salesforce.com/>`__
+    `Tableau <https://www.tableau.com/>`__
 
 versions:
-  - 1.0.1
   - 1.0.0
 
 integrations:
-  - integration-name: Salesforce
-    external-doc-url: https://www.salesforce.com/
+  - integration-name: Tableau
+    external-doc-url: https://www.tableau.com/
     logo: /integration-logos/salesforce/Salesforce.png
     tags: [service]
 
-hooks:
-  - integration-name: Salesforce
+operators:
+  - integration-name: Tableau
     python-modules:
-      - airflow.providers.salesforce.hooks.salesforce
+      - airflow.providers.tableau.operators.tableau_refresh_workbook
+
+sensors:
+  - integration-name: Tableau
+    python-modules:
+      - airflow.providers.tableau.sensors.tableau_job_status
+
+hooks:
+  - integration-name: Tableau
+    python-modules:
+      - airflow.providers.tableau.hooks.tableau
+
+hook-class-names:
+  - airflow.providers.tableau.hooks.tableau.TableauHook

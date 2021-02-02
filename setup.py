@@ -443,6 +443,9 @@ ssh = [
 statsd = [
     'statsd>=3.3.0, <4.0',
 ]
+tableau = [
+    'tableauserverclient',
+]
 telegram = [
     'python-telegram-bot==13.0',
 ]
@@ -574,6 +577,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'snowflake': snowflake,
     'sqlite': [],
     'ssh': ssh,
+    'tableau': tableau,
     'telegram': telegram,
     'vertica': vertica,
     'yandex': yandex,

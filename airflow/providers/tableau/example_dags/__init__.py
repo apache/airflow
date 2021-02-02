@@ -14,24 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-salesforce
-name: Salesforce
-description: |
-    `Salesforce <https://www.salesforce.com/>`__
-
-versions:
-  - 1.0.1
-  - 1.0.0
-
-integrations:
-  - integration-name: Salesforce
-    external-doc-url: https://www.salesforce.com/
-    logo: /integration-logos/salesforce/Salesforce.png
-    tags: [service]
-
-hooks:
-  - integration-name: Salesforce
-    python-modules:
-      - airflow.providers.salesforce.hooks.salesforce

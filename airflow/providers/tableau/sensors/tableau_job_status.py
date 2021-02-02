@@ -17,7 +17,7 @@
 from typing import Optional
 
 from airflow.exceptions import AirflowException
-from airflow.providers.salesforce.hooks.tableau import TableauHook, TableauJobFinishCode
+from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

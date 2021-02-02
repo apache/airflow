@@ -20,7 +20,7 @@ from tableauserverclient import WorkbookItem
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.salesforce.hooks.tableau import TableauHook
+from airflow.providers.tableau.hooks.tableau import TableauHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -71,7 +71,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
 
             job_id = self._refresh_workbook(tableau_hook, workbook.id)
             if self.blocking:
-                from airflow.providers.salesforce.sensors.tableau_job_status import TableauJobStatusSensor
+                from airflow.providers.tableau.sensors.tableau_job_status import TableauJobStatusSensor
 
                 TableauJobStatusSensor(
                     job_id=job_id,
