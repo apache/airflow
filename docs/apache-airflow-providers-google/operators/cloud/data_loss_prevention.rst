@@ -300,6 +300,12 @@ De-identify Content
 To de-identify potentially sensitive info from a content item, you can use
 :class:`~airflow.providers.google.cloud.operators.cloud.dlp.CloudDLPDeidentifyContentOperator`.
 
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+    :language: python
+    :dedent: 4
+    :start-after: [START _howto_operator_dlp_deidentify_content]
+    :end-before: [END _howto_operator_dlp_deidentify_content]
+
 .. _howto/operator:CloudDLPReidentifyContentOperator:
 
 Re-identify Content
