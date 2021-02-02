@@ -258,7 +258,7 @@ keep_warnings = True
 
 intersphinx_mapping = {
     'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
-    'mongodb': ('https://api.mongodb.com/python/current/', None),
+    'mongodb': ('https://pymongo.readthedocs.io/en/stable/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'python': ('https://docs.python.org/3/', None),
     'requests': ('https://requests.readthedocs.io/en/master/', None),
