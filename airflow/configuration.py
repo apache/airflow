@@ -279,9 +279,10 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             FutureWarning,
         )
 
-    @staticmethod
-    def _env_var_name(section, key):
-        return f'AIRFLOW__{section.upper()}__{key.upper()}'
+    ENV_VAR_PREFIX = 'AIRFLOW__'
+
+    def _env_var_name(self, section: str, key: str) -> str:
+        return f'{self.ENV_VAR_PREFIX}{section.upper()}__{key.upper()}'
 
     def _get_env_var_option(self, section, key):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
@@ -509,7 +510,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         if self.has_section(section):
             _section.update(OrderedDict(self.items(section)))
 
-        section_prefix = f'AIRFLOW__{section.upper()}__'
+        section_prefix = self._env_var_name(section, '')
         for env_var in sorted(os.environ.keys()):
             if env_var.startswith(section_prefix):
                 key = env_var.replace(section_prefix, '')
@@ -632,14 +633,14 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
 
     def _include_envs(self, config_sources, display_sensitive, display_source, raw):
         for env_var in [
-            os_environment for os_environment in os.environ if os_environment.startswith('AIRFLOW__')
+            os_environment for os_environment in os.environ if os_environment.startswith(self.ENV_VAR_PREFIX)
         ]:
             try:
                 _, section, key = env_var.split('__', 2)
                 opt = self._get_env_var_option(section, key)
             except ValueError:
                 continue
-            if not display_sensitive and env_var != 'AIRFLOW__CORE__UNIT_TEST_MODE':
+            if not display_sensitive and env_var != self._env_var_name('core', 'unit_test_mode'):
                 opt = '< hidden >'
             elif raw:
                 opt = opt.replace('%', '%%')
