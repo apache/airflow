@@ -208,4 +208,4 @@ class AzureDataLakeHook(BaseHook):
             if ignore_not_found:
                 self.log.info("File %s not found", path)
             else:
-                raise AirflowException("File %s not found" % path)
+                raise AirflowException(f"File {path} not found")

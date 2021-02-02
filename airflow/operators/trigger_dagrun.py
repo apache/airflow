@@ -17,6 +17,7 @@
 # under the License.
 
 import datetime
+import json
 import time
 from typing import Dict, List, Optional, Union
 
@@ -107,6 +108,11 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
         self.execution_date: Optional[datetime.datetime] = execution_date  # type: ignore
+
+        try:
+            json.dumps(self.conf)
+        except TypeError:
+            raise AirflowException("conf parameter should be JSON Serializable")
 
     def execute(self, context: Dict):
         if isinstance(self.execution_date, datetime.datetime):

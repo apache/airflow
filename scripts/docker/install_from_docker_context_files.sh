@@ -39,7 +39,7 @@ function install_airflow_and_providers_from_docker_context_files(){
     reinstalling_apache_airflow_package=$(ls \
         /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true)
     # Add extras when installing airflow
-    if [[ "${reinstalling_apache_airflow_package}" != "" ]]; then
+    if [[ -n "${reinstalling_apache_airflow_package}" ]]; then
         reinstalling_apache_airflow_package="${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]"
     fi
 
@@ -47,8 +47,8 @@ function install_airflow_and_providers_from_docker_context_files(){
     local reinstalling_apache_airflow_providers_packages
     reinstalling_apache_airflow_providers_packages=$(ls \
         /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true)
-    if [[ ${reinstalling_apache_airflow_package} == "" && \
-          ${reinstalling_apache_airflow_providers_packages} == "" ]]; then
+    if [[ -z "${reinstalling_apache_airflow_package}" && \
+          -z "${reinstalling_apache_airflow_providers_packages}" ]]; then
         return
     fi
 
@@ -95,7 +95,7 @@ install_all_other_packages_from_docker_context_files() {
     # shellcheck disable=SC2010
     reinstalling_other_packages=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
         grep -v apache_airflow | grep -v apache-airflow || true)
-    if [[ "${reinstalling_other_packages}" != "" ]]; then \
+    if [[ -n "${reinstalling_other_packages}" ]]; then \
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"

@@ -416,6 +416,9 @@ ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
+ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
+ARG AIRFLOW_IMAGE_DATE_CREATED
+
 LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.distro.version="buster" \
   org.apache.airflow.module="airflow" \
@@ -424,8 +427,21 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.uid="0" \
   org.apache.airflow.gid="0" \
-  org.apache.airflow.buildId=${BUILD_ID} \
-  org.apache.airflow.commitSha=${COMMIT_SHA}
+  org.apache.airflow.buildId="${BUILD_ID}" \
+  org.apache.airflow.commitSha="${COMMIT_SHA}" \
+  org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \
+  org.opencontainers.image.created="${AIRFLOW_IMAGE_DATE_CREATED}" \
+  org.opencontainers.image.authors="dev@airflow.apache.org" \
+  org.opencontainers.image.url="https://airflow.apache.org" \
+  org.opencontainers.image.documentation="https://github.com/apache/airflow/IMAGES.rst" \
+  org.opencontainers.image.source="https://github.com/apache/airflow" \
+  org.opencontainers.image.version="${AIRFLOW_VERSION}" \
+  org.opencontainers.image.revision="${COMMIT_SHA}" \
+  org.opencontainers.image.vendor="Apache Software Foundation" \
+  org.opencontainers.image.licenses="Apache-2.0" \
+  org.opencontainers.image.ref.name="airflow-ci-image" \
+  org.opencontainers.image.title="Continuous Integration Airflow Image" \
+  org.opencontainers.image.description="Installed Apache Airflow with Continuous Integration dependencies"
 
 EXPOSE 8080
 

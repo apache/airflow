@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that shows how to use DataFusion.
 """
+import os
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -41,9 +42,13 @@ LOCATION = "europe-north1"
 INSTANCE_NAME = "airflow-test-instance"
 INSTANCE = {"type": "BASIC", "displayName": INSTANCE_NAME}
 
-BUCKET1 = "gs://test-bucket--2h83r23r"
-BUCKET2 = "gs://test-bucket--2d23h83r23r"
-PIPELINE_NAME = "airflow_test"
+BUCKET_1 = os.environ.get("GCP_DATAFUSION_BUCKET_1", "test-datafusion-bucket-1")
+BUCKET_2 = os.environ.get("GCP_DATAFUSION_BUCKET_2", "test-datafusion-bucket-2")
+
+BUCKET_1_URI = f"gs//{BUCKET_1}"
+BUCKET_2_URI = f"gs//{BUCKET_2}"
+
+PIPELINE_NAME = os.environ.get("GCP_DATAFUSION_PIPELINE_NAME", "airflow_test")
 PIPELINE = {
     "name": "test-pipe",
     "description": "Data Pipeline Application",
@@ -79,7 +84,7 @@ PIPELINE = {
                         "encrypted": "false",
                         "schema": '{"type":"record","name":"etlSchemaBody","fields":'
                         '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
-                        "path": BUCKET1,
+                        "path": BUCKET_1_URI,
                         "referenceName": "foo_bucket",
                     },
                 },
@@ -111,7 +116,7 @@ PIPELINE = {
                         "schema": '{"type":"record","name":"etlSchemaBody","fields":'
                         '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
                         "referenceName": "bar",
-                        "path": BUCKET2,
+                        "path": BUCKET_2_URI,
                     },
                 },
                 "outputSchema": [

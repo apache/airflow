@@ -220,9 +220,7 @@ class TestHiveCliHook(unittest.TestCase):
         hook = MockHiveCliHook()
         hook.load_file(filepath=filepath, table=table, create=False)
 
-        query = "LOAD DATA LOCAL INPATH '{filepath}' OVERWRITE INTO TABLE {table} ;\n".format(
-            filepath=filepath, table=table
-        )
+        query = f"LOAD DATA LOCAL INPATH '{filepath}' OVERWRITE INTO TABLE {table} ;\n"
         calls = [mock.call(query)]
         mock_run_cli.assert_has_calls(calls, any_order=True)
 

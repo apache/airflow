@@ -398,7 +398,7 @@ paths:
       description: >
         Presents only information available in database (DAGModel).
 
-        If you need detailed information, consider using GET /dags/{dag_id}/detail.
+        If you need detailed information, consider using GET /dags/{dag_id}/details.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dag
       tags: [DAG]
@@ -1937,6 +1937,7 @@ components:
               type: string
               format: 'date-time'
               readOnly: true
+              nullable: true
             dag_run_timeout:
               nullable: true
               $ref: '#/components/schemas/TimeDelta'
@@ -1946,6 +1947,9 @@ components:
               nullable: true
             default_view:
               type: string
+              readOnly: true
+            params:
+              type: object
               readOnly: true
 
     ExtraLink:

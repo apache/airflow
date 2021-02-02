@@ -143,7 +143,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
             destination_bucket=DESTINATION_BUCKET,
-            destination_object='{}/{}'.format(DESTINATION_OBJECT_PREFIX, SOURCE_OBJECT_WILDCARD_SUFFIX[:-1]),
+            destination_object=f'{DESTINATION_OBJECT_PREFIX}/{SOURCE_OBJECT_WILDCARD_SUFFIX[:-1]}',
         )
 
         operator.execute(None)

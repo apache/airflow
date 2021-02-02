@@ -499,7 +499,7 @@ class TestAirflowBaseViews(TestBase):
                 "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/"
             )
         else:
-            airflow_doc_site = f'https://airflow.apache.org/docs/{version.version}'
+            airflow_doc_site = f'https://airflow.apache.org/docs/apache-airflow/{version.version}'
 
         self.check_content_in_response(airflow_doc_site, resp)
         self.check_content_in_response("/api/v1/ui", resp)
@@ -757,7 +757,7 @@ class TestAirflowBaseViews(TestBase):
         url = 'dag_details?dag_id=test_tree_view'
         resp = self.client.get(url, follow_redirects=True)
         params = {'dag_id': 'test_tree_view', 'origin': '/tree?dag_id=test_tree_view'}
-        href = "/trigger?{}".format(html.escape(urllib.parse.urlencode(params)))
+        href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
         self.check_content_in_response(href, resp)
 
     def test_dag_details_trigger_origin_graph_view(self):
@@ -772,7 +772,7 @@ class TestAirflowBaseViews(TestBase):
         url = 'dag_details?dag_id=test_graph_view'
         resp = self.client.get(url, follow_redirects=True)
         params = {'dag_id': 'test_graph_view', 'origin': '/graph?dag_id=test_graph_view'}
-        href = "/trigger?{}".format(html.escape(urllib.parse.urlencode(params)))
+        href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
         self.check_content_in_response(href, resp)
 
     def test_dag_details_subdag(self):
@@ -1177,9 +1177,7 @@ class TestLogView(TestBase):
     DAG_ID_REMOVED = 'removed_dag_for_testing_log_view'
     TASK_ID = 'task_for_testing_log_view'
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
-    ENDPOINT = 'log?dag_id={dag_id}&task_id={task_id}&execution_date={execution_date}'.format(
-        dag_id=DAG_ID, task_id=TASK_ID, execution_date=DEFAULT_DATE
-    )
+    ENDPOINT = f'log?dag_id={DAG_ID}&task_id={TASK_ID}&execution_date={DEFAULT_DATE}'
 
     def setUp(self):
         # Make sure that the configure_logging is not cached
@@ -1277,7 +1275,7 @@ class TestLogView(TestBase):
         for num in range(1, expected_num_logs_visible + 1):
             assert f'log-group-{num}' in response.data.decode('utf-8')
         assert 'log-group-0' not in response.data.decode('utf-8')
-        assert 'log-group-{}'.format(expected_num_logs_visible + 1) not in response.data.decode('utf-8')
+        assert f'log-group-{expected_num_logs_visible + 1}' not in response.data.decode('utf-8')
 
     def test_get_logs_with_metadata_as_download_file(self):
         url_template = (
@@ -1540,7 +1538,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         Should set base date to execution date.
         """
         response = self.test.client.get(
-            self.endpoint + '&execution_date={}'.format(self.runs[1].execution_date.isoformat()),
+            self.endpoint + f'&execution_date={self.runs[1].execution_date.isoformat()}',
             data=dict(username='test', password='test'),
             follow_redirects=True,
         )
@@ -1563,7 +1561,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         Should set base date and num runs to submitted values.
         """
         response = self.test.client.get(
-            self.endpoint + '&base_date={}&num_runs=2'.format(self.runs[1].execution_date.isoformat()),
+            self.endpoint + f'&base_date={self.runs[1].execution_date.isoformat()}&num_runs=2',
             data=dict(username='test', password='test'),
             follow_redirects=True,
         )
@@ -1824,6 +1822,10 @@ class TestDagACLView(TestBase):
             permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
         )
         self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_all_dag)
+        read_perm_on_task_instance = self.appbuilder.sm.find_permission_view_menu(
+            permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE
+        )
+        self.appbuilder.sm.add_permission_role(all_dag_role, read_perm_on_task_instance)
         self.appbuilder.sm.add_permission_role(all_dag_role, website_permission)
 
         role_user = self.appbuilder.sm.find_role('User')
@@ -2828,7 +2830,7 @@ class TestExtraLinks(TestBase):
             name = 'foo-bar'
 
             def get_link(self, operator, dttm):
-                return 'http://www.example.com/{}/{}/{}'.format(operator.task_id, 'foo-bar', dttm)
+                return f"http://www.example.com/{operator.task_id}/foo-bar/{dttm}"
 
         class AirflowLink(BaseOperatorLink):
             name = 'airflow'

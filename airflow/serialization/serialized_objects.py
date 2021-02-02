@@ -100,6 +100,11 @@ class BaseSerialization:
 
     _json_schema: Optional[Validator] = None
 
+    # Should the extra operator link be loaded via plugins when
+    # de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
+    # are not loaded to not run User code in Scheduler.
+    _load_operator_extra_links = True
+
     _CONSTRUCTOR_PARAMS: Dict[str, Parameter] = {}
 
     SERIALIZER_VERSION = 1
@@ -407,35 +412,38 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> BaseOperator:
         """Deserializes an operator from a JSON object."""
-        from airflow import plugins_manager
-
-        plugins_manager.initialize_extra_operators_links_plugins()
-
-        if plugins_manager.operator_extra_links is None:
-            raise AirflowException("Can not load plugins")
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
-
-        # Extra Operator Links defined in Plugins
-        op_extra_links_from_plugin = {}
 
         if "label" not in encoded_op:
             # Handle deserialization of old data before the introduction of TaskGroup
             encoded_op["label"] = encoded_op["task_id"]
 
-        for ope in plugins_manager.operator_extra_links:
-            for operator in ope.operators:
-                if (
-                    operator.__name__ == encoded_op["_task_type"]
-                    and operator.__module__ == encoded_op["_task_module"]
-                ):
-                    op_extra_links_from_plugin.update({ope.name: ope})
+        # Extra Operator Links defined in Plugins
+        op_extra_links_from_plugin = {}
 
-        # If OperatorLinks are defined in Plugins but not in the Operator that is being Serialized
-        # set the Operator links attribute
-        # The case for "If OperatorLinks are defined in the operator that is being Serialized"
-        # is handled in the deserialization loop where it matches k == "_operator_extra_links"
-        if op_extra_links_from_plugin and "_operator_extra_links" not in encoded_op:
-            setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
+        # We don't want to load Extra Operator links in Scheduler
+        if cls._load_operator_extra_links:  # pylint: disable=too-many-nested-blocks
+            from airflow import plugins_manager
+
+            plugins_manager.initialize_extra_operators_links_plugins()
+
+            if plugins_manager.operator_extra_links is None:
+                raise AirflowException("Can not load plugins")
+
+            for ope in plugins_manager.operator_extra_links:
+                for operator in ope.operators:
+                    if (
+                        operator.__name__ == encoded_op["_task_type"]
+                        and operator.__module__ == encoded_op["_task_module"]
+                    ):
+                        op_extra_links_from_plugin.update({ope.name: ope})
+
+            # If OperatorLinks are defined in Plugins but not in the Operator that is being Serialized
+            # set the Operator links attribute
+            # The case for "If OperatorLinks are defined in the operator that is being Serialized"
+            # is handled in the deserialization loop where it matches k == "_operator_extra_links"
+            if op_extra_links_from_plugin and "_operator_extra_links" not in encoded_op:
+                setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
 
@@ -450,10 +458,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
             elif k == "_operator_extra_links":
-                op_predefined_extra_links = cls._deserialize_operator_extra_links(v)
+                if cls._load_operator_extra_links:
+                    op_predefined_extra_links = cls._deserialize_operator_extra_links(v)
 
-                # If OperatorLinks with the same name exists, Links via Plugin have higher precedence
-                op_predefined_extra_links.update(op_extra_links_from_plugin)
+                    # If OperatorLinks with the same name exists, Links via Plugin have higher precedence
+                    op_predefined_extra_links.update(op_extra_links_from_plugin)
+                else:
+                    op_predefined_extra_links = {}
 
                 v = list(op_predefined_extra_links.values())
                 k = "operator_extra_links"
@@ -655,6 +666,9 @@ class SerializedDAG(DAG, BaseSerialization):
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "tasks":
+                # pylint: disable=protected-access
+                SerializedBaseOperator._load_operator_extra_links = cls._load_operator_extra_links
+                # pylint: enable=protected-access
                 v = {task["task_id"]: SerializedBaseOperator.deserialize_operator(task) for task in v}
                 k = "task_dict"
             elif k == "timezone":

@@ -406,14 +406,11 @@ def task_render(args):
     for attr in task.__class__.template_fields:
         print(
             textwrap.dedent(
-                """\
+                f"""        # ----------------------------------------------------------
+        # property: {attr}
         # ----------------------------------------------------------
-        # property: {}
-        # ----------------------------------------------------------
-        {}
-        """.format(
-                    attr, getattr(task, attr)
-                )
+        {getattr(task, attr)}
+        """
             )
         )
 

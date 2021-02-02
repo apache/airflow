@@ -1,6 +1,7 @@
 {
   "amazon": [
     "apache.hive",
+    "exasol",
     "ftp",
     "google",
     "imap",

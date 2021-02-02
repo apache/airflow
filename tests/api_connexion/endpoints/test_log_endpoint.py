@@ -198,6 +198,34 @@ class TestGetLog(unittest.TestCase):
         )
 
     @provide_session
+    def test_get_logs_of_removed_task(self, session):
+        self._create_dagrun(session)
+
+        # Recreate DAG without tasks
+        dagbag = self.app.dag_bag  # pylint: disable=no-member
+        dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": True})
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            headers={'Accept': 'text/plain'},
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        expected_filename = "{}/{}/{}/{}/1.log".format(
+            self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(':', '.')
+        )
+        assert 200 == response.status_code
+        assert (
+            response.data.decode('utf-8')
+            == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
+        )
+
+    @provide_session
     def test_get_logs_response_with_ti_equal_to_none(self, session):
         self._create_dagrun(session)
         key = self.app.config["SECRET_KEY"]

@@ -68,6 +68,7 @@ from tests.test_utils.db import (
     set_default_pool_slots,
 )
 from tests.test_utils.mock_executor import MockExecutor
+from tests.test_utils.mock_operators import CustomOperator
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
@@ -3559,6 +3560,200 @@ class TestSchedulerJob(unittest.TestCase):
             scheduler._create_dag_runs([dag_model], session)
 
         assert dag.get_last_dagrun().creating_job_id == scheduler.id
+
+    def test_extra_operator_links_not_loaded_in_scheduler_loop(self):
+        """
+        Test that Operator links are not loaded inside the Scheduling Loop (that does not include
+        DagFileProcessorProcess) especially the critical loop of the Scheduler.
+
+        This is to avoid running User code in the Scheduler and prevent any deadlocks
+        """
+        dag = DAG(dag_id='test_extra_operator_links_not_loaded_in_scheduler', start_date=DEFAULT_DATE)
+
+        # This CustomOperator has Extra Operator Links registered via plugins
+        _ = CustomOperator(task_id='custom_task', dag=dag)
+
+        dagbag = DagBag(
+            dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"),
+            include_examples=False,
+            read_dags_from_db=True,
+        )
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        dagbag.sync_to_db()
+
+        # Get serialized dag
+        s_dag_1 = dagbag.get_dag(dag.dag_id)
+        custom_task = s_dag_1.task_dict['custom_task']
+        # Test that custom_task has >= 1 Operator Links (after de-serialization)
+        assert custom_task.operator_extra_links
+
+        scheduler = SchedulerJob(executor=self.null_exec)
+        scheduler.processor_agent = mock.MagicMock()
+        scheduler._run_scheduler_loop()
+
+        # Get serialized dag
+        s_dag_2 = scheduler.dagbag.get_dag(dag.dag_id)
+        custom_task = s_dag_2.task_dict['custom_task']
+        # Test that custom_task has no Operator Links (after de-serialization) in the Scheduling Loop
+        assert not custom_task.operator_extra_links
+
+    def test_scheduler_create_dag_runs_does_not_raise_error(self):
+        """
+        Test that scheduler._create_dag_runs does not raise an error when the DAG does not exist
+        in serialized_dag table
+        """
+        dag = DAG(dag_id='test_scheduler_create_dag_runs_does_not_raise_error', start_date=DEFAULT_DATE)
+
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+        )
+
+        dagbag = DagBag(
+            dag_folder=os.devnull,
+            include_examples=False,
+            read_dags_from_db=False,
+        )
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        # Only write to dag table and not serialized_dag table
+        DAG.bulk_write_to_db(dagbag.dags.values())
+        dag_model = DagModel.get_dagmodel(dag.dag_id)
+
+        scheduler = SchedulerJob(subdir=os.devnull, executor=self.null_exec)
+        scheduler.processor_agent = mock.MagicMock()
+
+        with create_session() as session, self.assertLogs(
+            'airflow.jobs.scheduler_job', level="ERROR"
+        ) as log_output:
+            scheduler._create_dag_runs([dag_model], session)
+
+            assert (
+                "airflow.exceptions.SerializedDagNotFound: DAG "
+                "'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table"
+            ) in log_output.output[0]
+
+    def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self):
+        """
+        Test that externally triggered Dag Runs should not affect (by skipping) next
+        scheduled DAG runs
+        """
+        dag = DAG(
+            dag_id='test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run',
+            start_date=DEFAULT_DATE,
+            schedule_interval="*/1 * * * *",
+            max_active_runs=5,
+            catchup=True,
+        )
+
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        session = settings.Session()
+        dag.clear()
+        dagbag = DagBag(
+            dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"),
+            include_examples=False,
+            read_dags_from_db=True,
+        )
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        # Write to dag and serialized_dag table
+        dagbag.sync_to_db(session)
+        dag = dagbag.get_dag(dag.dag_id)
+
+        # Verify that dag_model.next_dagrun is equal to next execution_date
+        dag_model = session.query(DagModel).get(dag.dag_id)
+        assert dag_model.next_dagrun == DEFAULT_DATE
+
+        job = SchedulerJob(subdir=os.devnull)
+        job.executor = MockExecutor(do_update=False)
+        job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        # Verify a DagRun is created with the correct execution_date
+        # when Scheduler._do_scheduling is run in the Scheduler Loop
+        job._do_scheduling(session)
+        dr1 = dag.get_dagrun(DEFAULT_DATE, session)
+        assert dr1 is not None
+        assert dr1.state == State.RUNNING
+
+        # Verify that dag_model.next_dagrun is set to next execution_date
+        dag_model = session.query(DagModel).get(dag.dag_id)
+        assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(minutes=1)
+
+        # Trigger the Dag externally
+        dr = dag.create_dagrun(
+            state=State.RUNNING,
+            execution_date=timezone.utcnow(),
+            run_type=DagRunType.MANUAL,
+            session=session,
+            external_trigger=True,
+        )
+        assert dr is not None
+        # Run DAG.bulk_write_to_db -- this is run when in DagFileProcessor.process_file
+        DAG.bulk_write_to_db([dag], session)
+
+        # Test that 'dag_model.next_dagrun' has not been changed because of newly created external
+        # triggered DagRun.
+        dag_model = session.query(DagModel).get(dag.dag_id)
+        assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(minutes=1)
+
+    def test_scheduler_create_dag_runs_check_existing_run(self):
+        """
+        Test that if a dag run exists, scheduler._create_dag_runs does not raise an error.
+        And if a Dag Run does not exist it creates next Dag Run. In both cases the Scheduler
+        sets next execution date as DagModel.next_dagrun
+        """
+        dag = DAG(
+            dag_id='test_scheduler_create_dag_runs_check_existing_run',
+            start_date=DEFAULT_DATE,
+            schedule_interval=timedelta(days=1),
+        )
+
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+        )
+
+        session = settings.Session()
+        assert dag.get_last_dagrun(session) is None
+
+        dagbag = DagBag(
+            dag_folder=os.devnull,
+            include_examples=False,
+            read_dags_from_db=False,
+        )
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+
+        # Create DagModel
+        DAG.bulk_write_to_db(dagbag.dags.values())
+        dag_model = DagModel.get_dagmodel(dag.dag_id)
+
+        # Assert dag_model.next_dagrun is set correctly
+        assert dag_model.next_dagrun == DEFAULT_DATE
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        dagrun = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=dag_model.next_dagrun,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            external_trigger=False,
+            session=session,
+            creating_job_id=2,
+        )
+        session.flush()
+
+        assert dag.get_last_dagrun(session) == dagrun
+
+        scheduler = SchedulerJob(subdir=os.devnull, executor=self.null_exec)
+        scheduler.dagbag = dagbag
+        scheduler.processor_agent = mock.MagicMock()
+
+        # Test that this does not raise any error
+        scheduler._create_dag_runs([dag_model], session)
+
+        # Assert dag_model.next_dagrun is set correctly to next execution date
+        assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
+        session.rollback()
 
     def test_do_schedule_max_active_runs_upstream_failed(self):
         """

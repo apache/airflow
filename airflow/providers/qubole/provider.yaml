@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Qubole
     external-doc-url: https://www.qubole.com/
+    logo: /integration-logos/qubole/Qubole.png
     tags: [service]
 
 operators:

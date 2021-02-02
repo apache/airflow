@@ -121,7 +121,7 @@ def _write_option(configfile, idx, option):
     if option["example"]:
         if not str(option["name"]).endswith("_template"):
             option["example"] = option["example"].replace("{", "{{").replace("}", "}}")
-        configfile.write("# Example: {} = {}\n".format(option["name"], option["example"]))
+        configfile.write(f"# Example: {option['name']} = {option['example']}\n")
 
     if option["default"] is not None:
         if not isinstance(option["default"], str):
@@ -134,9 +134,9 @@ def _write_option(configfile, idx, option):
             value = " " + option["default"]
         else:
             value = ""
-        configfile.write("{} ={}\n".format(option["name"], value))
+        configfile.write(f"{option['name']} ={value}\n")
     else:
-        configfile.write("# {} =\n".format(option["name"]))
+        configfile.write(f"# {option['name']} =\n")
 
 
 if __name__ == '__main__':

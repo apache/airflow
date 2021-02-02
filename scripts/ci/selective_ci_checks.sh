@@ -136,7 +136,7 @@ function get_changed_files() {
     echo
     CHANGED_FILES=$(git diff-tree --no-commit-id --name-only \
         -r "${INCOMING_COMMIT_SHA}^" "${INCOMING_COMMIT_SHA}" || true)
-    if [[ ${CHANGED_FILES} == "" ]]; then
+    if [[ -z "${CHANGED_FILES}" ]]; then
         echo
         echo  "${COLOR_YELLOW}WARNING: Could not find any changed files  ${COLOR_RESET}"
         echo Assuming that we should run all tests in this case

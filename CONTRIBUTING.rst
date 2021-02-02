@@ -383,23 +383,39 @@ Airflow Git Branches
 ====================
 
 All new development in Airflow happens in the ``master`` branch. All PRs should target that branch.
-We also have a ``v1-10-test`` branch that is used to test ``1.10.x`` series of Airflow and where committers
+
+
+We also have a ``v2-0-test`` branch that is used to test ``2.0.x`` series of Airflow and where committers
 cherry-pick selected commits from the master branch.
+
 Cherry-picking is done with the ``-x`` flag.
 
-The ``v1-10-test`` branch might be broken at times during testing. Expect force-pushes there so
-committers should coordinate between themselves on who is working on the ``v1-10-test`` branch -
+The ``v2-0-test`` branch might be broken at times during testing. Expect force-pushes there so
+committers should coordinate between themselves on who is working on the ``v2-0-test`` branch -
 usually these are developers with the release manager permissions.
 
-Once the branch is stable, the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
-The ``v1-10-stable`` branch is used to release ``1.10.x`` releases.
+The ``v2-0-stable`` branch is rather stable - there are minimum changes coming from approved PRs that
+passed the tests. This means that the branch is rather, well, "stable".
+
+Once the ``v2-0-test`` branch stabilises, the ``v2-0-stable`` branch is synchronized with ``v2-0-test``.
+The ``v2-0-stable`` branch is used to release ``2.0.x`` releases.
 
 The general approach is that cherry-picking a commit that has already had a PR and unit tests run
-against main is done to ``v1-10-test`` branch, but PRs from contributors towards 1.10 should target
-``v1-10-stable`` branch.
+against main is done to ``v2-0-test`` branch, but PRs from contributors towards 2.0 should target
+``v2-0-stable`` branch.
 
-The ``v1-10-test`` branch and ``v1-10-stable`` ones are merged just before the release and that's the
+The ``v2-0-test`` branch and ``v2-0-stable`` ones are merged just before the release and that's the
 time when they converge.
+
+The production images are build in DockerHub from:
+
+* master branch for development
+* v2-0-test branch for testing 2.0.x release
+* ``2.0.*``, ``2.0.*rc*`` releases from the ``v2-0-stable`` branch when we prepare release candidates and
+  final releases. There are no production images prepared from v2-0-stable branch.
+
+Similar rules apply to ``1.10.x`` releases until June 2020. We have ``v1-10-test`` and ``v1-10-stable``
+branches there.
 
 Development Environments
 ========================
@@ -596,7 +612,7 @@ Some of the packages have cross-dependencies with other providers packages. This
 transfer operators where operators use hooks from the other providers in case they are transferring
 data between the providers. The list of dependencies is maintained (automatically with pre-commits)
 in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
-The dependency list is automatically used during pypi packages generation.
+The dependency list is automatically used during PyPI packages generation.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
 the other provider package you can install it adding [extra] after the
@@ -624,7 +640,7 @@ Here is the list of packages and their extras:
 ========================== ===========================
 Package                    Extras
 ========================== ===========================
-amazon                     apache.hive,ftp,google,imap,mongo,mysql,postgres,snowflake,ssh
+amazon                     apache.hive,exasol,ftp,google,imap,mongo,mysql,postgres,snowflake,ssh
 apache.druid               apache.hive
 apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
 apache.livy                http
@@ -806,7 +822,7 @@ constraints file when installing Apache Airflow - either from the sources:
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
-or from the pypi package:
+or from the PyPI package:
 
 .. code-block:: bash
 

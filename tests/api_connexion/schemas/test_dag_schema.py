@@ -106,6 +106,7 @@ class TestDAGDetailSchema:
             doc_md="docs",
             orientation="LR",
             default_view="duration",
+            params={"foo": 1},
         )
         schema = DAGDetailSchema()
         expected = {
@@ -122,6 +123,7 @@ class TestDAGDetailSchema:
             'is_subdag': False,
             'orientation': 'LR',
             'owners': [],
+            'params': {'foo': 1},
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'seconds': 0, 'microseconds': 0},
             'start_date': '2020-06-19T00:00:00+00:00',
             'tags': None,

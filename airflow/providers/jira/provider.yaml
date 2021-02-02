@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Atlassian Jira
     external-doc-url: https://www.atlassian.com/pl/software/jira
+    logo: /integration-logos/jira/Jira.png
     tags: [software]
 
 operators:

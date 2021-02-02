@@ -62,7 +62,7 @@ ${COLOR_RED}ERROR:
 *       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} shell
 *
 """
-    if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} != "" ]]; then
+    if [[ -n "${GITHUB_REGISTRY_PULL_IMAGE_TAG=}" ]]; then
         echo """
 *   When you do not have sources:
 *

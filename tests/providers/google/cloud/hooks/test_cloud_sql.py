@@ -1061,9 +1061,7 @@ class TestCloudSqlDatabaseQueryHook(unittest.TestCase):
         project = self.sql_connection.extra_dejson['project_id']
         location = self.sql_connection.extra_dejson['location']
         instance = self.sql_connection.extra_dejson['instance']
-        instance_spec = "{project}:{location}:{instance}".format(
-            project=project, location=location, instance=instance
-        )
+        instance_spec = f"{project}:{location}:{instance}"
         assert sqlproxy_runner.instance_specification == instance_spec
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")

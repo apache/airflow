@@ -424,7 +424,7 @@ AIRFLOW_HOME = /root/airflow
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
         conf.deprecated_options = {
-            ('celery', 'worker_concurrency'): ('celery', 'celeryd_concurrency'),
+            ('celery', 'worker_concurrency'): ('celery', 'celeryd_concurrency', '2.0.0'),
         }
 
         # Remove it so we are sure we use the right setting
@@ -447,7 +447,7 @@ AIRFLOW_HOME = /root/airflow
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
         conf.deprecated_options = {
-            ('logging', 'logging_level'): ('core', 'logging_level'),
+            ('logging', 'logging_level'): ('core', 'logging_level', '2.0.0'),
         }
 
         # Remove it so we are sure we use the right setting
@@ -471,7 +471,7 @@ AIRFLOW_HOME = /root/airflow
     def test_deprecated_options_cmd(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
-        conf.deprecated_options[('celery', "result_backend")] = ('celery', 'celery_result_backend')
+        conf.deprecated_options[('celery', "result_backend")] = 'celery', 'celery_result_backend', '2.0.0'
         conf.sensitive_config_values.add(('celery', 'celery_result_backend'))
 
         conf.remove_option('celery', 'result_backend')

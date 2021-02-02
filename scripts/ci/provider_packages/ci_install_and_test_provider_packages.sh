@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export MOUNT_LOCAL_SOURCES="false"
+export MOUNT_SELECTED_LOCAL_SOURCES="false"
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
@@ -31,6 +31,7 @@ function run_test_package_import_all_classes() {
     # Groups are added internally
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
+        -t \
         -v "${AIRFLOW_SOURCES}/setup.py:/airflow_sources/setup.py:cached" \
         -v "${AIRFLOW_SOURCES}/setup.cfg:/airflow_sources/setup.cfg:cached" \
         -v "${AIRFLOW_SOURCES}/airflow/__init__.py:/airflow_sources/airflow/__init__.py:cached" \

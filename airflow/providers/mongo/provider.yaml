@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: MongoDB
     external-doc-url: https://www.mongodb.com/what-is-mongodb
+    logo: /integration-logos/mongo/MongoDB.png
     tags: [software]
 
 sensors:

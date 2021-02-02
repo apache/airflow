@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Redis
     external-doc-url: https://redis.io/
+    logo: /integration-logos/redis/Redis.png
     tags: [software]
 
 operators:

@@ -27,7 +27,7 @@ on:  # yamllint disable-line rule:truthy
 
 env:
 
-  MOUNT_LOCAL_SOURCES: "false"
+  MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
   CHECK_IMAGE_FOR_REBUILD: "true"
@@ -36,9 +36,15 @@ env:
   VERBOSE: "true"
   DOCKER_CACHE: "pulled"
   USE_GITHUB_REGISTRY: "true"
+  # Might be either 'ghcr.io' or 'docker.pkg.github.com'
+  GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
+  # In builds from forks, this token is read-only. For scheduler/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # In builds from forks, this token is empty, and this is good because such builds do not even try
+  # to push images to the registry.
+  CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
@@ -232,7 +238,7 @@ jobs:
     needs: [build-info, ci-images]
     env:
       SKIP: "pylint,identity"
-      MOUNT_LOCAL_SOURCES: "true"
+      MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
@@ -269,7 +275,7 @@ jobs:
     needs: [build-info]
     env:
       SKIP: "build,mypy,flake8,pylint,bats-in-container-tests,identity"
-      MOUNT_LOCAL_SOURCES: "true"
+      MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'true'
     steps:
@@ -310,7 +316,7 @@ jobs:
     env:
       # We want to make sure we have latest sources as only in_container scripts are added
       # to the image but we want to static-check all of them
-      MOUNT_LOCAL_SOURCES: "true"
+      MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -390,6 +396,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
       VERSION_SUFFIX_FOR_PYPI: "dev"
+      VERSION_SUFFIX_FOR_SVN: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
     if: needs.build-info.outputs.image-build == 'true'
     steps:
@@ -405,8 +412,8 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare provider readmes"
-        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider documentation"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_documentation.sh
       - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
       - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
@@ -420,7 +427,7 @@ jobs:
           name: airflow-backport-packages
           path: "./dist/apache*"
           retention-days: 7
-      - name: "Upload readme artifacts"
+      - name: "Upload documentation artifacts"
         uses: actions/upload-artifact@v2
         if: always() && matrix.package-format == 'wheel'
         with:
@@ -438,6 +445,7 @@ jobs:
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: "dev"
+      VERSION_SUFFIX_FOR_SVN: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
     strategy:
       matrix:
@@ -456,8 +464,8 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare provider readmes"
-        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider documentation"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_documentation.sh
       - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
       - name: "Prepare airflow packages: ${{ matrix.package-format }}"
@@ -471,13 +479,6 @@ jobs:
           name: airflow-provider-packages
           path: "./dist/apache-*"
           retention-days: 7
-      - name: "Upload readme artifacts"
-        uses: actions/upload-artifact@v2
-        if: always() && matrix.package-format == 'wheel'
-        with:
-          name: airflow-provider-readmes
-          path: "./files/airflow-readme-*"
-          retention-days: 7
 
   test-provider-packages-released-airflow:
     timeout-minutes: 30
@@ -489,6 +490,7 @@ jobs:
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: "dev"
+      VERSION_SUFFIX_FOR_SVN: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
     strategy:
       matrix:
@@ -507,8 +509,8 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare provider readmes"
-        run: ./scripts/ci/provider_packages/ci_prepare_provider_readmes.sh
+      - name: "Prepare provider documentation"
+        run: ./scripts/ci/provider_packages/ci_prepare_provider_documentation.sh
       - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
       - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
@@ -520,7 +522,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [build-info, ci-images]
     env:
-      MOUNT_LOCAL_SOURCES: "true"
+      MOUNT_SELECTED_LOCAL_SOURCES: "true"
       RUN_TESTS: true
       TEST_TYPES: "Helm"
       BACKEND: "sqlite"

@@ -57,6 +57,7 @@ Currently, **officially** using Airflow:
 1. [Auth0](https://auth0.com) [[@scottypate](https://github.com/scottypate)], [[@dm03514](https://github.com/dm03514)], [[@karangale](https://github.com/karangale)]
 1. [Automattic](https://automattic.com/) [[@anandnalya](https://github.com/anandnalya), [@bperson](https://github.com/bperson), [@khrol](https://github.com/Khrol), [@xyu](https://github.com/xyu)]
 1. [Avesta Technologies](https://avestatechnologies.com) [[@TheRum](https://github.com/TheRum)]
+1. [Aviva plc](https://www.aviva.com) [[@panatimahesh](https://github.com/panatimahesh)]
 1. [Away](https://awaytravel.com) [[@trunsky](https://github.com/trunsky)]
 1. [Axesor designeted activity company](https://www.axesor.es/)
 1. [Azri Solutions](http://www.azrisolutions.com/) [[@userimack](https://github.com/userimack)]
@@ -131,6 +132,7 @@ Currently, **officially** using Airflow:
 1. [Cyscale](https://cyscale.com) [[@ocical](https://github.com/ocical)]
 1. [Dailymotion](http://www.dailymotion.com/fr) [[@germaintanguy](https://github.com/germaintanguy) & [@hc](https://github.com/hc)]
 1. [Danamica](https://www.danamica.dk) [[@testvinder](https://github.com/testvinder)]
+1. [DANA](https://www.dana.id/) [[@imamdigmi](https://github.com/imamdigmi)]
 1. [DataCamp](https://datacamp.com/) [[@dgrtwo](https://github.com/dgrtwo)]
 1. [DataFox](https://www.datafox.com/) [[@sudowork](https://github.com/sudowork)]
 1. [Datamaran](https://www.datamaran.com) [[@valexharo](https://github.com/valexharo)]
@@ -143,6 +145,7 @@ Currently, **officially** using Airflow:
 1. [DoorDash](https://www.doordash.com/)
 1. [Dotmodus](http://dotmodus.com) [[@dannylee12](https://github.com/dannylee12)]
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
+1. [Dropbox](https://www.dropbox.com) [[@AlexeySanko](https://github.com/AlexeySanko)]
 1. [Dynata](https://www.dynata.com) [[@neil3handari](https://github.com/neil3handari)]
 1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@diraol](https://github.com/diraol)]
 1. [EBANX](https://www.ebanx.com/) [[@estevammr](https://github.com/estevammr) & [@nathangngencissk](https://github.com/nathangngencissk) & [@raafaadg](https://github.com/raafaadg) & [@whrocha](https://github.com/whrocha)]
@@ -274,6 +277,7 @@ Currently, **officially** using Airflow:
 1. [Nextdoor](https://nextdoor.com) [[@SivaPandeti](https://github.com/SivaPandeti), [@zshapiro](https://github.com/zshapiro) & [@jthomas123](https://github.com/jthomas123)]
 1. [Nielsen](https://www.nielsen.com) [[@roitvt](https://github.com/roitvt) & [@itaiy](https://github.com/itaiy)]
 1. [Nine](https://nine.com.au) [[@TheZepto](https://github.com/TheZepto)]
+1. [Nutanix](https://www.nutanix.com/)
 1. [OdysseyPrime](https://www.goprime.io/) [[@davideberdin](https://github.com/davideberdin)]
 1. [OfferUp](https://offerupnow.com)
 1. [OneFineStay](https://www.onefinestay.com) [[@slangwald](https://github.com/slangwald)]

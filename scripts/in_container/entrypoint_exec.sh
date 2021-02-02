@@ -24,4 +24,4 @@
 # shellcheck source=scripts/in_container/run_init_script.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
 
-exec /bin/bash -c "${@}"
+exec /bin/bash "${@}"

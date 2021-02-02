@@ -34,14 +34,14 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
-from sqlalchemy import and_, func, not_, or_
+from sqlalchemy import and_, func, not_, or_, tuple_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, SerializedDagNotFound, TaskNotFound
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagModel, SlaMiss, errors
@@ -731,7 +731,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.max_tis_per_query: int = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent: Optional[DagFileProcessorAgent] = None
 
-        self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True)
+        self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
 
     def register_signals(self) -> None:
         """Register signals that stop child processes"""
@@ -1512,7 +1512,17 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 active_runs_by_dag_id[dag_id].add(execution_date)
 
             for dag_run in dag_runs:
-                self._schedule_dag_run(dag_run, active_runs_by_dag_id.get(dag_run.dag_id, set()), session)
+                # Use try_except to not stop the Scheduler when a Serialized DAG is not found
+                # This takes care of Dynamic DAGs especially
+                # SerializedDagNotFound should not happen here in the same loop because the DagRun would
+                # not be created in self._create_dag_runs if Serialized DAG does not exist
+                # But this would take care of the scenario when the Scheduler is restarted after DagRun is
+                # created and the DAG is deleted / renamed
+                try:
+                    self._schedule_dag_run(dag_run, active_runs_by_dag_id.get(dag_run.dag_id, set()), session)
+                except SerializedDagNotFound:
+                    self.log.exception("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+                    continue
 
             guard.commit()
 
@@ -1553,19 +1563,47 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
         if/when the next DAGRun should be created
         """
-        for dag_model in dag_models:
-            dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
-            dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
-            dag.create_dagrun(
-                run_type=DagRunType.SCHEDULED,
-                execution_date=dag_model.next_dagrun,
-                start_date=timezone.utcnow(),
-                state=State.RUNNING,
-                external_trigger=False,
-                session=session,
-                dag_hash=dag_hash,
-                creating_job_id=self.id,
+        # Bulk Fetch DagRuns with dag_id and execution_date same
+        # as DagModel.dag_id and DagModel.next_dagrun
+        # This list is used to verify if the DagRun already exist so that we don't attempt to create
+        # duplicate dag runs
+        active_dagruns = (
+            session.query(DagRun.dag_id, DagRun.execution_date)
+            .filter(
+                tuple_(DagRun.dag_id, DagRun.execution_date).in_(
+                    [(dm.dag_id, dm.next_dagrun) for dm in dag_models]
+                )
             )
+            .all()
+        )
+
+        for dag_model in dag_models:
+            try:
+                dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+            except SerializedDagNotFound:
+                self.log.exception("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
+                continue
+
+            dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
+            # Explicitly check if the DagRun already exists. This is an edge case
+            # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
+            # are not updated.
+            # We opted to check DagRun existence instead
+            # of catching an Integrity error and rolling back the session i.e
+            # we need to run self._update_dag_next_dagruns if the Dag Run already exists or if we
+            # create a new one. This is so that in the next Scheduling loop we try to create new runs
+            # instead of falling in a loop of Integrity Error.
+            if (dag.dag_id, dag_model.next_dagrun) not in active_dagruns:
+                dag.create_dagrun(
+                    run_type=DagRunType.SCHEDULED,
+                    execution_date=dag_model.next_dagrun,
+                    start_date=timezone.utcnow(),
+                    state=State.RUNNING,
+                    external_trigger=False,
+                    session=session,
+                    dag_hash=dag_hash,
+                    creating_job_id=self.id,
+                )
 
         self._update_dag_next_dagruns(dag_models, session)
 
@@ -1592,7 +1630,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         )
 
         for dag_model in dag_models:
-            dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+            # Get the DAG in a try_except to not stop the Scheduler when a Serialized DAG is not found
+            # This takes care of Dynamic DAGs especially
+            try:
+                dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+            except SerializedDagNotFound:
+                self.log.exception("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
+                continue
             active_runs_of_dag = active_runs_of_dags.get(dag.dag_id, 0)
             if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
                 self.log.info(

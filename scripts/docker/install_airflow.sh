@@ -56,13 +56,16 @@ function install_airflow() {
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy eager \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
-        if [[ ${AIRFLOW_INSTALL_EDITABLE_FLAG} != "" ]]; then
+        if [[ -n "${AIRFLOW_INSTALL_EDITABLE_FLAG}" ]]; then
             # Remove airflow and reinstall it using editable flag
             # We can only do it when we install airflow from sources
             pip uninstall apache-airflow --yes
             pip install ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
                 "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}"
         fi
+        # Work around to install azure-storage-blob
+        pip uninstall azure-storage azure-storage-blob azure-storage-file --yes
+        pip install azure-storage-blob azure-storage-file
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
         pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
@@ -79,6 +82,9 @@ function install_airflow() {
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy only-if-needed \
             ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+        # Work around to install azure-storage-blob
+        pip uninstall azure-storage azure-storage-blob azure-storage-file --yes
+        pip install azure-storage-blob azure-storage-file
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
         pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}

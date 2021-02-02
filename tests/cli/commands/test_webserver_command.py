@@ -299,6 +299,7 @@ class TestCliWebServer(unittest.TestCase):
         #   0 - the server terminated correctly
         assert proc.wait(60) in (-15, 0)
 
+    @pytest.mark.quarantined
     def test_cli_webserver_foreground_with_pid(self):
         with tempfile.TemporaryDirectory(prefix='tmp-pid') as tmpdir:
             pidfile = f"{tmpdir}/pidfile"

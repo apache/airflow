@@ -123,7 +123,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                                        |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
-| [19b7e4565](https://github.com/apache/airflow/commit/19b7e4565e6372d50ef0fbb5678a484a7afbdbee) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427)             |
+| [4873d9759](https://github.com/apache/airflow/commit/4873d9759dfdec1dd3663074f9e64ad69fa881cc) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427)             |
 | [763b40d22](https://github.com/apache/airflow/commit/763b40d223e5e5512494a97f8335e16960e6adc3) | 2020-11-18  | Raise correct Warning in kubernetes/backcompat/volume_mount.py (#12432)        |
 | [bc4bb3058](https://github.com/apache/airflow/commit/bc4bb30588607b10b069ab63ddf2ba7b7ee673ed) | 2020-11-18  | Fix docstrings for Kubernetes Backcompat module (#12422)                       |
 | [cab86d80d](https://github.com/apache/airflow/commit/cab86d80d48227849906319917126f6d558b2e00) | 2020-11-17  | Make K8sPodOperator backwards compatible (#12384)                              |

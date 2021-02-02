@@ -65,7 +65,7 @@ class DateTimeSensor(BaseSensorOperator):
             self.target_time = target_time
         else:
             raise TypeError(
-                "Expected str or datetime.datetime type for target_time. Got {}".format(type(target_time))
+                f"Expected str or datetime.datetime type for target_time. Got {type(target_time)}"
             )
 
     def poke(self, context: Dict) -> bool:

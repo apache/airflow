@@ -53,4 +53,5 @@ rules:
       - "pods/log"
     verbs:
       - "get"
+      - "list"
 {{- end }}

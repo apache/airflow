@@ -600,8 +600,6 @@ customDataImportUids
 customizable
 customizations
 cx
-dabf
-dagBag
 dagbag
 dagbags
 dagmodel
@@ -829,7 +827,7 @@ iam
 idempotence
 idempotency
 ie
-ignorable
+ignoreable
 ignoreUnknownValues
 imageORfile
 imagePullPolicy
@@ -1104,7 +1102,6 @@ pymssql
 pymysql
 pyodbc
 pypa
-pypi
 pytest
 pythonpath
 pywinrm
@@ -1203,6 +1200,7 @@ skipable
 sku
 sla
 slackclient
+slack_sdk
 slas
 smtp
 sortable

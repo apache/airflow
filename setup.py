@@ -168,7 +168,7 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
 
     :param str filename: Destination file to write
     """
-    text = "{}".format(git_version(version))
+    text = f"{git_version(version)}"
     with open(filename, 'w') as file:
         file.write(text)
 
@@ -218,7 +218,7 @@ azure = [
     'azure-mgmt-containerinstance>=1.5.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage>=0.34.0, <0.37.0',
+    'azure-storage-file>=2.1.0',
 ]
 cassandra = [
     'cassandra-driver>=3.13.0,<3.21.0',
@@ -278,6 +278,7 @@ flask_oauth = [
 google = [
     'PyOpenSSL',
     'google-ads>=4.0.0,<8.0.0',
+    'google-api-core>=1.25.1,<2.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
     'google-auth>=1.0.0,<2.0.0',
     'google-auth-httplib2>=0.0.1',
@@ -292,7 +293,7 @@ google = [
     'google-cloud-language>=1.1.1,<2.0.0',
     'google-cloud-logging>=1.14.0,<2.0.0',
     'google-cloud-memcache>=0.2.0',
-    'google-cloud-monitoring>=0.34.0,<2.0.0',
+    'google-cloud-monitoring>=2.0.0,<3.0.0',
     'google-cloud-os-login>=2.0.0,<3.0.0',
     'google-cloud-pubsub>=2.0.0,<3.0.0',
     'google-cloud-redis>=2.0.0,<3.0.0',
@@ -305,6 +306,7 @@ google = [
     'google-cloud-translate>=1.5.0,<2.0.0',
     'google-cloud-videointelligence>=1.7.0,<2.0.0',
     'google-cloud-vision>=0.35.2,<2.0.0',
+    'google-cloud-workflows>=0.1.0,<2.0.0',
     'grpcio-gcp>=0.2.2',
     'json-merge-patch~=0.2',
     'pandas-gbq',
@@ -417,7 +419,7 @@ sentry = [
 ]
 singularity = ['spython>=0.0.56']
 slack = [
-    'slackclient>=2.0.0,<3.0.0',
+    'slack_sdk>=3.0.0,<4.0.0',
 ]
 snowflake = [
     # The `azure` provider uses legacy `azure-storage` library, where `snowflake` uses the

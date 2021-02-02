@@ -52,6 +52,22 @@ assists users migrating to a new version.
 
 ## Master
 
+<!--
+
+I'm glad you want to write a new note. Remember that this note is intended for users.
+Make sure it contains the following information:
+
+- [ ] Previous behaviors
+- [ ] New behaviors
+- [ ] If possible, a simple example of how to migrate. This may include a simple code example.
+- [ ] If possible, the benefit for the user after migration e.g. "we want to make these changes to unify class names."
+- [ ] If possible, the reason for the change, which adds more context to that interested, e.g. reference for Airflow Improvement Proposal.
+
+More tips can be found in the guide:
+https://developers.google.com/style/inclusive-documentation
+
+-->
+
 ### Default `[celery] worker_concurrency` is changed to `16`
 
 The default value for `[celery] worker_concurrency` was `16` for Airflow <2.0.0.
@@ -69,6 +85,17 @@ From Airflow 2.0.0, the scheduling decisions have been moved from
 DagFileProcessor to Scheduler, so we can keep the default a bit higher: `30`.
 
 ## Airflow 2.0.0
+
+The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
+and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
+to use this version. Sometimes necessary configuration changes are also required.
+This document describes the changes that have been made, and what you need to do to update your usage.
+
+If you experience issues or have questions, please file [an issue](https://github.com/apache/airflow/issues/new/choose).
+
+### Major changes
+
+This section describes the major changes that have been made in this release.
 
 ### The experimental REST API is disabled by default
 
@@ -230,36 +257,7 @@ def execution_date_fn(execution_date, ds_nodash, dag):
 ### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
 
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
-`[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
-
-The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
-and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
-to use this version. Sometimes necessary configuration changes are also required.
-This document describes the changes that have been made, and what you need to do to update your usage.
-
-If you experience issues or have questions, please file [an issue](https://github.com/apache/airflow/issues/new/choose).
-
-<!--
-
-I'm glad you want to write a new note. Remember that this note is intended for users.
-Make sure it contains the following information:
-
-- [ ] Previous behaviors
-- [ ] New behaviors
-- [ ] If possible, a simple example of how to migrate. This may include a simple code example.
-- [ ] If possible, the benefit for the user after migration e.g. "we want to make these changes to unify class names."
-- [ ] If possible, the reason for the change, which adds more context to that interested, e.g. reference for Airflow Improvement Proposal.
-
-More tips can be found in the guide:
-https://developers.google.com/style/inclusive-documentation
-
--->
-
-### Major changes
-
-This section describes the major changes that have been made in this release.
-
-
+`[webserver] cookie_samesite` has been changed to `Lax` from `None`.
 
 #### Changes to import paths
 

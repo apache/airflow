@@ -18,6 +18,8 @@
 import json
 import unittest
 
+import jmespath
+
 from tests.helm_template_generator import render_chart
 
 
@@ -30,3 +32,30 @@ class KerberosTest(unittest.TestCase):
         ]
         k8s_objects_to_consider_str = json.dumps(k8s_objects_to_consider)
         assert "kerberos" not in k8s_objects_to_consider_str
+
+    def test_kerberos_envs_available_in_worker_with_persistence(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "kerberosSidecar": {"enabled": True},
+                    "persistence": {
+                        "enabled": True,
+                    },
+                },
+                "kerberos": {
+                    "enabled": True,
+                    "configPath": "/etc/krb5.conf",
+                    "ccacheMountPath": "/var/kerberos-ccache",
+                    "ccacheFileName": "ccache",
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {"name": "KRB5_CONFIG", "value": "/etc/krb5.conf"} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+        assert {"name": "KRB5CCNAME", "value": "/var/kerberos-ccache/ccache"} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )

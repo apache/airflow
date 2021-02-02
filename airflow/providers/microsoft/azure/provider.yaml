@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Microsoft Azure Batch
     external-doc-url: https://azure.microsoft.com/en-us/services/batch/
+    logo: /integration-logos/azure/Microsoft-Azure-Batch.png
     tags: [azure]
   - integration-name: Microsoft Azure Blob Storage
     external-doc-url: https://azure.microsoft.com/en-us/services/storage/blobs/
@@ -42,6 +43,7 @@ integrations:
     tags: [azure]
   - integration-name: Microsoft Azure Data Explorer
     external-doc-url: https://azure.microsoft.com/en-us/services/data-explorer/
+    logo: /integration-logos/azure/Microsoft-Azure-Data-Explorer.png
     tags: [azure]
   - integration-name: Microsoft Azure Data Lake Storage
     how-to-guide:
@@ -55,9 +57,11 @@ integrations:
     tags: [azure]
   - integration-name: Microsoft Azure FileShare
     external-doc-url: https://cloud.google.com/storage/
+    logo: /integration-logos/azure/Microsoft-Azure-Fileshare.png
     tags: [azure]
   - integration-name: Microsoft Azure
     external-doc-url: https://azure.microsoft.com/
+    logo: /integration-logos/azure/Microsoft-Azure.png
     tags: [azure]
 
 operators:

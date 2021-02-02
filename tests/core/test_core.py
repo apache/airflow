@@ -172,7 +172,7 @@ class TestCore(unittest.TestCase):
         op = BashOperator(
             task_id='test_bash_operator_kill',
             execution_timeout=timedelta(seconds=1),
-            bash_command="/bin/bash -c 'sleep %s'" % sleep_time,
+            bash_command=f"/bin/bash -c 'sleep {sleep_time}'",
             dag=self.dag,
         )
         with pytest.raises(AirflowTaskTimeout):

@@ -62,7 +62,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_gcp_hook.assert_called_once_with(
-            google_cloud_storage_conn_id="gcp-conn-id",
+            gcp_conn_id="gcp-conn-id",
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_text_to_speech_hook.return_value.synthesize_speech.assert_called_once_with(

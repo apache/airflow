@@ -476,7 +476,7 @@ class TestDag(unittest.TestCase):
 
     def test_user_defined_filters(self):
         def jinja_udf(name):
-            return 'Hello %s' % name
+            return f'Hello {name}'
 
         dag = models.DAG('test-dag', start_date=DEFAULT_DATE, user_defined_filters={"hello": jinja_udf})
         jinja_env = dag.get_template_env()
@@ -1236,10 +1236,10 @@ class TestDag(unittest.TestCase):
     def test_create_dagrun_run_type_is_obtained_from_run_id(self):
         dag = DAG(dag_id="run_type_is_obtained_from_run_id")
         dr = dag.create_dagrun(run_id="scheduled__", state=State.NONE)
-        assert dr.run_type == DagRunType.SCHEDULED.value
+        assert dr.run_type == DagRunType.SCHEDULED
 
         dr = dag.create_dagrun(run_id="custom_is_set_to_manual", state=State.NONE)
-        assert dr.run_type == DagRunType.MANUAL.value
+        assert dr.run_type == DagRunType.MANUAL
 
     def test_create_dagrun_job_id_is_set(self):
         job_id = 42
@@ -1540,7 +1540,7 @@ class TestDag(unittest.TestCase):
             )
 
             for i in range(2):
-                DummyOperator(task_id='{}-task-{}'.format(child_dag_name, i + 1), dag=dag_subdag)
+                DummyOperator(task_id=f'{child_dag_name}-task-{i + 1}', dag=dag_subdag)
 
             return dag_subdag
 

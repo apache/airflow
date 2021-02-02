@@ -167,6 +167,15 @@ class TestDockerOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             operator.execute(None)
 
+    def test_auto_remove_container_fails(self):
+        self.client_mock.wait.return_value = {"StatusCode": 1}
+        operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest', auto_remove=True)
+        operator.container = {'Id': 'some_id'}
+        with pytest.raises(AirflowException):
+            operator.execute(None)
+
+        self.client_mock.remove_container.assert_called_once_with('some_id')
+
     @staticmethod
     def test_on_kill():
         client_mock = mock.Mock(spec=APIClient)

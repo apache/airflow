@@ -179,29 +179,29 @@ class TestSqoopHook(unittest.TestCase):
 
         # Check if the config has been extracted from the json
         if self._config_json['namenode']:
-            assert "-fs {}".format(self._config_json['namenode']) in cmd
+            assert f"-fs {self._config_json['namenode']}" in cmd
 
         if self._config_json['job_tracker']:
-            assert "-jt {}".format(self._config_json['job_tracker']) in cmd
+            assert f"-jt {self._config_json['job_tracker']}" in cmd
 
         if self._config_json['libjars']:
-            assert "-libjars {}".format(self._config_json['libjars']) in cmd
+            assert f"-libjars {self._config_json['libjars']}" in cmd
 
         if self._config_json['files']:
-            assert "-files {}".format(self._config_json['files']) in cmd
+            assert f"-files {self._config_json['files']}" in cmd
 
         if self._config_json['archives']:
-            assert "-archives {}".format(self._config_json['archives']) in cmd
+            assert f"-archives {self._config_json['archives']}" in cmd
 
-        assert "--hcatalog-database {}".format(self._config['hcatalog_database']) in cmd
-        assert "--hcatalog-table {}".format(self._config['hcatalog_table']) in cmd
+        assert f"--hcatalog-database {self._config['hcatalog_database']}" in cmd
+        assert f"--hcatalog-table {self._config['hcatalog_table']}" in cmd
 
         # Check the regulator stuff passed by the default constructor
         if self._config['verbose']:
             assert "--verbose" in cmd
 
         if self._config['num_mappers']:
-            assert "--num-mappers {}".format(self._config['num_mappers']) in cmd
+            assert f"--num-mappers {self._config['num_mappers']}" in cmd
 
         for key, value in self._config['properties'].items():
             assert f"-D {key}={value}" in cmd
@@ -243,21 +243,14 @@ class TestSqoopHook(unittest.TestCase):
             )
         )
 
-        assert "--input-null-string {}".format(self._config_export['input_null_string']) in cmd
-        assert "--input-null-non-string {}".format(self._config_export['input_null_non_string']) in cmd
-        assert "--staging-table {}".format(self._config_export['staging_table']) in cmd
-        assert "--enclosed-by {}".format(self._config_export['enclosed_by']) in cmd
-        assert "--escaped-by {}".format(self._config_export['escaped_by']) in cmd
-        assert (
-            "--input-fields-terminated-by {}".format(self._config_export['input_fields_terminated_by']) in cmd
-        )
-        assert (
-            "--input-lines-terminated-by {}".format(self._config_export['input_lines_terminated_by']) in cmd
-        )
-        assert (
-            "--input-optionally-enclosed-by {}".format(self._config_export['input_optionally_enclosed_by'])
-            in cmd
-        )
+        assert f"--input-null-string {self._config_export['input_null_string']}" in cmd
+        assert f"--input-null-non-string {self._config_export['input_null_non_string']}" in cmd
+        assert f"--staging-table {self._config_export['staging_table']}" in cmd
+        assert f"--enclosed-by {self._config_export['enclosed_by']}" in cmd
+        assert f"--escaped-by {self._config_export['escaped_by']}" in cmd
+        assert f"--input-fields-terminated-by {self._config_export['input_fields_terminated_by']}" in cmd
+        assert f"--input-lines-terminated-by {self._config_export['input_lines_terminated_by']}" in cmd
+        assert f"--input-optionally-enclosed-by {self._config_export['input_optionally_enclosed_by']}" in cmd
         # these options are from the extra export options
         assert "--update-key id" in cmd
         assert "--update-mode allowinsert" in cmd
@@ -301,10 +294,10 @@ class TestSqoopHook(unittest.TestCase):
         if self._config_import['direct']:
             assert '--direct' in cmd
 
-        assert '--target-dir {}'.format(self._config_import['target_dir']) in cmd
+        assert f"--target-dir {self._config_import['target_dir']}" in cmd
 
-        assert '--driver {}'.format(self._config_import['driver']) in cmd
-        assert '--split-by {}'.format(self._config_import['split_by']) in cmd
+        assert f"--driver {self._config_import['driver']}" in cmd
+        assert f"--split-by {self._config_import['split_by']}" in cmd
         # these are from extra options, but not passed to this cmd import command
         assert '--show' not in cmd
         assert 'hcatalog-storage-stanza \"stored as orcfile\"' not in cmd

@@ -32,6 +32,10 @@ class DataflowJobStatusSensor(BaseSensorOperator):
     """
     Checks for the status of a job in Google Cloud Dataflow.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowJobStatusSensor`
+
     :param job_id: ID of the job to be checked.
     :type job_id: str
     :param expected_statuses: The expected state of the operation.
@@ -121,6 +125,10 @@ class DataflowJobStatusSensor(BaseSensorOperator):
 class DataflowJobMetricsSensor(BaseSensorOperator):
     """
     Checks the metrics of a job in Google Cloud Dataflow.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowJobMetricsSensor`
 
     :param job_id: ID of the job to be checked.
     :type job_id: str
@@ -212,6 +220,10 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
     """
     Checks for the job message in Google Cloud Dataflow.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowJobMessagesSensor`
+
     :param job_id: ID of the job to be checked.
     :type job_id: str
     :param callback: callback which is called with list of read job metrics
@@ -301,6 +313,10 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
 class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
     """
     Checks for the job autoscaling event in Google Cloud Dataflow.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowJobAutoScalingEventsSensor`
 
     :param job_id: ID of the job to be checked.
     :type job_id: str

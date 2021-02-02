@@ -235,7 +235,7 @@ class TestGoogleCloudStorageSync(unittest.TestCase):
         )
         task.execute({})
         mock_hook.assert_called_once_with(
-            google_cloud_storage_conn_id='GCP_CONN_ID',
+            gcp_conn_id='GCP_CONN_ID',
             delegate_to='DELEGATE_TO',
             impersonation_chain=IMPERSONATION_CHAIN,
         )

@@ -41,7 +41,7 @@ function build_airflow_packages::build_airflow_packages() {
     rm -rf -- build
 
     echo
-    echo "Airflow package prepared: ${PACKAGE_FORMAT}"
+    echo "${COLOR_GREEN}Airflow package prepared in format: ${PACKAGE_FORMAT}${COLOR_RESET}"
     echo
     start_end::group_end
 }

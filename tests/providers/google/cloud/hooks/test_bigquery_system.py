@@ -17,17 +17,16 @@
 # under the License.
 """System tests for Google BigQuery hooks"""
 
-import unittest
-
 import pytest
 
 from airflow.providers.google.cloud.hooks import bigquery as hook
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
+from tests.test_utils.gcp_system_helpers import GoogleSystemTest
 
 
 @pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
-class BigQueryDataframeResultsSystemTest(unittest.TestCase):
+class BigQueryDataframeResultsSystemTest(GoogleSystemTest):
     def setUp(self):
         self.instance = hook.BigQueryHook()
 

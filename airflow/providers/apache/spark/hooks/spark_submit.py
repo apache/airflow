@@ -291,7 +291,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         connection_cmd += ["--master", self._connection['master']]
 
         for key in self._conf:
-            connection_cmd += ["--conf", "{}={}".format(key, str(self._conf[key]))]
+            connection_cmd += ["--conf", f"{key}={str(self._conf[key])}"]
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"
@@ -308,7 +308,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._is_kubernetes and self._connection['namespace']:
             connection_cmd += [
                 "--conf",
-                "spark.kubernetes.namespace={}".format(self._connection['namespace']),
+                f"spark.kubernetes.namespace={self._connection['namespace']}",
             ]
         if self._files:
             connection_cmd += ["--files", self._files]
@@ -378,9 +378,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 "/usr/bin/curl",
                 "--max-time",
                 str(curl_max_wait_time),
-                "{host}/v1/submissions/status/{submission_id}".format(
-                    host=spark_host, submission_id=self._driver_id
-                ),
+                f"{spark_host}/v1/submissions/status/{self._driver_id}",
             ]
             self.log.info(connection_cmd)
 
