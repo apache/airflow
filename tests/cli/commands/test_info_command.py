@@ -18,6 +18,7 @@
 import contextlib
 import importlib
 import io
+import logging
 import os
 import unittest
 from unittest import mock
@@ -129,6 +130,8 @@ class TestConfigInfoLogging(unittest.TestCase):
             assert "stackdriver" in text
 
     def tearDown(self) -> None:
+        for handler_ref in logging._handlerList[:]:
+            logging._removeHandlerRef(handler_ref)
         importlib.reload(airflow_local_settings)
         configure_logging()
 
