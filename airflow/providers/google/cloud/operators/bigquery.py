@@ -1427,7 +1427,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                 dataset_id=self.dataset_id,
                 dataset_reference=self.dataset_reference,
                 location=self.location,
-                exists_ok=exists_ok,
+                exists_ok=self.exists_ok,
             )
         except Conflict:
             dataset_id = self.dataset_reference.get("datasetReference", {}).get("datasetId", self.dataset_id)
