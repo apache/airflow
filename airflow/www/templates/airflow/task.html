@@ -29,7 +29,7 @@
       <th>Dependency</th>
       <th>Reason</th>
     </tr>
-    {% for dependency, reason in failed_dep_reasons %}
+    {% for dependency, reason in failed_dep_reasons|sort %}
       <tr>
         <td>{{ dependency }}</td>
         {% autoescape false %}
