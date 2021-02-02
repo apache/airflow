@@ -47,8 +47,7 @@ SQLite - 3.15+
 
         elif "postgres" in conn_str:
             min_req_postgres_version = Version('9.6')
-            query = session.execute('SELECT VERSION();').scalar()
-            installed_postgres_version = Version(query.split(' ')[1])
+            installed_postgres_version = Version(session.execute('SHOW server_version;').scalar())
             if installed_postgres_version < min_req_postgres_version:
                 return "From Airflow 2.0, PostgreSQL version below 9.6 is no longer supported. \n" + more_info
 

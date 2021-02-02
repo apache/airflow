@@ -61,7 +61,7 @@ class TestDatabaseVersionCheckRule(TestCase):
     @conf_vars({("core", "sql_alchemy_conn"): POSTGRES_CONN})
     def test_valid_postgres_check(self, MockSession):
         session = MockSession()
-        session.execute().scalar.return_value = 'PostgreSQL 12.3 on x86_64-apple-darwin...'
+        session.execute().scalar.return_value = '12.3'
 
         rule = DatabaseVersionCheckRule()
 
@@ -74,7 +74,7 @@ class TestDatabaseVersionCheckRule(TestCase):
     @conf_vars({("core", "sql_alchemy_conn"): POSTGRES_CONN})
     def test_invalid_postgres_check(self, MockSession):
         session = MockSession()
-        session.execute().scalar.return_value = 'PostgreSQL 9.5 on x86_64-apple-darwin...'
+        session.execute().scalar.return_value = '9.5'
 
         rule = DatabaseVersionCheckRule()
 
