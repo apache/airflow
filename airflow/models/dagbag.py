@@ -20,7 +20,6 @@ import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
-import logging
 import os
 import sys
 import textwrap
@@ -30,7 +29,6 @@ import zipfile
 from datetime import datetime, timedelta
 from typing import Dict, List, NamedTuple, Optional
 
-import tenacity
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -39,6 +37,7 @@ from tabulate import tabulate
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, SerializedDagNotFound
+from airflow.settings import run_with_db_retries
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
@@ -550,13 +549,7 @@ class DagBag(LoggingMixin):
         # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
         # of any Operational Errors
         # In case of failures, provide_session handles rollback
-        for attempt in tenacity.Retrying(
-            retry=tenacity.retry_if_exception_type(exception_types=OperationalError),
-            wait=tenacity.wait_random_exponential(multiplier=0.5, max=5),
-            stop=tenacity.stop_after_attempt(settings.MAX_DB_RETRIES),
-            before_sleep=tenacity.before_sleep_log(self.log, logging.DEBUG),
-            reraise=True,
-        ):
+        for attempt in run_with_db_retries(logger=self.log):
             with attempt:
                 serialize_errors = []
                 self.log.debug(

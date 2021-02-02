@@ -25,8 +25,10 @@ import warnings
 from typing import Optional
 
 import pendulum
+import tenacity
 from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
@@ -484,8 +486,7 @@ CHECK_SLAS = conf.getboolean('core', 'check_slas', fallback=True)
 # Number of times, the code should be retried in case of DB Operational Errors
 # Retries are done using tenacity. Not all transactions should be retried as it can cause
 # undesired state.
-# Currently used in the following places:
-# `DagFileProcessor.process_file` to retry `dagbag.sync_to_db`
+# Currently used in settings.run_with_db_retries
 MAX_DB_RETRIES = conf.getint('core', 'max_db_retries', fallback=3)
 
 USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=True)
@@ -504,3 +505,18 @@ IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
     executor_constants.KUBERNETES_EXECUTOR,
     executor_constants.CELERY_KUBERNETES_EXECUTOR,
 }
+
+
+def run_with_db_retries(logger: logging.Logger, **kwargs):
+    """Return Tenacity Retrying object with project specific default"""
+    # Default kwargs
+    retry_kwargs = dict(
+        retry=tenacity.retry_if_exception_type(exception_types=OperationalError),
+        wait=tenacity.wait_random_exponential(multiplier=0.5, max=5),
+        stop=tenacity.stop_after_attempt(MAX_DB_RETRIES),
+        before_sleep=tenacity.before_sleep_log(logger, logging.DEBUG),
+        reraise=True,
+    )
+    retry_kwargs.update(kwargs)
+
+    return tenacity.Retrying(**retry_kwargs)
