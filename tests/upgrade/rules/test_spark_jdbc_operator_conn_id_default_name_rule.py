@@ -59,5 +59,4 @@ class TestSparkJDBCOperatorDefaultConnIdRule(TestCase):
             "https://github.com/apache/airflow/blob/2.0.0/UPDATING.md#sparkjdbchook-default-connection"
         )
 
-        msgs = rule.check(session=session)
-        assert msgs == expected
+        assert expected == rule.check(session=session)
