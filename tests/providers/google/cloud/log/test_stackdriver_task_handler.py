@@ -30,13 +30,28 @@ from airflow.providers.google.cloud.log.stackdriver_task_handler import Stackdri
 from airflow.utils.state import State
 
 
+def _monkey_patch_shutdown():
+    orig_shutdown = logging.shutdown
+
+    def new_shutdown(*args, **kwargs):
+        for handler_no, weak_ref in enumerate(logging._handlerList[:]):
+            handler = weak_ref()
+            print("Handler", handler_no, ":", handler, ":", type(handler))
+        return orig_shutdown(*args, **kwargs)
+
+    logging.shutdown = new_shutdown
+
+
+_monkey_patch_shutdown()
+
+
 def _create_list_response(messages, token):
     page = [mock.MagicMock(payload={"message": message}) for message in messages]
     return mock.MagicMock(pages=(n for n in [page]), next_page_token=token)
 
 
 def _remove_stackdriver_handlers():
-    for handler_ref in logging._handlerList:
+    for handler_ref in reversed(logging._handlerList[:]):
         handler = handler_ref()
         if not isinstance(handler, StackdriverTaskHandler):
             continue
