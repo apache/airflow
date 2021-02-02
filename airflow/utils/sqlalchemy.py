@@ -214,6 +214,9 @@ class CommitProhibitorGuard:
         if self.expected_commit:
             self.expected_commit = False
             return
+        # Don't raise error if session is clean (useful when just querying from DB)
+        if self.session._is_clean():  # pylint: disable=protected-access
+            return
         raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
     def __enter__(self):
@@ -229,8 +232,9 @@ class CommitProhibitorGuard:
 
         This is the required way to commit when the guard is in scope
         """
-        self.expected_commit = True
-        self.session.commit()
+        if not self.session._is_clean():  # pylint: disable=protected-access
+            self.expected_commit = True
+            self.session.commit()
 
 
 def prohibit_commit(session):

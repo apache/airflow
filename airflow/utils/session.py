@@ -29,7 +29,9 @@ def create_session():
     session = settings.Session()
     try:
         yield session
-        session.commit()
+        # Only Commit if a new or a modified object exists in the session
+        if not session._is_clean():  # pylint: disable=protected-access
+            session.commit()
     except Exception:
         session.rollback()
         raise
