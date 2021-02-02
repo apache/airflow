@@ -24,10 +24,15 @@ from airflow.upgrade.rules.base_rule import BaseRule
 class HostnameCallable(BaseRule):
     title = "Unify hostname_callable option in core section"
 
-    description = ""
+    description = "hostname_callable option is using now only dots instead of dots and colons"
 
     def check(self):
+        default = "socket:getfqdn"
         hostname_callable_conf = conf.get("core", "hostname_callable")
+        if hostname_callable_conf == default:
+            # If users use default value there's nothing they should do
+            return None
+
         if ":" in hostname_callable_conf:
             return (
                 "Error: hostname_callable `{}` "
