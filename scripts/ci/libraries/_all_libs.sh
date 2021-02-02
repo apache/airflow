@@ -58,5 +58,3 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_start_end.sh
 # shellcheck source=scripts/ci/libraries/_verbosity.sh
 . "${LIBRARIES_DIR}"/_verbosity.sh
-# shellcheck source=scripts/ci/libraries/_kerberos.sh
-. "${LIBRARIES_DIR}"/_kerberos.sh
