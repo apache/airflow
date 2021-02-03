@@ -110,9 +110,10 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     return query.first()
 
 
-class AbstractTimetable(LoggingMixin):
-    """Abstract class for Timetable."""
+class BaseTimetable(LoggingMixin):
+    """Base Timetable class."""
 
+    # TODO: Make internal method for CrontTimetable.
     @abstractmethod
     def normalized_schedule_interval(self) -> Optional[ScheduleInterval]:
         raise NotImplementedError()
@@ -147,7 +148,7 @@ class AbstractTimetable(LoggingMixin):
         raise NotImplementedError()
 
 
-class CronTimetable(AbstractTimetable):
+class CronTimetable(BaseTimetable):
     """Timetable implementation for Cron."""
 
     def __init__(
