@@ -23,7 +23,7 @@ from airflow.providers.tableau.operators.tableau_refresh_workbook import (  # no
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.tableau.hooks.tableau`.",
+    "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau_refresh_workbook`.",
     DeprecationWarning,
     stacklevel=2,
 )

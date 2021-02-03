@@ -24,7 +24,7 @@ from airflow.providers.tableau.sensors.tableau_job_status import (  # noqa
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.tableau.hooks.tableau`.",
+    "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau_job_status`.",
     DeprecationWarning,
     stacklevel=2,
 )
