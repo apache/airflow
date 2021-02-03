@@ -185,7 +185,7 @@ class TestSecurity(unittest.TestCase):
             user = mock.MagicMock()
             user.is_anonymous = True
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Public'
-            assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.find_role("Public")]
+            assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.get_public_role()]
 
             self._create_dag("test_dag_id")
             self.security_manager.sync_roles()
@@ -197,7 +197,7 @@ class TestSecurity(unittest.TestCase):
             user = mock.MagicMock()
             user.is_anonymous = True
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Public'
-            assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.find_role("Public")]
+            assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.get_public_role()]
 
             dag_id = "test_dag_id"
             self._create_dag(dag_id)
@@ -214,7 +214,7 @@ class TestSecurity(unittest.TestCase):
             user = mock.MagicMock()
             user.is_anonymous = True
 
-            assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.find_role("Admin")]
+            assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.get_public_role()]
 
             test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
             for dag_id in test_dag_ids:
@@ -231,7 +231,7 @@ class TestSecurity(unittest.TestCase):
 
             # Call `.get_user_roles` bc `user` is a mock and the `user.roles` prop needs to be set.
             user.roles = self.app.appbuilder.sm.get_user_roles(user)
-            assert user.roles == [self.app.appbuilder.sm.find_role("Admin")]
+            assert user.roles == [self.app.appbuilder.sm.get_public_role()]
 
             test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
 
