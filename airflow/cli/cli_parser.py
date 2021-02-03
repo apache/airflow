@@ -58,15 +58,9 @@ class DefaultHelpParser(argparse.ArgumentParser):
     def _check_value(self, action, value):
         """Override _check_value and check conditionally added command"""
         executor = conf.get('core', 'EXECUTOR')
-        if value == 'celery':
-            if executor != CELERY_EXECUTOR:
-                message = (
-                    f'Celery subcommand works only with f{CELERY_EXECUTOR} but your current executor is '
-                    f'{executor}.'
-                    f'\nNote: when using {CELERY_KUBERNETES_EXECUTOR}, celery workers must still be '
-                    f'configured to use {CELERY_EXECUTOR}.'
-                )
-                raise ArgumentError(action, message)
+        if value == 'celery' and executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
+            message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
+            raise ArgumentError(action, message)
         if value == 'kubernetes':
             try:
                 import kubernetes.client  # noqa: F401 pylint: disable=unused-import

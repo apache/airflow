@@ -116,10 +116,6 @@ spec:
             {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           {{- include "custom_airflow_environment" . | indent 10 }}
-# When cluster is using CeleryKubernetesExecutor, the workers must still use CeleryExecutor.
-# To accomplish this we inject environment variable AIRFLOW__CORE__EXECUTOR.
-            - name: AIRFLOW__CORE__EXECUTOR
-              value: CeleryExecutor
       volumes:
         - name: config
           configMap:
