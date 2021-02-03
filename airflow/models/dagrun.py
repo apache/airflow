@@ -225,10 +225,7 @@ class DagRun(Base, LoggingMixin):
             query = query.filter(DagRun.execution_date <= func.now())
 
         return with_row_locks(
-            query.limit(max_number),
-            of=cls,
-            session=session,
-            **skip_locked(session=session)
+            query.limit(max_number), of=cls, session=session, **skip_locked(session=session)
         )
 
     @staticmethod

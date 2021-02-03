@@ -813,10 +813,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # as discussed in https://issues.apache.org/jira/browse/AIRFLOW-2516
         if self.using_sqlite or self.using_mysql:
             tis_to_change: List[TI] = with_row_locks(
-                query,
-                of=TI,
-                session=session,
-                **skip_locked(session=session)
+                query, of=TI, session=session, **skip_locked(session=session)
             ).all()
             for ti in tis_to_change:
                 ti.set_state(new_state, session=session)
@@ -1835,10 +1832,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         # Lock these rows, so that another scheduler can't try and adopt these too
         tis_to_reset_or_adopt = with_row_locks(
-            query,
-            of=TI,
-            session=session,
-            **skip_locked(session=session)
+            query, of=TI, session=session, **skip_locked(session=session)
         ).all()
         to_reset = self.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
 
