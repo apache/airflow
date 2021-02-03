@@ -498,11 +498,17 @@ class SchedulerJob(BaseJob):
             .group_by(TI.task_id).subquery('sq')
         )
 
+        start_time = time.time()
+
         max_tis = session.query(TI).filter(
             TI.dag_id == dag.dag_id,
             TI.task_id == sq.c.task_id,
             TI.execution_date == sq.c.max_ti,
         ).all()
+
+        end_time = time.time()
+
+        self.log.debug('Took %.3f seconds to fetch max_tis..', end_time - start_time)
 
         ts = timezone.utcnow()
         for ti in max_tis:
@@ -1315,7 +1321,11 @@ class SchedulerJob(BaseJob):
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
             if conf.getboolean('core', 'CHECK_SLAS', fallback=True):
+                self.log.debug("Started managing SLA...")
+                start_time = time.time()
                 self.manage_slas(dag)
+                end_time = time.time()
+                self.log.debug("Managing SLA took %.3f seconds", end_time - start_time)
 
     @provide_session
     def _process_executor_events(self, simple_dag_bag, session=None):
