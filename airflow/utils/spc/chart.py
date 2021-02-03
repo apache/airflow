@@ -10,10 +10,10 @@ _logger = logging.getLogger(__name__)
 # 将data截取为每行size个元素的二维数组
 def covert2dArray(data: List[float], size: int) -> Optional[np.ndarray]:
     b = len(data) % size
-    if b != 0:
-        _logger.error(u"数据长度不正确!!! 自动截取")
     l = int(len(data) / size)
     offset = len(data) - b
+    if b != 0:
+        _logger.error(u"数据长度{}不正确!!! 自动截取到{}".format(len(data), offset))
     ret = np.array(data[:offset], dtype=float).reshape(l, size)
     return ret
 
@@ -208,15 +208,19 @@ def sbar(data: np.ndarray, size: int, newdata=None) -> Optional[Dict]:
 
 
 def cpk(data: List[float], usl: float, lsl: float) -> Optional[float]:
-    if not usl or not lsl:
+    if usl is None or lsl is None:
+        _logger.error("cpk calculation missing usl or lsl")
         return None
     if not data:
+        _logger.error("cpk calculation missing data")
         return None
     sigma = np.std(data)
     if sigma == 0:
+        _logger.error("cpk calculation sigma is 0")
         return None
     m = np.mean(data)
     if usl < m or m < lsl:
+        _logger.error("cpk calculation mean value out of range")
         return None
     Cpu = float(usl - m) / (3 * sigma)
     Cpl = float(m - lsl) / (3 * sigma)

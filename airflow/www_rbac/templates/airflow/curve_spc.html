@@ -56,9 +56,10 @@
     }
   }
 
-  function doQuerySPC(selectedEntityIds, type) {
+  function doQuerySPC(selectedEntityIds) {
     setSPCLoading(true);
     $('#spc-cpk-container').html('');
+    $('#spc-title-container').html('');
     const queryEntityIds = selectedEntityIds.filter(id => extraData[id].measureResult === 'OK');
     if (queryEntityIds.length === 0) {
       return new Promise((resolve) => {
@@ -144,11 +145,12 @@
 
   function querySPC(type) {
     spcQueryType = type;
-    doQuerySPC(selectedEIds, type).then((spc) => {
+    doQuerySPC(selectedEIds).then((spc) => {
       spc_data = spc;
       $('.spc-nav').removeClass('disabled');
-
       onSelectSubNav('x-r');
+    }).fail(() => {
+      $('.spc-nav').removeClass('disabled');
     });
   }
 
@@ -181,7 +183,14 @@
       yAxis: {
         type: 'value',
         name: 'x bar',
-        scale: true,
+        min: function (value) {
+          const min = Math.floor(Math.min(value.min, XBarData.lower));
+          return min - 1;
+        },
+        max: function (value) {
+          const max = Math.ceil(Math.max(value.max, XBarData.upper));
+          return max + 1;
+        },
         nameLocation: 'middle',
         nameRotate: 0,
         nameGap: 60,
@@ -190,7 +199,7 @@
         }
       },
       series: [{
-        name: 'line',
+        name: 'x bar',
         type: 'line',
         stack: 'all',
         symbolSize: 6,
@@ -198,7 +207,7 @@
         markLine: {
           silent: true,
           lineStyle: {
-            color: '#333'
+            color: '#03A9F4'
           },
           data: [{
             yAxis: XBarData.lower
@@ -231,20 +240,27 @@
         nameLocation: 'middle',
         nameRotate: 0,
         nameGap: 60,
-        scale: true,
+        min: function (value) {
+          const min = Math.floor(Math.min(value.min, RSData.lower));
+          return min - 1;
+        },
+        max: function (value) {
+          const max = Math.ceil(Math.max(value.max, RSData.upper));
+          return max + 1;
+        },
         axisLabel: {
           fontSize: 16
         }
       },
       series: [{
-        name: 'line',
+        name: RS,
         type: 'line',
         symbolSize: 6,
         data: RSData.data,
         markLine: {
           silent: true,
           lineStyle: {
-            color: '#333'
+            color: '#03A9F4'
           },
           data: [{
             yAxis: RSData.lower
@@ -256,7 +272,6 @@
         },
       }]
     };
-    console.log($('#spc-cpk-container'));
     $('#spc-cpk-container').html('<span>CPK: ' + String(spc_data[type].data[spcQueryType].cpk) + '<span>');
     $('#spc-title-container').html(spc_data[type].title);
 
