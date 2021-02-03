@@ -27,7 +27,7 @@ versions:
 integrations:
   - integration-name: Tableau
     external-doc-url: https://www.tableau.com/
-    logo: /integration-logos/salesforce/Salesforce.png
+    logo: /integration-logos/tableau/tableau.png
     tags: [service]
 
 operators:
