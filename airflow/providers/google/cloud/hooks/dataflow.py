@@ -19,23 +19,20 @@
 import functools
 import json
 import re
-import select
 import shlex
 import subprocess
-import textwrap
 import time
 import uuid
 import warnings
 from copy import deepcopy
-from tempfile import TemporaryDirectory
 from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Set, TypeVar, Union, cast
 
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
+from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils.timeout import timeout
 
 # This is the default location
@@ -48,6 +45,35 @@ JOB_ID_PATTERN = re.compile(
 )
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+
+
+def process_line_and_extract_dataflow_job_id_callback(
+    on_new_job_id_callback: Optional[Callable[[str], None]]
+) -> Callable[[str], None]:
+    """
+    Returns callback which triggers function passed as `on_new_job_id_callback` when Dataflow job_id is found.
+    To be used for `process_line_callback` in
+    :py:class:`~airflow.providers.apache.beam.hooks.beam.BeamCommandRunner`
+
+    :param on_new_job_id_callback: Callback called when the job ID is known
+    :type on_new_job_id_callback: callback
+    """
+
+    def _process_line_and_extract_job_id(
+        line: str,
+        # on_new_job_id_callback: Optional[Callable[[str], None]]
+    ) -> None:
+        # Job id info: https://goo.gl/SE29y9.
+        matched_job = JOB_ID_PATTERN.search(line)
+        if matched_job:
+            job_id = matched_job.group("job_id_java") or matched_job.group("job_id_python")
+            if on_new_job_id_callback:
+                on_new_job_id_callback(job_id)
+
+    def wrap(line: str):
+        return _process_line_and_extract_job_id(line)
+
+    return wrap
 
 
 def _fallback_variable_parameter(parameter_name: str, variable_key_name: str) -> Callable[[T], T]:
@@ -484,98 +510,6 @@ class _DataflowJobsController(LoggingMixin):
             self.log.info("No jobs to cancel")
 
 
-class _DataflowRunner(LoggingMixin):
-    def __init__(
-        self,
-        cmd: List[str],
-        on_new_job_id_callback: Optional[Callable[[str], None]] = None,
-    ) -> None:
-        super().__init__()
-        self.log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
-        self.on_new_job_id_callback = on_new_job_id_callback
-        self.job_id: Optional[str] = None
-        self._proc = subprocess.Popen(
-            cmd,
-            shell=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            close_fds=True,
-        )
-
-    def _process_fd(self, fd):
-        """
-        Prints output to logs and lookup for job ID in each line.
-
-        :param fd: File descriptor.
-        """
-        if fd == self._proc.stderr:
-            while True:
-                line = self._proc.stderr.readline().decode()
-                if not line:
-                    return
-                self._process_line_and_extract_job_id(line)
-                self.log.warning(line.rstrip("\n"))
-
-        if fd == self._proc.stdout:
-            while True:
-                line = self._proc.stdout.readline().decode()
-                if not line:
-                    return
-                self._process_line_and_extract_job_id(line)
-                self.log.info(line.rstrip("\n"))
-
-        raise Exception("No data in stderr or in stdout.")
-
-    def _process_line_and_extract_job_id(self, line: str) -> None:
-        """
-        Extracts job_id.
-
-        :param line: URL from which job_id has to be extracted
-        :type line: str
-        """
-        # Job id info: https://goo.gl/SE29y9.
-        matched_job = JOB_ID_PATTERN.search(line)
-        if matched_job:
-            job_id = matched_job.group("job_id_java") or matched_job.group("job_id_python")
-            self.log.info("Found Job ID: %s", job_id)
-            self.job_id = job_id
-            if self.on_new_job_id_callback:
-                self.on_new_job_id_callback(job_id)
-
-    def wait_for_done(self) -> Optional[str]:
-        """
-        Waits for Dataflow job to complete.
-
-        :return: Job id
-        :rtype: Optional[str]
-        """
-        self.log.info("Start waiting for DataFlow process to complete.")
-        self.job_id = None
-        reads = [self._proc.stderr, self._proc.stdout]
-        while True:
-            # Wait for at least one available fd.
-            readable_fds, _, _ = select.select(reads, [], [], 5)
-            if readable_fds is None:
-                self.log.info("Waiting for DataFlow process to complete.")
-                continue
-
-            for readable_fd in readable_fds:
-                self._process_fd(readable_fd)
-
-            if self._proc.poll() is not None:
-                break
-
-        # Corner case: check if more output was created between the last read and the process termination
-        for readable_fd in reads:
-            self._process_fd(readable_fd)
-
-        self.log.info("Process exited with return code: %s", self._proc.returncode)
-
-        if self._proc.returncode != 0:
-            raise Exception(f"DataFlow failed with return code {self._proc.returncode}")
-        return self.job_id
-
-
 class DataflowHook(GoogleBaseHook):
     """
     Hook for Google Dataflow.
@@ -598,6 +532,8 @@ class DataflowHook(GoogleBaseHook):
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
+        self.job_id: Optional[str] = None
+        self.beam_hook = BeamHook(BeamRunnerType.DataflowRunner)
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -608,40 +544,6 @@ class DataflowHook(GoogleBaseHook):
         """Returns a Google Cloud Dataflow service object."""
         http_authorized = self._authorize()
         return build("dataflow", "v1b3", http=http_authorized, cache_discovery=False)
-
-    @GoogleBaseHook.provide_gcp_credential_file
-    def _start_dataflow(
-        self,
-        variables: dict,
-        name: str,
-        command_prefix: List[str],
-        project_id: str,
-        multiple_jobs: bool = False,
-        on_new_job_id_callback: Optional[Callable[[str], None]] = None,
-        location: str = DEFAULT_DATAFLOW_LOCATION,
-    ) -> None:
-        cmd = command_prefix + [
-            "--runner=DataflowRunner",
-            f"--project={project_id}",
-        ]
-        if variables:
-            cmd.extend(self._options_to_args(variables))
-        runner = _DataflowRunner(cmd=cmd, on_new_job_id_callback=on_new_job_id_callback)
-        job_id = runner.wait_for_done()
-        job_controller = _DataflowJobsController(
-            dataflow=self.get_conn(),
-            project_number=project_id,
-            name=name,
-            location=location,
-            poll_sleep=self.poll_sleep,
-            job_id=job_id,
-            num_retries=self.num_retries,
-            multiple_jobs=multiple_jobs,
-            drain_pipeline=self.drain_pipeline,
-            cancel_timeout=self.cancel_timeout,
-            wait_until_finished=self.wait_until_finished,
-        )
-        job_controller.wait_for_done()
 
     @_fallback_to_location_from_variables
     @_fallback_to_project_id_from_variables
@@ -680,22 +582,36 @@ class DataflowHook(GoogleBaseHook):
         :param location: Job location.
         :type location: str
         """
-        name = self._build_dataflow_job_name(job_name, append_job_name)
+        warnings.warn(
+            """"This method is deprecated.
+            Please use `airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline`
+            to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
+            to wait for the required pipeline state.
+            """,
+            DeprecationWarning,
+            stacklevel=3,
+        )
+
+        name = self.build_dataflow_job_name(job_name, append_job_name)
+
         variables["jobName"] = name
         variables["region"] = location
+        variables["project"] = project_id
 
         if "labels" in variables:
             variables["labels"] = json.dumps(variables["labels"], separators=(",", ":"))
 
-        command_prefix = ["java", "-cp", jar, job_class] if job_class else ["java", "-jar", jar]
-        self._start_dataflow(
+        self.beam_hook.start_java_pipeline(
             variables=variables,
-            name=name,
-            command_prefix=command_prefix,
-            project_id=project_id,
-            multiple_jobs=multiple_jobs,
-            on_new_job_id_callback=on_new_job_id_callback,
+            jar=jar,
+            job_class=job_class,
+            process_line_callback=process_line_and_extract_dataflow_job_id_callback(on_new_job_id_callback),
+        )
+        self.wait_for_done(  # pylint: disable=no-value-for-parameter
+            job_name=name,
             location=location,
+            job_id=self.job_id,
+            multiple_jobs=multiple_jobs,
         )
 
     @_fallback_to_location_from_variables
@@ -748,7 +664,7 @@ class DataflowHook(GoogleBaseHook):
 
         :type environment: Optional[dict]
         """
-        name = self._build_dataflow_job_name(job_name, append_job_name)
+        name = self.build_dataflow_job_name(job_name, append_job_name)
 
         environment = environment or {}
         # available keys for runtime environment are listed here:
@@ -921,58 +837,40 @@ class DataflowHook(GoogleBaseHook):
         :param location: Job location.
         :type location: str
         """
-        name = self._build_dataflow_job_name(job_name, append_job_name)
+        warnings.warn(
+            """This method is deprecated.
+            Please use `airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline`
+            to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
+            to wait for the required pipeline state.
+            """,
+            DeprecationWarning,
+            stacklevel=3,
+        )
+
+        name = self.build_dataflow_job_name(job_name, append_job_name)
         variables["job_name"] = name
         variables["region"] = location
+        variables["project"] = project_id
 
-        if "labels" in variables:
-            variables["labels"] = [f"{key}={value}" for key, value in variables["labels"].items()]
+        self.beam_hook.start_python_pipeline(
+            variables=variables,
+            py_file=dataflow,
+            py_options=py_options,
+            py_interpreter=py_interpreter,
+            py_requirements=py_requirements,
+            py_system_site_packages=py_system_site_packages,
+            process_line_callback=process_line_and_extract_dataflow_job_id_callback(on_new_job_id_callback),
+        )
 
-        if py_requirements is not None:
-            if not py_requirements and not py_system_site_packages:
-                warning_invalid_environment = textwrap.dedent(
-                    """\
-                    Invalid method invocation. You have disabled inclusion of system packages and empty list
-                    required for installation, so it is not possible to create a valid virtual environment.
-                    In the virtual environment, apache-beam package must be installed for your job to be \
-                    executed. To fix this problem:
-                    * install apache-beam on the system, then set parameter py_system_site_packages to True,
-                    * add apache-beam to the list of required packages in parameter py_requirements.
-                    """
-                )
-                raise AirflowException(warning_invalid_environment)
-
-            with TemporaryDirectory(prefix="dataflow-venv") as tmp_dir:
-                py_interpreter = prepare_virtualenv(
-                    venv_directory=tmp_dir,
-                    python_bin=py_interpreter,
-                    system_site_packages=py_system_site_packages,
-                    requirements=py_requirements,
-                )
-                command_prefix = [py_interpreter] + py_options + [dataflow]
-
-                self._start_dataflow(
-                    variables=variables,
-                    name=name,
-                    command_prefix=command_prefix,
-                    project_id=project_id,
-                    on_new_job_id_callback=on_new_job_id_callback,
-                    location=location,
-                )
-        else:
-            command_prefix = [py_interpreter] + py_options + [dataflow]
-
-            self._start_dataflow(
-                variables=variables,
-                name=name,
-                command_prefix=command_prefix,
-                project_id=project_id,
-                on_new_job_id_callback=on_new_job_id_callback,
-                location=location,
-            )
+        self.wait_for_done(  # pylint: disable=no-value-for-parameter
+            job_name=name,
+            location=location,
+            job_id=self.job_id,
+        )
 
     @staticmethod
-    def _build_dataflow_job_name(job_name: str, append_job_name: bool = True) -> str:
+    def build_dataflow_job_name(job_name: str, append_job_name: bool = True) -> str:
+        """Builds Dataflow job name."""
         base_job_name = str(job_name).replace("_", "-")
 
         if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", base_job_name):
@@ -988,23 +886,6 @@ class DataflowHook(GoogleBaseHook):
             safe_job_name = base_job_name
 
         return safe_job_name
-
-    @staticmethod
-    def _options_to_args(variables: dict) -> List[str]:
-        if not variables:
-            return []
-        # The logic of this method should be compatible with Apache Beam:
-        # https://github.com/apache/beam/blob/b56740f0e8cd80c2873412847d0b336837429fb9/sdks/python/
-        # apache_beam/options/pipeline_options.py#L230-L251
-        args: List[str] = []
-        for attr, value in variables.items():
-            if value is None or (isinstance(value, bool) and value):
-                args.append(f"--{attr}")
-            elif isinstance(value, list):
-                args.extend([f"--{attr}={v}" for v in value])
-            else:
-                args.append(f"--{attr}={value}")
-        return args
 
     @_fallback_to_location_from_variables
     @_fallback_to_project_id_from_variables
@@ -1125,7 +1006,7 @@ class DataflowHook(GoogleBaseHook):
             "--format=value(job.id)",
             f"--job-name={job_name}",
             f"--region={location}",
-            *(self._options_to_args(options)),
+            *(beam_options_to_args(options)),
         ]
         self.log.info("Executing command: %s", " ".join([shlex.quote(c) for c in cmd]))
         with self.provide_authorized_gcloud():
@@ -1266,3 +1147,44 @@ class DataflowHook(GoogleBaseHook):
             location=location,
         )
         return jobs_controller.fetch_job_autoscaling_events_by_id(job_id)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def wait_for_done(
+        self,
+        job_name: str,
+        location: str,
+        project_id: str,
+        job_id: Optional[str] = None,
+        multiple_jobs: bool = False,
+    ) -> None:
+        """
+        Wait for Dataflow job.
+
+        :param job_name: The 'jobName' to use when executing the DataFlow job
+            (templated). This ends up being set in the pipeline options, so any entry
+            with key ``'jobName'`` in ``options`` will be overwritten.
+        :type job_name: str
+        :param location: location the job is running
+        :type location: str
+        :param project_id: Optional, the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id:
+        :param job_id: a Dataflow job ID
+        :type job_id: str
+        :param multiple_jobs: If pipeline creates multiple jobs then monitor all jobs
+        :type multiple_jobs: boolean
+        """
+        job_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            name=job_name,
+            location=location,
+            poll_sleep=self.poll_sleep,
+            job_id=job_id or self.job_id,
+            num_retries=self.num_retries,
+            multiple_jobs=multiple_jobs,
+            drain_pipeline=self.drain_pipeline,
+            cancel_timeout=self.cancel_timeout,
+            wait_until_finished=self.wait_until_finished,
+        )
+        job_controller.wait_for_done()

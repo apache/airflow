@@ -703,6 +703,67 @@ class RefactorBackportPackages:
             .rename("airflow.models.baseoperator")
         )
 
+    def refactor_apache_beam_package(self):
+        r"""
+        Fixes to "apache_beam" providers package.
+
+        Copies some of the classes used from core Airflow to "common.utils" package of the
+        the provider and renames imports to use them from there. Note that in this case we also rename
+        the imports in the copied files.
+
+        For example we copy python_virtualenv.py, process_utils.py and change import as in example diff:
+
+        .. code-block:: diff
+
+            --- ./airflow/providers/apache/beam/common/utils/python_virtualenv.py
+            +++ ./airflow/providers/apache/beam/common/utils/python_virtualenv.py
+            @@ -21,7 +21,7 @@
+             \"\"\"
+            from typing import List, Optional
+
+            -from airflow.utils.process_utils import execute_in_subprocess
+            +from airflow.providers.apache.beam.common.utils.process_utils import execute_in_subprocess
+
+
+            def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool)
+
+        """
+
+        def apache_beam_package_filter(node: LN, capture: Capture, filename: Filename) -> bool:
+            return filename.startswith("./airflow/providers/apache/beam")
+
+        os.makedirs(
+            os.path.join(get_target_providers_package_folder("apache.beam"), "common", "utils"), exist_ok=True
+        )
+        copyfile(
+            os.path.join(get_source_airflow_folder(), "airflow", "utils", "__init__.py"),
+            os.path.join(
+                get_target_providers_package_folder("apache.beam"), "common", "utils", "__init__.py"
+            ),
+        )
+        copyfile(
+            os.path.join(get_source_airflow_folder(), "airflow", "utils", "python_virtualenv.py"),
+            os.path.join(
+                get_target_providers_package_folder("apache.beam"), "common", "utils", "python_virtualenv.py"
+            ),
+        )
+        copyfile(
+            os.path.join(get_source_airflow_folder(), "airflow", "utils", "process_utils.py"),
+            os.path.join(
+                get_target_providers_package_folder("apache.beam"), "common", "utils", "process_utils.py"
+            ),
+        )
+        (
+            self.qry.select_module("airflow.utils.python_virtualenv")
+            .filter(callback=apache_beam_package_filter)
+            .rename("airflow.providers.apache.beam.common.utils.python_virtualenv")
+        )
+        (
+            self.qry.select_module("airflow.utils.process_utils")
+            .filter(callback=apache_beam_package_filter)
+            .rename("airflow.providers.apache.beam.common.utils.process_utils")
+        )
+
     def refactor_odbc_package(self):
         """
         Fixes to "odbc" providers package.
@@ -760,6 +821,7 @@ class RefactorBackportPackages:
         self.rename_deprecated_modules()
         self.refactor_amazon_package()
         self.refactor_google_package()
+        self.refactor_apache_beam_package()
         self.refactor_elasticsearch_package()
         self.refactor_odbc_package()
         self.remove_tags()

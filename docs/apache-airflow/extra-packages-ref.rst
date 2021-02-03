@@ -107,6 +107,8 @@ custom bash/python providers).
 +=====================+=====================================================+================================================+
 | apache.atlas        | ``pip install 'apache-airflow[apache.atlas]'``      | Apache Atlas                                   |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache.beam         | ``pip install 'apache-airflow[apache.beam]'``       | Apache Beam operators & hooks                  |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.cassandra    | ``pip install 'apache-airflow[apache.cassandra]'``  | Cassandra related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.druid        | ``pip install 'apache-airflow[apache.druid]'``      | Druid related operators & hooks                |

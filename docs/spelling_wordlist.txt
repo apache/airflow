@@ -141,6 +141,7 @@ Fileshares
 Filesystem
 Firehose
 Firestore
+Flink
 FluentD
 Fokko
 Formaturas
@@ -325,6 +326,7 @@ Seki
 Sendgrid
 Siddharth
 SlackHook
+Spark
 SparkPi
 SparkR
 SparkSQL
