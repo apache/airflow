@@ -811,7 +811,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # We need to do this for mysql as well because it can cause deadlocks
         # as discussed in https://issues.apache.org/jira/browse/AIRFLOW-2516
         if self.using_sqlite or self.using_mysql:
-            tis_to_change: List[TI] = with_row_locks(query, of=TI, **skip_locked(session=session)).all()
+            tis_to_change: List[TI] = with_row_locks(
+                query, of=TI, session=session, **skip_locked(session=session)
+            ).all()
             for ti in tis_to_change:
                 ti.set_state(new_state, session=session)
                 tis_changed += 1
@@ -921,6 +923,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         task_instances_to_examine: List[TI] = with_row_locks(
             query,
             of=TI,
+            session=session,
             **skip_locked(session=session),
         ).all()
         # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
@@ -1158,7 +1161,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             for dag_id, task_id, execution_date, try_number in self.executor.queued_tasks.keys()
         ]
         ti_query = session.query(TI).filter(or_(*filter_for_ti_state_change))
-        tis_to_set_to_scheduled: List[TI] = with_row_locks(ti_query).all()
+        tis_to_set_to_scheduled: List[TI] = with_row_locks(ti_query, session=session).all()
         if not tis_to_set_to_scheduled:
             return
 
@@ -1827,7 +1830,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         )
 
         # Lock these rows, so that another scheduler can't try and adopt these too
-        tis_to_reset_or_adopt = with_row_locks(query, of=TI, **skip_locked(session=session)).all()
+        tis_to_reset_or_adopt = with_row_locks(
+            query, of=TI, session=session, **skip_locked(session=session)
+        ).all()
         to_reset = self.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
 
         reset_tis_message = []

@@ -1187,7 +1187,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                     session.query(DagRun).filter_by(
                         dag_id=self.dag_id,
                         execution_date=self.execution_date,
-                    )
+                    ),
+                    session=session,
                 ).one()
 
                 # Get a partial dag with just the specific tasks we want to
