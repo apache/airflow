@@ -881,6 +881,25 @@ LICENCE = """<!--
  -->
 """
 
+LICENCE_RST = """
+.. Licensed to the Apache Software Foundation (ASF) under one
+   or more contributor license agreements.  See the NOTICE file
+   distributed with this work for additional information
+   regarding copyright ownership.  The ASF licenses this file
+   to you under the Apache License, Version 2.0 (the
+   "License"); you may not use this file except in compliance
+   with the License.  You may obtain a copy of the License at
+
+..   http://www.apache.org/licenses/LICENSE-2.0
+
+.. Unless required by applicable law or agreed to in writing,
+   software distributed under the License is distributed on an
+   "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+   KIND, either express or implied.  See the License for the
+   specific language governing permissions and limitations
+   under the License.
+"""
+
 """
 Keeps information about historical releases.
 """
@@ -1402,7 +1421,7 @@ def get_provider_jinja_context(
     )
     context: Dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
-        "README_FILE": "BACKPORT_PROVIDER_README.md" if backport_packages else "README.md",
+        "README_FILE": "README.md" if backport_packages else "README.rst",
         "PROVIDER_PACKAGE_ID": provider_details.provider_package_id,
         "PACKAGE_PIP_NAME": get_pip_package_name(
             provider_details.provider_package_id, backport_packages=backport_packages
@@ -1438,13 +1457,11 @@ def get_provider_jinja_context(
     return context
 
 
-def prepare_readme_file(
-    context,
-):
-    readme_content = LICENCE
+def prepare_readme_file(context):
+    readme_content = LICENCE_RST
     readme_template_name = PROVIDER_TEMPLATE_PREFIX + "README"
-    readme_content += render_template(template_name=readme_template_name, context=context, extension='.md')
-    readme_file_path = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "README.md")
+    readme_content += render_template(template_name=readme_template_name, context=context, extension=".rst")
+    readme_file_path = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "README.rst")
     with open(readme_file_path, "wt") as readme_file:
         readme_file.write(readme_content)
 
@@ -1575,8 +1592,8 @@ def update_commits_rst_for_regular_providers(
     replace_content(index_file_path, old_text, new_text, provider_package_id)
 
 
-def prepare_setup_py_file(context):
-    setup_py_template_name = "SETUP"
+def prepare_setup_py_file(context, backport_package=False):
+    setup_py_template_name = "BACKPORT_SETUP" if backport_package else "SETUP"
     setup_py_file_path = os.path.abspath(os.path.join(get_target_folder(), "setup.py"))
     setup_py_content = render_template(
         template_name=setup_py_template_name, context=context, extension='.py', autoescape=False
@@ -1789,7 +1806,7 @@ def update_generated_files_for_backport_package(
             provider_details.source_provider_package_path,
         )
     if update_setup:
-        prepare_setup_py_file(jinja_context)
+        prepare_setup_py_file(jinja_context, backport_package=True)
         prepare_setup_cfg_file(jinja_context, backport_package=True)
         prepare_manifest_in_file(jinja_context)
 
@@ -1946,7 +1963,7 @@ def generate_setup_files(args: Any):
             if update_generated_files_for_regular_package(
                 provider_package_id, suffix, update_release_notes=False, update_setup=True
             ):
-                print(f"[green]Generated regular packge setup files for {provider_package_id}[/]")
+                print(f"[green]Generated regular package setup files for {provider_package_id}[/]")
             else:
                 package_ok = False
     return package_ok

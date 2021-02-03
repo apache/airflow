@@ -62,7 +62,7 @@ You need to install the specified backport providers package in order to use the
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
 ```bash
-pip install apache-airflow-beckport-providers-apache-beam[google]
+pip install apache-airflow-backport-providers-apache-beam[google]
 ```
 
 | Dependent package                                                                                         | Extra       |

@@ -79,7 +79,7 @@ function build_provider_packages() {
             echo
         elif [[ ${FILE_VERSION_SUFFIX} != '' ]]; then
             echo
-            echo " Preparing release candidate of ${provider_package} with file version suffix only (ersulting file will be renamed): ${FILE_VERSION_SUFFIX}"
+            echo " Preparing release candidate of ${provider_package} with file version suffix only (resulting file will be renamed): ${FILE_VERSION_SUFFIX}"
             echo
         elif [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' ]]; then
             echo

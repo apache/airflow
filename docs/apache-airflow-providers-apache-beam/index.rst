@@ -51,7 +51,7 @@ Package apache-airflow-providers-apache-beam
 `Apache Beam <https://beam.apache.org/>`__.
 
 
-Release: 0.0.1
+Release: 1.0.0
 
 Provider package
 ----------------
