@@ -429,7 +429,7 @@ def get_spc_by_entity_id():
             # todo: SPC包
             # xbar-r chart
             xr_ee: dict = x_r_entry.get(key)
-            if not xr_ee:
+            if xr_ee is None:
                 _log.error(u"未找到入口: {}".format(key))
                 continue
             xr_ee.update({
@@ -439,7 +439,7 @@ def get_spc_by_entity_id():
             })
             # xbar-s chart
             xs_ee: dict = x_s_entry.get(key)
-            if not xs_ee:
+            if xs_ee is None:
                 _log.error(u"未找到入口: {}".format(key))
                 continue
             xs_ee.update({
@@ -447,11 +447,17 @@ def get_spc_by_entity_id():
                 's': xs_s_part,
                 'cpk': cpk_data
             })
+        _log.info(spc)
         return jsonify(spc=spc)
     except AirflowException as e:
         _log.error("get_spc_by_entity_id", e)
         response = jsonify(error=str(e))
         response.status_code = e.status_code
+        return response
+    except BaseException as e:
+        _log.error("get_spc_by_entity_id", e)
+        response = jsonify(error=str(e))
+        response.status_code = 500
         return response
 
 

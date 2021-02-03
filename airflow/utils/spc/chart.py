@@ -14,7 +14,7 @@ def covert2dArray(data: List[float], size: int) -> Optional[np.ndarray]:
         _logger.error(u"数据长度不正确!!! 自动截取")
     l = int(len(data) / size)
     offset = len(data) - b
-    ret = np.array(data[:offset]).reshape(l, size)
+    ret = np.array(data[:offset], dtype=float).reshape(l, size)
     return ret
 
 
@@ -86,7 +86,7 @@ def xbar_rbar(data: np.ndarray, size: int, newdata=None) -> Optional[Dict]:
     return ret
 
 
-def rbar(data: np.ndarray, size: int, newdata=None)->Optional[Dict]:
+def rbar(data: np.ndarray, size: int, newdata=None) -> Optional[Dict]:
     """
 
     :rtype: 元组，数据，中线，下线，上线
@@ -120,7 +120,7 @@ def rbar(data: np.ndarray, size: int, newdata=None)->Optional[Dict]:
     return ret
 
 
-def u(data: np.ndarray, size: int, newdata=None) ->Optional[Dict]:
+def u(data: np.ndarray, size: int, newdata=None) -> Optional[Dict]:
     """
     SPC U-charts
     :param data:
@@ -150,7 +150,7 @@ def u(data: np.ndarray, size: int, newdata=None) ->Optional[Dict]:
     return ret
 
 
-def np_chart(data: np.ndarray, size: int, newdata=None)->Optional[Dict]:
+def np_chart(data: np.ndarray, size: int, newdata=None) -> Optional[Dict]:
     sizes, data = data.T
     if size == 1:
         sizes, data = data, sizes
@@ -166,15 +166,15 @@ def np_chart(data: np.ndarray, size: int, newdata=None)->Optional[Dict]:
 
     ret = {
         "data": data,
-        "center": pbar,
-        "lower": lcl,
-        "upper": ucl,
+        "center": float(pbar),
+        "lower": float(lcl),
+        "upper": float(ucl),
     }
 
     return ret
 
 
-def sbar(data: np.ndarray, size: int, newdata=None)->Optional[Dict]:
+def sbar(data: np.ndarray, size: int, newdata=None) -> Optional[Dict]:
     """
 
     :rtype: 元组，数据，中线，下线，上线
@@ -187,7 +187,7 @@ def sbar(data: np.ndarray, size: int, newdata=None)->Optional[Dict]:
     S = []
     for xs in data:
         assert len(xs) == size
-        S.append(np.std(xs, ddof=1))
+        S.append(float(np.std(xs, ddof=1)))
 
     if newdata:
         newvalues = [np.std(xs, ddof=1) for xs in newdata]
@@ -199,9 +199,9 @@ def sbar(data: np.ndarray, size: int, newdata=None)->Optional[Dict]:
 
     ret = {
         "data": S,
-        "center": sbar,
-        "lower": lcls,
-        "upper": ucls,
+        "center": float(sbar),
+        "lower": float(lcls),
+        "upper": float(ucls),
     }
 
     return ret
@@ -213,13 +213,15 @@ def cpk(data: List[float], usl: float, lsl: float) -> Optional[float]:
     if not data:
         return None
     sigma = np.std(data)
+    if sigma == 0:
+        return None
     m = np.mean(data)
     if usl < m or m < lsl:
         return None
     Cpu = float(usl - m) / (3 * sigma)
     Cpl = float(m - lsl) / (3 * sigma)
     Cpk = np.min([Cpu, Cpl])
-    return Cpk
+    return float(Cpk)
 
 
 def cmk(data: List, usl: float, lsl: float) -> Optional[float]:
@@ -227,11 +229,13 @@ def cmk(data: List, usl: float, lsl: float) -> Optional[float]:
         return None
     if not data:
         return None
-    avg = np.average(data)
-    sigma = np.std(data)
+    avg = float(np.average(data))
+    sigma = float(np.std(data))
+    if sigma == 0:
+        return None
     if usl < avg or lsl > avg:
         return None
     a = (usl - avg) / (3 * sigma)
     b = (avg - lsl) / (3 * sigma)
     cmk = np.min([a, b])
-    return cmk
+    return float(cmk)
