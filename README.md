@@ -40,8 +40,6 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-**Table of contents**
-
 - [Project Focus](#project-focus)
 - [Principles](#principles)
 - [Requirements](#requirements)
