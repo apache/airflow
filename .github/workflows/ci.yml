@@ -404,7 +404,7 @@ jobs:
         run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
 
   prepare-backport-provider-packages:
-    timeout-minutes: 30
+    timeout-minutes: 40
     name: "Backport packages: ${{ matrix.package-format }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
@@ -460,7 +460,7 @@ jobs:
           retention-days: 7
 
   prepare-provider-packages:
-    timeout-minutes: 30
+    timeout-minutes: 40
     name: "Provider packages ${{ matrix.package-format }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
@@ -845,7 +845,7 @@ jobs:
           retention-days: 7
 
   upload-coverage:
-    timeout-minutes: 5
+    timeout-minutes: 15
     name: "Upload coverage"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     continue-on-error: true
