@@ -167,15 +167,15 @@
                 <td class="text-center">
                   <div class="btn-group">
                     {% if dag %}
-                      <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-sm btn-default btn-icon-only">
+                      <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_trigger }}">
                         <span class="material-icons" aria-hidden="true">play_arrow</span>
                       </a>
-                      <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false" title="Refresh DAG" aria-label="Refresh DAG" class="btn btn-sm btn-default btn-icon-only">
+                      <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false" title="Refresh DAG" aria-label="Refresh DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_edit }}">
                         <span class="material-icons" aria-hidden="true">refresh</span>
                       </a>
                     {% endif %}
                     {# Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag #}
-                    <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')" title="Delete&nbsp;DAG" aria-label="Delete DAG" class="btn btn-sm btn-default btn-icon-only">
+                    <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')" title="Delete&nbsp;DAG" aria-label="Delete DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_delete }}">
                       <span class="material-icons text-danger" aria-hidden="true">delete_outline</span>
                     </a>
                   </div>

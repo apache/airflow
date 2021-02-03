@@ -153,7 +153,7 @@ Endpoint                                                                        
 /dags/{dag_id}/tasks                                                               GET    DAGs.can_read, Task Instances.can_read                            Viewer
 /dags/{dag_id}/tasks/{task_id}                                                     GET    DAGs.can_read, Task Instances.can_read                            Viewer
 /dags/{dag_id}/dagRuns                                                             GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
-/dags/{dag_id}/dagRuns                                                             POST   DAGs.can_read, DAG Runs.can_create                                User
+/dags/{dag_id}/dagRuns                                                             POST   DAGs.can_edit, DAG Runs.can_create                                User
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE DAGs.can_read, DAG Runs.can_delete                                User
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
 /dags/~/dagRuns/list                                                               POST   DAGs.can_read, DAG Runs.can_read                                  Viewer
@@ -204,7 +204,7 @@ Get Task                               DAGs.can_read, Task Instances.can_read   
 Get XCom                               DAGs.can_read, Task Instances.can_read, XComs.can_read                  Viewer
 Triggers Task Instance                 DAGs.can_read, Task Instances.can_create                                User
 Delete DAG                             DAGs.can_delete                                                         User
-Trigger DAG run                        Dags.can_read, DAG Runs.can_create                                      User
+Trigger DAG run                        Dags.can_edit, DAG Runs.can_create                                      User
 Clear DAG                              DAGs.can_read, Task Instances.can_delete                                User
 Clear DAG Run                          DAGs.can_read, Task Instances.can_delete                                User
 Mark DAG as blocked                    Dags.can_read, DAG Runs.can_read                                        User
