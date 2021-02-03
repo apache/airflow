@@ -1103,7 +1103,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.job_id = job_id
         self.hostname = get_hostname()
 
-        context = {}  # type: Dict
         actual_start_date = timezone.utcnow()
         Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
