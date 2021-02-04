@@ -175,7 +175,7 @@ def clear_task_instances(
 
     if tr_filter:
         # Clear all reschedules related to the ti to clear
-        tr_qry = session.query(TR).filter(
+        delete_qry = TR.__table__.delete().where(
             or_(
                 and_(
                     TR.dag_id == dag_id,
@@ -186,7 +186,7 @@ def clear_task_instances(
                 for dag_id, task_id, execution_date, try_number in tr_filter
             )
         )
-        tr_qry.delete()
+        session.execute(delete_qry)
 
     if job_ids:
         from airflow.jobs.base_job import BaseJob
