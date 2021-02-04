@@ -173,19 +173,20 @@ def clear_task_instances(
 
         tr_filter.append((ti.dag_id, ti.task_id, ti.execution_date, ti.try_number))
 
-    # Clear all reschedules related to the ti to clear
-    tr_qry = session.query(TR).filter(
-        or_(
-            and_(
-                TR.dag_id == dag_id,
-                TR.task_id == task_id,
-                TR.execution_date == execution_date,
-                TR.try_number == try_number,
+    if tr_filter:
+        # Clear all reschedules related to the ti to clear
+        tr_qry = session.query(TR).filter(
+            or_(
+                and_(
+                    TR.dag_id == dag_id,
+                    TR.task_id == task_id,
+                    TR.execution_date == execution_date,
+                    TR.try_number == try_number,
+                )
+                for dag_id, task_id, execution_date, try_number in tr_filter
             )
-            for dag_id, task_id, execution_date, try_number in tr_filter
         )
-    )
-    tr_qry.delete()
+        tr_qry.delete()
 
     if job_ids:
         from airflow.jobs.base_job import BaseJob
