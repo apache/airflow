@@ -19,7 +19,7 @@
 """Remove can_read permission on config resource for User and Viewer role
 
 Revision ID: 82b7c48c147f
-Revises: 449b4072c2da
+Revises: e959f08ac86c
 Create Date: 2021-02-04 12:45:58.138224
 
 """
@@ -29,7 +29,7 @@ from airflow.www.app import create_app
 
 # revision identifiers, used by Alembic.
 revision = '82b7c48c147f'
-down_revision = '449b4072c2da'
+down_revision = 'e959f08ac86c'
 branch_labels = None
 depends_on = None
 
