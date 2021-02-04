@@ -110,33 +110,3 @@ class TestBashOperator(unittest.TestCase):
         bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_default_retries', dag=None)
 
         assert bash_operator.retries == 0
-
-    @mock.patch.dict('os.environ', clear=True)
-    @mock.patch(
-        "airflow.operators.bash.TemporaryDirectory",
-        **{'return_value.__enter__.return_value': '/tmp/airflowtmpcatcat'},  # type: ignore
-    )
-    @mock.patch(
-        "airflow.operators.bash.Popen",
-        **{  # type: ignore
-            'return_value.stdout.readline.side_effect': [b'BAR', b'BAZ'],
-            'return_value.returncode': 0,
-        },
-    )
-    def test_should_exec_subprocess(self, mock_popen, mock_temporary_directory):
-        bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_return_value', dag=None)
-        bash_operator.execute({})
-
-        mock_popen.assert_called_once_with(
-            ['bash', '-c', 'echo "stdout"'],
-            cwd='/tmp/airflowtmpcatcat',
-            env={},
-            preexec_fn=mock.ANY,
-            stderr=STDOUT,
-            stdout=PIPE,
-        )
-
-    def test_skip(self):
-        op = BashOperator(task_id='abc', bash_command='set -e; echo "hello world"; exit 127;')
-        with pytest.raises(AirflowSkipException):
-            op.execute({})
