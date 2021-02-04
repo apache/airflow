@@ -53,12 +53,6 @@ function run_airflow_testing_in_docker() {
         echo
         echo "Starting try number ${try_num}"
         echo
-        if [[ " ${ENABLED_INTEGRATIONS} " =~ " kerberos " ]]; then
-            echo "Creating Kerberos network"
-            kerberos::create_kerberos_network
-        else
-            echo "Skip creating kerberos network"
-        fi
         docker-compose --log-level INFO \
           -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
           -f "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml" \
@@ -66,10 +60,6 @@ function run_airflow_testing_in_docker() {
           "${DOCKER_COMPOSE_LOCAL[@]}" \
              run airflow "${@}"
         exit_code=$?
-        if [[ " ${INTEGRATIONS[*]} " =~ " kerberos " ]]; then
-            echo "Delete kerberos network"
-            kerberos::delete_kerberos_network
-        fi
         if [[ ${exit_code} == "254" && ${try_num} != "5" ]]; then
             echo
             echo "Failed try num ${try_num}. Sleeping 5 seconds for retry"

@@ -81,7 +81,6 @@ networks:
   example.com:
     name: example.com
     driver: bridge
-    attachable: true
     ipam:
       config:
         - subnet: 10.5.0.0/16
