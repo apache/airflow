@@ -278,8 +278,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         Adds the field ``templated_fields`` to ``V1EnvVar`` so that Airflow can apply jinja templating
         to both the name and value of an environment variable.
 
-        @param env_vars:
-        @return:
+        @param env_vars: a list of k8s.V1EnvVar objects
+        @return: A list of k8s.V1EnvVar objects but with the "template_fields" member populated
         """
         env_vars = []
         for env_var in self.env_vars:
