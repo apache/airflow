@@ -254,7 +254,6 @@ class TestSecurity(unittest.TestCase):
 
     def test_get_user_roles_for_anonymous_user(self):
         viewer_role_perms = {
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
@@ -527,3 +526,19 @@ class TestSecurity(unittest.TestCase):
         test_security_manager = MockSecurityManager(appbuilder=self.appbuilder)
         assert len(test_security_manager.VIEWER_VMS) == 1
         assert test_security_manager.VIEWER_VMS == {'Airflow'}
+
+    def test_correct_roles_have_perms_to_read_config(self):
+        roles_to_check = self.security_manager.get_all_roles()
+        assert len(roles_to_check) >= 5
+        for role in roles_to_check:
+            if role.name in ["Admin", "Op"]:
+                assert self.security_manager.exist_permission_on_roles(
+                    permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
+                )
+            else:
+                assert not self.security_manager.exist_permission_on_roles(
+                    permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
+                ), (
+                    f"{role.name} should not have {permissions.ACTION_CAN_READ} "
+                    f"on {permissions.RESOURCE_CONFIG}"
+                )
