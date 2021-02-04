@@ -56,6 +56,15 @@ or just to run documentation building
 .. code-block:: bash
 
      ./breeze build-docs -- --docs-only
+     
+Running the Docs Locally
+------------------------
+
+Once you have built the documentation run the following command from the root directory:
+
+`docs/start_doc_server.sh`
+
+Then, view your docs at `localhost:8000`
 
 Troubleshooting
 ---------------
