@@ -41,6 +41,8 @@ install_mysql_client() {
     local key="A4A9406876FCBD3C456770C88C718D3B5072E1F5"
     readonly key
 
+    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
+
     GNUPGHOME="$(mktemp -d)"
     export GNUPGHOME
     set +e
