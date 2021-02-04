@@ -147,10 +147,9 @@ class ClsResultStorage(ClsEntity):
         query_str = '''from(bucket: "{}")
           |> range(start: 0, stop: now())
           |> filter(fn: (r) => r._measurement == "results")
+          |> filter(fn: (r) => r.entity_id =~ /{}/)
           |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-          |> filter(fn: (r) => contains(value: r.entity_id, set: {}))
-          ''' \
-            .format(self._bucket, json.dumps(self.entity_id))
+          '''.format(self._bucket, '|'.join(self.entity_id).replace('/', '\\/'))
         data = self._query(query_str)
         ret = []
         if not data:
