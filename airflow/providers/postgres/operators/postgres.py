@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Iterable, List, Mapping, Optional, Union
+from typing import Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -39,16 +39,9 @@ class PostgresOperator(BaseOperator):
     :type parameters: dict or iterable
     :param database: name of database which overwrite defined one in connection
     :type database: str
-    :param op_args: a list of positional arguments that will get unpacked when
-        calling your callable (templated)
-    :type op_args: list
-    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
-        in your function (templated)
-    :type op_kwargs: dict
-
     """
 
-    template_fields = ('sql', 'op_args', 'op_kwargs')
+    template_fields = ('sql', 'parameters')
     template_fields_renderers = {'sql': 'sql'}
     template_ext = ('.sql',)
     ui_color = '#ededed'
@@ -62,8 +55,6 @@ class PostgresOperator(BaseOperator):
         autocommit: bool = False,
         parameters: Optional[Union[Mapping, Iterable]] = None,
         database: Optional[str] = None,
-        op_args: Optional[List] = None,
-        op_kwargs: Optional[Dict] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -73,8 +64,6 @@ class PostgresOperator(BaseOperator):
         self.parameters = parameters
         self.database = database
         self.hook = None
-        self.op_args = op_args or []
-        self.op_kwargs = op_kwargs or {}
 
     def execute(self, context):
         self.log.info('Executing: %s', self.sql)
