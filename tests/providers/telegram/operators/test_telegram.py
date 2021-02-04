@@ -150,7 +150,7 @@ class TestTelegramOperator(unittest.TestCase):
         assert ('text', 'chat_id') == hook.template_fields
 
     @mock.patch('airflow.providers.telegram.operators.telegram.TelegramHook')
-    def test_should_return_templatzed_text_field(self, mock_hook):
+    def test_should_return_templatized_text_field(self, mock_hook):
         operator = TelegramOperator(
             telegram_conn_id='telegram_default',
             chat_id='-420913222',
