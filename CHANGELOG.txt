@@ -1,4 +1,4 @@
-Airflow 2.0.1, 2021-02-10
+Airflow 2.0.1, 2021-02-08
 ----------------------------
 
 Bug Fixes
@@ -53,6 +53,7 @@ Bug Fixes
 - Fix broken SLA Mechanism (#14056)
 - Bugfix: Scheduler fails if task is removed at runtime (#14057)
 - Remove permissions to read Configurations for User and Viewer roles (#14067)
+- Fix DB Migration from 2.0.1rc1
 
 Improvements
 """"""""""""
