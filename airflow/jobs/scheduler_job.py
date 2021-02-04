@@ -393,6 +393,7 @@ class DagFileProcessor(LoggingMixin):
         We are assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
+        self.log.info("Running SLA Checks for %s", dag.dag_id)
         if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
             self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
@@ -552,6 +553,7 @@ class DagFileProcessor(LoggingMixin):
         :param session: DB session.
         """
         for request in callback_requests:
+            self.log.debug("Processing Callback Request: %s", request)
             try:
                 if isinstance(request, TaskCallbackRequest):
                     self._execute_task_callbacks(dagbag, request)
