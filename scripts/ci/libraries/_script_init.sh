@@ -52,4 +52,9 @@ start_end::group_start "Make constants read-only"
 initialization::make_constants_read_only
 start_end::group_end
 
+# Work around occasional unexplained failure on CI. Clear file flags on
+# STDOUT (which is connected to a tmp file by Github Runner).
+# The one error I did see: BlockingIOError: [Errno 11] write could not complete without blocking
+[[ "$CI" == "true" ]] && python3 -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
+
 traps::add_trap start_end::script_end EXIT HUP INT TERM
