@@ -68,6 +68,17 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Permission to view Airflow Configurations has been removed from `User` and `Viewer` role
+
+Previously, Users with `User` or `Viewer` role were able to get/view configurations using
+the REST API or in the Webserver. From Airflow 2.0.1, only users with `Admin` or `Op` role would be able
+to get/view Configurations.
+
+To allow users with other roles to view configuration, add `can read on Configurations` permissions to that role.
+
+Note that if `[webserver] expose_config` is set to `False`, the API will throw a `403` response even if
+the user has role with `can read on Configurations` permission.
+
 ### Default `[celery] worker_concurrency` is changed to `16`
 
 The default value for `[celery] worker_concurrency` was `16` for Airflow <2.0.0.
