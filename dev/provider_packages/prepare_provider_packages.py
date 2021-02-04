@@ -35,6 +35,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
+from functools import lru_cache
 from os import listdir
 from os.path import dirname
 from shutil import copyfile
@@ -980,7 +981,7 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> List[str]
     return dependent_packages
 
 
-def make_sure_remote_apache_exists_and_fetch():
+def make_sure_remote_apache_exists_and_fetch(no_git_update: bool):
     """
     Make sure that apache remote exist in git. We need to take a log from the apache
     repository - not locally.
@@ -992,6 +993,8 @@ def make_sure_remote_apache_exists_and_fetch():
     * check if the local repo is shallow, markit to be unshallowed in this case
     * fetch from the remote including all tags and overriding local taags in case they are set differently
 
+    :param no_git_update: If the git remote already exists, don't try to update it
+
     """
     try:
         check_remote_command = ["git", "remote", "get-url", HTTPS_REMOTE]
@@ -1001,6 +1004,10 @@ def make_sure_remote_apache_exists_and_fetch():
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+
+        # Remote already exists, don't update it again!
+        if no_git_update:
+            return
     except subprocess.CalledProcessError as ex:
         if ex.returncode == 128:
             remote_add_command = [
@@ -1592,6 +1599,33 @@ def update_commits_rst_for_regular_providers(
     replace_content(index_file_path, old_text, new_text, provider_package_id)
 
 
+@lru_cache(maxsize=None)
+def black_mode():
+    from black import Mode, parse_pyproject_toml, target_version_option_callback
+
+    config = parse_pyproject_toml(os.path.join(SOURCE_DIR_PATH, "pyproject.toml"))
+
+    target_versions = set(
+        target_version_option_callback(None, None, config.get('target_version', [])),  # type: ignore
+    )
+
+    return Mode(
+        target_versions=target_versions,
+        line_length=config.get('line_length', Mode.line_length),
+        is_pyi=config.get('is_pyi', Mode.is_pyi),
+        string_normalization=not config.get('skip_string_normalization', not Mode.string_normalization),
+        experimental_string_processing=config.get(
+            'experimental_string_processing', Mode.experimental_string_processing
+        ),
+    )
+
+
+def black_format(content) -> str:
+    from black import format_str
+
+    return format_str(content, mode=black_mode())
+
+
 def prepare_setup_py_file(context, backport_package=False):
     setup_py_template_name = "BACKPORT_SETUP" if backport_package else "SETUP"
     setup_py_file_path = os.path.abspath(os.path.join(get_target_folder(), "setup.py"))
@@ -1599,9 +1633,7 @@ def prepare_setup_py_file(context, backport_package=False):
         template_name=setup_py_template_name, context=context, extension='.py', autoescape=False
     )
     with open(setup_py_file_path, "wt") as setup_py_file:
-        setup_py_file.write(setup_py_content)
-    # format the generated setup.py
-    subprocess.run(["black", setup_py_file_path, "--config=./pyproject.toml"], cwd=SOURCE_DIR_PATH)
+        setup_py_file.write(black_format(setup_py_content))
 
 
 def prepare_setup_cfg_file(context, backport_package=False):
@@ -1634,8 +1666,7 @@ def prepare_get_provider_info_py_file(context, provider_package_id: str):
         keep_trailing_newline=True,
     )
     with open(get_provider_file_path, "wt") as get_provider_file:
-        get_provider_file.write(get_provider_content)
-    subprocess.run(["black", get_provider_file_path, "--config=./pyproject.toml"], cwd=SOURCE_DIR_PATH)
+        get_provider_file.write(black_format(get_provider_content))
 
 
 def prepare_manifest_in_file(context):
@@ -1898,7 +1929,7 @@ def update_package_documentation(args: Any):
             print(f"Preparing release version: {current_release_version}")
         else:
             print("Updating documentation for the latest release version.")
-        make_sure_remote_apache_exists_and_fetch()
+        make_sure_remote_apache_exists_and_fetch(args.no_git_update)
         if args.backports:
             provider_details = get_provider_details(provider_package_id)
             past_releases = get_all_releases_for_backport_providers(
@@ -1950,7 +1981,7 @@ def generate_setup_files(args: Any):
     package_ok = True
     with with_group(f"Generate setup files for '{provider_package_id}'"):
         suffix = args.version_suffix
-        current_tag = get_current_tag(provider_package_id, suffix)
+        current_tag = get_current_tag(provider_package_id, suffix, args.no_git_update)
         if not args.backports and tag_exists_for_version(provider_package_id, current_tag):
             print(f"[yellow]The tag {current_tag} exists. Not preparing the package.[/]")
             package_ok = False
@@ -1969,9 +2000,9 @@ def generate_setup_files(args: Any):
     return package_ok
 
 
-def get_current_tag(provider_package_id, suffix):
+def get_current_tag(provider_package_id, suffix, no_git_update):
     verify_provider_package(provider_package_id)
-    make_sure_remote_apache_exists_and_fetch()
+    make_sure_remote_apache_exists_and_fetch(no_git_update)
     provider_info = get_provider_info_from_provider_yaml(provider_package_id)
     versions: List[str] = provider_info['versions']
     current_version = versions[0]
@@ -2011,8 +2042,7 @@ def build_provider_packages(args: Any) -> bool:
     provider_package_id = args.package
     with with_group(f"Prepare provider package for '{provider_package_id}'"):
         suffix = args.version_suffix
-        get_current_tag(provider_package_id, suffix)
-        current_tag = get_current_tag(provider_package_id, suffix)
+        current_tag = get_current_tag(provider_package_id, suffix, args.no_git_update)
         if not args.backports and tag_exists_for_version(provider_package_id, current_tag):
             print(f"[yellow]The tag {current_tag} exists. Skipping the package.[/]")
             return False
@@ -2161,6 +2191,11 @@ Only useful when generating RC candidates for PyPI."""
         choices=["both", "wheel", "sdist"],
         default="both",
         help='Optional format - only used in case of building packages (default: wheel)',
+    )
+    cli_parser.add_argument(
+        "--no-git-update",
+        action="store_true",
+        help=f"If the git remote {HTTPS_REMOTE} already exists, don't try to update it",
     )
     command_help = '\n'
     for function in FUNCTIONS:

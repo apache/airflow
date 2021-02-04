@@ -35,6 +35,9 @@ function run_prepare_documentation() {
     local skipped_documentation=()
     local error_documentation=()
 
+    # Delete the remote, so that we fetch it and update it once, not once per package we build!
+    git remote rm apache-https-for-providers 2>/dev/null || :
+
     local provider_package
     for provider_package in "${PROVIDER_PACKAGES[@]}"
     do
@@ -43,6 +46,7 @@ function run_prepare_documentation() {
         # There is a separate group created in logs for each provider package
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
             --version-suffix "${TARGET_VERSION_SUFFIX}" \
+            --no-git-update \
             "${OPTIONAL_BACKPORT_FLAG[@]}" \
             "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \
             update-package-documentation \
