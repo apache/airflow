@@ -62,9 +62,11 @@ Running the Docs Locally
 
 Once you have built the documentation run the following command from the root directory:
 
-`docs/start_doc_server.sh`
+.. code-block:: bash
+    
+    docs/start_doc_server.sh
 
-Then, view your docs at `localhost:8000`
+Then, view your docs at ``localhost:8000``
 
 Troubleshooting
 ---------------
