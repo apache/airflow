@@ -25,7 +25,7 @@ from airflow.utils.session import provide_session
 
 
 def dummy_session(session=None):
-    pass
+    return session
 
 
 class TestSession(unittest.TestCase):
