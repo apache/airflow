@@ -83,6 +83,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     csrf.init_app(app)
 
     db = SQLA(app)
+    from airflow.utils.sqlalchemy import setup_event_handlers
+    setup_event_handlers(db.session.get_bind())
 
     from airflow import api
     api.load_auth()
