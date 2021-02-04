@@ -63,13 +63,13 @@ class TestDagRunsEndpoint(unittest.TestCase):
         dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
         response = self.app.get(url_template.format(dag_id))
-        self.assertEqual(200, response.status_code)
+        assert 200 == response.status_code
         data = json.loads(response.data.decode('utf-8'))
 
-        self.assertIsInstance(data, list)
-        self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]['dag_id'], dag_id)
-        self.assertEqual(data[0]['id'], dag_run.id)
+        assert isinstance(data, list)
+        assert len(data) == 1
+        assert data[0]['dag_id'] == dag_id
+        assert data[0]['id'] == dag_run.id
 
     def test_get_dag_runs_success_with_state_parameter(self):
         url_template = '/api/experimental/dags/{}/dag_runs?state=running'
@@ -78,13 +78,13 @@ class TestDagRunsEndpoint(unittest.TestCase):
         dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
         response = self.app.get(url_template.format(dag_id))
-        self.assertEqual(200, response.status_code)
+        assert 200 == response.status_code
         data = json.loads(response.data.decode('utf-8'))
 
-        self.assertIsInstance(data, list)
-        self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]['dag_id'], dag_id)
-        self.assertEqual(data[0]['id'], dag_run.id)
+        assert isinstance(data, list)
+        assert len(data) == 1
+        assert data[0]['dag_id'] == dag_id
+        assert data[0]['id'] == dag_run.id
 
     def test_get_dag_runs_success_with_capital_state_parameter(self):
         url_template = '/api/experimental/dags/{}/dag_runs?state=RUNNING'
@@ -93,13 +93,13 @@ class TestDagRunsEndpoint(unittest.TestCase):
         dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
         response = self.app.get(url_template.format(dag_id))
-        self.assertEqual(200, response.status_code)
+        assert 200 == response.status_code
         data = json.loads(response.data.decode('utf-8'))
 
-        self.assertIsInstance(data, list)
-        self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]['dag_id'], dag_id)
-        self.assertEqual(data[0]['id'], dag_run.id)
+        assert isinstance(data, list)
+        assert len(data) == 1
+        assert data[0]['dag_id'] == dag_id
+        assert data[0]['id'] == dag_run.id
 
     def test_get_dag_runs_success_with_state_no_result(self):
         url_template = '/api/experimental/dags/{}/dag_runs?state=dummy'
@@ -108,29 +108,29 @@ class TestDagRunsEndpoint(unittest.TestCase):
         trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
 
         response = self.app.get(url_template.format(dag_id))
-        self.assertEqual(200, response.status_code)
+        assert 200 == response.status_code
         data = json.loads(response.data.decode('utf-8'))
 
-        self.assertIsInstance(data, list)
-        self.assertEqual(len(data), 0)
+        assert isinstance(data, list)
+        assert len(data) == 0
 
     def test_get_dag_runs_invalid_dag_id(self):
         url_template = '/api/experimental/dags/{}/dag_runs'
         dag_id = 'DUMMY_DAG'
 
         response = self.app.get(url_template.format(dag_id))
-        self.assertEqual(400, response.status_code)
+        assert 400 == response.status_code
         data = json.loads(response.data.decode('utf-8'))
 
-        self.assertNotIsInstance(data, list)
+        assert not isinstance(data, list)
 
     def test_get_dag_runs_no_runs(self):
         url_template = '/api/experimental/dags/{}/dag_runs'
         dag_id = 'example_bash_operator'
 
         response = self.app.get(url_template.format(dag_id))
-        self.assertEqual(200, response.status_code)
+        assert 200 == response.status_code
         data = json.loads(response.data.decode('utf-8'))
 
-        self.assertIsInstance(data, list)
-        self.assertEqual(len(data), 0)
+        assert isinstance(data, list)
+        assert len(data) == 0

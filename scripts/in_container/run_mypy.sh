@@ -20,6 +20,8 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 set -x
 
+export PYTHONPATH=${AIRFLOW_SOURCES}
+
 mypy_args=()
 
 # Mypy doesn't cope very well with namespace packages when give filenames (it gets confused about the lack of __init__.py in airflow.providers, and thinks airflow.providers.docker is the same as a "docker" top level module).

@@ -351,7 +351,7 @@ class AWSDataSyncOperator(BaseOperator):
                     self.log.log(level, '%s=%s', k, v)
 
         if not result:
-            raise AirflowException("Failed TaskExecutionArn %s" % self.task_execution_arn)
+            raise AirflowException(f"Failed TaskExecutionArn {self.task_execution_arn}")
 
     def on_kill(self) -> None:
         """Cancel the submitted DataSync task."""

@@ -38,7 +38,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.settings import task_instance_mutation_hook
@@ -224,7 +224,9 @@ class DagRun(Base, LoggingMixin):
         if not settings.ALLOW_FUTURE_EXEC_DATES:
             query = query.filter(DagRun.execution_date <= func.now())
 
-        return with_row_locks(query.limit(max_number), of=cls, **skip_locked(session=session))
+        return with_row_locks(
+            query.limit(max_number), of=cls, session=session, **skip_locked(session=session)
+        )
 
     @staticmethod
     @provide_session
@@ -429,7 +431,7 @@ class DagRun(Base, LoggingMixin):
             self.set_state(State.FAILED)
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='task_failure', session=session)
-            elif dag.on_failure_callback:
+            elif dag.has_on_failure_callback:
                 callback = callback_requests.DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
@@ -444,7 +446,7 @@ class DagRun(Base, LoggingMixin):
             self.set_state(State.SUCCESS)
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason='success', session=session)
-            elif dag.on_success_callback:
+            elif dag.has_on_success_callback:
                 callback = callback_requests.DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
@@ -459,7 +461,7 @@ class DagRun(Base, LoggingMixin):
             self.set_state(State.FAILED)
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='all_tasks_deadlocked', session=session)
-            elif dag.on_failure_callback:
+            elif dag.has_on_failure_callback:
                 callback = callback_requests.DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
@@ -488,7 +490,14 @@ class DagRun(Base, LoggingMixin):
         tis = list(self.get_task_instances(session=session, state=State.task_states + (State.SHUTDOWN,)))
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
         for ti in tis:
-            ti.task = self.get_dag().get_task(ti.task_id)
+            try:
+                ti.task = self.get_dag().get_task(ti.task_id)
+            except TaskNotFound:
+                self.log.warning(
+                    "Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, ti.dag_id
+                )
+                ti.state = State.REMOVED
+                session.flush()
 
         unfinished_tasks = [t for t in tis if t.state in State.unfinished]
         finished_tasks = [t for t in tis if t.state in State.finished]

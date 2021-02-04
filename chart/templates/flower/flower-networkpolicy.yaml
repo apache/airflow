@@ -40,13 +40,13 @@ spec:
       component: flower
       release: {{ .Release.Name }}
   policyTypes:
-  - Ingress
-  ingress:
-  - from:
+    - Ingress
 {{- if .Values.flower.extraNetworkPolicies }}
-{{ toYaml .Values.flower.extraNetworkPolicies | indent 4 }}
+  ingress:
+    - from:
+{{ toYaml .Values.flower.extraNetworkPolicies | indent 6 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.ports.flowerUI }}
 {{- end }}
-    ports:
-    - protocol: TCP
-      port: {{ .Values.ports.flowerUI }}
 {{- end }}

@@ -22,11 +22,13 @@ description: |
     `Salesforce <https://www.salesforce.com/>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
 
 integrations:
   - integration-name: Salesforce
     external-doc-url: https://www.salesforce.com/
+    logo: /integration-logos/salesforce/Salesforce.png
     tags: [service]
 
 operators:

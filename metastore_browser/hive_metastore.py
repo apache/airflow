@@ -95,7 +95,7 @@ class MetastoreBrowserView(BaseView):
     def partitions(self):
         """Retrieve table partitions"""
         schema, table = request.args.get("table").split('.')
-        sql = """
+        sql = f"""
         SELECT
             a.PART_NAME,
             a.CREATE_TIME,
@@ -111,9 +111,7 @@ class MetastoreBrowserView(BaseView):
             b.TBL_NAME like '{table}' AND
             d.NAME like '{schema}'
         ORDER BY PART_NAME DESC
-        """.format(
-            table=table, schema=schema
-        )
+        """
         hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
         df = hook.get_pandas_df(sql)
         return df.to_html(
@@ -133,7 +131,7 @@ class MetastoreBrowserView(BaseView):
         if DB_DENY_LIST:
             dbs = ",".join(["'" + db + "'" for db in DB_DENY_LIST])
             where_clause = f"AND b.name NOT IN ({dbs})"
-        sql = """
+        sql = f"""
         SELECT CONCAT(b.NAME, '.', a.TBL_NAME), TBL_TYPE
         FROM TBLS a
         JOIN DBS b ON a.DB_ID = b.DB_ID
@@ -143,10 +141,8 @@ class MetastoreBrowserView(BaseView):
             b.NAME NOT LIKE '%tmp%' AND
             b.NAME NOT LIKE '%temp%'
         {where_clause}
-        LIMIT {LIMIT};
-        """.format(
-            where_clause=where_clause, LIMIT=TABLE_SELECTOR_LIMIT
-        )
+        LIMIT {TABLE_SELECTOR_LIMIT};
+        """
         hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
         data = [{'id': row[0], 'text': row[0]} for row in hook.get_records(sql)]
         return json.dumps(data)

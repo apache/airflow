@@ -82,7 +82,7 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
 
     @property
     def name(self) -> str:
-        return 'BigQuery Console #{index}'.format(index=self.index + 1)
+        return f'BigQuery Console #{self.index + 1}'
 
     def get_link(self, operator, dttm):
         ti = TaskInstance(task=operator, execution_date=dttm)

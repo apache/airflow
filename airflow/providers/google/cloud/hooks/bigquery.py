@@ -2843,7 +2843,7 @@ def _split_tablename(
     cmpt = rest.split('.')
     if len(cmpt) == 3:
         if project_id:
-            raise ValueError("{var}Use either : or . to specify project".format(var=var_print(var_name)))
+            raise ValueError(f"{var_print(var_name)}Use either : or . to specify project")
         project_id = cmpt[0]
         dataset_id = cmpt[1]
         table_id = cmpt[2]
@@ -2887,7 +2887,7 @@ def _cleanse_time_partitioning(
 def _validate_value(key: Any, value: Any, expected_type: Type) -> None:
     """Function to check expected type and raise error if type is not correct"""
     if not isinstance(value, expected_type):
-        raise TypeError("{} argument must have a type {} not {}".format(key, expected_type, type(value)))
+        raise TypeError(f"{key} argument must have a type {expected_type} not {type(value)}")
 
 
 def _api_resource_configs_duplication_check(

@@ -80,6 +80,6 @@ class TestTableauHook(unittest.TestCase):
     def test_get_all(self, mock_pager, mock_server, mock_tableau_auth):  # pylint: disable=unused-argument
         with TableauHook(tableau_conn_id='tableau_test_password') as tableau_hook:
             jobs = tableau_hook.get_all(resource_name='jobs')
-            self.assertEqual(jobs, mock_pager.return_value)
+            assert jobs == mock_pager.return_value
 
         mock_pager.assert_called_once_with(mock_server.return_value.jobs.get)

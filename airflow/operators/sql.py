@@ -293,9 +293,7 @@ class SQLIntervalCheckOperator(BaseOperator):
         self.days_back = -abs(days_back)
         self.conn_id = conn_id
         sqlexp = ", ".join(self.metrics_sorted)
-        sqlt = "SELECT {sqlexp} FROM {table} WHERE {date_filter_column}=".format(
-            sqlexp=sqlexp, table=table, date_filter_column=date_filter_column
-        )
+        sqlt = f"SELECT {sqlexp} FROM {table} WHERE {date_filter_column}="
 
         self.sql1 = sqlt + "'{{ ds }}'"
         self.sql2 = sqlt + "'{{ macros.ds_add(ds, " + str(self.days_back) + ") }}'"
@@ -360,9 +358,7 @@ class SQLIntervalCheckOperator(BaseOperator):
                     ratios[k],
                     self.metrics_thresholds[k],
                 )
-            raise AirflowException(
-                "The following tests have failed:\n {}".format(", ".join(sorted(failed_tests)))
-            )
+            raise AirflowException(f"The following tests have failed:\n {', '.join(sorted(failed_tests))}")
 
         self.log.info("All tests have passed")
 
@@ -535,7 +531,7 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
         self._hook = self._get_hook()
 
         if self._hook is None:
-            raise AirflowException("Failed to establish connection to '%s'" % self.conn_id)
+            raise AirflowException(f"Failed to establish connection to '{self.conn_id}'")
 
         if self.sql is None:
             raise AirflowException("Expected 'sql' parameter is missing.")
@@ -584,14 +580,14 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
                     follow_branch = self.follow_task_ids_if_true
             else:
                 raise AirflowException(
-                    "Unexpected query return result '{}' type '{}'".format(query_result, type(query_result))
+                    f"Unexpected query return result '{query_result}' type '{type(query_result)}'"
                 )
 
             if follow_branch is None:
                 follow_branch = self.follow_task_ids_if_false
         except ValueError:
             raise AirflowException(
-                "Unexpected query return result '{}' type '{}'".format(query_result, type(query_result))
+                f"Unexpected query return result '{query_result}' type '{type(query_result)}'"
             )
 
         self.skip_all_except(context["ti"], follow_branch)

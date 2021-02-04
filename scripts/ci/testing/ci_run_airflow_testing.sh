@@ -99,8 +99,11 @@ function run_airflow_testing_in_docker() {
 
 function prepare_tests_to_run() {
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
-    if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
+    if [[ ${MOUNT_SELECTED_LOCAL_SOURCES} == "true" ]]; then
         DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local.yml")
+    fi
+    if [[ ${MOUNT_ALL_LOCAL_SOURCES} == "true" ]]; then
+        DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local-all-sources.yml")
     fi
 
     if [[ ${GITHUB_ACTIONS} == "true" ]]; then
@@ -116,19 +119,19 @@ function prepare_tests_to_run() {
     fi
     readonly DOCKER_COMPOSE_LOCAL
 
-    if [[ ${TEST_TYPE=} != "" ]]; then
+    if [[ -n "${TEST_TYPE=}" ]]; then
         # Handle case where test type is passed from outside
         export TEST_TYPES="${TEST_TYPE}"
     fi
 
-    if [[ ${TEST_TYPES=} == "" ]]; then
+    if [[ -z "${TEST_TYPES=}" ]]; then
         TEST_TYPES="Core Providers API CLI Integration Other WWW Heisentests"
         echo
         echo "Test types not specified. Running all: ${TEST_TYPES}"
         echo
     fi
 
-    if [[ ${TEST_TYPE=} != "" ]]; then
+    if [[ -n "${TEST_TYPE=}" ]]; then
         # Add Postgres/MySQL special test types in case we are running several test types
         if [[ ${BACKEND} == "postgres" ]]; then
             TEST_TYPES="${TEST_TYPES} Postgres"

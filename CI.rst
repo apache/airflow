@@ -124,7 +124,7 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+----------------------------------------+-------------------------------------------------+
 |                                                           Mount variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``MOUNT_LOCAL_SOURCES``                 |     true    |    false    |    false   | Determines whether local sources are            |
+| ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false    |    false   | Determines whether local sources are            |
 |                                         |             |             |            | mounted to inside the container. Useful for     |
 |                                         |             |             |            | local development, as changes you make          |
 |                                         |             |             |            | locally can be immediately tested in            |
@@ -134,6 +134,15 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | use of artifacts (such as ``egg-info``          |
 |                                         |             |             |            | directories) generated locally on the           |
 |                                         |             |             |            | host during development.                        |
++-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
+| ``MOUNT_ALL_LOCAL_SOURCES``             |     false   |    false    |    false   | Determines whether all local sources are        |
+|                                         |             |             |            | mounted to inside the container. Useful for     |
+|                                         |             |             |            | local development when you need to access .git  |
+|                                         |             |             |            | folders and other folders excluded when         |
+|                                         |             |             |            | ``MOUNT_SELECTED_LOCAL_SOURCES`` is true.       |
+|                                         |             |             |            | You might need to manually delete egg-info      |
+|                                         |             |             |            | folder when you enter breeze and the folder was |
+|                                         |             |             |            | generated using different python versions.      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                           Force variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
@@ -190,9 +199,6 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``HOST_HOME``                           |             |             |            | Home directory on the host.                     |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``HOST_AIRFLOW_SOURCES``                |             |             |            | Directory where airflow sources are located     |
-|                                         |             |             |            | on the host.                                    |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                           Image variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``INSTALL_AIRFLOW_VERSION``             |             |             |            | Installs Airflow version from PyPI when         |
@@ -217,8 +223,8 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                         Verbosity variables                                                        |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``PRINT_INFO_FROM_SCRIPTS``             |    true     |     true    |   true     | Allows to print output to terminal from running |
-|                                         |     (x)     |      (x)    |    (x)     | scripts. It prints some extra outputs if true   |
+| ``PRINT_INFO_FROM_SCRIPTS``             |   true\*    |    true\*   |    true\*  | Allows to print output to terminal from running |
+|                                         |             |             |            | scripts. It prints some extra outputs if true   |
 |                                         |             |             |            | including what the commands do, results of some |
 |                                         |             |             |            | operations, summary of variable values, exit    |
 |                                         |             |             |            | status from the scripts, outputs of failing     |
@@ -226,7 +232,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | commands executed by docker, kind, helm,        |
 |                                         |             |             |            | kubectl. Disabled in pre-commit checks.         |
 |                                         |             |             |            |                                                 |
-|                                         |             |             |            | (x) set to false in pre-commits                 |
+|                                         |             |             |            | \* set to false in pre-commits                  |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``VERBOSE``                             |    false    |     true    |    true    | Determines whether docker, helm, kind,          |
 |                                         |             |             |            | kubectl commands should be printed before       |
@@ -247,8 +253,8 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                        Image build variables                                                       |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false    |    false   | Determines whether the build should             |
-|                                         |             |             |     (x)    | attempt to upgrade all                          |
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false    |   false\*  | Determines whether the build should             |
+|                                         |             |             |            | attempt to upgrade all                          |
 |                                         |             |             |            | PIP dependencies to latest ones matching        |
 |                                         |             |             |            | ``setup.py`` limits. This tries to replicate    |
 |                                         |             |             |            | the situation of "fresh" user who just installs |
@@ -277,11 +283,11 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | tested and updated whenever new versions        |
 |                                         |             |             |            | of libraries are released.                      |
 |                                         |             |             |            |                                                 |
-|                                         |             |             |            | (x) true in case of direct pushes and           |
-|                                         |             |             |            |     scheduled builds                            |
+|                                         |             |             |            | \* true in case of direct pushes and            |
+|                                         |             |             |            |    scheduled builds                             |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``CHECK_IMAGE_FOR_REBUILD``             |     true    |     true    |    true    | Determines whether attempt should be            |
-|                                         |             |             |     (x)    | made to rebuild the CI image with latest        |
+| ``CHECK_IMAGE_FOR_REBUILD``             |     true    |     true    |   true\*   | Determines whether attempt should be            |
+|                                         |             |             |            | made to rebuild the CI image with latest        |
 |                                         |             |             |            | sources. It is true by default for              |
 |                                         |             |             |            | local builds, however it is set to              |
 |                                         |             |             |            | true in case we know that the image             |
@@ -299,18 +305,18 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | waiting for images is disabled                  |
 |                                         |             |             |            | in the CI workflow.                             |
 |                                         |             |             |            |                                                 |
-|                                         |             |             |            | (x) if waiting for images the variable is set   |
-|                                         |             |             |            |     to false automatically.                     |
+|                                         |             |             |            | \* if waiting for images the variable is set    |
+|                                         |             |             |            |    to false automatically.                      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``SKIP_BUILDING_PROD_IMAGE``            |     false   |     false   |    false   | Determines whether we should skip building      |
-|                                         |             |             |     (x)    | the PROD image with latest sources.             |
+| ``SKIP_BUILDING_PROD_IMAGE``            |     false   |     false   |   false\*  | Determines whether we should skip building      |
+|                                         |             |             |            | the PROD image with latest sources.             |
 |                                         |             |             |            | It is set to false, but in deploy app for       |
 |                                         |             |             |            | kubernetes step it is set to "true", because at |
 |                                         |             |             |            | this stage we know we have good image build or  |
 |                                         |             |             |            | pulled.                                         |
 |                                         |             |             |            |                                                 |
-|                                         |             |             |            | (x) set to true in "Deploy App to Kubernetes"   |
-|                                         |             |             |            |     to false automatically.                     |
+|                                         |             |             |            | \* set to true in "Deploy App to Kubernetes"    |
+|                                         |             |             |            |    to false automatically.                      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 
 Running CI Builds locally
@@ -369,14 +375,33 @@ Our CI uses GitHub Registry to pull and push images to/from by default. You can 
 DockerHub registry or change the GitHub registry to interact with and use your own repo by changing
 ``GITHUB_REPOSITORY`` and providing your own GitHub Username and Token.
 
+Currently we are using GitHub Packages to cache images for the build. GitHub Packages are "legacy"
+storage of binary artifacts for GitHub and as of September 2020 they introduced Github Container Registry
+as more stable, easier to manage replacement for container storage. It includes complete self-management
+of the images including permission management, public access, retention management and many more.
+
+More about it here:
+
+https://github.blog/2020-09-01-introducing-github-container-registry/
+
+Recently we started to experience unstable behaviour of the Github Packages ('unknown blob'
+and manifest v1 vs. v2 when pushing images to it). So together with ASF we proposed to
+enable Github Container Registry and it happened as of January 2020.
+
+More about it in https://issues.apache.org/jira/browse/INFRA-20959
+
+We are currently in the testing phase, especially when it comes to management of permissions -
+the model of permission management is not the same for Container Registry as it was for GitHub Packages
+(it was per-repository in GitHub Packages, but it is organization-wide in the Container Registry.
+
 +--------------------------------+---------------------------+----------------------------------------------+
 | Variable                       | Default                   | Comment                                      |
 +================================+===========================+==============================================+
 | USE_GITHUB_REGISTRY            | true                      | If set to "true", we interact with GitHub    |
 |                                |                           | Registry registry not the DockerHub one.     |
 +--------------------------------+---------------------------+----------------------------------------------+
-| GITHUB_REGISTRY                | ``docker.pkg.github.com`` | DNS name of the GitHub registry to           |
-|                                |                           | use.                                         |
+| GITHUB_REGISTRY                | ``docker.pkg.github.com`` | Name of the GitHub registry to use. Can be   |
+|                                |                           | ``docker.pkg.github.com`` or ``ghcr.io``     |
 +--------------------------------+---------------------------+----------------------------------------------+
 | GITHUB_REPOSITORY              | ``apache/airflow``        | Prefix of the image. It indicates which.     |
 |                                |                           | registry from GitHub to use                  |
@@ -384,8 +409,18 @@ DockerHub registry or change the GitHub registry to interact with and use your o
 | GITHUB_USERNAME                |                           | Username to use to login to GitHub           |
 |                                |                           |                                              |
 +--------------------------------+---------------------------+----------------------------------------------+
-| GITHUB_TOKEN                   |                           | Personal token to use to login to GitHub     |
-|                                |                           |                                              |
+| GITHUB_TOKEN                   |                           | Token to use to login to GitHub. This token  |
+|                                |                           | is automatically set by GitHub CI to a       |
+|                                |                           | to a READ-only token for PR builds from fork |
+|                                |                           | and to WRITE token for direct pushes and     |
+|                                |                           | scheduled or workflow_run types of builds    |
++--------------------------------+---------------------------+----------------------------------------------+
+| CONTAINER_REGISTRY_TOKEN       |                           | Personal token to use to login to GitHub     |
+|                                |                           | Container Registry. Should be retrieved      |
+|                                |                           | from secret (in our case it is PAT_CR secret |
+|                                |                           | following example in GitHub documentation.   |
+|                                |                           | Only set in push/scheduled/workflow_run      |
+|                                |                           | type of build.                               |
 +--------------------------------+---------------------------+----------------------------------------------+
 | GITHUB_REGISTRY_WAIT_FOR_IMAGE | ``false``                 | Wait for the image to be available. This is  |
 |                                |                           | useful if commit SHA is used as pull tag     |
@@ -396,6 +431,17 @@ DockerHub registry or change the GitHub registry to interact with and use your o
 | GITHUB_REGISTRY_PUSH_IMAGE_TAG | ``latest``                | Pull this image tag. This is "latest" by     |
 |                                |                           | default, can be commit SHA or RUN_ID.        |
 +--------------------------------+---------------------------+----------------------------------------------+
+
+Authentication in Github Registry
+=================================
+
+We are currently in the process of testing using Github Container Registry as cache for our images during
+the CI process. The default registry is set to "GitHub Packages", but we are testing the GitHub
+Container Registry. In case of GitHub Packages, authentication uses GITHUB_TOKEN mechanism. Authentication
+is needed for both pushing the images (WRITE) and pulling them (READ) - which means that GitHub token
+is used in "master" build (WRITE) and in fork builds (READ). For container registry, our images are
+Publicly Visible and we do not need any authentication to pull them so the CONTAINER_REGISTRY_TOKEN is
+only set in the "master" builds only ("Build Images" workflow and "Scheduled quarantine" one).
 
 Dockerhub Variables
 ===================
@@ -434,7 +480,7 @@ The following components are part of the CI infrastructure
 * **GitHub Private Image Registry**- image registry used as build cache for CI  jobs.
   It is at https://docker.pkg.github.com/apache/airflow/airflow
 * **DockerHub Public Image Registry** - publicly available image registry at DockerHub.
-  It is at https://hub.docker.com/repository/docker/apache/airflow
+  It is at https://hub.docker.com/r/apache/airflow
 * **DockerHub Build Workers** - virtual machines running build jibs at DockerHub
 * **Official Images** (future) - these are official images that are prominently visible in DockerHub.
   We aim our images to become official images so that you will be able to pull them

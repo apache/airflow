@@ -79,4 +79,11 @@ volumes:
 
 networks:
   example.com:
-    external: true
+    name: example.com
+    driver: bridge
+    attachable: true
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          ip_range: 10.5.0.0/16
+          gateway: 10.5.0.254

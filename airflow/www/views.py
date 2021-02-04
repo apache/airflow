@@ -87,6 +87,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import json as utils_json, timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
+from airflow.utils.docs import get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
@@ -528,8 +529,17 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 .all()
             )
 
-            user_permissions = current_app.appbuilder.sm.get_all_permissions_views()
+            user_permissions = current_app.appbuilder.sm.get_current_user_permissions()
             all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
+            can_create_dag_run = (
+                permissions.ACTION_CAN_CREATE,
+                permissions.RESOURCE_DAG_RUN,
+            ) in user_permissions
+
+            can_delete_dag = (
+                permissions.ACTION_CAN_DELETE,
+                permissions.RESOURCE_DAG,
+            ) in user_permissions
 
             for dag in dags:
                 if all_dags_editable:
@@ -537,6 +547,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 else:
                     dag_resource_name = permissions.RESOURCE_DAG_PREFIX + dag.dag_id
                     dag.can_edit = (permissions.ACTION_CAN_EDIT, dag_resource_name) in user_permissions
+                dag.can_trigger = dag.can_edit and can_create_dag_run
+                dag.can_delete = can_delete_dag
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
@@ -898,8 +910,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             content = getattr(task, template_field)
             renderer = task.template_fields_renderers.get(template_field, template_field)
             if renderer in renderers:
-                if isinstance(content, (dict, list)):
-                    content = json.dumps(content, sort_keys=True, indent=4)
                 html_dict[template_field] = renderers[renderer](content)
             else:
                 html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(
@@ -1394,7 +1404,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/trigger', methods=['POST', 'GET'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         ]
     )
@@ -1409,16 +1419,19 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ''
+
+            dag = current_app.dag_bag.get_dag(dag_id)
+            doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
+
             if request_conf:
                 default_conf = request_conf
             else:
                 try:
-                    dag = current_app.dag_bag.get_dag(dag_id)
                     default_conf = json.dumps(dag.params, indent=4)
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
             return self.render_template(
-                'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=default_conf
+                'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=default_conf, doc_md=doc_md
             )
 
         dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
@@ -1627,7 +1640,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         new_dag_state = set_dag_run_state_to_failed(dag, execution_date, commit=confirmed)
 
         if confirmed:
-            flash('Marked failed on {} task instances'.format(len(new_dag_state)))
+            flash(f'Marked failed on {len(new_dag_state)} task instances')
             return redirect(origin)
 
         else:
@@ -1656,7 +1669,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         new_dag_state = set_dag_run_state_to_success(dag, execution_date, commit=confirmed)
 
         if confirmed:
-            flash('Marked success on {} task instances'.format(len(new_dag_state)))
+            flash(f'Marked success on {len(new_dag_state)} task instances')
             return redirect(origin)
 
         else:
@@ -1740,7 +1753,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 commit=True,
             )
 
-            flash("Marked {} on {} task instances".format(state, len(altered)))
+            flash(f"Marked {state} on {len(altered)} task instances")
             return redirect(origin)
 
         to_be_altered = set_state(
@@ -2807,6 +2820,10 @@ def lazy_add_provider_discovered_options_to_connection_form():
         choices=sorted(_get_connection_types(), key=itemgetter(1)),
         widget=Select2Widget(),
         validators=[InputRequired()],
+        description="""
+            Conn Type missing?
+            Make sure you've installed the corresponding Airflow Provider Package.
+        """,
     )
     for key, value in ProvidersManager().connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)
@@ -2891,9 +2908,13 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         """Process form data."""
-        formdata = form.data
-        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc', 'yandexcloud', 'kubernetes']:
-            extra = {key: formdata[key] for key in self.extra_fields if key in formdata}
+        conn_type = form.data['conn_type']
+        extra = {
+            key: form.data[key]
+            for key in self.extra_fields
+            if key in form.data and key.startswith(f"extra__{conn_type}__")
+        }
+        if extra.keys():
             form.extra.data = json.dumps(extra)
 
     def prefill_form(self, form, pk):
@@ -2970,10 +2991,12 @@ class PluginView(AirflowBaseView):
             plugins.append(plugin_data)
 
         title = "Airflow Plugins"
+        doc_url = get_docs_url("plugins.html")
         return self.render_template(
             'airflow/plugin.html',
             plugins=plugins,
             title=title,
+            doc_url=doc_url,
         )
 
 
@@ -3388,10 +3411,7 @@ class DagRunModelView(AirflowModelView):
                 cleared_ti_count += len(tis)
                 models.clear_task_instances(tis, session, dag=dag)
 
-            flash(
-                "{count} dag runs and {altered_ti_count} task instances "
-                "were cleared".format(count=count, altered_ti_count=cleared_ti_count)
-            )
+            flash(f"{count} dag runs and {cleared_ti_count} task instances were cleared")
         except Exception:  # noqa pylint: disable=broad-except
             flash('Failed to clear state', 'error')
         return redirect(self.get_default_url())
@@ -3614,7 +3634,7 @@ class TaskInstanceModelView(AirflowModelView):
                 models.clear_task_instances(task_instances_list, session, dag=dag)
 
             session.commit()
-            flash("{} task instances have been cleared".format(len(task_instances)))
+            flash(f"{len(task_instances)} task instances have been cleared")
             self.update_redirect()
             return redirect(self.get_redirect())
         except Exception:  # noqa pylint: disable=broad-except
@@ -3628,11 +3648,7 @@ class TaskInstanceModelView(AirflowModelView):
             for ti in tis:
                 ti.set_state(target_state, session)
             session.commit()
-            flash(
-                "{count} task instances were set to '{target_state}'".format(
-                    count=count, target_state=target_state
-                )
-            )
+            flash(f"{count} task instances were set to '{target_state}'")
         except Exception:  # noqa pylint: disable=broad-except
             flash('Failed to set state', 'error')
 

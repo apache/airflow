@@ -101,7 +101,7 @@ class TestGoogleDriveHook(unittest.TestCase):
             any_order=True,
         )
 
-        self.assertEqual("ID_4", result_value)
+        assert "ID_4" == result_value
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_ensure_folders_exists_when_some_folders_exists(self, mock_get_conn):
@@ -143,7 +143,7 @@ class TestGoogleDriveHook(unittest.TestCase):
             any_order=True,
         )
 
-        self.assertEqual("ID_4", result_value)
+        assert "ID_4" == result_value
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_ensure_folders_exists_when_all_folders_exists(self, mock_get_conn):
@@ -157,7 +157,7 @@ class TestGoogleDriveHook(unittest.TestCase):
         result_value = self.gdrive_hook._ensure_folders_exists("AAA/BBB/CCC/DDD")
 
         mock_get_conn.return_value.files.return_value.create.assert_not_called()
-        self.assertEqual("ID_4", result_value)
+        assert "ID_4" == result_value
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.MediaFileUpload")
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
@@ -183,7 +183,7 @@ class TestGoogleDriveHook(unittest.TestCase):
                 )
             ]
         )
-        self.assertEqual(return_value, "FILE_ID")
+        assert return_value == "FILE_ID"
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.MediaFileUpload")
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
@@ -212,4 +212,4 @@ class TestGoogleDriveHook(unittest.TestCase):
                 )
             ]
         )
-        self.assertEqual(return_value, "FILE_ID")
+        assert return_value == "FILE_ID"

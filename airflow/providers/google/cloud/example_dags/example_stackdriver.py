@@ -21,6 +21,7 @@ Example Airflow DAG for Google Cloud Stackdriver service.
 """
 
 import json
+import os
 
 from airflow import models
 from airflow.providers.google.cloud.operators.stackdriver import (
@@ -37,56 +38,80 @@ from airflow.providers.google.cloud.operators.stackdriver import (
 )
 from airflow.utils.dates import days_ago
 
+PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+
 TEST_ALERT_POLICY_1 = {
     "combiner": "OR",
-    "name": "projects/sd-project/alertPolicies/12345",
-    "creationRecord": {"mutatedBy": "user123", "mutateTime": "2020-01-01T00:00:00.000000Z"},
     "enabled": True,
-    "displayName": "test alert 1",
+    "display_name": "test alert 1",
     "conditions": [
         {
-            "conditionThreshold": {
+            "condition_threshold": {
+                "filter": (
+                    'metric.label.state="blocked" AND '
+                    'metric.type="agent.googleapis.com/processes/count_by_state" '
+                    'AND resource.type="gce_instance"'
+                ),
                 "comparison": "COMPARISON_GT",
-                "aggregations": [{"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE"}],
+                "threshold_value": 100,
+                "duration": {'seconds': 900},
+                "trigger": {"percent": 0},
+                "aggregations": [
+                    {
+                        "alignment_period": {'seconds': 60},
+                        "per_series_aligner": "ALIGN_MEAN",
+                        "cross_series_reducer": "REDUCE_MEAN",
+                        "group_by_fields": ["project", "resource.label.instance_id", "resource.label.zone"],
+                    }
+                ],
             },
-            "displayName": "Condition display",
-            "name": "projects/sd-project/alertPolicies/123/conditions/456",
+            "display_name": "test_alert_policy_1",
         }
     ],
 }
 
 TEST_ALERT_POLICY_2 = {
     "combiner": "OR",
-    "name": "projects/sd-project/alertPolicies/6789",
-    "creationRecord": {"mutatedBy": "user123", "mutateTime": "2020-01-01T00:00:00.000000Z"},
     "enabled": False,
-    "displayName": "test alert 2",
+    "display_name": "test alert 2",
     "conditions": [
         {
-            "conditionThreshold": {
+            "condition_threshold": {
+                "filter": (
+                    'metric.label.state="blocked" AND '
+                    'metric.type="agent.googleapis.com/processes/count_by_state" AND '
+                    'resource.type="gce_instance"'
+                ),
                 "comparison": "COMPARISON_GT",
-                "aggregations": [{"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE"}],
+                "threshold_value": 100,
+                "duration": {'seconds': 900},
+                "trigger": {"percent": 0},
+                "aggregations": [
+                    {
+                        "alignment_period": {'seconds': 60},
+                        "per_series_aligner": "ALIGN_MEAN",
+                        "cross_series_reducer": "REDUCE_MEAN",
+                        "group_by_fields": ["project", "resource.label.instance_id", "resource.label.zone"],
+                    }
+                ],
             },
-            "displayName": "Condition display",
-            "name": "projects/sd-project/alertPolicies/456/conditions/789",
+            "display_name": "test_alert_policy_2",
         }
     ],
 }
 
 TEST_NOTIFICATION_CHANNEL_1 = {
-    "displayName": "channel1",
+    "display_name": "channel1",
     "enabled": True,
     "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
-    "name": "projects/sd-project/notificationChannels/12345",
-    "type": "slack",
+    "type_": "slack",
 }
 
 TEST_NOTIFICATION_CHANNEL_2 = {
-    "displayName": "channel2",
+    "display_name": "channel2",
     "enabled": False,
     "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
-    "name": "projects/sd-project/notificationChannels/6789",
-    "type": "slack",
+    "type_": "slack",
 }
 
 with models.DAG(
@@ -150,18 +175,29 @@ with models.DAG(
     # [START howto_operator_gcp_stackdriver_delete_notification_channel]
     delete_notification_channel = StackdriverDeleteNotificationChannelOperator(
         task_id='delete-notification-channel',
-        name='test-channel',
+        name="{{ task_instance.xcom_pull('list-notification-channel')[0]['name'] }}",
     )
     # [END howto_operator_gcp_stackdriver_delete_notification_channel]
+
+    delete_notification_channel_2 = StackdriverDeleteNotificationChannelOperator(
+        task_id='delete-notification-channel-2',
+        name="{{ task_instance.xcom_pull('list-notification-channel')[1]['name'] }}",
+    )
 
     # [START howto_operator_gcp_stackdriver_delete_alert_policy]
     delete_alert_policy = StackdriverDeleteAlertOperator(
         task_id='delete-alert-policy',
-        name='test-alert',
+        name="{{ task_instance.xcom_pull('list-alert-policies')[0]['name'] }}",
     )
     # [END howto_operator_gcp_stackdriver_delete_alert_policy]
+
+    delete_alert_policy_2 = StackdriverDeleteAlertOperator(
+        task_id='delete-alert-policy-2',
+        name="{{ task_instance.xcom_pull('list-alert-policies')[1]['name'] }}",
+    )
 
     create_notification_channel >> enable_notification_channel >> disable_notification_channel
     disable_notification_channel >> list_notification_channel >> create_alert_policy
     create_alert_policy >> enable_alert_policy >> disable_alert_policy >> list_alert_policies
-    list_alert_policies >> delete_notification_channel >> delete_alert_policy
+    list_alert_policies >> delete_notification_channel >> delete_notification_channel_2
+    delete_notification_channel_2 >> delete_alert_policy >> delete_alert_policy_2

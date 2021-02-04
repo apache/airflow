@@ -184,7 +184,7 @@ class GoogleSystemTest(SystemTest):
                 "gsutil",
                 "iam",
                 "ch",
-                "serviceAccount:%s:admin" % account_email,
+                f"serviceAccount:{account_email}:admin",
                 bucket_name,
             ]
         )

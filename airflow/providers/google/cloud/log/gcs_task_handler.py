@@ -156,7 +156,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         except Exception as e:  # pylint: disable=broad-except
-            log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(remote_loc, str(e))
+            log = f'*** Unable to read remote log from {remote_loc}\n*** {str(e)}\n\n'
             self.log.error(log)
             local_log, metadata = super()._read(ti, try_number)
             log += local_log
@@ -178,7 +178,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             log = '\n'.join([old_log, log]) if old_log else log
         except Exception as e:  # pylint: disable=broad-except
             if not hasattr(e, 'resp') or e.resp.get('status') != '404':  # pylint: disable=no-member
-                log = '*** Previous log discarded: {}\n\n'.format(str(e)) + log
+                log = f'*** Previous log discarded: {str(e)}\n\n' + log
                 self.log.info("Previous log discarded: %s", e)
 
         try:

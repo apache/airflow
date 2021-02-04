@@ -80,9 +80,6 @@
   <script src="{{ url_for_asset('taskInstances.js') }}"></script>
   <script>
     $( document ).ready(function() {
-      var dag_id = '{{ dag.dag_id }}';
-      var task_id = '';
-      var execution_date = '';
       data = {{ data |tojson }};
       var gantt = d3.gantt()
         .taskTypes(data.taskNames)
@@ -90,7 +87,7 @@
         .selector('.gantt')
         .tickFormat("%H:%M:%S");
       gantt(data.tasks);
-      $('body').on('airflow.timezone-change', (e) => {
+      $('body').on('airflow.timezone-change', () => {
         gantt.redraw(data.tasks);
       });
     });

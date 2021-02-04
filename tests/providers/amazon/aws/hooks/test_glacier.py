@@ -45,7 +45,7 @@ class TestAmazonGlacierHook(unittest.TestCase):
         result = self.hook.retrieve_inventory(VAULT_NAME)
         # then
         mock_conn.assert_called_once_with()
-        self.assertEqual(job_id, result)
+        assert job_id == result
 
     @mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.get_conn")
     def test_retrieve_inventory_should_log_mgs(self, mock_conn):
@@ -81,7 +81,7 @@ class TestAmazonGlacierHook(unittest.TestCase):
         response = self.hook.retrieve_inventory_results(VAULT_NAME, JOB_ID)
         # then
         mock_conn.assert_called_once_with()
-        self.assertEqual(response, RESPONSE_BODY)
+        assert response == RESPONSE_BODY
 
     @mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.get_conn")
     def test_retrieve_inventory_results_should_log_mgs(self, mock_conn):
@@ -105,7 +105,7 @@ class TestAmazonGlacierHook(unittest.TestCase):
         response = self.hook.describe_job(VAULT_NAME, JOB_ID)
         # then
         mock_conn.assert_called_once_with()
-        self.assertEqual(response, JOB_STATUS)
+        assert response == JOB_STATUS
 
     @mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.get_conn")
     def test_describe_job_should_log_mgs(self, mock_conn):

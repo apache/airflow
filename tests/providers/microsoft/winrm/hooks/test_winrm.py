@@ -20,6 +20,8 @@
 import unittest
 from unittest.mock import patch
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
@@ -33,17 +35,17 @@ class TestWinRMHook(unittest.TestCase):
 
         conn = winrm_hook.get_conn()
 
-        self.assertEqual(conn, winrm_hook.client)
+        assert conn == winrm_hook.client
 
     def test_get_conn_missing_remote_host(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             WinRMHook().get_conn()
 
     @patch('airflow.providers.microsoft.winrm.hooks.winrm.Protocol')
     def test_get_conn_error(self, mock_protocol):
         mock_protocol.side_effect = Exception('Error')
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             WinRMHook(remote_host='host').get_conn()
 
     @patch('airflow.providers.microsoft.winrm.hooks.winrm.Protocol', autospec=True)
@@ -107,7 +109,7 @@ class TestWinRMHook(unittest.TestCase):
 
         winrm_hook.get_conn()
 
-        self.assertEqual(mock_getuser.return_value, winrm_hook.username)
+        assert mock_getuser.return_value == winrm_hook.username
 
     @patch('airflow.providers.microsoft.winrm.hooks.winrm.Protocol')
     def test_get_conn_no_endpoint(self, mock_protocol):
@@ -115,6 +117,4 @@ class TestWinRMHook(unittest.TestCase):
 
         winrm_hook.get_conn()
 
-        self.assertEqual(
-            f'http://{winrm_hook.remote_host}:{winrm_hook.remote_port}/wsman', winrm_hook.endpoint
-        )
+        assert f'http://{winrm_hook.remote_host}:{winrm_hook.remote_port}/wsman' == winrm_hook.endpoint

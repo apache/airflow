@@ -58,11 +58,11 @@ class TestGetHeath(TestHealthTestBase):
         )
         session.commit()
         resp_json = self.client.get("/api/v1/health").json
-        self.assertEqual("healthy", resp_json["metadatabase"]["status"])
-        self.assertEqual("healthy", resp_json["scheduler"]["status"])
-        self.assertEqual(
-            last_scheduler_heartbeat_for_testing_1.isoformat(),
-            resp_json["scheduler"]["latest_scheduler_heartbeat"],
+        assert "healthy" == resp_json["metadatabase"]["status"]
+        assert "healthy" == resp_json["scheduler"]["status"]
+        assert (
+            last_scheduler_heartbeat_for_testing_1.isoformat()
+            == resp_json["scheduler"]["latest_scheduler_heartbeat"]
         )
 
     @provide_session
@@ -77,22 +77,22 @@ class TestGetHeath(TestHealthTestBase):
         )
         session.commit()
         resp_json = self.client.get("/api/v1/health").json
-        self.assertEqual("healthy", resp_json["metadatabase"]["status"])
-        self.assertEqual("unhealthy", resp_json["scheduler"]["status"])
-        self.assertEqual(
-            last_scheduler_heartbeat_for_testing_2.isoformat(),
-            resp_json["scheduler"]["latest_scheduler_heartbeat"],
+        assert "healthy" == resp_json["metadatabase"]["status"]
+        assert "unhealthy" == resp_json["scheduler"]["status"]
+        assert (
+            last_scheduler_heartbeat_for_testing_2.isoformat()
+            == resp_json["scheduler"]["latest_scheduler_heartbeat"]
         )
 
     def test_unhealthy_scheduler_no_job(self):
         resp_json = self.client.get("/api/v1/health").json
-        self.assertEqual("healthy", resp_json["metadatabase"]["status"])
-        self.assertEqual("unhealthy", resp_json["scheduler"]["status"])
-        self.assertIsNone(resp_json["scheduler"]["latest_scheduler_heartbeat"])
+        assert "healthy" == resp_json["metadatabase"]["status"]
+        assert "unhealthy" == resp_json["scheduler"]["status"]
+        assert resp_json["scheduler"]["latest_scheduler_heartbeat"] is None
 
     @mock.patch("airflow.api_connexion.endpoints.health_endpoint.SchedulerJob.most_recent_job")
     def test_unhealthy_metadatabase_status(self, mock_scheduler_most_recent_job):
         mock_scheduler_most_recent_job.side_effect = Exception
         resp_json = self.client.get("/api/v1/health").json
-        self.assertEqual("unhealthy", resp_json["metadatabase"]["status"])
-        self.assertIsNone(resp_json["scheduler"]["latest_scheduler_heartbeat"])
+        assert "unhealthy" == resp_json["metadatabase"]["status"]
+        assert resp_json["scheduler"]["latest_scheduler_heartbeat"] is None

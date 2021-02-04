@@ -16,7 +16,7 @@
 # under the License.
 
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 
 from cached_property import cached_property
 
@@ -31,7 +31,7 @@ class TaskLogReader:
 
     def read_log_chunks(
         self, ti: TaskInstance, try_number: Optional[int], metadata
-    ) -> Tuple[List[str], Dict[str, Any]]:
+    ) -> Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]:
         """
         Reads chunks of Task Instance logs.
 
@@ -42,7 +42,7 @@ class TaskLogReader:
         :type try_number: Optional[int]
         :param metadata: A dictionary containing information about how to read the task log
         :type metadata: dict
-        :rtype: Tuple[List[str], Dict[str, Any]]
+        :rtype: Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]
 
         The following is an example of how to use this method to read log:
 

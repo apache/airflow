@@ -22,11 +22,13 @@ description: |
     `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 versions:
+  - 1.1.0
   - 1.0.0
 
 integrations:
   - integration-name: SSH File Transfer Protocol (SFTP)
     external-doc-url: https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/
+    logo: /integration-logos/sftp/SFTP.png
     tags: [protocol]
 
 operators:

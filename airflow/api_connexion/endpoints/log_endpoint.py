@@ -22,6 +22,7 @@ from itsdangerous.url_safe import URLSafeSerializer
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
+from airflow.exceptions import TaskNotFound
 from airflow.models import DagRun
 from airflow.security import permissions
 from airflow.utils.log.log_reader import TaskLogReader
@@ -71,7 +72,10 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=
 
     dag = current_app.dag_bag.get_dag(dag_id)
     if dag:
-        ti.task = dag.get_task(ti.task_id)
+        try:
+            ti.task = dag.get_task(ti.task_id)
+        except TaskNotFound:
+            pass
 
     return_type = request.accept_mimetypes.best_match(['text/plain', 'application/json'])
 

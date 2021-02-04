@@ -20,6 +20,8 @@ import unittest
 from datetime import datetime
 from unittest.mock import Mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 from airflow.utils.state import State
@@ -31,19 +33,19 @@ class TestValidStateDep(unittest.TestCase):
         Valid state should pass this dep
         """
         ti = Mock(state=State.QUEUED, end_date=datetime(2016, 1, 1))
-        self.assertTrue(ValidStateDep({State.QUEUED}).is_met(ti=ti))
+        assert ValidStateDep({State.QUEUED}).is_met(ti=ti)
 
     def test_invalid_state(self):
         """
         Invalid state should fail this dep
         """
         ti = Mock(state=State.SUCCESS, end_date=datetime(2016, 1, 1))
-        self.assertFalse(ValidStateDep({State.FAILED}).is_met(ti=ti))
+        assert not ValidStateDep({State.FAILED}).is_met(ti=ti)
 
     def test_no_valid_states(self):
         """
         If there are no valid states the dependency should throw
         """
         ti = Mock(state=State.SUCCESS, end_date=datetime(2016, 1, 1))
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             ValidStateDep({}).is_met(ti=ti)

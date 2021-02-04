@@ -17,6 +17,13 @@
  under the License.
  -->
 
+## Release 2021.2.5
+
+  * `Pass image_pull_policy in KubernetesPodOperator correctly (#13289)`
+
+
+### Bug fixes
+
 ## Additional limitations
 
 This provider is only usable with Apache Airflow >= 1.10.12 version due to refactorings implemented in

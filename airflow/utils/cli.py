@@ -268,7 +268,7 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
     id_to_name = {th.ident: th.name for th in threading.enumerate()}
     code = []
     for thread_id, stack in sys._current_frames().items():  # pylint: disable=protected-access
-        code.append("\n# Thread: {}({})".format(id_to_name.get(thread_id, ""), thread_id))
+        code.append(f"\n# Thread: {id_to_name.get(thread_id, '')}({thread_id})")
         for filename, line_number, name, line in traceback.extract_stack(stack):
             code.append(f'File: "{filename}", line {line_number}, in {name}')
             if line:

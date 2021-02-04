@@ -116,4 +116,4 @@ class TestDruidHook(unittest.TestCase):
         }
 
         # Make sure it is like we expect it
-        self.assertEqual(provided_index_spec, expected_index_spec)
+        assert provided_index_spec == expected_index_spec

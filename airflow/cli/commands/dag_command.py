@@ -162,11 +162,14 @@ def dag_unpause(args):
 
 def set_is_paused(is_paused, args):
     """Sets is_paused for DAG by a given dag_id"""
-    DagModel.get_dagmodel(args.dag_id).set_is_paused(
-        is_paused=is_paused,
-    )
+    dag = DagModel.get_dagmodel(args.dag_id)
 
-    print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
+    if not dag:
+        raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
+
+    dag.set_is_paused(is_paused=is_paused)
+
+    print(f"Dag: {args.dag_id}, paused: {is_paused}")
 
 
 def dag_show(args):

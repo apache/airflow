@@ -93,7 +93,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         webhook_token = hook._get_token(manual_token, None)
 
         # Then
-        self.assertEqual(webhook_token, manual_token)
+        assert webhook_token == manual_token
 
     def test_get_token_conn_id(self):
         # Given
@@ -105,7 +105,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         webhook_token = hook._get_token(None, conn_id)
 
         # Then
-        self.assertEqual(webhook_token, expected_webhook_token)
+        assert webhook_token == expected_webhook_token
 
     def test_get_token_conn_id_password(self):
         # Given
@@ -117,7 +117,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         webhook_token = hook._get_token(None, conn_id)
 
         # Then
-        self.assertEqual(webhook_token, expected_webhook_token)
+        assert webhook_token == expected_webhook_token
 
     def test_build_slack_message(self):
         # Given
@@ -127,7 +127,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         message = hook._build_slack_message()
 
         # Then
-        self.assertEqual(self.expected_message_dict, json.loads(message))
+        assert self.expected_message_dict == json.loads(message)
 
     @mock.patch('requests.Session')
     @mock.patch('requests.Request')

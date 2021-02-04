@@ -45,7 +45,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
             http=mock_authorize.return_value,
             cache_discovery=False,
         )
-        self.assertEqual(mock_build.return_value, result)
+        assert mock_build.return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -60,7 +60,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
             http=mock_authorize.return_value,
             cache_discovery=False,
         )
-        self.assertEqual(mock_build.return_value, result)
+        assert mock_build.return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -78,7 +78,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
 
         get_conn_mock.return_value.queries.return_value.createquery.assert_called_once_with(body=body)
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -112,7 +112,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
 
         get_conn_mock.return_value.queries.return_value.getquery.assert_called_once_with(queryId=query_id)
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -129,7 +129,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
 
         get_conn_mock.return_value.queries.return_value.listqueries.assert_called_once_with()
 
-        self.assertEqual(queries, result)
+        assert queries == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -196,7 +196,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         # fmt: on
 
         result = self.hook.download_line_items(request_body)
-        self.assertEqual(line_item, result)
+        assert line_item == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -239,7 +239,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         # fmt: on
         result = self.hook.upload_line_items(line_items)
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -302,7 +302,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
         # fmt: on
 
         result = self.hook.create_sdf_download_operation(body_request=body_request)
-        self.assertEqual(response, result)
+        assert response == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -346,7 +346,7 @@ class TestGoogleDisplayVideo360Hook(TestCase):
 
         result = self.hook.get_sdf_download_operation(operation_name=operation_name)
 
-        self.assertEqual(operation_name, result)
+        assert operation_name == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."

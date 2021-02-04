@@ -22,6 +22,7 @@ description: |
     `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 versions:
+  - 1.1.0
   - 1.0.0
 
 integrations:
@@ -29,6 +30,7 @@ integrations:
     external-doc-url: https://www.w3.org/Protocols/
     how-to-guide:
       - /docs/apache-airflow-providers-http/operators.rst
+    logo: /integration-logos/http/HTTP.png
     tags: [protocol]
 
 operators:

@@ -180,7 +180,7 @@ class FTPHook(BaseHook):
         remote_path, remote_file_name = os.path.split(remote_full_path)
         conn.cwd(remote_path)
         self.log.info('Retrieving file from FTP: %s', remote_full_path)
-        conn.retrbinary('RETR %s' % remote_file_name, callback)
+        conn.retrbinary(f'RETR {remote_file_name}', callback)
         self.log.info('Finished retrieving file from FTP: %s', remote_full_path)
 
         if is_path and output_handle:
@@ -210,7 +210,7 @@ class FTPHook(BaseHook):
             input_handle = local_full_path_or_buffer
         remote_path, remote_file_name = os.path.split(remote_full_path)
         conn.cwd(remote_path)
-        conn.storbinary('STOR %s' % remote_file_name, input_handle)
+        conn.storbinary(f'STOR {remote_file_name}', input_handle)
 
         if is_path:
             input_handle.close()

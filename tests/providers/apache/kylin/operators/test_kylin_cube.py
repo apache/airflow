@@ -20,6 +20,8 @@ import unittest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
@@ -82,13 +84,13 @@ class TestKylinCubeOperator(unittest.TestCase):
         mock_hook.return_value = hook
         mock_hook.cube_run.return_value = {}
 
-        self.assertIsNotNone(operator)
-        self.assertEqual(self._config['kylin_conn_id'], operator.kylin_conn_id)
-        self.assertEqual(self._config['project'], operator.project)
-        self.assertEqual(self._config['cube'], operator.cube)
-        self.assertEqual(self._config['command'], operator.command)
-        self.assertEqual(self._config['start_time'], operator.start_time)
-        self.assertEqual(self._config['end_time'], operator.end_time)
+        assert operator is not None
+        assert self._config['kylin_conn_id'] == operator.kylin_conn_id
+        assert self._config['project'] == operator.project
+        assert self._config['cube'] == operator.cube
+        assert self._config['command'] == operator.command
+        assert self._config['start_time'] == operator.start_time
+        assert self._config['end_time'] == operator.end_time
         operator.execute(None)
         mock_hook.assert_called_once_with(
             kylin_conn_id=self._config['kylin_conn_id'], project=self._config['project'], dsn=None
@@ -115,7 +117,7 @@ class TestKylinCubeOperator(unittest.TestCase):
 
         hook.get_job_status.side_effect = ["RUNNING", "RUNNING", "FINISHED"]
         mock_hook.return_value = hook
-        self.assertEqual(operator.execute(None)['uuid'], "c143e0e4-ac5f-434d-acf3-46b0d15e3dc6")
+        assert operator.execute(None)['uuid'] == "c143e0e4-ac5f-434d-acf3-46b0d15e3dc6"
 
     @patch('airflow.providers.apache.kylin.operators.kylin_cube.KylinHook')
     def test_execute_build_status_error(self, mock_hook):
@@ -128,7 +130,8 @@ class TestKylinCubeOperator(unittest.TestCase):
 
         hook.get_job_status.return_value = "ERROR"
         mock_hook.return_value = hook
-        self.assertRaises(AirflowException, operator.execute, None)
+        with pytest.raises(AirflowException):
+            operator.execute(None)
 
     @patch('airflow.providers.apache.kylin.operators.kylin_cube.KylinHook')
     def test_execute_build_time_out_error(self, mock_hook):
@@ -141,7 +144,8 @@ class TestKylinCubeOperator(unittest.TestCase):
 
         hook.get_job_status.return_value = "RUNNING"
         mock_hook.return_value = hook
-        self.assertRaises(AirflowException, operator.execute, None)
+        with pytest.raises(AirflowException):
+            operator.execute(None)
 
     def test_render_template(self):
         operator = KylinCubeOperator(
@@ -164,8 +168,8 @@ class TestKylinCubeOperator(unittest.TestCase):
         )
         ti = TaskInstance(operator, DEFAULT_DATE)
         ti.render_templates()
-        self.assertEqual('learn_kylin', getattr(operator, 'project'))
-        self.assertEqual('kylin_sales_cube', getattr(operator, 'cube'))
-        self.assertEqual('build', getattr(operator, 'command'))
-        self.assertEqual('1483200000000', getattr(operator, 'start_time'))
-        self.assertEqual('1483286400000', getattr(operator, 'end_time'))
+        assert 'learn_kylin' == getattr(operator, 'project')
+        assert 'kylin_sales_cube' == getattr(operator, 'cube')
+        assert 'build' == getattr(operator, 'command')
+        assert '1483200000000' == getattr(operator, 'start_time')
+        assert '1483286400000' == getattr(operator, 'end_time')

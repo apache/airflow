@@ -71,9 +71,7 @@ class BaseXCom(Base, LoggingMixin):
             self.value = pickle.loads(self.value)
 
     def __repr__(self):
-        return '<XCom "{key}" ({task_id} @ {execution_date})>'.format(
-            key=self.key, task_id=self.task_id, execution_date=self.execution_date
-        )
+        return f'<XCom "{self.key}" ({self.task_id} @ {self.execution_date})>'
 
     @classmethod
     @provide_session
