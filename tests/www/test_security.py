@@ -125,6 +125,12 @@ class TestSecurity(unittest.TestCase):
         #     user = self.user
         return self.security_manager.has_access(perm, self.security_manager.prefixed_dag_id(dag_id), user)
 
+    def _create_dag(self, dag_id):
+        dag_model = DagModel(dag_id=dag_id)
+        self.session.add(dag_model)
+        self.session.commit()
+        self.security_manager.sync_perm_for_dag(dag_id, access_control=None)
+
     def tearDown(self):
         clear_db_runs()
         clear_db_dags()
@@ -170,10 +176,74 @@ class TestSecurity(unittest.TestCase):
         assert role_perms_len == new_role_perms_len
 
     def test_verify_public_role_has_no_permissions(self):
-        with self.app.app_context():
-            public = self.appbuilder.sm.find_role("Public")
+        public = self.appbuilder.sm.find_role("Public")
 
-            assert public.permissions == []
+        assert public.permissions == []
+
+    def test_verify_default_anon_user_has_no_accessible_dag_ids(self):
+        with self.app.app_context():
+            user = mock.MagicMock()
+            user.is_anonymous = True
+            self.app.config['AUTH_ROLE_PUBLIC'] = 'Public'
+            assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.get_public_role()]
+
+            self._create_dag("test_dag_id")
+            self.security_manager.sync_roles()
+
+            assert self.security_manager.get_accessible_dag_ids(user) == set()
+
+    def test_verify_default_anon_user_has_no_access_to_specific_dag(self):
+        with self.app.app_context():
+            user = mock.MagicMock()
+            user.is_anonymous = True
+            self.app.config['AUTH_ROLE_PUBLIC'] = 'Public'
+            assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.get_public_role()]
+
+            dag_id = "test_dag_id"
+            self._create_dag(dag_id)
+            self.app.appbuilder.sm.sync_roles()
+
+            assert self.app.appbuilder.sm.can_read_dag(dag_id, user) is False
+            assert self.app.appbuilder.sm.can_edit_dag(dag_id, user) is False
+            assert self._has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is False
+            assert self._has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is False
+
+    def test_verify_anon_user_with_admin_role_has_all_dag_access(self):
+        with self.app.app_context():
+            self.app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
+            user = mock.MagicMock()
+            user.is_anonymous = True
+
+            assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.get_public_role()]
+
+            test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
+            for dag_id in test_dag_ids:
+                self._create_dag(dag_id)
+            self.security_manager.sync_roles()
+
+            assert self.security_manager.get_accessible_dag_ids(user) == set(test_dag_ids)
+
+    def test_verify_anon_user_with_admin_role_has_access_to_each_dag(self):
+        with self.app.app_context():
+            user = mock.MagicMock()
+            user.is_anonymous = True
+            self.app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
+
+            # Call `.get_user_roles` bc `user` is a mock and the `user.roles` prop needs to be set.
+            user.roles = self.app.appbuilder.sm.get_user_roles(user)
+            assert user.roles == [self.app.appbuilder.sm.get_public_role()]
+
+            test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
+
+            for dag_id in test_dag_ids:
+                self._create_dag(dag_id)
+            self.security_manager.sync_roles()
+
+            for dag_id in test_dag_ids:
+                assert self.app.appbuilder.sm.can_read_dag(dag_id, user) is True
+                assert self.app.appbuilder.sm.can_edit_dag(dag_id, user) is True
+                assert self._has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is True
+                assert self._has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is True
 
     def test_get_user_roles(self):
         user = mock.MagicMock()

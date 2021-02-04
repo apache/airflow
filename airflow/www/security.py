@@ -140,6 +140,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     ###########################################################################
 
     ROLE_CONFIGS = [
+        {'role': 'Public', 'perms': []},
         {'role': 'Viewer', 'perms': VIEWER_PERMISSIONS},
         {
             'role': 'User',
@@ -254,22 +255,24 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     @provide_session
     def get_accessible_dags(self, user_actions, user, session=None):
-        """Generic function to get readable or writable DAGs for authenticated user."""
+        """Generic function to get readable or writable DAGs for user."""
         if user.is_anonymous:
-            return set()
-
-        user_query = (
-            session.query(User)
-            .options(
-                joinedload(User.roles)
-                .subqueryload(Role.permissions)
-                .options(joinedload(PermissionView.permission), joinedload(PermissionView.view_menu))
+            roles = self.get_user_roles(user)
+        else:
+            user_query = (
+                session.query(User)
+                .options(
+                    joinedload(User.roles)
+                    .subqueryload(Role.permissions)
+                    .options(joinedload(PermissionView.permission), joinedload(PermissionView.view_menu))
+                )
+                .filter(User.id == user.id)
+                .first()
             )
-            .filter(User.id == user.id)
-            .first()
-        )
+            roles = user_query.roles
+
         resources = set()
-        for role in user_query.roles:
+        for role in roles:
             for permission in role.permissions:
                 action = permission.permission.name
                 if action not in user_actions:
@@ -348,7 +351,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             user = g.user
 
         if user.is_anonymous:
-            return self.is_item_public(permission, resource)
+            user.roles = self.get_user_roles(user)
 
         has_access = self._has_view_access(user, permission, resource)
         # FAB built-in view access method. Won't work for AllDag access.
