@@ -419,7 +419,7 @@ class DagFileProcessor(LoggingMixin):
         ts = timezone.utcnow()
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
-            if not isinstance(task.sla, timedelta):
+            if not task.sla:
                 continue
 
             dttm = dag.following_schedule(ti.execution_date)
