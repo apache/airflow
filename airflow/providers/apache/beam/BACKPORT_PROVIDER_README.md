@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-apache-beam
 
-Release:
+Release: 2021.2.5
 
 **Table of contents**
 
@@ -30,13 +30,11 @@ Release:
 - [Cross provider package dependencies](#cross-provider-package-dependencies)
 - [Provider class summary](#provider-classes-summary)
     - [Operators](#operators)
-        - [Moved operators](#moved-operators)
-    - [Transfer operators](#transfer-operators)
-        - [Moved transfer operators](#moved-transfer-operators)
+        - [New operators](#new-operators)
     - [Hooks](#hooks)
-        - [Moved hooks](#moved-hooks)
+        - [New hooks](#new-hooks)
 - [Releases](#releases)
-    - [Release](#release)
+    - [Release 2021.2.5](#release-202125)
 
 ## Backport package
 
@@ -49,10 +47,17 @@ While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade pyth
 want to use this backport package.
 
 
+
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
 `pip install apache-airflow-backport-providers-apache-beam`
+
+## PIP requirements
+
+| PIP package        | Version required   |
+|:-------------------|:-------------------|
+| `apache-beam[gcp]` |                    |
 
 ## Cross provider package dependencies
 
@@ -65,10 +70,9 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 pip install apache-airflow-backport-providers-apache-beam[google]
 ```
 
-| Dependent package                                                                                         | Extra       |
-|:----------------------------------------------------------------------------------------------------------|:------------|
-| [apache-airflow-providers-apache-google](https://pypi.org/project/apache-airflow-providers-apache-google) | google      |
-
+| Dependent package                                                                                                  | Extra    |
+|:-------------------------------------------------------------------------------------------------------------------|:---------|
+| [apache-airflow-backport-providers-google](https://github.com/apache/airflow/tree/master/airflow/providers/google) | `google` |
 
 # Provider classes summary
 
@@ -79,15 +83,18 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Operators
 
+
 ### New operators
 
-| New Airflow 2.0 operators: `airflow.providers.apache.beam` package                                                                                                                 |
-|:-----------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.beam.BeamRunJavaPipelineOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/beam/operators/beam.py)    |
-| [operators.beam.BeamRunPythonPipelineOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/beam/operators/beam.py)  |
+| New Airflow 2.0 operators: `airflow.providers.apache.beam` package                                                                            |
+|:----------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.beam.BeamRunJavaPipelineOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/beam/operators/beam.py)   |
+| [operators.beam.BeamRunPythonPipelineOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/beam/operators/beam.py) |
+
 
 
 ## Hooks
+
 
 ### New hooks
 
@@ -96,4 +103,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [hooks.beam.BeamHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/beam/hooks/beam.py) |
 
 
+
+
 ## Releases
+
+### Release 2021.2.5
+
+| Commit                                                                                         | Committed   | Subject                                                                   |
+|:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------|
+| [d45739f7c](https://github.com/apache/airflow/commit/d45739f7ce0de183329d67fff88a9da3943a9280) | 2021-02-04  | `Fixes to release process after releasing 2nd wave of providers (#14059)` |
+| [1872d8719](https://github.com/apache/airflow/commit/1872d8719d24f94aeb1dcba9694837070b9884ca) | 2021-02-03  | `Add Apache Beam operators (#12814)`                                      |

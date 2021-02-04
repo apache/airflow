@@ -99,7 +99,7 @@ generates corresponding .asc and .sha512 files for each file to sign.
 ```shell script
 export VERSION=2020.5.20rc2
 export AIRFLOW_REPO_ROOT=$(pwd)
-
+rm -f ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
 * Build the source package:
@@ -115,13 +115,14 @@ It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
   you intended to build.
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-svn rc1
+./breeze --backports prepare-provider-packages --package-format-both --version-suffix-for-svn rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-svn rc1 PACKAGE PACKAGE ....
+./breeze --backports prepare-provider-packages --package-format-both --version-suffix-for-svn rc1 \
+    PACKAGE PACKAGE ....
 ```
 
 * Move the source tarball to dist folder
@@ -157,7 +158,7 @@ cd airflow-dev
 svn update
 
 # Create a new folder for the release.
-cd airflow-dev/backport-providers
+cd backport-providers
 svn mkdir ${VERSION}
 
 # Move the artifacts to svn folder
@@ -184,13 +185,15 @@ though they should be generated from the same sources.
 this will clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1
+rm -f ${AIRFLOW_REPO_ROOT}/dist/*
+./breeze --backports --package-format both  prepare-provider-packages --version-suffix-for-pypi rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages --version-suffix-for-pypi rc1 PACKAGE PACKAGE ....
+./breeze --backports --package-format both prepare-provider-packages --version-suffix-for-pypi rc1 \
+    PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -252,9 +255,12 @@ https://dist.apache.org/repos/dist/dev/airflow/backport-providers/${VERSION}/
 *apache-airflow-backport-providers-<PROVIDER>-${VERSION}-bin.tar.gz* are the binary
  Python "sdist" release.
 
-The test procedure for PMCs and Contributors who would like to test the RC candidates are described in
-https://github.com/apache/airflow/blob/master/dev/README.md#vote-and-verify-the-backport-providers-release-candidate
+The test procedure for PMCs who would like to test the RC candidates is described in
 
+https://github.com/apache/airflow/blob/master/dev/README_RELEASE_BACKPORT_PROVIDER_PACKAGES.md#verify-the-release-by-pmc-members
+
+and for contributors:
+https://github.com/apache/airflow/blob/master/dev/README_RELEASE_BACKPORT_PROVIDER_PACKAGES.md#verify-by-contributors
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
@@ -273,7 +279,7 @@ Please note that the version number excludes the 'rcX' string, so it's now
 simply ${VERSION%rc?}. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
-Each of the packages contains detailed changelog. Here is the list of links to
+Each of the packages contains a detailed changelog. Here is the list of links to
 the released packages and changelogs:
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>

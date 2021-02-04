@@ -4,6 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                                 |
 |:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------------------------|
+| [88bdcfa0d](https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43) | 2021-02-04  | `Prepare to release a new wave of providers. (#14013)`                                  |
 | [1872d8719](https://github.com/apache/airflow/commit/1872d8719d24f94aeb1dcba9694837070b9884ca) | 2021-02-03  | `Add Apache Beam operators (#12814)`                                                    |
 | [0e8c77b93](https://github.com/apache/airflow/commit/0e8c77b93a5ca5ecfdcd1c4bd91f54846fc15d57) | 2021-02-03  | `Support google-cloud-logging&#39; &gt;=2.0.0 (#13801)`                                        |
 | [833e33832](https://github.com/apache/airflow/commit/833e3383230e1f6f73f8022ddf439d3d531eff01) | 2021-02-02  | `Fix four bugs in StackdriverTaskHandler (#13784)`                                      |

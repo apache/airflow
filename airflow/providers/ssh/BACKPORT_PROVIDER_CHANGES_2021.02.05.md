@@ -4,6 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                          |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------------|
+| [88bdcfa0d](https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43) | 2021-02-04  | `Prepare to release a new wave of providers. (#14013)`                           |
 | [ac2f72c98](https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b) | 2021-02-01  | `Implement provider versioning tools (#13767)`                                   |
 | [daedc9985](https://github.com/apache/airflow/commit/daedc998519f534f604fdecb86b101fa4eb5b5dd) | 2021-01-30  | `Fix decode error for ssh log (#13943)`                                          |
 | [a9ac2b040](https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22) | 2021-01-23  | `Switch to f-strings using flynt. (#13732)`                                      |

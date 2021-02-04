@@ -134,6 +134,8 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                                          |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------------|
+| [d45739f7c](https://github.com/apache/airflow/commit/d45739f7ce0de183329d67fff88a9da3943a9280) | 2021-02-04  | `Fixes to release process after releasing 2nd wave of providers (#14059)`        |
+| [88bdcfa0d](https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43) | 2021-02-04  | `Prepare to release a new wave of providers. (#14013)`                           |
 | [9af452aee](https://github.com/apache/airflow/commit/9af452aee53dd300535dadd108ce3e60c5f11a2e) | 2021-02-03  | `Add retryer to SFTP hook connection (#13065)`                                   |
 | [ac2f72c98](https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b) | 2021-02-01  | `Implement provider versioning tools (#13767)`                                   |
 | [a9ac2b040](https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22) | 2021-01-23  | `Switch to f-strings using flynt. (#13732)`                                      |

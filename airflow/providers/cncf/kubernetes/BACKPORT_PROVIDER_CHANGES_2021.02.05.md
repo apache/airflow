@@ -4,6 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                                  |
 |:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------------------------------|
+| [88bdcfa0d](https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43) | 2021-02-04  | `Prepare to release a new wave of providers. (#14013)`                                   |
 | [ac2f72c98](https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b) | 2021-02-01  | `Implement provider versioning tools (#13767)`                                           |
 | [a9ac2b040](https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22) | 2021-01-23  | `Switch to f-strings using flynt. (#13732)`                                              |
 | [1b9e3d1c2](https://github.com/apache/airflow/commit/1b9e3d1c285cb381f2f964c0c923711cd5e1e3d0) | 2021-01-22  | `Revert &#34;Fix error with quick-failing tasks in KubernetesPodOperator (#13621)&#34; (#13835)` |

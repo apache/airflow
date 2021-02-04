@@ -158,7 +158,7 @@ function rename_packages_if_needed() {
         if [[ "${PACKAGE_FORMAT}" == "sdist" || "${PACKAGE_FORMAT}" == "both" ]]; then
             for FILE in *.tar.gz
             do
-                mv "${FILE}" "${FILE//\.tar\.gz/${FILE_VERSION_SUFFIX}-bin.tar.gz}"
+                mv "${FILE}" "${FILE//\.tar\.gz/${FILE_VERSION_SUFFIX}.tar.gz}"
             done
         fi
         if [[ "${PACKAGE_FORMAT}" == "wheel" || "${PACKAGE_FORMAT}" == "both" ]]; then

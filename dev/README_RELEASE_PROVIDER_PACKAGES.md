@@ -226,7 +226,7 @@ for file in ${AIRFLOW_REPO_ROOT}/dist/*.whl
 do
    if [[ ${file} =~ .*airflow_providers_(.*)-(.*)-py3.* ]]; then
         provider="providers-${BASH_REMATCH[1]}"
-        tag = "${provider//_/-}/${BASH_REMATCH[2]}"
+        tag="${provider//_/-}/${BASH_REMATCH[2]}"
         git tag "${tag}"
         git push apache "${tag}"
    fi
@@ -278,18 +278,34 @@ cd "${AIRFLOW_REPO_ROOT}"
 - Now you can preview the documentation.
 
 ```shell script
-./docs/start_doc_server.sh
+./docs/start_doc_server1.sh
 ```
 
 - Copy the documentation to the ``airflow-site`` repository
 
+**NOTE** In oder to run the publish_doc
+
+All providers:
+
 ```shell script
 ./docs/publish_docs.py \
     --package-filter apache-airflow-providers \
-    --package-filter apache-airflow-providers-telegram \
+    --package-filter 'apache-airflow-providers-*'
 
 cd "${AIRFLOW_SITE_DIRECTORY}"
 ```
+
+If you have released just a few providers:
+
+```shell script
+./docs/publish_docs.py \
+    --package-filter apache-airflow-providers \
+  --package-filter 'apache-airflow-providers-PACKAGE1' \
+  --package-filter 'apache-airflow-providers-PACKAGE2' \
+
+cd "${AIRFLOW_SITE_DIRECTORY}"
+```
+
 
 - If you publish a new package, you must add it to
   [the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
@@ -297,7 +313,7 @@ cd "${AIRFLOW_SITE_DIRECTORY}"
 - Create the commit and push changes.
 
 ```shell script
-git commit -m "Add documentation for backport packages - $(date "+%Y-%m-%d%n")"
+git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
 git push
 ```
 
@@ -321,7 +337,7 @@ EOF
 cat <<EOF
 Hey all,
 
-I have cut Airflow Providers. This email is calling a vote on the release,
+I have just cut the new wave f Airflow Providers packages. This email is calling a vote on the release,
 which will last for 72 hours - which means that it will end on $(date -d '+3 days').
 
 Consider this my (binding) +1.
@@ -335,8 +351,12 @@ https://dist.apache.org/repos/dist/dev/airflow/providers/
 *apache_airflow_providers_<PROVIDER>-*.whl are the binary
  Python "wheel" release.
 
-The test procedure for PMCs and Contributors who would like to test the RC candidates are described in
-https://github.com/apache/airflow/blob/master/dev/README_RELEASE_PROVIDER_PACKAGES.md#vote-and-verify-the-providers-release-candidate
+The test procedure for PMC members who would like to test the RC candidates are described in
+https://github.com/apache/airflow/blob/master/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-by-pmc-members
+
+and for Contributors:
+
+https://github.com/apache/airflow/blob/master/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-by-contributors
 
 
 Public keys are available at:
@@ -352,12 +372,19 @@ Please vote accordingly:
 Only votes from PMC members are binding, but members of the community are
 encouraged to test the release and vote with "(non-binding)".
 
-Please note that the version number excludes the 'rcX' string, so it's now
-simply ${VERSION%rc?}. This will allow us to rename the artifact without modifying
+Please note that the version number excludes the 'rcX' string.
+This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
-Each of the packages contains detailed changelog. Here is the list of links to
-the released packages and changelogs:
+
+Each of the packages contains a link to the detailed changelog. The changelogs are moved to the official airflow documentation:
+https://github.com/apache/airflow-site/<TODO COPY LINK TO BRANCH>
+
+<PASTE ANY HIGH-LEVEL DESCRIPTION OF THE CHANGES HERE!>
+
+
+Note the links to documentation from PyPI packages are not working until we merge
+the changes to airflow site after releasing the packages officially.
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 

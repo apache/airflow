@@ -4,6 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                                              |
 |:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------------------------------------------|
+| [88bdcfa0d](https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43) | 2021-02-04  | `Prepare to release a new wave of providers. (#14013)`                                               |
 | [ac2f72c98](https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b) | 2021-02-01  | `Implement provider versioning tools (#13767)`                                                       |
 | [3fd5ef355](https://github.com/apache/airflow/commit/3fd5ef355556cf0ad7896bb570bbe4b2eabbf46e) | 2021-01-21  | `Add missing logos for integrations (#13717)`                                                        |
 | [1602ec97c](https://github.com/apache/airflow/commit/1602ec97c8d5bc7a7a8b42e850ac6c7a7030e47d) | 2021-01-20  | `Add a new argument for HttpSensor to accept a list of http status code to Continue Poking (#13499)` |

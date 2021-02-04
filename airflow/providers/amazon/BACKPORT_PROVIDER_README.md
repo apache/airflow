@@ -310,6 +310,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                                                 |
 |:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------------------------|
+| [88bdcfa0d](https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43) | 2021-02-04  | `Prepare to release a new wave of providers. (#14013)`                                  |
 | [ac2f72c98](https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b) | 2021-02-01  | `Implement provider versioning tools (#13767)`                                          |
 | [01049ddce](https://github.com/apache/airflow/commit/01049ddce210f475d6eae9b1cb306f750a1d6dd8) | 2021-01-31  | `Add aws ses email backend for use with EmailOperator. (#13986)`                        |
 | [ecfdc60bb](https://github.com/apache/airflow/commit/ecfdc60bb607fe0d13fa7e315476c607813abab6) | 2021-01-29  | `Add bucket_name to template fileds in S3 operators (#13973)`                           |
