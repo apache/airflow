@@ -392,7 +392,7 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -427,7 +427,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \

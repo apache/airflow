@@ -240,9 +240,9 @@ ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 ENV AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
 # By default latest released version of airflow is installed (when empty) but this value can be overridden
-# and we can install specific version of airflow this way.
-ARG AIRFLOW_INSTALL_VERSION=""
-ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
+# and we can install version according to specification (For example ==2.0.2 or <3.0.0).
+ARG AIRFLOW_VERSION_SPECIFICATION=""
+ENV AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION}
 
 # We can seet this value to true in case we want to install .whl .tar.gz packages placed in the
 # docker-context-files folder. This can be done for both - additional packages you want to install

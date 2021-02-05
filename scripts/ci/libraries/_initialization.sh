@@ -388,8 +388,8 @@ function initialization::initialize_image_build_variables() {
     export WHEEL_VERSION
 
     # And installed from there (breeze and ci)
-    AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION:="."}
-    export AIRFLOW_INSTALL_VERSION
+    AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION:=""}
+    export AIRFLOW_VERSION_SPECIFICATION
 
     # By default no sources are copied to image
     AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="empty"}
@@ -640,7 +640,7 @@ Common image build variables:
 Production image build variables:
 
     AIRFLOW_INSTALLATION_METHOD: '${AIRFLOW_INSTALLATION_METHOD}'
-    AIRFLOW_INSTALL_VERSION: '${AIRFLOW_INSTALL_VERSION}'
+    AIRFLOW_VERSION_SPECIFICATION: '${AIRFLOW_VERSION_SPECIFICATION}'
     AIRFLOW_SOURCES_FROM: '${AIRFLOW_SOURCES_FROM}'
     AIRFLOW_SOURCES_TO: '${AIRFLOW_SOURCES_TO}'
 
