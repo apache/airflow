@@ -909,40 +909,11 @@ See the following example on how this occurs:
 - Example Dag : KubernetesPodOperator task writes contents to be returned to ``/airflow/xcom/return.json`` and reading
   values returned using ``xcom_pull(key, task_ids)``.
 
-.. code-block:: python
 
-  from airflow.operators.python import PythonOperator
-  from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-  from airflow.utils.dates import days_ago
-  from airflow import DAG
-
-
-  def python_operator_xcom_kw(**kwargs):
-      """
-      Xcom pull task
-      """
-      result = kwargs['ti'].xcom_pull(key='return_value', task_ids='k8s_pod_operator_xcom_task')
-      print(f'Value received from k8s_pod_operator  date : {result["date"]}   release : {result["release"]}')
-
-
-  with DAG(dag_id="example_k8s_operator_xcom", start_date=days_ago(1), schedule_interval='@once',
-           tags=["example"]) as dag:
-
-      start_1 = KubernetesPodOperator(task_id='k8s_pod_operator_xcom_task',
-                                      name='airflow_pod_operator_xcom',
-                                      namespace='default',
-                                      image='alpine',
-                                      cmds=["sh", "-c",
-                                            'mkdir -p /airflow/xcom/;echo {\\"date\\": \\"$(date)\\", \\"release\\": '
-                                            '\\"$(uname -r)\\"} > /airflow/xcom/return.json'],
-                                      do_xcom_push=True,
-                                      in_cluster=False,
-                                      startup_timeout_seconds=60,
-                                      )
-
-      end_1 = PythonOperator(task_id='python_operator_xcom', python_callable=python_operator_xcom_kw)
-
-      start_1 >> end_1
+.. exampleinclude:: /../../airflow/providers/cncf/kubernetes/example_dags/example_kubernetes_xcom.py
+    :language: python
+    :start-after: [START kubernetes_xcom]
+    :end-before: [END kubernetes_xcom]
 
 
 - After executing / debugging example and checking the logs
