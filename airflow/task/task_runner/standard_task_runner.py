@@ -34,7 +34,6 @@ class StandardTaskRunner(BaseTaskRunner):
     def __init__(self, local_task_job):
         super().__init__(local_task_job)
         self._rc = None
-        self.dag = local_task_job.task_instance.task.dag
 
     def start(self):
         if CAN_FORK and not self.run_as_user:
@@ -82,9 +81,10 @@ class StandardTaskRunner(BaseTaskRunner):
             setproctitle(proc_title.format(args))
 
             try:
-                args.func(args, dag=self.dag)
+                args.func(args)
                 return_code = 0
-            except Exception:  # pylint: disable=broad-except
+            except Exception as err:  # pylint: disable=broad-except
+                self.log.exception("Error while running task: %s", err)
                 return_code = 1
             finally:
                 # Explicitly flush any pending exception to Sentry if enabled
