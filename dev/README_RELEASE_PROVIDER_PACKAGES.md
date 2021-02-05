@@ -300,8 +300,8 @@ If you have released just a few providers:
 ```shell script
 ./docs/publish_docs.py \
     --package-filter apache-airflow-providers \
-  --package-filter 'apache-airflow-providers-PACKAGE1' \
-  --package-filter 'apache-airflow-providers-PACKAGE2' \
+    --package-filter 'apache-airflow-providers-PACKAGE1' \
+    --package-filter 'apache-airflow-providers-PACKAGE2' \
 
 cd "${AIRFLOW_SITE_DIRECTORY}"
 ```
