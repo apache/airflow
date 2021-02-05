@@ -101,6 +101,7 @@ Davydov
 De
 Decrypt
 Decrypts
+DeidentifyConfig
 DeidentifyContentResponse
 DeidentifyTemplate
 Deprecations

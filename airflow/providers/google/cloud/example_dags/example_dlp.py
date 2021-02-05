@@ -179,6 +179,7 @@ with models.DAG(
     # [END howto_operator_dlp_delete_job_trigger]
     create_trigger >> update_trigger >> delete_trigger
 
+# [START dlp_deidentify_config_example]
 DEIDENTIFY_CONFIG = {
     "info_type_transformations": {
         "transformations": [
@@ -190,6 +191,7 @@ DEIDENTIFY_CONFIG = {
         ]
     }
 }
+# [END dlp_deidentify_config_example]
 
 with models.DAG(
     "example_gcp_dlp_deidentify_content",
