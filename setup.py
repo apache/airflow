@@ -355,6 +355,9 @@ ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
 ]
+leveldb = [
+    'plyvel',
+]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
     'pymongo>=3.6.0',
@@ -550,6 +553,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'jdbc': jdbc,
     'jenkins': jenkins,
     'jira': jira,
+    'leveldb': leveldb,
     'microsoft.azure': azure,
     'microsoft.mssql': mssql,
     'microsoft.winrm': winrm,
