@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Apache Beam operators."""
+import copy
 from abc import ABCMeta
 from contextlib import ExitStack
 from typing import Callable, List, Optional, Tuple, Union
@@ -34,6 +35,12 @@ from airflow.version import version
 
 
 class BeamDataflowMixin(metaclass=ABCMeta):
+    """
+    Helper class to store common, Dataflow specific logic for both
+    :class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` and
+    :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
+    """
+
     dataflow_hook: Optional[DataflowHook]
     dataflow_config: Optional[DataflowConfiguration]
 
@@ -69,7 +76,7 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     def __get_dataflow_pipeline_options(
         self, pipeline_options: dict, job_name: str, job_name_key: Optional[str] = None
     ) -> dict:
-        pipeline_options = pipeline_options.copy()
+        pipeline_options = copy.deepcopy(pipeline_options)
         if job_name_key is not None:
             pipeline_options[job_name_key] = job_name
         pipeline_options["project"] = self.dataflow_config.project_id
@@ -112,8 +119,6 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
         See: :class:`~providers.apache.beam.hooks.beam.BeamRunnerType`
         See: https://beam.apache.org/documentation/runners/capability-matrix/
 
-        If you use Dataflow runner check dedicated operator:
-        :class:`~providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
     :type runner: str
     :param py_options: Additional python options, e.g., ["-m", "-v"].
     :type py_options: list[str]
@@ -294,8 +299,6 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
     :param runner: Runner on which pipeline will be run. By default "DirectRunner" is being used.
         See:
         https://beam.apache.org/documentation/runners/capability-matrix/
-        If you use Dataflow runner check dedicated operator:
-        :class:`~providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`
     :type runner: str
     :param job_class: The name of the Apache Beam pipeline class to be executed, it
         is often not the main class configured in the pipeline jar file.

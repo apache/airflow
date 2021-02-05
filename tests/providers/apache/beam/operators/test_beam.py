@@ -215,7 +215,6 @@ class TestBeamRunJavaPipelineOperator(unittest.TestCase):
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         self.operator.execute(None)
         job_name = dataflow_hook_mock.build_dataflow_job_name.return_value
-        self.assertEqual(job_name, self.operator._dataflow_job_name)
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id=dataflow_config.gcp_conn_id,
             delegate_to=dataflow_config.delegate_to,
