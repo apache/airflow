@@ -38,7 +38,7 @@ class FTPToS3Operator(BaseOperator):
     :param s3_bucket: The targeted s3 bucket in which upload the file to
     :type s3_bucket: str
     :param s3_key: The targeted s3 key. This is the specified file path for
-        uploading the file from S3.
+        uploading the file to S3.
     :type s3_key: str
     :param replace: A flag to decide whether or not to overwrite the key
             if it already exists. If replace is False and the key exists, an
