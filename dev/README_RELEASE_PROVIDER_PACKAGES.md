@@ -278,7 +278,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 - Now you can preview the documentation.
 
 ```shell script
-./docs/start_doc_server1.sh
+./docs/start_doc_server.sh
 ```
 
 - Copy the documentation to the ``airflow-site`` repository
