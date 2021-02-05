@@ -651,13 +651,13 @@ def extend_object_field(base_obj, client_obj, field_name, field_to_merge="name")
         return client_obj_cp
 
     if field_to_merge is None:
-      # no merge, just append
-      appended_fields = base_obj_field + client_obj_field
+        # no merge, just append
+        appended_fields = base_obj_field + client_obj_field
     else:
-      base_obj_set = _get_dict_from_list(base_obj_field, field_to_merge)
-      client_obj_set = _get_dict_from_list(client_obj_field, field_to_merge)
+        base_obj_set = _get_dict_from_list(base_obj_field, field_to_merge)
+        client_obj_set = _get_dict_from_list(client_obj_field, field_to_merge)
 
-      appended_fields = _merge_list_of_objects(base_obj_set, client_obj_set)
+        appended_fields = _merge_list_of_objects(base_obj_set, client_obj_set)
 
     setattr(client_obj_cp, field_name, appended_fields)
     return client_obj_cp
