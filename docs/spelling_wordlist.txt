@@ -238,6 +238,7 @@ Mapreduce
 Masternode
 Maxime
 Memorystore
+Mariadb
 Mesos
 MessageAttributes
 Metastore
@@ -980,6 +981,7 @@ mv
 mypy
 mysql
 mysqlclient
+mysqldb
 mytaxi
 namenode
 namespace
