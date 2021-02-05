@@ -256,9 +256,8 @@ class FileTaskHandler(logging.Handler):
             open(full_path, "a").close()
             # TODO: Investigate using 444 instead of 666.
             try:
-              os.chmod(full_path, 0o666)
+                os.chmod(full_path, 0o666)
             except OSError:
-              logging.warning("OSError while change ownership of  "
-                              "the log file")
+                logging.warning("OSError while change ownership of the log file")
 
         return full_path
