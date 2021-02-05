@@ -44,5 +44,5 @@ class GoogleCloudStorageExampleDagsTest(GoogleSystemTest):
         self.run_dag('example_gcs', CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_GCS_KEY)
-    def test_run_example_dag(self):
+    def test_run_example_gcs_sensor_dag(self):
         self.run_dag('example_gcs_sensors', CLOUD_DAG_FOLDER)

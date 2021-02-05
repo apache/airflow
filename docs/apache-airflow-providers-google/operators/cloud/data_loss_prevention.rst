@@ -298,7 +298,7 @@ De-identify Content
 """""""""""""""""""
 De-identification is the process of removing identifying information from data.
 Configuration information defines how you want the sensitive data de-identified.
- 
+
 This config can either be saved and persisted in de-identification templates or defined in a DeidentifyConfig object:
 
 .. literalinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
