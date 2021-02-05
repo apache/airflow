@@ -337,7 +337,7 @@ EOF
 cat <<EOF
 Hey all,
 
-I have just cut the new wave f Airflow Providers packages. This email is calling a vote on the release,
+I have just cut the new wave Airflow Providers packages. This email is calling a vote on the release,
 which will last for 72 hours - which means that it will end on $(date -d '+3 days').
 
 Consider this my (binding) +1.
