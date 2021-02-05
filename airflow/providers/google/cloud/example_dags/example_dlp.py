@@ -192,7 +192,7 @@ DEIDENTIFY_CONFIG = {
 }
 
 with models.DAG(
-    "example_gcp_dlp_deidentify",
+    "example_gcp_dlp_deidentify_content",
     schedule_interval=None,
     start_date=days_ago(1),
     tags=["example", "dlp", "deidentify"],

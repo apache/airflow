@@ -36,6 +36,7 @@ def helper():
     GoogleSystemTest.delete_gcs_bucket(OUTPUT_BUCKET)
 
 
+@pytest.mark.system("google.cloud")
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.usefixtures("helper")
 @pytest.mark.credential_file(GCP_DLP_KEY)
@@ -51,3 +52,8 @@ class GcpDLPExampleDagsSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_DLP_KEY)
     def test_run_example_dlp_job(self):
         self.run_dag('example_gcp_dlp_job', CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_DLP_KEY)
+    def test_run_example_dag(self):
+        self.run_dag('example_gcp_dlp_deidentify_content', CLOUD_DAG_FOLDER)
+
