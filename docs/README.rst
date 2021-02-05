@@ -56,7 +56,7 @@ or just to run documentation building
 .. code-block:: bash
 
      ./breeze build-docs -- --docs-only
-     
+
 Running the Docs Locally
 ------------------------
 
