@@ -1355,7 +1355,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
-    :param exists_ok: If ``True``, ignore "already exists" errors when creating the DATASET.
+    :param exists_ok: If ``True``, ignore "already exists" errors when creating the dataset.
     :type exists_ok: bool
         **Example**: ::
 
