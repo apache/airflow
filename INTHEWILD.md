@@ -302,7 +302,7 @@ Currently, **officially** using Airflow:
 1. [Playbuzz](https://www.playbuzz.com/) [[@clintonboys](https://github.com/clintonboys) & [@dbn](https://github.com/dbn)]
 1. [Playsimple Games](https://playsimple.in/) [[@joshi95](https://github.com/joshi95)]
 1. [PMC](https://pmc.com/) [[@andrewm4894](https://github.com/andrewm4894)]
-1. [Polidea](https://www.polidea.com/) [[@potiuk](https://github.com/potiuk), [@mschickensoup](https://github.com/mschickensoup), [@mik-laj](https://github.com/mik-laj), [@turbaszek](https://github.com/turbaszek), [@michalslowikowski00](https://github.com/michalslowikowski00), [@olchas](https://github.com/olchas), [@debek](https://github.com/debek), [@FHoffmannCode](https://github.com/FHoffmannCode), [@TobKed](https://github.com/TobKed)]
+1. [Polidea-ex](https://github.com/politools/) [[@potiuk](https://github.com/potiuk), [@mschickensoup](https://github.com/mschickensoup), [@mik-laj](https://github.com/mik-laj), [@turbaszek](https://github.com/turbaszek), [@michalslowikowski00](https://github.com/michalslowikowski00), [@olchas](https://github.com/olchas), [@debek](https://github.com/debek), [@FHoffmannCode](https://github.com/FHoffmannCode), [@TobKed](https://github.com/TobKed)]
 1. [Poshmark](https://www.poshmark.com)
 1. [Postmates](http://www.postmates.com) [[@syeoryn](https://github.com/syeoryn)]
 1. [Premise](http://www.premise.com) [[@jmccallum-premise](https://github.com/jmccallum-premise)]
