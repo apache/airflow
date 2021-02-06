@@ -145,10 +145,7 @@ def clear_task_instances(
     :param activate_dag_runs: flag to check for active dag run
     :param dag: DAG object
     """
-    from sqlalchemy import and_, or_
-
     job_ids = []
-
     tr_filter = []
     for ti in tis:
         if ti.state == State.RUNNING:
