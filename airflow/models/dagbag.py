@@ -37,12 +37,12 @@ from tabulate import tabulate
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, SerializedDagNotFound
-from airflow.settings import run_with_db_retries
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
 from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
@@ -555,7 +555,7 @@ class DagBag(LoggingMixin):
                 self.log.debug(
                     "Running dagbag.sync_to_db with retries. Try %d of %d",
                     attempt.retry_state.attempt_number,
-                    settings.MAX_DB_RETRIES,
+                    MAX_DB_RETRIES,
                 )
                 self.log.debug("Calling the DAG.bulk_sync_to_db method")
                 try:

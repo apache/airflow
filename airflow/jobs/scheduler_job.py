@@ -49,7 +49,6 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
-from airflow.settings import run_with_db_retries
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
@@ -63,6 +62,7 @@ from airflow.utils.dag_processing import AbstractDagFileProcessorProcess, DagFil
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
+from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, skip_locked, with_row_locks
 from airflow.utils.state import State
@@ -1558,45 +1558,20 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             guard.commit()
             return num_queued_tis
 
+    @retry_db_transaction
     def _get_next_dagruns_to_examine(self, session):
         """Get Next DagRuns to Examine with retries"""
-        for attempt in run_with_db_retries(logger=self.log):
-            with attempt:
-                try:
-                    self.log.debug(
-                        "Running SchedulerJob._get_dagmodels_and_create_dagruns with retries. "
-                        "Try %d of %d",
-                        attempt.retry_state.attempt_number,
-                        settings.MAX_DB_RETRIES,
-                    )
-                    dag_runs = DagRun.next_dagruns_to_examine(session)
+        return DagRun.next_dagruns_to_examine(session)
 
-                except OperationalError:
-                    session.rollback()
-                    raise
-
-        return dag_runs
-
+    @retry_db_transaction
     def _create_dagruns_for_dags(self, guard, session):
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError"""
-        for attempt in run_with_db_retries(logger=self.log):
-            with attempt:
-                try:
-                    self.log.debug(
-                        "Running SchedulerJob._create_dagruns_for_dags with retries. " "Try %d of %d",
-                        attempt.retry_state.attempt_number,
-                        settings.MAX_DB_RETRIES,
-                    )
-                    query = DagModel.dags_needing_dagruns(session)
-                    self._create_dag_runs(query.all(), session)
+        query = DagModel.dags_needing_dagruns(session)
+        self._create_dag_runs(query.all(), session)
 
-                    # commit the session - Release the write lock on DagModel table.
-                    guard.commit()
-                    # END: create dagruns
-
-                except OperationalError:
-                    session.rollback()
-                    raise
+        # commit the session - Release the write lock on DagModel table.
+        guard.commit()
+        # END: create dagruns
 
     def _create_dag_runs(self, dag_models: Iterable[DagModel], session: Session) -> None:
         """
@@ -1840,7 +1815,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 self.log.debug(
                     "Running SchedulerJob.adopt_or_reset_orphaned_tasks with retries. Try %d of %d",
                     attempt.retry_state.attempt_number,
-                    settings.MAX_DB_RETRIES,
+                    MAX_DB_RETRIES,
                 )
                 self.log.debug("Calling SchedulerJob.adopt_or_reset_orphaned_tasks method")
                 try:
