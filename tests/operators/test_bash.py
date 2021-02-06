@@ -139,6 +139,6 @@ class TestBashOperator(unittest.TestCase):
         )
 
     def test_skip(self):
-        op = BashOperator(task_id='abc', bash_command='set -e; echo "hello world"; exit 255;')
+        op = BashOperator(task_id='abc', bash_command='set -e; echo "hello world"; exit 127;')
         with pytest.raises(AirflowSkipException):
             op.execute({})

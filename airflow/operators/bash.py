@@ -54,7 +54,7 @@ class BashOperator(BaseOperator):
     :type output_encoding: str
 
     Airflow will evaluate the exit code of the bash command.  In general, a non-zero exit code will result in
-    task failure and zero will result in task success.  Exit code ``255`` will throw an
+    task failure and zero will result in task success.  Exit code ``127`` will throw an
     :class:`airflow.exceptions.AirflowSkipException`, which will leave the task in ``skipped`` state.
 
     .. list-table::
@@ -65,10 +65,10 @@ class BashOperator(BaseOperator):
          - Behavior
        * - 0
          - success
-       * - 1-249
-         - raise :class:`airflow.exceptions.AirflowException`
-       * - 255
+       * - 127
          - raise :class:`airflow.exceptions.AirflowSkipException`
+       * - otherwise
+         - raise :class:`airflow.exceptions.AirflowException`
 
     .. note::
 
