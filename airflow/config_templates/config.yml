@@ -2053,13 +2053,3 @@
       type: string
       example: ~
       default: "NamedHivePartitionSensor"
-- name: ssh
-  description: ~
-  options:
-    - name: private_keys_algorithm_support
-      description: |
-        Comma separated list of ssh algorithms names (following `ssh-keygen` naming) supported by
-        SSH hook
-      type: string
-      example: ~
-      default: "dsa,ecdsa,ed25519,rsa"
