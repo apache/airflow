@@ -149,7 +149,7 @@ def clear_task_instances(
 
     job_ids = []
 
-    ti_filter = []
+    tr_filter = []
     for ti in tis:
         if ti.state == State.RUNNING:
             if ti.job_id:
@@ -171,35 +171,21 @@ def clear_task_instances(
             ti.state = State.NONE
             session.merge(ti)
 
-        ti_filter.append(ti)
+        tr_filter.append((ti.dag_id, ti.task_id, ti.execution_date, ti.try_number))
 
-    if ti_filter:
+    if tr_filter:
         # Clear all reschedules related to the ti to clear
-        first_ti = ti_filter[0]
-        if all(ti.dag_id == first_ti.dag_id for ti in ti_filter):
-            # Optimization for the case when all tis are for the samd dag_id.
-            filter_by = and_(
-                TR.dag_id == first_ti.dag_id,
-                or_(
-                    and_(
-                        TR.task_id == ti.task_id,
-                        TR.execution_date == ti.execution_date,
-                        TR.try_number == ti.try_number,
-                    )
-                    for ti in ti_filter
-                ),
-            )
-        else:
-            filter_by = or_(
+        delete_qry = TR.__table__.delete().where(
+            or_(
                 and_(
-                    TR.dag_id == ti.dag_id,
-                    TR.task_id == ti.task_id,
-                    TR.execution_date == ti.execution_date,
-                    TR.try_number == ti.try_number,
+                    TR.dag_id == dag_id,
+                    TR.task_id == task_id,
+                    TR.execution_date == execution_date,
+                    TR.try_number == try_number,
                 )
-                for ti in ti_filter
+                for dag_id, task_id, execution_date, try_number in tr_filter
             )
-        delete_qry = TR.__table__.delete().where(filter_by)
+        )
         session.execute(delete_qry)
 
     if job_ids:
