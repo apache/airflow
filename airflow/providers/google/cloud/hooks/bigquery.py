@@ -405,7 +405,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param dataset_reference: Dataset reference that could be provided with request body. More info:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :type dataset_reference: dict
-        :param exists_ok: If ``True``, ignore "already exists" errors when creating the DATASET.
+        :param exists_ok: If ``True``, ignore "already exists" errors when creating the dataset.
         :type exists_ok: bool
         """
         dataset_reference = dataset_reference or {"datasetReference": {}}
