@@ -152,7 +152,7 @@ if PACKAGE_NAME == 'apache-airflow':
         'README.rst',
     ]
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
-    exclude_patterns = ['operators/_partials', 'sensors/_partials']
+    exclude_patterns = ['operators/_partials']
 else:
     exclude_patterns = []
 

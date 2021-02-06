@@ -22,7 +22,6 @@ from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 
-@pytest.mark.system("google.cloud")
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_GCS_KEY)
 class GoogleCloudStorageExampleDagsTest(GoogleSystemTest):

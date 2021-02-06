@@ -121,8 +121,8 @@ See Google Cloud Storage insert documentation to `create a ACL entry for ObjectA
 
 .. _howto/operator:GCSDeleteBucketOperator:
 
-GCSDeleteBucketOperator
------------------------
+Deleting Bucket
+^^^^^^^^^^^^^^^
 
 Deleting Bucket allows you to remove bucket object from the Google Cloud Storage.
 It is performed through the
