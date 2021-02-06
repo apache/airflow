@@ -128,9 +128,6 @@ Deleting Bucket allows you to remove bucket object from the Google Cloud Storage
 It is performed through the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator` operator.
 
-Using the operator
-""""""""""""""""""
-
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs.py
     :language: python
     :dedent: 4
