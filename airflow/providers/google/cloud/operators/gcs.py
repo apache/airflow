@@ -24,12 +24,12 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Sequence, Union
 
-import dateutil.tz
 from google.api_core.exceptions import Conflict
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 
 
@@ -780,8 +780,8 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
             self.log.warning("No following schedule found, setting timespan end to max %s", timespan_end)
             timespan_end = datetime.datetime.max
 
-        timespan_start = timespan_start.replace(tzinfo=dateutil.tz.tzutc())
-        timespan_end = timespan_end.replace(tzinfo=dateutil.tz.tzutc())
+        timespan_start = timespan_start.replace(tzinfo=timezone.utc)
+        timespan_end = timespan_end.replace(tzinfo=timezone.utc)
 
         source_prefix_interp = GCSTimeSpanFileTransformOperator.interpolate_prefix(
             self.source_prefix,

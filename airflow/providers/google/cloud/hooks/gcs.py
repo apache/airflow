@@ -35,6 +35,7 @@ from google.cloud import storage
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.utils import timezone
 from airflow.version import version
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
@@ -481,10 +482,9 @@ class GCSHook(GoogleBaseHook):
         """
         blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
-            import dateutil.tz
 
             if not ts.tzinfo:
-                ts = ts.replace(tzinfo=dateutil.tz.tzutc())
+                ts = ts.replace(tzinfo=timezone.utc)
             self.log.info("Verify object date: %s > %s", blob_update_time, ts)
             if blob_update_time > ts:
                 return True
@@ -508,12 +508,11 @@ class GCSHook(GoogleBaseHook):
         """
         blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
-            import dateutil.tz
 
             if not min_ts.tzinfo:
-                min_ts = min_ts.replace(tzinfo=dateutil.tz.tzutc())
+                min_ts = min_ts.replace(tzinfo=timezone.utc)
             if not max_ts.tzinfo:
-                max_ts = max_ts.replace(tzinfo=dateutil.tz.tzutc())
+                max_ts = max_ts.replace(tzinfo=timezone.utc)
             self.log.info("Verify object date: %s is between %s and %s", blob_update_time, min_ts, max_ts)
             if min_ts <= blob_update_time < max_ts:
                 return True
@@ -533,10 +532,9 @@ class GCSHook(GoogleBaseHook):
         """
         blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
-            import dateutil.tz
 
             if not ts.tzinfo:
-                ts = ts.replace(tzinfo=dateutil.tz.tzutc())
+                ts = ts.replace(tzinfo=timezone.utc)
             self.log.info("Verify object date: %s < %s", blob_update_time, ts)
             if blob_update_time < ts:
                 return True
@@ -557,8 +555,6 @@ class GCSHook(GoogleBaseHook):
         blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
             from datetime import timedelta
-
-            from airflow.utils import timezone
 
             current_time = timezone.utcnow()
             given_time = current_time - timedelta(seconds=seconds)
@@ -686,7 +682,6 @@ class GCSHook(GoogleBaseHook):
 
         ids = []
         page_token = None
-        import dateutil.tz
 
         while True:
             blobs = bucket.list_blobs(
@@ -699,7 +694,7 @@ class GCSHook(GoogleBaseHook):
 
             blob_names = []
             for blob in blobs:
-                if timespan_start <= blob.updated.replace(tzinfo=dateutil.tz.tzutc()) < timespan_end:
+                if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end:
                     blob_names.append(blob.name)
 
             prefixes = blobs.prefixes
