@@ -38,7 +38,10 @@ from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, TaskInstance
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
+    KubernetesPodOperator,
+    add_template_fields_to_env_vars,
+)
 from airflow.utils import timezone
 from airflow.version import version as airflow_version
 
@@ -679,6 +682,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert result == {"hello": "world"}
 
     def test_pod_template_file_with_overrides_system(self):
+
         fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
@@ -693,7 +697,10 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         result = k.execute(context)
         assert result is not None
         assert k.pod.metadata.labels == {'fizz': 'buzz', 'foo': 'bar'}
-        assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
+
+        env_vars = [k8s.V1EnvVar(name="env_name", value="value")]
+        env_vars = add_template_fields_to_env_vars(env_vars)
+        assert k.pod.spec.containers[0].env == env_vars
         assert result == {"hello": "world"}
 
     def test_pod_template_file_with_full_pod_spec(self):
