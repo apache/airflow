@@ -21,7 +21,6 @@ import unittest
 from unittest import mock
 
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
-
 from tests.models import TEST_DAGS_FOLDER
 
 
@@ -61,8 +60,8 @@ class TestCorrectMaybeZipped(unittest.TestCase):
 class TestOpenMaybeZipped(unittest.TestCase):
     def test_open_maybe_zipped_normal_file(self):
         test_file_path = os.path.join(TEST_DAGS_FOLDER, "no_dags.py")
-        with open_maybe_zipped(test_file_path, 'r') as fp:
-            content = fp.read()
+        with open_maybe_zipped(test_file_path, 'r') as test_file:
+            content = test_file.read()
         assert isinstance(content, str)
 
     def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
@@ -73,6 +72,6 @@ class TestOpenMaybeZipped(unittest.TestCase):
 
     def test_open_maybe_zipped_archive(self):
         test_file_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip", "test_zip.py")
-        with open_maybe_zipped(test_file_path, 'r') as fp:
-            content = fp.read()
+        with open_maybe_zipped(test_file_path, 'r') as test_file:
+            content = test_file.read()
         assert isinstance(content, str)
