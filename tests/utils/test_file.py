@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os.path
 import unittest
 from unittest import mock
 
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
+
+from tests.models import TEST_DAGS_FOLDER
 
 
 class TestCorrectMaybeZipped(unittest.TestCase):
@@ -57,9 +60,10 @@ class TestCorrectMaybeZipped(unittest.TestCase):
 
 class TestOpenMaybeZipped(unittest.TestCase):
     def test_open_maybe_zipped_normal_file(self):
-        with mock.patch('builtins.open', mock.mock_open(read_data="data")) as mock_file:
-            open_maybe_zipped('/path/to/some/file.txt')
-            mock_file.assert_called_once_with('/path/to/some/file.txt', mode='r')
+        test_file_path = os.path.join(TEST_DAGS_FOLDER, "no_dags.py")
+        with open_maybe_zipped(test_file_path, 'r') as fp:
+            content = fp.read()
+        assert isinstance(content, str)
 
     def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
         path = '/path/to/fakearchive.zip.other/file.txt'
@@ -67,18 +71,8 @@ class TestOpenMaybeZipped(unittest.TestCase):
             open_maybe_zipped(path)
             mock_file.assert_called_once_with(path, mode='r')
 
-    @mock.patch("zipfile.is_zipfile")
-    @mock.patch("zipfile.ZipFile")
-    @mock.patch("io.TextIOWrapper")
-    def test_open_maybe_zipped_archive(self, mocked_text_io_wrapper, mocked_zip_file, mocked_is_zipfile):
-        mocked_is_zipfile.return_value = True
-        open_return_value = mock.mock_open(read_data="data")
-        instance = mocked_zip_file.return_value
-        instance.open.return_value = open_return_value
-
-        open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
-
-        mocked_text_io_wrapper.assert_called_once_with(open_return_value)
-        mocked_is_zipfile.assert_called_once_with('/path/to/archive.zip')
-        mocked_zip_file.assert_called_once_with('/path/to/archive.zip', mode='r')
-        instance.open.assert_called_once_with('deep/path/to/file.txt')
+    def test_open_maybe_zipped_archive(self):
+        test_file_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip", "test_zip.py")
+        with open_maybe_zipped(test_file_path, 'r') as fp:
+            content = fp.read()
+        assert isinstance(content, str)
