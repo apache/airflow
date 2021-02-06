@@ -17,7 +17,7 @@
 
 from typing import Dict, Optional, Sequence, Union
 
-from google.cloud.oslogin_v1 import OsLoginServiceClient
+from google.cloud.oslogin_v1 import ImportSshPublicKeyResponse, OsLoginServiceClient
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
@@ -54,7 +54,7 @@ class OSLoginHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def import_ssh_public_key(
         self, user: str, ssh_public_key: Dict, project_id: str, retry=None, timeout=None, metadata=None
-    ):
+    ) -> ImportSshPublicKeyResponse:
         """
         Adds an SSH public key and returns the profile information. Default POSIX
         account information is set when no username and UID exist as part of the
@@ -74,14 +74,16 @@ class OSLoginHook(GoogleBaseHook):
         :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Optional[Sequence[Tuple[str, str]]]
-        :return:  A :class:`~google.cloud.oslogin_v1.types.ImportSshPublicKeyResponse` instance.
+        :return: A :class:`~google.cloud.oslogin_v1.ImportSshPublicKeyResponse` instance.
         """
         conn = self.get_conn()
         return conn.import_ssh_public_key(
-            parent=OsLoginServiceClient.user_path(user=user),
-            ssh_public_key=ssh_public_key,
-            project_id=project_id,
+            request=dict(
+                parent=f"users/{user}",
+                ssh_public_key=ssh_public_key,
+                project_id=project_id,
+            ),
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )

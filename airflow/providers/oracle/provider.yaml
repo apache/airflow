@@ -17,25 +17,34 @@
 
 ---
 package-name: apache-airflow-providers-oracle
+name: Oracle
 description: |
     `Oracle <https://www.oracle.com/en/database/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Oracle
     external-doc-url: https://www.oracle.com/en/database/
+    logo: /integration-logos/oracle/Oracle.png
     tags: [software]
 
 operators:
   - integration-name: Oracle
     python-modules:
       - airflow.providers.oracle.operators.oracle
+
 hooks:
   - integration-name: Oracle
     python-modules:
       - airflow.providers.oracle.hooks.oracle
+
 transfers:
   - source-integration-name: Oracle
     target-integration-name: Oracle
     python-module: airflow.providers.oracle.transfers.oracle_to_oracle
+
+hook-class-names:
+  - airflow.providers.oracle.hooks.oracle.OracleHook

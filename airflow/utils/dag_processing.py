@@ -508,12 +508,12 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
         self._async_mode = async_mode
-        self._parsing_start_time: Optional[datetime] = None
+        self._parsing_start_time: Optional[int] = None
 
-        self._parallelism = conf.getint('scheduler', 'max_threads')
+        self._parallelism = conf.getint('scheduler', 'parsing_processes')
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn') and self._parallelism > 1:
             self.log.warning(
-                "Because we cannot use more than 1 thread (max_threads = "
+                "Because we cannot use more than 1 thread (parsing_processes = "
                 "%d ) when using sqlite. So we set parallelism to 1.",
                 self._parallelism,
             )
@@ -541,7 +541,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # Last time that the DAG dir was traversed to look for files
         self.last_dag_dir_refresh_time = timezone.make_aware(datetime.fromtimestamp(0))
         # Last time stats were printed
-        self.last_stat_print_time = timezone.datetime(2000, 1, 1)
+        self.last_stat_print_time = 0
         # TODO: Remove magic number
         self._zombie_query_interval = 10
         # How long to wait before timing out a process to parse a DAG file
@@ -612,7 +612,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             self.start_new_processes()
 
         while True:
-            loop_start_time = time.time()
+            loop_start_time = time.monotonic()
 
             # pylint: disable=no-else-break
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
@@ -704,7 +704,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 break
 
             if self._async_mode:
-                loop_duration = time.time() - loop_start_time
+                loop_duration = time.monotonic() - loop_start_time
                 if loop_duration < 1:
                     poll_time = 1 - loop_duration
                 else:
@@ -714,7 +714,12 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._callback_to_execute[request.full_filepath].append(request)
         # Callback has a higher priority over DAG Run scheduling
         if request.full_filepath in self._file_path_queue:
-            self._file_path_queue.remove(request.full_filepath)
+            # Remove file paths matching request.full_filepath from self._file_path_queue
+            # Since we are already going to use that filepath to run callback,
+            # there is no need to have same file path again in the queue
+            self._file_path_queue = [
+                file_path for file_path in self._file_path_queue if file_path != request.full_filepath
+            ]
         self._file_path_queue.insert(0, request.full_filepath)
 
     def _refresh_dag_dir(self):
@@ -745,10 +750,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
-        if 0 < self.print_stats_interval < (timezone.utcnow() - self.last_stat_print_time).total_seconds():
+        if 0 < self.print_stats_interval < time.monotonic() - self.last_stat_print_time:
             if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
-            self.last_stat_print_time = timezone.utcnow()
+            self.last_stat_print_time = time.monotonic()
 
     @provide_session
     def clear_nonexistent_import_errors(self, session):
@@ -801,8 +806,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 Stats.gauge(f'dag_processing.last_run.seconds_ago.{file_name}', seconds_ago)
             if runtime:
                 Stats.timing(f'dag_processing.last_duration.{file_name}', runtime)
-                # TODO: Remove before Airflow 2.0
-                Stats.timing(f'dag_processing.last_runtime.{file_name}', runtime)
 
             rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 
@@ -990,6 +993,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """Start more processors if we have enough slots and files to process"""
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
+            # Stop creating duplicate processor i.e. processor with the same filepath
+            if file_path in self._processors.keys():
+                continue
+
             callback_to_execute_for_file = self._callback_to_execute[file_path]
             processor = self._processor_factory(
                 file_path, callback_to_execute_for_file, self._dag_ids, self._pickle_dags
@@ -1005,7 +1012,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
     def prepare_file_path_queue(self):
         """Generate more file paths to process. Result are saved in _file_path_queue."""
-        self._parsing_start_time = timezone.utcnow()
+        self._parsing_start_time = time.perf_counter()
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
         file_paths_in_progress = self._processors.keys()
@@ -1146,16 +1153,12 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         This is called once every time around the parsing "loop" - i.e. after
         all files have been parsed.
         """
-        parse_time = (timezone.utcnow() - self._parsing_start_time).total_seconds()
+        parse_time = time.perf_counter() - self._parsing_start_time
         Stats.gauge('dag_processing.total_parse_time', parse_time)
         Stats.gauge('dagbag_size', sum(stat.num_dags for stat in self._file_stats.values()))
         Stats.gauge(
             'dag_processing.import_errors', sum(stat.import_errors for stat in self._file_stats.values())
         )
-
-        # TODO: Remove before Airflow 2.0
-        Stats.gauge('collect_dags', parse_time)
-        Stats.gauge('dagbag_import_errors', sum(stat.import_errors for stat in self._file_stats.values()))
 
     # pylint: disable=missing-docstring
     @property

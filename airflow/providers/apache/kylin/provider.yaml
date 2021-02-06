@@ -17,15 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-apache-kylin
+name: Apache Kylin
 description: |
     `Apache Kylin <https://kylin.apache.org/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
 
 integrations:
   - integration-name: Apache Kylin
     external-doc-url: https://kylin.apache.org/
+    logo: /integration-logos/apache/kylin.png
     tags: [apache]
 
 operators:

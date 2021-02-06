@@ -32,7 +32,6 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_configmap,
     convert_env_vars,
     convert_image_pull_secrets,
-    convert_node_selector,
     convert_pod_runtime_info_env,
     convert_port,
     convert_resources,
@@ -194,8 +193,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         resources: Optional[k8s.V1ResourceRequirements] = None,
         affinity: Optional[k8s.V1Affinity] = None,
         config_file: Optional[str] = None,
-        node_selectors: Optional[k8s.V1NodeSelector] = None,
-        node_selector: Optional[k8s.V1NodeSelector] = None,
+        node_selectors: Optional[dict] = None,
+        node_selector: Optional[dict] = None,
         image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
         service_account_name: str = 'default',
         is_delete_operator_pod: bool = False,
@@ -229,6 +228,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.env_vars = convert_env_vars(env_vars) if env_vars else []
         if pod_runtime_info_envs:
             self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
+        env_vars = self.add_template_fields_to_env_vars(env_vars)
+        self.env_vars = env_vars
         self.env_from = env_from or []
         if configmaps:
             self.env_from.extend([convert_configmap(c) for c in configmaps])
@@ -244,9 +245,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         if node_selectors:
             # Node selectors is incorrect based on k8s API
             warnings.warn("node_selectors is deprecated. Please use node_selector instead.")
-            self.node_selector = convert_node_selector(node_selectors)
+            self.node_selector = node_selectors or {}
         elif node_selector:
-            self.node_selector = convert_node_selector(node_selector)
+            self.node_selector = node_selector or {}
         else:
             self.node_selector = None
         self.annotations = annotations or {}
@@ -271,6 +272,21 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.termination_grace_period = termination_grace_period
         self.client: CoreV1Api = None
         self.pod: k8s.V1Pod = None
+
+    def add_template_fields_to_env_vars(self, env_vars):
+        """
+        Adds the field ``templated_fields`` to ``V1EnvVar`` so that Airflow can apply jinja templating
+        to both the name and value of an environment variable.
+
+        @param env_vars: a list of k8s.V1EnvVar objects
+        @return: A list of k8s.V1EnvVar objects but with the "template_fields" member populated
+        """
+        env_vars = []
+        for env_var in self.env_vars:
+            if not hasattr(env_var, 'template_fields'):
+                env_var.template_fields = ('value', 'name')
+                env_vars.append(env_var)
+        return env_vars
 
     @staticmethod
     def create_labels_for_pod(context) -> dict:
@@ -325,8 +341,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
             if len(pod_list.items) > 1 and self.reattach_on_restart:
                 raise AirflowException(
-                    'More than one pod running with labels: '
-                    '{label_selector}'.format(label_selector=label_selector)
+                    f'More than one pod running with labels: {label_selector}'
                 )
 
             launcher = pod_launcher.PodLauncher(kube_client=client, extract_xcom=self.do_xcom_push)
@@ -432,6 +447,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                         name="base",
                         command=self.cmds,
                         ports=self.ports,
+                        image_pull_policy=self.image_pull_policy,
                         resources=self.k8s_resources,
                         volume_mounts=self.volume_mounts,
                         args=self.arguments,

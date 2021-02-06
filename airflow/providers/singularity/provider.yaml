@@ -17,15 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-singularity
+name: Singularity
 description: |
     `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
 
 integrations:
   - integration-name: Singularity
     external-doc-url: https://sylabs.io/guides/latest/user-guide/
+    logo: /integration-logos/singularity/Singularity.png
     tags: [software]
 
 operators:

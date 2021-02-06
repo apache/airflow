@@ -34,7 +34,9 @@ class CallbackRequest:
         self.msg = msg
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        if isinstance(other, CallbackRequest):
+            return self.__dict__ == other.__dict__
+        return False
 
     def __repr__(self):
         return str(self.__dict__)

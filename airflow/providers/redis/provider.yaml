@@ -17,15 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-redis
+name: Redis
 description: |
     `Redis <https://redis.io/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
 
 integrations:
   - integration-name: Redis
     external-doc-url: https://redis.io/
+    logo: /integration-logos/redis/Redis.png
     tags: [software]
 
 operators:
@@ -43,3 +46,6 @@ hooks:
   - integration-name: Redis
     python-modules:
       - airflow.providers.redis.hooks.redis
+
+hook-class-names:
+  - airflow.providers.redis.hooks.redis.RedisHook

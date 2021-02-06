@@ -18,17 +18,19 @@
 
 import unittest
 
+import pytest
+
 from airflow.utils.module_loading import import_string
 
 
 class TestModuleImport(unittest.TestCase):
     def test_import_string(self):
         cls = import_string('airflow.utils.module_loading.import_string')
-        self.assertEqual(cls, import_string)
+        assert cls == import_string  # pylint: disable=comparison-with-callable
 
         # Test exceptions raised
-        with self.assertRaises(ImportError):
+        with pytest.raises(ImportError):
             import_string('no_dots_in_path')
         msg = 'Module "airflow.utils" does not define a "nonexistent" attribute'
-        with self.assertRaisesRegex(ImportError, msg):
+        with pytest.raises(ImportError, match=msg):
             import_string('airflow.utils.nonexistent')

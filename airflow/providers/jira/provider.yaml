@@ -17,15 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-jira
+name: Jira
 description: |
     `Atlassian Jira <https://www.atlassian.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
 
 integrations:
   - integration-name: Atlassian Jira
     external-doc-url: https://www.atlassian.com/pl/software/jira
+    logo: /integration-logos/jira/Jira.png
     tags: [software]
 
 operators:
@@ -42,3 +45,6 @@ hooks:
   - integration-name: Atlassian Jira
     python-modules:
       - airflow.providers.jira.hooks.jira
+
+hook-class-names:
+  - airflow.providers.jira.hooks.jira.JiraHook

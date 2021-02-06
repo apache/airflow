@@ -20,6 +20,7 @@ import logging
 import socket
 import string
 import textwrap
+import time
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 
@@ -72,20 +73,82 @@ class StatsLogger(Protocol):
         """Timer metric that can be cancelled"""
 
 
-class DummyTimer:
-    """No-op timer"""
+class Timer:
+    """
+    Timer that records duration, and optional sends to statsd backend.
+
+    This class lets us have an accurate timer with the logic in one place (so
+    that we don't use datetime math for duration -- it is error prone).
+
+    Example usage:
+
+    .. code-block:: python
+
+        with Stats.timer() as t:
+            # Something to time
+            frob_the_foos()
+
+        log.info("Frobbing the foos took %.2f", t.duration)
+
+    Or without a context manager:
+
+    .. code-block:: python
+
+        timer = Stats.timer().start()
+
+        # Something to time
+        frob_the_foos()
+
+        timer.end()
+
+        log.info("Frobbing the foos took %.2f", timer.duration)
+
+    To send a metric:
+
+    .. code-block:: python
+
+        with Stats.timer("foos.frob"):
+            # Something to time
+            frob_the_foos()
+
+    Or both:
+
+    .. code-block:: python
+
+        with Stats.timer("foos.frob") as t:
+            # Something to time
+            frob_the_foos()
+
+        log.info("Frobbing the foos took %.2f", t.duration)
+    """
+
+    # pystatsd and dogstatsd both have a timer class, but present different API
+    # so we can't use this as a mixin on those, instead this class is contains the "real" timer
+
+    _start_time: Optional[int]
+    duration: Optional[int]
+
+    def __init__(self, real_timer=None):
+        self.real_timer = real_timer
 
     def __enter__(self):
-        return self
+        return self.start()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        return self
+        self.stop()
 
     def start(self):
         """Start the timer"""
+        if self.real_timer:
+            self.real_timer.start()
+        self._start_time = time.perf_counter()
+        return self
 
     def stop(self, send=True):  # pylint: disable=unused-argument
-        """Stop, and (by default) submit the timer to statsd"""
+        """Stop the timer, and optionally send it to stats backend"""
+        self.duration = time.perf_counter() - self._start_time
+        if send and self.real_timer:
+            self.real_timer.stop()
 
 
 class DummyStatsLogger:
@@ -110,7 +173,7 @@ class DummyStatsLogger:
     @classmethod
     def timer(cls, *args, **kwargs):
         """Timer metric that can be cancelled"""
-        return DummyTimer()
+        return Timer()
 
 
 # Only characters in the character set are considered valid
@@ -162,11 +225,12 @@ def validate_stat(fn: T) -> T:
     """
 
     @wraps(fn)
-    def wrapper(_self, stat, *args, **kwargs):
+    def wrapper(_self, stat=None, *args, **kwargs):
         try:
-            handler_stat_name_func = get_current_handler_stat_name_func()
-            stat_name = handler_stat_name_func(stat)
-            return fn(_self, stat_name, *args, **kwargs)
+            if stat is not None:
+                handler_stat_name_func = get_current_handler_stat_name_func()
+                stat = handler_stat_name_func(stat)
+            return fn(_self, stat, *args, **kwargs)
         except InvalidStatsNameException:
             log.error('Invalid stat name: %s.', stat, exc_info=True)
             return None
@@ -227,11 +291,11 @@ class SafeStatsdLogger:
         return None
 
     @validate_stat
-    def timer(self, stat, *args, **kwargs):
+    def timer(self, stat=None, *args, **kwargs):
         """Timer metric that can be cancelled"""
-        if self.allow_list_validator.test(stat):
-            return self.statsd.timer(stat, *args, **kwargs)
-        return DummyTimer()
+        if stat and self.allow_list_validator.test(stat):
+            return Timer(self.statsd.timer(stat, *args, **kwargs))
+        return Timer()
 
 
 class SafeDogStatsdLogger:
@@ -274,12 +338,12 @@ class SafeDogStatsdLogger:
         return None
 
     @validate_stat
-    def timer(self, stat, *args, tags=None, **kwargs):
+    def timer(self, stat=None, *args, tags=None, **kwargs):
         """Timer metric that can be cancelled"""
-        if self.allow_list_validator.test(stat):
+        if stat and self.allow_list_validator.test(stat):
             tags = tags or []
-            return self.dogstatsd.timer(stat, *args, tags=tags, **kwargs)
-        return DummyTimer()
+            return Timer(self.dogstatsd.timer(stat, *args, tags=tags, **kwargs))
+        return Timer()
 
 
 class _Stats(type):

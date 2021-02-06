@@ -112,11 +112,16 @@ class SparkJDBCHook(SparkSubmitHook):
                                       types.
     """
 
+    conn_name_attr = 'spark_conn_id'
+    default_conn_name = 'spark_default'
+    conn_type = 'spark_jdbc'
+    hook_name = 'Spark JDBC'
+
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(
         self,
         spark_app_name: str = 'airflow-spark-jdbc',
-        spark_conn_id: str = 'spark-default',
+        spark_conn_id: str = default_conn_name,
         spark_conf: Optional[Dict[str, Any]] = None,
         spark_py_files: Optional[str] = None,
         spark_files: Optional[str] = None,
@@ -202,7 +207,7 @@ class SparkJDBCHook(SparkSubmitHook):
         if self._jdbc_connection['url']:
             arguments += [
                 '-url',
-                "{}{}/{}".format(jdbc_conn['conn_prefix'], jdbc_conn['url'], jdbc_conn['schema']),
+                f"{jdbc_conn['conn_prefix']}{jdbc_conn['url']}/{jdbc_conn['schema']}",
             ]
         if self._jdbc_connection['user']:
             arguments += ['-user', self._jdbc_connection['user']]

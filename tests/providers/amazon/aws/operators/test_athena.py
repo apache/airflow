@@ -18,6 +18,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.models import DAG, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
 from airflow.providers.amazon.aws.operators.athena import AWSAthenaOperator
@@ -62,14 +64,14 @@ class TestAWSAthenaOperator(unittest.TestCase):
         )
 
     def test_init(self):
-        self.assertEqual(self.athena.task_id, MOCK_DATA['task_id'])
-        self.assertEqual(self.athena.query, MOCK_DATA['query'])
-        self.assertEqual(self.athena.database, MOCK_DATA['database'])
-        self.assertEqual(self.athena.aws_conn_id, 'aws_default')
-        self.assertEqual(self.athena.client_request_token, MOCK_DATA['client_request_token'])
-        self.assertEqual(self.athena.sleep_time, 0)
+        assert self.athena.task_id == MOCK_DATA['task_id']
+        assert self.athena.query == MOCK_DATA['query']
+        assert self.athena.database == MOCK_DATA['database']
+        assert self.athena.aws_conn_id == 'aws_default'
+        assert self.athena.client_request_token == MOCK_DATA['client_request_token']
+        assert self.athena.sleep_time == 0
 
-        self.assertEqual(self.athena.hook.sleep_time, 0)
+        assert self.athena.hook.sleep_time == 0
 
     @mock.patch.object(AWSAthenaHook, 'check_query_status', side_effect=("SUCCESS",))
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
@@ -83,7 +85,7 @@ class TestAWSAthenaOperator(unittest.TestCase):
             MOCK_DATA['client_request_token'],
             MOCK_DATA['workgroup'],
         )
-        self.assertEqual(mock_check_query_status.call_count, 1)
+        assert mock_check_query_status.call_count == 1
 
     @mock.patch.object(
         AWSAthenaHook,
@@ -105,7 +107,7 @@ class TestAWSAthenaOperator(unittest.TestCase):
             MOCK_DATA['client_request_token'],
             MOCK_DATA['workgroup'],
         )
-        self.assertEqual(mock_check_query_status.call_count, 3)
+        assert mock_check_query_status.call_count == 3
 
     @mock.patch.object(
         AWSAthenaHook,
@@ -118,7 +120,7 @@ class TestAWSAthenaOperator(unittest.TestCase):
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_run_failed_query_with_none(self, mock_conn, mock_run_query, mock_check_query_status):
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             self.athena.execute(None)
         mock_run_query.assert_called_once_with(
             MOCK_DATA['query'],
@@ -127,7 +129,7 @@ class TestAWSAthenaOperator(unittest.TestCase):
             MOCK_DATA['client_request_token'],
             MOCK_DATA['workgroup'],
         )
-        self.assertEqual(mock_check_query_status.call_count, 3)
+        assert mock_check_query_status.call_count == 3
 
     @mock.patch.object(AWSAthenaHook, 'get_state_change_reason')
     @mock.patch.object(
@@ -143,7 +145,7 @@ class TestAWSAthenaOperator(unittest.TestCase):
     def test_hook_run_failure_query(
         self, mock_conn, mock_run_query, mock_check_query_status, mock_get_state_change_reason
     ):
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             self.athena.execute(None)
         mock_run_query.assert_called_once_with(
             MOCK_DATA['query'],
@@ -152,8 +154,8 @@ class TestAWSAthenaOperator(unittest.TestCase):
             MOCK_DATA['client_request_token'],
             MOCK_DATA['workgroup'],
         )
-        self.assertEqual(mock_check_query_status.call_count, 2)
-        self.assertEqual(mock_get_state_change_reason.call_count, 1)
+        assert mock_check_query_status.call_count == 2
+        assert mock_get_state_change_reason.call_count == 1
 
     @mock.patch.object(
         AWSAthenaHook,
@@ -167,7 +169,7 @@ class TestAWSAthenaOperator(unittest.TestCase):
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_run_cancelled_query(self, mock_conn, mock_run_query, mock_check_query_status):
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             self.athena.execute(None)
         mock_run_query.assert_called_once_with(
             MOCK_DATA['query'],
@@ -176,7 +178,7 @@ class TestAWSAthenaOperator(unittest.TestCase):
             MOCK_DATA['client_request_token'],
             MOCK_DATA['workgroup'],
         )
-        self.assertEqual(mock_check_query_status.call_count, 3)
+        assert mock_check_query_status.call_count == 3
 
     @mock.patch.object(
         AWSAthenaHook,
@@ -190,7 +192,7 @@ class TestAWSAthenaOperator(unittest.TestCase):
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AWSAthenaHook, 'get_conn')
     def test_hook_run_failed_query_with_max_tries(self, mock_conn, mock_run_query, mock_check_query_status):
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             self.athena.execute(None)
         mock_run_query.assert_called_once_with(
             MOCK_DATA['query'],
@@ -199,7 +201,7 @@ class TestAWSAthenaOperator(unittest.TestCase):
             MOCK_DATA['client_request_token'],
             MOCK_DATA['workgroup'],
         )
-        self.assertEqual(mock_check_query_status.call_count, 3)
+        assert mock_check_query_status.call_count == 3
 
     @mock.patch.object(AWSAthenaHook, 'check_query_status', side_effect=("SUCCESS",))
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
@@ -208,7 +210,7 @@ class TestAWSAthenaOperator(unittest.TestCase):
         ti = TaskInstance(task=self.athena, execution_date=timezone.utcnow())
         ti.run()
 
-        self.assertEqual(ti.xcom_pull(task_ids='test_aws_athena_operator'), ATHENA_QUERY_ID)
+        assert ti.xcom_pull(task_ids='test_aws_athena_operator') == ATHENA_QUERY_ID
 
 
 # pylint: enable=unused-argument

@@ -17,11 +17,14 @@
 
 ---
 package-name: apache-airflow-providers-grpc
+name: gRPC
 description: |
     `gRPC <https://grpc.io/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: gRPC
     external-doc-url: https://grpc.io/
@@ -36,3 +39,6 @@ hooks:
   - integration-name: gRPC
     python-modules:
       - airflow.providers.grpc.hooks.grpc
+
+hook-class-names:
+  - airflow.providers.grpc.hooks.grpc.GrpcHook

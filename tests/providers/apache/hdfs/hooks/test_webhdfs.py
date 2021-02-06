@@ -19,6 +19,7 @@
 import unittest
 from unittest.mock import call, patch
 
+import pytest
 from hdfs import HdfsError
 
 from airflow.models.connection import Connection
@@ -50,7 +51,7 @@ class TestWebHDFSHook(unittest.TestCase):
             ]
         )
         mock_insecure_client.return_value.status.assert_called_once_with('/')
-        self.assertEqual(conn, mock_insecure_client.return_value)
+        assert conn == mock_insecure_client.return_value
 
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.KerberosClient', create=True)
     @patch(
@@ -67,11 +68,11 @@ class TestWebHDFSHook(unittest.TestCase):
 
         connection = mock_get_connections.return_value[0]
         mock_kerberos_client.assert_called_once_with(f'http://{connection.host}:{connection.port}')
-        self.assertEqual(conn, mock_kerberos_client.return_value)
+        assert conn == mock_kerberos_client.return_value
 
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook._find_valid_server', return_value=None)
     def test_get_conn_no_connection_found(self, mock_get_connection):
-        with self.assertRaises(AirflowWebHDFSHookException):
+        with pytest.raises(AirflowWebHDFSHookException):
             self.webhdfs_hook.get_conn()
 
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_conn')
@@ -83,7 +84,7 @@ class TestWebHDFSHook(unittest.TestCase):
         mock_get_conn.assert_called_once_with()
         mock_status = mock_get_conn.return_value.status
         mock_status.assert_called_once_with(hdfs_path, strict=False)
-        self.assertEqual(exists_path, bool(mock_status.return_value))
+        assert exists_path == bool(mock_status.return_value)
 
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_conn')
     def test_load_file(self, mock_get_conn):
@@ -100,8 +101,8 @@ class TestWebHDFSHook(unittest.TestCase):
 
     def test_simple_init(self):
         hook = WebHDFSHook()
-        self.assertIsNone(hook.proxy_user)
+        assert hook.proxy_user is None
 
     def test_init_proxy_user(self):
         hook = WebHDFSHook(proxy_user='someone')
-        self.assertEqual('someone', hook.proxy_user)
+        assert 'someone' == hook.proxy_user

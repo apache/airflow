@@ -19,10 +19,10 @@
 import json
 import warnings
 from json import JSONDecodeError
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
-from sqlalchemy import Boolean, Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
@@ -30,69 +30,9 @@ from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
-
-# A map that assigns a connection type to a tuple that contains
-# the path of the class and the name of the conn_id key parameter.
-# PLEASE KEEP BELOW LIST IN ALPHABETICAL ORDER.
-CONN_TYPE_TO_HOOK = {
-    "azure_batch": (
-        "airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook",
-        "azure_batch_conn_id",
-    ),
-    "azure_cosmos": (
-        "airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook",
-        "azure_cosmos_conn_id",
-    ),
-    "azure_data_lake": (
-        "airflow.providers.microsoft.azure.hooks.azure_data_lake.AzureDataLakeHook",
-        "azure_data_lake_conn_id",
-    ),
-    "cassandra": ("airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook", "cassandra_conn_id"),
-    "cloudant": ("airflow.providers.cloudant.hooks.cloudant.CloudantHook", "cloudant_conn_id"),
-    "dataprep": ("airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook", "dataprep_default"),
-    "docker": ("airflow.providers.docker.hooks.docker.DockerHook", "docker_conn_id"),
-    "elasticsearch": (
-        "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
-        "elasticsearch_conn_id",
-    ),
-    "exasol": ("airflow.providers.exasol.hooks.exasol.ExasolHook", "exasol_conn_id"),
-    "gcpcloudsql": (
-        "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook",
-        "gcp_cloudsql_conn_id",
-    ),
-    "gcpssh": (
-        "airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook",
-        "gcp_conn_id",
-    ),
-    "google_cloud_platform": (
-        "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook",
-        "bigquery_conn_id",
-    ),
-    "grpc": ("airflow.providers.grpc.hooks.grpc.GrpcHook", "grpc_conn_id"),
-    "hive_cli": ("airflow.providers.apache.hive.hooks.hive.HiveCliHook", "hive_cli_conn_id"),
-    "hiveserver2": ("airflow.providers.apache.hive.hooks.hive.HiveServer2Hook", "hiveserver2_conn_id"),
-    "imap": ("airflow.providers.imap.hooks.imap.ImapHook", "imap_conn_id"),
-    "jdbc": ("airflow.providers.jdbc.hooks.jdbc.JdbcHook", "jdbc_conn_id"),
-    "jira": ("airflow.providers.jira.hooks.jira.JiraHook", "jira_conn_id"),
-    "kubernetes": ("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook", "kubernetes_conn_id"),
-    "mongo": ("airflow.providers.mongo.hooks.mongo.MongoHook", "conn_id"),
-    "mssql": ("airflow.providers.odbc.hooks.odbc.OdbcHook", "odbc_conn_id"),
-    "mysql": ("airflow.providers.mysql.hooks.mysql.MySqlHook", "mysql_conn_id"),
-    "odbc": ("airflow.providers.odbc.hooks.odbc.OdbcHook", "odbc_conn_id"),
-    "oracle": ("airflow.providers.oracle.hooks.oracle.OracleHook", "oracle_conn_id"),
-    "pig_cli": ("airflow.providers.apache.pig.hooks.pig.PigCliHook", "pig_cli_conn_id"),
-    "postgres": ("airflow.providers.postgres.hooks.postgres.PostgresHook", "postgres_conn_id"),
-    "presto": ("airflow.providers.presto.hooks.presto.PrestoHook", "presto_conn_id"),
-    "redis": ("airflow.providers.redis.hooks.redis.RedisHook", "redis_conn_id"),
-    "snowflake": ("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook", "snowflake_conn_id"),
-    "sqlite": ("airflow.providers.sqlite.hooks.sqlite.SqliteHook", "sqlite_conn_id"),
-    "tableau": ("airflow.providers.salesforce.hooks.tableau.TableauHook", "tableau_conn_id"),
-    "vertica": ("airflow.providers.vertica.hooks.vertica.VerticaHook", "vertica_conn_id"),
-    "wasb": ("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", "wasb_conn_id"),
-}
-# PLEASE KEEP ABOVE LIST IN ALPHABETICAL ORDER.
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
@@ -124,7 +64,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     passwords when using operators or hooks.
 
     .. seealso::
-        For more information on how to use this class, see: :doc:`/howto/connection/index`
+        For more information on how to use this class, see: :doc:`/howto/connection`
 
     :param conn_id: The connection ID.
     :type conn_id: str
@@ -154,7 +94,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     id = Column(Integer(), primary_key=True)
     conn_id = Column(String(ID_LEN), unique=True, nullable=False)
     conn_type = Column(String(500), nullable=False)
-    description = Column(String(5000))
+    description = Column(Text(5000))
     host = Column(String(500))
     schema = Column(String(500))
     login = Column(String(500))
@@ -162,7 +102,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
-    _extra = Column('extra', String(5000))
+    _extra = Column('extra', Text())
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -225,7 +165,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
     def get_uri(self) -> str:
         """Return connection in URI format"""
-        uri = '{}://'.format(str(self.conn_type).lower().replace('_', '-'))
+        uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
 
         authority_block = ''
         if self.login is not None:
@@ -250,12 +190,12 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
                 host_block += f'@:{self.port}'
 
         if self.schema:
-            host_block += '/{}'.format(quote(self.schema, safe=''))
+            host_block += f"/{quote(self.schema, safe='')}"
 
         uri += host_block
 
         if self.extra_dejson:
-            uri += '?{}'.format(urlencode(self.extra_dejson))
+            uri += f'?{urlencode(self.extra_dejson)}'
 
         return uri
 
@@ -326,10 +266,19 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
     def get_hook(self):
         """Return hook based on conn_type."""
-        hook_class_name, conn_id_param = CONN_TYPE_TO_HOOK.get(self.conn_type, (None, None))
+        hook_class_name, conn_id_param, package_name, hook_name = ProvidersManager().hooks.get(
+            self.conn_type, (None, None, None, None)
+        )
+
         if not hook_class_name:
             raise AirflowException(f'Unknown hook type "{self.conn_type}"')
-        hook_class = import_string(hook_class_name)
+        try:
+            hook_class = import_string(hook_class_name)
+        except ImportError:
+            warnings.warn(
+                "Could not import %s when discovering %s %s", hook_class_name, hook_name, package_name
+            )
+            raise
         return hook_class(**{conn_id_param: self.conn_id})
 
     def __repr__(self):
@@ -391,15 +340,15 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         return obj
 
     @classmethod
-    def get_connections_from_secrets(cls, conn_id: str) -> List['Connection']:
+    def get_connection_from_secrets(cls, conn_id: str) -> 'Connection':
         """
-        Get all connections as an iterable.
+        Get connection by conn_id.
 
         :param conn_id: connection id
-        :return: array of connections
+        :return: connection
         """
         for secrets_backend in ensure_secrets_loaded():
-            conn_list = secrets_backend.get_connections(conn_id=conn_id)
-            if conn_list:
-                return list(conn_list)
+            conn = secrets_backend.get_connection(conn_id=conn_id)
+            if conn:
+                return conn
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")

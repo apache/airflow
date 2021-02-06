@@ -20,6 +20,7 @@ import collections.abc
 import logging
 import os
 import smtplib
+import warnings
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -27,7 +28,7 @@ from email.utils import formatdate
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, AirflowException
 
 log = logging.getLogger(__name__)
 
@@ -36,16 +37,18 @@ def send_email(
     to: Union[List[str], Iterable[str]],
     subject: str,
     html_content: str,
-    files=None,
-    dryrun=False,
-    cc=None,
-    bcc=None,
-    mime_subtype='mixed',
-    mime_charset='utf-8',
+    files: Optional[List[str]] = None,
+    dryrun: bool = False,
+    cc: Optional[Union[str, Iterable[str]]] = None,
+    bcc: Optional[Union[str, Iterable[str]]] = None,
+    mime_subtype: str = 'mixed',
+    mime_charset: str = 'utf-8',
+    conn_id: Optional[str] = None,
     **kwargs,
 ):
     """Send email using backend specified in EMAIL_BACKEND."""
     backend = conf.getimport('email', 'EMAIL_BACKEND')
+    backend_conn_id = conn_id or conf.get("email", "EMAIL_CONN_ID")
     to_list = get_email_address_list(to)
     to_comma_separated = ", ".join(to_list)
 
@@ -59,6 +62,7 @@ def send_email(
         bcc=bcc,
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
+        conn_id=backend_conn_id,
         **kwargs,
     )
 
@@ -73,6 +77,7 @@ def send_email_smtp(
     bcc: Optional[Union[str, Iterable[str]]] = None,
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
+    conn_id: str = "smtp_default",
     **kwargs,
 ):
     """
@@ -94,7 +99,7 @@ def send_email_smtp(
         mime_charset=mime_charset,
     )
 
-    send_mime_email(e_from=smtp_mail_from, e_to=recipients, mime_msg=msg, dryrun=dryrun)
+    send_mime_email(e_from=smtp_mail_from, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun)
 
 
 def build_mime_message(
@@ -162,30 +167,60 @@ def build_mime_message(
     return msg, recipients
 
 
-def send_mime_email(e_from: str, e_to: List[str], mime_msg: MIMEMultipart, dryrun: bool = False) -> None:
+def send_mime_email(
+    e_from: str, e_to: List[str], mime_msg: MIMEMultipart, conn_id: str = "smtp_default", dryrun: bool = False
+) -> None:
     """Send MIME email."""
     smtp_host = conf.get('smtp', 'SMTP_HOST')
     smtp_port = conf.getint('smtp', 'SMTP_PORT')
     smtp_starttls = conf.getboolean('smtp', 'SMTP_STARTTLS')
     smtp_ssl = conf.getboolean('smtp', 'SMTP_SSL')
+    smtp_retry_limit = conf.getint('smtp', 'SMTP_RETRY_LIMIT')
+    smtp_timeout = conf.getint('smtp', 'SMTP_TIMEOUT')
     smtp_user = None
     smtp_password = None
 
-    try:
-        smtp_user = conf.get('smtp', 'SMTP_USER')
-        smtp_password = conf.get('smtp', 'SMTP_PASSWORD')
-    except AirflowConfigException:
-        log.debug("No user/password found for SMTP, so logging in with no authentication.")
+    smtp_user, smtp_password = None, None
+    if conn_id is not None:
+        try:
+            from airflow.hooks.base import BaseHook
+
+            conn = BaseHook.get_connection(conn_id)
+            smtp_user = conn.login
+            smtp_password = conn.password
+        except AirflowException:
+            pass
+    if smtp_user is None or smtp_password is None:
+        warnings.warn(
+            "Fetching SMTP credentials from configuration variables will be deprecated in a future "
+            "release. Please set credentials using a connection instead.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        try:
+            smtp_user = conf.get('smtp', 'SMTP_USER')
+            smtp_password = conf.get('smtp', 'SMTP_PASSWORD')
+        except AirflowConfigException:
+            log.debug("No user/password found for SMTP, so logging in with no authentication.")
 
     if not dryrun:
-        conn = smtplib.SMTP_SSL(smtp_host, smtp_port) if smtp_ssl else smtplib.SMTP(smtp_host, smtp_port)
-        if smtp_starttls:
-            conn.starttls()
-        if smtp_user and smtp_password:
-            conn.login(smtp_user, smtp_password)
-        log.info("Sent an alert email to %s", e_to)
-        conn.sendmail(e_from, e_to, mime_msg.as_string())
-        conn.quit()
+        for attempt in range(1, smtp_retry_limit + 1):
+            log.info("Email alerting: attempt %s", str(attempt))
+            try:
+                conn = _get_smtp_connection(smtp_host, smtp_port, smtp_timeout, smtp_ssl)
+            except smtplib.SMTPServerDisconnected:
+                if attempt < smtp_retry_limit:
+                    continue
+                raise
+
+            if smtp_starttls:
+                conn.starttls()
+            if smtp_user and smtp_password:
+                conn.login(smtp_user, smtp_password)
+            log.info("Sent an alert email to %s", e_to)
+            conn.sendmail(e_from, e_to, mime_msg.as_string())
+            conn.quit()
+            break
 
 
 def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
@@ -200,6 +235,14 @@ def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
 
     received_type = type(addresses).__name__
     raise TypeError(f"Unexpected argument type: Received '{received_type}'.")
+
+
+def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> smtplib.SMTP:
+    return (
+        smtplib.SMTP_SSL(host=host, port=port, timeout=timeout)
+        if with_ssl
+        else smtplib.SMTP(host=host, port=port, timeout=timeout)
+    )
 
 
 def _get_email_list_from_str(addresses: str) -> List[str]:

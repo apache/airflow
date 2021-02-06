@@ -17,14 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-pagerduty
+name: Pagerduty
 description: |
     `Pagerduty <https://www.pagerduty.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Pagerduty
     external-doc-url: https://www.pagerduty.com/
+    logo: /integration-logos/pagerduty/PagerDuty.png
     tags: [service]
 
 

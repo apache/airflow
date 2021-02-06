@@ -17,14 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-apache-sqoop
+name: Apache Sqoop
 description: |
     `Apache Sqoop <https://sqoop.apache.org/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Apache Sqoop
     external-doc-url: https://sqoop.apache.org/
+    logo: /integration-logos/apache/sqoop.png
     tags: [apache]
 
 operators:
@@ -36,3 +40,6 @@ hooks:
   - integration-name: Apache Sqoop
     python-modules:
       - airflow.providers.apache.sqoop.hooks.sqoop
+
+hook-class-names:
+  - airflow.providers.apache.sqoop.hooks.sqoop.SqoopHook

@@ -154,7 +154,7 @@ class SFTPOperator(BaseOperator):
                     sftp_client.put(self.local_filepath, self.remote_filepath, confirm=self.confirm)
 
         except Exception as e:
-            raise AirflowException("Error while transferring {}, error: {}".format(file_msg, str(e)))
+            raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
 
         return self.local_filepath
 

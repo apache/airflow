@@ -17,16 +17,20 @@
 
 ---
 package-name: apache-airflow-providers-apache-spark
+name: Apache Spark
 description: |
     `Apache Spark <https://spark.apache.org/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Apache Spark
     external-doc-url: https://spark.apache.org/
     how-to-guide:
-      - /docs/howto/operator/apache/spark.rst
+      - /docs/apache-airflow-providers-apache-spark/operators.rst
+    logo: /integration-logos/apache/spark.png
     tags: [apache]
 
 operators:
@@ -43,3 +47,8 @@ hooks:
       - airflow.providers.apache.spark.hooks.spark_jdbc_script
       - airflow.providers.apache.spark.hooks.spark_sql
       - airflow.providers.apache.spark.hooks.spark_submit
+
+hook-class-names:
+  - airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook
+  - airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook
+  - airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook

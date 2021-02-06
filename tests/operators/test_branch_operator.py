@@ -20,8 +20,8 @@ import datetime
 import unittest
 
 from airflow.models import DAG, DagRun, TaskInstance as TI
-from airflow.operators.branch_operator import BaseBranchOperator
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.branch import BaseBranchOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -83,12 +83,12 @@ class TestBranchOperator(unittest.TestCase):
 
             for ti in tis:
                 if ti.task_id == 'make_choice':
-                    self.assertEqual(ti.state, State.SUCCESS)
+                    assert ti.state == State.SUCCESS
                 elif ti.task_id == 'branch_1':
                     # should exist with state None
-                    self.assertEqual(ti.state, State.NONE)
+                    assert ti.state == State.NONE
                 elif ti.task_id == 'branch_2':
-                    self.assertEqual(ti.state, State.SKIPPED)
+                    assert ti.state == State.SKIPPED
                 else:
                     raise Exception
 
@@ -115,7 +115,7 @@ class TestBranchOperator(unittest.TestCase):
 
             for ti in tis:
                 if ti.task_id in expected:
-                    self.assertEqual(ti.state, expected[ti.task_id])
+                    assert ti.state == expected[ti.task_id]
                 else:
                     raise Exception
 
@@ -137,11 +137,11 @@ class TestBranchOperator(unittest.TestCase):
         tis = dagrun.get_task_instances()
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEqual(ti.state, State.SUCCESS)
+                assert ti.state == State.SUCCESS
             elif ti.task_id == 'branch_1':
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.SKIPPED)
+                assert ti.state == State.SKIPPED
             else:
                 raise Exception
 
@@ -163,10 +163,31 @@ class TestBranchOperator(unittest.TestCase):
         tis = dagrun.get_task_instances()
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEqual(ti.state, State.SUCCESS)
+                assert ti.state == State.SUCCESS
             elif ti.task_id == 'branch_1':
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             else:
                 raise Exception
+
+    def test_xcom_push(self):
+        self.branch_op = ChooseBranchOne(task_id='make_choice', dag=self.dag)
+
+        self.branch_1.set_upstream(self.branch_op)
+        self.branch_2.set_upstream(self.branch_op)
+        self.dag.clear()
+
+        dr = self.dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                assert ti.xcom_pull(task_ids='make_choice') == 'branch_1'

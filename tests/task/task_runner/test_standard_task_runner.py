@@ -88,17 +88,17 @@ class TestStandardTaskRunner(unittest.TestCase):
         time.sleep(0.5)
 
         pgid = os.getpgid(runner.process.pid)
-        self.assertGreater(pgid, 0)
-        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
+        assert pgid > 0
+        assert pgid != os.getpgid(0), "Task should be in a different process group to us"
 
         processes = list(self._procs_in_pgroup(pgid))
 
         runner.terminate()
 
         for process in processes:
-            self.assertFalse(psutil.pid_exists(process.pid), f"{process} is still alive")
+            assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
-        self.assertIsNotNone(runner.return_code())
+        assert runner.return_code() is not None
 
     def test_start_and_terminate_run_as_user(self):
         local_task_job = mock.Mock()
@@ -119,17 +119,17 @@ class TestStandardTaskRunner(unittest.TestCase):
         time.sleep(0.5)
 
         pgid = os.getpgid(runner.process.pid)
-        self.assertGreater(pgid, 0)
-        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
+        assert pgid > 0
+        assert pgid != os.getpgid(0), "Task should be in a different process group to us"
 
         processes = list(self._procs_in_pgroup(pgid))
 
         runner.terminate()
 
         for process in processes:
-            self.assertFalse(psutil.pid_exists(process.pid), f"{process} is still alive")
+            assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
-        self.assertIsNotNone(runner.return_code())
+        assert runner.return_code() is not None
 
     def test_on_kill(self):
         """
@@ -170,8 +170,8 @@ class TestStandardTaskRunner(unittest.TestCase):
         time.sleep(3)
 
         pgid = os.getpgid(runner.process.pid)
-        self.assertGreater(pgid, 0)
-        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
+        assert pgid > 0
+        assert pgid != os.getpgid(0), "Task should be in a different process group to us"
 
         processes = list(self._procs_in_pgroup(pgid))
 
@@ -184,10 +184,10 @@ class TestStandardTaskRunner(unittest.TestCase):
             time.sleep(2)
 
         with open(path) as f:
-            self.assertEqual("ON_KILL_TEST", f.readline())
+            assert "ON_KILL_TEST" == f.readline()
 
         for process in processes:
-            self.assertFalse(psutil.pid_exists(process.pid), f"{process} is still alive")
+            assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
     @staticmethod
     def _procs_in_pgroup(pgid):

@@ -55,12 +55,12 @@ class TestMySql(unittest.TestCase):
     )
     def test_mysql_to_mysql(self, client):
         with MySqlContext(client):
-            sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
+            sql = "SELECT * FROM connection;"
             op = GenericTransfer(
                 task_id='test_m2m',
                 preoperator=[
                     "DROP TABLE IF EXISTS test_mysql_to_mysql",
-                    "CREATE TABLE IF NOT EXISTS test_mysql_to_mysql LIKE INFORMATION_SCHEMA.TABLES",
+                    "CREATE TABLE IF NOT EXISTS test_mysql_to_mysql LIKE connection",
                 ],
                 source_conn_id='airflow_db',
                 destination_conn_id='airflow_db',

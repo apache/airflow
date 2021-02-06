@@ -87,15 +87,25 @@ TEST_TAG_PATH: str = (
 )
 
 TEST_ENTRY: Entry = Entry(name=TEST_ENTRY_PATH)
-TEST_ENTRY_DICT: Dict = dict(name=TEST_ENTRY_PATH)
+TEST_ENTRY_DICT: Dict = {
+    'description': '',
+    'display_name': '',
+    'linked_resource': '',
+    'name': TEST_ENTRY_PATH,
+}
 TEST_ENTRY_GROUP: EntryGroup = EntryGroup(name=TEST_ENTRY_GROUP_PATH)
-TEST_ENTRY_GROUP_DICT: Dict = dict(name=TEST_ENTRY_GROUP_PATH)
-TEST_TAG: EntryGroup = Tag(name=TEST_TAG_PATH)
-TEST_TAG_DICT: Dict = dict(name=TEST_TAG_PATH)
+TEST_ENTRY_GROUP_DICT: Dict = {'description': '', 'display_name': '', 'name': TEST_ENTRY_GROUP_PATH}
+TEST_TAG: Tag = Tag(name=TEST_TAG_PATH)
+TEST_TAG_DICT: Dict = {'fields': {}, 'name': TEST_TAG_PATH, 'template': '', 'template_display_name': ''}
 TEST_TAG_TEMPLATE: TagTemplate = TagTemplate(name=TEST_TAG_TEMPLATE_PATH)
-TEST_TAG_TEMPLATE_DICT: Dict = dict(name=TEST_TAG_TEMPLATE_PATH)
-TEST_TAG_TEMPLATE_FIELD: Dict = TagTemplateField(name=TEST_TAG_TEMPLATE_FIELD_ID)
-TEST_TAG_TEMPLATE_FIELD_DICT: Dict = dict(name=TEST_TAG_TEMPLATE_FIELD_ID)
+TEST_TAG_TEMPLATE_DICT: Dict = {'display_name': '', 'fields': {}, 'name': TEST_TAG_TEMPLATE_PATH}
+TEST_TAG_TEMPLATE_FIELD: TagTemplateField = TagTemplateField(name=TEST_TAG_TEMPLATE_FIELD_ID)
+TEST_TAG_TEMPLATE_FIELD_DICT: Dict = {
+    'display_name': '',
+    'is_required': False,
+    'name': TEST_TAG_TEMPLATE_FIELD_ID,
+    'order': 0,
+}
 
 
 class TestCloudDataCatalogCreateEntryOperator(TestCase):
@@ -134,7 +144,7 @@ class TestCloudDataCatalogCreateEntryOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="entry_id", value=TEST_ENTRY_ID)
-        self.assertEqual(TEST_ENTRY_DICT, result)
+        assert TEST_ENTRY_DICT == result
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
@@ -183,7 +193,7 @@ class TestCloudDataCatalogCreateEntryOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="entry_id", value=TEST_ENTRY_ID)
-        self.assertEqual(TEST_ENTRY_DICT, result)
+        assert TEST_ENTRY_DICT == result
 
 
 class TestCloudDataCatalogCreateEntryGroupOperator(TestCase):
@@ -220,7 +230,7 @@ class TestCloudDataCatalogCreateEntryGroupOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="entry_group_id", value=TEST_ENTRY_GROUP_ID)
-        self.assertEqual(result, TEST_ENTRY_GROUP_DICT)
+        assert result == TEST_ENTRY_GROUP_DICT
 
 
 class TestCloudDataCatalogCreateTagOperator(TestCase):
@@ -261,7 +271,7 @@ class TestCloudDataCatalogCreateTagOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="tag_id", value=TEST_TAG_ID)
-        self.assertEqual(TEST_TAG_DICT, result)
+        assert TEST_TAG_DICT == result
 
 
 class TestCloudDataCatalogCreateTagTemplateOperator(TestCase):
@@ -298,7 +308,7 @@ class TestCloudDataCatalogCreateTagTemplateOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="tag_template_id", value=TEST_TAG_TEMPLATE_ID)
-        self.assertEqual(TEST_TAG_TEMPLATE_DICT, result)
+        assert TEST_TAG_TEMPLATE_DICT == result
 
 
 class TestCloudDataCatalogCreateTagTemplateFieldOperator(TestCase):
@@ -337,7 +347,7 @@ class TestCloudDataCatalogCreateTagTemplateFieldOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="tag_template_field_id", value=TEST_TAG_TEMPLATE_FIELD_ID)
-        self.assertEqual(TEST_TAG_TEMPLATE_FIELD_DICT, result)
+        assert TEST_TAG_TEMPLATE_FIELD_DICT == result
 
 
 class TestCloudDataCatalogDeleteEntryOperator(TestCase):
@@ -498,7 +508,10 @@ class TestCloudDataCatalogDeleteTagTemplateFieldOperator(TestCase):
 
 
 class TestCloudDataCatalogGetEntryOperator(TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
+        **{"return_value.get_entry.return_value": TEST_ENTRY},  # type: ignore
+    )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         task = CloudDataCatalogGetEntryOperator(
             task_id="task_id",
@@ -529,7 +542,10 @@ class TestCloudDataCatalogGetEntryOperator(TestCase):
 
 
 class TestCloudDataCatalogGetEntryGroupOperator(TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
+        **{"return_value.get_entry_group.return_value": TEST_ENTRY_GROUP},  # type: ignore
+    )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         task = CloudDataCatalogGetEntryGroupOperator(
             task_id="task_id",
@@ -560,7 +576,10 @@ class TestCloudDataCatalogGetEntryGroupOperator(TestCase):
 
 
 class TestCloudDataCatalogGetTagTemplateOperator(TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
+        **{"return_value.get_tag_template.return_value": TEST_TAG_TEMPLATE},  # type: ignore
+    )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         task = CloudDataCatalogGetTagTemplateOperator(
             task_id="task_id",
@@ -589,7 +608,10 @@ class TestCloudDataCatalogGetTagTemplateOperator(TestCase):
 
 
 class TestCloudDataCatalogListTagsOperator(TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
+        **{"return_value.list_tags.return_value": [TEST_TAG]},  # type: ignore
+    )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         task = CloudDataCatalogListTagsOperator(
             task_id="task_id",
@@ -622,7 +644,10 @@ class TestCloudDataCatalogListTagsOperator(TestCase):
 
 
 class TestCloudDataCatalogLookupEntryOperator(TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
+        **{"return_value.lookup_entry.return_value": TEST_ENTRY},  # type: ignore
+    )
     def test_assert_valid_hook_call(self, mock_hook) -> None:
         task = CloudDataCatalogLookupEntryOperator(
             task_id="task_id",

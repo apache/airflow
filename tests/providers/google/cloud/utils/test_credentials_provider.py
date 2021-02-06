@@ -23,6 +23,7 @@ from io import StringIO
 from unittest import mock
 from uuid import uuid4
 
+import pytest
 from google.auth.environment_vars import CREDENTIALS
 from parameterized import parameterized
 
@@ -54,20 +55,17 @@ class TestHelper(unittest.TestCase):
     def test_build_gcp_conn_path(self):
         value = "test"
         conn = build_gcp_conn(key_file_path=value)
-        self.assertEqual("google-cloud-platform://?extra__google_cloud_platform__key_path=test", conn)
+        assert "google-cloud-platform://?extra__google_cloud_platform__key_path=test" == conn
 
     def test_build_gcp_conn_scopes(self):
         value = ["test", "test2"]
         conn = build_gcp_conn(scopes=value)
-        self.assertEqual(
-            "google-cloud-platform://?extra__google_cloud_platform__scope=test%2Ctest2",
-            conn,
-        )
+        assert "google-cloud-platform://?extra__google_cloud_platform__scope=test%2Ctest2" == conn
 
     def test_build_gcp_conn_project(self):
         value = "test"
         conn = build_gcp_conn(project_id=value)
-        self.assertEqual("google-cloud-platform://?extra__google_cloud_platform__projects=test", conn)
+        assert "google-cloud-platform://?extra__google_cloud_platform__projects=test" == conn
 
 
 class TestProvideGcpCredentials(unittest.TestCase):
@@ -83,16 +81,16 @@ class TestProvideGcpCredentials(unittest.TestCase):
         mock_file_handler.write = string_file.write
 
         with provide_gcp_credentials(key_file_dict=file_dict):
-            self.assertEqual(os.environ[CREDENTIALS], file_name)
-            self.assertEqual(file_content, string_file.getvalue())
-        self.assertEqual(os.environ[CREDENTIALS], ENV_VALUE)
+            assert os.environ[CREDENTIALS] == file_name
+            assert file_content == string_file.getvalue()
+        assert os.environ[CREDENTIALS] == ENV_VALUE
 
     @mock.patch.dict(os.environ, {CREDENTIALS: ENV_VALUE})
     def test_provide_gcp_credentials_keep_environment(self):
         key_path = "/test/key-path"
         with provide_gcp_credentials(key_file_path=key_path):
-            self.assertEqual(os.environ[CREDENTIALS], key_path)
-        self.assertEqual(os.environ[CREDENTIALS], ENV_VALUE)
+            assert os.environ[CREDENTIALS] == key_path
+        assert os.environ[CREDENTIALS] == ENV_VALUE
 
 
 class TestProvideGcpConnection(unittest.TestCase):
@@ -105,8 +103,8 @@ class TestProvideGcpConnection(unittest.TestCase):
         project_id = "project_id"
         with provide_gcp_connection(path, scopes, project_id):
             mock_builder.assert_called_once_with(key_file_path=path, scopes=scopes, project_id=project_id)
-            self.assertEqual(os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT], TEMP_VARIABLE)
-        self.assertEqual(os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT], ENV_VALUE)
+            assert os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT] == TEMP_VARIABLE
+        assert os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT] == ENV_VALUE
 
 
 class TestProvideGcpConnAndCredentials(unittest.TestCase):
@@ -122,10 +120,10 @@ class TestProvideGcpConnAndCredentials(unittest.TestCase):
         project_id = "project_id"
         with provide_gcp_conn_and_credentials(path, scopes, project_id):
             mock_builder.assert_called_once_with(key_file_path=path, scopes=scopes, project_id=project_id)
-            self.assertEqual(os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT], TEMP_VARIABLE)
-            self.assertEqual(os.environ[CREDENTIALS], path)
-        self.assertEqual(os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT], ENV_VALUE)
-        self.assertEqual(os.environ[CREDENTIALS], ENV_VALUE)
+            assert os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT] == TEMP_VARIABLE
+            assert os.environ[CREDENTIALS] == path
+        assert os.environ[AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT] == ENV_VALUE
+        assert os.environ[CREDENTIALS] == ENV_VALUE
 
 
 class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
@@ -140,15 +138,12 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         with self.assertLogs() as cm:
             result = get_credentials_and_project_id()
         mock_auth_default.assert_called_once_with(scopes=None)
-        self.assertEqual(("CREDENTIALS", "PROJECT_ID"), result)
-        self.assertEqual(
-            [
-                'INFO:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
-                'connection using `google.auth.default()` since no key file is defined for '
-                'hook.'
-            ],
-            cm.output,
-        )
+        assert ("CREDENTIALS", "PROJECT_ID") == result
+        assert [
+            'INFO:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
+            'connection using `google.auth.default()` since no key file is defined for '
+            'hook.'
+        ] == cm.output
 
     @mock.patch('google.auth.default')
     def test_get_credentials_and_project_id_with_default_auth_and_delegate(self, mock_auth_default):
@@ -158,7 +153,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         result = get_credentials_and_project_id(delegate_to="USER")
         mock_auth_default.assert_called_once_with(scopes=None)
         mock_credentials.with_subject.assert_called_once_with("USER")
-        self.assertEqual((mock_credentials.with_subject.return_value, self.test_project_id), result)
+        assert (mock_credentials.with_subject.return_value, self.test_project_id) == result
 
     @parameterized.expand([(['scope1'],), (['scope1', 'scope2'],)])
     @mock.patch('google.auth.default')
@@ -168,7 +163,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
 
         result = get_credentials_and_project_id(scopes=scopes)
         mock_auth_default.assert_called_once_with(scopes=scopes)
-        self.assertEqual(mock_auth_default.return_value, result)
+        assert mock_auth_default.return_value == result
 
     @mock.patch(
         'airflow.providers.google.cloud.utils.credentials_provider.' 'impersonated_credentials.Credentials'
@@ -190,7 +185,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             delegates=None,
             target_scopes=None,
         )
-        self.assertEqual((mock_impersonated_credentials.return_value, ANOTHER_PROJECT_ID), result)
+        assert (mock_impersonated_credentials.return_value, ANOTHER_PROJECT_ID) == result
 
     @mock.patch(
         'airflow.providers.google.cloud.utils.credentials_provider.' 'impersonated_credentials.Credentials'
@@ -213,7 +208,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             delegates=None,
             target_scopes=['scope1', 'scope2'],
         )
-        self.assertEqual((mock_impersonated_credentials.return_value, self.test_project_id), result)
+        assert (mock_impersonated_credentials.return_value, self.test_project_id) == result
 
     @mock.patch(
         'airflow.providers.google.cloud.utils.credentials_provider.' 'impersonated_credentials.Credentials'
@@ -236,7 +231,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             delegates=[ACCOUNT_1_SAME_PROJECT, ACCOUNT_2_SAME_PROJECT],
             target_scopes=None,
         )
-        self.assertEqual((mock_impersonated_credentials.return_value, ANOTHER_PROJECT_ID), result)
+        assert (mock_impersonated_credentials.return_value, ANOTHER_PROJECT_ID) == result
 
     @mock.patch(
         'google.oauth2.service_account.Credentials.from_service_account_file',
@@ -246,18 +241,15 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         with self.assertLogs(level="DEBUG") as cm:
             result = get_credentials_and_project_id(key_path=self.test_key_file)
         mock_from_service_account_file.assert_called_once_with(self.test_key_file, scopes=None)
-        self.assertEqual((mock_from_service_account_file.return_value, self.test_project_id), result)
-        self.assertEqual(
-            [
-                'DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
-                'connection using JSON key file KEY_PATH.json'
-            ],
-            cm.output,
-        )
+        assert (mock_from_service_account_file.return_value, self.test_project_id) == result
+        assert [
+            'DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
+            'connection using JSON key file KEY_PATH.json'
+        ] == cm.output
 
     @parameterized.expand([("p12", "path/to/file.p12"), ("unknown", "incorrect_file.ext")])
     def test_get_credentials_and_project_id_with_service_account_file_and_non_valid_key(self, _, file):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             get_credentials_and_project_id(key_path=file)
 
     @mock.patch(
@@ -269,20 +261,18 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         with self.assertLogs(level="DEBUG") as cm:
             result = get_credentials_and_project_id(keyfile_dict=service_account)
         mock_from_service_account_info.assert_called_once_with(service_account, scopes=None)
-        self.assertEqual((mock_from_service_account_info.return_value, self.test_project_id), result)
-        self.assertEqual(
-            [
-                'DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
-                'connection using JSON Dict'
-            ],
-            cm.output,
-        )
+        assert (mock_from_service_account_info.return_value, self.test_project_id) == result
+        assert [
+            'DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
+            'connection using JSON Dict'
+        ] == cm.output
 
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(
         self,
     ):
-        with self.assertRaisesRegex(
-            AirflowException, re.escape('The `keyfile_dict` and `key_path` fields are mutually exclusive.')
+        with pytest.raises(
+            AirflowException,
+            match=re.escape('The `keyfile_dict` and `key_path` fields are mutually exclusive.'),
         ):
             get_credentials_and_project_id(key_path='KEY.json', keyfile_dict={'private_key': 'PRIVATE_KEY'})
 
@@ -295,18 +285,18 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
     )
     def test_disable_logging(self, mock_default, mock_info, mock_file):
         # assert not logs
-        with self.assertRaises(AssertionError), self.assertLogs(level="DEBUG"):
+        with pytest.raises(AssertionError), self.assertLogs(level="DEBUG"):
             get_credentials_and_project_id(disable_logging=True)
 
         # assert not logs
-        with self.assertRaises(AssertionError), self.assertLogs(level="DEBUG"):
+        with pytest.raises(AssertionError), self.assertLogs(level="DEBUG"):
             get_credentials_and_project_id(
                 keyfile_dict={'private_key': 'PRIVATE_KEY'},
                 disable_logging=True,
             )
 
         # assert not logs
-        with self.assertRaises(AssertionError), self.assertLogs(level="DEBUG"):
+        with pytest.raises(AssertionError), self.assertLogs(level="DEBUG"):
             get_credentials_and_project_id(
                 key_path='KEY.json',
                 disable_logging=True,
@@ -315,7 +305,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
 
 class TestGetScopes(unittest.TestCase):
     def test_get_scopes_with_default(self):
-        self.assertEqual(_get_scopes(), _DEFAULT_SCOPES)
+        assert _get_scopes() == _DEFAULT_SCOPES
 
     @parameterized.expand(
         [
@@ -324,12 +314,12 @@ class TestGetScopes(unittest.TestCase):
         ]
     )
     def test_get_scopes_with_input(self, _, scopes_str, scopes):
-        self.assertEqual(_get_scopes(scopes_str), scopes)
+        assert _get_scopes(scopes_str) == scopes
 
 
 class TestGetTargetPrincipalAndDelegates(unittest.TestCase):
     def test_get_target_principal_and_delegates_no_argument(self):
-        self.assertEqual(_get_target_principal_and_delegates(), (None, None))
+        assert _get_target_principal_and_delegates() == (None, None)
 
     @parameterized.expand(
         [
@@ -346,20 +336,15 @@ class TestGetTargetPrincipalAndDelegates(unittest.TestCase):
     def test_get_target_principal_and_delegates_with_input(
         self, _, impersonation_chain, target_principal_and_delegates
     ):
-        self.assertEqual(
-            _get_target_principal_and_delegates(impersonation_chain), target_principal_and_delegates
-        )
+        assert _get_target_principal_and_delegates(impersonation_chain) == target_principal_and_delegates
 
 
 class TestGetProjectIdFromServiceAccountEmail(unittest.TestCase):
     def test_get_project_id_from_service_account_email(
         self,
     ):
-        self.assertEqual(
-            _get_project_id_from_service_account_email(ACCOUNT_3_ANOTHER_PROJECT),
-            ANOTHER_PROJECT_ID,
-        )
+        assert _get_project_id_from_service_account_email(ACCOUNT_3_ANOTHER_PROJECT) == ANOTHER_PROJECT_ID
 
     def test_get_project_id_from_service_account_email_wrong_input(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             _get_project_id_from_service_account_email("ACCOUNT_1")

@@ -31,6 +31,10 @@ class S3ToGCSOperator(S3ListOperator):
     Synchronizes an S3 key, possibly a prefix, with a Google Cloud Storage
     destination path.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3ToGCSOperator`
+
     :param bucket: The S3 bucket where to find the objects. (templated)
     :type bucket: str
     :param prefix: Prefix string which filters objects whose name begin with
@@ -160,7 +164,7 @@ class S3ToGCSOperator(S3ListOperator):
         files = super().execute(context)
 
         gcs_hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )

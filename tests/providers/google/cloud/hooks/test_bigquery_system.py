@@ -17,17 +17,16 @@
 # under the License.
 """System tests for Google BigQuery hooks"""
 
-import unittest
-
 import pytest
 
 from airflow.providers.google.cloud.hooks import bigquery as hook
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
+from tests.test_utils.gcp_system_helpers import GoogleSystemTest
 
 
 @pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
-class BigQueryDataframeResultsSystemTest(unittest.TestCase):
+class BigQueryDataframeResultsSystemTest(GoogleSystemTest):
     def setUp(self):
         self.instance = hook.BigQueryHook()
 
@@ -35,22 +34,22 @@ class BigQueryDataframeResultsSystemTest(unittest.TestCase):
         import pandas as pd
 
         df = self.instance.get_pandas_df('select 1')
-        self.assertIsInstance(df, pd.DataFrame)
+        assert isinstance(df, pd.DataFrame)
 
     def test_throws_exception_with_invalid_query(self):
-        with self.assertRaises(Exception) as context:
+        with pytest.raises(Exception) as ctx:
             self.instance.get_pandas_df('from `1`')
-        self.assertIn('Reason: ', str(context.exception), "")
+        assert 'Reason: ' in str(ctx.value), ""
 
     def test_succeeds_with_explicit_legacy_query(self):
         df = self.instance.get_pandas_df('select 1', dialect='legacy')
-        self.assertEqual(df.iloc(0)[0][0], 1)
+        assert df.iloc(0)[0][0] == 1
 
     def test_succeeds_with_explicit_std_query(self):
         df = self.instance.get_pandas_df('select * except(b) from (select 1 a, 2 b)', dialect='standard')
-        self.assertEqual(df.iloc(0)[0][0], 1)
+        assert df.iloc(0)[0][0] == 1
 
     def test_throws_exception_with_incompatible_syntax(self):
-        with self.assertRaises(Exception) as context:
+        with pytest.raises(Exception) as ctx:
             self.instance.get_pandas_df('select * except(b) from (select 1 a, 2 b)', dialect='legacy')
-        self.assertIn('Reason: ', str(context.exception), "")
+        assert 'Reason: ' in str(ctx.value), ""

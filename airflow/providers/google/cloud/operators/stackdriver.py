@@ -19,6 +19,7 @@
 from typing import Optional, Sequence, Union
 
 from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
@@ -125,7 +126,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info(
-            'List Alert Policies: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %d',
+            'List Alert Policies: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s',
             self.project_id,
             self.format_,
             self.filter_,
@@ -139,7 +140,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
                 impersonation_chain=self.impersonation_chain,
             )
 
-        return self.hook.list_alert_policies(
+        result = self.hook.list_alert_policies(
             project_id=self.project_id,
             format_=self.format_,
             filter_=self.filter_,
@@ -149,6 +150,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        return [AlertPolicy.to_dict(policy) for policy in result]
 
 
 class StackdriverEnableAlertPoliciesOperator(BaseOperator):
@@ -614,7 +616,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info(
-            'List Notification Channels: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %d',
+            'List Notification Channels: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s',
             self.project_id,
             self.format_,
             self.filter_,
@@ -627,7 +629,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 impersonation_chain=self.impersonation_chain,
             )
-        return self.hook.list_notification_channels(
+        channels = self.hook.list_notification_channels(
             format_=self.format_,
             project_id=self.project_id,
             filter_=self.filter_,
@@ -637,6 +639,8 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        result = [NotificationChannel.to_dict(channel) for channel in channels]
+        return result
 
 
 class StackdriverEnableNotificationChannelsOperator(BaseOperator):

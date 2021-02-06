@@ -17,11 +17,9 @@
 # under the License.
 """Microsoft SQLServer hook module"""
 
-import warnings
-
 import pymssql
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class MsSqlHook(DbApiHook):
@@ -29,18 +27,11 @@ class MsSqlHook(DbApiHook):
 
     conn_name_attr = 'mssql_conn_id'
     default_conn_name = 'mssql_default'
+    conn_type = 'mssql'
+    hook_name = 'Microsoft SQL Server'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
-        warnings.warn(
-            (
-                "This class is deprecated and will be removed in Airflow 2.0.\n"
-                "pymssql is discontinued.  See https://github.com/pymssql/pymssql/issues/668.\n"
-                "Please use `airflow.providers.odbc.hooks.odbc.OdbcHook`"
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 

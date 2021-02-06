@@ -17,17 +17,22 @@
 
 ---
 package-name: apache-airflow-providers-docker
+name: Docker
 description: |
     `Docker <https://docs.docker.com/install/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Docker
     external-doc-url: https://docs.docker.com/
+    logo: /integration-logos/docker/Docker.png
     tags: [software]
   - integration-name: Docker Swarm
     external-doc-url: https://docs.docker.com/engine/swarm/
+    logo: /integration-logos/docker/Docker-Swarm.png
     tags: [software]
 
 operators:
@@ -42,3 +47,6 @@ hooks:
   - integration-name: Docker
     python-modules:
       - airflow.providers.docker.hooks.docker
+
+hook-class-names:
+  - airflow.providers.docker.hooks.docker.DockerHook

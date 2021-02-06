@@ -21,7 +21,7 @@ import datetime
 
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.subdag_operator import SubDagOperator
+from airflow.operators.subdag import SubDagOperator
 
 
 def create_subdag_opt(main_dag):

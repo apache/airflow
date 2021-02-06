@@ -18,6 +18,7 @@
 import unittest
 from unittest import mock
 
+import pytest
 from google.cloud.dataproc_v1beta2.types import JobStatus
 
 from airflow import AirflowException
@@ -44,7 +45,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_done(self, mock_hook):
-        job = self.create_job(JobStatus.DONE)
+        job = self.create_job(JobStatus.State.DONE)
         job_id = "job_id"
         mock_hook.return_value.get_job.return_value = job
 
@@ -61,11 +62,11 @@ class TestDataprocJobSensor(unittest.TestCase):
         mock_hook.return_value.get_job.assert_called_once_with(
             job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
         )
-        self.assertTrue(ret)
+        assert ret
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_error(self, mock_hook):
-        job = self.create_job(JobStatus.ERROR)
+        job = self.create_job(JobStatus.State.ERROR)
         job_id = "job_id"
         mock_hook.return_value.get_job.return_value = job
 
@@ -78,7 +79,7 @@ class TestDataprocJobSensor(unittest.TestCase):
             timeout=TIMEOUT,
         )
 
-        with self.assertRaisesRegex(AirflowException, "Job failed"):
+        with pytest.raises(AirflowException, match="Job failed"):
             sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(
@@ -87,7 +88,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_wait(self, mock_hook):
-        job = self.create_job(JobStatus.RUNNING)
+        job = self.create_job(JobStatus.State.RUNNING)
         job_id = "job_id"
         mock_hook.return_value.get_job.return_value = job
 
@@ -104,11 +105,11 @@ class TestDataprocJobSensor(unittest.TestCase):
         mock_hook.return_value.get_job.assert_called_once_with(
             job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
         )
-        self.assertFalse(ret)
+        assert not ret
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_cancelled(self, mock_hook):
-        job = self.create_job(JobStatus.CANCELLED)
+        job = self.create_job(JobStatus.State.CANCELLED)
         job_id = "job_id"
         mock_hook.return_value.get_job.return_value = job
 
@@ -120,7 +121,7 @@ class TestDataprocJobSensor(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             timeout=TIMEOUT,
         )
-        with self.assertRaisesRegex(AirflowException, "Job was cancelled"):
+        with pytest.raises(AirflowException, match="Job was cancelled"):
             sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(

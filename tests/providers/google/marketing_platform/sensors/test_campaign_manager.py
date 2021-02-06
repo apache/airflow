@@ -54,4 +54,4 @@ class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
         hook_mock.return_value.get_report.assert_called_once_with(
             profile_id=profile_id, report_id=report_id, file_id=file_id
         )
-        self.assertTrue(result)
+        assert result

@@ -33,4 +33,4 @@ class TestSageMakerBaseOperator(unittest.TestCase):
     def test_parse_integer(self):
         self.sagemaker.integer_fields = [['key1'], ['key2', 'key3'], ['key2', 'key4'], ['key5', 'key6']]
         self.sagemaker.parse_config_integers()
-        self.assertEqual(self.sagemaker.config, parsed_config)
+        assert self.sagemaker.config == parsed_config

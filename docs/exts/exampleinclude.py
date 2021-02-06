@@ -140,7 +140,7 @@ def register_source(app, env, modname):
     """
     entry = env._viewcode_modules.get(modname, None)
     if entry is False:
-        print("[%s] Entry is false for " % modname)
+        print(f"[{modname}] Entry is false for ")
         return False
 
     code_tags = app.emit_firstresult("viewcode-find-source", modname)

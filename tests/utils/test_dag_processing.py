@@ -142,6 +142,45 @@ class TestDagFileProcessorManager(unittest.TestCase):
         child_pipe.close()
         parent_pipe.close()
 
+    @pytest.mark.backend("mysql", "postgres")
+    def test_start_new_processes_with_same_filepath(self):
+        """
+        Test that when a processor already exist with a filepath, a new processor won't be created
+        with that filepath. The filepath will just be removed from the list.
+        """
+        processor_factory_mock = MagicMock()
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_factory=processor_factory_mock,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        file_1 = 'file_1.py'
+        file_2 = 'file_2.py'
+        file_3 = 'file_3.py'
+        manager._file_path_queue = [file_1, file_2, file_3]
+
+        # Mock that only one processor exists. This processor runs with 'file_1'
+        manager._processors[file_1] = MagicMock()
+        # Start New Processes
+        manager.start_new_processes()
+
+        # Because of the config: '[scheduler] parsing_processes = 2'
+        # verify that only one extra process is created
+        # and since a processor with 'file_1' already exists,
+        # even though it is first in '_file_path_queue'
+        # a new processor is created with 'file_2' and not 'file_1'.
+        processor_factory_mock.assert_called_once_with('file_2.py', [], [], False)
+
+        assert file_1 in manager._processors.keys()
+        assert file_2 in manager._processors.keys()
+        assert [file_3] == manager._file_path_queue
+
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
             dag_directory='directory',
@@ -162,7 +201,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         manager._file_stats['missing_file.txt'] = DagFileStat(0, 0, None, None, 0)
 
         manager.set_file_paths(['abc.txt'])
-        self.assertDictEqual(manager._processors, {})
+        assert manager._processors == {}
 
     def test_set_file_paths_when_processor_file_path_is_in_new_file_paths(self):
         manager = DagFileProcessorManager(
@@ -183,7 +222,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         manager._processors['abc.txt'] = mock_processor
 
         manager.set_file_paths(['abc.txt'])
-        self.assertDictEqual(manager._processors, {'abc.txt': mock_processor})
+        assert manager._processors == {'abc.txt': mock_processor}
 
     def test_find_zombies(self):
         manager = DagFileProcessorManager(
@@ -220,14 +259,14 @@ class TestDagFileProcessorManager(unittest.TestCase):
             )
             manager._find_zombies()  # pylint: disable=no-value-for-parameter
             requests = manager._callback_to_execute[dag.full_filepath]
-            self.assertEqual(1, len(requests))
-            self.assertEqual(requests[0].full_filepath, dag.full_filepath)
-            self.assertEqual(requests[0].msg, "Detected as zombie")
-            self.assertEqual(requests[0].is_failure_callback, True)
-            self.assertIsInstance(requests[0].simple_task_instance, SimpleTaskInstance)
-            self.assertEqual(ti.dag_id, requests[0].simple_task_instance.dag_id)
-            self.assertEqual(ti.task_id, requests[0].simple_task_instance.task_id)
-            self.assertEqual(ti.execution_date, requests[0].simple_task_instance.execution_date)
+            assert 1 == len(requests)
+            assert requests[0].full_filepath == dag.full_filepath
+            assert requests[0].msg == "Detected as zombie"
+            assert requests[0].is_failure_callback is True
+            assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
+            assert ti.dag_id == requests[0].simple_task_instance.dag_id
+            assert ti.task_id == requests[0].simple_task_instance.task_id
+            assert ti.execution_date == requests[0].simple_task_instance.execution_date
 
             session.query(TI).delete()
             session.query(LJ).delete()
@@ -238,7 +277,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         file processors until the next zombie detection logic is invoked.
         """
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py')
-        with conf_vars({('scheduler', 'max_threads'): '1', ('core', 'load_examples'): 'False'}):
+        with conf_vars({('scheduler', 'parsing_processes'): '1', ('core', 'load_examples'): 'False'}):
             dagbag = DagBag(test_dag_path, read_dags_from_db=False)
             with create_session() as session:
                 session.query(LJ).delete()
@@ -447,7 +486,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             # Since we are reloading logging config not creating this file,
             # we should expect it to be nonexistent.
 
-            self.assertFalse(os.path.isfile(log_file_loc))
+            assert not os.path.isfile(log_file_loc)
 
     @conf_vars({('core', 'load_examples'): 'False'})
     def test_parse_once(self):
@@ -497,7 +536,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
         processor_agent._process.join()
 
-        self.assertTrue(os.path.isfile(log_file_loc))
+        assert os.path.isfile(log_file_loc)
 
 
 class TestCorrectMaybeZipped(unittest.TestCase):
@@ -508,7 +547,7 @@ class TestCorrectMaybeZipped(unittest.TestCase):
 
         dag_folder = correct_maybe_zipped(path)
 
-        self.assertEqual(dag_folder, path)
+        assert dag_folder == path
 
     @mock.patch("zipfile.is_zipfile")
     def test_correct_maybe_zipped_normal_file_with_zip_in_name(self, mocked_is_zipfile):
@@ -517,7 +556,7 @@ class TestCorrectMaybeZipped(unittest.TestCase):
 
         dag_folder = correct_maybe_zipped(path)
 
-        self.assertEqual(dag_folder, path)
+        assert dag_folder == path
 
     @mock.patch("zipfile.is_zipfile")
     def test_correct_maybe_zipped_archive(self, mocked_is_zipfile):
@@ -528,9 +567,9 @@ class TestCorrectMaybeZipped(unittest.TestCase):
 
         assert mocked_is_zipfile.call_count == 1
         (args, kwargs) = mocked_is_zipfile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
+        assert '/path/to/archive.zip' == args[0]
 
-        self.assertEqual(dag_folder, '/path/to/archive.zip')
+        assert dag_folder == '/path/to/archive.zip'
 
 
 class TestOpenMaybeZipped(unittest.TestCase):
@@ -547,13 +586,16 @@ class TestOpenMaybeZipped(unittest.TestCase):
 
     @mock.patch("zipfile.is_zipfile")
     @mock.patch("zipfile.ZipFile")
-    def test_open_maybe_zipped_archive(self, mocked_zip_file, mocked_is_zipfile):
+    @mock.patch("io.TextIOWrapper")
+    def test_open_maybe_zipped_archive(self, mocked_text_io_wrapper, mocked_zip_file, mocked_is_zipfile):
         mocked_is_zipfile.return_value = True
+        open_return_value = mock.mock_open(read_data="data")
         instance = mocked_zip_file.return_value
-        instance.open.return_value = mock.mock_open(read_data="data")
+        instance.open.return_value = open_return_value
 
         open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
 
+        mocked_text_io_wrapper.assert_called_once_with(open_return_value)
         mocked_is_zipfile.assert_called_once_with('/path/to/archive.zip')
         mocked_zip_file.assert_called_once_with('/path/to/archive.zip', mode='r')
         instance.open.assert_called_once_with('deep/path/to/file.txt')

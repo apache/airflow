@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, String, and_
-from sqlalchemy.orm import Session, backref, relationship
+from sqlalchemy.orm import Session, backref, foreign, relationship
 from sqlalchemy.sql import exists
 
 from airflow.models.base import ID_LEN, Base
@@ -73,8 +73,7 @@ class SerializedDagModel(Base):
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=dag_id == DagRun.dag_id,
-        foreign_keys=dag_id,
+        primaryjoin=dag_id == foreign(DagRun.dag_id),
         backref=backref('serialized_dag', uselist=False, innerjoin=True),
     )
 
@@ -86,6 +85,8 @@ class SerializedDagModel(Base):
         innerjoin=True,
         backref=backref('serialized_dag', uselist=False, innerjoin=True),
     )
+
+    load_op_links = True
 
     def __init__(self, dag: DAG):
         self.dag_id = dag.dag_id
@@ -164,6 +165,8 @@ class SerializedDagModel(Base):
     @property
     def dag(self):
         """The DAG deserialized from the ``data`` column"""
+        SerializedDAG._load_operator_extra_links = self.load_op_links  # pylint: disable=protected-access
+
         if isinstance(self.data, dict):
             dag = SerializedDAG.from_dict(self.data)  # type: Any
         else:

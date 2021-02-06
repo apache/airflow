@@ -40,7 +40,6 @@ function local_mounts::generate_local_mounts_list {
         "$prefix"dags:/opt/airflow/dags:cached
         "$prefix"dev:/opt/airflow/dev:cached
         "$prefix"docs:/opt/airflow/docs:cached
-        "$prefix"dist:/dist:cached
         "$prefix"hooks:/opt/airflow/hooks:cached
         "$prefix"logs:/root/airflow/logs:cached
         "$prefix"pylintrc:/opt/airflow/pylintrc:cached
@@ -53,7 +52,6 @@ function local_mounts::generate_local_mounts_list {
         "$prefix"tests:/opt/airflow/tests:cached
         "$prefix"kubernetes_tests:/opt/airflow/kubernetes_tests:cached
         "$prefix"chart:/opt/airflow/chart:cached
-        "$prefix"tmp:/tmp:cached
         "$prefix"metastore_browser:/opt/airflow/metastore_browser:cached
     )
 }

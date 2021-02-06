@@ -17,21 +17,29 @@
 
 ---
 package-name: apache-airflow-providers-apache-pig
+name: Apache Pig
 description: |
     `Apache Pig <https://pig.apache.org/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Apache Pig
     external-doc-url: https://pig.apache.org/
+    logo: /integration-logos/apache/pig.png
     tags: [apache]
 
 operators:
   - integration-name: Apache Pig
     python-modules:
       - airflow.providers.apache.pig.operators.pig
+
 hooks:
   - integration-name: Apache Pig
     python-modules:
       - airflow.providers.apache.pig.hooks.pig
+
+hook-class-names:
+  - airflow.providers.apache.pig.hooks.pig.PigCliHook

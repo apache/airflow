@@ -38,7 +38,7 @@ class TestAzureCosmosSensor(unittest.TestCase):
         )
         result = sensor.poke(None)
         mock_instance.get_document.assert_called_once_with(DOCUMENT_ID, DB_NAME, COLLECTION_NAME)
-        self.assertEqual(result, True)
+        assert result is True
 
     @mock.patch('airflow.providers.microsoft.azure.sensors.azure_cosmos.AzureCosmosDBHook')
     def test_should_return_false_on_no_document(self, mock_hook):
@@ -52,4 +52,4 @@ class TestAzureCosmosSensor(unittest.TestCase):
         )
         result = sensor.poke(None)
         mock_instance.get_document.assert_called_once_with(DOCUMENT_ID, DB_NAME, COLLECTION_NAME)
-        self.assertEqual(result, False)
+        assert result is False

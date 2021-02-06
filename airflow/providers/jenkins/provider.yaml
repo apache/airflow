@@ -17,14 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-jenkins
+name: Jenkins
 description: |
     `Jenkins <https://jenkins.io/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Jenkins
     external-doc-url: https://jenkins.io/
+    logo: /integration-logos/jenkins/Jenkins.png
     tags: [software]
 
 operators:
@@ -35,3 +39,6 @@ hooks:
   - integration-name: Jenkins
     python-modules:
       - airflow.providers.jenkins.hooks.jenkins
+
+hook-class-names:
+  - airflow.providers.jenkins.hooks.jenkins.JenkinsHook

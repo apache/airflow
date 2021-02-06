@@ -17,16 +17,20 @@
 
 ---
 package-name: apache-airflow-providers-jdbc
+name: Java Database Connectivity (JDBC)
 description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Java Database Connectivity (JDBC)
     external-doc-url: https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/
     how-to-guide:
-      - /docs/howto/operator/jdbc.rst
+      - /docs/apache-airflow-providers-jdbc/operators.rst
+    logo: /integration-logos/jdbc/JDBC.png
     tags: [protocol]
 
 operators:
@@ -37,3 +41,6 @@ hooks:
   - integration-name: Java Database Connectivity (JDBC)
     python-modules:
       - airflow.providers.jdbc.hooks.jdbc
+
+hook-class-names:
+  - airflow.providers.jdbc.hooks.jdbc.JdbcHook

@@ -20,19 +20,13 @@
 /* global window, dagTZ, moment, convertSecsToHumanReadable */
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
-import { escapeHtml } from './base';
+import { escapeHtml } from './main';
 import { defaultFormat, formatDateTime } from './datetime-utils';
 
 function makeDateTimeHTML(start, end) {
   // check task ended or not
-  if (end && end instanceof moment) {
-    return (
-      `Started: ${start.format(defaultFormat)} <br> Ended: ${end.format(defaultFormat)} <br>`
-    );
-  }
-  return (
-    `Started: ${start.format(defaultFormat)} <br> Ended: Not ended yet <br>`
-  );
+  const isEnded = end && end instanceof moment && end.isValid();
+  return `Started: ${start.format(defaultFormat)}<br>Ended: ${isEnded ? end.format(defaultFormat) : 'Not ended yet'}<br>`;
 }
 
 function generateTooltipDateTimes(startDate, endDate, dagTZ) {
@@ -50,11 +44,13 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   let tooltipHTML = '<br><strong>UTC:</strong><br>';
   tooltipHTML += makeDateTimeHTML(startDate, endDate);
 
-  // Generate User's Local Start and End Date
-  startDate.tz(localTZ);
-  tooltipHTML += `<br><strong>Local: ${startDate.format(tzFormat)}</strong><br>`;
-  const localEndDate = endDate && endDate instanceof moment ? endDate.tz(localTZ) : endDate;
-  tooltipHTML += makeDateTimeHTML(startDate, localEndDate);
+  // Generate User's Local Start and End Date, unless it's UTC
+  if (localTZ !== 'UTC') {
+    startDate.tz(localTZ);
+    tooltipHTML += `<br><strong>Local: ${startDate.format(tzFormat)}</strong><br>`;
+    const localEndDate = endDate && endDate instanceof moment ? endDate.tz(localTZ) : endDate;
+    tooltipHTML += makeDateTimeHTML(startDate, localEndDate);
+  }
 
   // Generate DAG's Start and End Date
   if (dagTZ !== 'UTC' && dagTZ !== localTZ) {
@@ -104,4 +100,17 @@ export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
   return tt;
 }
 
+export function taskNoInstanceTooltip(taskId, task) {
+  let tt = '';
+  if (taskId) {
+    tt += `Task_id: ${escapeHtml(taskId)}<br>`;
+  }
+  if (task.task_type !== undefined) {
+    tt += `Operator: ${escapeHtml(task.task_type)}<br>`;
+  }
+  tt += '<br><em>DAG has yet to run.</em>';
+  return tt;
+}
+
 window.tiTooltip = tiTooltip;
+window.taskNoInstanceTooltip = taskNoInstanceTooltip;

@@ -188,15 +188,19 @@ def nulls_first(col, session: Session) -> Dict[str, Any]:
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean('scheduler', 'use_row_level_locking', fallback=True)
 
 
-def with_row_locks(query, **kwargs):
+def with_row_locks(query, session: Session, **kwargs):
     """
     Apply with_for_update to an SQLAlchemy query, if row level locking is in use.
 
     :param query: An SQLAlchemy Query object
-    :param **kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
+    :param session: ORM Session
+    :param kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
     :return: updated query
     """
-    if USE_ROW_LEVEL_LOCKING:
+    dialect = session.bind.dialect
+
+    # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
+    if USE_ROW_LEVEL_LOCKING and (dialect.name != "mysql" or dialect.supports_for_update_of):
         return query.with_for_update(**kwargs)
     else:
         return query
@@ -217,11 +221,11 @@ class CommitProhibitorGuard:
         raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
     def __enter__(self):
-        event.listen(self.session.bind, 'commit', self._validate_commit)
+        event.listen(self.session, 'before_commit', self._validate_commit)
         return self
 
     def __exit__(self, *exc_info):
-        event.remove(self.session.bind, 'commit', self._validate_commit)
+        event.remove(self.session, 'before_commit', self._validate_commit)
 
     def commit(self):
         """

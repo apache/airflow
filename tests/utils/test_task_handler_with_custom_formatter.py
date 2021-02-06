@@ -21,7 +21,7 @@ import unittest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
@@ -58,9 +58,9 @@ class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
         logger = ti.log
         ti.log.disabled = False
         handler = next((handler for handler in logger.handlers if handler.name == TASK_HANDLER), None)
-        self.assertIsNotNone(handler)
+        assert handler is not None
 
         # setting the expected value of the formatter
         expected_formatter_value = "test_dag-test_task:" + handler.formatter._fmt
         set_context(logger, ti)
-        self.assertEqual(expected_formatter_value, handler.formatter._fmt)
+        assert expected_formatter_value == handler.formatter._fmt

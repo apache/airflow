@@ -28,10 +28,10 @@ class TestS3PrefixSensor(unittest.TestCase):
         op = S3PrefixSensor(task_id='s3_prefix', bucket_name='bucket', prefix='prefix')
 
         mock_hook.return_value.check_for_prefix.return_value = False
-        self.assertFalse(op.poke(None))
+        assert not op.poke(None)
         mock_hook.return_value.check_for_prefix.assert_called_once_with(
             prefix='prefix', delimiter='/', bucket_name='bucket'
         )
 
         mock_hook.return_value.check_for_prefix.return_value = True
-        self.assertTrue(op.poke(None))
+        assert op.poke(None)

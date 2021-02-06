@@ -130,6 +130,10 @@ class SerializedDagNotFound(DagNotFound):
     """Raise when DAG is not found in the serialized_dags table in DB"""
 
 
+class SerializationError(AirflowException):
+    """A problem occurred when trying to serialize a DAG"""
+
+
 class TaskNotFound(AirflowNotFoundException):
     """Raise when a Task is not available in the system"""
 

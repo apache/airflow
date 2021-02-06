@@ -27,7 +27,7 @@ NOTE:   this hook also relies on the Segment analytics package:
 import analytics
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SegmentHook(BaseHook):
@@ -52,6 +52,11 @@ class SegmentHook(BaseHook):
         So we define it in the `Extras` field as:
         `{"write_key":"YOUR_SECURITY_TOKEN"}`
     """
+
+    conn_name_attr = 'segment_conn_id'
+    default_conn_name = 'segment_default'
+    conn_type = 'segment'
+    hook_name = 'Segment'
 
     def __init__(
         self, segment_conn_id: str = 'segment_default', segment_debug_mode: bool = False, *args, **kwargs

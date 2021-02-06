@@ -18,6 +18,7 @@
 import unittest
 from unittest.mock import Mock, patch
 
+import pytest
 from parameterized import parameterized
 
 from airflow.providers.salesforce.sensors.tableau_job_status import (
@@ -39,7 +40,7 @@ class TestTableauJobStatusSensor(unittest.TestCase):
 
         job_finished = sensor.poke(context={})
 
-        self.assertTrue(job_finished)
+        assert job_finished
         mock_get.assert_called_once_with(sensor.job_id)
 
     @parameterized.expand([('1',), ('2',)])
@@ -50,5 +51,6 @@ class TestTableauJobStatusSensor(unittest.TestCase):
         mock_get.return_value.finish_code = finish_code
         sensor = TableauJobStatusSensor(**self.kwargs)
 
-        self.assertRaises(TableauJobFailedException, sensor.poke, {})
+        with pytest.raises(TableauJobFailedException):
+            sensor.poke({})
         mock_get.assert_called_once_with(sensor.job_id)

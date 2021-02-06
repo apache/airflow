@@ -17,16 +17,20 @@
 
 ---
 package-name: apache-airflow-providers-dingding
+name: Dingding
 description: |
     `Dingding <https://oapi.dingtalk.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Dingding
     external-doc-url: https://oapi.dingtalk.com
     how-to-guide:
-      - /docs/howto/operator/dingding.rst
+      - /docs/apache-airflow-providers-dingding/operators.rst
+    logo: /integration-logos/dingding/Dingding.png
     tags: [service]
 
 operators:

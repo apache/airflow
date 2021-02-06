@@ -17,15 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-mongo
+name: MongoDB
 description: |
     `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
 
 integrations:
   - integration-name: MongoDB
     external-doc-url: https://www.mongodb.com/what-is-mongodb
+    logo: /integration-logos/mongo/MongoDB.png
     tags: [software]
 
 sensors:
@@ -36,3 +39,6 @@ hooks:
   - integration-name: MongoDB
     python-modules:
       - airflow.providers.mongo.hooks.mongo
+
+hook-class-names:
+  - airflow.providers.mongo.hooks.mongo.MongoHook

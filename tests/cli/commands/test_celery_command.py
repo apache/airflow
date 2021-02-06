@@ -38,26 +38,26 @@ class TestWorkerPrecheck(unittest.TestCase):
         by mocking validate_session method
         """
         mock_validate_session.return_value = False
-        with self.assertRaises(SystemExit) as cm:
+        with pytest.raises(SystemExit) as ctx:
             celery_command.worker(Namespace(queues=1, concurrency=1))
-        self.assertEqual(cm.exception.code, 1)
+        assert str(ctx.value) == "Worker exiting, database connection precheck failed."
 
-    @conf_vars({('core', 'worker_precheck'): 'False'})
+    @conf_vars({('celery', 'worker_precheck'): 'False'})
     def test_worker_precheck_exception(self):
         """
         Test to check the behaviour of validate_session method
         when worker_precheck is absent in airflow configuration
         """
-        self.assertTrue(airflow.settings.validate_session())
+        assert airflow.settings.validate_session()
 
     @mock.patch('sqlalchemy.orm.session.Session.execute')
-    @conf_vars({('core', 'worker_precheck'): 'True'})
+    @conf_vars({('celery', 'worker_precheck'): 'True'})
     def test_validate_session_dbapi_exception(self, mock_session):
         """
         Test to validate connection failure scenario on SELECT 1 query
         """
         mock_session.side_effect = sqlalchemy.exc.OperationalError("m1", "m2", "m3", "m4")
-        self.assertEqual(airflow.settings.validate_session(), False)
+        assert airflow.settings.validate_session() is False
 
 
 @pytest.mark.integration("redis")
@@ -105,7 +105,7 @@ class TestCeleryStopCommand(unittest.TestCase):
         pid = "123"
 
         # Calling stop_worker should delete the temporary pid file
-        with self.assertRaises(FileNotFoundError):
+        with pytest.raises(FileNotFoundError):
             with NamedTemporaryFile("w+") as f:
                 # Create pid file
                 f.write(pid)

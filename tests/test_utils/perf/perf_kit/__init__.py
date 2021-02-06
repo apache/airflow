@@ -69,8 +69,8 @@ Suppose we have the following fragment of the file with tests.
         prev = dag.previous_schedule(_next)
         prev_local = local_tz.convert(prev)
 
-        self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
-        self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
+        assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
+        assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
 
     def test_bulk_write_to_db(self):
         clear_db_dags()
@@ -90,8 +90,8 @@ queries in it.
         prev = dag.previous_schedule(_next)
         prev_local = local_tz.convert(prev)
 
-        self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
-        self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
+        assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
+        assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
 
     from tests.utils.perf.perf_kit.sqlalchemy import trace_queries
 

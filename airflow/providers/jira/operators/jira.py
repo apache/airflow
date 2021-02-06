@@ -89,6 +89,6 @@ class JiraOperator(BaseOperator):
             return jira_result
 
         except JIRAError as jira_error:
-            raise AirflowException("Failed to execute jiraOperator, error: %s" % str(jira_error))
+            raise AirflowException(f"Failed to execute jiraOperator, error: {str(jira_error)}")
         except Exception as e:
-            raise AirflowException("Jira operator error: %s" % str(e))
+            raise AirflowException(f"Jira operator error: {str(e)}")

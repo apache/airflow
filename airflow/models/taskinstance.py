@@ -21,11 +21,12 @@ import hashlib
 import logging
 import math
 import os
+import pickle
 import signal
-import time
 import warnings
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from tempfile import NamedTemporaryFile
+from typing import IO, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
@@ -104,6 +105,29 @@ def set_current_context(context: Context):
                 context,
                 expected_state,
             )
+
+
+def load_error_file(fd: IO[bytes]) -> Optional[Union[str, Exception]]:
+    """Load and return error from error file"""
+    fd.seek(0, os.SEEK_SET)
+    data = fd.read()
+    if not data:
+        return None
+    try:
+        return pickle.loads(data)
+    except Exception:  # pylint: disable=broad-except
+        return "Failed to load task run error"
+
+
+def set_error_file(error_file: str, error: Union[str, Exception]) -> None:
+    """Write error into error file by path"""
+    with open(error_file, "wb") as fd:
+        try:
+            pickle.dump(error, fd)
+        except Exception:  # pylint: disable=broad-except
+            # local class objects cannot be pickled, so we fallback
+            # to store the string representation instead
+            pickle.dump(str(error), fd)
 
 
 def clear_task_instances(
@@ -408,7 +432,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         :type execution_date: datetime
         :param mark_success: Whether to mark the task as successful
         :type mark_success: bool
-        :param ignore_all_deps: Ignore all ignorable dependencies.
+        :param ignore_all_deps: Ignore all ignoreable dependencies.
             Overrides the other ignore_* parameters.
         :type ignore_all_deps: bool
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
@@ -633,10 +657,10 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         current_time = timezone.utcnow()
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
-        self.start_date = current_time
-        if self.state in State.finished:
-            self.end_date = current_time
-            self.duration = 0
+        self.start_date = self.start_date or current_time
+        if self.state in State.finished or self.state == State.UP_FOR_RETRY:
+            self.end_date = self.end_date or current_time
+            self.duration = (self.end_date - self.start_date).total_seconds()
         session.merge(self)
 
     @property
@@ -760,7 +784,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         """
         self.log.debug("previous_execution_date was called")
         prev_ti = self.get_previous_ti(state=state, session=session)
-        return prev_ti and prev_ti.execution_date
+        return prev_ti and pendulum.instance(prev_ti.execution_date)
 
     @provide_session
     def get_previous_start_date(
@@ -774,7 +798,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         """
         self.log.debug("previous_start_date was called")
         prev_ti = self.get_previous_ti(state=state, session=session)
-        return prev_ti and prev_ti.start_date
+        return prev_ti and pendulum.instance(prev_ti.start_date)
 
     @property
     def previous_start_date_success(self) -> Optional[pendulum.DateTime]:
@@ -1054,6 +1078,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         test_mode: bool = False,
         job_id: Optional[str] = None,
         pool: Optional[str] = None,
+        error_file: Optional[str] = None,
         session=None,
     ) -> None:
         """
@@ -1078,7 +1103,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.job_id = job_id
         self.hostname = get_hostname()
 
-        context = {}  # type: Dict
         actual_start_date = timezone.utcnow()
         Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
@@ -1112,7 +1136,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             return
         except AirflowFailException as e:
             self.refresh_from_db()
-            self.handle_failure(e, test_mode, context, force_fail=True)
+            self.handle_failure(e, test_mode, force_fail=True, error_file=error_file)
             raise
         except AirflowException as e:
             self.refresh_from_db()
@@ -1121,15 +1145,13 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             if self.state in {State.SUCCESS, State.FAILED}:
                 return
             else:
-                self.handle_failure(e, test_mode, context)
+                self.handle_failure(e, test_mode, error_file=error_file)
                 raise
         except (Exception, KeyboardInterrupt) as e:
-            self.handle_failure(e, test_mode, context)
+            self.handle_failure(e, test_mode, error_file=error_file)
             raise
         finally:
             Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
-
-        self._run_success_callback(context, task)
 
         # Recording SUCCESS
         self.end_date = timezone.utcnow()
@@ -1149,7 +1171,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
         session.commit()
 
-        self._run_mini_scheduler_on_child_tasks(session)
+        if not test_mode:
+            self._run_mini_scheduler_on_child_tasks(session)
 
     @provide_session
     @Sentry.enrich_errors
@@ -1163,7 +1186,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                     session.query(DagRun).filter_by(
                         dag_id=self.dag_id,
                         execution_date=self.execution_date,
-                    )
+                    ),
+                    session=session,
                 ).one()
 
                 # Get a partial dag with just the specific tasks we want to
@@ -1219,55 +1243,49 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
         # Don't clear Xcom until the task is certain to execute
         self.clear_xcom_data()
-        start_time = time.time()
+        with Stats.timer(f'dag.{task_copy.dag_id}.{task_copy.task_id}.duration'):
 
-        self.render_templates(context=context)
-        RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
-        RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
+            self.render_templates(context=context)
+            RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
+            RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
 
-        # Export context to make it available for operators to use.
-        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-        self.log.info(
-            "Exporting the following env vars:\n%s",
-            '\n'.join([f"{k}={v}" for k, v in airflow_context_vars.items()]),
-        )
+            # Export context to make it available for operators to use.
+            airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+            self.log.info(
+                "Exporting the following env vars:\n%s",
+                '\n'.join([f"{k}={v}" for k, v in airflow_context_vars.items()]),
+            )
 
-        os.environ.update(airflow_context_vars)
+            os.environ.update(airflow_context_vars)
 
-        # Run pre_execute callback
-        task_copy.pre_execute(context=context)
+            # Run pre_execute callback
+            task_copy.pre_execute(context=context)
 
-        # Run on_execute callback
-        self._run_execute_callback(context, task)
+            # Run on_execute callback
+            self._run_execute_callback(context, task)
 
-        if task_copy.is_smart_sensor_compatible():
-            # Try to register it in the smart sensor service.
-            registered = False
-            try:
-                registered = task_copy.register_in_sensor_service(self, context)
-            except Exception as e:
-                self.log.warning(
-                    "Failed to register in sensor service.Continue to run task in non smart sensor mode."
-                )
-                self.log.exception(e, exc_info=True)
+            if task_copy.is_smart_sensor_compatible():
+                # Try to register it in the smart sensor service.
+                registered = False
+                try:
+                    registered = task_copy.register_in_sensor_service(self, context)
+                except Exception as e:
+                    self.log.warning(
+                        "Failed to register in sensor service.Continue to run task in non smart sensor mode."
+                    )
+                    self.log.exception(e, exc_info=True)
 
-            if registered:
-                # Will raise AirflowSmartSensorException to avoid long running execution.
-                self._update_ti_state_for_sensing()
+                if registered:
+                    # Will raise AirflowSmartSensorException to avoid long running execution.
+                    self._update_ti_state_for_sensing()
 
-        # Execute the task
-        with set_current_context(context):
-            result = self._execute_task(context, task_copy)
+            # Execute the task
+            with set_current_context(context):
+                result = self._execute_task(context, task_copy)
 
-        # Run post_execute callback
-        task_copy.post_execute(context=context, result=result)
+            # Run post_execute callback
+            task_copy.post_execute(context=context, result=result)
 
-        end_time = time.time()
-        duration = timedelta(seconds=end_time - start_time)
-        Stats.timing(
-            f'dag.{task_copy.dag_id}.{task_copy.task_id}.duration',
-            duration,
-        )
         Stats.incr(f'operator_successes_{self.task.task_type}', 1, 1)
         Stats.incr('ti_successes')
 
@@ -1280,16 +1298,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         session.commit()
         # Raise exception for sensing state
         raise AirflowSmartSensorException("Task successfully registered in smart sensor.")
-
-    def _run_success_callback(self, context, task):
-        """Functions that need to be run if Task is successful"""
-        # Success callback
-        try:
-            if task.on_success_callback:
-                task.on_success_callback(context)
-        except Exception as exc:  # pylint: disable=broad-except
-            self.log.error("Failed when executing success callback")
-            self.log.exception(exc)
 
     def _execute_task(self, context, task_copy):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""
@@ -1309,7 +1317,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             self.xcom_push(key=XCOM_RETURN_KEY, value=result)
         return result
 
-    def _run_execute_callback(self, context, task):
+    def _run_execute_callback(self, context: Context, task):
         """Functions that need to be run before a Task is executed"""
         try:
             if task.on_execute_callback:
@@ -1317,6 +1325,31 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         except Exception as exc:  # pylint: disable=broad-except
             self.log.error("Failed when executing execute callback")
             self.log.exception(exc)
+
+    def _run_finished_callback(self, error: Optional[Union[str, Exception]] = None) -> None:
+        """
+        Call callback defined for finished state change.
+
+        NOTE: Only invoke this function from caller of self._run_raw_task or
+        self.run
+        """
+        if self.state == State.FAILED:
+            task = self.task
+            if task.on_failure_callback is not None:
+                context = self.get_template_context()
+                context["exception"] = error
+                task.on_failure_callback(context)
+        elif self.state == State.SUCCESS:
+            task = self.task
+            if task.on_success_callback is not None:
+                context = self.get_template_context()
+                task.on_success_callback(context)
+        elif self.state == State.UP_FOR_RETRY:
+            task = self.task
+            if task.on_retry_callback is not None:
+                context = self.get_template_context()
+                context["exception"] = error
+                task.on_retry_callback(context)
 
     @provide_session
     def run(  # pylint: disable=too-many-arguments
@@ -1345,10 +1378,23 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             pool=pool,
             session=session,
         )
-        if res:
+        if not res:
+            return
+
+        try:
+            error_fd = NamedTemporaryFile(delete=True)
             self._run_raw_task(
-                mark_success=mark_success, test_mode=test_mode, job_id=job_id, pool=pool, session=session
+                mark_success=mark_success,
+                test_mode=test_mode,
+                job_id=job_id,
+                pool=pool,
+                error_file=error_fd.name,
+                session=session,
             )
+        finally:
+            error = None if self.state == State.SUCCESS else load_error_file(error_fd)
+            error_fd.close()
+            self._run_finished_callback(error=error)
 
     def dry_run(self):
         """Only Renders Templates for the TI"""
@@ -1392,14 +1438,25 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
     @provide_session
-    def handle_failure(self, error, test_mode=None, context=None, force_fail=False, session=None):
+    def handle_failure(
+        self,
+        error: Union[str, Exception],
+        test_mode: Optional[bool] = None,
+        force_fail: bool = False,
+        error_file: Optional[str] = None,
+        session=None,
+    ) -> None:
         """Handle Failure for the TaskInstance"""
         if test_mode is None:
             test_mode = self.test_mode
-        if context is None:
-            context = self.get_template_context()
 
-        self.log.exception(error)
+        if error:
+            self.log.exception(error)
+            # external monitoring process provides pickle file so _run_raw_task
+            # can send its runtime errors for access by failure callback
+            if error_file:
+                set_error_file(error_file, error)
+
         task = self.task
         self.end_date = timezone.utcnow()
         self.set_duration()
@@ -1411,11 +1468,12 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         # Log failure duration
         session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
 
-        if context is not None:
-            context['exception'] = error
+        # Set state correctly and figure out how to log it and decide whether
+        # to email
 
-        # Set state correctly and figure out how to log it,
-        # what callback to call if any, and how to decide whether to email
+        # Note, callback invocation needs to be handled by caller of
+        # _run_raw_task to avoid race conditions which could lead to duplicate
+        # invocations or miss invocation.
 
         # Since this function is called only when the TaskInstance state is running,
         # try_number contains the current try_number (not the next). We
@@ -1429,12 +1487,10 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             else:
                 log_message = "Marking task as FAILED."
             email_for_state = task.email_on_failure
-            callback = task.on_failure_callback
         else:
             self.state = State.UP_FOR_RETRY
             log_message = "Marking task as UP_FOR_RETRY."
             email_for_state = task.email_on_retry
-            callback = task.on_retry_callback
 
         self.log.info(
             '%s dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
@@ -1452,17 +1508,20 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 self.log.error('Failed to send email to: %s', task.email)
                 self.log.exception(exec2)
 
-        # Handling callbacks pessimistically
-        if callback:
-            try:
-                callback(context)
-            except Exception as exec3:  # pylint: disable=broad-except
-                self.log.error("Failed at executing callback")
-                self.log.exception(exec3)
-
         if not test_mode:
             session.merge(self)
         session.commit()
+
+    @provide_session
+    def handle_failure_with_callback(
+        self,
+        error: Union[str, Exception],
+        test_mode: Optional[bool] = None,
+        force_fail: bool = False,
+        session=None,
+    ) -> None:
+        self.handle_failure(error=error, test_mode=test_mode, force_fail=force_fail, session=session)
+        self._run_finished_callback(error=error)
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""
@@ -1535,9 +1594,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         yesterday_ds_nodash = yesterday_ds.replace('-', '')
         tomorrow_ds_nodash = tomorrow_ds.replace('-', '')
 
-        ti_key_str = "{dag_id}__{task_id}__{ds_nodash}".format(
-            dag_id=task.dag_id, task_id=task.task_id, ds_nodash=ds_nodash
-        )
+        ti_key_str = f"{task.dag_id}__{task.task_id}__{ds_nodash}"
 
         if task.params:
             params.update(task.params)
@@ -1699,7 +1756,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             try_number=self.try_number,
             kube_image=kube_config.kube_image,
             date=self.execution_date,
-            command=self.command_as_list(),
+            args=self.command_as_list(),
             pod_override_object=PodGenerator.from_obj(self.executor_config),
             scheduler_job_id="worker-config",
             namespace=kube_config.executor_namespace,
@@ -1889,16 +1946,21 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             task_ids=task_ids,
             include_prior_dates=include_prior_dates,
             session=session,
-        ).with_entities(XCom.value)
+        )
 
         # Since we're only fetching the values field, and not the
         # whole class, the @recreate annotation does not kick in.
         # Therefore we need to deserialize the fields by ourselves.
-
         if is_container(task_ids):
-            return [XCom.deserialize_value(xcom) for xcom in query]
+            vals_kv = {
+                result.task_id: XCom.deserialize_value(result)
+                for result in query.with_entities(XCom.task_id, XCom.value)
+            }
+
+            values_ordered_by_id = [vals_kv.get(task_id) for task_id in task_ids]
+            return values_ordered_by_id
         else:
-            xcom = query.first()
+            xcom = query.with_entities(XCom.value).first()
             if xcom:
                 return XCom.deserialize_value(xcom)
 

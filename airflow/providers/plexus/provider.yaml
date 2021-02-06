@@ -17,14 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-plexus
+name: Plexus
 description: |
     `Plexus <https://plexus.corescientific.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Plexus
     external-doc-url: https://plexus.corescientific.com/
+    logo: /integration-logos/plexus/Plexus.png
     tags: [service]
 
 operators:

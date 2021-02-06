@@ -17,18 +17,24 @@
 
 ---
 package-name: apache-airflow-providers-samba
+name: Samba
 description: |
     `Samba <https://www.samba.org/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
 
 integrations:
   - integration-name: Samba
     external-doc-url: https://www.samba.org/
+    logo: /integration-logos/samba/Samba.png
     tags: [protocol]
 
 hooks:
   - integration-name: Samba
     python-modules:
       - airflow.providers.samba.hooks.samba
+
+hook-class-names:
+  - airflow.providers.samba.hooks.samba.SambaHook

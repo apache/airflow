@@ -30,7 +30,7 @@ from airflow import DAG, settings
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DagRun, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
@@ -167,13 +167,13 @@ class TestGetLog(unittest.TestCase):
         expected_filename = "{}/{}/{}/{}/1.log".format(
             self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(":", ".")
         )
-        self.assertEqual(
-            response.json['content'],
-            f"[('', '*** Reading local file: {expected_filename}\\nLog for testing.')]",
+        assert (
+            response.json['content']
+            == f"[('', '*** Reading local file: {expected_filename}\\nLog for testing.')]"
         )
         info = serializer.loads(response.json['continuation_token'])
-        self.assertEqual(info, {'end_of_log': True})
-        self.assertEqual(200, response.status_code)
+        assert info == {'end_of_log': True}
+        assert 200 == response.status_code
 
     @provide_session
     def test_should_respond_200_text_plain(self, session):
@@ -191,10 +191,38 @@ class TestGetLog(unittest.TestCase):
         expected_filename = "{}/{}/{}/{}/1.log".format(
             self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(':', '.')
         )
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            response.data.decode('utf-8'),
-            f"\n*** Reading local file: {expected_filename}\nLog for testing.\n",
+        assert 200 == response.status_code
+        assert (
+            response.data.decode('utf-8')
+            == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
+        )
+
+    @provide_session
+    def test_get_logs_of_removed_task(self, session):
+        self._create_dagrun(session)
+
+        # Recreate DAG without tasks
+        dagbag = self.app.dag_bag  # pylint: disable=no-member
+        dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": True})
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            headers={'Accept': 'text/plain'},
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        expected_filename = "{}/{}/{}/{}/1.log".format(
+            self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(':', '.')
+        )
+        assert 200 == response.status_code
+        assert (
+            response.data.decode('utf-8')
+            == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
     @provide_session
@@ -209,8 +237,8 @@ class TestGetLog(unittest.TestCase):
             f"taskInstances/Invalid-Task-ID/logs/1?token={token}",
             environ_overrides={'REMOTE_USER': "test"},
         )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json['detail'], "Task instance did not exist in the DB")
+        assert response.status_code == 400
+        assert response.json['detail'] == "Task instance did not exist in the DB"
 
     @provide_session
     def test_get_logs_with_metadata_as_download_large_file(self, session):
@@ -229,10 +257,10 @@ class TestGetLog(unittest.TestCase):
                 environ_overrides={'REMOTE_USER': "test"},
             )
 
-            self.assertIn('1st line', response.data.decode('utf-8'))
-            self.assertIn('2nd line', response.data.decode('utf-8'))
-            self.assertIn('3rd line', response.data.decode('utf-8'))
-            self.assertNotIn('should never be read', response.data.decode('utf-8'))
+            assert '1st line' in response.data.decode('utf-8')
+            assert '2nd line' in response.data.decode('utf-8')
+            assert '3rd line' in response.data.decode('utf-8')
+            assert 'should never be read' not in response.data.decode('utf-8')
 
     @mock.patch("airflow.api_connexion.endpoints.log_endpoint.TaskLogReader")
     def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
@@ -249,8 +277,8 @@ class TestGetLog(unittest.TestCase):
             headers={'Content-Type': 'application/jso'},
             environ_overrides={'REMOTE_USER': "test"},
         )
-        self.assertEqual(400, response.status_code)
-        self.assertIn('Task log handler does not support read logs.', response.data.decode('utf-8'))
+        assert 400 == response.status_code
+        assert 'Task log handler does not support read logs.' in response.data.decode('utf-8')
 
     @provide_session
     def test_bad_signature_raises(self, session):
@@ -263,15 +291,12 @@ class TestGetLog(unittest.TestCase):
             headers={'Accept': 'application/json'},
             environ_overrides={'REMOTE_USER': "test"},
         )
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 400,
-                'title': "Bad Signature. Please use only the tokens provided by the API.",
-                'type': EXCEPTIONS_LINK_MAP[400],
-            },
-        )
+        assert response.json == {
+            'detail': None,
+            'status': 400,
+            'title': "Bad Signature. Please use only the tokens provided by the API.",
+            'type': EXCEPTIONS_LINK_MAP[400],
+        }
 
     def test_raises_404_for_invalid_dag_run_id(self):
         response = self.client.get(
@@ -280,10 +305,12 @@ class TestGetLog(unittest.TestCase):
             headers={'Accept': 'application/json'},
             environ_overrides={'REMOTE_USER': "test"},
         )
-        self.assertEqual(
-            response.json,
-            {'detail': None, 'status': 404, 'title': "DAG Run not found", 'type': EXCEPTIONS_LINK_MAP[404]},
-        )
+        assert response.json == {
+            'detail': None,
+            'status': 404,
+            'title': "DAG Run not found",
+            'type': EXCEPTIONS_LINK_MAP[404],
+        }
 
     def test_should_raises_401_unauthenticated(self):
         key = self.app.config["SECRET_KEY"]

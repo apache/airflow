@@ -22,7 +22,7 @@ from airflow import settings
 from airflow.models import DAG
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_pools, clear_db_runs, set_default_pool_slots
@@ -59,27 +59,24 @@ class TestPool(unittest.TestCase):
         session.commit()
         session.close()
 
-        self.assertEqual(3, pool.open_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual(1, pool.running_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual(1, pool.queued_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual(2, pool.occupied_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual(
-            {
-                "default_pool": {
-                    "open": 128,
-                    "queued": 0,
-                    "total": 128,
-                    "running": 0,
-                },
-                "test_pool": {
-                    "open": 3,
-                    "queued": 1,
-                    "running": 1,
-                    "total": 5,
-                },
+        assert 3 == pool.open_slots()  # pylint: disable=no-value-for-parameter
+        assert 1 == pool.running_slots()  # pylint: disable=no-value-for-parameter
+        assert 1 == pool.queued_slots()  # pylint: disable=no-value-for-parameter
+        assert 2 == pool.occupied_slots()  # pylint: disable=no-value-for-parameter
+        assert {
+            "default_pool": {
+                "open": 128,
+                "queued": 0,
+                "total": 128,
+                "running": 0,
             },
-            pool.slots_stats(),
-        )
+            "test_pool": {
+                "open": 3,
+                "queued": 1,
+                "running": 1,
+                "total": 5,
+            },
+        } == pool.slots_stats()
 
     def test_infinite_slots(self):
         pool = Pool(pool='test_pool', slots=-1)
@@ -101,14 +98,14 @@ class TestPool(unittest.TestCase):
         session.commit()
         session.close()
 
-        self.assertEqual(float('inf'), pool.open_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual(1, pool.running_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual(1, pool.queued_slots())  # pylint: disable=no-value-for-parameter
-        self.assertEqual(2, pool.occupied_slots())  # pylint: disable=no-value-for-parameter
+        assert float('inf') == pool.open_slots()  # pylint: disable=no-value-for-parameter
+        assert 1 == pool.running_slots()  # pylint: disable=no-value-for-parameter
+        assert 1 == pool.queued_slots()  # pylint: disable=no-value-for-parameter
+        assert 2 == pool.occupied_slots()  # pylint: disable=no-value-for-parameter
 
     def test_default_pool_open_slots(self):
         set_default_pool_slots(5)
-        self.assertEqual(5, Pool.get_default_pool().open_slots())
+        assert 5 == Pool.get_default_pool().open_slots()
 
         dag = DAG(
             dag_id='test_default_pool_open_slots',
@@ -127,4 +124,4 @@ class TestPool(unittest.TestCase):
         session.commit()
         session.close()
 
-        self.assertEqual(2, Pool.get_default_pool().open_slots())
+        assert 2 == Pool.get_default_pool().open_slots()

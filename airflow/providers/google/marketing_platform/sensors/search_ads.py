@@ -19,7 +19,7 @@
 from typing import Optional, Sequence, Union
 
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

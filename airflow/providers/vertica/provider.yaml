@@ -17,15 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-vertica
+name: Vertica
 description: |
     `Vertica <https://www.vertica.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
 
 integrations:
   - integration-name: Vertica
     external-doc-url: https://www.vertica.com/
+    logo: /integration-logos/vertica/Vertica.png
     tags: [software]
 
 operators:
@@ -37,3 +40,6 @@ hooks:
   - integration-name: Vertica
     python-modules:
       - airflow.providers.vertica.hooks.vertica
+
+hook-class-names:
+  - airflow.providers.vertica.hooks.vertica.VerticaHook

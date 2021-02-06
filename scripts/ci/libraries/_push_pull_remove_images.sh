@@ -29,17 +29,17 @@ function push_pull_remove_images::push_image_with_retries() {
         local res=$?
         set -e
         if [[ ${res} != "0" ]]; then
-            >&2 echo
-            >&2 echo "Error ${res} when pushing image on ${try_num} try"
-            >&2 echo
+            echo
+            echo  "${COLOR_YELLOW}WARNING: Error ${res} when pushing image on ${try_num} try  ${COLOR_RESET}"
+            echo
             continue
         else
             return 0
         fi
     done
-    >&2 echo
-    >&2 echo "Error ${res} when pushing image on ${try_num} try. Giving up!"
-    >&2 echo
+    echo
+    echo  "${COLOR_RED}ERROR: Error ${res} when pushing image on ${try_num} try. Giving up!  ${COLOR_RESET}"
+    echo
     return 1
 }
 
@@ -64,17 +64,19 @@ function push_pull_remove_images::pull_image_if_not_present_or_forced() {
         docker pull "${IMAGE_TO_PULL}"
         EXIT_VALUE="$?"
         if [[ ${EXIT_VALUE} != "0" && ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR} == "true" ]]; then
-            >&2 echo
-            >&2 echo "ERROR! Exiting on docker pull error"
-            >&2 echo
-            >&2 echo "If you have authorisation problems, you might want to run:"
-            >&2 echo
-            >&2 echo "docker login ${IMAGE_TO_PULL%%\/*}"
-            >&2 echo
-            >&2 echo "You need to use generate token as the password, not your personal password."
-            >&2 echo "You can generate one at https://github.com/settings/tokens"
-            >&2 echo "Make sure to choose 'read:packages' scope".
-            >&2 echo
+            echo
+            echo """
+${COLOR_RED}ERROR: Exiting on docker pull error
+
+If you have authorisation problems, you might want to run:
+
+docker login ${IMAGE_TO_PULL%%\/*}
+
+You need to use generate token as the password, not your personal password.
+You can generate one at https://github.com/settings/tokens
+Make sure to choose 'read:packages' scope.
+${COLOR_RESET}
+"""
             exit ${EXIT_VALUE}
         fi
         echo
@@ -187,8 +189,7 @@ function push_pull_remove_images::push_ci_images_to_dockerhub() {
 
 # Pushes Ci images and their tags to registry in GitHub
 function push_pull_remove_images::push_ci_images_to_github() {
-    # Push image to GitHub registry with chosen push tag
-    # the PUSH tag might be:
+    # Push image to GitHub registry with the push tag:
     #     "${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
     #     "latest"           - in case of push builds
     AIRFLOW_CI_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
@@ -200,12 +201,21 @@ function push_pull_remove_images::push_ci_images_to_github() {
         docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_SHA_IMAGE}"
         push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_SHA_IMAGE}"
     fi
+    # Push python image to GitHub registry with the push tag:
+    #     X.Y-slim-buster-"${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
+    #     X.Y-slim-buster                    - in case of push builds
     PYTHON_TAG_SUFFIX=""
     if [[ ${GITHUB_REGISTRY_PUSH_IMAGE_TAG} != "latest" ]]; then
         PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     fi
-    docker tag "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
-    push_pull_remove_images::push_image_with_retries "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+
+    # Label the python image for GCR, so that it is linked to the current project it is build in
+    echo "FROM ${PYTHON_BASE_IMAGE}" | \
+        docker build --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            -t "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}" -
+
+    push_pull_remove_images::push_image_with_retries \
+        "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
 }
 
 
@@ -262,26 +272,85 @@ function push_pull_remove_images::push_prod_images() {
     fi
 }
 
+# waits for an image to be available in GitHub Packages
+function push_pull_remove_images::wait_for_image_in_github_packages() {
+    local github_repository_lowercase
+    github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
+    local github_api_endpoint
+    github_api_endpoint="https://${GITHUB_REGISTRY}/v2/${github_repository_lowercase}"
+    local image_name_in_github_registry="${1}"
+    local image_tag_in_github_registry=${2}
+
+    echo
+    echo "Waiting for ${GITHUB_REPOSITORY}/${image_name_in_github_registry}:${image_tag_in_github_registry} image"
+    echo
+
+    GITHUB_API_CALL="${github_api_endpoint}/${image_name_in_github_registry}/manifests/${image_tag_in_github_registry}"
+    while true; do
+        http_status=$(curl --silent --output "${OUTPUT_LOG}" --write-out "%{http_code}" \
+            --connect-timeout 60  --max-time 60 \
+            -X GET "${GITHUB_API_CALL}" -u "${GITHUB_USERNAME}:${GITHUB_TOKEN}")
+        if [[ ${http_status} == "200" ]]; then
+            echo  "${COLOR_GREEN}OK.  ${COLOR_RESET}"
+            break
+        else
+            echo "${COLOR_YELLOW}Still waiting - status code ${http_status}!${COLOR_RESET}"
+            cat "${OUTPUT_LOG}"
+        fi
+        sleep 60
+    done
+    verbosity::print_info "Found ${image_name_in_github_registry}:${image_tag_in_github_registry} image"
+}
+
+
+# waits for an image to be available in GitHub Container Registry
+function push_pull_remove_images::wait_for_image_in_github_container_registry() {
+    local image_name_in_github_registry="${1}"
+    local image_tag_in_github_registry=${2}
+
+    local image_to_wait_for="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY}-${image_name_in_github_registry}:${image_tag_in_github_registry}"
+    echo
+    echo "Waiting for ${GITHUB_REGISTRY}/${GITHUB_REPOSITORY}-${image_name_in_github_registry}:${image_tag_in_github_registry} image"
+    echo
+    set +e
+    while true; do
+        docker manifest inspect "${image_to_wait_for}"
+        local res=$?
+        if [[ ${res} == "0" ]]; then
+            echo  "${COLOR_GREEN}OK.${COLOR_RESET}"
+            break
+        else
+            echo "${COLOR_YELLOW}Still waiting for ${image_to_wait_for}!${COLOR_RESET}"
+        fi
+        sleep 30
+    done
+    set -e
+    verbosity::print_info "Found ${image_name_in_github_registry}:${image_tag_in_github_registry} image"
+}
+
 # waits for an image to be available in the GitHub registry
 function push_pull_remove_images::wait_for_github_registry_image() {
-    github_repository_lowercase="$(echo "${GITHUB_REPOSITORY}" |tr '[:upper:]' '[:lower:]')"
-    GITHUB_API_ENDPOINT="https://${GITHUB_REGISTRY}/v2/${github_repository_lowercase}"
-    IMAGE_NAME="${1}"
-    IMAGE_TAG=${2}
-    echo "Waiting for ${IMAGE_NAME}:${IMAGE_TAG} image"
+    if [[ ${GITHUB_REGISTRY} == "ghcr.io" ]]; then
+        push_pull_remove_images::wait_for_image_in_github_container_registry "${@}"
+    elif [[ ${GITHUB_REGISTRY} == "docker.pkg.github.com" ]]; then
+        push_pull_remove_images::wait_for_image_in_github_packages "${@}"
+    else
+        echo
+        echo  "${COLOR_RED}ERROR: Bad value of '${GITHUB_REGISTRY}'. Should be either 'ghcr.io' or 'docker.pkg.github.com'!${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+}
 
-    GITHUB_API_CALL="${GITHUB_API_ENDPOINT}/${IMAGE_NAME}/manifests/${IMAGE_TAG}"
-    while true; do
-        curl -X GET "${GITHUB_API_CALL}" -u "${GITHUB_USERNAME}:${GITHUB_TOKEN}" 2>/dev/null > "${OUTPUT_LOG}"
-        local digest
-        digest=$(jq '.config.digest' < "${OUTPUT_LOG}")
-        echo -n "."
-        if [[ ${digest} != "null" ]]; then
-            echo -e " \e[32mOK.\e[0m"
-            break
-        fi
-        sleep 10
-    done
-    verbosity::print_info "Found ${IMAGE_NAME}:${IMAGE_TAG} image"
-    verbosity::print_info "Digest: '${digest}'"
+function push_pull_remove_images::check_if_github_registry_wait_for_image_enabled() {
+    if [[ ${USE_GITHUB_REGISTRY} != "true" ||  ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} != "true" ]]; then
+        echo
+        echo "This script should not be called"
+        echo "It need both USE_GITHUB_REGISTRY and GITHUB_REGISTRY_WAIT_FOR_IMAGE to true!"
+        echo
+        echo "USE_GITHUB_REGISTRY = ${USE_GITHUB_REGISTRY}"
+        echo "GITHUB_REGISTRY_WAIT_FOR_IMAGE =${GITHUB_REGISTRY_WAIT_FOR_IMAGE}"
+        echo
+        exit 1
+    fi
 }

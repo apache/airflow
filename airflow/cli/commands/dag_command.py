@@ -16,19 +16,19 @@
 # under the License.
 
 """Dag sub-commands"""
+import ast
 import errno
 import json
 import logging
 import signal
 import subprocess
 import sys
-from typing import List
 
 from graphviz.dot import Dot
-from tabulate import tabulate
 
 from airflow import settings
 from airflow.api.client import get_current_api_client
+from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, BackfillUnfinished
 from airflow.executors.debug_executor import DebugExecutor
@@ -36,38 +36,16 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
+from airflow.utils.cli import (
+    get_dag,
+    get_dag_by_file_location,
+    process_subdir,
+    sigint_handler,
+    suppress_logs_and_warning,
+)
 from airflow.utils.dot_renderer import render_dag
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
-
-
-def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt: str = "fancy_grid") -> str:
-    tabulate_data = (
-        {
-            'ID': dag_run.id,
-            'Run ID': dag_run.run_id,
-            'State': dag_run.state,
-            'DAG ID': dag_run.dag_id,
-            'Execution date': dag_run.execution_date.isoformat(),
-            'Start date': dag_run.start_date.isoformat() if dag_run.start_date else '',
-            'End date': dag_run.end_date.isoformat() if dag_run.end_date else '',
-        }
-        for dag_run in dag_runs
-    )
-    return tabulate(tabular_data=tabulate_data, tablefmt=tablefmt)
-
-
-def _tabulate_dags(dags: List[DAG], tablefmt: str = "fancy_grid") -> str:
-    tabulate_data = (
-        {
-            'DAG ID': dag.dag_id,
-            'Filepath': dag.filepath,
-            'Owner': dag.owner,
-        }
-        for dag in sorted(dags, key=lambda d: d.dag_id)
-    )
-    return tabulate(tabular_data=tabulate_data, tablefmt=tablefmt, headers='keys')
 
 
 @cli_utils.action_logging
@@ -184,11 +162,14 @@ def dag_unpause(args):
 
 def set_is_paused(is_paused, args):
     """Sets is_paused for DAG by a given dag_id"""
-    DagModel.get_dagmodel(args.dag_id).set_is_paused(
-        is_paused=is_paused,
-    )
+    dag = DagModel.get_dagmodel(args.dag_id)
 
-    print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
+    if not dag:
+        raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
+
+    dag.set_is_paused(is_paused=is_paused)
+
+    print(f"Dag: {args.dag_id}, paused: {is_paused}")
 
 
 def dag_show(args):
@@ -199,12 +180,10 @@ def dag_show(args):
     imgcat = args.imgcat
 
     if filename and imgcat:
-        print(
+        raise SystemExit(
             "Option --save and --imgcat are mutually exclusive. "
             "Please remove one option to execute the command.",
-            file=sys.stderr,
         )
-        sys.exit(1)
     elif filename:
         _save_dot_to_file(dot, filename)
     elif imgcat:
@@ -219,7 +198,7 @@ def _display_dot_via_imgcat(dot: Dot):
         proc = subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE)
     except OSError as e:
         if e.errno == errno.ENOENT:
-            raise AirflowException(
+            raise SystemExit(
                 "Failed to execute. Make sure the imgcat executables are on your systems \'PATH\'"
             )
         else:
@@ -293,21 +272,42 @@ def dag_next_execution(args):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def dag_list_dags(args):
     """Displays dags with or without stats at the command line"""
     dagbag = DagBag(process_subdir(args.subdir))
-    dags = dagbag.dags.values()
-    print(_tabulate_dags(dags, tablefmt=args.output))
+    AirflowConsole().print_as(
+        data=sorted(dagbag.dags.values(), key=lambda d: d.dag_id),
+        output=args.output,
+        mapper=lambda x: {
+            "dag_id": x.dag_id,
+            "filepath": x.filepath,
+            "owner": x.owner,
+            "paused": x.get_is_paused(),
+        },
+    )
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def dag_report(args):
     """Displays dagbag stats at the command line"""
     dagbag = DagBag(process_subdir(args.subdir))
-    print(tabulate(dagbag.dagbag_stats, headers="keys", tablefmt=args.output))
+    AirflowConsole().print_as(
+        data=dagbag.dagbag_stats,
+        output=args.output,
+        mapper=lambda x: {
+            "file": x.file,
+            "duration": x.duration,
+            "dag_num": x.dag_num,
+            "task_num": x.task_num,
+            "dags": sorted(ast.literal_eval(x.dags)),
+        },
+    )
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def dag_list_jobs(args, dag=None):
     """Lists latest n jobs"""
     queries = []
@@ -324,6 +324,7 @@ def dag_list_jobs(args, dag=None):
     if args.state:
         queries.append(BaseJob.state == args.state)
 
+    fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
     with create_session() as session:
         all_jobs = (
             session.query(BaseJob)
@@ -332,15 +333,16 @@ def dag_list_jobs(args, dag=None):
             .limit(args.limit)
             .all()
         )
-        fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
-        all_jobs = [[job.__getattribute__(field) for field in fields] for job in all_jobs]
-        msg = tabulate(
-            all_jobs, [field.capitalize().replace('_', ' ') for field in fields], tablefmt=args.output
-        )
-        print(msg)
+        all_jobs = [{f: str(job.__getattribute__(f)) for f in fields} for job in all_jobs]
+
+    AirflowConsole().print_as(
+        data=all_jobs,
+        output=args.output,
+    )
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def dag_list_dag_runs(args, dag=None):
     """Lists dag runs for a given DAG"""
     if dag:
@@ -361,13 +363,19 @@ def dag_list_dag_runs(args, dag=None):
         execution_end_date=args.end_date,
     )
 
-    if not dag_runs:
-        print(f'No dag runs for {args.dag_id}')
-        return
-
     dag_runs.sort(key=lambda x: x.execution_date, reverse=True)
-    table = _tabulate_dag_runs(dag_runs, tablefmt=args.output)
-    print(table)
+    AirflowConsole().print_as(
+        data=dag_runs,
+        output=args.output,
+        mapper=lambda dr: {
+            "dag_id": dr.dag_id,
+            "run_id": dr.run_id,
+            "state": dr.state,
+            "execution_date": dr.execution_date.isoformat(),
+            "start_date": dr.start_date.isoformat() if dr.start_date else '',
+            "end_date": dr.end_date.isoformat() if dr.end_date else '',
+        },
+    )
 
 
 @provide_session

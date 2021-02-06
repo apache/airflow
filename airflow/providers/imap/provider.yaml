@@ -17,15 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-imap
+name: Internet Message Access Protocol (IMAP)
 description: |
     `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
 
 integrations:
   - integration-name: Internet Message Access Protocol (IMAP)
     external-doc-url: https://tools.ietf.org/html/rfc3501
+    logo: /integration-logos/imap/IMAP.png
     tags: [protocol]
 
 sensors:
@@ -37,3 +40,6 @@ hooks:
   - integration-name: Internet Message Access Protocol (IMAP)
     python-modules:
       - airflow.providers.imap.hooks.imap
+
+hook-class-names:
+  - airflow.providers.imap.hooks.imap.ImapHook

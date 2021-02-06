@@ -17,14 +17,18 @@
 
 ---
 package-name: apache-airflow-providers-discord
+name: Discord
 description: |
     `Discord <https://discordapp.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Discord
     external-doc-url: https://discordapp.com
+    logo: /integration-logos/discord/Discord.png
     tags: [service]
 
 operators:
