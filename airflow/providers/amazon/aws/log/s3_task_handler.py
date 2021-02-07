@@ -47,13 +47,15 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
             return S3Hook(remote_conn_id)
-        except Exception:  # pylint: disable=broad-except
+        except Exception as e:  # pylint: disable=broad-except
             self.log.exception(
                 'Could not create an S3Hook with connection id "%s". '
                 'Please make sure that airflow[aws] is installed and '
-                'the S3 connection exists.',
+                'the S3 connection exists. Exception : "%s"',
                 remote_conn_id,
+                e,
             )
+            return None
 
     def set_context(self, ti):
         super().set_context(ti)

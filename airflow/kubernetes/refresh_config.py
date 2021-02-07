@@ -68,6 +68,7 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
             return True
         except Exception as e:  # pylint: disable=W0703
             logging.error(str(e))
+            return None
 
     def refresh_api_key(self, client_configuration):
         """Refresh API key if expired"""
