@@ -3841,11 +3841,11 @@ class DagDependenciesView(AirflowBaseView):
         edges = []
 
         for dag_id, dag in current_app.dag_bag.dags.items():
-            dag_node_id = f"d--{dag_id}"
+            dag_node_id = f"d:{dag_id}"
             nodes[dag_node_id] = self._node_dict(dag_node_id, dag_id, "fill: rgb(232, 247, 228)")
 
             for task in dag.tasks:
-                task_node_id = f"t--{dag_id}--{task.task_id}"
+                task_node_id = f"t:{dag_id}:{task.task_id}"
                 if task.task_type in conf.getlist("core", "dag_dependencies_trigger"):
                     nodes[task_node_id] = self._node_dict(
                         task_node_id, task.task_id, "fill: rgb(255, 239, 235)"
@@ -3854,7 +3854,7 @@ class DagDependenciesView(AirflowBaseView):
                     edges.extend(
                         [
                             {"u": dag_node_id, "v": task_node_id},
-                            {"u": task_node_id, "v": f"d--{task.trigger_dag_id}"},
+                            {"u": task_node_id, "v": f"d:{task.trigger_dag_id}"},
                         ]
                     )
                 elif task.task_type in conf.getlist("core", "dag_dependencies_sensor"):
@@ -3865,20 +3865,20 @@ class DagDependenciesView(AirflowBaseView):
                     edges.extend(
                         [
                             {"u": task_node_id, "v": dag_node_id},
-                            {"u": f"d--{task.external_dag_id}", "v": task_node_id},
+                            {"u": f"d:{task.external_dag_id}", "v": task_node_id},
                         ]
                     )
 
             implicit = getattr(dag, "implicit_dependencies", None)
             if isinstance(implicit, list):
                 for dep in implicit:
-                    dep_node_id = f"i--{dag_id}--{dep}"
+                    dep_node_id = f"i:{dag_id}:{dep}"
                     nodes[dep_node_id] = self._node_dict(dep_node_id, "implicit", "fill: gold")
 
                     edges.extend(
                         [
                             {"u": dep_node_id, "v": dag_node_id},
-                            {"u": f"d--{dep}", "v": dep_node_id},
+                            {"u": f"d:{dep}", "v": dep_node_id},
                         ]
                     )
 
