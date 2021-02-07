@@ -144,12 +144,13 @@ class ClsResultStorage(ClsEntity):
         if not isinstance(self.entity_id, list):
             raise BaseException(u'entity_id必须是列表')
         unused_keys = ['_time', 'table', 'result', '_start', '_stop', '_measurement']
+        query_condition = ' or '.join('r.entity_id == "{}"'.format(entity_id) for entity_id in self.entity_id)
         query_str = '''from(bucket: "{}")
           |> range(start: 0, stop: now())
           |> filter(fn: (r) => r._measurement == "results")
-          |> filter(fn: (r) => r.entity_id =~ /{}/)
+          |> filter(fn: (r) => {})
           |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-          '''.format(self._bucket, '|'.join(self.entity_id).replace('/', '\\/'))
+          '''.format(self._bucket, query_condition)
         data = self._query(query_str)
         ret = []
         if not data:
