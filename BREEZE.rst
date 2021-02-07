@@ -2319,7 +2319,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           start all integrations. Selected integrations are not saved for future execution.
           One of:
 
-                 cassandra kerberos mongo openldap pinot presto rabbitmq redis all
+                 cassandra kerberos mongo openldap pinot presto rabbitmq redis statsd all
 
   --init-script INIT_SCRIPT_FILE
           Initialization script name - Sourced from files/airflow-breeze-config. Default value
