@@ -66,6 +66,11 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         'rsa': paramiko.RSAKey,
     }
 
+    conn_name_attr = 'ssh_conn_id'
+    default_conn_name = 'ssh_default'
+    conn_type = 'ssh'
+    hook_name = 'SSH'
+
     @staticmethod
     def get_ui_field_behaviour() -> Dict:
         """Returns custom field behaviour"""
