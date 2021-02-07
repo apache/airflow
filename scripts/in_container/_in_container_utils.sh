@@ -275,7 +275,7 @@ function install_airflow_from_wheel() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${1}"
+    pip install "${airflow_package}${extras}"
 }
 
 function install_airflow_from_sdist() {
@@ -292,7 +292,7 @@ function install_airflow_from_sdist() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${1}"
+    pip install "${airflow_package}${extras}"
 }
 
 function install_remaining_dependencies() {
@@ -321,13 +321,12 @@ function uninstall_airflow_and_providers() {
 
 function install_released_airflow_version() {
     local version="${1}"
-    local extras="${2}"
     echo
-    echo "Installing released ${version} version of airflow with extras ${extras}"
+    echo "Installing released ${version} version of airflow without extras"
     echo
 
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow${extras}==${version}"
+    pip install --upgrade "apache-airflow==${version}"
 }
 
 function install_all_provider_packages_from_wheels() {

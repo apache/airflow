@@ -67,9 +67,9 @@ function install_airflow_as_specified() {
         uninstall_providers
     else
         echo
-        echo "Install airflow from PyPI including [${AIRFLOW_EXTRAS}] extras"
+        echo "Install airflow from PyPI without extras"
         echo
-        install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
+        install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
         uninstall_providers
     fi
     group_end
