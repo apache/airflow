@@ -182,7 +182,7 @@ Turning off checks
 
 Advanced Airflow users or those with multiple Airflow deployments may want to
 customize the Upgrade Checks to their environment by turning off certain
-checks which are not applicable to them. And example of this is users with
+checks which are not applicable to them. An example of this is users with
 Airflow deployments not using the ``KubernetesPodOperator`` may want to turn off upgrade
 checks related to the ``KubernetesPodOperator``.
 
@@ -193,7 +193,7 @@ This can be done by creating an "upgrade config file" in YAML as shown below:
     ignored_rules:
         - PodTemplateFileRule
 
-To use this configuration file (named ```upgrade-configuration.yaml`` for  this
+To use this configuration file (named ``upgrade-configuration.yaml`` for  this
 example) while running the upgrade check script, use the following command syntax:
 
 .. code-block:: bash

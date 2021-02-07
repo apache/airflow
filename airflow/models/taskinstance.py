@@ -432,7 +432,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         :type execution_date: datetime
         :param mark_success: Whether to mark the task as successful
         :type mark_success: bool
-        :param ignore_all_deps: Ignore all ignorable dependencies.
+        :param ignore_all_deps: Ignore all ignoreable dependencies.
             Overrides the other ignore_* parameters.
         :type ignore_all_deps: bool
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
@@ -1103,7 +1103,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.job_id = job_id
         self.hostname = get_hostname()
 
-        context = {}  # type: Dict
         actual_start_date = timezone.utcnow()
         Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
@@ -1187,7 +1186,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                     session.query(DagRun).filter_by(
                         dag_id=self.dag_id,
                         execution_date=self.execution_date,
-                    )
+                    ),
+                    session=session,
                 ).one()
 
                 # Get a partial dag with just the specific tasks we want to

@@ -254,8 +254,7 @@
       function setUpZoomSupport() {
         // Set up zoom support for Graph
         zoom = d3.behavior.zoom().on("zoom", function() {
-              innerSvg.attr("transform", "translate(" + d3.event.translate + ")" +
-                                          "scale(" + d3.event.scale + ")");
+              innerSvg.attr("transform", `translate(${d3.event.translate})scale(${d3.event.scale})`);
             });
         svg.call(zoom);
 
@@ -423,10 +422,10 @@
           d3.selectAll("g.node")
               .transition(duration)
               .style("opacity", 0.2);
-          d3.selectAll("g.node."+state)
+          d3.selectAll(`g.node.${state}`)
               .transition(duration)
               .style("opacity", 1);
-          d3.selectAll("g.node." + state + " rect")
+          d3.selectAll(`g.node.${state} rect`)
               .transition(duration)
               .style("stroke-width", highlightStrokeWidth)
               .style("opacity", 1);
@@ -551,7 +550,7 @@
         for(const node_id of g.nodes())
         {
           elem = g.node(node_id).elem;
-          elem.setAttribute("class", "node enter " + get_node_state(node_id, tis));
+          elem.setAttribute("class", `node enter ${get_node_state(node_id, tis)}`);
           elem.setAttribute("data-toggle", "tooltip");
 
           const task_id = node_id;

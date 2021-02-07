@@ -87,6 +87,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import json as utils_json, timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
+from airflow.utils.docs import get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
@@ -530,6 +531,15 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
             user_permissions = current_app.appbuilder.sm.get_current_user_permissions()
             all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
+            can_create_dag_run = (
+                permissions.ACTION_CAN_CREATE,
+                permissions.RESOURCE_DAG_RUN,
+            ) in user_permissions
+
+            can_delete_dag = (
+                permissions.ACTION_CAN_DELETE,
+                permissions.RESOURCE_DAG,
+            ) in user_permissions
 
             for dag in dags:
                 if all_dags_editable:
@@ -537,6 +547,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 else:
                     dag_resource_name = permissions.RESOURCE_DAG_PREFIX + dag.dag_id
                     dag.can_edit = (permissions.ACTION_CAN_EDIT, dag_resource_name) in user_permissions
+                dag.can_trigger = dag.can_edit and can_create_dag_run
+                dag.can_delete = can_delete_dag
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
@@ -898,8 +910,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             content = getattr(task, template_field)
             renderer = task.template_fields_renderers.get(template_field, template_field)
             if renderer in renderers:
-                if isinstance(content, (dict, list)):
-                    content = json.dumps(content, sort_keys=True, indent=4)
                 html_dict[template_field] = renderers[renderer](content)
             else:
                 html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(
@@ -1394,7 +1404,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @expose('/trigger', methods=['POST', 'GET'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         ]
     )
@@ -2981,10 +2991,12 @@ class PluginView(AirflowBaseView):
             plugins.append(plugin_data)
 
         title = "Airflow Plugins"
+        doc_url = get_docs_url("plugins.html")
         return self.render_template(
             'airflow/plugin.html',
             plugins=plugins,
             title=title,
+            doc_url=doc_url,
         )
 
 

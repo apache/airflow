@@ -165,6 +165,9 @@ class GoogleSystemTest(SystemTest):
         bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
         with TemporaryDirectory(prefix="airflow-gcp") as tmp_dir:
             tmp_path = os.path.join(tmp_dir, filename)
+            tmp_dir_path = os.path.dirname(tmp_path)
+            if tmp_dir_path:
+                os.makedirs(tmp_dir_path, exist_ok=True)
             with open(tmp_path, "w") as file:
                 file.writelines(lines)
                 file.flush()

@@ -42,78 +42,76 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
 TEST_ALERT_POLICY_1 = {
     "combiner": "OR",
-    "creationRecord": {"mutatedBy": "user123", "mutateTime": "2020-01-01T00:00:00.000000Z"},
     "enabled": True,
-    "displayName": "test alert 1",
+    "display_name": "test alert 1",
     "conditions": [
         {
-            "conditionThreshold": {
+            "condition_threshold": {
                 "filter": (
                     'metric.label.state="blocked" AND '
                     'metric.type="agent.googleapis.com/processes/count_by_state" '
                     'AND resource.type="gce_instance"'
                 ),
                 "comparison": "COMPARISON_GT",
-                "thresholdValue": 100,
-                "duration": "900s",
+                "threshold_value": 100,
+                "duration": {'seconds': 900},
                 "trigger": {"percent": 0},
                 "aggregations": [
                     {
-                        "alignmentPeriod": "60s",
-                        "perSeriesAligner": "ALIGN_MEAN",
-                        "crossSeriesReducer": "REDUCE_MEAN",
-                        "groupByFields": ["project", "resource.label.instance_id", "resource.label.zone"],
+                        "alignment_period": {'seconds': 60},
+                        "per_series_aligner": "ALIGN_MEAN",
+                        "cross_series_reducer": "REDUCE_MEAN",
+                        "group_by_fields": ["project", "resource.label.instance_id", "resource.label.zone"],
                     }
                 ],
             },
-            "displayName": "test_alert_policy_1",
+            "display_name": "test_alert_policy_1",
         }
     ],
 }
 
 TEST_ALERT_POLICY_2 = {
     "combiner": "OR",
-    "creationRecord": {"mutatedBy": "user123", "mutateTime": "2020-01-01T00:00:00.000000Z"},
     "enabled": False,
-    "displayName": "test alert 2",
+    "display_name": "test alert 2",
     "conditions": [
         {
-            "conditionThreshold": {
+            "condition_threshold": {
                 "filter": (
                     'metric.label.state="blocked" AND '
                     'metric.type="agent.googleapis.com/processes/count_by_state" AND '
                     'resource.type="gce_instance"'
                 ),
                 "comparison": "COMPARISON_GT",
-                "thresholdValue": 100,
-                "duration": "900s",
+                "threshold_value": 100,
+                "duration": {'seconds': 900},
                 "trigger": {"percent": 0},
                 "aggregations": [
                     {
-                        "alignmentPeriod": "60s",
-                        "perSeriesAligner": "ALIGN_MEAN",
-                        "crossSeriesReducer": "REDUCE_MEAN",
-                        "groupByFields": ["project", "resource.label.instance_id", "resource.label.zone"],
+                        "alignment_period": {'seconds': 60},
+                        "per_series_aligner": "ALIGN_MEAN",
+                        "cross_series_reducer": "REDUCE_MEAN",
+                        "group_by_fields": ["project", "resource.label.instance_id", "resource.label.zone"],
                     }
                 ],
             },
-            "displayName": "test_alert_policy_2",
+            "display_name": "test_alert_policy_2",
         }
     ],
 }
 
 TEST_NOTIFICATION_CHANNEL_1 = {
-    "displayName": "channel1",
+    "display_name": "channel1",
     "enabled": True,
     "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
-    "type": "slack",
+    "type_": "slack",
 }
 
 TEST_NOTIFICATION_CHANNEL_2 = {
-    "displayName": "channel2",
+    "display_name": "channel2",
     "enabled": False,
     "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
-    "type": "slack",
+    "type_": "slack",
 }
 
 with models.DAG(

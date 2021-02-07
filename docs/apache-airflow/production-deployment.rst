@@ -248,7 +248,7 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -281,7 +281,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -322,7 +322,7 @@ installation as it is using external installation method.
 Note that as a prerequisite - you need to have downloaded wheel files. In the example below we
 first download such constraint file locally and then use ``pip download`` to get the .whl files needed
 but in most likely scenario, those wheel files should be copied from an internal repository of such .whl
-files. Note that ``AIRFLOW_INSTALL_VERSION`` is only there for reference, the apache airflow .whl file
+files. Note that ``AIRFLOW_VERSION_SPECIFICATION`` is only there for reference, the apache airflow .whl file
 in the right version is part of the .whl files downloaded.
 
 Note that 'pip download' will only works on Linux host as some of the packages need to be compiled from
@@ -376,7 +376,7 @@ or
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -682,9 +682,9 @@ production image. There are three types of build:
 |                                   |                        | ``AIRFLOW_SOURCES_FROM`` and ``AIRFLOW_SOURCES_TO`` variables as described below. |
 |                                   |                        | Only used when ``INSTALL_FROM_PYPI`` is set to ``true``.                          |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
-| ``AIRFLOW_INSTALL_VERSION``       |                        | Optional - might be used for package installation of different Airflow version    |
+| ``AIRFLOW_VERSION_SPECIFICATION`` |                        | Optional - might be used for package installation of different Airflow version    |
 |                                   |                        | for example"==2.0.0". For consistency, you should also set``AIRFLOW_VERSION``     |
-|                                   |                        | to the same value AIRFLOW_VERSION is embedded as label in the image created.      |
+|                                   |                        | to the same value AIRFLOW_VERSION is resolved as label in the image created.      |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE`` | ``constraints-master`` | Reference (branch or tag) from GitHub where constraints file is taken from.       |
 |                                   |                        | It can be ``constraints-master`` but also can be``constraints-1-10`` for          |
@@ -733,7 +733,7 @@ of v1-10-test branch.
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2.0.0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
@@ -749,7 +749,7 @@ additional python dependencies and pre-installed pip dependencies from 2.0.0 tag
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2.0.0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
@@ -767,7 +767,7 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \

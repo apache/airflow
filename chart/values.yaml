@@ -514,6 +514,9 @@ statsd:
   affinity: {}
   tolerations: []
 
+  # Additional mappings for statsd exporter.
+  extraMappings: []
+
 # Pgbouncer settings
 pgbouncer:
   # Enable pgbouncer

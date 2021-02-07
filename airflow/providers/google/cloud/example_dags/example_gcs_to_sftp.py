@@ -23,14 +23,17 @@ import os
 
 from airflow import models
 from airflow.providers.google.cloud.transfers.gcs_to_sftp import GCSToSFTPOperator
+from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.utils.dates import days_ago
 
+SFTP_CONN_ID = "ssh_default"
 BUCKET_SRC = os.environ.get("GCP_GCS_BUCKET_1_SRC", "test-gcs-sftp")
 OBJECT_SRC_1 = "parent-1.bin"
-OBJECT_SRC_2 = "parent-2.bin"
-OBJECT_SRC_3 = "subdir-1/*"
+OBJECT_SRC_2 = "dir-1/parent-2.bin"
+OBJECT_SRC_3 = "dir-2/*"
 DESTINATION_PATH_1 = "/tmp/single-file/"
-DESTINATION_PATH_2 = "/tmp/dirs/"
+DESTINATION_PATH_2 = "/tmp/dest-dir-1/"
+DESTINATION_PATH_3 = "/tmp/dest-dir-2/"
 
 
 with models.DAG(
@@ -39,15 +42,24 @@ with models.DAG(
     # [START howto_operator_gcs_to_sftp_copy_single_file]
     copy_file_from_gcs_to_sftp = GCSToSFTPOperator(
         task_id="file-copy-gsc-to-sftp",
+        sftp_conn_id=SFTP_CONN_ID,
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_1,
         destination_path=DESTINATION_PATH_1,
     )
     # [END howto_operator_gcs_to_sftp_copy_single_file]
 
+    check_copy_file_from_gcs_to_sftp = SFTPSensor(
+        task_id="check-file-copy-gsc-to-sftp",
+        sftp_conn_id=SFTP_CONN_ID,
+        timeout=60,
+        path=os.path.join(DESTINATION_PATH_1, OBJECT_SRC_1),
+    )
+
     # [START howto_operator_gcs_to_sftp_move_single_file_destination]
     move_file_from_gcs_to_sftp = GCSToSFTPOperator(
         task_id="file-move-gsc-to-sftp",
+        sftp_conn_id=SFTP_CONN_ID,
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_2,
         destination_path=DESTINATION_PATH_1,
@@ -55,20 +67,51 @@ with models.DAG(
     )
     # [END howto_operator_gcs_to_sftp_move_single_file_destination]
 
+    check_move_file_from_gcs_to_sftp = SFTPSensor(
+        task_id="check-file-move-gsc-to-sftp",
+        sftp_conn_id=SFTP_CONN_ID,
+        timeout=60,
+        path=os.path.join(DESTINATION_PATH_1, OBJECT_SRC_2),
+    )
+
     # [START howto_operator_gcs_to_sftp_copy_directory]
     copy_dir_from_gcs_to_sftp = GCSToSFTPOperator(
         task_id="dir-copy-gsc-to-sftp",
+        sftp_conn_id=SFTP_CONN_ID,
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_3,
         destination_path=DESTINATION_PATH_2,
     )
     # [END howto_operator_gcs_to_sftp_copy_directory]
 
+    check_copy_dir_from_gcs_to_sftp = SFTPSensor(
+        task_id="check-dir-copy-gsc-to-sftp",
+        sftp_conn_id=SFTP_CONN_ID,
+        timeout=60,
+        path=os.path.join(DESTINATION_PATH_2, "dir-2", OBJECT_SRC_1),
+    )
+
     # [START howto_operator_gcs_to_sftp_move_specific_files]
     move_dir_from_gcs_to_sftp = GCSToSFTPOperator(
         task_id="dir-move-gsc-to-sftp",
+        sftp_conn_id=SFTP_CONN_ID,
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_3,
-        destination_path=DESTINATION_PATH_2,
+        destination_path=DESTINATION_PATH_3,
+        keep_directory_structure=False,
     )
     # [END howto_operator_gcs_to_sftp_move_specific_files]
+
+    check_move_dir_from_gcs_to_sftp = SFTPSensor(
+        task_id="check-dir-move-gsc-to-sftp",
+        sftp_conn_id=SFTP_CONN_ID,
+        timeout=60,
+        path=os.path.join(DESTINATION_PATH_3, OBJECT_SRC_1),
+    )
+
+    move_file_from_gcs_to_sftp >> check_move_file_from_gcs_to_sftp
+    copy_dir_from_gcs_to_sftp >> check_copy_file_from_gcs_to_sftp
+
+    copy_dir_from_gcs_to_sftp >> move_dir_from_gcs_to_sftp
+    copy_dir_from_gcs_to_sftp >> check_copy_dir_from_gcs_to_sftp
+    move_dir_from_gcs_to_sftp >> check_move_dir_from_gcs_to_sftp

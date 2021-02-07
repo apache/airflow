@@ -76,6 +76,7 @@ class TestEmail(unittest.TestCase):
 
     def setUp(self):
         conf.remove_option('email', 'EMAIL_BACKEND')
+        conf.remove_option('email', 'EMAIL_CONN_ID')
 
     @mock.patch('airflow.utils.email.send_email')
     def test_default_backend(self, mock_send_email):
@@ -97,6 +98,7 @@ class TestEmail(unittest.TestCase):
             bcc=None,
             mime_charset='utf-8',
             mime_subtype='mixed',
+            conn_id='smtp_default',
         )
         assert not mock_send_email.called
 
@@ -189,6 +191,20 @@ class TestEmailSmtp(unittest.TestCase):
             conf.get('smtp', 'SMTP_USER'),
             conf.get('smtp', 'SMTP_PASSWORD'),
         )
+        mock_smtp.return_value.sendmail.assert_called_once_with('from', 'to', msg.as_string())
+        assert mock_smtp.return_value.quit.called
+
+    @mock.patch('smtplib.SMTP')
+    @mock.patch('airflow.hooks.base.BaseHook')
+    def test_send_mime_conn_id(self, mock_hook, mock_smtp):
+        msg = MIMEMultipart()
+        mock_conn = mock.Mock()
+        mock_conn.login = 'user'
+        mock_conn.password = 'password'
+        mock_hook.get_connection.return_value = mock_conn
+        utils.email.send_mime_email('from', 'to', msg, dryrun=False, conn_id='smtp_default')
+        mock_hook.get_connection.assert_called_with('smtp_default')
+        mock_smtp.return_value.login.assert_called_once_with('user', 'password')
         mock_smtp.return_value.sendmail.assert_called_once_with('from', 'to', msg.as_string())
         assert mock_smtp.return_value.quit.called
 

@@ -499,7 +499,7 @@ class TestAirflowBaseViews(TestBase):
                 "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/"
             )
         else:
-            airflow_doc_site = f'https://airflow.apache.org/docs/{version.version}'
+            airflow_doc_site = f'https://airflow.apache.org/docs/apache-airflow/{version.version}'
 
         self.check_content_in_response(airflow_doc_site, resp)
         self.check_content_in_response("/api/v1/ui", resp)
@@ -2805,6 +2805,25 @@ class TestTriggerDag(TestBase):
         url = 'trigger?dag_id=example_bash_operator'
         resp = self.client.post(url, data={}, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
+
+    def test_viewer_cant_trigger_dag(self):
+        """
+        Test that the test_viewer user can't trigger DAGs.
+        """
+        self.logout()
+        self.create_user_and_login(
+            username='test_viewer_cant_trigger_dag_user',
+            role_name='test_viewer_cant_trigger_dag_user',
+            perms=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+            ],
+        )
+        url = 'trigger?dag_id=example_bash_operator'
+        resp = self.client.get(url, follow_redirects=True)
+        response_data = resp.data.decode()
+        assert "Access is Denied" in response_data
 
 
 class TestExtraLinks(TestBase):

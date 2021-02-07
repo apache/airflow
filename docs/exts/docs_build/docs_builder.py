@@ -216,6 +216,16 @@ class AirflowDocsBuilder:
         pretty_source = pretty_format_path(self._build_dir, os.getcwd())
         pretty_target = pretty_format_path(output_dir, AIRFLOW_SITE_DIR)
         print(f"Copy directory: {pretty_source} => {pretty_target}")
+        if os.path.exists(output_dir):
+            if self.is_versioned:
+                print(
+                    f"Skipping previously existing {output_dir}! "
+                    f"Delete it manually if you want to regenerate it!"
+                )
+                print()
+                return
+            else:
+                shutil.rmtree(output_dir)
         shutil.copytree(self._build_dir, output_dir)
         if self.is_versioned:
             with open(os.path.join(output_dir, "..", "stable.txt"), "w") as stable_file:

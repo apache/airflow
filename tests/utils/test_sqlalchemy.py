@@ -27,7 +27,7 @@ from sqlalchemy.exc import StatementError
 from airflow import settings
 from airflow.models import DAG
 from airflow.settings import Session
-from airflow.utils.sqlalchemy import nowait, prohibit_commit, skip_locked
+from airflow.utils.sqlalchemy import nowait, prohibit_commit, skip_locked, with_row_locks
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
@@ -160,6 +160,33 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         session.bind.dialect.name = dialect
         session.bind.dialect.supports_for_update_of = supports_for_update_of
         assert nowait(session=session) == expected_return_value
+
+    @parameterized.expand(
+        [
+            ("postgresql", True, True, True),
+            ("postgresql", True, False, False),
+            ("mysql", False, True, False),
+            ("mysql", False, False, False),
+            ("mysql", True, True, True),
+            ("mysql", True, False, False),
+            ("sqlite", False, True, True),
+        ]
+    )
+    def test_with_row_locks(
+        self, dialect, supports_for_update_of, use_row_level_lock_conf, expected_use_row_level_lock
+    ):
+        query = mock.Mock()
+        session = mock.Mock()
+        session.bind.dialect.name = dialect
+        session.bind.dialect.supports_for_update_of = supports_for_update_of
+        with mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", use_row_level_lock_conf):
+            returned_value = with_row_locks(query=query, session=session, nowait=True)
+
+        if expected_use_row_level_lock:
+            query.with_for_update.assert_called_once_with(nowait=True)
+        else:
+            assert returned_value == query
+            query.with_for_update.assert_not_called()
 
     def test_prohibit_commit(self):
         with prohibit_commit(self.session) as guard:

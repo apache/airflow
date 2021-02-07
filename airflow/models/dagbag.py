@@ -20,7 +20,6 @@ import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
-import logging
 import os
 import sys
 import textwrap
@@ -30,7 +29,6 @@ import zipfile
 from datetime import datetime, timedelta
 from typing import Dict, List, NamedTuple, Optional
 
-import tenacity
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -44,6 +42,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
 from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
@@ -79,6 +78,10 @@ class DagBag(LoggingMixin):
     :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
         If ``False`` DAGs are read from python files.
     :type read_dags_from_db: bool
+    :param load_op_links: Should the extra operator link be loaded via plugins when
+        de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
+        are not loaded to not run User code in Scheduler.
+    :type load_op_links: bool
     """
 
     DAGBAG_IMPORT_TIMEOUT = conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
@@ -92,6 +95,7 @@ class DagBag(LoggingMixin):
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
         read_dags_from_db: bool = False,
         store_serialized_dags: Optional[bool] = None,
+        load_op_links: bool = True,
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
@@ -128,6 +132,9 @@ class DagBag(LoggingMixin):
             include_smart_sensor=include_smart_sensor,
             safe_mode=safe_mode,
         )
+        # Should the extra operator link be loaded via plugins?
+        # This flag is set to False in Scheduler so that Extra Operator links are not loaded
+        self.load_op_links = load_op_links
 
     def size(self) -> int:
         """:return: the amount of dags contained in this dagbag"""
@@ -226,6 +233,7 @@ class DagBag(LoggingMixin):
         if not row:
             raise SerializedDagNotFound(f"DAG '{dag_id}' not found in serialized_dag table")
 
+        row.load_op_links = self.load_op_links
         dag = row.dag
         for subdag in dag.subdags:
             self.dags[subdag.dag_id] = subdag
@@ -541,19 +549,13 @@ class DagBag(LoggingMixin):
         # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
         # of any Operational Errors
         # In case of failures, provide_session handles rollback
-        for attempt in tenacity.Retrying(
-            retry=tenacity.retry_if_exception_type(exception_types=OperationalError),
-            wait=tenacity.wait_random_exponential(multiplier=0.5, max=5),
-            stop=tenacity.stop_after_attempt(settings.MAX_DB_RETRIES),
-            before_sleep=tenacity.before_sleep_log(self.log, logging.DEBUG),
-            reraise=True,
-        ):
+        for attempt in run_with_db_retries(logger=self.log):
             with attempt:
                 serialize_errors = []
                 self.log.debug(
                     "Running dagbag.sync_to_db with retries. Try %d of %d",
                     attempt.retry_state.attempt_number,
-                    settings.MAX_DB_RETRIES,
+                    MAX_DB_RETRIES,
                 )
                 self.log.debug("Calling the DAG.bulk_sync_to_db method")
                 try:

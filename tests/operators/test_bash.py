@@ -24,7 +24,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DagRun
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
@@ -137,3 +137,8 @@ class TestBashOperator(unittest.TestCase):
             stderr=STDOUT,
             stdout=PIPE,
         )
+
+    def test_skip(self):
+        op = BashOperator(task_id='abc', bash_command='set -e; echo "hello world"; exit 127;')
+        with pytest.raises(AirflowSkipException):
+            op.execute({})
