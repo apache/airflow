@@ -885,7 +885,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         if self.wait:
             hook.wait_for_transfer_job(job, timeout=self.timeout)
             if self.delete_job_after_completion:
-                hook.delete_transfer_job(job_name=job[NAME])
+                hook.delete_transfer_job(job_name=job[NAME], project_id=self.project_id)
 
     def _create_body(self) -> dict:
         body = {
@@ -1054,7 +1054,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         if self.wait:
             hook.wait_for_transfer_job(job, timeout=self.timeout)
             if self.delete_job_after_completion:
-                hook.delete_transfer_job(job_name=job[NAME])
+                hook.delete_transfer_job(job_name=job[NAME], project_id=self.project_id)
 
     def _create_body(self) -> dict:
         body = {
