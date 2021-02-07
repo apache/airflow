@@ -244,8 +244,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.env_vars = convert_env_vars(env_vars) if env_vars else []
         if pod_runtime_info_envs:
             self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
-        env_vars = add_template_fields_to_env_vars(env_vars)
-        self.env_vars = env_vars
+        self.env_vars = add_template_fields_to_env_vars(self.env_vars)
         self.env_from = env_from or []
         if configmaps:
             self.env_from.extend([convert_configmap(c) for c in configmaps])
