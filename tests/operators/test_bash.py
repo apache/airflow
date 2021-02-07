@@ -53,7 +53,7 @@ class TestBashOperator(unittest.TestCase):
 
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
+            execution_date=now,
             start_date=now,
             state=State.RUNNING,
             external_trigger=False,
@@ -110,3 +110,8 @@ class TestBashOperator(unittest.TestCase):
         bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_default_retries', dag=None)
 
         assert bash_operator.retries == 0
+
+    def test_skip(self):
+        op = BashOperator(task_id='abc', bash_command='set -e; echo "hello world"; exit 127;')
+        with pytest.raises(AirflowSkipException):
+            op.execute({})

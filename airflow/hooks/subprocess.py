@@ -82,9 +82,9 @@ class SubprocessHook(BaseHook):
             self.log.info('Command exited with return code %s', self.sub_process.returncode)
 
             if self.sub_process.returncode == EXIT_CODE_SKIP:
-                raise AirflowSkipException(f"Bash returned exit code {EXIT_CODE_SKIP}. Skipping task")
+                raise AirflowSkipException(f"Process returned exit code {EXIT_CODE_SKIP}. Skipping...")
             elif self.sub_process.returncode != 0:
-                raise AirflowException('Bash command failed. The command returned a non-zero exit code.')
+                raise AirflowException('Process failed. The command returned a non-zero exit code...')
 
         return line
 
