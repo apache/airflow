@@ -49,4 +49,6 @@ class BaseBranchOperator(BaseOperator, SkipMixin):
         raise NotImplementedError
 
     def execute(self, context: Dict):
-        self.skip_all_except(context['ti'], self.choose_branch(context))
+        branches_to_execute = self.choose_branch(context)
+        self.skip_all_except(context['ti'], branches_to_execute)
+        return branches_to_execute

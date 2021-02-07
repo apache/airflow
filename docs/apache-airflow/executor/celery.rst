@@ -27,7 +27,7 @@ change your ``airflow.cfg`` to point the executor parameter to
 ``CeleryExecutor`` and provide the related Celery settings.
 
 For more information about setting up a Celery broker, refer to the
-exhaustive `Celery documentation on the topic <http://docs.celeryproject.org/en/latest/getting-started/brokers/index.html>`_.
+exhaustive `Celery documentation on the topic <http://docs.celeryproject.org/en/latest/getting-started/>`_.
 
 Here are a few imperative requirements for your workers:
 
@@ -62,7 +62,7 @@ its direction. To stop a worker running on a machine you can use:
 
 It will try to stop the worker gracefully by sending ``SIGTERM`` signal to main Celery
 process as recommended by
-`Celery documentation <https://docs.celeryproject.org/en/latest/userguide/workers>`__.
+`Celery documentation <https://docs.celeryproject.org/en/latest/userguide/workers.html>`__.
 
 Note that you can also run `Celery Flower <https://flower.readthedocs.io/en/latest/>`__,
 a web UI built on top of Celery, to monitor your workers. You can use the shortcut command

@@ -22,7 +22,8 @@ DAG Serialization
 =================
 
 In order to make Airflow Webserver stateless, Airflow >=1.10.7 supports
-DAG Serialization and DB Persistence.
+DAG Serialization and DB Persistence. From Airflow 2.0.0, the Scheduler
+also use Serialized DAGs for consistency and make Scheduling decisions.
 
 .. image:: img/dag_serialization.png
 
@@ -33,25 +34,28 @@ With **DAG Serialization** we aim to decouple the webserver from DAG parsing
 which would make the Webserver very light-weight.
 
 As shown in the image above, when using the this feature,
-the Scheduler parses the DAG files, serializes them in JSON format and saves them in the Metadata DB
-as :class:`airflow.models.serialized_dag.SerializedDagModel` model.
+the :class:`~airflow.jobs.scheduler_job.DagFileProcessorProcess` in the Scheduler
+parses the DAG files, serializes them in JSON format and saves them in the Metadata DB
+as :class:`~airflow.models.serialized_dag.SerializedDagModel` model.
 
 The Webserver now instead of having to parse the DAG file again, reads the
 serialized DAGs in JSON, de-serializes them and create the DagBag and uses it
-to show in the UI.
+to show in the UI. And the Scheduler does not need the actual DAG for making Scheduling decisions,
+instead of using the DAG files, we use Serialized DAGs that contain all the information needing to
+schedule the DAGs from Airflow 2.0.0 (this was done as part of :ref:`Scheduler HA <scheduler:ha>`).
 
 One of the key features that is implemented as the part of DAG Serialization is that
 instead of loading an entire DagBag when the WebServer starts we only load each DAG on demand from the
 Serialized Dag table. This helps reduce Webserver startup time and memory. The reduction is notable
 when you have large number of DAGs.
 
-You can enable the source code to be stored in the database to make it completely independent from DAG files.
+You can enable the source code to be stored in the database to make the Webserver completely independent of the DAG files.
 This is not necessary if your files are embedded in an Docker image or you can otherwise provide
-them to the webserver. The data is stored in the :class:`airflow.models.dagcode.DagCode` model.
+them to the webserver. The data is stored in the :class:`~airflow.models.dagcode.DagCode` model.
 
 The last element is rendering template fields. When serialization is enabled, templates are not rendered
 to requests, but a copy of the field contents is saved before the task is executed on worker.
-The data is stored in the :class:`airflow.models.renderedtifields.RenderedTaskInstanceFields` model.
+The data is stored in the :class:`~airflow.models.renderedtifields.RenderedTaskInstanceFields` model.
 To limit the excessive growth of the database, only the most recent entries are kept and older entries
 are purged.
 

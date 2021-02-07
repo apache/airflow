@@ -59,7 +59,7 @@ class TestExternalTaskSensor(unittest.TestCase):
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_catch_overlap_allowed_failed_state(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             ExternalTaskSensor(
                 task_id='test_external_task_sensor_check',
                 external_dag_id=TEST_DAG_ID,
@@ -70,7 +70,7 @@ class TestExternalTaskSensor(unittest.TestCase):
             )
 
     def test_external_task_sensor_wrong_failed_states(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ExternalTaskSensor(
                 task_id='test_external_task_sensor_check',
                 external_dag_id=TEST_DAG_ID,
@@ -100,11 +100,9 @@ class TestExternalTaskSensor(unittest.TestCase):
             failed_states=["success"],
             dag=self.dag,
         )
-        with self.assertRaises(AirflowException) as cm:
+        with pytest.raises(AirflowException) as ctx:
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        self.assertEqual(
-            str(cm.exception), "The external task " "time_sensor_check in DAG " "unit_test_dag failed."
-        )
+        assert str(ctx.value) == "The external task " "time_sensor_check in DAG " "unit_test_dag failed."
 
     def test_external_dag_sensor(self):
         other_dag = DAG('other_dag', default_args=self.args, end_date=DEFAULT_DATE, schedule_interval='@once')
@@ -128,8 +126,8 @@ class TestExternalTaskSensor(unittest.TestCase):
         instance = TaskInstance(sensor, DEFAULT_DATE)
         instance.render_templates()
 
-        self.assertEqual(sensor.external_dag_id, f"dag_{DEFAULT_DATE.date()}")
-        self.assertEqual(sensor.external_task_id, f"task_{DEFAULT_DATE.date()}")
+        assert sensor.external_dag_id == f"dag_{DEFAULT_DATE.date()}"
+        assert sensor.external_task_id == f"task_{DEFAULT_DATE.date()}"
 
     def test_external_task_sensor_fn_multiple_execution_dates(self):
         bash_command_code = """
@@ -205,7 +203,7 @@ exit 0
 
         task_without_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             task_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor_delta(self):
@@ -243,7 +241,7 @@ exit 0
             poke_interval=1,
             dag=self.dag,
         )
-        with self.assertRaises(exceptions.AirflowSensorTimeout):
+        with pytest.raises(exceptions.AirflowSensorTimeout):
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor_fn_multiple_args(self):
@@ -286,7 +284,7 @@ exit 0
     def test_external_task_sensor_error_delta_and_fn(self):
         self.test_time_sensor()
         # Test that providing execution_delta and a function raises an error
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ExternalTaskSensor(
                 task_id='test_external_task_sensor_check_delta',
                 external_dag_id=TEST_DAG_ID,
@@ -298,7 +296,7 @@ exit 0
             )
 
     def test_catch_invalid_allowed_states(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ExternalTaskSensor(
                 task_id='test_external_task_sensor_check_1',
                 external_dag_id=TEST_DAG_ID,
@@ -307,7 +305,7 @@ exit 0
                 dag=self.dag,
             )
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ExternalTaskSensor(
                 task_id='test_external_task_sensor_check_2',
                 external_dag_id=TEST_DAG_ID,
@@ -325,7 +323,7 @@ exit 0
             dag=self.dag,
         )
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor_waits_for_dag_check_existence(self):
@@ -337,13 +335,13 @@ exit 0
             dag=self.dag,
         )
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
 class TestExternalTaskMarker(unittest.TestCase):
     def test_serialized_fields(self):
-        self.assertTrue({"recursion_depth"}.issubset(ExternalTaskMarker.get_serialized_fields()))
+        assert {"recursion_depth"}.issubset(ExternalTaskMarker.get_serialized_fields())
 
     def test_serialized_external_task_marker(self):
         dag = DAG('test_serialized_external_task_marker', start_date=DEFAULT_DATE)
@@ -356,9 +354,9 @@ class TestExternalTaskMarker(unittest.TestCase):
 
         serialized_op = SerializedBaseOperator.serialize_operator(task)
         deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
-        self.assertEqual(deserialized_op.task_type, 'ExternalTaskMarker')
-        self.assertEqual(getattr(deserialized_op, 'external_dag_id'), 'external_task_marker_child')
-        self.assertEqual(getattr(deserialized_op, 'external_task_id'), 'child_task1')
+        assert deserialized_op.task_type == 'ExternalTaskMarker'
+        assert getattr(deserialized_op, 'external_dag_id') == 'external_task_marker_child'
+        assert getattr(deserialized_op, 'external_task_id') == 'child_task1'
 
 
 @pytest.fixture

@@ -23,50 +23,40 @@ on:  # yamllint disable-line rule:truthy
     - cron: '12 */6 * * *'
 
 env:
-  MOUNT_LOCAL_SOURCES: "false"
+  MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
   CHECK_IMAGE_FOR_REBUILD: "true"
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
   VERBOSE: "true"
-  UPGRADE_TO_LATEST_CONSTRAINTS: false
+  UPGRADE_TO_NEWER_DEPENDENCIES: false
   PYTHON_MAJOR_MINOR_VERSION: 3.6
   USE_GITHUB_REGISTRY: "true"
-  # Since we run this build on schedule, it might be that the image has never been pushed
-  # Because the master merge was cancelled, so we have to rebuild the image for quarantined build
+  # Might be either 'ghcr.io' or 'docker.pkg.github.com'
+  GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
+  # This token is WRITE one - schedule type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # This token should not be empty in schedule type of event.
+  CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
+  # Since we run this build on schedule, it might be that the image has never been pushed
+  # Because the master merge was cancelled, so we have to rebuild the image for quarantined build
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
 
 jobs:
 
-  trigger-tests:
-    timeout-minutes: 5
-    name: "Checks if tests should be run"
-    runs-on: ubuntu-20.04
-    outputs:
-      run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
-    steps:
-      - uses: actions/checkout@v2
-      - name: "Check if tests should be run"
-        run: "./scripts/ci/tools/ci_check_if_tests_should_be_run.sh"
-        id: trigger-tests
-
   tests-quarantined:
     timeout-minutes: 80
     name: "Quarantined tests"
     runs-on: ubuntu-20.04
-    continue-on-error: true
-    needs: [trigger-tests]
     strategy:
       matrix:
         python-version: [3.6]
         postgres-version: [9.6]
-      fail-fast: false
     env:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -75,10 +65,10 @@ jobs:
       TEST_TYPE: Quarantined
       NUM_RUNS: 20
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    if: |
-      needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v2
         with:
           python-version: '3.7'

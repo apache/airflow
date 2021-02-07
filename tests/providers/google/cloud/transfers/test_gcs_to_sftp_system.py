@@ -43,8 +43,8 @@ class GcsToSftpExampleDagsSystemTest(GoogleSystemTest):
         for bucket_src, object_source in product(
             (
                 BUCKET_SRC,
-                f"{BUCKET_SRC}/subdir-1",
-                f"{BUCKET_SRC}/subdir-2",
+                f"{BUCKET_SRC}/dir-1",
+                f"{BUCKET_SRC}/dir-2",
             ),
             (OBJECT_SRC_1, OBJECT_SRC_2),
         ):

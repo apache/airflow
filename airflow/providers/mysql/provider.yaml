@@ -22,12 +22,15 @@ description: |
     `MySQL <https://www.mysql.com/products/>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
+
 integrations:
   - integration-name: MySQL
     external-doc-url: https://www.mysql.com/
     how-to-guide:
       - /docs/apache-airflow-providers-mysql/operators.rst
+    logo: /integration-logos/mysql/MySQL.png
     tags: [software]
 
 operators:

@@ -58,7 +58,7 @@ class reset_warning_registry:  # pylint: disable=invalid-name
         for name, mod in list(sys.modules.items()):
             if pattern.match(name):
                 reg = getattr(mod, "__warningregistry__", None)
-                if reg:
+                if reg and isinstance(reg, dict):
                     backup[name] = reg.copy()
                     reg.clear()
         return self
@@ -83,5 +83,5 @@ class reset_warning_registry:  # pylint: disable=invalid-name
         for name, mod in list(modules.items()):
             if pattern.match(name) and name not in backup:
                 reg = getattr(mod, "__warningregistry__", None)
-                if reg:
+                if reg and isinstance(reg, dict):
                     reg.clear()

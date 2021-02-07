@@ -111,7 +111,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     def execute(self, context):
         """Uploads a file or list of files to Google Cloud Storage"""
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )

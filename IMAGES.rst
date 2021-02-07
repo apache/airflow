@@ -39,10 +39,12 @@ The images are named as follows:
 
 where:
 
-* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``master``, ``v1-10-test``, ``1.10.14``
-  The ``master`` and ``v1-10-test`` labels are built from branches so they change over time. The ``1.10.*`` and in
-  the future ``2.*`` labels are build from git tags and they are "fixed" once built.
-* ``PYTHON_MAJOR_MINOR_VERSION`` - version of python used to build the image. Examples: ``3.5``, ``3.7``
+* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``master``,
+  ``v2-0-test``, ``v1-10-test``, ``2.0.0``. The ``master``, ``v1-10-test`` ``v2-0-test`` labels are
+  built from branches so they change over time. The ``1.10.*`` and ``2.*`` labels are built from git tags
+  and they are "fixed" once built.
+* ``PYTHON_MAJOR_MINOR_VERSION`` - version of python used to build the image. Examples: ``3.6``, ``3.7``,
+  ``3.8``
 * The ``-ci`` suffix is added for CI images
 * The ``-manifest`` is added for manifest images (see below for explanation of manifest images)
 
@@ -51,7 +53,7 @@ the CI images. Each CI image, when built uses current python version of the base
 python images are regularly updated (with bugfixes/security fixes), so for example python3.8 from
 last week might be a different image than python3.8 today. Therefore whenever we push CI image
 to airflow repository, we also push the python image that was used to build it this image is stored
-as ``apache/airflow:python-3.8-<BRANCH_OR_TAG>``.
+as ``apache/airflow:python<PYTHON_MAJOR_MINOR_VERSION>-<BRANCH_OR_TAG>``.
 
 Since those are simply snapshots of the existing python images, DockerHub does not create a separate
 copy of those images - all layers are mounted from the original python images and those are merely
@@ -115,16 +117,28 @@ parameter to Breeze:
 .. code-block:: bash
 
   ./breeze build-image --python 3.7 --additional-extras=presto \
-      --production-image --install-airflow-version=1.10.14
+      --production-image --install-airflow-version=2.0.0
 
 
 .. note::
 
    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
-   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-   ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-   ``--use-deprecated legacy-resolver`` to your pip install command.
+   might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
+   depend on your choice of extras. In order to install Airflow you might need to either downgrade
+   pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3,
+   you need to add option ``--use-deprecated legacy-resolver`` to your pip install command.
+
+   While ``pip 20.3.3`` solved most of the ``teething`` problems of 20.3, this note will remain here until we
+   set ``pip 20.3`` as official version in our CI pipeline where we are testing the installation as well.
+   Due to those constraints, only ``pip`` installation is currently officially supported.
+
+   While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+   `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
+   ``pip`` - especially when it comes to constraint vs. requirements management.
+   Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
+
+   If you wish to install airflow using those tools you should use the constraint files and convert
+   them to appropriate format and workflow that your tool requires.
 
 
 This will build the image using command similar to:
@@ -132,8 +146,8 @@ This will build the image using command similar to:
 .. code-block:: bash
 
     pip install \
-      apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv,presto]==1.10.14 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.6.txt"
+      apache-airflow[async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv]==2.0.0 \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.6.txt"
 
 You can also build production images from specific Git version via providing ``--install-airflow-reference``
 parameter to Breeze (this time constraints are taken from the ``constraints-master`` branch which is the
@@ -218,9 +232,10 @@ Our images are named like that:
 
 .. code-block:: bash
 
-  apache/airflow:<BRANCH_OR_TAG>[-<PATCH>]-pythonX.Y         - for production images
-  apache/airflow:<BRANCH_OR_TAG>[-<PATCH>]-pythonX.Y-ci      - for CI images
-  apache/airflow:<BRANCH_OR_TAG>[-<PATCH>]-pythonX.Y-build   - for production build stage
+  apache/airflow:<BRANCH_OR_TAG>-pythonX.Y         - for production images
+  apache/airflow:<BRANCH_OR_TAG>-pythonX.Y-ci      - for CI images
+  apache/airflow:<BRANCH_OR_TAG>-pythonX.Y-build   - for production build stage
+  apache/airflow:pythonX.Y-<BRANCH_OR_TAG>         - for python base image used for both CI and PROD image
 
 For example:
 
@@ -228,12 +243,14 @@ For example:
 
   apache/airflow:master-python3.6                - production "latest" image from current master
   apache/airflow:master-python3.6-ci             - CI "latest" image from current master
-  apache/airflow:v1-10-test-python2.7-ci         - CI "latest" image from current v1-10-test branch
-  apache/airflow:1.10.14-python3.6               - production image for 1.10.14 release
-  apache/airflow:1.10.14-1-python3.6             - production image for 1.10.14 with some patches applied
+  apache/airflow:v2-0-test-python2.7-ci          - CI "latest" image from current v2-0-test branch
+  apache/airflow:2.0.0-python3.6                 - production image for 2.0.0 release
+  apache/airflow:python3.6-master                - base python image for the master branch
 
+You can see DockerHub images at `<https://hub.docker.com/r/apache/airflow>`_
 
-You can see DockerHub images at `<https://hub.docker.com/repository/docker/apache/airflow>`_
+Using GitHub registries as build cache
+--------------------------------------
 
 By default DockerHub registry is used when you push or pull such images.
 However for CI builds we keep the images in GitHub registry as well - this way we can easily push
@@ -245,28 +262,91 @@ significant changes are done in the Dockerfile.CI.
 The images are named differently (in Docker definition of image names - registry URL is part of the
 image name if DockerHub is not used as registry). Also GitHub has its own structure for registries
 each project has its own registry naming convention that should be followed. The name of
-images for GitHub registry are:
+images for GitHub registry are different as they must follow limitation of the registry used.
+
+We are still using Github Packages as registry, but we are in the process of testing and switching
+to GitHub Container Registry, and the naming conventions are slightly different (GitHub Packages
+required all packages to have "organization/repository/" URL prefix ("apache/airflow/",
+where in GitHub Container Registry, all images are in "organization" not in "repository" and they are all
+in organization wide "apache/" namespace rather than in "apache/airflow/" one).
+We are adding "airflow-" as prefix for image names of all Airflow images instead.
+The images are linked to the repository via ``org.opencontainers.image.source`` label in the image.
+
+Naming convention for GitHub Packages
+-------------------------------------
+
+Images built as "Run ID snapshot":
 
 .. code-block:: bash
 
-  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y       - for production images
-  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-ci    - for CI images
-  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-build - for production build state
+  docker.pkg.github.com.io/apache-airflow/<BRANCH>-pythonX.Y-ci-v2:<RUNID>    - for CI images
+  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-v2:<RUNID>       - for production images
+  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-build-v2:<RUNID> - for production build stage
+  docker.pkg.github.com/apache-airflow/pythonX.Y-<BRANCH>-v2:X.Y-slim-buster-<RUN_ID>  - for base python images
 
-Note that we never push or pull TAG images to GitHub registry. It is only used for CI builds
+Latest images (pushed when master merge succeeds):
+
+.. code-block:: bash
+
+  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
+  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-v2:latest       - for production images
+  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
+  docker.pkg.github.com/apache/airflow/python-<BRANCH>-v1:X.Y-slim-buster - for base python images
+
+
+Naming convention for GitHub Container Registry
+-----------------------------------------------
+
+Images built as "Run ID snapshot":
+
+.. code-block:: bash
+
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:<RUNID>                - for CI images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:<RUNID>                   - for production images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:<RUNID>             - for production build stage
+  ghcr.io/apache/airflow-pythonX.Y-<BRANCH>-v2:X.Y-slim-buster-<RUN_ID>  - for base python images
+
+Latest images (pushed when master merge succeeds):
+
+.. code-block:: bash
+
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:latest       - for production images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
+  ghcr.io/apache/airflow-python-<BRANCH>-v2:X.Y-slim-buster - for base python images
+
+Note that we never push or pull "release" images to GitHub registry. It is only used for CI builds
 
 You can see all the current GitHub images at `<https://github.com/apache/airflow/packages>`_
 
-In order to interact with the GitHub images you need to add ``--github-registry`` flag to the pull/push
+
+In order to interact with the GitHub images you need to add ``--use-github-registry`` flag to the pull/push
 commands in Breeze. This way the images will be pulled/pushed from/to GitHub rather than from/to
 DockerHub. Images are build locally as ``apache/airflow`` images but then they are tagged with the right
-GitHub tags for you.
+GitHub tags for you. You can also specify ``--github-registry`` option and choose which of the
+GitHub registries are used (``docker.pkg.github.com`` chooses GitHub Packages and ``ghcr.io`` chooses
+GitHub Container Registry).
 
 You can read more about the CI configuration and how CI builds are using DockerHub/GitHub images
 in `<CI.rst>`_.
 
 Note that you need to be committer and have the right to push to DockerHub and GitHub and you need to
-be logged in. Only committers can push images directly.
+be logged in. Only committers can push images directly. You need to login with your
+Personal Access Token with "packages" scope to be able to push to those repositories or pull from them
+in case of GitHub Packages.
+
+GitHub Packages:
+
+.. code-block:: bash
+
+  docker login docker.pkg.github.com
+
+GitHub Container Registry
+
+.. code-block:: bash
+
+  docker login ghcr.io
+
 
 Technical details of Airflow images
 ===================================
@@ -302,7 +382,7 @@ in the `<#ci-image-build-arguments>`_ chapter below.
 
 Here just a few examples are presented which should give you general understanding of what you can customize.
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.10 Pypi package and
+This builds the production image in version 3.7 with additional airflow extras from 2.0.0 PyPI package and
 additional apt dev and runtime dependencies.
 
 .. code-block:: bash
@@ -311,9 +391,9 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
@@ -328,7 +408,7 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 .. code-block:: bash
 
   ./breeze build-image -f Dockerfile.ci \
-      --production-image  --python 3.7 --install-airflow-version=1.10.14 \
+      --production-image  --python 3.7 --install-airflow-version=2.0.0 \
       --additional-extras=jdbc --additional-python-deps="pandas" \
       --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
 You can build the default production image with standard ``docker build`` command but they will only build
@@ -346,9 +426,9 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
@@ -379,7 +459,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +==========================================+==========================================+==========================================+
 | ``PYTHON_BASE_IMAGE``                    | ``python:3.6-slim-buster``               | Base python image                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_VERSION``                      | ``2.0.0.dev0``                           | version of Airflow                       |
+| ``AIRFLOW_VERSION``                      | ``2.0.0``                                | version of Airflow                       |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PYTHON_MAJOR_MINOR_VERSION``           | ``3.6``                                  | major/minor version of Python (should    |
 |                                          |                                          | match base image)                        |
@@ -397,9 +477,6 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | sqlite databases are stored)             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_SOURCES``                      | ``/opt/airflow``                         | Mounted sources of Airflow               |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``PIP_DEPENDENCIES_EPOCH_NUMBER``        | ``3``                                    | increasing that number will reinstall    |
-|                                          |                                          | all PIP dependencies                     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``CASS_DRIVER_NO_CYTHON``                | ``1``                                    | if set to 1 no CYTHON compilation is     |
 |                                          |                                          | done for cassandra driver (much faster)  |
@@ -433,9 +510,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | repository from which constraints are    |
 |                                          |                                          | used. By default it is set to            |
 |                                          |                                          | ``constraints-master`` but can be        |
+|                                          |                                          | ``constraints-2-0`` for 2.0.* versions   |
 |                                          |                                          | ``constraints-1-10`` for 1.10.* versions |
 |                                          |                                          | or it could point to specific version    |
-|                                          |                                          | for example ``constraints-1.10.12``      |
+|                                          |                                          | for example ``constraints-2.0.0``        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_PROVIDERS_FROM_SOURCES``       | ``true``                                 | If set to false and image is built from  |
 |                                          |                                          | sources, all provider packages are not   |
@@ -445,15 +523,42 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | package. It has no effect when           |
 |                                          |                                          | installing from PyPI or GitHub repo.     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow and it's         |
-|                                          |                                          | dependencies are installed from locally  |
-|                                          |                                          | downloaded .whl files placed in the      |
-|                                          |                                          | ``docker-context-files``.                |
+| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow, providers and   |
+|                                          |                                          | all dependencies are installed from      |
+|                                          |                                          | from locally built/downloaded            |
+|                                          |                                          | .whl and .tar.gz files placed in the     |
+|                                          |                                          | ``docker-context-files``. In certain     |
+|                                          |                                          | corporate environments, this is required |
+|                                          |                                          | to install airflow from such pre-vetted  |
+|                                          |                                          | packages rather than from PyPI. For this |
+|                                          |                                          | to work, also set ``INSTALL_FROM_PYPI``. |
+|                                          |                                          | Note that packages starting with         |
+|                                          |                                          | ``apache?airflow`` glob are treated      |
+|                                          |                                          | differently than other packages. All     |
+|                                          |                                          | ``apache?airflow`` packages are          |
+|                                          |                                          | installed with dependencies limited by   |
+|                                          |                                          | airflow constraints. All other packages  |
+|                                          |                                          | are installed without dependencies       |
+|                                          |                                          | 'as-is'. If you wish to install airflow  |
+|                                          |                                          | via 'pip download' with all dependencies |
+|                                          |                                          | downloaded, you have to rename the       |
+|                                          |                                          | apache airflow and provider packages to  |
+|                                          |                                          | not start with ``apache?airflow`` glob.  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | ``all``                                  | extras to install                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to true, the dependencies are     |
+|                                          |                                          | upgraded to newer versions matching      |
+|                                          |                                          | setup.py before installation.            |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``CONTINUE_ON_PIP_CHECK_FAILURE``        | ``false``                                | By default the image will fail if pip    |
+|                                          |                                          | check fails for it. This is good for     |
+|                                          |                                          | interactive building but on CI the       |
+|                                          |                                          | image should be built regardless - we    |
+|                                          |                                          | have a separate step to verify image.    |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_FROM_PYPI``                    | ``true``                                 | If set to true, Airflow is installed     |
-|                                          |                                          | from pypi. If you want to install        |
+|                                          |                                          | from PyPI. If you want to install        |
 |                                          |                                          | Airflow from externally provided binary  |
 |                                          |                                          | package you can set it to false, place   |
 |                                          |                                          | the package in ``docker-context-files``  |
@@ -566,14 +671,23 @@ Image manifests
 ---------------
 
 Together with the main CI images we also build and push image manifests. Those manifests are very small images
-that contain only results of the docker inspect for the image. This is in order to be able to
-determine very quickly if the image in the docker registry has changed a lot since the last time.
-Unfortunately docker registry (specifically DockerHub registry) has no anonymous way of querying image
-details via API, you need to download the image to inspect it. We overcame it in the way that
-always when we build the image we build a very small image manifest and push it to registry together
-with the main CI image. The tag for the manifest image is the same as for the image it refers
-to with added ``-manifest`` suffix. The manifest image for ``apache/airflow:master-python3.6-ci`` is named
+that contain only content of randomly generated file at the 'crucial' part of the CI image building.
+This is in order to be able to determine very quickly if the image in the docker registry has changed a
+lot since the last time. Unfortunately docker registry (specifically DockerHub registry) has no anonymous
+way of querying image details via API. You really need to download the image to inspect it.
+We workaround it in the way that always when we build the image we build a very small image manifest
+containing randomly generated UUID and push it to registry together with the main CI image.
+The tag for the manifest image reflects the image it refers to with added ``-manifest`` suffix.
+The manifest image for ``apache/airflow:master-python3.6-ci`` is named
 ``apache/airflow:master-python3.6-ci-manifest``.
+
+The image is quickly pulled (it is really, really small) when important files change and the content
+of the randomly generated UUID is compared with the one in our image. If the contents are different
+this means that the user should rebase to latest master and rebuild the image with pulling the image from
+the repo as this will likely be faster than rebuilding the image locally.
+
+The random UUID is generated right after pre-cached pip install is run - and usually it means that
+significant changes have been made to apt packages or even the base python image has changed.
 
 Pulling the Latest Images
 -------------------------
@@ -646,31 +760,3 @@ Using, customising, and extending the production image
 
 You can read more about using, customising, and extending the production image in the
 `documentation <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_.
-
-Alpha versions of 1.10.10 production-ready images
-=================================================
-
-The production images have been released for the first time in 1.10.10 release of Airflow as "Alpha" quality
-ones. Between 1.10.10 the images are being improved and the 1.10.10 images should be patched and
-published several times separately in order to test them with the upcoming Helm Chart.
-
-Those images are for development and testing only and should not be used outside of the
-development community.
-
-The images were pushed with tags following the pattern: ``apache/airflow:1.10.10.1-alphaN-pythonX.Y``.
-Patch level is an increasing number (starting from 1).
-
-Those are alpha-quality releases however they contain the officially released Airflow ``1.10.10`` code.
-The main changes in the images are scripts embedded in the images.
-
-The following versions were pushed:
-
-+-------+--------------------------------+----------------------------------------------------------+
-| Patch | Tag pattern                    | Description                                              |
-+=======+================================+==========================================================+
-| 1     | ``1.10.10.1-alpha1-pythonX.Y`` | Support for parameters added to bash and python commands |
-+-------+--------------------------------+----------------------------------------------------------+
-| 2     | ``1.10.10-1-alpha2-pythonX.Y`` | Added "/clean-logs" script                               |
-+-------+--------------------------------+----------------------------------------------------------+
-
-The commits used to generate those images are tagged with ``prod-image-1.10.10.1-alphaN`` tags.

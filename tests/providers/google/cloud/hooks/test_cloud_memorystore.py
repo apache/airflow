@@ -19,6 +19,7 @@ from typing import Dict, Sequence, Tuple
 from unittest import TestCase, mock
 from unittest.mock import PropertyMock
 
+import pytest
 from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
 from google.cloud.memcache_v1beta2.types import cloud_memcache
@@ -84,9 +85,12 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_instance.assert_called_once_with(
-            name=TEST_NAME_DEFAULT_PROJECT_ID, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            request=dict(name=TEST_NAME_DEFAULT_PROJECT_ID),
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
         )
-        self.assertEqual(Instance(name=TEST_NAME), result)
+        assert Instance(name=TEST_NAME) == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -115,17 +119,19 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             ]
         )
         mock_get_conn.return_value.create_instance.assert_called_once_with(
-            instance=Instance(
-                name=TEST_NAME,
-                labels={"airflow-version": "v" + version.version.replace(".", "-").replace("+", "-")},
+            request=dict(
+                parent=TEST_PARENT_DEFAULT_PROJECT_ID,
+                instance=Instance(
+                    name=TEST_NAME,
+                    labels={"airflow-version": "v" + version.version.replace(".", "-").replace("+", "-")},
+                ),
+                instance_id=TEST_INSTANCE_ID,
             ),
-            instance_id=TEST_INSTANCE_ID,
             metadata=TEST_METADATA,
-            parent=TEST_PARENT_DEFAULT_PROJECT_ID,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
         )
-        self.assertEqual(Instance(name=TEST_NAME), result)
+        assert Instance(name=TEST_NAME) == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -142,7 +148,10 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_instance.assert_called_once_with(
-            name=TEST_NAME_DEFAULT_PROJECT_ID, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            request=dict(name=TEST_NAME_DEFAULT_PROJECT_ID),
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
         )
 
     @mock.patch(
@@ -160,7 +169,10 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_instance.assert_called_once_with(
-            name=TEST_NAME_DEFAULT_PROJECT_ID, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            request=dict(name=TEST_NAME_DEFAULT_PROJECT_ID),
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
         )
 
     @mock.patch(
@@ -178,8 +190,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.list_instances.assert_called_once_with(
-            parent=TEST_PARENT_DEFAULT_PROJECT_ID,
-            page_size=TEST_PAGE_SIZE,
+            request=dict(parent=TEST_PARENT_DEFAULT_PROJECT_ID, page_size=TEST_PAGE_SIZE),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -202,8 +213,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.update_instance.assert_called_once_with(
-            update_mask=TEST_UPDATE_MASK,
-            instance=Instance(name=TEST_NAME_DEFAULT_PROJECT_ID),
+            request=dict(update_mask=TEST_UPDATE_MASK, instance=Instance(name=TEST_NAME_DEFAULT_PROJECT_ID)),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -233,12 +243,12 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_instance.assert_called_once_with(
-            name="projects/test-project-id/locations/test-location/instances/test-instance-id",
+            request=dict(name="projects/test-project-id/locations/test-location/instances/test-instance-id"),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
         )
-        self.assertEqual(Instance(name=TEST_NAME), result)
+        assert Instance(name=TEST_NAME) == result
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_create_instance_when_not_exists(self, mock_get_conn):
@@ -274,17 +284,19 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         )
 
         mock_get_conn.return_value.create_instance.assert_called_once_with(
-            instance=Instance(
-                name=TEST_NAME,
-                labels={"airflow-version": "v" + version.version.replace(".", "-").replace("+", "-")},
+            request=dict(
+                parent=TEST_PARENT,
+                instance=Instance(
+                    name=TEST_NAME,
+                    labels={"airflow-version": "v" + version.version.replace(".", "-").replace("+", "-")},
+                ),
+                instance_id=TEST_INSTANCE_ID,
             ),
-            instance_id=TEST_INSTANCE_ID,
             metadata=TEST_METADATA,
-            parent=TEST_PARENT,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
         )
-        self.assertEqual(Instance(name=TEST_NAME), result)
+        assert Instance(name=TEST_NAME) == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -293,7 +305,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_create_instance_without_project_id(self, mock_get_conn, mock_project_id):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.hook.create_instance(
                 location=TEST_LOCATION,
                 instance_id=TEST_INSTANCE_ID,
@@ -315,7 +327,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.delete_instance.assert_called_once_with(
-            name=TEST_NAME, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            request=dict(name=TEST_NAME), retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
         )
 
     @mock.patch(
@@ -325,7 +337,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_delete_instance_without_project_id(self, mock_get_conn, mock_project_id):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.hook.delete_instance(
                 location=TEST_LOCATION,
                 instance=Instance(name=TEST_NAME),
@@ -346,7 +358,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.get_instance.assert_called_once_with(
-            name=TEST_NAME, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
+            request=dict(name=TEST_NAME), retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
         )
 
     @mock.patch(
@@ -356,7 +368,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_get_instance_without_project_id(self, mock_get_conn, mock_project_id):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.hook.get_instance(
                 location=TEST_LOCATION,
                 instance=Instance(name=TEST_NAME),
@@ -377,8 +389,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.list_instances.assert_called_once_with(
-            parent=TEST_PARENT,
-            page_size=TEST_PAGE_SIZE,
+            request=dict(parent=TEST_PARENT, page_size=TEST_PAGE_SIZE),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -391,7 +402,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_list_instances_without_project_id(self, mock_get_conn, mock_project_id):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.hook.list_instances(
                 location=TEST_LOCATION,
                 page_size=TEST_PAGE_SIZE,
@@ -412,8 +423,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
             project_id=TEST_PROJECT_ID,
         )
         mock_get_conn.return_value.update_instance.assert_called_once_with(
-            update_mask=TEST_UPDATE_MASK,
-            instance=Instance(name=TEST_NAME),
+            request=dict(update_mask={'paths': ['memory_size_gb']}, instance=Instance(name=TEST_NAME)),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -426,7 +436,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_update_instance_without_project_id(self, mock_get_conn, mock_project_id):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.hook.update_instance(  # pylint: disable=no-value-for-parameter
                 update_mask=TEST_UPDATE_MASK,
                 instance=Instance(name=TEST_NAME),
@@ -467,7 +477,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
         mock_get_conn.return_value.get_instance.assert_called_once_with(
             name=TEST_NAME_DEFAULT_PROJECT_ID, retry=TEST_RETRY, timeout=TEST_TIMEOUT, metadata=TEST_METADATA
         )
-        self.assertEqual(cloud_memcache.Instance(name=TEST_NAME), result)
+        assert cloud_memcache.Instance(name=TEST_NAME) == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -510,7 +520,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
         )
-        self.assertEqual(cloud_memcache.Instance(name=TEST_NAME), result)
+        assert cloud_memcache.Instance(name=TEST_NAME) == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',

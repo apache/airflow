@@ -98,7 +98,14 @@ class LocalTaskJob(BaseJob):
 
             heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
-            while True:
+            # task callback invocation happens either here or in
+            # self.heartbeat() instead of taskinstance._run_raw_task to
+            # avoid race conditions
+            #
+            # When self.terminating is set to True by heartbeat_callback, this
+            # loop should not be restarted. Otherwise self.handle_task_exit
+            # will be invoked and we will end up with duplicated callbacks
+            while not self.terminating:
                 # Monitor the task to see if it's done. Wait in a syscall
                 # (`os.wait`) for as long as possible so we notice the
                 # subprocess finishing as quick as we can
@@ -115,7 +122,7 @@ class LocalTaskJob(BaseJob):
 
                 return_code = self.task_runner.return_code(timeout=max_wait_time)
                 if return_code is not None:
-                    self.log.info("Task exited with return code %s", return_code)
+                    self.handle_task_exit(return_code)
                     return
 
                 self.heartbeat()
@@ -133,6 +140,17 @@ class LocalTaskJob(BaseJob):
                     )
         finally:
             self.on_kill()
+
+    def handle_task_exit(self, return_code: int) -> None:
+        """Handle case where self.task_runner exits by itself"""
+        self.log.info("Task exited with return code %s", return_code)
+        self.task_instance.refresh_from_db()
+        # task exited by itself, so we need to check for error file
+        # incase it failed due to runtime exception/error
+        error = None
+        if self.task_instance.state != State.SUCCESS:
+            error = self.task_runner.deserialize_run_error()
+        self.task_instance._run_finished_callback(error=error)  # pylint: disable=protected-access
 
     def on_kill(self):
         self.task_runner.terminate()
@@ -169,11 +187,13 @@ class LocalTaskJob(BaseJob):
             self.log.warning(
                 "State of this instance has been externally set to %s. " "Terminating instance.", ti.state
             )
-            if ti.state == State.FAILED and ti.task.on_failure_callback:
-                context = ti.get_template_context()
-                ti.task.on_failure_callback(context)
-            if ti.state == State.SUCCESS and ti.task.on_success_callback:
-                context = ti.get_template_context()
-                ti.task.on_success_callback(context)
             self.task_runner.terminate()
+            if ti.state == State.SUCCESS:
+                error = None
+            else:
+                # if ti.state is not set by taskinstance.handle_failure, then
+                # error file will not be populated and it must be updated by
+                # external source suck as web UI
+                error = self.task_runner.deserialize_run_error() or "task marked as failed externally"
+            ti._run_finished_callback(error=error)  # pylint: disable=protected-access
             self.terminating = True

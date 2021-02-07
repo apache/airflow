@@ -70,8 +70,8 @@ class TestJiraSensor(unittest.TestCase):
 
         ticket_label_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        self.assertTrue(jira_mock.called)
-        self.assertTrue(jira_mock.return_value.issue.called)
+        assert jira_mock.called
+        assert jira_mock.return_value.issue.called
 
     @staticmethod
     def field_checker_func(context, issue):  # pylint: disable=unused-argument

@@ -20,6 +20,9 @@
 #################################
 {{- $persistence := .Values.workers.persistence.enabled }}
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+{{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.workers.affinity .Values.affinity }}
+{{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
 metadata:
@@ -67,11 +70,11 @@ spec:
         {{- end }}
     spec:
       nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
+{{ toYaml $nodeSelector | indent 8 }}
       affinity:
-{{ toYaml .Values.affinity | indent 8 }}
+{{ toYaml $affinity | indent 8 }}
       tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
+{{ toYaml $tolerations | indent 8 }}
       terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ .Release.Name }}-worker
@@ -115,7 +118,7 @@ spec:
         - name: worker
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["bash", "-c", "airflow worker || airflow celery worker"]
+          args: ["bash", "-c", "airflow celery worker || airflow worker"]
           resources:
 {{ toYaml .Values.workers.resources | indent 12 }}
           ports:
@@ -155,6 +158,12 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- if .Values.workers.kerberosSidecar.enabled }}
+            - name: KRB5_CONFIG
+              value:  {{ .Values.kerberos.configPath | quote }}
+            - name: KRB5CCNAME
+              value:  {{ include "kerberos_ccache_path" . | quote }}
+          {{- end }}
 {{- if $persistence }}
         - name: worker-gc
           image: {{ template "airflow_image" . }}
@@ -164,12 +173,6 @@ spec:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
 {{- end }}
-        {{- if .Values.workers.kerberosSidecar.enabled }}
-            - name: KRB5_CONFIG
-              value:  {{ .Values.kerberos.configPath | quote }}
-            - name: KRB5CCNAME
-              value:  {{ include "kerberos_ccache_path" . | quote }}
-        {{- end }}
         {{- if .Values.workers.kerberosSidecar.enabled }}
         - name: worker-kerberos
           image: {{ template "airflow_image" . }}

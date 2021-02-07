@@ -59,19 +59,16 @@ class TestEventLogSchema(TestEventLogSchemaBase):
         event_log_model.dttm = timezone.parse(self.default_time)
         log_model = session.query(Log).first()
         deserialized_log = event_log_schema.dump(log_model)
-        self.assertEqual(
-            deserialized_log,
-            {
-                "event_log_id": event_log_model.id,
-                "event": "TEST_EVENT",
-                "dag_id": "TEST_DAG_ID",
-                "task_id": "TEST_TASK_ID",
-                "execution_date": self.default_time,
-                "owner": 'airflow',
-                "when": self.default_time,
-                "extra": None,
-            },
-        )
+        assert deserialized_log == {
+            "event_log_id": event_log_model.id,
+            "event": "TEST_EVENT",
+            "dag_id": "TEST_DAG_ID",
+            "task_id": "TEST_TASK_ID",
+            "execution_date": self.default_time,
+            "owner": 'airflow',
+            "when": self.default_time,
+            "extra": None,
+        }
 
 
 class TestEventLogCollection(TestEventLogSchemaBase):
@@ -86,31 +83,28 @@ class TestEventLogCollection(TestEventLogSchemaBase):
         event_log_model_2.dttm = timezone.parse(self.default_time2)
         instance = EventLogCollection(event_logs=event_logs, total_entries=2)
         deserialized_event_logs = event_log_collection_schema.dump(instance)
-        self.assertEqual(
-            deserialized_event_logs,
-            {
-                "event_logs": [
-                    {
-                        "event_log_id": event_log_model_1.id,
-                        "event": "TEST_EVENT_1",
-                        "dag_id": "TEST_DAG_ID",
-                        "task_id": "TEST_TASK_ID",
-                        "execution_date": self.default_time,
-                        "owner": 'airflow',
-                        "when": self.default_time,
-                        "extra": None,
-                    },
-                    {
-                        "event_log_id": event_log_model_2.id,
-                        "event": "TEST_EVENT_2",
-                        "dag_id": "TEST_DAG_ID",
-                        "task_id": "TEST_TASK_ID",
-                        "execution_date": self.default_time,
-                        "owner": 'airflow',
-                        "when": self.default_time2,
-                        "extra": None,
-                    },
-                ],
-                "total_entries": 2,
-            },
-        )
+        assert deserialized_event_logs == {
+            "event_logs": [
+                {
+                    "event_log_id": event_log_model_1.id,
+                    "event": "TEST_EVENT_1",
+                    "dag_id": "TEST_DAG_ID",
+                    "task_id": "TEST_TASK_ID",
+                    "execution_date": self.default_time,
+                    "owner": 'airflow',
+                    "when": self.default_time,
+                    "extra": None,
+                },
+                {
+                    "event_log_id": event_log_model_2.id,
+                    "event": "TEST_EVENT_2",
+                    "dag_id": "TEST_DAG_ID",
+                    "task_id": "TEST_TASK_ID",
+                    "execution_date": self.default_time,
+                    "owner": 'airflow',
+                    "when": self.default_time2,
+                    "extra": None,
+                },
+            ],
+            "total_entries": 2,
+        }

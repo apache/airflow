@@ -22,10 +22,13 @@ description: |
     `Apache Livy <https://livy.apache.org/>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
+
 integrations:
   - integration-name: Apache Livy
     external-doc-url: https://livy.apache.org/
+    logo: /integration-logos/apache/Livy.png
     tags: [apache]
 
 operators:

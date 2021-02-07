@@ -264,6 +264,8 @@ class DockerOperator(BaseOperator):
 
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
+                if self.auto_remove:
+                    self.cli.remove_container(self.container['Id'])
                 raise AirflowException('docker container failed: ' + repr(result))
 
             # duplicated conditional logic because of expensive operation

@@ -29,7 +29,7 @@ def _load_body_to_dict(body):
     try:
         body_dict = yaml.safe_load(body)
     except yaml.YAMLError as e:
-        raise AirflowException("Exception when loading resource definition: %s\n" % e)
+        raise AirflowException(f"Exception when loading resource definition: {e}\n")
     return body_dict
 
 
@@ -169,7 +169,7 @@ class KubernetesHook(BaseHook):
             self.log.debug("Response: %s", response)
             return response
         except client.rest.ApiException as e:
-            raise AirflowException("Exception when calling -> create_custom_object: %s\n" % e)
+            raise AirflowException(f"Exception when calling -> create_custom_object: {e}\n")
 
     def get_custom_object(
         self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
@@ -197,7 +197,7 @@ class KubernetesHook(BaseHook):
             )
             return response
         except client.rest.ApiException as e:
-            raise AirflowException("Exception when calling -> get_custom_object: %s\n" % e)
+            raise AirflowException(f"Exception when calling -> get_custom_object: {e}\n")
 
     def get_namespace(self) -> str:
         """Returns the namespace that defined in the connection"""

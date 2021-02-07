@@ -25,7 +25,7 @@ For Helm Chart, see: `/chart/README.md <../chart/READMe.md>`__
 Development documentation preview
 ==================================
 
-Documentation from the ``master`` branch is built and automatically published: `s.apache.org/airflow-docs <s.apache.org/airflow-docs>`_
+Documentation from the ``master`` branch is built and automatically published: `s.apache.org/airflow-docs <https://s.apache.org/airflow-docs>`_
 
 Documentation for your PRs is available as downloadable artifact in GitHub Actions after the CI builds your PR.
 
@@ -56,6 +56,17 @@ or just to run documentation building
 .. code-block:: bash
 
      ./breeze build-docs -- --docs-only
+
+Running the Docs Locally
+------------------------
+
+Once you have built the documentation run the following command from the root directory:
+
+.. code-block:: bash
+
+    docs/start_doc_server.sh
+
+Then, view your docs at ``localhost:8000``
 
 Troubleshooting
 ---------------

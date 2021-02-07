@@ -54,7 +54,7 @@ def generate_redirects(app):
             from_path = from_path.replace(in_suffix, '.html')
             to_path = to_path.replace(in_suffix, ".html")
 
-            to_path_prefix = "..%s" % os.path.sep * (len(from_path.split(os.path.sep)) - 1)
+            to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)) - 1)
             to_path = to_path_prefix + to_path
 
             log.debug("Resolved redirect '%s' to '%s'", from_path, to_path)

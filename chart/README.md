@@ -28,9 +28,50 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 ## Prerequisites
 
-- Kubernetes 1.12+ cluster
+- Kubernetes 1.14+ cluster
 - Helm 2.11+ or Helm 3.0+
 - PV provisioner support in the underlying infrastructure
+
+## Configuring Airflow
+
+All Airflow configuration parameters (equivalent of `airflow.cfg`) are stored in [values.yaml](https://github.com/apache/airflow/blob/master/chart/values.yaml) under the `config` key . The following code demonstrates how one would allow webserver users to view the config from within the webserver application. See the bottom line of the example:
+
+```yaml
+# Config settings to go into the mounted airflow.cfg
+#
+# Please note that these values are passed through the `tpl` function, so are
+# all subject to being rendered as go templates. If you need to include a
+# literal `{{` in a value, it must be expressed like this:
+#
+#    a: '{{ "{{ not a template }}" }}'
+#
+# yamllint disable rule:line-length
+config:
+  core:
+    dags_folder: '{{ include "airflow_dags" . }}'
+    load_examples: 'False'
+    executor: '{{ .Values.executor }}'
+    # For Airflow 1.10, backward compatibility
+    colored_console_log: 'False'
+    remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
+  # Authentication backend used for the experimental API
+  api:
+    auth_backend: airflow.api.auth.backend.deny_all
+  logging:
+    remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
+    colored_console_log: 'False'
+    logging_level: DEBUG
+  metrics:
+    statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
+    statsd_port: 9125
+    statsd_prefix: airflow
+    statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
+  webserver:
+    enable_proxy_fix: 'True'
+    expose_config: 'True'   # <<<<<<<<<< BY DEFAULT THIS IS 'False' BUT WE CHANGE IT TO 'True' PRIOR TO INSTALLING THE CHART
+```
+
+Generally speaking, it is useful to familiarize oneself with the Airflow configuration prior to installing and deploying the service.
 
 ## Installing the Chart
 
@@ -93,7 +134,7 @@ helm upgrade airflow . \
 
 ## Mounting DAGS using Git-Sync side car without Persistence
 
-This option will use an always running Git-Sync side car on every scheduler,webserver and worker pods. The Git-Sync side car containers will sync DAGs from a git repository every configured number of seconds. If you are using the KubernetesExecutor, Git-sync will run as an initContainer on your worker pods.
+This option will use an always running Git-Sync side car on every scheduler, webserver and worker pods. The Git-Sync side car containers will sync DAGs from a git repository every configured number of seconds. If you are using the KubernetesExecutor, Git-sync will run as an initContainer on your worker pods.
 
 ```bash
 helm upgrade airflow . \
@@ -166,8 +207,10 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `extraConfigMaps`                                     | Extra ConfigMaps that will be managed by the chart                                                           | `{}`                                              |
 | `data.metadataSecretName`                             | Secret name to mount Airflow connection string from                                                          | `~`                                               |
 | `data.resultBackendSecretName`                        | Secret name to mount Celery result backend connection string from                                            | `~`                                               |
+| `data.brokerUrlSecretName`                            | Secret name to mount redis connection url string from                                                        | `~`                                               |
 | `data.metadataConection`                              | Field separated connection data (alternative to secret name)                                                 | `{}`                                              |
 | `data.resultBackendConnection`                        | Field separated connection data (alternative to secret name)                                                 | `{}`                                              |
+| `data.brokerUrl`                                      | String containing the redis broker url (if you are using an "external" redis)                                | `{}`                                              |
 | `fernetKey`                                           | String representing an Airflow Fernet key                                                                    | `~`                                               |
 | `fernetKeySecretName`                                 | Secret name for Airflow Fernet key                                                                           | `~`                                               |
 | `kerberos.enabled`                                    | Enable kerberos support for workers                                                                          | `false`                                           |
@@ -177,7 +220,7 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `kerberos.keytabPath`                                 | Path for the Kerberos keytab file                                                                            | `/etc/airflow.keytab`                             |
 | `kerberos.principal`                                  | Name of the Kerberos principal                                                                               | `airflow`                                         |
 | `kerberos.reinitFrequency`                            | Frequency of reinitialization of the Kerberos token                                                          | `3600`                                            |
-| `kerberos.config`                                      | Content of the configuration file for kerberos (might be templated using Helm templates)                     | `<see values.yaml>`                               |
+| `kerberos.config`                                      | Content of the configuration file for kerberos (might be templated using Helm templates)                     | `<see values.yaml>`                              |
 | `workers.replicas`                                    | Replica count for Celery workers (if applicable)                                                             | `1`                                               |
 | `workers.keda.enabled`                                | Enable KEDA autoscaling features                                                                             | `false`                                           |
 | `workers.keda.pollingInverval`                        | How often KEDA should poll the backend database for metrics in seconds                                       | `5`                                               |
@@ -193,9 +236,12 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `workers.resources.requests.memory`                   | Memory Request of workers                                                                                    | `~`                                               |
 | `workers.terminationGracePeriodSeconds`               | How long Kubernetes should wait for Celery workers to gracefully drain before force killing                  | `600`                                             |
 | `workers.safeToEvict`                                 | Allow Kubernetes to evict worker pods if needed (node downscaling)                                           | `true`                                            |
-| `workers.serviceAccountAnnotations`                   | Annotations to add to worker kubernetes service account                                                      | `{}`                                            |
-| `workers.extraVolumes`                                | Mount additional volumes into worker                                                                         | `[]`                                            |
-| `workers.extraVolumeMounts`                           | Mount additional volumes into worker                                                                         | `[]`                                            |
+| `workers.serviceAccountAnnotations`                   | Annotations to add to worker kubernetes service account                                                      | `{}`                                              |
+| `workers.extraVolumes`                                | Mount additional volumes into worker                                                                         | `[]`                                              |
+| `workers.extraVolumeMounts`                           | Mount additional volumes into worker                                                                         | `[]`                                              |
+| `workers.nodeSelector`                                | Node labels for pod assignment                                                                               | `{}`                                              |
+| `workers.affinity`                                    | Affinity labels for pod assignment                                                                           | `{}`                                              |
+| `workers.tolerations`                                 | Toleration labels for pod assignment                                                                         | `[]`                                              |
 | `scheduler.podDisruptionBudget.enabled`               | Enable PDB on Airflow scheduler                                                                              | `false`                                           |
 | `scheduler.podDisruptionBudget.config.maxUnavailable` | MaxUnavailable pods for scheduler                                                                            | `1`                                               |
 | `scheduler.replicas`                                  | # of parallel schedulers (Airflow 2.0 using Mysql 8+ or Postgres only)                                       | `1`                                               |
@@ -205,9 +251,12 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `scheduler.resources.requests.memory`                 | Memory Request of scheduler                                                                                  | `~`                                               |
 | `scheduler.airflowLocalSettings`                      | Custom Airflow local settings python file                                                                    | `~`                                               |
 | `scheduler.safeToEvict`                               | Allow Kubernetes to evict scheduler pods if needed (node downscaling)                                        | `true`                                            |
-| `scheduler.serviceAccountAnnotations`                 | Annotations to add to scheduler kubernetes service account                                                   | `{}`                                            |
-| `scheduler.extraVolumes`                              | Mount additional volumes into scheduler                                                                      | `[]`                                            |
-| `scheduler.extraVolumeMounts`                         | Mount additional volumes into scheduler                                                                      | `[]`                                            |
+| `scheduler.serviceAccountAnnotations`                 | Annotations to add to scheduler kubernetes service account                                                   | `{}`                                              |
+| `scheduler.extraVolumes`                              | Mount additional volumes into scheduler                                                                      | `[]`                                              |
+| `scheduler.extraVolumeMounts`                         | Mount additional volumes into scheduler                                                                      | `[]`                                              |
+| `scheduler.nodeSelector`                              | Node labels for pod assignment                                                                               | `{}`                                              |
+| `scheduler.affinity`                                  | Affinity labels for pod assignment                                                                           | `{}`                                              |
+| `scheduler.tolerations`                               | Toleration labels for pod assignment                                                                         | `[]`                                              |
 | `webserver.livenessProbe.initialDelaySeconds`         | Webserver LivenessProbe initial delay                                                                        | `15`                                              |
 | `webserver.livenessProbe.timeoutSeconds`              | Webserver LivenessProbe timeout seconds                                                                      | `30`                                              |
 | `webserver.livenessProbe.failureThreshold`            | Webserver LivenessProbe failure threshold                                                                    | `20`                                              |
@@ -223,6 +272,37 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `webserver.resources.requests.memory`                 | Memory Request of webserver                                                                                  | `~`                                               |
 | `webserver.service.annotations`                       | Annotations to be added to the webserver service                                                             | `{}`                                              |
 | `webserver.defaultUser`                               | Optional default airflow user information                                                                    | `{}`                                              |
+| `webserver.nodeSelector`                              | Node labels for pod assignment                                                                               | `{}`                                              |
+| `webserver.affinity`                                  | Affinity labels for pod assignment                                                                           | `{}`                                              |
+| `webserver.tolerations`                               | Toleration labels for pod assignment                                                                         | `[]`                                              |
+| `flower.nodeSelector`                                 | Node labels for pod assignment                                                                               | `{}`                                              |
+| `flower.affinity`                                     | Affinity labels for pod assignment                                                                           | `{}`                                              |
+| `flower.tolerations`                                  | Toleration labels for pod assignment                                                                         | `[]`                                              |
+| `statsd.nodeSelector`                                 | Node labels for pod assignment                                                                               | `{}`                                              |
+| `statsd.affinity`                                     | Affinity labels for pod assignment                                                                           | `{}`                                              |
+| `statsd.tolerations`                                  | Toleration labels for pod assignment                                                                         | `[]`                                              |
+| `statsd.extraMappings`                                | Additional mappings for statsd exporter                                                                      | `[]`                                              |
+| `pgbouncer.nodeSelector`                              | Node labels for pod assignment                                                                               | `{}`                                              |
+| `pgbouncer.affinity`                                  | Affinity labels for pod assignment                                                                           | `{}`                                              |
+| `pgbouncer.tolerations`                               | Toleration labels for pod assignment                                                                         | `[]`                                              |
+| `redis.enabled`                                       | Enable the redis provisioned by the chart                                                                    | `true`                                            |
+| `redis.terminationGracePeriodSeconds`                 | Grace period for tasks to finish after SIGTERM is sent from Kubernetes.                                      | `600`                                             |
+| `redis.persistence.enabled`                           | Enable persistent volumes.                                                                                   | `true`                                            |
+| `redis.persistence.size`                              | Volume size for redis StatefulSet.                                                                           |  `1Gi`                                            |
+| `redis.persistence.storageClassName`                  | If using a custom storageClass, pass name ref to all StatefulSets here.                                      | `default`                                         |
+| `redis.resources.limits.cpu`                          | CPU Limit of redis                                                                                           | `~`                                               |
+| `redis.resources.limits.memory`                       | Memory Limit of redis                                                                                        | `~`                                               |
+| `redis.resources.requests.cpu`                        | CPU Request of redis                                                                                         | `~`                                               |
+| `redis.resources.requests.memory`                     | Memory Request of redis                                                                                      | `~`                                               |
+| `redis.passwordSecretName`                            | Redis password secret.                                                                                       | `~`                                               |
+| `redis.password`                                      | If password is set, create secret with it, else generate a new one on install.                               | `~`                                               |
+| `redis.safeToEvict`                                   | This setting tells Kubernetes that its ok to evict when it wants to scale a node down.                       | `true`                                            |
+| `redis.nodeSelector`                                  | Node labels for pod assignment                                                                               | `{}`                                              |
+| `redis.affinity`                                      | Affinity labels for pod assignment                                                                           | `{}`                                              |
+| `redis.tolerations`                                   | Toleration labels for pod assignment                                                                         | `[]`                                              |
+| `cleanup.nodeSelector`                                | Node labels for pod assignment                                                                               | `{}`                                              |
+| `cleanup.affinity`                                    | Affinity labels for pod assignment                                                                           | `{}`                                              |
+| `cleanup.tolerations`                                 | Toleration labels for pod assignment                                                                         | `[]`                                              |
 | `dags.persistence.*`                                  | Dag persistence configuration                                                                                | Please refer to `values.yaml`                     |
 | `dags.gitSync.*`                                      | Git sync configuration                                                                                       | Please refer to `values.yaml`                     |
 | `multiNamespaceMode`                                  | Whether the KubernetesExecutor can launch pods in multiple namespaces                                        | `False`                                           |
@@ -269,6 +349,19 @@ helm install airflow . \
     --set workers.persistence.enabled=false
 ```
 
+## Using an external redis instance
+
+When using the `CeleryExecutor` or the `CeleryKubernetesExecutor` the chart will by default create a redis Deployment/StatefulSet alongside airflow.
+You can also use "your own" redis instance by providing the `data.brokerUrl` (or `data.borkerUrlSecretName`) value directly:
+
+```bash
+helm install airflow . \
+    --namespace airflow \
+    --set executor=CeleryExecutor \
+    --set redis.enabled=false \
+    --set data.brokerUrl=redis://redis-user:password@redis-host:6379/0
+```
+
 ## Walkthrough using kind
 
 **Install kind, and create a cluster:**
@@ -286,18 +379,12 @@ Confirm it's up:
 kubectl cluster-info --context kind-kind
 ```
 
-**Add Astronomer's Helm repo:**
-
-```
-helm repo add astronomer https://helm.astronomer.io
-helm repo update
-```
 
 **Create namespace + install the chart:**
 
 ```
 kubectl create namespace airflow
-helm install airflow --n airflow astronomer/airflow
+helm install airflow --n airflow .
 ```
 
 It may take a few minutes. Confirm the pods are up:
@@ -312,11 +399,15 @@ to port-forward the Airflow UI to http://localhost:8080/ to confirm Airflow is w
 
 **Build a Docker image from your DAGs:**
 
-1. Start a project using [astro-cli](https://github.com/astronomer/astro-cli), which will generate a Dockerfile, and load your DAGs in. You can test locally before pushing to kind with `astro airflow start`.
+1. Create a project
 
     ```shell script
     mkdir my-airflow-project && cd my-airflow-project
-    astro dev init
+    mkdir dags  # put dags here
+    cat <<EOM > Dockerfile
+    FROM apache/airflow
+    COPY . .
+    EOM
     ```
 
 2. Then build the image:
@@ -334,10 +425,11 @@ to port-forward the Airflow UI to http://localhost:8080/ to confirm Airflow is w
 4. Upgrade Helm deployment:
 
     ```shell script
+    # from airflow chart directory
     helm upgrade airflow -n airflow \
         --set images.airflow.repository=my-dags \
         --set images.airflow.tag=0.0.1 \
-        astronomer/airflow
+        .
     ```
 
 ## Contributing

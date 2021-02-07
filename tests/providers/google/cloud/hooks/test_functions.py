@@ -20,6 +20,8 @@ import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.functions import CloudFunctionsHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
@@ -48,8 +50,8 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
         mock_build.assert_called_once_with(
             'cloudfunctions', 'v1', http=mock_authorize.return_value, cache_discovery=False
         )
-        self.assertEqual(mock_build.return_value, result)
-        self.assertEqual(self.gcf_function_hook_no_project_id._conn, result)
+        assert mock_build.return_value == result
+        assert self.gcf_function_hook_no_project_id._conn == result
 
     @mock.patch('airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook.get_conn')
     @mock.patch(
@@ -65,7 +67,7 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
         res = self.gcf_function_hook_no_project_id.create_new_function(
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST, location=GCF_LOCATION, body={}
         )
-        self.assertIsNone(res)
+        assert res is None
         create_method.assert_called_once_with(body={}, location='projects/example-project/locations/location')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id')
@@ -85,7 +87,7 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
             res = self.gcf_function_hook_no_project_id.upload_function_zip(
                 project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST, location=GCF_LOCATION, zip_path="/tmp/path.zip"
             )
-            self.assertEqual("http://uploadHere", res)
+            assert "http://uploadHere" == res
             generate_upload_url_method.assert_called_once_with(
                 parent='projects/example-project/locations/location'
             )
@@ -112,8 +114,8 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         mock_build.assert_called_once_with(
             'cloudfunctions', 'v1', http=mock_authorize.return_value, cache_discovery=False
         )
-        self.assertEqual(mock_build.return_value, result)
-        self.assertEqual(self.gcf_function_hook._conn, result)
+        assert mock_build.return_value == result
+        assert self.gcf_function_hook._conn == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -136,7 +138,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
             body={},
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
-        self.assertIsNone(res)
+        assert res is None
         create_method.assert_called_once_with(body={}, location='projects/example-project/locations/location')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id')
@@ -155,7 +157,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         res = self.gcf_function_hook.create_new_function(
             project_id='new-project', location=GCF_LOCATION, body={}
         )
-        self.assertIsNone(res)
+        assert res is None
         create_method.assert_called_once_with(body={}, location='projects/new-project/locations/location')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id')
@@ -168,8 +170,8 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "function"}
         res = self.gcf_function_hook.get_function(name=GCF_FUNCTION)
-        self.assertIsNotNone(res)
-        self.assertEqual('function', res['name'])
+        assert res is not None
+        assert 'function' == res['name']
         get_method.assert_called_once_with(name='function')
         execute_method.assert_called_once_with(num_retries=5)
 
@@ -187,7 +189,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         res = self.gcf_function_hook.delete_function(  # pylint: disable=assignment-from-no-return
             name=GCF_FUNCTION
         )
-        self.assertIsNone(res)
+        assert res is None
         delete_method.assert_called_once_with(name='function')
         execute_method.assert_called_once_with(num_retries=5)
 
@@ -205,7 +207,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         res = self.gcf_function_hook.update_function(  # pylint: disable=assignment-from-no-return
             update_mask=['a', 'b', 'c'], name=GCF_FUNCTION, body={}
         )
-        self.assertIsNone(res)
+        assert res is None
         patch_method.assert_called_once_with(body={}, name='function', updateMask='a,b,c')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id')
@@ -232,7 +234,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
                 zip_path="/tmp/path.zip",
                 project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             )
-            self.assertEqual("http://uploadHere", res)
+            assert "http://uploadHere" == res
             generate_upload_url_method.assert_called_once_with(
                 parent='projects/example-project/locations/location'
             )
@@ -258,7 +260,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
             res = self.gcf_function_hook.upload_function_zip(
                 project_id='new-project', location=GCF_LOCATION, zip_path="/tmp/path.zip"
             )
-            self.assertEqual("http://uploadHere", res)
+            assert "http://uploadHere" == res
             generate_upload_url_method.assert_called_once_with(
                 parent='projects/new-project/locations/location'
             )
@@ -292,7 +294,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         )
 
         call.assert_called_once_with(body=input_data, name=name)
-        self.assertDictEqual(result, payload)
+        assert result == payload
 
     @mock.patch('airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook.get_conn')
     def test_call_function_error(self, mock_get_conn):
@@ -305,7 +307,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
 
         function_id = "function1234"
         input_data = {'key': 'value'}
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.gcf_function_hook.call_function(
                 function_id=function_id,
                 location=GCF_LOCATION,

@@ -187,6 +187,22 @@ const config = {
           from: 'node_modules/redoc/bundles/redoc.standalone.*',
           flatten: true,
         },
+        {
+          from: 'node_modules/codemirror/lib/codemirror.*',
+          flatten: true,
+        },
+        {
+          from: 'node_modules/codemirror/addon/lint/**.*',
+          flatten: true,
+        },
+        {
+          from: 'node_modules/codemirror/mode/javascript/javascript.js',
+          flatten: true,
+        },
+        {
+          from: 'node_modules/jshint/dist/jshint.js',
+          flatten: true,
+        },
       ],
     }),
   ],

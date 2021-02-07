@@ -944,7 +944,7 @@ Misc/Internal
 - [AIRFLOW-XXX] Remove executable permission from file
 - [AIRFLOW-XXX] Group AWS & Azure dependencies (old ``[emr]`` etc. extra still work)
 - [AIRFLOW-5487] Fix unused warning var (#6111)
-- [AIRFLOW-5925] Relax funcsigs and psutil version requirements (#6580)
+- [AIRFLOW-5925] Relax ``funcsigs`` and psutil version requirements (#6580)
 - [AIRFLOW-5740] Fix Transient failure in Slack test (#6407)
 - [AIRFLOW-6058] Running tests with pytest (#6472)
 - [AIRFLOW-6066] Added pre-commit checks for accidental debug stmts (#6662)
@@ -2347,7 +2347,7 @@ Airflow 1.10.0, 2018-08-03
 - [AIRFLOW-2545] Eliminate DeprecationWarning
 - [AIRFLOW-2500] Fix MySqlToHiveTransfer to transfer unsigned type properly
 - [AIRFLOW-2462] Change PasswordUser setter to correct syntax
-- [AIRFLOW-2525] Fix a bug introduced by commit dabf1b9
+- [AIRFLOW-2525] Fix a bug introduced by commit ``dabf1b9``
 - [AIRFLOW-2553] Add webserver.pid to .gitignore
 - [AIRFLOW-1863][AIRFLOW-2529] Add dag run selection widgets to gantt view
 - [AIRFLOW-2504] Log username correctly and add extra to search columns
@@ -2594,7 +2594,7 @@ Airflow 1.10.0, 2018-08-03
 - [AIRFLOW-2259] Dataflow Hook Index out of range
 - [AIRFLOW-2233] Update updating.md to include the info of hdfs_sensors renaming
 - [AIRFLOW-2217] Add Slack webhook operator
-- [AIRFLOW-1729] improve dagBag time
+- [AIRFLOW-1729] improve DagBag time
 - [AIRFLOW-2264] Improve create_user cli help message
 - [AIRFLOW-2260] [AIRFLOW-2260] SSHOperator add command template .sh files
 - [AIRFLOW-2261] Check config/env for remote base log folder
@@ -3577,7 +3577,7 @@ Airflow 1.8.1, 2017-05-09
 - [AIRFLOW-806] UI should properly ignore DAG doc when it is None
 - [AIRFLOW-794] Consistent access to DAGS_FOLDER and SQL_ALCHEMY_CONN
 - [AIRFLOW-785] ImportError if cgroupspy is not installed
-- [AIRFLOW-784] Cannot install with funcsigs > 1.0.0
+- [AIRFLOW-784] Cannot install with ``funcsigs`` > 1.0.0
 - [AIRFLOW-780] The UI no longer shows broken DAGs
 - [AIRFLOW-777] dag_is_running is initialized to True instead of False
 - [AIRFLOW-719] Skipped operations make DAG finish prematurely
@@ -3641,7 +3641,7 @@ Airflow 1.8.0, 2017-03-12
 - [AIRFLOW-776] Add missing cgroups devel dependency
 - [AIRFLOW-777] Fix expression to check if a DagRun is in running state
 - [AIRFLOW-785] Don't import CgroupTaskRunner at global scope
-- [AIRFLOW-784] Pin funcsigs to 1.0.0
+- [AIRFLOW-784] Pin ``funcsigs`` to 1.0.0
 - [AIRFLOW-624] Fix setup.py to not import airflow.version as version
 - [AIRFLOW-779] Task should fail with specific message when deleted
 - [AIRFLOW-778] Fix completely broken MetastorePartitionSensor
@@ -4053,7 +4053,7 @@ Airflow 1.7.1, 2016-05-19
 - Rename user table to users to avoid conflict with postgres
 - Beware of negative pool slots.
 - Add support for calling_format from boto to S3_Hook
-- Add pypi meta data and sync version number
+- Add PyPI meta data and sync version number
 - Set dags_are_paused_at_creation's default value to True
 - Resurface S3Log class eaten by rebase/push -f
 - Add missing session.commit() at end of initdb
@@ -4135,7 +4135,7 @@ Airflow 1.7.1, 2016-05-19
 - Pointing to a reqs file
 - Some linting
 - Adding a .landscape.yml file
-- badge for pypi version
+- badge for PyPI version
 - Add license and ignore for sql and csv
 - Use correct connection id
 - Use correct table name

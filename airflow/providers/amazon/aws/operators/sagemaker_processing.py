@@ -119,5 +119,5 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             max_ingestion_time=self.max_ingestion_time,
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException('Sagemaker Processing Job creation failed: %s' % response)
+            raise AirflowException(f'Sagemaker Processing Job creation failed: {response}')
         return {'Processing': self.hook.describe_processing_job(self.config['ProcessingJobName'])}

@@ -348,6 +348,12 @@ class DAG(LoggingMixin):
         self.partial = False
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
+
+        # To keep it in parity with Serialized DAGs
+        # and identify if DAG has on_*_callback without actually storing them in Serialized JSON
+        self.has_on_success_callback = self.on_success_callback is not None
+        self.has_on_failure_callback = self.on_failure_callback is not None
+
         self.doc_md = doc_md
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
@@ -361,8 +367,7 @@ class DAG(LoggingMixin):
         return f"<DAG: {self.dag_id}>"
 
     def __eq__(self, other):
-        if type(self) == type(other) and self.dag_id == other.dag_id:
-
+        if type(self) == type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return
             # correct values for properties.
             return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
@@ -579,7 +584,7 @@ class DAG(LoggingMixin):
         next_run_date = None
         if not date_last_automated_dagrun:
             # First run
-            task_start_dates = [t.start_date for t in self.tasks]
+            task_start_dates = [t.start_date for t in self.tasks if t.start_date]
             if task_start_dates:
                 next_run_date = self.normalize_schedule(min(task_start_dates))
                 self.log.debug("Next run date based on tasks %s", next_run_date)
@@ -1533,7 +1538,7 @@ class DAG(LoggingMixin):
             dttm = timezone.utcnow()
             pickled = pickle.dumps(self)
             d['pickle_len'] = len(pickled)
-            d['pickling_duration'] = "{}".format(timezone.utcnow() - dttm)
+            d['pickling_duration'] = str(timezone.utcnow() - dttm)
         except Exception as e:
             self.log.debug(e)
             d['is_picklable'] = False
@@ -1711,16 +1716,16 @@ class DAG(LoggingMixin):
     @provide_session
     def create_dagrun(
         self,
-        state,
-        execution_date=None,
-        run_id=None,
-        start_date=None,
-        external_trigger=False,
-        conf=None,
-        run_type=None,
+        state: State,
+        execution_date: Optional[datetime] = None,
+        run_id: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        external_trigger: Optional[bool] = False,
+        conf: Optional[dict] = None,
+        run_type: Optional[DagRunType] = None,
         session=None,
-        dag_hash=None,
-        creating_job_id=None,
+        dag_hash: Optional[str] = None,
+        creating_job_id: Optional[int] = None,
     ):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
@@ -1818,7 +1823,7 @@ class DAG(LoggingMixin):
             .options(joinedload(DagModel.tags, innerjoin=False))
             .filter(DagModel.dag_id.in_(dag_ids))
         )
-        orm_dags = with_row_locks(query, of=DagModel).all()
+        orm_dags = with_row_locks(query, of=DagModel, session=session).all()
 
         existing_dag_ids = {orm_dag.dag_id for orm_dag in orm_dags}
         missing_dag_ids = dag_ids.difference(existing_dag_ids)
@@ -1841,7 +1846,6 @@ class DAG(LoggingMixin):
                 or_(
                     DagRun.run_type == DagRunType.BACKFILL_JOB,
                     DagRun.run_type == DagRunType.SCHEDULED,
-                    DagRun.external_trigger.is_(True),
                 ),
             )
             .group_by(DagRun.dag_id)
@@ -2029,6 +2033,9 @@ class DAG(LoggingMixin):
                 'on_failure_callback',
                 'template_undefined',
                 'jinja_environment_kwargs',
+                # has_on_*_callback are only stored if the value is True, as the default is False
+                'has_on_success_callback',
+                'has_on_failure_callback',
             }
         return cls.__serialized_fields
 
@@ -2239,7 +2246,7 @@ class DagModel(Base):
             .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
         )
 
-        return with_row_locks(query, of=cls, **skip_locked(session=session))
+        return with_row_locks(query, of=cls, session=session, **skip_locked(session=session))
 
     def calculate_dagrun_date_fields(
         self, dag: DAG, most_recent_dag_run: Optional[pendulum.DateTime], active_runs_of_dag: int

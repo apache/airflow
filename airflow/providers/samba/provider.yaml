@@ -22,11 +22,13 @@ description: |
     `Samba <https://www.samba.org/>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
 
 integrations:
   - integration-name: Samba
     external-doc-url: https://www.samba.org/
+    logo: /integration-logos/samba/Samba.png
     tags: [protocol]
 
 hooks:

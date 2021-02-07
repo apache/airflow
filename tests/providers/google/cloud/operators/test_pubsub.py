@@ -21,7 +21,6 @@ from typing import Any, Dict, List
 from unittest import mock
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
-from google.protobuf.json_format import MessageToDict, ParseDict
 
 from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateSubscriptionOperator,
@@ -127,7 +126,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             timeout=None,
             metadata=None,
         )
-        self.assertEqual(response, TEST_SUBSCRIPTION)
+        assert response == TEST_SUBSCRIPTION
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute_different_project_ids(self, mock_hook):
@@ -161,7 +160,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             timeout=None,
             metadata=None,
         )
-        self.assertEqual(response, TEST_SUBSCRIPTION)
+        assert response == TEST_SUBSCRIPTION
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute_no_subscription(self, mock_hook):
@@ -190,7 +189,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             timeout=None,
             metadata=None,
         )
-        self.assertEqual(response, TEST_SUBSCRIPTION)
+        assert response == TEST_SUBSCRIPTION
 
 
 class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
@@ -230,21 +229,18 @@ class TestPubSubPublishOperator(unittest.TestCase):
 class TestPubSubPullOperator(unittest.TestCase):
     def _generate_messages(self, count):
         return [
-            ParseDict(
-                {
-                    "ack_id": "%s" % i,
-                    "message": {
-                        "data": f'Message {i}'.encode('utf8'),
-                        "attributes": {"type": "generated message"},
-                    },
+            ReceivedMessage(
+                ack_id=f"{i}",
+                message={
+                    "data": f'Message {i}'.encode('utf8'),
+                    "attributes": {"type": "generated message"},
                 },
-                ReceivedMessage(),
             )
             for i in range(1, count + 1)
         ]
 
     def _generate_dicts(self, count):
-        return [MessageToDict(m) for m in self._generate_messages(count)]
+        return [ReceivedMessage.to_dict(m) for m in self._generate_messages(count)]
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute_no_messages(self, mock_hook):
@@ -255,7 +251,7 @@ class TestPubSubPullOperator(unittest.TestCase):
         )
 
         mock_hook.return_value.pull.return_value = []
-        self.assertEqual([], operator.execute({}))
+        assert [] == operator.execute({})
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute_with_ack_messages(self, mock_hook):
@@ -270,7 +266,7 @@ class TestPubSubPullOperator(unittest.TestCase):
         generated_dicts = self._generate_dicts(5)
         mock_hook.return_value.pull.return_value = generated_messages
 
-        self.assertEqual(generated_dicts, operator.execute({}))
+        assert generated_dicts == operator.execute({})
         mock_hook.return_value.acknowledge.assert_called_once_with(
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,

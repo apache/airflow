@@ -18,10 +18,11 @@
 
 # Build airflow packages
 function build_airflow_packages::build_airflow_packages() {
+    start_end::group_start "Build airflow packages ${PACKAGE_FORMAT}"
     rm -rf -- *egg-info*
     rm -rf -- build
 
-    pip install --upgrade "pip==${PIP_VERSION}" "wheel==${WHEEL_VERSION}"
+    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
     local packages=()
 
@@ -40,6 +41,7 @@ function build_airflow_packages::build_airflow_packages() {
     rm -rf -- build
 
     echo
-    echo "Airflow package prepared: ${PACKAGE_FORMAT}"
+    echo "${COLOR_GREEN}Airflow package prepared in format: ${PACKAGE_FORMAT}${COLOR_RESET}"
     echo
+    start_end::group_end
 }

@@ -25,7 +25,6 @@ from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection,
-    connection_collection_item_schema,
     connection_collection_schema,
     connection_schema,
 )
@@ -58,7 +57,7 @@ def get_connection(connection_id, session):
             "Connection not found",
             detail=f"The Connection with connection_id: `{connection_id}` was not found",
         )
-    return connection_collection_item_schema.dump(connection)
+    return connection_schema.dump(connection)
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
@@ -125,4 +124,4 @@ def post_connection(session):
         session.add(connection)
         session.commit()
         return connection_schema.dump(connection)
-    raise AlreadyExists(detail="Connection already exist. ID: %s" % conn_id)
+    raise AlreadyExists(detail=f"Connection already exist. ID: {conn_id}")

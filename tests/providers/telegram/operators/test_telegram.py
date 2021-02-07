@@ -18,6 +18,7 @@
 import unittest
 from unittest import mock
 
+import pytest
 import telegram
 
 import airflow
@@ -69,10 +70,10 @@ class TestTelegramOperator(unittest.TestCase):
         )
 
     def test_should_throw_exception_if_connection_id_is_none(self):
-        with self.assertRaises(airflow.exceptions.AirflowException) as e:
+        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
             TelegramOperator(task_id="telegram", telegram_conn_id=None)
 
-        self.assertEqual("No valid Telegram connection id supplied.", str(e.exception))
+        assert "No valid Telegram connection id supplied." == str(ctx.value)
 
     @mock.patch('airflow.providers.telegram.operators.telegram.TelegramHook')
     def test_should_throw_exception_if_telegram_hook_throws_any_exception(self, mock_telegram_hook):
@@ -82,7 +83,7 @@ class TestTelegramOperator(unittest.TestCase):
         mock_telegram_hook.return_value = mock.Mock()
         mock_telegram_hook.return_value.send_message.side_effect = side_effect
 
-        with self.assertRaises(telegram.error.TelegramError) as e:
+        with pytest.raises(telegram.error.TelegramError) as ctx:
             hook = TelegramOperator(
                 telegram_conn_id='telegram_default',
                 task_id='telegram',
@@ -90,7 +91,7 @@ class TestTelegramOperator(unittest.TestCase):
             )
             hook.execute()
 
-        self.assertEqual("cosmic rays caused bit flips", str(e.exception))
+        assert "cosmic rays caused bit flips" == str(ctx.value)
 
     @mock.patch('airflow.providers.telegram.operators.telegram.TelegramHook')
     def test_should_forward_all_args_to_telegram(self, mock_telegram_hook):
@@ -146,4 +147,4 @@ class TestTelegramOperator(unittest.TestCase):
             text="some non empty text - higher precedence",
             telegram_kwargs={"custom_arg": "value", "text": "some text, that will be ignored"},
         )
-        self.assertEqual(('text', 'chat_id'), hook.template_fields)
+        assert ('text', 'chat_id') == hook.template_fields

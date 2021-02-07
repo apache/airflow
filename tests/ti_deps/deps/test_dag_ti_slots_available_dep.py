@@ -32,7 +32,7 @@ class TestDagTISlotsAvailableDep(unittest.TestCase):
         task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 
-        self.assertFalse(DagTISlotsAvailableDep().is_met(ti=ti))
+        assert not DagTISlotsAvailableDep().is_met(ti=ti)
 
     def test_all_conditions_met(self):
         """
@@ -42,4 +42,4 @@ class TestDagTISlotsAvailableDep(unittest.TestCase):
         task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 
-        self.assertTrue(DagTISlotsAvailableDep().is_met(ti=ti))
+        assert DagTISlotsAvailableDep().is_met(ti=ti)

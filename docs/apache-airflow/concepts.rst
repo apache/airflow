@@ -23,6 +23,38 @@ Concepts
 The Airflow platform is a tool for describing, executing, and monitoring
 workflows.
 
+.. _architecture:
+
+Basic Airflow architecture
+''''''''''''''''''''''''''
+
+Primarily intended for development use, the basic Airflow architecture with the Local and Sequential executors is an
+excellent starting point for understanding the architecture of Apache Airflow.
+
+.. image:: img/arch-diag-basic.png
+
+
+There are a few components to note:
+
+* **Metadata Database**: Airflow uses a SQL database to store metadata about the data pipelines being run. In the
+  diagram above, this is represented as Postgres which is extremely popular with Airflow.
+  Alternate databases supported with Airflow include MySQL.
+
+* **Web Server** and **Scheduler**: The Airflow web server and Scheduler are separate processes run (in this case)
+  on the local machine and interact with the database mentioned above.
+
+* The **Executor** is shown separately above, since it is commonly discussed within Airflow and in the documentation, but
+  in reality it is NOT a separate process, but run within the Scheduler.
+
+* The **Worker(s)** are separate processes which also interact with the other components of the Airflow architecture and
+  the metadata repository.
+
+* ``airflow.cfg`` is the Airflow configuration file which is accessed by the Web Server, Scheduler, and Workers.
+
+* **DAGs** refers to the DAG files containing Python code, representing the data pipelines to be run by Airflow. The
+  location of these files is specified in the Airflow configuration file, but they need to be accessible by the
+  Web Server, Scheduler, and Workers.
+
 Core Ideas
 ''''''''''
 
@@ -194,10 +226,10 @@ Example DAG with decorator:
 
 .. _concepts:executor_config:
 
-executor_config
-===============
+``executor_config``
+===================
 
-The executor_config is an argument placed into operators that allow airflow users to override tasks
+The ``executor_config`` is an argument placed into operators that allow airflow users to override tasks
 before launch. Currently this is primarily used by the :class:`KubernetesExecutor`, but will soon be available
 for other overrides.
 
@@ -469,54 +501,32 @@ Operators are only loaded by Airflow if they are assigned to a DAG.
 Sensors
 -------
 
-``Sensor`` is an Operator that waits (polls) for a certain time, file, database row, S3 key, , another DAG/task, etc...
+``Sensor`` is an Operator that waits (polls) for a certain time, file, database row, S3 key, another DAG/task, etc...
 
 There are currently 3 different modes for how a sensor operates:
 
-+--------------------+-----------------------+-----------------------+
-| Schedule Mode      | Description           | Use case              |
-+====================+=======================+=======================+
-| ``poke`` (default) | The sensor is taking  | Use this mode if the  |
-|                    | up a worker slot for  | expected runtime of   |
-|                    | its whole execution   | the sensor is short   |
-|                    | time and sleeps       | or if a short poke    |
-|                    | between pokes.        | interval is required. |
-|                    |                       | Note that the sensor  |
-|                    |                       | will hold onto a      |
-|                    |                       | worker slot and a     |
-|                    |                       | pool slot for the     |
-|                    |                       | duration of the       |
-|                    |                       | sensor's runtime in   |
-|                    |                       | this mode.            |
-+--------------------+-----------------------+-----------------------+
-| ``reschedule``     | The sensor task frees | Use this mode if the  |
-|                    | the worker slot when  | time before the       |
-|                    | the criteria is not   | criteria is met is    |
-|                    | yet met and it's      | expected to be quite  |
-|                    | rescheduled at a      | long. The poke        |
-|                    | later time.           | interval should be    |
-|                    |                       | more than one minute  |
-|                    |                       | to prevent too much   |
-|                    |                       | load on the           |
-|                    |                       | scheduler.            |
-+--------------------+-----------------------+-----------------------+
-| ``smart sensor``   | smart sensor is a     | Use this mode if you  |
-|                    | service (run by a     | have a large amount   |
-|                    | builtin DAG) which    | of sensor tasks       |
-|                    | consolidate the       | running in your       |
-|                    | execution of sensors  | airflow cluster. This |
-|                    | in batches. Instead   | can largely reduce    |
-|                    | of holding a long     | airflow’s             |
-|                    | running process for   | infrastructure cost   |
-|                    | each sensor and       | and improve cluster   |
-|                    | poking periodically,  | stability - reduce    |
-|                    | a sensor will only    | meta database load.   |
-|                    | store poke context at |                       |
-|                    | ``sensor_instance``   |                       |
-|                    | table and then exits  |                       |
-|                    | with a 'sensing'      |                       |
-|                    | state.                |                       |
-+--------------------+-----------------------+-----------------------+
+
+.. list-table::
+   :header-rows: 1
+
+   * - Schedule Mode
+     - Description
+     - Use case
+   * - ``poke`` (default)
+     - The sensor is taking up a worker slot for its whole execution time and sleeps between pokes.
+     - Use this mode if the expected runtime of the sensor is short or if a short poke interval is required.
+       Note that the sensor will hold onto a worker slot and a pool slot for the duration of the sensor's
+       runtime in this mode.
+   * - ``reschedule``
+     - The sensor task frees the worker slot when the criteria is not yet met and it's rescheduled at a later time.
+     - Use this mode if the time before the criteria is met is expected to be quite long.
+       The poke interval should be more than one minute to prevent too much load on the scheduler.
+   * - ``smart sensor``
+     - smart sensor is a service (run by a builtin DAG) which consolidate the execution of sensors in batches.
+       Instead of holding a long running process for each sensor and poking periodically, a sensor will only
+       store poke context at ``sensor_instance`` table and then exits with a 'sensing' state.
+     - Use this mode if you have a large amount of sensor tasks running in your airflow cluster.
+       This can largely reduce airflow’s infrastructure cost and improve cluster stability - reduce meta database load.
 
 How to use:
 
@@ -525,7 +535,7 @@ i.e. ``S3KeySensor(task_id='check-bucket', mode='reschedule', ...)``.
 
 For ``smart sensor``, you need to configure it in ``airflow.cfg``, for example:
 
-.. code-block::
+.. code-block:: ini
 
     [smart_sensor]
     use_smart_sensor = true
@@ -1567,7 +1577,8 @@ This example illustrates some possibilities
 
 
 Packaged DAGs
-'''''''''''''
+=============
+
 While often you will specify DAGs in a single ``.py`` file it might sometimes
 be required to combine a DAG and its dependencies. For example, you might want
 to combine several DAGs together to version them together or you might want
@@ -1616,8 +1627,8 @@ do the same, but then it is more suitable to use a virtualenv and pip.
    pure Python modules can be packaged.
 
 
-.airflowignore
-''''''''''''''
+``.airflowignore``
+==================
 
 A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
 or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore.

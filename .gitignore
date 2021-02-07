@@ -17,7 +17,7 @@ airflow/www/static/dist
 airflow/www_rbac/static/coverage/
 airflow/www_rbac/static/dist/
 
-logs/
+/logs/
 airflow-webserver.pid
 
 # Byte-compiled / optimized / DLL files

@@ -22,10 +22,13 @@ description: |
     `Oracle <https://www.oracle.com/en/database/>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
+
 integrations:
   - integration-name: Oracle
     external-doc-url: https://www.oracle.com/en/database/
+    logo: /integration-logos/oracle/Oracle.png
     tags: [software]
 
 operators:

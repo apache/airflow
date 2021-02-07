@@ -22,11 +22,13 @@ description: |
     `Datadog <https://www.datadoghq.com/>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
 
 integrations:
   - integration-name: Datadog
     external-doc-url: https://www.datadoghq.com/
+    logo: /integration-logos/datadog/datadog.png
     tags: [service]
 
 sensors:

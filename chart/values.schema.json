@@ -388,7 +388,7 @@
           }
         },
         "data": {
-            "description": "Airflow database configuration.",
+            "description": "Airflow database & redis configuration.",
             "type": "object",
             "additionalProperties": false,
             "properties": {
@@ -401,6 +401,13 @@
                 },
                 "resultBackendSecretName": {
                     "description": "Result backend connection string secret.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "brokerUrlSecretName": {
+                    "description": "Redis broker URL secret.",
                     "type": [
                         "string",
                         "null"
@@ -473,6 +480,13 @@
                             "type": "string"
                         }
                     }
+                },
+                "brokerUrl": {
+                    "description": "Direct url to the redis broker (when using an external redis instance).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
                 }
             }
         },
@@ -621,6 +635,21 @@
                 "extraVolumeMounts": {
                     "description": "Mount additional volumes into workers.",
                     "type": "array"
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object"
+                },
+                "tolerations": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "array"
                 }
             }
         },
@@ -679,6 +708,21 @@
                 },
                 "extraVolumeMounts": {
                     "description": "Mount additional volumes into scheduler.",
+                    "type": "array"
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object"
+                },
+                "tolerations": {
+                    "description": "Select certain nodes for airflow pods.",
                     "type": "array"
                 }
             }
@@ -817,6 +861,21 @@
                 "serviceAccountAnnotations": {
                   "description": "Annotations to add to the webserver kubernetes service account.",
                   "type": "object"
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object"
+                },
+                "tolerations": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "array"
                 }
             }
         },
@@ -863,6 +922,21 @@
                             "type": "string"
                         }
                     }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object"
+                },
+                "tolerations": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "array"
                 }
             }
         },
@@ -892,6 +966,25 @@
                             "type": "object"
                         }
                     }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object"
+                },
+                "tolerations": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "array"
+                },
+                "extraMappings": {
+                    "description": "Additional mappings for statsd exporter.",
+                    "type": "array"
                 }
             }
         },
@@ -994,14 +1087,33 @@
                             "type": ["string", "null"]
                         }
                     }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object"
+                },
+                "tolerations": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "array"
                 }
             }
         },
         "redis": {
-            "description": "",
+            "description": "Configuration for the redis provisioned by the chart.",
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable the redis provisioned by the chart (you can also use an external redis instance with data.brokerUrl or data.brokerUrlSecretName).",
+                    "type": "boolean"
+                },
                 "terminationGracePeriodSeconds": {
                     "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer"
@@ -1016,7 +1128,7 @@
                             "type": "boolean"
                         },
                         "size": {
-                            "description": "Volume size for worker StatefulSet.",
+                            "description": "Volume size for redis StatefulSet.",
                             "type": "string"
                         },
                         "storageClassName": {
@@ -1038,13 +1150,6 @@
                         "null"
                     ]
                 },
-                "brokerURLSecretName": {
-                    "description": "Redis broker URL secret.",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
-                },
                 "password": {
                     "description": "If password is set, create secret with it, else generate a new one on install.",
                     "type": [
@@ -1055,6 +1160,21 @@
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
                     "type": "boolean"
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object"
+                },
+                "tolerations": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "array"
                 }
             }
         },
@@ -1157,6 +1277,21 @@
                 "schedule": {
                     "description": "Cleanup schedule.",
                     "type": "string"
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "object"
+                },
+                "tolerations": {
+                    "description": "Select certain nodes for airflow pods.",
+                    "type": "array"
                 }
             }
         },

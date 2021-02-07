@@ -876,11 +876,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         self.log.info('Inserting %s row(s) into table %s:%s.%s', len(rows), project_id, dataset_id, table_id)
 
-        table = self._resolve_table_reference(
-            table_resource={}, project_id=project_id, dataset_id=dataset_id, table_id=table_id
-        )
-        errors = self.get_client().insert_rows(
-            table=Table.from_api_repr(table),
+        table_ref = TableReference(dataset_ref=DatasetReference(project_id, dataset_id), table_id=table_id)
+        bq_client = self.get_client(project_id=project_id)
+        table = bq_client.get_table(table_ref)
+        errors = bq_client.insert_rows(
+            table=table,
             rows=rows,
             ignore_unknown_values=ignore_unknown_values,
             skip_invalid_rows=skip_invalid_rows,
@@ -2843,7 +2843,7 @@ def _split_tablename(
     cmpt = rest.split('.')
     if len(cmpt) == 3:
         if project_id:
-            raise ValueError("{var}Use either : or . to specify project".format(var=var_print(var_name)))
+            raise ValueError(f"{var_print(var_name)}Use either : or . to specify project")
         project_id = cmpt[0]
         dataset_id = cmpt[1]
         table_id = cmpt[2]
@@ -2887,7 +2887,7 @@ def _cleanse_time_partitioning(
 def _validate_value(key: Any, value: Any, expected_type: Type) -> None:
     """Function to check expected type and raise error if type is not correct"""
     if not isinstance(value, expected_type):
-        raise TypeError("{} argument must have a type {} not {}".format(key, expected_type, type(value)))
+        raise TypeError(f"{key} argument must have a type {expected_type} not {type(value)}")
 
 
 def _api_resource_configs_duplication_check(

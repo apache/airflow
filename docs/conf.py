@@ -34,12 +34,13 @@
 import glob
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
 import airflow
-from airflow.configuration import default_config_yaml
+from airflow.configuration import AirflowConfigParser, default_config_yaml
 from docs.exts.docs_build.third_party_inventories import (  # pylint: disable=no-name-in-module,wrong-import-order
     THIRD_PARTY_INDEXES,
 )
@@ -231,6 +232,11 @@ if PACKAGE_NAME == 'apache-airflow':
     html_js_files = ['jira-links.js']
 else:
     html_js_files = []
+if PACKAGE_NAME == 'apache-airflow':
+    html_extra_path = [
+        f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
+        f"{ROOT_DIR}/docs/apache-airflow/start/airflow.sh",
+    ]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
@@ -303,7 +309,22 @@ html_context = {
 
 # Jinja context
 if PACKAGE_NAME == 'apache-airflow':
-    jinja_contexts = {'config_ctx': {"configs": default_config_yaml()}}
+    deprecated_options: Dict[str, Dict[str, Tuple[str, str, str]]] = defaultdict(dict)
+    for (section, key), (
+        (deprecated_section, deprecated_key, since_version)
+    ) in AirflowConfigParser.deprecated_options.items():
+        deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
+
+    jinja_contexts = {
+        'config_ctx': {"configs": default_config_yaml(), "deprecated_options": deprecated_options},
+        'quick_start_ctx': {
+            'doc_root_url': (f'https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/')
+            if FOR_PRODUCTION
+            else (
+                'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/'
+            )
+        },
+    }
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
 
     def _load_config():
@@ -370,7 +391,7 @@ autodoc_mock_imports = [
     'qds_sdk',
     'redis',
     'simple_salesforce',
-    'slackclient',
+    'slack_sdk',
     'smbclient',
     'snowflake',
     'sshtunnel',

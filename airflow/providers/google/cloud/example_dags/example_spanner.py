@@ -49,7 +49,7 @@ GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_SPANNER_INSTANCE_ID = os.environ.get('GCP_SPANNER_INSTANCE_ID', 'testinstance')
 GCP_SPANNER_DATABASE_ID = os.environ.get('GCP_SPANNER_DATABASE_ID', 'testdatabase')
 GCP_SPANNER_CONFIG_NAME = os.environ.get(
-    'GCP_SPANNER_CONFIG_NAME', 'projects/example-project/instanceConfigs/eur3'
+    'GCP_SPANNER_CONFIG_NAME', f'projects/{GCP_PROJECT_ID}/instanceConfigs/regional-europe-west3'
 )
 GCP_SPANNER_NODE_COUNT = os.environ.get('GCP_SPANNER_NODE_COUNT', '1')
 GCP_SPANNER_DISPLAY_NAME = os.environ.get('GCP_SPANNER_DISPLAY_NAME', 'Test Instance')
@@ -180,6 +180,8 @@ with models.DAG(
         spanner_instance_create_task
         >> spanner_instance_update_task
         >> spanner_database_deploy_task
+        >> spanner_database_deploy_task2
+        >> spanner_database_update_task
         >> spanner_database_update_idempotent1_task
         >> spanner_database_update_idempotent2_task
         >> spanner_instance_query_task

@@ -68,8 +68,8 @@ if [[ ! "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
     # we need to run those in sub-processes
     (
         export INSTALL_FROM_PYPI="true"
-        export INSTALL_FROM_DOCKER_CONTEXT_FILES="false"
         export INSTALL_PROVIDERS_FROM_SOURCES="true"
+        export INSTALL_FROM_DOCKER_CONTEXT_FILES="false"
         export AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
         export DOCKER_CACHE="pulled"
         # shellcheck source=scripts/ci/libraries/_script_init.sh
@@ -85,8 +85,8 @@ if [[ ! "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
     )
     (
         export INSTALL_FROM_PYPI="false"
-        export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
         export INSTALL_PROVIDERS_FROM_SOURCES="false"
+        export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
         export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
         export DOCKER_CACHE="pulled"
         # shellcheck source=scripts/ci/libraries/_script_init.sh
@@ -97,7 +97,7 @@ if [[ ! "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
         rm -rf "${BUILD_CACHE_DIR}"
         rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
         build_images::prepare_prod_build
-        build_images::build_prod_images_from_packages
+        build_images::build_prod_images_from_locally_built_airflow_packages
         push_pull_remove_images::push_prod_images
     )
 else
@@ -113,8 +113,6 @@ else
     export DOCKER_CACHE="local"
     # Name the image based on the TAG rather than based on the branch name
     export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
-    export AIRFLOW_SOURCES_FROM="empty"
-    export AIRFLOW_SOURCES_TO="/empty"
     export INSTALL_AIRFLOW_VERSION="${DOCKER_TAG%-python*}"
     export AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${INSTALL_AIRFLOW_VERSION}"
 

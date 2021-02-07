@@ -28,8 +28,7 @@ const duration = 500;
 function setUpZoomSupport(g) {
   // Set up zoom support for Graph
   zoom = d3.behavior.zoom().on("zoom", function() {
-    innerSvg.attr("transform", "translate(" + d3.event.translate + ")" +
-      "scale(" + d3.event.scale + ")");
+    innerSvg.attr("transform", `translate(${d3.event.translate})scale(${d3.event.scale})`);
   });
   svg.call(zoom);
 

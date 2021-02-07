@@ -490,7 +490,7 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def execute(self, context: Dict):
         serializable_context = {key: context[key] for key in self._get_serializable_context_keys()}
-        super().execute(context=serializable_context)
+        return super().execute(context=serializable_context)
 
     def execute_callable(self):
         with TemporaryDirectory(prefix='venv') as tmp_dir:

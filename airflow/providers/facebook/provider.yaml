@@ -22,10 +22,12 @@ description: |
     `Facebook Ads <http://business.facebook.com/>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
 integrations:
   - integration-name: Facebook Ads
     external-doc-url: http://business.facebook.com
+    logo: /integration-logos/facebook/Facebook-Ads.png
     tags: [service]
 
 hooks:

@@ -101,12 +101,31 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Rename the sdist
 
+    **Airflow 2+**:
+
+    ```shell script
+    mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
+    mv dist/apache_airflow-${VERSION%rc?}-py3-none-any.whl apache_airflow-${VERSION}-py3-none-any.whl
+    ```
+
+    **Airflow 1.10.x**:
+
     ```shell script
     mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
     mv dist/apache_airflow-${VERSION%rc?}-py2.py3-none-any.whl apache_airflow-${VERSION}-py2.py3-none-any.whl
     ```
 
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
+
+    **Airflow 2+**:
+
+    ```shell script
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-bin.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py3-none-any.whl
+    ```
+
+    **Airflow 1.10.x**:
 
     ```shell script
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
@@ -115,6 +134,16 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```
 
 - Tag & Push latest constraints files. This pushes constraints with rc suffix (this is expected)!
+
+    **Airflow 2+**:
+
+    ```shell script
+    git checkout constraints-2-0
+    git tag -s "constraints-${VERSION}"
+    git push origin "constraints-${VERSION}"
+    ```
+
+    **Airflow 1.10.x**:
 
     ```shell script
     git checkout constraints-1-10

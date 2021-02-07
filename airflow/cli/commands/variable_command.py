@@ -27,7 +27,7 @@ from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def variables_list(args):
     """Displays all of the variables"""
     with create_session() as session:
@@ -35,7 +35,7 @@ def variables_list(args):
     AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def variables_get(args):
     """Displays variable by a given name"""
     try:
@@ -92,7 +92,7 @@ def _import_helper(filepath):
             try:
                 Variable.set(k, v, serialize_json=not isinstance(v, str))
             except Exception as e:  # pylint: disable=broad-except
-                print('Variable import failed: {}'.format(repr(e)))
+                print(f'Variable import failed: {repr(e)}')
                 fail_count += 1
             else:
                 suc_count += 1

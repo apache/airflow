@@ -76,7 +76,7 @@ unit of work and continuity.
     Home <self>
     project
     license
-    start
+    start/index
     installation
     upgrading-to-2
     upgrade-check

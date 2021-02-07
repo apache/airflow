@@ -45,14 +45,14 @@ class TestTriggerRuleDep(unittest.TestCase):
         If the TI has no upstream TIs then there is nothing to check and the dep is passed
         """
         ti = self._get_task_instance(TriggerRule.ALL_DONE, State.UP_FOR_RETRY)
-        self.assertTrue(TriggerRuleDep().is_met(ti=ti))
+        assert TriggerRuleDep().is_met(ti=ti)
 
     def test_dummy_tr(self):
         """
         The dummy trigger rule should always pass this dep
         """
         ti = self._get_task_instance(TriggerRule.DUMMY, State.UP_FOR_RETRY)
-        self.assertTrue(TriggerRuleDep().is_met(ti=ti))
+        assert TriggerRuleDep().is_met(ti=ti)
 
     def test_one_success_tr_success(self):
         """
@@ -71,7 +71,7 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 0)
+        assert len(dep_statuses) == 0
 
     def test_one_success_tr_failure(self):
         """
@@ -90,8 +90,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 1)
-        self.assertFalse(dep_statuses[0].passed)
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
 
     def test_one_failure_tr_failure(self):
         """
@@ -110,8 +110,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 1)
-        self.assertFalse(dep_statuses[0].passed)
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
 
     def test_one_failure_tr_success(self):
         """
@@ -130,7 +130,7 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 0)
+        assert len(dep_statuses) == 0
 
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -144,7 +144,7 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 0)
+        assert len(dep_statuses) == 0
 
     def test_all_success_tr_success(self):
         """
@@ -163,7 +163,7 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 0)
+        assert len(dep_statuses) == 0
 
     def test_all_success_tr_failure(self):
         """
@@ -184,8 +184,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 1)
-        self.assertFalse(dep_statuses[0].passed)
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
 
     def test_all_success_tr_skip(self):
         """
@@ -206,8 +206,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 1)
-        self.assertFalse(dep_statuses[0].passed)
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
 
     def test_all_success_tr_skip_flag_upstream(self):
         """
@@ -229,9 +229,9 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session=Mock(),
             )
         )
-        self.assertEqual(len(dep_statuses), 1)
-        self.assertFalse(dep_statuses[0].passed)
-        self.assertEqual(ti.state, State.SKIPPED)
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
+        assert ti.state == State.SKIPPED
 
     def test_none_failed_tr_success(self):
         """
@@ -252,7 +252,7 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 0)
+        assert len(dep_statuses) == 0
 
     def test_none_failed_tr_skipped(self):
         """
@@ -273,8 +273,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session=Mock(),
             )
         )
-        self.assertEqual(len(dep_statuses), 0)
-        self.assertEqual(ti.state, State.NONE)
+        assert len(dep_statuses) == 0
+        assert ti.state == State.NONE
 
     def test_none_failed_tr_failure(self):
         """
@@ -295,8 +295,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 1)
-        self.assertFalse(dep_statuses[0].passed)
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
 
     def test_none_failed_or_skipped_tr_success(self):
         """
@@ -317,7 +317,7 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 0)
+        assert len(dep_statuses) == 0
 
     def test_none_failed_or_skipped_tr_skipped(self):
         """
@@ -338,8 +338,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session=Mock(),
             )
         )
-        self.assertEqual(len(dep_statuses), 0)
-        self.assertEqual(ti.state, State.SKIPPED)
+        assert len(dep_statuses) == 0
+        assert ti.state == State.SKIPPED
 
     def test_none_failed_or_skipped_tr_failure(self):
         """
@@ -361,8 +361,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 1)
-        self.assertFalse(dep_statuses[0].passed)
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
 
     def test_all_failed_tr_success(self):
         """
@@ -383,7 +383,7 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 0)
+        assert len(dep_statuses) == 0
 
     def test_all_failed_tr_failure(self):
         """
@@ -404,8 +404,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 1)
-        self.assertFalse(dep_statuses[0].passed)
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
 
     def test_all_done_tr_success(self):
         """
@@ -426,7 +426,7 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 0)
+        assert len(dep_statuses) == 0
 
     def test_all_done_tr_failure(self):
         """
@@ -447,8 +447,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                 session="Fake Session",
             )
         )
-        self.assertEqual(len(dep_statuses), 1)
-        self.assertFalse(dep_statuses[0].passed)
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
 
     def test_none_skipped_tr_success(self):
         """
@@ -471,7 +471,7 @@ class TestTriggerRuleDep(unittest.TestCase):
                     session=session,
                 )
             )
-            self.assertEqual(len(dep_statuses), 0)
+            assert len(dep_statuses) == 0
 
             # with `flag_upstream_failed` set to True
             dep_statuses = tuple(
@@ -486,7 +486,7 @@ class TestTriggerRuleDep(unittest.TestCase):
                     session=session,
                 )
             )
-            self.assertEqual(len(dep_statuses), 0)
+            assert len(dep_statuses) == 0
 
     def test_none_skipped_tr_failure(self):
         """
@@ -509,8 +509,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                     session=session,
                 )
             )
-            self.assertEqual(len(dep_statuses), 1)
-            self.assertFalse(dep_statuses[0].passed)
+            assert len(dep_statuses) == 1
+            assert not dep_statuses[0].passed
 
             # with `flag_upstream_failed` set to True
             dep_statuses = tuple(
@@ -525,8 +525,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                     session=session,
                 )
             )
-            self.assertEqual(len(dep_statuses), 1)
-            self.assertFalse(dep_statuses[0].passed)
+            assert len(dep_statuses) == 1
+            assert not dep_statuses[0].passed
 
             # Fail until all upstream tasks have completed execution
             dep_statuses = tuple(
@@ -541,8 +541,8 @@ class TestTriggerRuleDep(unittest.TestCase):
                     session=session,
                 )
             )
-            self.assertEqual(len(dep_statuses), 1)
-            self.assertFalse(dep_statuses[0].passed)
+            assert len(dep_statuses) == 1
+            assert not dep_statuses[0].passed
 
     def test_unknown_tr(self):
         """
@@ -563,8 +563,8 @@ class TestTriggerRuleDep(unittest.TestCase):
             )
         )
 
-        self.assertEqual(len(dep_statuses), 1)
-        self.assertFalse(dep_statuses[0].passed)
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
 
     def test_get_states_count_upstream_ti(self):
         """
@@ -610,16 +610,10 @@ class TestTriggerRuleDep(unittest.TestCase):
 
         # check handling with cases that tasks are triggered from backfill with no finished tasks
         finished_tasks = DepContext().ensure_finished_tasks(ti_op2.task.dag, ti_op2.execution_date, session)
-        self.assertEqual(
-            get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op2), (1, 0, 0, 0, 1)
-        )
+        assert get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op2) == (1, 0, 0, 0, 1)
         finished_tasks = dr.get_task_instances(state=State.finished, session=session)
-        self.assertEqual(
-            get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op4), (1, 0, 1, 0, 2)
-        )
-        self.assertEqual(
-            get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op5), (2, 0, 1, 0, 3)
-        )
+        assert get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op4) == (1, 0, 1, 0, 2)
+        assert get_states_count_upstream_ti(finished_tasks=finished_tasks, ti=ti_op5) == (2, 0, 1, 0, 3)
 
         dr.update_state()
-        self.assertEqual(State.SUCCESS, dr.state)
+        assert State.SUCCESS == dr.state

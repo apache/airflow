@@ -46,7 +46,7 @@ class TestPluginsCommand(unittest.TestCase):
         with redirect_stdout(io.StringIO()) as temp_stdout:
             plugins_command.dump_plugins(self.parser.parse_args(['plugins', '--output=json']))
             stdout = temp_stdout.getvalue()
-        self.assertIn('No plugins loaded', stdout)
+        assert 'No plugins loaded' in stdout
 
     @mock_plugin_manager(plugins=[TestPlugin])
     def test_should_display_one_plugins(self):
