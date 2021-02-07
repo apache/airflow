@@ -64,7 +64,9 @@
       description: |
         The SqlAlchemy connection string to the metadata database.
         SqlAlchemy supports many different database engine, more information
-        their website
+        their website. You will need a user and password provided in the database
+        connection string as follows: ``mysql://{user}:{password}@mysql/airflow?charset=utf8mb4``
+        or use `root` ``mysql://root:@mysql/airflow?charset=utf8mb4``.
       version_added: ~
       type: string
       sensitive: true
