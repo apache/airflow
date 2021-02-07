@@ -51,6 +51,10 @@ from airflow.settings import TIMEZONE
 from flask_login import current_user
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
+from airflow.utils.misc import profile
+from airflow.configuration import conf
+
+PROFILE_DIR = conf.get('core', 'PROFILE_DIR')
 
 _log = LoggingMixin().log
 
@@ -393,6 +397,7 @@ mm_min = {TORQUE: 'torque_min', ANGLE: 'angle_min'}
 # 根据传入的曲线entity_id获取spc数据
 @api_experimental.route('/spc', methods=['GET'])
 @requires_authentication
+@profile(os.path.join(PROFILE_DIR, 'spc.profile'))
 def get_spc_by_entity_id():
     spc = {'x-r': {"title": u"Xbar-R 控制图", "data": {TORQUE: {}, ANGLE: {}}},
            'x-s': {"title": u"Xbar-S 控制图", "data": {TORQUE: {}, ANGLE: {}}}}
