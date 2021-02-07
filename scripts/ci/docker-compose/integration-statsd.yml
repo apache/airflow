@@ -18,15 +18,17 @@
 version: "2.2"
 services:
   statsd-exporter:
-    image: prom/statsd-exporter
+    image: apache/airflow:airflow-statsd-exporter-2020.09.05-v0.17.0
     ports:
       - "9125:9125"
       - "9125:9125/udp"
       - "29102:9102"
+
   grafana:
     image: grafana/grafana
     ports:
       - "23000:3000"
+
   airflow:
     environment:
       - INTEGRATION_STATSD=true
