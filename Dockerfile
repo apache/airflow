@@ -49,6 +49,9 @@ ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 
 ARG AIRFLOW_PIP_VERSION=20.2.4
 
+# By default PIP has progress bar but you can disable it.
+ARG PIP_PROGRESS_BAR="on"
+
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
@@ -171,6 +174,10 @@ RUN if [[ -f /docker-context-files/.pypirc ]]; then \
 
 ARG AIRFLOW_PIP_VERSION
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
+
+# By default PIP has progress bar but you can disable it.
+ARG PIP_PROGRESS_BAR
+ENV PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR}
 
 # Install Airflow with "--user" flag, so that we can copy the whole .local folder to the final image
 # from the build image and always in non-editable mode
