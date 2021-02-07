@@ -17,7 +17,7 @@
 """Executes task in a Kubernetes POD"""
 import re
 import warnings
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
 
 import yaml
 from kubernetes.client import CoreV1Api, models as k8s
@@ -44,6 +44,9 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
+
+if TYPE_CHECKING:
+    import jinja2
 
 
 class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -228,8 +231,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.env_vars = convert_env_vars(env_vars) if env_vars else []
         if pod_runtime_info_envs:
             self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
-        env_vars = self.add_template_fields_to_env_vars(env_vars)
-        self.env_vars = env_vars
         self.env_from = env_from or []
         if configmaps:
             self.env_from.extend([convert_configmap(c) for c in configmaps])
@@ -273,20 +274,24 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.client: CoreV1Api = None
         self.pod: k8s.V1Pod = None
 
-    def add_template_fields_to_env_vars(self, env_vars):
-        """
-        Adds the field ``templated_fields`` to ``V1EnvVar`` so that Airflow can apply jinja templating
-        to both the name and value of an environment variable.
+    def _render_nested_template_fields(
+        self,
+        content: Any,
+        context: Dict,
+        jinja_env: "jinja2.Environment",
+        seen_oids: set,
+    ) -> None:
+        if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
+            seen_oids.add(id(content))
+            self._do_render_template_fields(content, ('value', 'name'), context, jinja_env, seen_oids)
+            return
 
-        @param env_vars: a list of k8s.V1EnvVar objects
-        @return: A list of k8s.V1EnvVar objects but with the "template_fields" member populated
-        """
-        env_vars = []
-        for env_var in self.env_vars:
-            if not hasattr(env_var, 'template_fields'):
-                env_var.template_fields = ('value', 'name')
-                env_vars.append(env_var)
-        return env_vars
+        super()._render_nested_template_fields(
+            content,
+            context,
+            jinja_env,
+            seen_oids
+        )
 
     @staticmethod
     def create_labels_for_pod(context) -> dict:
