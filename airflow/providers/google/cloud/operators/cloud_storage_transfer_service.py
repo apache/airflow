@@ -59,7 +59,7 @@ from airflow.utils.decorators import apply_defaults
 class TransferJobPreprocessor:
     """Helper class for preprocess of transfer job body."""
 
-    def __init__(self, body, aws_conn_id: str = 'aws_default', default_schedule: bool = False) -> None:
+    def __init__(self, body: dict, aws_conn_id: str = 'aws_default', default_schedule: bool = False) -> None:
         self.body = body
         self.aws_conn_id = aws_conn_id
         self.default_schedule = default_schedule
