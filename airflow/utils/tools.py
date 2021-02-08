@@ -39,7 +39,7 @@ class _LogTracer(object):
         if not isinstance(in_self, airflow.models.Base):
             return self.tracer
 
-        model = getattr(in_self, '_name', None)
+        model = getattr(in_self, '__tablename__', None)
 
         if self.whitelist and model not in self.whitelist:
             return self.tracer
