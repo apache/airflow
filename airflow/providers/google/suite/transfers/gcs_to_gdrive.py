@@ -168,4 +168,5 @@ class GCSToGoogleDriveOperator(BaseOperator):
             self.gdrive_hook.upload_file(local_location=filename, remote_location=destination_object)
 
         if self.move_object:
+            self.log.info("Executing delete of gs://%s/%s", self.source_bucket, source_object)
             self.gcs_hook.delete(self.source_bucket, source_object)

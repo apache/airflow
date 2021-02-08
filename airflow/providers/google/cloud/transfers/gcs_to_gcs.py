@@ -386,4 +386,5 @@ class GCSToGCSOperator(BaseOperator):
         hook.rewrite(self.source_bucket, source_object, self.destination_bucket, destination_object)
 
         if self.move_object:
+            self.log.info("Executing delete of gs://%s/%s", self.source_bucket, source_object)
             hook.delete(self.source_bucket, source_object)
