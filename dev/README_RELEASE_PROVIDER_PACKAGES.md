@@ -34,6 +34,10 @@
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
   - [Verify the release by PMC members](#verify-the-release-by-pmc-members)
   - [Verify by Contributors](#verify-by-contributors)
+- [Publish release](#publish-release)
+  - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
+  - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi-1)
+  - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -591,6 +595,218 @@ docker run  -ti \
 
 Once you install and run Airflow, you can perform any verification you see as necessary to check
 that the Airflow works as you expected.
+
+
+# Publish release
+
+## Summarize the voting for the Apache Airflow release
+
+Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
+
+Subject:
+
+```
+[RESULT][VOTE] Airflow  Providers - release of DATE OF RELEASE
+```
+
+Message:
+
+```
+Hello,
+
+Apache Airflow Providers (based on RC1) have been accepted.
+
+3 “+1” binding votes received:
+- Jarek Potiuk  (binding)
+- Kaxil Naik (binding)
+- Tomasz Urbaszek (binding)
+
+
+Vote thread:
+https://lists.apache.org/thread.html/736404ca3d2b2143b296d0910630b9bd0f8b56a0c54e3a05f4c8b5fe@%3Cdev.airflow.apache.org%3E
+
+I'll continue with the release process, and the release announcement will follow shortly.
+
+Cheers,
+<your name>
+```
+
+
+
+### Publish release to SVN
+
+The best way of doing this is to svn cp  between the two repos (this avoids having to upload the binaries
+again, and gives a clearer history in the svn commit logs.
+
+We also need to archive older releases before copying the new ones
+[Release policy](http://www.apache.org/legal/release-policy.html#when-to-archive)
+
+```shell script
+# Set AIRFLOW_REPO_ROOT to the path of your git repo
+export AIRFLOW_REPO_ROOT=$(pwd)
+
+# Go to the directory where you have checked out the dev svn release
+# And go to the sub-folder with RC candidates
+cd "<ROOT_OF_YOUR_DEV_REPO>/backport-providers/${VERSION_RC}"
+export SOURCE_DIR=$(pwd)
+
+# Go the folder where you have checked out the release repo
+# Clone it if it's not done yet
+svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
+
+# Update to latest version
+svn update
+
+# Create providers folder if it does not exist
+# All latest releases are kept in this one folder without version sub-folder
+mkdir -pv providers
+cd providers
+
+# Move the artifacts to svn folder & remove the rc postfix
+for file in ${SOURCE_DIR}/*
+do
+ base_file=$(basename ${file})
+ svn mv "${file}" "${base_file//rc[0-9][\.-]/.}"
+done
+
+
+# If some packages have been excluded, remove them now
+# Check the packages
+ls *<provider>*
+# Remove them
+svn rm *<provider>*
+
+# Check which old packages will be removed (you need python 3.6+)
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
+    --directory .
+
+# Remove those packages
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
+    --directory . --execute
+
+
+# Commit to SVN
+svn commit -m "Release Airflow Backport Providers ${VERSION} from ${VERSION_RC}"
+```
+
+Verify that the packages appear in
+[backport-providers](https://dist.apache.org/repos/dist/release/airflow/backport-providers)
+
+### Publish the final version convenience package to PyPI
+
+Checkout the RC Version:
+
+```shell script
+git checkout backport-providers-${VERSION_RC}
+```
+
+Tag and push the final version (providing that your apache remote is named 'apache'):
+
+```shell script
+git tag backport-providers-${VERSION}
+git push apache backport-providers-${VERSION}
+```
+
+In order to publish to PyPI you just need to build and release packages.
+
+* Generate the packages.
+
+```shell script
+./breeze --backports prepare-provider-packages both
+```
+
+if you ony build few packages, run:
+
+```shell script
+./breeze --backports prepare-provider-packages <PACKAGE> ...
+```
+
+In case you decided to remove some of the packages. remove them from dist folder now:
+
+```shell script
+ls dist/*<provider>*
+rm dist/*<provider>*
+```
+
+
+* Verify the artifacts that would be uploaded:
+
+```shell script
+twine check dist/*
+```
+
+* Upload the package to PyPi's test environment:
+
+```shell script
+twine upload -r pypitest dist/*
+```
+
+* Verify that the test packages look good by downloading it and installing them into a virtual environment.
+  Twine prints the package links as output - separately for each package.
+
+* Upload the package to PyPi's production environment:
+
+```shell script
+twine upload -r pypi dist/*
+```
+
+
+## Publish the Regular convenience package to PyPI
+
+* Generate the packages with final version. Note that
+  this will clean up dist folder before generating the packages, so you will only have the right packages there.
+
+```shell script
+rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
+./breeze prepare-provider-packages --package-format both
+```
+
+if you ony build few packages, run:
+
+```shell script
+./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+```
+
+* Verify the artifacts that would be uploaded:
+
+```shell script
+twine check ${AIRFLOW_REPO_ROOT}/dist/*
+```
+
+* Upload the package to PyPi's test environment:
+
+```shell script
+twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*
+```
+
+* Verify that the test packages look good by downloading it and installing them into a virtual environment.
+  Twine prints the package links as output - separately for each package.
+
+* Upload the package to PyPi's production environment:
+
+```shell script
+twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
+```
+
+* Again, confirm that the packages are available under the links printed.
+
+
+## Add tags in git
+
+Assume that your remote for apache repository is called `apache` you should now
+set tags for the providers in the repo.
+
+```shell script
+for file in ${AIRFLOW_REPO_ROOT}/dist/*.whl
+do
+   if [[ ${file} =~ .*airflow_providers_(.*)-(.*)-py3.* ]]; then
+        provider="providers-${BASH_REMATCH[1]}"
+        tag="${provider//_/-}/${BASH_REMATCH[2]}"
+        git tag "${tag}"
+        git push apache "${tag}"
+   fi
+done
+```
 
 
 ## Notify developers of release
