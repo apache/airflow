@@ -35,31 +35,20 @@
 import unittest
 from unittest import mock
 
-from airflow.models.dag import DAG
 from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
 from airflow.providers.google.leveldb.operators.leveldb import LevelDBOperator
-from airflow.utils import timezone
-
-DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-TEST_TASK_ID = 'test_leveldb_dag_id'
-TEST_CONTEXT_ID = "test_context_id"
 
 
 class TestLevelDBOperator(unittest.TestCase):
-    def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        self.dag = DAG(TEST_TASK_ID, default_args=args)
-
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
-    @mock.patch.object(LevelDBHook, 'run_cli')
-    def test_execute(self, mock_run_cli):
+    @mock.patch.object(LevelDBHook, 'run')
+    def test_execute(self, mock_run):
         operator = LevelDBOperator(
             task_id='test_task',
-            dag=self.dag,
             leveldb_conn_id='leveldb_default',
             command='put',
             key=b'key',
             value=b'value',
         )
-        operator.execute(context=TEST_CONTEXT_ID)
-        mock_run_cli.assert_called_once_with(command='put', value=b'value', key=b'key')
+        operator.execute(context='TEST_CONTEXT_ID')
+        mock_run.assert_called_once_with(command='put', value=b'value', key=b'key', values=None, keys=None)

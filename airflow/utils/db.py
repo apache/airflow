@@ -328,6 +328,14 @@ def create_default_connections(session=None):
         ),
         session,
     )
+    merge_conn(
+        Connection(
+            conn_id="leveldb_default",
+            conn_type="leveldb",
+            host="localhost",
+        ),
+        session,
+    )
     merge_conn(Connection(conn_id="livy_default", conn_type="livy", host="livy", port=8998), session)
     merge_conn(
         Connection(
