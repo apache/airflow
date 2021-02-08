@@ -240,6 +240,7 @@ class CeleryExecutor(BaseExecutor):
 
             send_pool.close()
             send_pool.join()
+
             self.log.debug('Sent all tasks.')
 
             for key, command, result in key_and_async_results:
