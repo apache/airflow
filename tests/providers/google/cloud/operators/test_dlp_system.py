@@ -36,7 +36,6 @@ def helper():
     GoogleSystemTest.delete_gcs_bucket(OUTPUT_BUCKET)
 
 
-@pytest.mark.system("google.cloud")
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.usefixtures("helper")
 @pytest.mark.credential_file(GCP_DLP_KEY)
