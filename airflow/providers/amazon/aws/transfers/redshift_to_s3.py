@@ -109,7 +109,7 @@ class RedshiftToS3Operator(BaseOperator):
         elif self.schema and self.table:
             self._select_query = f"SELECT * FROM {self.schema}.{self.table}"
         else:
-            raise ValueError('Please provide both `schema` and `table` params to fetch the data.')
+            raise ValueError('Please provide both `schema` and `table` params or `select_query` to fetch the data.')
 
         if self.include_header and 'HEADER' not in [uo.upper().strip() for uo in self.unload_options]:
             self.unload_options = list(self.unload_options) + [
