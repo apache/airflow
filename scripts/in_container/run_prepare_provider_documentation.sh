@@ -100,7 +100,6 @@ install_supported_pip_version
 # install extra packages missing in devel_ci
 # TODO: remove it when devel_all == devel_ci
 install_remaining_dependencies
-reinstall_azure_storage_blob
 
 if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
     import_all_provider_classes

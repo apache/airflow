@@ -98,9 +98,9 @@ elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
     uninstall_providers
 else
     echo
-    echo "Install airflow from PyPI including [${AIRFLOW_EXTRAS}] extras"
+    echo "Install airflow from PyPI without extras"
     echo
-    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
+    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
     echo

@@ -219,6 +219,8 @@ azure = [
     'azure-mgmt-containerinstance>=1.5.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
+    'azure-storage-blob>=12.7.0',
+    'azure-storage-common>=2.1.0',
     'azure-storage-file>=2.1.0',
 ]
 cassandra = [
@@ -423,19 +425,9 @@ slack = [
     'slack_sdk>=3.0.0,<4.0.0',
 ]
 snowflake = [
-    # The `azure` provider uses legacy `azure-storage` library, where `snowflake` uses the
-    # newer and more stable versions of those libraries. Most of `azure` operators and hooks work
-    # fine together with `snowflake` because the deprecated library does not overlap with the
-    # new libraries except the `blob` classes. So while `azure` works fine for most cases
-    # blob is the only exception
-    # Solution to that is being worked on in https://github.com/apache/airflow/pull/12188
-    # once it is merged, we can move those two back to `azure` extra.
-    'azure-core>=1.10.0',
-    'azure-storage-blob',
-    'azure-storage-common',
-    # Snowflake conector > 2.3.8 is needed because it has vendored urrllib3 and requests libraries which
-    # are monkey-patched. In earlier versions of the library, monkeypatching the libraries by snowflake
-    # caused other providers to fail (Google, Amazon etc.)
+    # Snowflake connector > 2.3.8 is needed because it has vendored-in, patched urllib and requests libraries
+    # In earlier versions of the snowflake library, monkey-patching the libraries caused other
+    # providers to fail (Google, Amazon etc.)
     'snowflake-connector-python>=2.3.8',
     'snowflake-sqlalchemy>=1.1.0',
 ]

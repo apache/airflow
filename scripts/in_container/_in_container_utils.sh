@@ -275,7 +275,7 @@ function install_airflow_from_wheel() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${1}"
+    pip install "${airflow_package}${extras}"
 }
 
 function install_airflow_from_sdist() {
@@ -292,20 +292,7 @@ function install_airflow_from_sdist() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${1}"
-}
-
-function reinstall_azure_storage_blob() {
-    group_start "Reinstalls azure-storage-blob (temporary workaround)"
-    # Reinstall azure-storage-blob here until https://github.com/apache/airflow/pull/12188 is solved
-    # Azure-storage-blob need to be reinstalled to overwrite azure-storage-blob installed by old version
-    # of the `azure-storage` library
-    echo
-    echo "Reinstalling azure-storage-blob"
-    echo
-    pip uninstall azure-storage azure-storage-blob azure-storage-file --yes
-    pip install azure-storage-blob azure-storage-file --no-deps --force-reinstall
-    group_end
+    pip install "${airflow_package}${extras}"
 }
 
 function install_remaining_dependencies() {
@@ -338,13 +325,12 @@ function uninstall_airflow_and_providers() {
 
 function install_released_airflow_version() {
     local version="${1}"
-    local extras="${2}"
     echo
-    echo "Installing released ${version} version of airflow with extras ${extras}"
+    echo "Installing released ${version} version of airflow without extras"
     echo
 
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow${extras}==${version}"
+    pip install --upgrade "apache-airflow==${version}"
 }
 
 function install_local_airflow_with_eager_upgrade() {
