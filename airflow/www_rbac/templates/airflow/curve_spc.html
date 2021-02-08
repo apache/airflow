@@ -242,11 +242,13 @@
         nameGap: 60,
         min: function (value) {
           const min = Math.floor(Math.min(value.min, RSData.lower));
-          return min - 1;
+          const max = Math.ceil(Math.max(value.max, RSData.upper));
+          return min - (max - min) / 10;
         },
         max: function (value) {
           const max = Math.ceil(Math.max(value.max, RSData.upper));
-          return max + 1;
+          const min = Math.floor(Math.min(value.min, RSData.lower));
+          return max + (max - min) / 10;
         },
         axisLabel: {
           fontSize: 16
