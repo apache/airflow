@@ -71,12 +71,22 @@ def register_arguments(subparser):
         help="List the upgrade checks and their class names",
         action="store_true",
     )
+    subparser.add_argument(
+        "-V", "--version",
+        help="Show the version of upgrade_check",
+        action="store_true",
+    )
     subparser.set_defaults(func=run)
 
 
 def run(args):
     from airflow.upgrade.formatters import ConsoleFormatter, JSONFormatter
     from airflow.upgrade.config import UpgradeConfig
+
+    if args.version:
+        from airflow.upgrade.version import version
+        print(version)
+        return
 
     if args.list:
         list_checks()
