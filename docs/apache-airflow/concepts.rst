@@ -464,7 +464,7 @@ Airflow provides many built-in operators for many common tasks, including:
 
 There are also other, commonly used operators that are installed together with airflow automatically,
 by pre-installing some :doc:`apache-airflow-providers:index` packages (they are always available no
-matter which extras you chose when installing Apache Airflow:
+matter which extras you chose when installing Apache Airflow):
 
 - :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
 - :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator` - SQLite DB operator
@@ -484,7 +484,7 @@ Some examples of popular operators are:
 - :class:`~airflow.providers.docker.operators.docker.DockerOperator`
 - :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`
 - :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`
-- :class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`,
+- :class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`
 - :class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`
 
 But there are many, many more - you can see the list of those by following the providers documentation
