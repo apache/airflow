@@ -147,7 +147,7 @@ def clear_task_instances(
     :param dag: DAG object
     """
     job_ids = []
-    tr_filter = []
+    task_id_by_key = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
     for ti in tis:
         if ti.state == State.RUNNING:
             if ti.job_id:
@@ -169,9 +169,9 @@ def clear_task_instances(
             ti.state = State.NONE
             session.merge(ti)
 
-        tr_filter.append((ti.dag_id, ti.task_id, ti.execution_date, ti.try_number))
+        task_id_by_key[ti.dag_id][ti.execution_date][ti.try_number].add(ti.task_id)
 
-    if tr_filter:
+    if task_id_by_key:
         # Clear all reschedules related to the ti to clear
 
         # This is an optimization for the common case where all tis are for a small number
@@ -179,10 +179,6 @@ def clear_task_instances(
         # execution_date, try_number and task_id to construct the where clause in a
         # hierarchical manner. This speeds up the delete statement by more than 40x for
         # large number of tis (50k+).
-        task_id_by_key = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
-        for dag_id, task_id, execution_date, try_number in tr_filter:
-            task_id_by_key[dag_id][execution_date][try_number].add(task_id)
-
         conditions = or_(
             and_(
                 TR.dag_id == dag_id,
