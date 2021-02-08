@@ -35,7 +35,7 @@ from airflow.contrib.kubernetes.pod import (
     _extract_ports, _extract_security_context
 )
 from airflow.kubernetes.kube_client import get_kube_client
-from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
+from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
