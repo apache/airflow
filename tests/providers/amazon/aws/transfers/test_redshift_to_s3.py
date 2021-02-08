@@ -36,7 +36,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
     )
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
-    def test_execute(
+    def test_table_unloading(
         self,
         table_as_file_name,
         expected_s3_key,
@@ -70,6 +70,67 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         unload_options = '\n\t\t\t'.join(unload_options)
         select_query = f"SELECT * FROM {schema}.{table}"
+        unload_query = """
+                    UNLOAD ('{select_query}')
+                    TO 's3://{s3_bucket}/{s3_key}'
+                    with credentials
+                    'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
+                    {unload_options};
+                    """.format(
+            select_query=select_query,
+            s3_bucket=s3_bucket,
+            s3_key=expected_s3_key,
+            access_key=access_key,
+            secret_key=secret_key,
+            unload_options=unload_options,
+        )
+
+        assert mock_run.call_count == 1
+        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+
+    @parameterized.expand(
+        [
+            ["table", True, "key/table_"],
+            ["table", False, "key"],
+            [None, False, "key"],
+            [None, True, "key"],
+        ]
+    )
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
+    def test_custom_select_query_unloading(
+        self,
+        table,
+        table_as_file_name,
+        expected_s3_key,
+        mock_run,
+        mock_session,
+    ):
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        s3_bucket = "bucket"
+        s3_key = "key"
+        unload_options = [
+            'HEADER',
+        ]
+        select_query = "select column from table"
+
+        RedshiftToS3Operator(
+            select_query=select_query,
+            table=table,
+            table_as_file_name=table_as_file_name,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            unload_options=unload_options,
+            include_header=True,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            dag=None,
+        ).execute(None)
+
+        unload_options = '\n\t\t\t'.join(unload_options)
         unload_query = """
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'
