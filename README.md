@@ -39,17 +39,25 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Requirements](#requirements)
-- [Getting started](#getting-started)
-- [Beyond the Horizon](#beyond-the-horizon)
-- [Principles](#principles)
-- [User Interface](#user-interface)
-- [Using hooks and Operators from "master" in Airflow 1.10](#using-hooks-and-operators-from-master-in-airflow-110)
-- [Contributing](#contributing)
-- [Who uses Airflow?](#who-uses-airflow)
-- [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
-- [Can I use the Apache Airflow logo in my presentation?](#can-i-use-the-apache-airflow-logo-in-my-presentation)
-- [Links](#links)
+- [Apache Airflow](#apache-airflow)
+  - [环境搭建](#环境搭建)
+  - [admin用户创建](#admin用户创建)
+  - [运行](#运行)
+  - [i18n](#i18n)
+  - [打包airflow](#打包airflow)
+  - [Requirements](#requirements)
+    - [Master version (2.0.0dev)](#master-version-200dev)
+    - [Stable version (1.10.9)](#stable-version-1109)
+  - [Getting started](#getting-started)
+  - [Beyond the Horizon](#beyond-the-horizon)
+  - [Principles](#principles)
+  - [User Interface](#user-interface)
+  - [Using hooks and Operators from "master" in Airflow 1.10](#using-hooks-and-operators-from-master-in-airflow-110)
+  - [Contributing](#contributing)
+  - [Who uses Airflow?](#who-uses-airflow)
+  - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
+  - [Can I use the Apache Airflow logo in my presentation?](#can-i-use-the-apache-airflow-logo-in-my-presentation)
+  - [Links](#links)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -58,9 +66,10 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 1. `git clone https://github.com/masami10/airflow.git`
 1. `cd airflow`
 1. 创建python3.7虚拟环境
-1. `sudo apt-get install $(grep -vE "^\s*#" apt-requirements.txt  | tr "\n" " ")`
-1. 安装依赖：`pip install -r ./requirements.txt`
-1. 初始化数据库：`python ./airflow/bin/airflow init db`
+2. `python -m pip install --upgrade pip==20.2.4`
+3. `sudo apt-get install $(grep -vE "^\s*#" apt-requirements.txt  | tr "\n" " ")`
+4. 安装依赖：`pip install -r ./requirements.txt`
+5. 初始化数据库：`python ./airflow/bin/airflow init db`
 
 ## admin用户创建
 `airflow create_user -r Admin -u admin -f admin -l admin -p admin -e admin`
