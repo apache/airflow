@@ -69,11 +69,16 @@ def register_arguments(subparser):
         help="List the upgrade checks and their class names",
         action="store_true",
     )
+    subparser.set_defaults(func=run)
 
 
 def run(args):
     from airflow.upgrade.formatters import ConsoleFormatter, JSONFormatter
     from airflow.upgrade.config import UpgradeConfig
+
+    if args.list:
+        list_checks()
+        return
 
     if args.save:
         filename = args.save
