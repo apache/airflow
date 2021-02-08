@@ -225,7 +225,7 @@
         // show a tick every 5 instances
         .ticks(Math.floor(num_square / 5) || 1)
         .tickFormat((d, i) => {
-          if (!num_square || (d !== 1 && num_square < 3)) {
+          if (!num_square || (d > 0 && num_square < 3)) {
             // don't render ticks when there are no instances or when the ticks would overlap
             return '';
           }
