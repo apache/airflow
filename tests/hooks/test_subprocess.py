@@ -22,10 +22,8 @@ from subprocess import PIPE, STDOUT
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-import pytest
 from parameterized import parameterized
 
-from airflow.exceptions import AirflowException
 from airflow.hooks.subprocess import SubprocessHook
 
 OS_ENV_KEY = 'SUBPROCESS_ENV_TEST'
@@ -73,15 +71,8 @@ class TestSubprocessHook(unittest.TestCase):
     )
     def test_return_value(self, val, expected):
         hook = SubprocessHook()
-        return_value = hook.run_command(command=['bash', '-c', f'echo "{val}"'])
-        assert return_value == expected
-
-    def test_raise_exception_on_non_zero_exit_code(self):
-        hook = SubprocessHook()
-        with pytest.raises(
-            AirflowException, match="Process failed\\. The command returned a non-zero exit code\\."
-        ):
-            hook.run_command(command=['bash', '-c', 'exit 42'])
+        result = hook.run_command(command=['bash', '-c', f'echo "{val}"'])
+        assert result.output == expected
 
     @mock.patch.dict('os.environ', clear=True)
     @mock.patch(

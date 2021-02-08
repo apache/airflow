@@ -17,15 +17,16 @@
 
 import os
 import signal
+from collections import namedtuple
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
 from typing import Dict, List, Optional
 
-from airflow import AirflowException
-from airflow.exceptions import AirflowSkipException
 from airflow.hooks.base import BaseHook
 
 EXIT_CODE_SKIP = 127
+
+SubprocessResult = namedtuple('SubprocessResult', ['exit_code', 'output'])
 
 
 class SubprocessHook(BaseHook):
@@ -81,12 +82,7 @@ class SubprocessHook(BaseHook):
 
             self.log.info('Command exited with return code %s', self.sub_process.returncode)
 
-            if self.sub_process.returncode == EXIT_CODE_SKIP:
-                raise AirflowSkipException(f"Process returned exit code {EXIT_CODE_SKIP}. Skipping...")
-            elif self.sub_process.returncode != 0:
-                raise AirflowException('Process failed. The command returned a non-zero exit code...')
-
-        return line
+        return SubprocessResult(exit_code=self.sub_process.returncode, output=line)
 
     def send_sigterm(self):
         """Sends SIGTERM signal to ``self.sub_process`` if one exists."""

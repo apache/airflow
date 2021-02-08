@@ -22,6 +22,7 @@ from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pytest
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DagRun
@@ -86,16 +87,23 @@ class TestBashOperator(unittest.TestCase):
                 assert DEFAULT_DATE.isoformat() in output
                 assert DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE) in output
 
-    def test_return_value(self):
-        bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_return_value', dag=None)
-        return_value = bash_operator.execute(context={})
-
-        assert return_value == 'stdout'
+    @parameterized.expand(
+        [
+            ('test-val', 'test-val'),
+            ('test-val\ntest-val\n', ''),
+            ('test-val\ntest-val', 'test-val'),
+            ('', ''),
+        ]
+    )
+    def test_return_value(self, val, expected):
+        op = BashOperator(task_id='abc', bash_command=f'set -e; echo "{val}";')
+        line = op.execute({})
+        assert line == expected
 
     def test_raise_exception_on_non_zero_exit_code(self):
         bash_operator = BashOperator(bash_command='exit 42', task_id='test_return_value', dag=None)
         with pytest.raises(
-            AirflowException, match="Process failed\\. The command returned a non-zero exit code\\."
+            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
         ):
             bash_operator.execute(context={})
 

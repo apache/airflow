@@ -20,8 +20,8 @@ from typing import Dict, Optional
 
 from cached_property import cached_property
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.subprocess import SubprocessHook
+from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.hooks.subprocess import EXIT_CODE_SKIP, SubprocessHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -162,11 +162,16 @@ class BashOperator(BaseOperator):
 
     def execute(self, context):
         env = self.get_env(context)
-        return self.subprocess_hook.run_command(
+        result = self.subprocess_hook.run_command(
             command=['bash', '-c', self.bash_command],
             env=env,
             output_encoding=self.output_encoding,
         )
+        if result.exit_code == EXIT_CODE_SKIP:
+            raise AirflowSkipException(f"Bash command returned exit code {EXIT_CODE_SKIP}. Skipping.")
+        elif result.exit_code != 0:
+            raise AirflowException('Bash command failed. The command returned a non-zero exit code.')
+        return result.output
 
     def on_kill(self) -> None:
         self.subprocess_hook.send_sigterm()
