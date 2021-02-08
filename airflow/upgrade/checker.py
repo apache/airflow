@@ -19,6 +19,7 @@ from __future__ import absolute_import
 import argparse
 import logging
 import sys
+from tabulate import tabulate
 from typing import List
 
 from airflow.upgrade.formatters import BaseFormatter
@@ -43,10 +44,11 @@ def check_upgrade(formatter, rules):
 
 def list_checks():
     print()
-    print("Upgrade Checks:")
-    for rule in ALL_RULES:
-        rule_name = rule.__class__.__name__
-        print("- {}: {}".format(rule_name, rule.title))
+    rules = (
+        (rule.__class__.__name__, rule.title)
+        for rule in ALL_RULES
+    )
+    print(tabulate(rules, headers=["Rule Name", "Description"]))
     print()
 
 
