@@ -49,11 +49,12 @@ For example:
 ```
 ============================================= STATUS =============================================
 
+Check for latest versions of apache-airflow and checker.................................SUCCESS
 Legacy UI is deprecated by default......................................................SUCCESS
 Users must set a kubernetes.pod_template_file value.....................................FAIL
 Changes in import paths of hooks, operators, sensors and others.........................FAIL
 Remove airflow.AirflowMacroPlugin class.................................................SUCCESS
-Jinja Template Variables cannot be undefined............................................SUCCESS
+Check versions of PostgreSQL, MySQL, and SQLite to ease upgrade to Airflow 2.0..........SUCCESS
 Fernet is enabled by default............................................................FAIL
 Logging configuration has been moved to new section.....................................SUCCESS
 Connection.conn_id is not unique........................................................SUCCESS
@@ -103,3 +104,18 @@ custom_rules:
   - path.to.upgrade_module.VeryCustomCheckClass
   - path.to.upgrade_module.VeryCustomCheckClass2
 ```
+
+## Changelog
+
+### 1.2.0
+
+- Add upgrade check option to list checks (#13392)
+- Add clearer exception for read failures in macro plugin upgrade (#13371)
+- Treat default value in ``HostnameCallable`` rule as good one (#13670)
+- Created ``CustomExecutorsRequireFullPathRule`` class (#13678)
+- Remove ``UndefinedJinjaVariableRule``
+- Created rule for ``SparkJDBCOperator`` class ``conn_id`` (#13798)
+- Created ``DatabaseVersionCheckRule`` class (#13955)
+- Add Version command for Upgrade Check (#12929)
+- Use Tabular Format for the List of Upgrade Check Rules (#14139)
+- Fix broken ``airflow upgrade_check`` command (#14137)
