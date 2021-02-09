@@ -239,6 +239,7 @@ Mapreduce
 Masternode
 Maxime
 Memorystore
+Mariadb
 Mesos
 MessageAttributes
 Metastore
@@ -602,6 +603,7 @@ customDataImportUids
 customizable
 customizations
 cx
+daemonize
 dagbag
 dagbags
 dagmodel
@@ -980,6 +982,7 @@ mv
 mypy
 mysql
 mysqlclient
+mysqldb
 mytaxi
 namenode
 namespace
