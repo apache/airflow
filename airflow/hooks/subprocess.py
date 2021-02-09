@@ -38,7 +38,7 @@ class SubprocessHook(BaseHook):
 
     def run_command(
         self, command: List[str], env: Optional[Dict[str, str]] = None, output_encoding: str = 'utf-8'
-    ):
+    ) -> SubprocessResult:
         """
         Execute the command in a temporary directory which will be cleaned afterwards
 
@@ -48,7 +48,7 @@ class SubprocessHook(BaseHook):
         :param env: Optional dict containing environment variables to be made available to the shell
             environment in which ``command`` will be executed.  If omitted, ``os.environ`` will be used.
         :param output_encoding: encoding to use for decoding stdout
-        :return: last line of output (on stderr or stdout)
+        :return: namedtuple containing ``exit_code`` and ``output``, the last line from stderr or stdout
         """
         self.log.info('Tmp dir root location: \n %s', gettempdir())
 
