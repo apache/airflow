@@ -53,9 +53,9 @@ def _get_backend() -> Optional[LineageBackend]:
 
     try:
         _backend_str = conf.get("lineage", "backend")
-        _backend = import_string(_backend_str)  # pylint:disable=protected-access
+        _backend = import_string(_backend_str)  # pylint: disable=protected-access
     except ImportError as err:
-        log.debug("Cannot import %s due to %s", _backend_str, err)  # pylint:disable=protected-access
+        log.debug("Cannot import %s due to %s", _backend_str, err)  # pylint: disable=protected-access
     except AirflowConfigException:
         log.debug("Could not find lineage backend key in config")
 
@@ -99,7 +99,6 @@ def apply_lineage(func: T) -> T:
     Saves the lineage to XCom and if configured to do so sends it
     to the backend.
     """
-
     _backend = _get_backend()
 
     @wraps(func)
