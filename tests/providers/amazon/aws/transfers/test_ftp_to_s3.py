@@ -42,5 +42,6 @@ class TestFTPToS3Operator(unittest.TestCase):
         )
 
         mock_s3_hook_load_file.assert_called_once_with(
-            filename=mock_local_tmp_file_value.name, key=operator.s3_key, bucket_name=operator.s3_bucket
+            filename=mock_local_tmp_file_value.name, key=operator.s3_key, bucket_name=operator.s3_bucket,
+            acl_policy=None, encrypt=False, gzip=False, replace=False
         )
