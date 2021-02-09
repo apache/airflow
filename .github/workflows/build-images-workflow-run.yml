@@ -48,7 +48,7 @@ jobs:
   cancel-workflow-runs:
     timeout-minutes: 10
     name: "Cancel workflow runs"
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted]
     outputs:
       sourceHeadRepo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
       sourceHeadBranch: ${{ steps.source-run-info.outputs.sourceHeadBranch }}
@@ -61,6 +61,7 @@ jobs:
       sourceEvent: ${{ steps.source-run-info.outputs.sourceEvent }}
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
       buildImages: ${{ steps.build-images.outputs.buildImages }}
+      runsOn: "[self-hosted]"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -191,7 +192,7 @@ jobs:
       Source Sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
       Merge commit Sha: ${{ needs.cancel-workflow-runs.outputs.mergeCommitSha }}
       Target commit Sha: ${{ needs.cancel-workflow-runs.outputs.targetCommitSha }}
-    runs-on: ubuntu-20.04
+    runs-on: ${{ fromJson(needs.cancel-workflow-runs.outputs.runsOn) }}
     needs: [cancel-workflow-runs]
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
@@ -255,7 +256,7 @@ jobs:
   build-ci-images:
     timeout-minutes: 80
     name: "Build CI images ${{matrix.python-version}}"
-    runs-on: ubuntu-20.04
+    runs-on: ${{ fromJson(needs.cancel-workflow-runs.outputs.runsOn) }}
     needs: [build-info, cancel-workflow-runs]
     strategy:
       matrix:
@@ -354,7 +355,9 @@ jobs:
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-        if: steps.defaults.outputs.proceed == 'true'
+        if: |
+          !contains(needs.build-info.outputs.runsOn, 'self-hosted') &&
+          steps.defaults.outputs.proceed == 'true'
       - name: "Build CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
         if: steps.defaults.outputs.proceed == 'true'
@@ -380,7 +383,7 @@ jobs:
   build-prod-images:
     timeout-minutes: 80
     name: "Build PROD images ${{matrix.python-version}}"
-    runs-on: ubuntu-20.04
+    runs-on: ${{ fromJson(needs.cancel-workflow-runs.outputs.runsOn) }}
     needs: [build-info, cancel-workflow-runs, build-ci-images]
     strategy:
       matrix:
@@ -478,7 +481,9 @@ jobs:
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-        if: steps.defaults.outputs.proceed == 'true'
+        if: |
+          !contains(needs.build-info.outputs.runsOn, 'self-hosted') &&
+          steps.defaults.outputs.proceed == 'true'
       - name: "Build CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
         # Pull images built in the previous step
@@ -509,9 +514,9 @@ jobs:
 
   cancel-on-build-cancel:
     name: "Cancel 'CI Build' jobs on build image cancelling."
-    runs-on: ubuntu-20.04
+    runs-on: ${{ fromJson(needs.cancel-workflow-runs.outputs.runsOn) }}
     if: cancelled()
-    needs: [build-ci-images, build-prod-images]
+    needs: [cancel-workflow-runs, build-ci-images, build-prod-images]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -529,9 +534,9 @@ jobs:
 
   cancel-on-build-failure:
     name: "Cancel 'CI Build' jobs on build image failing."
-    runs-on: ubuntu-20.04
+    runs-on: ${{ fromJson(needs.cancel-workflow-runs.outputs.runsOn) }}
     if: failure()
-    needs: [build-ci-images, build-prod-images]
+    needs: [cancel-workflow-runs, build-ci-images, build-prod-images]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2

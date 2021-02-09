@@ -34,7 +34,7 @@ function build_airflow_packages::build_airflow_packages() {
     fi
 
     # Prepare airflow's wheel
-    python setup.py compile_assets "${packages[@]}"
+    PYTHONUNBUFFERED=1 python setup.py compile_assets "${packages[@]}"
 
     # clean-up
     rm -rf -- *egg-info*

@@ -709,6 +709,10 @@ function initialization::get_environment_for_builds_on_ci() {
     if [[ ${VERBOSE} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
         initialization::summarize_build_environment
     fi
+
+    if [[ -z "${LIBRARY_PATH:-}" && -n "${LD_LIBRARY_PATH:-}" ]]; then
+      export LIBRARY_PATH="$LD_LIBRARY_PATH"
+    fi
 }
 
 # shellcheck disable=SC2034
