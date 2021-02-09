@@ -18,13 +18,12 @@
 import unittest
 from unittest import mock
 
-from airflow.lineage import AUTO
+from airflow.lineage import AUTO, apply_lineage, prepare_lineage
+from airflow.lineage.backend import LineageBackend
 from airflow.lineage.entities import File
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
-from airflow.lineage.backend import LineageBackend
-from airflow.lineage import apply_lineage, prepare_lineage
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -118,7 +117,6 @@ class TestLineage(unittest.TestCase):
     @mock.patch("airflow.lineage._get_backend")
     def test_lineage_is_sent_to_backend(self, _get_backend):
         class TestBackend(LineageBackend):
-
             def send_lineage(self, operator=None, inlets=None, outlets=None, context=None):
                 assert len(inlets) == 1
                 assert len(outlets) == 1

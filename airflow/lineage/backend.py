@@ -22,8 +22,8 @@ class LineageBackend:
     """
     Sends lineage metadata to a backend
     """
-    def send_lineage(self,
-                     operator=None, inlets=None, outlets=None, context=None):
+
+    def send_lineage(self, operator=None, inlets=None, outlets=None, context=None):
         """
         Sends lineage metadata to a backend
         :param operator: the operator executing a transformation on the inlets and outlets

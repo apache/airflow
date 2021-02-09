@@ -24,10 +24,11 @@ from typing import Any, Callable, Dict, Optional, TypeVar, cast
 import attr
 import jinja2
 from cattr import structure, unstructure
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.module_loading import import_string
 from airflow.lineage.backend import LineageBackend
+from airflow.utils.module_loading import import_string
 
 ENV = jinja2.Environment()
 
