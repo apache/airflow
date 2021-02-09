@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Master](#master)
+- [Airflow 2.0.1](#airflow-201)
 - [Airflow 2.0.0](#airflow-200)
 - [Airflow 1.10.14](#airflow-11014)
 - [Airflow 1.10.13](#airflow-11013)
@@ -67,6 +68,9 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+
+## Airflow 2.0.1
 
 ### Permission to view Airflow Configurations has been removed from `User` and `Viewer` role
 
