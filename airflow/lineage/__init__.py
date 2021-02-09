@@ -24,8 +24,10 @@ from typing import Any, Callable, Dict, Optional, TypeVar, cast
 import attr
 import jinja2
 from cattr import structure, unstructure
-
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.utils.module_loading import import_string
+from airflow.lineage.backend import LineageBackend
 
 ENV = jinja2.Environment()
 
@@ -43,6 +45,20 @@ class Metadata:
     type_name: str = attr.ib()
     source: str = attr.ib()
     data: Dict = attr.ib()
+
+
+def _get_backend() -> Optional[LineageBackend]:
+    _backend: Optional[LineageBackend] = None
+
+    try:
+        _backend_str = conf.get("lineage", "backend")
+        _backend = import_string(_backend_str)  # pylint:disable=protected-access
+    except ImportError as err:
+        log.debug("Cannot import %s due to %s", _backend_str, err)  # pylint:disable=protected-access
+    except AirflowConfigException:
+        log.debug("Could not find lineage backend key in config")
+
+    return _backend
 
 
 def _get_instance(meta: Metadata):
@@ -83,6 +99,8 @@ def apply_lineage(func: T) -> T:
     to the backend.
     """
 
+    _backend = _get_backend()
+
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
         self.log.debug("Lineage called with inlets: %s, outlets: %s", self.inlets, self.outlets)
@@ -100,6 +118,9 @@ def apply_lineage(func: T) -> T:
             self.xcom_push(
                 context, key=PIPELINE_INLETS, value=inlets, execution_date=context['ti'].execution_date
             )
+
+        if _backend:
+            _backend.send_lineage(operator=self, inlets=self.inlets, outlets=self.outlets, context=context)
 
         return ret_val
 
