@@ -909,6 +909,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         logging.info("Retrieving rendered templates.")
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag = self._add_user_permissions_to_dag(dag)
 
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
@@ -966,6 +967,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root', '')
         logging.info("Retrieving rendered templates.")
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag = self._add_user_permissions_to_dag(dag)
         task = dag.get_task(task_id)
         ti = models.TaskInstance(task=task, execution_date=dttm)
 
@@ -1102,7 +1104,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         execution_date = request.args.get('execution_date')
         dttm = timezone.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        dag_model = DagModel.get_dagmodel(dag_id)
+        dag = DagModel.get_dagmodel(dag_id)
+        dag = self._add_user_permissions_to_dag(dag)
 
         ti = (
             session.query(models.TaskInstance)
@@ -1125,7 +1128,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         return self.render_template(
             'airflow/ti_log.html',
             logs=logs,
-            dag=dag_model,
+            dag=dag,
             title="Log by attempts",
             dag_id=dag_id,
             task_id=task_id,
@@ -1195,6 +1198,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag = self._add_user_permissions_to_dag(dag)
 
         if not dag or task_id not in dag.task_ids:
             flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
@@ -1287,6 +1291,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dm_db = models.DagModel
         ti_db = models.TaskInstance
         dag = session.query(dm_db).filter(dm_db.dag_id == dag_id).first()
+        dag = self._add_user_permissions_to_dag(dag)
+
         ti = session.query(ti_db).filter(ti_db.dag_id == dag_id and ti_db.task_id == task_id).first()
 
         if not ti:
