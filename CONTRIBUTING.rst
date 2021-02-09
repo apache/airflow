@@ -39,24 +39,26 @@ You can contribute to Airflow in various ways such as:
 - reporting bug
 - suggesting new features and Road Map items
 - submitting Pull Requests (PRs) for bug fixes and new features.
-- attending Airflow meets-up events near you:
+- speaking at Airflow meets-up events near you:
 
   - search for Airflow `Meetup <https://www.meetup.com/>`_
 
-- helping to answer questions on gitter, the dev email list, PRs, and Jiras.
+- helping to answer questions on Slack, engage in discussions on GitHub, reviewing GitHub issues and PRs.
 
 
-Best Ways of Engaging Yourself in the Community
+Best Ways of Engaging in the Community
 -----------------------------------------------
 
 There are several ways for members to connect meaningfully in the community.
 These include:
 
-- Sending an email to: `<dev@airflow.incubator.apache.org>`_
+- Subscribe to: `<dev@airflow.incubator.apache.org>`_
 
-  - This is the best way to get a Committer to answer a question.
+  - This mailing list is where Airflow development projects are discussed as well as voting for AIPs or Airflow releases.
 
-- Open a JIRA ticket when you discover a bug and propose a PR with a fix.
+  - Troubleshooting questions related to Airflow can asked on Slack or StackOverflow.
+
+- Open a GitHub issue when you discover a bug and propose a PR with a fix.
 
   - This is the only way to get PRs approved or to report bugs.
 
@@ -65,8 +67,8 @@ Is Your Company Using Airflow?
 ------------------------------
 
 If so, then add your company name (along with your Github handle) as links to the
-`README.md <https://github.com/apache/airflow/blob/master/README.md#who-uses-apache-airflow>`_
-and submit a PR (with associated JIRA). We will be happy to merge it.
+`README.md <https://github.com/apache/airflow/blob/master/INTHEWILD.md>`_
+and submit a PR. We will be happy to merge it.
 
 
 Get Mentoring Support
