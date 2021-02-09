@@ -164,9 +164,9 @@ google-cloud-dataproc==2.2.0
 google-cloud-dlp==1.0.0
 google-cloud-kms==2.2.0
 google-cloud-language==1.3.0
-google-cloud-logging==1.15.1
+google-cloud-logging==2.2.0
 google-cloud-memcache==0.2.0
-google-cloud-monitoring==1.1.0
+google-cloud-monitoring==2.0.0
 google-cloud-os-login==2.1.0
 google-cloud-pubsub==2.2.0
 google-cloud-redis==2.0.0
