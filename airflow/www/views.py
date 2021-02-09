@@ -819,13 +819,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     def code(self, session=None):
         """Dag Code."""
         all_errors = ""
-        dag_orm = None
+        dag = None
         dag_id = None
 
         try:
             dag_id = request.args.get('dag_id')
-            dag_orm = DagModel.get_dagmodel(dag_id, session=session)
-            code = DagCode.get_code_by_fileloc(dag_orm.fileloc)
+            dag = DagModel.get_dagmodel(dag_id, session=session)
+            dag = self._add_user_permissions_to_dag(dag)
+            code = DagCode.get_code_by_fileloc(dag.fileloc)
             html_code = Markup(
                 highlight(
                     code, lexers.PythonLexer(), HtmlFormatter(linenos=True)  # pylint: disable=no-member
@@ -844,7 +845,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         return self.render_template(
             'airflow/dag_code.html',
             html_code=html_code,
-            dag=dag_orm,
+            dag=dag,
             title=dag_id,
             root=request.args.get('root'),
             wrapped=conf.getboolean('webserver', 'default_wrap'),
@@ -862,6 +863,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Get Dag details."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag = self._add_user_permissions_to_dag(dag)
+
         title = "DAG Details"
         root = request.args.get('root', '')
 
@@ -1862,6 +1865,28 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             State.SUCCESS,
         )
 
+    def _add_user_permissions_to_dag(self, dag, user=None) -> DagModel:
+        """
+        Adds `.can_edit`, `.can_trigger`, and `.can_delete` properties
+        to DAG based on current user's permissions.
+
+        Located in `views.py` rather than the DAG model to keep
+        permissions logic out of the Airflow core.
+        """
+        can_create_dag_run = current_app.appbuilder.sm.has_access(
+            permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN, user
+        )
+
+        dag.can_edit = current_app.appbuilder.sm.can_edit_dag(dag.dag_id, user)
+        dag.can_trigger = dag.can_edit and can_create_dag_run
+        dag.can_delete = current_app.appbuilder.sm.has_access(
+            permissions.ACTION_CAN_DELETE,
+            permissions.RESOURCE_DAG,
+            user,
+        )
+
+        return dag
+
     @expose('/tree')
     @auth.has_access(
         [
@@ -1883,6 +1908,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+        dag = self._add_user_permissions_to_dag(dag)
 
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs', type=int)
@@ -2046,7 +2072,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-
+        dag = self._add_user_permissions_to_dag(dag)
         arrange = request.args.get('arrange', dag.orientation)
 
         nodes = task_group_to_dict(dag.task_group)
@@ -2150,7 +2176,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-
+        dag = self._add_user_permissions_to_dag(dag)
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(name="lineChart", x_is_date=True, height=chart_height, width="1200")
         cum_chart = nvd3.lineChart(name="cumLineChart", x_is_date=True, height=chart_height, width="1200")
@@ -2269,7 +2295,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-
+        dag = self._add_user_permissions_to_dag(dag)
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
             name="lineChart", x_is_date=True, y_axis_format='d', height=chart_height, width="1200"
@@ -2340,6 +2366,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
+        dag = self._add_user_permissions_to_dag(dag)
 
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(name="lineChart", x_is_date=True, height=chart_height, width="1200")
@@ -2469,6 +2496,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
+        dag = self._add_user_permissions_to_dag(dag)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data['dttm']
