@@ -281,6 +281,10 @@ ARG PIP_NO_CACHE_DIR="true"
 ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
 RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
 
+# By default PIP has progress bar but you can disable it.
+ARG PIP_PROGRESS_BAR="on"
+ENV PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR}
+
 RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # Only copy install_airflow_from_latest_master.sh to not invalidate cache on other script changes

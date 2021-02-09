@@ -26,6 +26,11 @@ function build_images::add_build_args_for_remote_install() {
         "--build-arg" "AIRFLOW_SOURCES_FROM=empty"
         "--build-arg" "AIRFLOW_SOURCES_TO=/empty"
     )
+    if [[ ${CI} == "true" ]]; then
+        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+            "--build-arg" "PIP_PROGRESS_BAR=off"
+        )
+    fi
     if [[ -n "${AIRFLOW_CONSTRAINTS_REFERENCE}" ]]; then
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE}"
@@ -690,7 +695,11 @@ function build_images::build_ci_image() {
     EXTRA_DOCKER_CI_BUILD_FLAGS=(
         "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
     )
-
+    if [[ ${CI} == "true" ]]; then
+        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+            "--build-arg" "PIP_PROGRESS_BAR=off"
+        )
+    fi
     if [[ -n "${AIRFLOW_CONSTRAINTS_LOCATION}" ]]; then
         EXTRA_DOCKER_CI_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"

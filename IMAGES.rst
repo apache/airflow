@@ -613,6 +613,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
 |                                          |                                          | when installing runtime deps             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_PIP_VERSION``                  | ``20.2.4``                               | PIP version used.                        |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
++------------------------------------------+------------------------------------------+------------------------------------------+
 
 Here are some examples of how CI images can built manually. CI is always built from local sources.
 

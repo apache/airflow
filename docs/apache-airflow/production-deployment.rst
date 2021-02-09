@@ -664,6 +664,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | The mysql extra is removed from extras   |
 |                                          |                                          | if the client is not installed.          |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_PIP_VERSION``                  | ``20.2.4``                               | PIP version used.                        |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
++------------------------------------------+------------------------------------------+------------------------------------------+
 
 There are build arguments that determine the installation mechanism of Apache Airflow for the
 production image. There are three types of build:
