@@ -1420,8 +1420,8 @@ SENSORS = [
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor",
     ),
     (
-        "airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor",
         "airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor",
+        "airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor",
     ),
     (
         "airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor",
