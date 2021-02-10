@@ -51,12 +51,12 @@ roleRef:
 subjects:
 {{- if has .Values.executor $schedulerLaunchExecutors }}
   - kind: ServiceAccount
-    name: {{ default (printf "%s-scheduler" .Release.Name) .Values.scheduler.serviceAccount.name }}
+    name: {{ include "scheduler.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- if has .Values.executor $workerLaunchExecutors }}
   - kind: ServiceAccount
-    name: {{ default (printf "%s-worker" .Release.Name) .Values.workers.serviceAccount.name }}
+    name: {{ include "worker.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- end }}

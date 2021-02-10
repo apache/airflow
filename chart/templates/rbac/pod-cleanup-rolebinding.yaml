@@ -37,6 +37,6 @@ roleRef:
   name: {{ .Release.Name }}-cleanup-role
 subjects:
   - kind: ServiceAccount
-    name: {{ default (printf "%s-cleanup" .Release.Name) .Values.cleanup.serviceAccount.name }}
+    name: {{ include "cleanup.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end }}
