@@ -249,6 +249,7 @@ class TestBigQueryUpdateTableOperator(unittest.TestCase):
         operator.execute(None)
         mock_hook.return_value.update_table.assert_called_once_with(
             table_resource=table_resource,
+            fields=None,
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
             project_id=TEST_GCP_PROJECT_ID,
