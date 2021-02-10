@@ -1667,6 +1667,7 @@ class BigQueryUpdateTableOperator(BaseOperator):
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryUpdateTableOperator`
+
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in table_reference.
     :param table_id: The id of table. Don't need to provide,
