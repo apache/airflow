@@ -238,6 +238,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         super().execute(context)
         return self._matches
 
+
 class GCSObjectsWtihPrefixExistenceSensor(GCSObjectsWithPrefixExistenceSensor):
     """
     This class is deprecated.
@@ -252,6 +253,7 @@ class GCSObjectsWtihPrefixExistenceSensor(GCSObjectsWithPrefixExistenceSensor):
             stacklevel=3,
         )
         super().__init__(*args, **kwargs)
+
 
 def get_time():
     """
