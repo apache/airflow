@@ -450,6 +450,9 @@ vertica = [
 virtualenv = [
     'virtualenv',
 ]
+pretty = [
+    'pretty-py3>=0.2.4',
+]
 webhdfs = [
     'hdfs[avro,dataframe,kerberos]>=2.0.4',
 ]
@@ -596,6 +599,7 @@ EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'sentry': sentry,
     'statsd': statsd,
     'virtualenv': virtualenv,
+    'pretty-py3': pretty,
 }
 
 
