@@ -2845,7 +2845,7 @@ class TestTriggerDag(TestBase):
             origin='/home',
         )
         resp = self.client.post('run', data=form, follow_redirects=True)
-        assert executor.job_id !=None
+        assert executor.job_id != None
 
 class TestExtraLinks(TestBase):
     def setUp(self):
