@@ -1262,7 +1262,7 @@ The following table shows changes in import paths.
 |airflow.contrib.sensors.gcp_transfer_sensor.GCPTransferServiceWaitForJobStatusSensor                              |airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.DataTransferServiceJobStatusSensor                      |
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor                                                 |airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor                                                           |
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor                                          |airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor                                                              |
-|airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor                                                 |airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor                                                |
+|airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor                                                 |airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor                                                |
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor                                  |airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor                                                     |
 |airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor                                                            |airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor                                                                |
 
