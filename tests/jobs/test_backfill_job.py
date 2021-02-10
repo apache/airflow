@@ -1533,4 +1533,4 @@ class TestBackfillJob(unittest.TestCase):
             run_backwards=True,
         )
         job.run()
-        assert executor.job_id != None
+        assert executor.job_id is not None

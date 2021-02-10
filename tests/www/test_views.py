@@ -2844,8 +2844,8 @@ class TestTriggerDag(TestBase):
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             origin='/home',
         )
-        resp = self.client.post('run', data=form, follow_redirects=True)
-        assert executor.job_id != None
+        self.client.post('run', data=form, follow_redirects=True)
+        assert executor.job_id is not None
 
 
 class TestExtraLinks(TestBase):
