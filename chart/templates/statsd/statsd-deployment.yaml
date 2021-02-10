@@ -62,7 +62,7 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
-      serviceAccountName: {{ default (printf "%s-statsd" .Release.Name) .Values.statsd.serviceAccount.name }}
+      serviceAccountName: {{ include "statsd.serviceAccountName" . }}
       securityContext:
         runAsUser: {{ .Values.statsd.uid }}
       restartPolicy: Always

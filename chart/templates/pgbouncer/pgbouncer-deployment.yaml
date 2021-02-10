@@ -65,7 +65,7 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
-      serviceAccountName: {{ default (printf "%s-pgbouncer" .Release.Name) .Values.pgbouncer.serviceAccount.name }}
+      serviceAccountName: {{ include "pgbouncer.serviceAccountName" . }}
       securityContext:
         runAsUser: {{ .Values.pgbouncer.uid }}
       restartPolicy: Always

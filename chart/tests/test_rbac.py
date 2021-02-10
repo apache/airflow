@@ -25,18 +25,28 @@ CLEANUP_DEPLOYMENT_KIND_NAME_TUPLES = [
     ('Secret', 'TEST-RBAC-postgresql'),
     ('Secret', 'TEST-RBAC-airflow-metadata'),
     ('Secret', 'TEST-RBAC-airflow-result-backend'),
+    ('Secret', 'TEST-RBAC-pgbouncer-config'),
+    ('Secret', 'TEST-RBAC-pgbouncer-stats'),
     ('ConfigMap', 'TEST-RBAC-airflow-config'),
     ('Service', 'TEST-RBAC-postgresql-headless'),
     ('Service', 'TEST-RBAC-postgresql'),
     ('Service', 'TEST-RBAC-statsd'),
     ('Service', 'TEST-RBAC-webserver'),
+    ('Service', 'TEST-RBAC-flower'),
+    ('Service', 'TEST-RBAC-pgbouncer'),
+    ('Service', 'TEST-RBAC-redis'),
+    ('Service', 'TEST-RBAC-worker'),
     ('Deployment', 'TEST-RBAC-scheduler'),
     ('Deployment', 'TEST-RBAC-statsd'),
     ('Deployment', 'TEST-RBAC-webserver'),
+    ('Deployment', 'TEST-RBAC-flower'),
+    ('Deployment', 'TEST-RBAC-pgbouncer'),
     ('StatefulSet', 'TEST-RBAC-postgresql'),
+    ('StatefulSet', 'TEST-RBAC-redis'),
+    ('StatefulSet', 'TEST-RBAC-worker'),
+    ('Secret', 'TEST-RBAC-broker-url'),
     ('Secret', 'TEST-RBAC-fernet-key'),
     ('Secret', 'TEST-RBAC-redis-password'),
-    ('Secret', 'TEST-RBAC-broker-url'),
     ('Job', 'TEST-RBAC-create-user'),
     ('Job', 'TEST-RBAC-run-airflow-migrations'),
     ('CronJob', 'TEST-RBAC-cleanup'),
@@ -45,7 +55,9 @@ CLEANUP_DEPLOYMENT_KIND_NAME_TUPLES = [
 RBAC_ENABLED_KIND_NAME_TUPLES = [
     ('Role', 'TEST-RBAC-pod-launcher-role'),
     ('Role', 'TEST-RBAC-cleanup-role'),
+    ('Role', 'TEST-RBAC-pod-log-reader-role'),
     ('RoleBinding', 'TEST-RBAC-pod-launcher-rolebinding'),
+    ('RoleBinding', 'TEST-RBAC-pod-log-reader-rolebinding'),
     ('RoleBinding', 'TEST-RBAC-cleanup-rolebinding'),
 ]
 
@@ -54,6 +66,11 @@ SERVICE_ACCOUNT_NAME_TUPLES = [
     ('ServiceAccount', 'TEST-RBAC-scheduler'),
     ('ServiceAccount', 'TEST-RBAC-webserver'),
     ('ServiceAccount', 'TEST-RBAC-worker'),
+    ('ServiceAccount', 'TEST-RBAC-pgbouncer'),
+    ('ServiceAccount', 'TEST-RBAC-flower'),
+    ('ServiceAccount', 'TEST-RBAC-statsd'),
+    ('ServiceAccount', 'TEST-RBAC-jobs'),
+    ('ServiceAccount', 'TEST-RBAC-redis'),
 ]
 
 CUSTOM_SERVICE_ACCOUNT_NAMES = (
@@ -61,11 +78,21 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     CUSTOM_WEBSERVER_NAME,
     CUSTOM_WORKER_NAME,
     CUSTOM_CLEANUP_NAME,
+    CUSTOM_FLOWER_NAME,
+    CUSTOM_PGBOUNCER_NAME,
+    CUSTOM_STATSD_NAME,
+    CUSTOM_JOBS_NAME,
+    CUSTOM_REDIS_NAME,
 ) = (
     "TestScheduler",
     "TestWebserver",
     "TestWorker",
     "TestCleanup",
+    "TestFlower",
+    "TestPGBouncer",
+    "TestStatsd",
+    "TestJobs",
+    "TestRedis",
 )
 
 
@@ -74,16 +101,28 @@ class RBACTest(unittest.TestCase):
         k8s_objects = render_chart(
             "TEST-RBAC",
             values={
+                "fullnameOverride": "TEST-RBAC",
                 "rbac": {"create": False},
                 "cleanup": {
-                    "enabled": True,
-                    "serviceAccount": {
-                        "create": False,
-                    },
-                },
+                      "enabled": True,
+                      "serviceAccount": {
+                          "create": False,
+                      },
+                  },
+                "pgbouncer": {
+                      "enabled": True,
+                      "serviceAccount": {
+                          "create": False,
+                      },
+                  },
+                "redis": {"serviceAccount": {"create": False}},
                 "scheduler": {"serviceAccount": {"create": False}},
                 "webserver": {"serviceAccount": {"create": False}},
                 "workers": {"serviceAccount": {"create": False}},
+                "statsd": {"serviceAccount": {"create": False}},
+                "jobs": {"serviceAccount": {"create": False}},
+                "executor": "CeleryExecutor",  # create worker/flower deployment
+                "flower": {"serviceAccount": {"create": False}},
             },
         )
         list_of_kind_names_tuples = [
@@ -99,8 +138,11 @@ class RBACTest(unittest.TestCase):
         k8s_objects = render_chart(
             "TEST-RBAC",
             values={
+                "fullnameOverride": "TEST-RBAC",
                 "rbac": {"create": False},
                 "cleanup": {"enabled": True},
+                "executor": "CeleryExecutor",  # create worker deployment
+                "pgbouncer": {"enabled": True},
             },
         )
         list_of_kind_names_tuples = [
@@ -116,6 +158,7 @@ class RBACTest(unittest.TestCase):
         k8s_objects = render_chart(
             "TEST-RBAC",
             values={
+                "fullnameOverride": "TEST-RBAC",
                 "cleanup": {
                     "enabled": True,
                     "serviceAccount": {
@@ -125,6 +168,17 @@ class RBACTest(unittest.TestCase):
                 "scheduler": {"serviceAccount": {"create": False}},
                 "webserver": {"serviceAccount": {"create": False}},
                 "workers": {"serviceAccount": {"create": False}},
+                "flower": {"serviceAccount": {"create": False}},
+                "executor": "CeleryExecutor",  # create worker deployment
+                "statsd": {"serviceAccount": {"create": False}},
+                "redis": {"serviceAccount": {"create": False}},
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "create": False,
+                    },
+                },
+                "jobs": {"serviceAccount": {"create": False}},
             },
         )
         list_of_kind_names_tuples = [
@@ -140,7 +194,10 @@ class RBACTest(unittest.TestCase):
         k8s_objects = render_chart(
             "TEST-RBAC",
             values={
+                "fullnameOverride": "TEST-RBAC",
                 "cleanup": {"enabled": True},
+                "pgbouncer": {"enabled": True},
+                "executor": "CeleryExecutor",  # create worker deployment
             },
         )
         list_of_kind_names_tuples = [
@@ -158,6 +215,7 @@ class RBACTest(unittest.TestCase):
         k8s_objects = render_chart(
             "TEST-RBAC",
             values={
+                "fullnameOverride": "TEST-RBAC",
                 "cleanup": {
                     "enabled": True,
                     "serviceAccount": {
@@ -167,6 +225,17 @@ class RBACTest(unittest.TestCase):
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
                 "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+                "flower": {"serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
+                "executor": "CeleryExecutor",  # create worker deployment
+                "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
+                "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "name": CUSTOM_PGBOUNCER_NAME,
+                    },
+                },
+                "jobs": {"serviceAccount": {"name": CUSTOM_JOBS_NAME}},
             },
         )
         list_of_sa_names = [
@@ -183,6 +252,7 @@ class RBACTest(unittest.TestCase):
         k8s_objects = render_chart(
             "TEST-RBAC",
             values={
+                "fullnameOverride": "TEST-RBAC",
                 "cleanup": {
                     "enabled": True,
                     "serviceAccount": {
@@ -192,6 +262,16 @@ class RBACTest(unittest.TestCase):
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
                 "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
+                "flower": {"serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
+                "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
+                "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "name": CUSTOM_PGBOUNCER_NAME,
+                    },
+                },
+                "jobs": {"serviceAccount": {"name": CUSTOM_JOBS_NAME}},
                 "executor": "CeleryExecutor",  # create worker deployment
             },
         )
@@ -205,7 +285,7 @@ class RBACTest(unittest.TestCase):
                 )
                 or None
             )
-            if name:
+            if name and name not in list_of_sa_names_in_objects:
                 list_of_sa_names_in_objects.append(name)
 
         self.assertCountEqual(

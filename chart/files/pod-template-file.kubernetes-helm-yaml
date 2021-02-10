@@ -87,7 +87,7 @@ spec:
   nodeSelector: {{ toYaml .Values.nodeSelector | nindent 4 }}
   affinity: {{ toYaml .Values.affinity | nindent 4 }}
   tolerations: {{ toYaml .Values.tolerations | nindent 4 }}
-  serviceAccountName: {{ default (printf "%s-worker" .Release.Name) .Values.workers.serviceAccount.name }}
+  serviceAccountName: {{ include "worker.serviceAccountName" . }}
   volumes:
   {{- if .Values.dags.persistence.enabled }}
   - name: dags

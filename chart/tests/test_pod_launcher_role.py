@@ -36,7 +36,7 @@ class PodLauncherTest(unittest.TestCase):
     def test_pod_launcher_role(self, executor, rbac, allow, expected_accounts):
         docs = render_chart(
             values={
-                "rbacEnabled": rbac,
+                "rbac": {"create": rbac},
                 "allowPodLaunching": allow,
                 "executor": executor,
             },

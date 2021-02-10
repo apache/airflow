@@ -56,7 +56,7 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
-      serviceAccountName: {{ default (printf "%s-jobs" .Release.Name) .Values.jobs.serviceAccount.name }}
+      serviceAccountName: {{ include "jobs.serviceAccountName" . }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}

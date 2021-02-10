@@ -1393,6 +1393,24 @@
                     "description": "Select certain nodes for airflow pods.",
                     "type": "object"
                 },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the worker kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
+                },
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "array"
