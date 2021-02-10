@@ -3,6 +3,14 @@
     "description": "Default values for airflow. Declare variables to be passed into your templates.",
     "type": "object",
     "properties": {
+        "fullnameOverride": {
+            "description": "Provide a name to substitute for the full names of resources",
+            "type": "string"
+        },
+        "nameOverride": {
+            "description": "Override the name of the chart",
+            "type": "string"
+        },
         "uid": {
             "description": "User of airflow user.",
             "type": "integer"

@@ -104,17 +104,17 @@ class RBACTest(unittest.TestCase):
                 "fullnameOverride": "TEST-RBAC",
                 "rbac": {"create": False},
                 "cleanup": {
-                      "enabled": True,
-                      "serviceAccount": {
-                          "create": False,
-                      },
-                  },
+                    "enabled": True,
+                    "serviceAccount": {
+                        "create": False,
+                    },
+                },
                 "pgbouncer": {
-                      "enabled": True,
-                      "serviceAccount": {
-                          "create": False,
-                      },
-                  },
+                    "enabled": True,
+                    "serviceAccount": {
+                        "create": False,
+                    },
+                },
                 "redis": {"serviceAccount": {"create": False}},
                 "scheduler": {"serviceAccount": {"create": False}},
                 "webserver": {"serviceAccount": {"create": False}},
