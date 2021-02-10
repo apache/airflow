@@ -655,7 +655,7 @@ Relationship Builders
 
 *Moved in Airflow 2.0*
 
-``chain`` and ``cross_downstream`` function provide easier ways to set relationships
+:func:`airflow.models.baseoperator.chain` and :func:`airflow.models.baseoperator..cross_downstream` function provide easier ways to set relationships
 between operators in specific situation.
 
 In Airflow 2.0 those two methods moved from ``airflow.utils.helpers`` to ``airflow.models.baseoperator``.
