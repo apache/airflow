@@ -17,50 +17,51 @@
 import os
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3_bucket import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.operators.s3_bucket_tagging import (
+    S3DeleteBucketTaggingOperator,
+    S3GetBucketTaggingOperator,
+    S3PutBucketTaggingOperator,
+)
 from airflow.utils.dates import days_ago
 
-BUCKET_NAME = os.environ.get('BUCKET_NAME', 'test-airflow-12345')
-
-
-def upload_keys():
-    """This is a python callback to add keys into the s3 bucket"""
-    # add keys to bucket
-    s3_hook = S3Hook()
-    for i in range(0, 3):
-        s3_hook.load_string(
-            string_data="input",
-            key=f"path/data{i}",
-            bucket_name=BUCKET_NAME,
-        )
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'test-s3-bucket-tagging')
+TAG_KEY = os.environ.get('TAG_KEY', 'test-s3-bucket-tagging-key')
+TAG_VALUE = os.environ.get('TAG_VALUE', 'test-s3-bucket-tagging-value')
 
 
 with DAG(
-    dag_id='s3_bucket_dag',
+    dag_id='s3_bucket_tagging_dag',
     schedule_interval=None,
     start_date=days_ago(2),
     max_active_runs=1,
     tags=['example'],
 ) as dag:
 
-    # [START howto_operator_s3_bucket]
     create_bucket = S3CreateBucketOperator(
-        task_id='s3_bucket_dag_create',
+        task_id='s3_bucket_tagging_dag_create',
         bucket_name=BUCKET_NAME,
         region_name='us-east-1',
     )
 
-    add_keys_to_bucket = PythonOperator(
-        task_id="s3_bucket_dag_add_keys_to_bucket", python_callable=upload_keys
-    )
-
     delete_bucket = S3DeleteBucketOperator(
-        task_id='s3_bucket_dag_delete',
+        task_id='s3_bucket_tagging_dag_delete',
         bucket_name=BUCKET_NAME,
         force_delete=True,
     )
-    # [END howto_operator_s3_bucket]
 
-    create_bucket >> add_keys_to_bucket >> delete_bucket
+    # [START howto_operator_s3_bucket_tagging]
+    get_tagging = S3GetBucketTaggingOperator(
+        task_id='s3_bucket_tagging_dag_get_tagging', bucket_name=BUCKET_NAME
+    )
+
+    put_tagging = S3PutBucketTaggingOperator(
+        task_id='s3_bucket_tagging_dag_put_tagging', bucket_name=BUCKET_NAME, key=TAG_KEY, value=TAG_VALUE
+    )
+
+    delete_tagging = S3DeleteBucketTaggingOperator(
+        task_id='s3_bucket_tagging_dag_delete_tagging', bucket_name=BUCKET_NAME
+    )
+    # [END howto_operator_s3_bucket_tagging]
+
+    create_bucket >> put_tagging >> get_tagging >> delete_tagging >> delete_bucket

@@ -27,7 +27,7 @@ from functools import wraps
 from inspect import signature
 from io import BytesIO
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 from boto3.s3.transfer import S3Transfer, TransferConfig
@@ -848,3 +848,74 @@ class S3Hook(AwsBaseHook):
         except ClientError as e:
             self.log.error(e.response["Error"]["Message"])
             return None
+
+    @provide_bucket_name
+    def get_bucket_tagging(self, bucket_name: Optional[str] = None) -> Optional[List[Dict[str, str]]]:
+        """
+        Gets a List of tags from a bucket.
+
+        :param bucket_name: The name of the bucket.
+        :type bucket_name: str
+        :return: A List containing the key/value pairs for the tags
+        :rtype: Optional[List[Dict[str, str]]]
+        """
+        try:
+            s3_client = self.get_conn()
+            result = s3_client.get_bucket_tagging(Bucket=bucket_name)['TagSet']
+            self.log.info("S3 Bucket Tag Info: %s", result)
+            return result
+        except ClientError as e:
+            self.log.error(e)
+            raise e
+
+    @provide_bucket_name
+    def put_bucket_tagging(
+        self,
+        tag_set: Optional[List[Dict[str, str]]] = None,
+        key: Optional[str] = None,
+        value: Optional[str] = None,
+        bucket_name: Optional[str] = None,
+    ) -> None:
+        """
+        Overwrites the existing TagSet with provided tags.  Must provide either a TagSet or a key/value pair.
+
+        :param tag_set: A List containing the key/value pairs for the tags.
+        :type tag_set: List[Dict[str, str]]
+        :param key: The Key for the new TagSet entry.
+        :type key: str
+        :param value: The Value for the new TagSet entry.
+        :type value: str
+        :param bucket_name: The name of the bucket.
+        :type bucket_name: str
+        :return: None
+        :rtype: None
+        """
+        self.log.info("S3 Bucket Tag Info:\tKey: %s\tValue: %s\tSet: %s", key, value, tag_set)
+        if not tag_set:
+            tag_set = []
+        if key and value:
+            tag_set.append({'Key': key, 'Value': value})
+        elif not tag_set or (key or value):
+            message = 'put_bucket_tagging() requires either a predefined TagSet or a key/value pair.'
+            self.log.error(message)
+            raise ValueError(message)
+
+        try:
+            s3_client = self.get_conn()
+            s3_client.put_bucket_tagging(Bucket=bucket_name, Tagging={'TagSet': tag_set})
+        except ClientError as e:
+            self.log.error(e)
+            raise e
+
+    @provide_bucket_name
+    def delete_bucket_tagging(self, bucket_name: Optional[str] = None) -> None:
+        """
+        Deletes all tags from a bucket.
+
+        :param bucket_name: The name of the bucket.
+        :type bucket_name: str
+        :return: None
+        :rtype: None
+        """
+        s3_client = self.get_conn()
+        s3_client.delete_bucket_tagging(Bucket=bucket_name)
