@@ -260,3 +260,27 @@ class TestDockerOperator(unittest.TestCase):
         assert 'host_config' in self.client_mock.create_container.call_args[1]
         assert 'extra_hosts' in self.client_mock.create_host_config.call_args[1]
         assert hosts_obj is self.client_mock.create_host_config.call_args[1]['extra_hosts']
+
+    def test_privileged_true(self):
+        operator = DockerOperator(task_id='test', image='test', privileged=True)
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        assert 'host_config' in self.client_mock.create_container.call_args[1]
+        assert 'privileged' in self.client_mock.create_host_config.call_args[1]
+        assert True is self.client_mock.create_host_config.call_args[1]['privileged']
+
+    def test_privileged_false(self):
+        operator = DockerOperator(task_id='test', image='test', privileged=False)
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        assert 'host_config' in self.client_mock.create_container.call_args[1]
+        assert 'privileged' in self.client_mock.create_host_config.call_args[1]
+        assert False is self.client_mock.create_host_config.call_args[1]['privileged']
+
+    def test_privileged_missing(self):
+        operator = DockerOperator(task_id='test', image='test')
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        assert 'host_config' in self.client_mock.create_container.call_args[1]
+        assert 'privileged' in self.client_mock.create_host_config.call_args[1]
+        assert False is self.client_mock.create_host_config.call_args[1]['privileged']
