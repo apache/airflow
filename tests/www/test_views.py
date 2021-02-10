@@ -2847,6 +2847,7 @@ class TestTriggerDag(TestBase):
         resp = self.client.post('run', data=form, follow_redirects=True)
         assert executor.job_id != None
 
+
 class TestExtraLinks(TestBase):
     def setUp(self):
         from tests.test_utils.mock_operators import Dummy2TestOperator, Dummy3TestOperator
