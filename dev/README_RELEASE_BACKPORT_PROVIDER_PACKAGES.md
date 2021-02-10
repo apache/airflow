@@ -635,13 +635,13 @@ In order to publish to PyPI you just need to build and release packages.
 * Generate the packages.
 
 ```shell script
-./breeze --backports prepare-provider-packages both
+./breeze --backports --package-format both prepare-provider-packages
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages <PACKAGE> ...
+./breeze --backports --package-format both prepare-provider-packages <PACKAGE> ...
 ```
 
 In case you decided to remove some of the packages. remove them from dist folder now:
