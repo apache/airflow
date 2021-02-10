@@ -20,7 +20,8 @@
 # AIRFLOW_INSTALLATION_METHOD - determines where to install airflow form:
 #             "." - installs airflow from local sources
 #             "apache-airflow" - installs airflow from PyPI 'apache-airflow' package
-# AIRFLOW_INSTALL_VERSION      - optionally specify version to install
+# AIRFLOW_VERSION_SPECIFICATION - optional specification for Airflow version to install (
+#                                 might be ==2.0.2 for example or <3.0.0
 # UPGRADE_TO_NEWER_DEPENDENCIES - determines whether eager-upgrade should be performed with the
 #                                 dependencies (with EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS added)
 #
@@ -54,18 +55,16 @@ function install_airflow() {
         echo
         # eager upgrade
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy eager \
-            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         if [[ -n "${AIRFLOW_INSTALL_EDITABLE_FLAG}" ]]; then
             # Remove airflow and reinstall it using editable flag
             # We can only do it when we install airflow from sources
             pip uninstall apache-airflow --yes
             pip install ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-                "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}"
+                "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
         fi
-        # Work around to install azure-storage-blob
-        pip uninstall azure-storage azure-storage-blob azure-storage-file --yes
-        pip install azure-storage-blob azure-storage-file
+
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
         pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
@@ -74,17 +73,14 @@ function install_airflow() {
         echo Installing all packages with constraints and upgrade if needed
         echo
         pip install ${AIRFLOW_INSTALL_USER_FLAG} ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
+            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
         # then upgrade if needed without using constraints to account for new limits in setup.py
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy only-if-needed \
             ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
-        # Work around to install azure-storage-blob
-        pip uninstall azure-storage azure-storage-blob azure-storage-file --yes
-        pip install azure-storage-blob azure-storage-file
+            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
         pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}

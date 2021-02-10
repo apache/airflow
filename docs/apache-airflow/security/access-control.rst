@@ -138,7 +138,7 @@ Stable API Permissions
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Endpoint                                                                           Method Permissions                                                       Minimum Role
 ================================================================================== ====== ================================================================= ============
-/config                                                                            GET    Configurations.can_read                                           Viewer
+/config                                                                            GET    Configurations.can_read                                           Op
 /connections                                                                       GET    Connections.can_read                                              Op
 /connections                                                                       POST   Connections.can_create                                            Op
 /connections/{connection_id}                                                       DELETE Connections.can_delete                                            Op

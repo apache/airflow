@@ -19,9 +19,11 @@
 
 # Changelog
 
-## TODO: BACKPORT PACKAGE VERSION HERE
+## Release 2021.2.5
 
-## Updated ``google-cloud-*`` libraries
+### Breaking changes
+
+#### Updated ``google-cloud-*`` libraries
 
 This release of the provider package contains third-party library updates, which may require updating your DAG files or custom hooks and operators, if you were using objects from those libraries. Updating of these libraries is necessary to be able to use new features made available by new versions of the libraries and to obtain bug fixes that are only available for new versions of the library.
 
@@ -29,16 +31,16 @@ Details are covered in the UPDATING.md files for each library, but there are som
 
 | Library name | Previous constraints | Current constraints | |
 | --- | --- | --- | --- |
-| [``google-cloud-automl``](https://pypi.org/project/google-cloud-automl/) | ``>=0.4.0,<2.0.0`` | ``>=2.1.0,<3.0.0``  | [`UPGRADING.md`](https://github.com/googleapis/python-bigquery-automl/blob/master/UPGRADING.md) |
-| [``google-cloud-bigquery-datatransfer``](https://pypi.org/project/google-cloud-bigquery-datatransfer/) | ``>=0.4.0,<2.0.0`` | ``>=3.0.0,<4.0.0``  | [`UPGRADING.md`](https://github.com/googleapis/python-bigquery-datatransfer/blob/master/UPGRADING.md) |
-| [``google-cloud-datacatalog``](https://pypi.org/project/google-cloud-datacatalog/) | ``>=0.5.0,<0.8`` | ``>=3.0.0,<4.0.0``  | [`UPGRADING.md`](https://github.com/googleapis/python-datacatalog/blob/master/UPGRADING.md) |
-| [``google-cloud-dataproc``](https://pypi.org/project/google-cloud-dataproc/) | ``>=1.0.1,<2.0.0`` | ``>=2.2.0,<3.0.0``  | [`UPGRADING.md`](https://github.com/googleapis/python-dataproc/blob/master/UPGRADING.md) |
-| [``google-cloud-kms``](https://pypi.org/project/google-cloud-os-login/) | ``>=1.2.1,<2.0.0`` | ``>=2.0.0,<3.0.0``  | [`UPGRADING.md`](https://github.com/googleapis/python-kms/blob/master/UPGRADING.md) |
-| [``google-cloud-logging``](https://pypi.org/project/google-cloud-logging/) | ``>=1.14.0,<2.0.0`` | ``>=2.0.0,<3.0.0``  | [`UPGRADING.md`](https://github.com/googleapis/python-logging/blob/master/UPGRADING.md) |
-| [``google-cloud-monitoring``](https://pypi.org/project/google-cloud-monitoring/) | ``>=0.34.0,<2.0.0`` | ``>=2.0.0,<3.0.0``  | [`UPGRADING.md`](https://github.com/googleapis/python-monitoring/blob/master/UPGRADING.md) |
-| [``google-cloud-os-login``](https://pypi.org/project/google-cloud-os-login/) | ``>=1.0.0,<2.0.0`` | ``>=2.0.0,<3.0.0``  | [`UPGRADING.md`](https://github.com/googleapis/python-oslogin/blob/master/UPGRADING.md) |
-| [``google-cloud-pubsub``](https://pypi.org/project/google-cloud-pubsub/) | ``>=1.0.0,<2.0.0`` | ``>=2.0.0,<3.0.0``  | [`UPGRADING.md`](https://github.com/googleapis/python-pubsub/blob/master/UPGRADING.md) |
-| [``google-cloud-tasks``](https://pypi.org/project/google-cloud-tasks/) | ``>=1.2.1,<2.0.0`` | ``>=2.0.0,<3.0.0``  | [`UPGRADING.md`](https://github.com/googleapis/python-tasks/blob/master/UPGRADING.md) |
+| [`google-cloud-automl`](https://pypi.org/project/google-cloud-automl/) | `>=0.4.0,<2.0.0` | `>=2.1.0,<3.0.0`  | [`UPGRADING.md`](https://github.com/googleapis/python-automl/blob/master/UPGRADING.md) |
+| [`google-cloud-bigquery-datatransfer`](https://pypi.org/project/google-cloud-bigquery-datatransfer/) | `>=0.4.0,<2.0.0` | `>=3.0.0,<4.0.0`  | [`UPGRADING.md`](https://github.com/googleapis/python-bigquery-datatransfer/blob/master/UPGRADING.md) |
+| [`google-cloud-datacatalog`](https://pypi.org/project/google-cloud-datacatalog/) | `>=0.5.0,<0.8` | `>=3.0.0,<4.0.0`  | [`UPGRADING.md`](https://github.com/googleapis/python-datacatalog/blob/master/UPGRADING.md) |
+| [`google-cloud-dataproc`](https://pypi.org/project/google-cloud-dataproc/) | `>=1.0.1,<2.0.0` | `>=2.2.0,<3.0.0`  | [`UPGRADING.md`](https://github.com/googleapis/python-dataproc/blob/master/UPGRADING.md) |
+| [`google-cloud-kms`](https://pypi.org/project/google-cloud-os-login/) | `>=1.2.1,<2.0.0` | `>=2.0.0,<3.0.0`  | [`UPGRADING.md`](https://github.com/googleapis/python-kms/blob/master/UPGRADING.md) |
+| [`google-cloud-logging`](https://pypi.org/project/google-cloud-logging/) | `>=1.14.0,<2.0.0` | `>=2.0.0,<3.0.0`  | [`UPGRADING.md`](https://github.com/googleapis/python-logging/blob/master/UPGRADING.md) |
+| [`google-cloud-monitoring`](https://pypi.org/project/google-cloud-monitoring/) | `>=0.34.0,<2.0.0` | `>=2.0.0,<3.0.0`  | [`UPGRADING.md`](https://github.com/googleapis/python-monitoring/blob/master/UPGRADING.md) |
+| [`google-cloud-os-login`](https://pypi.org/project/google-cloud-os-login/) | `>=1.0.0,<2.0.0` | `>=2.0.0,<3.0.0`  | [`UPGRADING.md`](https://github.com/googleapis/python-oslogin/blob/master/UPGRADING.md) |
+| [`google-cloud-pubsub`](https://pypi.org/project/google-cloud-pubsub/) | `>=1.0.0,<2.0.0` | `>=2.0.0,<3.0.0`  | [`UPGRADING.md`](https://github.com/googleapis/python-pubsub/blob/master/UPGRADING.md) |
+| [`google-cloud-tasks`](https://pypi.org/project/google-cloud-tasks/) | `>=1.2.1,<2.0.0` | `>=2.0.0,<3.0.0`  | [`UPGRADING.md`](https://github.com/googleapis/python-tasks/blob/master/UPGRADING.md) |
 
 
 ## The field names use the snake_case convention
@@ -61,10 +63,34 @@ set_acl_permission = GCSBucketCreateAclEntryOperator(
 
 ```python
 set_acl_permission = GCSBucketCreateAclEntryOperator(
-    task_id="gcs-set-acl-permission",
-    bucket=BUCKET_NAME,
-    entity="user-{{ task_instance.xcom_pull('get-instance')['persistence_iam_identity']"
-    ".split(':', 2)[1] }}",
-    role="OWNER",
+  task_id="gcs-set-acl-permission",
+  bucket=BUCKET_NAME,
+  entity="user-{{ task_instance.xcom_pull('get-instance')['persistence_iam_identity']"
+         ".split(':', 2)[1] }}",
+  role="OWNER",
 )
 ```
+
+### Features
+
+  * `Add Apache Beam operators (#12814)`
+  * `Add Google Cloud Workflows Operators (#13366)`
+  * `Replace 'google_cloud_storage_conn_id' by 'gcp_conn_id' when using 'GCSHook' (#13851)`
+  * `Add How To Guide for Dataflow (#13461)`
+  * `Generalize MLEngineStartTrainingJobOperator to custom images (#13318)`
+  * `Add Parquet data type to BaseSQLToGCSOperator (#13359)`
+  * `Add DataprocCreateWorkflowTemplateOperator (#13338)`
+  * `Add OracleToGCS Transfer (#13246)`
+  * `Add timeout option to gcs hook methods. (#13156)`
+  * `Add regional support to dataproc workflow template operators (#12907)`
+  * `Add project_id to client inside BigQuery hook update_table method (#13018)`
+
+### Bug fixes
+
+  * `Fix four bugs in StackdriverTaskHandler (#13784)`
+  * `Decode Remote Google Logs (#13115)`
+  * `Fix and improve GCP BigTable hook and system test (#13896)`
+  * `updated Google DV360 Hook to fix SDF issue (#13703)`
+  * `Fix insert_all method of BigQueryHook to support tables without schema (#13138)`
+  * `Fix Google BigQueryHook method get_schema() (#13136)`
+  * `Fix Data Catalog operators (#13096)`

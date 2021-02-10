@@ -19,6 +19,16 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Updated documentation and readme files.
+
+Features
+~~~~~~~~
+
+* ``Add ExasolToS3Operator (#13847)``
+
 1.0.0
 .....
 

@@ -19,6 +19,13 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Updated documentation and readme files.
+
+* ``Add openfaas sync call (#13356)``
+
 1.0.0
 .....
 

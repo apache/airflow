@@ -2,5 +2,6 @@
 setup.py
 CHANGELOG.txt
 README.md
+README.rst
 setup.cfg
 /airflow/

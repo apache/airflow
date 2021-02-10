@@ -44,11 +44,13 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   let tooltipHTML = '<br><strong>UTC:</strong><br>';
   tooltipHTML += makeDateTimeHTML(startDate, endDate);
 
-  // Generate User's Local Start and End Date
-  startDate.tz(localTZ);
-  tooltipHTML += `<br><strong>Local: ${startDate.format(tzFormat)}</strong><br>`;
-  const localEndDate = endDate && endDate instanceof moment ? endDate.tz(localTZ) : endDate;
-  tooltipHTML += makeDateTimeHTML(startDate, localEndDate);
+  // Generate User's Local Start and End Date, unless it's UTC
+  if (localTZ !== 'UTC') {
+    startDate.tz(localTZ);
+    tooltipHTML += `<br><strong>Local: ${startDate.format(tzFormat)}</strong><br>`;
+    const localEndDate = endDate && endDate instanceof moment ? endDate.tz(localTZ) : endDate;
+    tooltipHTML += makeDateTimeHTML(startDate, localEndDate);
+  }
 
   // Generate DAG's Start and End Date
   if (dagTZ !== 'UTC' && dagTZ !== localTZ) {

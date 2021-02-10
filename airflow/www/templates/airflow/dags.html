@@ -428,14 +428,14 @@
         .attr('fill', '#fff')
         .attr('r', diameter/2)
         .attr('title', function(d) {return d.state})
-        .on('mouseover', function(d, i) {
+        .on('mouseover', function(d) {
           if (d.count > 0) {
             d3.select(this).transition().duration(400)
               .attr('fill', '#e2e2e2')
               .style('stroke-width', stroke_width_hover);
           }
         })
-        .on('mouseout', function(d, i) {
+        .on('mouseout', function(d) {
           if (d.count > 0) {
             d3.select(this).transition().duration(400)
               .attr('fill', '#fff')
@@ -502,14 +502,14 @@
         .attr('fill', '#fff')
         .attr('r', diameter/2)
         .attr('title', function(d) {return d.state || 'none'})
-        .on('mouseover', function(d, i) {
+        .on('mouseover', function(d) {
           if (d.count > 0) {
             d3.select(this).transition().duration(400)
               .attr('fill', '#e2e2e2')
               .style('stroke-width', stroke_width_hover);
           }
         })
-        .on('mouseout', function(d, i) {
+        .on('mouseout', function(d) {
           if (d.count > 0) {
             d3.select(this).transition().duration(400)
               .attr('fill', '#fff')

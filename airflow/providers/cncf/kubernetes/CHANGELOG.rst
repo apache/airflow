@@ -19,6 +19,16 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Updated documentation and readme files.
+
+Bug fixes
+~~~~~~~~~
+
+* ``Pass image_pull_policy in KubernetesPodOperator correctly (#13289)``
+
 1.0.0
 .....
 

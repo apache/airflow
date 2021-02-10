@@ -3525,6 +3525,9 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
         DummyOperator(task_id='task1', dag=dag, sla=timedelta(seconds=60))
 
+        # Used Serialized DAG as Serialized DAG is used in Scheduler
+        dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+
         with patch.object(settings, "CHECK_SLAS", True):
             scheduler_job = SchedulerJob(subdir=os.devnull)
             mock_agent = mock.MagicMock()

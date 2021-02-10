@@ -22,6 +22,7 @@ description: |
   `PostgreSQL <https://www.postgresql.org/>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
 
 integrations:

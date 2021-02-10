@@ -321,6 +321,17 @@ def render(obj, lexer):
     return out
 
 
+def json_render(obj, lexer):
+    """Render a given Python object with json lexer"""
+    out = ""
+    if isinstance(obj, str):
+        out = Markup(pygment_html_render(obj, lexer))
+    elif isinstance(obj, (dict, list)):
+        content = json.dumps(obj, sort_keys=True, indent=4)
+        out = Markup(pygment_html_render(content, lexer))
+    return out
+
+
 def wrapped_markdown(s, css_class=None):
     """Convert a Markdown string to HTML."""
     if s is None:
@@ -343,7 +354,7 @@ def get_attr_renderer():
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
-        'json': lambda x: render(x, lexers.JsonLexer),
+        'json': lambda x: json_render(x, lexers.JsonLexer),
         'md': wrapped_markdown,
         'py': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),

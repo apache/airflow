@@ -464,7 +464,7 @@ Airflow provides many built-in operators for many common tasks, including:
 
 There are also other, commonly used operators that are installed together with airflow automatically,
 by pre-installing some :doc:`apache-airflow-providers:index` packages (they are always available no
-matter which extras you chose when installing Apache Airflow:
+matter which extras you chose when installing Apache Airflow):
 
 - :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
 - :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator` - SQLite DB operator
@@ -484,7 +484,7 @@ Some examples of popular operators are:
 - :class:`~airflow.providers.docker.operators.docker.DockerOperator`
 - :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`
 - :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`
-- :class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`,
+- :class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`
 - :class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`
 
 But there are many, many more - you can see the list of those by following the providers documentation
@@ -1321,8 +1321,8 @@ In case of DAG and task policies users may raise :class:`~airflow.exceptions.Air
 to prevent a DAG from being imported or prevent a task from being executed if the task is not compliant with
 users' check.
 
-Please note, cluster policy will have precedence over task attributes defined in DAG meaning
-if ``task.sla`` is defined in dag and also mutated via cluster policy then later will have precedence.
+Please note, cluster policy will have precedence over task attributes defined in DAG meaning that
+if ``task.sla`` is defined in dag and also mutated via cluster policy then the latter will have precedence.
 
 In next sections we show examples of each type of cluster policy.
 

@@ -77,13 +77,13 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Master version (dev)   | Stable version (2.0.0) | Previous version (1.10.14) |
-| ---------- | ---------------------- | ---------------------- | -------------------------- |
-| Python     | 3.6, 3.7, 3.8, 3.9     | 3.6, 3.7, 3.8, 3.9     | 2.7, 3.5, 3.6, 3.7, 3.8    |
-| PostgreSQL | 9.6, 10, 11, 12, 13    | 9.6, 10, 11, 12, 13    | 9.6, 10, 11, 12, 13        |
-| MySQL      | 5.7, 8                 | 5.7, 8                 | 5.6, 5.7                   |
-| SQLite     | 3.15.0+                | 3.15.0+                | 3.15.0+                    |
-| Kubernetes | 1.16.9, 1.17.5, 1.18.6 | 1.16.9, 1.17.5, 1.18.6 | 1.16.9, 1.17.5, 1.18.6     |
+|              | Master version (dev)      | Stable version (2.0.1)   | Previous version (1.10.14) |
+| ------------ | ------------------------- | ------------------------ | -------------------------  |
+| Python       | 3.6, 3.7, 3.8, 3.9        | 3.6, 3.7, 3.8, 3.9       | 2.7, 3.5, 3.6, 3.7, 3.8    |
+| PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
+| MySQL        | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
+| SQLite       | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
+| Kubernetes   | 1.16.9, 1.17.5, 1.18.6    | 1.16.9, 1.17.5, 1.18.6   | 1.16.9, 1.17.5, 1.18.6     |
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the "Scheduler" docs. MariaDB is not tested/recommended.
@@ -160,15 +160,15 @@ If you wish to install airflow using those tools you should use the constraint f
 them to appropriate format and workflow that your tool requires.
 
 ```bash
-pip install apache-airflow==2.0.0 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
+pip install apache-airflow==2.0.1 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.1/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
-pip install apache-airflow[postgres,google]==2.0.0 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
+pip install apache-airflow[postgres,google]==2.0.1 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.1/constraints-3.7.txt"
 ```
 
 For information on installing backport providers check [backport-providers.rst](docs/apache-airflow/backport-providers.rst).

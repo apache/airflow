@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Updated documentation and readme files.
+
+Bug fixes
+~~~~~~~~~
+
+* ``Remove failed DockerOperator tasks with auto_remove=True (#13532) (#13993)``
+* ``Fix error on DockerSwarmOperator with auto_remove True (#13532) (#13852)``
+
+
 1.0.0
 .....
 

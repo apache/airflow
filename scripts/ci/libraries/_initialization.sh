@@ -176,7 +176,7 @@ function initialization::initialize_dockerhub_variables() {
 
 # Determine available integrations
 function initialization::initialize_available_integrations() {
-    export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap pinot presto rabbitmq redis"
+    export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap pinot presto rabbitmq redis statsd"
 }
 
 # Needs to be declared outside of function for MacOS
@@ -396,8 +396,8 @@ function initialization::initialize_image_build_variables() {
     export WHEEL_VERSION
 
     # And installed from there (breeze and ci)
-    AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION:="."}
-    export AIRFLOW_INSTALL_VERSION
+    AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION:=""}
+    export AIRFLOW_VERSION_SPECIFICATION
 
     # By default no sources are copied to image
     AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="empty"}
@@ -649,7 +649,7 @@ Common image build variables:
 Production image build variables:
 
     AIRFLOW_INSTALLATION_METHOD: '${AIRFLOW_INSTALLATION_METHOD}'
-    AIRFLOW_INSTALL_VERSION: '${AIRFLOW_INSTALL_VERSION}'
+    AIRFLOW_VERSION_SPECIFICATION: '${AIRFLOW_VERSION_SPECIFICATION}'
     AIRFLOW_SOURCES_FROM: '${AIRFLOW_SOURCES_FROM}'
     AIRFLOW_SOURCES_TO: '${AIRFLOW_SOURCES_TO}'
 
@@ -717,6 +717,10 @@ function initialization::get_environment_for_builds_on_ci() {
 
     if [[ ${VERBOSE} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
         initialization::summarize_build_environment
+    fi
+
+    if [[ -z "${LIBRARY_PATH:-}" && -n "${LD_LIBRARY_PATH:-}" ]]; then
+      export LIBRARY_PATH="$LD_LIBRARY_PATH"
     fi
 }
 

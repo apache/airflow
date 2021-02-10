@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Updated documentation and readme files.
+
+Features
+~~~~~~~~
+
+* ``Add retryer to SFTP hook connection (#13065)``
+
+
 1.0.0
 .....
 

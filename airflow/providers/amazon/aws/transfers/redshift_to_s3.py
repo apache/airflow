@@ -20,6 +20,7 @@ from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.decorators import apply_defaults
 
@@ -40,6 +41,9 @@ class RedshiftToS3Operator(BaseOperator):
     :param redshift_conn_id: reference to a specific redshift database
     :type redshift_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
+        If the AWS connection contains 'aws_iam_role' in ``extras``
+        the operator will use AWS STS credentials with a token
+        https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
     :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
@@ -102,28 +106,28 @@ class RedshiftToS3Operator(BaseOperator):
                 'HEADER',
             ]
 
+    def _build_unload_query(
+        self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
+    ) -> str:
+        return f"""
+                    UNLOAD ('{select_query}')
+                    TO 's3://{self.s3_bucket}/{s3_key}'
+                    with credentials
+                    '{credentials_block}'
+                    {unload_options};
+        """
+
     def execute(self, context) -> None:
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         credentials = s3_hook.get_credentials()
+        credentials_block = build_credentials_block(credentials)
         unload_options = '\n\t\t\t'.join(self.unload_options)
-        s3_key = f'{self.s3_key}/{self.table}_' if self.table_as_file_name else self.s3_key
+        s3_key = f"{self.s3_key}/{self.table}_" if self.table_as_file_name else self.s3_key
         select_query = f"SELECT * FROM {self.schema}.{self.table}"
-        unload_query = """
-                    UNLOAD ('{select_query}')
-                    TO 's3://{s3_bucket}/{s3_key}'
-                    with credentials
-                    'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
-                    {unload_options};
-                    """.format(
-            select_query=select_query,
-            s3_bucket=self.s3_bucket,
-            s3_key=s3_key,
-            access_key=credentials.access_key,
-            secret_key=credentials.secret_key,
-            unload_options=unload_options,
-        )
+
+        unload_query = self._build_unload_query(credentials_block, select_query, s3_key, unload_options)
 
         self.log.info('Executing UNLOAD command...')
         postgres_hook.run(unload_query, self.autocommit)

@@ -24,6 +24,7 @@ from boto3.session import Session
 from parameterized import parameterized
 
 from airflow.providers.amazon.aws.transfers.redshift_to_s3 import RedshiftToS3Operator
+from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
@@ -46,6 +47,9 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
         schema = "schema"
         table = "table"
         s3_bucket = "bucket"
@@ -54,7 +58,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
             'HEADER',
         ]
 
-        RedshiftToS3Operator(
+        op = RedshiftToS3Operator(
             schema=schema,
             table=table,
             s3_bucket=s3_bucket,
@@ -66,26 +70,81 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
             task_id="task_id",
             table_as_file_name=table_as_file_name,
             dag=None,
-        ).execute(None)
+        )
+
+        op.execute(None)
 
         unload_options = '\n\t\t\t'.join(unload_options)
         select_query = f"SELECT * FROM {schema}.{table}"
-        unload_query = """
-                    UNLOAD ('{select_query}')
-                    TO 's3://{s3_bucket}/{s3_key}'
-                    with credentials
-                    'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
-                    {unload_options};
-                    """.format(
-            select_query=select_query,
-            s3_bucket=s3_bucket,
-            s3_key=expected_s3_key,
-            access_key=access_key,
-            secret_key=secret_key,
-            unload_options=unload_options,
+        credentials_block = build_credentials_block(mock_session.return_value)
+
+        unload_query = op._build_unload_query(
+            credentials_block, select_query, expected_s3_key, unload_options
         )
 
         assert mock_run.call_count == 1
+        assert access_key in unload_query
+        assert secret_key in unload_query
+        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
+
+    @parameterized.expand(
+        [
+            [True, "key/table_"],
+            [False, "key"],
+        ]
+    )
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
+    def test_execute_sts_token(
+        self,
+        table_as_file_name,
+        expected_s3_key,
+        mock_run,
+        mock_session,
+    ):
+        access_key = "ASIA_aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        token = "token"
+        mock_session.return_value = Session(access_key, secret_key, token)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = token
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+        unload_options = [
+            'HEADER',
+        ]
+
+        op = RedshiftToS3Operator(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            unload_options=unload_options,
+            include_header=True,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            table_as_file_name=table_as_file_name,
+            dag=None,
+        )
+
+        op.execute(None)
+
+        unload_options = '\n\t\t\t'.join(unload_options)
+        select_query = f"SELECT * FROM {schema}.{table}"
+        credentials_block = build_credentials_block(mock_session.return_value)
+
+        unload_query = op._build_unload_query(
+            credentials_block, select_query, expected_s3_key, unload_options
+        )
+
+        assert mock_run.call_count == 1
+        assert access_key in unload_query
+        assert secret_key in unload_query
+        assert token in unload_query
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
 
     def test_template_fields_overrides(self):

@@ -87,6 +87,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import json as utils_json, timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
+from airflow.utils.docs import get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
@@ -909,8 +910,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             content = getattr(task, template_field)
             renderer = task.template_fields_renderers.get(template_field, template_field)
             if renderer in renderers:
-                if isinstance(content, (dict, list)):
-                    content = json.dumps(content, sort_keys=True, indent=4)
                 html_dict[template_field] = renderers[renderer](content)
             else:
                 html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(
@@ -2992,10 +2991,12 @@ class PluginView(AirflowBaseView):
             plugins.append(plugin_data)
 
         title = "Airflow Plugins"
+        doc_url = get_docs_url("plugins.html")
         return self.render_template(
             'airflow/plugin.html',
             plugins=plugins,
             title=title,
+            doc_url=doc_url,
         )
 
 

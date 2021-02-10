@@ -392,7 +392,7 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -427,7 +427,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.0.0" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.0" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -612,6 +612,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
 |                                          |                                          | when installing runtime deps             |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_PIP_VERSION``                  | ``20.2.4``                               | PIP version used.                        |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 
 Here are some examples of how CI images can built manually. CI is always built from local sources.

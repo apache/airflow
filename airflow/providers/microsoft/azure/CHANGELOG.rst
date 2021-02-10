@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Updated documentation and readme files.
+
+Features
+~~~~~~~~
+
+* ``Upgrade azure blob to v12 (#12188)``
+* ``Fix Azure Data Explorer Operator (#13520)``
+* ``add AzureDatalakeStorageDeleteOperator (#13206)``
+
 1.0.0
 .....
 

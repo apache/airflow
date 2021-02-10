@@ -546,6 +546,8 @@ function get_count_kubernetes_files() {
     local pattern_array=(
         "^chart"
         "^kubernetes_tests"
+        "^airflow/providers/cncf/kubernetes/"
+        "^tests/providers/cncf/kubernetes/"
     )
     show_changed_files
     COUNT_KUBERNETES_CHANGED_FILES=$(count_changed_files)

@@ -15,9 +15,18 @@
     specific language governing permissions and limitations
     under the License.
 
+The version of MySQL server has to be 5.6.4+. The exact version upper bound depends
+on the version of ``mysqlclient`` package. For example, ``mysqlclient`` 1.3.12 can only be
+used with MySQL server 5.6.4 through 5.7.
 
 Changelog
 ---------
+
+1.0.1
+.....
+
+Updated documentation and readme files.
+
 
 1.0.0
 .....

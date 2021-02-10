@@ -37,12 +37,16 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2021-01-31
+Latest change: 2021-02-03
 
 ================================================================================================  ===========  =========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================================
-`2ab3c1130 <https://github.com/apache/airflow/commit/2ab3c11306909e9d362af5ee8677d85e70ccd161>`_  2021-01-31   ``Implement provider versioning tools``
+`1872d8719 <https://github.com/apache/airflow/commit/1872d8719d24f94aeb1dcba9694837070b9884ca>`_  2021-02-03   ``Add Apache Beam operators (#12814)``
+`0e8c77b93 <https://github.com/apache/airflow/commit/0e8c77b93a5ca5ecfdcd1c4bd91f54846fc15d57>`_  2021-02-03   ``Support google-cloud-logging' >=2.0.0 (#13801)``
+`833e33832 <https://github.com/apache/airflow/commit/833e3383230e1f6f73f8022ddf439d3d531eff01>`_  2021-02-02   ``Fix four bugs in StackdriverTaskHandler (#13784)``
+`d2efb3323 <https://github.com/apache/airflow/commit/d2efb33239d36e58fb69066fd23779724cb11a90>`_  2021-02-02   ``Support google-cloud-monitoring>=2.0.0 (#13769)``
+`ac2f72c98 <https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b>`_  2021-02-01   ``Implement provider versioning tools (#13767)``
 `823741cfe <https://github.com/apache/airflow/commit/823741cfea3e7a2584d1e68126db3d6e6739b08f>`_  2021-01-28   ``Improve GCS system test envs (#13946)``
 `6d6588fe2 <https://github.com/apache/airflow/commit/6d6588fe2b8bb5fa33e930646d963df3e0530f23>`_  2021-01-28   ``Add Google Cloud Workflows Operators (#13366)``
 `810c15ed8 <https://github.com/apache/airflow/commit/810c15ed85d7bcde8d5b8bc44e1cbd4859e29d2e>`_  2021-01-27   ``Fix and improve GCP BigTable hook and system test (#13896)``

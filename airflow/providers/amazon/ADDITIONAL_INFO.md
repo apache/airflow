@@ -17,6 +17,29 @@
  under the License.
  -->
 
+## Release 2021.2.5
+
+### Features
+
+  * `Add aws ses email backend for use with EmailOperator. (#13986)`
+  * `Add bucket_name to template fileds in S3 operators (#13973)`
+  * `Add ExasolToS3Operator (#13847)`
+  * `AWS Glue Crawler Integration (#13072)`
+  * `Add acl_policy to S3CopyObjectOperator (#13773)`
+  * `AllowDiskUse parameter and docs in MongotoS3Operator (#12033)`
+  * `Add S3ToFTPOperator (#11747)`
+  * `add xcom push for ECSOperator (#12096)`
+  * `[AIRFLOW-3723] Add Gzip capability to mongo_to_S3 operator (#13187)`
+  * `Add S3KeySizeSensor (#13049)`
+  * `Add 'mongo_collection' to template_fields in MongoToS3Operator (#13361)`
+  * `Allow Tags on AWS Batch Job Submission (#13396)`
+
+### Bug fixes
+
+  * `Fix bug in GCSToS3Operator (#13718)`
+  * `Fix S3KeysUnchangedSensor so that template_fields work (#13490)`
+
+
 ## Change in import paths
 
 If you are upgrading from 2020.10.5 note the following changes in import paths

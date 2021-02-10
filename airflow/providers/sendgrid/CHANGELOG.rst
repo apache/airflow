@@ -19,6 +19,13 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Updated documentation and readme files.
+
+* ``Deprecate email credentials from environment variables. (#13601)``
+
 1.0.0
 .....
 
