@@ -24,6 +24,7 @@ import os
 import pickle
 import signal
 import warnings
+from collections import defaultdict
 from datetime import datetime, timedelta
 from tempfile import NamedTemporaryFile
 from typing import IO, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
@@ -146,6 +147,7 @@ def clear_task_instances(
     :param dag: DAG object
     """
     job_ids = []
+    task_id_by_key = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
     for ti in tis:
         if ti.state == State.RUNNING:
             if ti.job_id:
@@ -166,13 +168,36 @@ def clear_task_instances(
                 ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
             ti.state = State.NONE
             session.merge(ti)
+
+        task_id_by_key[ti.dag_id][ti.execution_date][ti.try_number].add(ti.task_id)
+
+    if task_id_by_key:
         # Clear all reschedules related to the ti to clear
-        session.query(TR).filter(
-            TR.dag_id == ti.dag_id,
-            TR.task_id == ti.task_id,
-            TR.execution_date == ti.execution_date,
-            TR.try_number == ti.try_number,
-        ).delete()
+
+        # This is an optimization for the common case where all tis are for a small number
+        # of dag_id, execution_date and try_number. Use a nested dict of dag_id,
+        # execution_date, try_number and task_id to construct the where clause in a
+        # hierarchical manner. This speeds up the delete statement by more than 40x for
+        # large number of tis (50k+).
+        conditions = or_(
+            and_(
+                TR.dag_id == dag_id,
+                or_(
+                    and_(
+                        TR.execution_date == execution_date,
+                        or_(
+                            and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
+                            for try_number, task_ids in task_tries.items()
+                        ),
+                    )
+                    for execution_date, task_tries in dates.items()
+                ),
+            )
+            for dag_id, dates in task_id_by_key.items()
+        )
+
+        delete_qry = TR.__table__.delete().where(conditions)
+        session.execute(delete_qry)
 
     if job_ids:
         from airflow.jobs.base_job import BaseJob
