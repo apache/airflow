@@ -29,7 +29,6 @@ import zipfile
 from datetime import datetime, timedelta
 from typing import Dict, List, NamedTuple, Optional
 
-from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from tabulate import tabulate
@@ -369,15 +368,13 @@ class DagBag(LoggingMixin):
                     dag.fileloc = filepath
             try:
                 dag.is_subdag = False
-                if isinstance(dag.normalized_schedule_interval, str):
-                    croniter(dag.normalized_schedule_interval)
+                if dag.timetable.import_errors:
+                    self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
+                    self.import_errors[dag.full_filepath] = dag.timetable.import_errors
+                    self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
                 self.bag_dag(dag=dag, root_dag=dag)
                 found_dags.append(dag)
                 found_dags += dag.subdags
-            except (CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError) as cron_e:
-                self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                self.import_errors[dag.full_filepath] = f"Invalid Cron expression: {cron_e}"
-                self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
             except (AirflowDagCycleException, AirflowClusterPolicyViolation) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
                 self.import_errors[dag.full_filepath] = str(exception)

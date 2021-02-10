@@ -47,7 +47,7 @@ from typing import (
 
 import jinja2
 import pendulum
-from croniter import croniter
+from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
 from sqlalchemy.orm import backref, joinedload, relationship
@@ -113,10 +113,9 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
 class BaseTimetable(LoggingMixin):
     """Base Timetable class."""
 
-    # TODO: Make internal method for CrontTimetable.
-    @abstractmethod
-    def normalized_schedule_interval(self) -> Optional[ScheduleInterval]:
-        raise NotImplementedError()
+    def __init__(self):
+        self.import_errors = []
+        self.allow_future_exec_dates = True
 
     @abstractmethod
     def date_range(
@@ -159,11 +158,19 @@ class CronTimetable(BaseTimetable):
         start_date=None,
         end_date=None,
     ):
+        super().__init__()
         self.schedule_interval = schedule_interval
         self.timezone = timezone
         self.catchup = catchup
         self.start_date = start_date
         self.end_date = end_date
+
+        if isinstance(self.normalized_schedule_interval(), str):
+            self.allow_future_exec_dates = False
+            try:
+                croniter(self.normalized_schedule_interval())
+            except (CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError) as cron_e:
+                self.import_errors.append(f"Invalid Cron expression: {cron_e}")
 
     def normalized_schedule_interval(self) -> Optional[ScheduleInterval]:
         """
@@ -626,7 +633,7 @@ class DAG(LoggingMixin):
         self.catchup = catchup
 
         if not timetable_class or timetable_class == CronTimetable:
-            self.timetable = timetable_class(
+            self.timetable = CronTimetable(
                 schedule_interval=self.schedule_interval,
                 timezone=self.timezone,
                 catchup=self.catchup,
@@ -759,10 +766,6 @@ class DAG(LoggingMixin):
     def following_schedule(self, dttm):
         self.timetable.following_schedule(dttm)
 
-    @property
-    def normalized_schedule_interval(self) -> Optional[ScheduleInterval]:
-        return self.timetable.normalized_schedule_interval()
-
     def previous_schedule(self, dttm):
         self.timetable.previous_schedule(dttm)
 
@@ -891,7 +894,7 @@ class DAG(LoggingMixin):
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_EXEC_DATES and self.normalized_schedule_interval is None
+        return settings.ALLOW_FUTURE_EXEC_DATES and self.timetable.allow_future_exec_dates
 
     @provide_session
     def get_concurrency_reached(self, session=None) -> bool:
