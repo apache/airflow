@@ -121,7 +121,7 @@ $(document).ready(function () {
 
       if (config[connType].relabeling) {
         Object.keys(config[connType].relabeling).forEach(field => {
-          const label = document.querySelector("label[for='" + field + "']");
+          const label = document.querySelector(`label[for='${field}']`);
           label.dataset.origText = label.innerText;
           label.innerText = config[connType].relabeling[field];
         });
