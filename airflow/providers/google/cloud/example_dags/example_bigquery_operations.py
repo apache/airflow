@@ -35,6 +35,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryGetDatasetTablesOperator,
     BigQueryPatchDatasetOperator,
     BigQueryUpdateDatasetOperator,
+    BigQueryUpdateTableOperator,
     BigQueryUpsertTableOperator,
 )
 from airflow.utils.dates import days_ago
@@ -112,8 +113,8 @@ with models.DAG(
     # [END howto_operator_bigquery_create_external_table]
 
     # [START howto_operator_bigquery_upsert_table]
-    update_table = BigQueryUpsertTableOperator(
-        task_id="update_table",
+    upsert_table = BigQueryUpsertTableOperator(
+        task_id="upsert_table",
         dataset_id=DATASET_NAME,
         table_resource={
             "tableReference": {"tableId": "test_table_id"},
@@ -140,6 +141,22 @@ with models.DAG(
         task_id="get_dataset_result",
         bash_command="echo \"{{ task_instance.xcom_pull('get-dataset')['id'] }}\"",
     )
+
+    # [START howto_operator_bigquery_update_table]
+    update_table = BigQueryUpdateTableOperator(
+        task_id="update_table",
+        dataset_id=DATASET_NAME,
+        table_id="test_table",
+        fields=[
+            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+        ],
+        table_resource={
+            "friendlyName": "Updated Table",
+            "description": "Updated Table",
+        },
+    )
+    # [END howto_operator_bigquery_update_table]
 
     # [START howto_operator_bigquery_patch_dataset]
     patch_dataset = BigQueryPatchDatasetOperator(
@@ -168,10 +185,10 @@ with models.DAG(
 
     create_dataset >> patch_dataset >> update_dataset >> get_dataset >> get_dataset_result >> delete_dataset
 
-    update_dataset >> create_table >> create_view >> [
+    update_dataset >> create_table >> create_view >> update_table >> [
         get_dataset_tables,
         delete_view,
-    ] >> update_table >> delete_table >> delete_dataset
+    ] >> upsert_table >> delete_table >> delete_dataset
     update_dataset >> create_external_table >> delete_dataset
 
 with models.DAG(

@@ -82,6 +82,23 @@ To retrieve the list of tables in a given dataset use
     :start-after: [START howto_operator_bigquery_get_dataset_tables]
     :end-before: [END howto_operator_bigquery_get_dataset_tables]
 
+.. _howto/operator:BigQueryUpdateTableOperator:
+
+Update table
+""""""""""""""
+
+To update a table in BigQuery you can use
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateTableOperator`.
+
+The update method replaces the entire Table resource, whereas the patch
+method only replaces fields that are provided in the submitted Table resource.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_bigquery_operations.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_update_table]
+    :end-before: [END howto_operator_bigquery_update_table]
+
 .. _howto/operator:BigQueryPatchDatasetOperator:
 
 Patch dataset
