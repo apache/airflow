@@ -15,7 +15,8 @@
   limitations under the License.
 
 #}
-{% extends "airflow/master.html" %}
+
+{% extends base_template %}
 
 {% block title %}
     {{ title }}
@@ -38,6 +39,6 @@
     {% endif %}
 
     {% if code_html %}
-        {{ code_html|safe }}
+        {{ code_html }}
     {% endif %}
 {% endblock %}

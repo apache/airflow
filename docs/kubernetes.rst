@@ -23,21 +23,22 @@ Kubernetes
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
 
-The :doc:`Kubernetes Executor <executor/kubernetes>` allows you to run tasks on Kubernetes as Pods.
+The :doc:`Kubernetes Executor <executor/kubernetes>` allows you to run all the Airflow tasks on
+Kubernetes as separate Pods.
 
-Kubernetes Operator
-^^^^^^^^^^^^^^^^^^^
+KubernetesPodOperator
+^^^^^^^^^^^^^^^^^^^^^
 
-The :doc:`KubernetesPodOperator <executor/kubernetes>` allows you to create Pods on Kubernetes. It works with
+The :class:`~airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator` allows you to create Pods on Kubernetes. It works with
 any type of executor.
 
-.. code:: python
+.. code-block:: python
 
     from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
-    from airflow.contrib.kubernetes.secret import Secret
-    from airflow.contrib.kubernetes.volume import Volume
-    from airflow.contrib.kubernetes.volume_mount import VolumeMount
-    from airflow.contrib.kubernetes.pod import Port
+    from airflow.kubernetes.secret import Secret
+    from airflow.kubernetes.volume import Volume
+    from airflow.kubernetes.volume_mount import VolumeMount
+    from airflow.kubernetes.pod import Port
 
 
     secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
@@ -138,8 +139,8 @@ any type of executor.
 Pod Mutation Hook
 ^^^^^^^^^^^^^^^^^
 
-Your local Airflow settings file can define a ``pod_mutation_hook`` function that
-has the ability to mutate pod objects before sending them to the Kubernetes client
+The Airflow local settings file (``airflow_local_settings.py``) can define a ``pod_mutation_hook`` function
+that has the ability to mutate pod objects before sending them to the Kubernetes client
 for scheduling. It receives a single argument as a reference to pod objects, and
 is expected to alter its attributes.
 
@@ -147,7 +148,7 @@ This could be used, for instance, to add sidecar or init containers
 to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
 
 
-.. code:: python
+.. code-block:: python
 
     def pod_mutation_hook(pod: Pod):
       pod.annotations['airflow.apache.org/launched-by'] = 'Tests'

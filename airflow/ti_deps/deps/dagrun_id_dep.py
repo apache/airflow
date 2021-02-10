@@ -48,9 +48,9 @@ class DagrunIdDep(BaseTIDep):
         from airflow.jobs import BackfillJob  # To avoid a circular dependency
         dagrun = ti.get_dagrun(session)
 
-        if not dagrun.run_id or not match(BackfillJob.ID_PREFIX + '.*', dagrun.run_id):
+        if not dagrun or not dagrun.run_id or not match(BackfillJob.ID_PREFIX + '.*', dagrun.run_id):
             yield self._passing_status(
-                reason="Task's DagRun run_id is either NULL "
+                reason="Task's DagRun doesn't exist or the run_id is either NULL "
                        "or doesn't start with {}".format(BackfillJob.ID_PREFIX))
         else:
             yield self._failing_status(

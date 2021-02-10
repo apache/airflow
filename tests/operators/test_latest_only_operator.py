@@ -47,15 +47,40 @@ def get_task_instances(task_id):
 
 
 class LatestOnlyOperatorTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from tests.compat import MagicMock
+        from airflow.jobs import SchedulerJob
 
-    def setUp(self):
-        super(LatestOnlyOperatorTest, self).setUp()
-        self.dag = DAG(
+        cls.dag = DAG(
             'test_dag',
             default_args={
                 'owner': 'airflow',
                 'start_date': DEFAULT_DATE},
             schedule_interval=INTERVAL)
+
+        cls.dag.create_dagrun(
+            run_id="manual__1",
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        cls.dag.create_dagrun(
+            run_id="manual__2",
+            execution_date=timezone.datetime(2016, 1, 1, 12),
+            state=State.RUNNING
+        )
+
+        cls.dag.create_dagrun(
+            run_id="manual__3",
+            execution_date=END_DATE,
+            state=State.RUNNING
+        )
+
+        cls.dag_file_processor = SchedulerJob(dag_ids=[], log=MagicMock())
+
+    def setUp(self):
+        super(LatestOnlyOperatorTest, self).setUp()
         self.addCleanup(self.dag.clear)
         freezer = freeze_time(FROZEN_NOW)
         freezer.start()
@@ -86,6 +111,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
 
         latest_instances = get_task_instances('latest')
+        self.dag_file_processor._process_task_instances(self.dag, task_instances_list=latest_instances)
         exec_date_to_latest_state = {
             ti.execution_date: ti.state for ti in latest_instances}
         self.assertEqual({
@@ -95,6 +121,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
             exec_date_to_latest_state)
 
         downstream_instances = get_task_instances('downstream')
+        self.dag_file_processor._process_task_instances(self.dag, task_instances_list=downstream_instances)
         exec_date_to_downstream_state = {
             ti.execution_date: ti.state for ti in downstream_instances}
         self.assertEqual({
@@ -104,6 +131,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
             exec_date_to_downstream_state)
 
         downstream_instances = get_task_instances('downstream_2')
+        self.dag_file_processor._process_task_instances(self.dag, task_instances_list=downstream_instances)
         exec_date_to_downstream_state = {
             ti.execution_date: ti.state for ti in downstream_instances}
         self.assertEqual({
@@ -126,32 +154,13 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         downstream_task.set_upstream(latest_task)
         downstream_task2.set_upstream(downstream_task)
 
-        self.dag.create_dagrun(
-            run_id="manual__1",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING
-        )
-
-        self.dag.create_dagrun(
-            run_id="manual__2",
-            start_date=timezone.utcnow(),
-            execution_date=timezone.datetime(2016, 1, 1, 12),
-            state=State.RUNNING
-        )
-
-        self.dag.create_dagrun(
-            run_id="manual__3",
-            start_date=timezone.utcnow(),
-            execution_date=END_DATE,
-            state=State.RUNNING
-        )
-
         latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
         downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
         downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
 
         latest_instances = get_task_instances('latest')
+        self.dag_file_processor._process_task_instances(self.dag, task_instances_list=latest_instances)
+
         exec_date_to_latest_state = {
             ti.execution_date: ti.state for ti in latest_instances}
         self.assertEqual({
@@ -161,6 +170,8 @@ class LatestOnlyOperatorTest(unittest.TestCase):
             exec_date_to_latest_state)
 
         downstream_instances = get_task_instances('downstream')
+        self.dag_file_processor._process_task_instances(self.dag, task_instances_list=downstream_instances)
+
         exec_date_to_downstream_state = {
             ti.execution_date: ti.state for ti in downstream_instances}
         self.assertEqual({
@@ -170,6 +181,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
             exec_date_to_downstream_state)
 
         downstream_instances = get_task_instances('downstream_2')
+        self.dag_file_processor._process_task_instances(self.dag, task_instances_list=downstream_instances)
         exec_date_to_downstream_state = {
             ti.execution_date: ti.state for ti in downstream_instances}
         self.assertEqual({

@@ -21,6 +21,7 @@ from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, Text
 from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, ID_LEN
+from airflow.models.user import User
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils import timezone
 
@@ -41,7 +42,7 @@ class Chart(Base):
     height = Column(Integer, default=600)
     default_params = Column(String(5000), default="{}")
     owner = relationship(
-        "User", cascade=False, cascade_backrefs=False, backref='charts')
+        User, cascade=False, cascade_backrefs=False, backref='charts')
     x_is_date = Column(Boolean, default=True)
     iteration_no = Column(Integer, default=0)
     last_modified = Column(UtcDateTime, default=timezone.utcnow)

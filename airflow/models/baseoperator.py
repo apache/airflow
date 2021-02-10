@@ -45,6 +45,7 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
+from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
@@ -135,10 +136,6 @@ class BaseOperator(LoggingMixin):
         only tasks *immediately* downstream of the previous task instance are waited
         for; the statuses of any tasks further downstream are ignored.
     :type wait_for_downstream: bool
-    :param queue: which queue to target when running this job. Not
-        all executors implement queue management, the CeleryExecutor
-        does support targeting specific queues.
-    :type queue: str
     :param dag: a reference to the dag the task is attached to (if any)
     :type dag: airflow.models.DAG
     :param priority_weight: priority weight of this task against other task.
@@ -169,11 +166,16 @@ class BaseOperator(LoggingMixin):
         DAGS. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
     :type weight_rule: str
-    :param queue: specifies which task queue to use
+    :param queue: which queue to target when running this job. Not
+        all executors implement queue management, the CeleryExecutor
+        does support targeting specific queues.
     :type queue: str
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
     :type pool: str
+    :param pool_slots: the number of pool slots this task should use (>= 1)
+        Values less than 1 are not allowed.
+    :type pool_slots: int
     :param sla: time by which the job is expected to succeed. Note that
         this represents the ``timedelta`` after the period is closed. For
         example if you set an SLA of 1 hour, the scheduler would send an email
@@ -204,7 +206,7 @@ class BaseOperator(LoggingMixin):
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
-        one_failed | none_failed | none_skipped | dummy}``
+        one_failed | none_failed | none_failed_or_skipped | none_skipped | dummy}``
         default is ``all_success``. Options can be set as string or
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
@@ -226,9 +228,9 @@ class BaseOperator(LoggingMixin):
 
             MyOperator(...,
                 executor_config={
-                "KubernetesExecutor":
-                    {"image": "myCustomDockerImage"}
-                    }
+                    "KubernetesExecutor":
+                        {"image": "myCustomDockerImage"}
+                }
             )
 
     :type executor_config: dict
@@ -308,6 +310,7 @@ class BaseOperator(LoggingMixin):
         weight_rule=WeightRule.DOWNSTREAM,  # type: str
         queue=conf.get('celery', 'default_queue'),  # type: str
         pool=Pool.DEFAULT_POOL_NAME,  # type: str
+        pool_slots=1,  # type: int
         sla=None,  # type: Optional[timedelta]
         execution_timeout=None,  # type: Optional[timedelta]
         on_failure_callback=None,  # type: Optional[Callable]
@@ -377,6 +380,10 @@ class BaseOperator(LoggingMixin):
         self.retries = retries
         self.queue = queue
         self.pool = pool
+        self.pool_slots = pool_slots
+        if self.pool_slots < 1:
+            raise AirflowException("pool slots for %s in dag %s cannot be less than 1"
+                                   % (self.task_id, self.dag_id))
         self.sla = sla
         self.execution_timeout = execution_timeout
         self.on_failure_callback = on_failure_callback
@@ -422,8 +429,8 @@ class BaseOperator(LoggingMixin):
         self._log = logging.getLogger("airflow.task.operators")
 
         # lineage
-        self.inlets = []  # type: Iterable[DataSet]
-        self.outlets = []  # type: Iterable[DataSet]
+        self.inlets = []   # type: List[DataSet]
+        self.outlets = []  # type: List[DataSet]
         self.lineage_data = None
 
         self._inlets = {
@@ -540,7 +547,8 @@ class BaseOperator(LoggingMixin):
                 "The DAG assigned to {} can not be changed.".format(self))
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
-
+        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
+            dag.add_task(self)
         self._dag = dag
 
     def has_dag(self):
@@ -568,6 +576,7 @@ class BaseOperator(LoggingMixin):
             NotInRetryPeriodDep(),
             PrevDagrunDep(),
             TriggerRuleDep(),
+            NotPreviouslySkippedDep(),
         }
 
     @property
@@ -578,7 +587,7 @@ class BaseOperator(LoggingMixin):
         schedule_interval as it may not be attached to a DAG.
         """
         if self.has_dag():
-            return self.dag._schedule_interval
+            return self.dag.normalized_schedule_interval
         else:
             return self._schedule_interval
 
@@ -867,14 +876,11 @@ class BaseOperator(LoggingMixin):
             tasks += [
                 t.task_id for t in self.get_flat_relatives(upstream=False)]
 
-        qry = qry.filter(TI.task_id.in_(tasks))
-
-        count = qry.count()
-
-        clear_task_instances(qry.all(), session, dag=self.dag)
-
+        qry = qry.filter(TaskInstance.task_id.in_(tasks))
+        results = qry.all()
+        count = len(results)
+        clear_task_instances(results, session, dag=self.dag)
         session.commit()
-
         return count
 
     @provide_session

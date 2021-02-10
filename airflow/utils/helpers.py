@@ -33,7 +33,10 @@ from builtins import input
 from past.builtins import basestring
 from datetime import datetime
 from functools import reduce
-from collections import Iterable
+try:
+    from collections.abc import Iterable
+except ImportError:
+    from collections import Iterable
 import os
 import re
 import signal
@@ -296,7 +299,7 @@ def reap_process_group(pgid, log, sig=signal.SIGTERM,
             # use sudo -n(--non-interactive) to kill the process
             if err.errno == errno.EPERM:
                 subprocess.check_call(
-                    ["sudo", "-n", "kill", "-" + str(sig)] + [str(p.pid) for p in children]
+                    ["sudo", "-n", "kill", "-" + str(int(sig))] + [str(p.pid) for p in children]
                 )
             else:
                 raise

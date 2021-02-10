@@ -1,0 +1,77 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# MD003/heading-style/header-style
+MD003: false
+
+# MD004/ul-style
+MD004: false
+
+# MD007/ul-indent
+MD007: false
+
+# MD012/no-multiple-blanks
+MD012: false
+
+# MD013 Line length
+MD013: false
+
+# MD014/commands-show-output
+MD014: false
+
+# MD022/blanks-around-headings/blanks-around-headers
+MD022: false
+
+# MD024/no-duplicate-heading/no-duplicate-header
+MD024: false
+
+# MD026/no-trailing-punctuation
+MD026: false
+
+# MD029/ol-prefix
+MD029: false
+
+# MD030/list-marker-space
+MD030: false
+
+# MD031/blanks-around-fences
+MD031: false
+
+# MD032/blanks-around-lists
+MD032: false
+
+# MD033/no-inline-html
+MD033: false
+
+# MD034/no-bare-urls
+MD034: false
+
+# MD036/no-emphasis-as-heading/no-emphasis-as-header
+MD036: false
+
+# MD040/fenced-code-language
+MD040: false
+
+# MD041/first-line-heading/first-line-h1
+MD041: false
+
+# MD045/no-alt-text
+MD045: false
+
+# MD046/code-block-style
+MD046: false

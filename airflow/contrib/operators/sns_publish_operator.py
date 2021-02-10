@@ -32,8 +32,13 @@ class SnsPublishOperator(BaseOperator):
     :type target_arn: str
     :param message: the default message you want to send (templated)
     :type message: str
+    :param subject: the message subject you want to send (templated)
+    :type subject: str
+    :param message_attributes: the message attributes you want to send as a flat dict (data type will be
+        determined automatically)
+    :type message_attributes: dict
     """
-    template_fields = ['message']
+    template_fields = ['message', 'subject', 'message_attributes']
     template_ext = ()
 
     @apply_defaults
@@ -42,24 +47,31 @@ class SnsPublishOperator(BaseOperator):
             target_arn,
             message,
             aws_conn_id='aws_default',
+            subject=None,
+            message_attributes=None,
             *args, **kwargs):
         super(SnsPublishOperator, self).__init__(*args, **kwargs)
         self.target_arn = target_arn
         self.message = message
+        self.subject = subject
+        self.message_attributes = message_attributes
         self.aws_conn_id = aws_conn_id
 
     def execute(self, context):
         sns = AwsSnsHook(aws_conn_id=self.aws_conn_id)
 
         self.log.info(
-            'Sending SNS notification to {} using {}:\n{}'.format(
-                self.target_arn,
-                self.aws_conn_id,
-                self.message
-            )
+            'Sending SNS notification to %s using %s:\nsubject=%s\nattributes=%s\nmessage=%s',
+            self.target_arn,
+            self.aws_conn_id,
+            self.subject,
+            self.message_attributes,
+            self.message,
         )
 
         return sns.publish_to_target(
             target_arn=self.target_arn,
-            message=self.message
+            message=self.message,
+            subject=self.subject,
+            message_attributes=self.message_attributes,
         )

@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 
 from past.builtins import unicode
 
@@ -23,7 +24,8 @@ import cloudant
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 class CloudantHook(BaseHook):
@@ -40,7 +42,6 @@ class CloudantHook(BaseHook):
         def _str(s):
             # cloudant-python doesn't support unicode.
             if isinstance(s, unicode):
-                log = LoggingMixin().log
                 log.debug(
                     'cloudant-python does not support unicode. Encoding %s as '
                     'ascii using "ignore".', s

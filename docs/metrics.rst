@@ -31,6 +31,14 @@ First you must install statsd requirement:
 
    pip install 'apache-airflow[statsd]'
 
+.. note::
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
+
 Add the following lines to your configuration file e.g. ``airflow.cfg``
 
 .. code-block:: ini
@@ -90,14 +98,15 @@ Name                                                Description
 Timers
 ------
 
-=========================================== =================================================
-Name                                        Description
-=========================================== =================================================
-``dagrun.dependency-check.<dag_id>``        Milliseconds taken to check DAG dependencies
-``dag.<dag_id>.<task_id>.duration``         Milliseconds taken to finish a task
-``dag_processing.last_duration.<dag_file>`` Milliseconds taken to load the given DAG file
-``dagrun.duration.success.<dag_id>``        Milliseconds taken for a DagRun to reach success state
-``dagrun.duration.failed.<dag_id>``         Milliseconds taken for a DagRun to reach failed state
-``dagrun.schedule_delay.<dag_id>``          Milliseconds of delay between the scheduled DagRun
-                                            start date and the actual DagRun start date
-=========================================== =================================================
+================================================= =======================================================================
+Name                                              Description
+================================================= =======================================================================
+``dagrun.dependency-check.<dag_id>``              Milliseconds taken to check DAG dependencies
+``dag.<dag_id>.<task_id>.duration``               Milliseconds taken to finish a task
+``dag_processing.last_duration.<dag_file>``       Milliseconds taken to load the given DAG file
+``dagrun.duration.success.<dag_id>``              Milliseconds taken for a DagRun to reach success state
+``dagrun.duration.failed.<dag_id>``               Milliseconds taken for a DagRun to reach failed state
+``dagrun.schedule_delay.<dag_id>``                Milliseconds of delay between the scheduled DagRun
+                                                  start date and the actual DagRun start date
+``dagrun.<dag_id>.first_task_scheduling_delay``   Milliseconds elapsed between first task start_date and dagrun expected start
+================================================= =======================================================================

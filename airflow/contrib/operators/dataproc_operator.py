@@ -278,7 +278,7 @@ class DataprocClusterCreateOperator(DataprocOperationBaseOperator):
                 return self.init_action_timeout
             elif match.group(2) == "m":
                 val = float(match.group(1))
-                return "{}s".format(timedelta(minutes=val).seconds)
+                return "{}s".format(int(timedelta(minutes=val).total_seconds()))
 
         raise AirflowException(
             "DataprocClusterCreateOperator init_action_timeout"
@@ -544,13 +544,13 @@ class DataprocClusterScaleOperator(DataprocOperationBaseOperator):
                 return timeout
             elif match.group(2) == "m":
                 val = float(match.group(1))
-                return "{}s".format(timedelta(minutes=val).seconds)
+                return "{}s".format(int(timedelta(minutes=val).total_seconds()))
             elif match.group(2) == "h":
                 val = float(match.group(1))
-                return "{}s".format(timedelta(hours=val).seconds)
+                return "{}s".format(int(timedelta(hours=val).total_seconds()))
             elif match.group(2) == "d":
                 val = float(match.group(1))
-                return "{}s".format(timedelta(days=val).seconds)
+                return "{}s".format(int(timedelta(days=val).total_seconds()))
 
         raise AirflowException(
             "DataprocClusterScaleOperator "
@@ -1057,7 +1057,7 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
     Start a PySpark Job on a Cloud DataProc cluster.
 
     :param main: [Required] The Hadoop Compatible Filesystem (HCFS) URI of the main
-            Python file to use as the driver. Must be a .py file.
+            Python file to use as the driver. Must be a .py file. (templated)
     :type main: str
     :param arguments: Arguments for the job. (templated)
     :type arguments: list
@@ -1077,7 +1077,7 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
     :type dataproc_pyspark_jars: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name',
+    template_fields = ['main', 'arguments', 'job_name', 'cluster_name',
                        'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'pysparkJob'

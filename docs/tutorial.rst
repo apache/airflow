@@ -127,7 +127,7 @@ otherwise Airflow will raise an exception.
 Templating with Jinja
 ---------------------
 Airflow leverages the power of
-`Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  and provides
+`Jinja Templating <https://jinja.palletsprojects.com/>`_  and provides
 the pipeline author
 with a set of built-in parameters and macros. Airflow also provides
 hooks for the pipeline author to define their own parameters, macros and
@@ -173,18 +173,7 @@ regarding custom filters have a look at the
 `Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
 
 For more information on the variables and macros that can be referenced
-in templates, make sure to read through the :doc:`macros`
-
-Adding DAG and Tasks documentation
-----------------------------------
-We can add documentation for DAG or each single task. DAG documentation only support
-markdown so far and task documentation support plain text, markdown, reStructuredText,
-json, yaml
-
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
-    :language: python
-    :start-after: [START documentation]
-    :end-before: [END documentation]
+in templates, make sure to read through the :doc:`macros-ref`
 
 Adding DAG and Tasks documentation
 ----------------------------------
@@ -202,7 +191,7 @@ Setting up Dependencies
 We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
 you can define dependencies between them:
 
-.. code:: python
+.. code-block:: python
 
     t1.set_downstream(t2)
 

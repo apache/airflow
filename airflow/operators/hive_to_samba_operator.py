@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import tempfile
+from tempfile import NamedTemporaryFile
 
 from airflow.hooks.hive_hooks import HiveServer2Hook
 from airflow.hooks.samba_hook import SambaHook
@@ -59,9 +59,9 @@ class Hive2SambaOperator(BaseOperator):
     def execute(self, context):
         samba = SambaHook(samba_conn_id=self.samba_conn_id)
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
-        tmpfile = tempfile.NamedTemporaryFile()
-        self.log.info("Fetching file from Hive")
-        hive.to_csv(hql=self.hql, csv_filepath=tmpfile.name,
-                    hive_conf=context_to_airflow_vars(context))
-        self.log.info("Pushing to samba")
-        samba.push_from_local(self.destination_filepath, tmpfile.name)
+        with NamedTemporaryFile() as tmp_file:
+            self.log.info("Fetching file from Hive")
+            hive.to_csv(hql=self.hql, csv_filepath=tmp_file.name,
+                        hive_conf=context_to_airflow_vars(context))
+            self.log.info("Pushing to samba")
+            samba.push_from_local(self.destination_filepath, tmp_file.name)

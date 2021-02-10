@@ -19,8 +19,10 @@
 
 from __future__ import print_function, unicode_literals
 
+import collections
 import contextlib
 import os
+import random
 import re
 import subprocess
 import time
@@ -181,7 +183,7 @@ class HiveCliHook(BaseHook):
             return []
         return as_flattened_list(
             zip(["-hiveconf"] * len(d),
-                ["{}={}".format(k, v) for k, v in d.items()])
+                ["{}={}".format(k, v) for k, v in collections.OrderedDict(sorted(d.items())).items()])
         )
 
     def run_cli(self, hql, schema=None, verbose=True, hive_conf=None):
@@ -441,7 +443,7 @@ class HiveCliHook(BaseHook):
             if field_dict is None:
                 raise ValueError("Must provide a field dict when creating a table")
             fields = ",\n    ".join(
-                [k + ' ' + v for k, v in field_dict.items()])
+                ['`{k}` {v}'.format(k=k.strip('`'), v=v) for k, v in field_dict.items()])
             hql += "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n".format(
                 table=table, fields=fields)
             if partition:
@@ -549,6 +551,7 @@ class HiveMetastoreHook(BaseHook):
 
     def _find_valid_server(self):
         conns = self.get_connections(self.conn_id)
+        random.shuffle(conns)
         for conn in conns:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
@@ -690,6 +693,7 @@ class HiveMetastoreHook(BaseHook):
                            pairs will be considered as candidates of max partition.
         :type filter_map: map
         :return: Max partition or None if part_specs is empty.
+        :rtype: basestring
         """
         if not part_specs:
             return None
@@ -713,7 +717,7 @@ class HiveMetastoreHook(BaseHook):
         if not candidates:
             return None
         else:
-            return max(candidates).encode('utf-8')
+            return max(candidates)
 
     def max_partition(self, schema, table_name, field=None, filter_map=None):
         """
@@ -825,6 +829,7 @@ class HiveServer2Hook(BaseHook):
             auth=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             username=db.login or username,
+            password=db.password,
             database=schema or db.schema or 'default')
 
     def _get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
@@ -978,7 +983,7 @@ class HiveServer2Hook(BaseHook):
         """
         return self.get_results(hql, schema=schema)['data']
 
-    def get_pandas_df(self, hql, schema='default'):
+    def get_pandas_df(self, hql, schema='default', **kwargs):
         """
         Get a pandas dataframe from a Hive query
 
@@ -986,6 +991,8 @@ class HiveServer2Hook(BaseHook):
         :type hql: str or list
         :param schema: target schema, default to 'default'.
         :type schema: str
+        :param kwargs: (optional) passed into pandas.DataFrame constructor
+        :type kwargs: dict
         :return: result of hql execution
         :rtype: DataFrame
 
@@ -999,6 +1006,6 @@ class HiveServer2Hook(BaseHook):
         """
         import pandas as pd
         res = self.get_results(hql, schema=schema)
-        df = pd.DataFrame(res['data'])
+        df = pd.DataFrame(res['data'], **kwargs)
         df.columns = [c[0] for c in res['header']]
         return df

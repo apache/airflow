@@ -86,7 +86,7 @@ environment. You can enable it in one of two ways:
 * Run this test within automated environment variable workspace where
   config directory is checked out next to the airflow one.
 
-""".format(__file__)
+"""
 
 
 class BaseGcpSystemTestCase(unittest.TestCase, LoggingMixin):

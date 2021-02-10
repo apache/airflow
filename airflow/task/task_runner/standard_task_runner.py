@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Standard task runner"""
 import os
 
 import psutil
@@ -25,7 +26,7 @@ from setproctitle import setproctitle
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.helpers import reap_process_group
 
-CAN_FORK = hasattr(os, 'fork')
+CAN_FORK = hasattr(os, "fork")
 
 
 class StandardTaskRunner(BaseTaskRunner):
@@ -54,6 +55,7 @@ class StandardTaskRunner(BaseTaskRunner):
             return psutil.Process(pid)
         else:
             from airflow.bin.cli import get_parser
+            from airflow.sentry import Sentry
             import signal
             import airflow.settings as settings
 
@@ -72,6 +74,9 @@ class StandardTaskRunner(BaseTaskRunner):
             # [1:] - remove "airflow" from the start of the command
             args = parser.parse_args(self._command[1:])
 
+            self.log.info('Running: %s', self._command)
+            self.log.info('Job %s: Subtask %s', self._task_instance.job_id, self._task_instance.task_id)
+
             proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date}"
             if hasattr(args, "job_id"):
                 proc_title += " {0.job_id}"
@@ -79,9 +84,13 @@ class StandardTaskRunner(BaseTaskRunner):
 
             try:
                 args.func(args, dag=self.dag)
-                os._exit(0)
+                return_code = 0
             except Exception:
-                os._exit(1)
+                return_code = 1
+            finally:
+                # Explicitly flush any pending exception to Sentry if enabled
+                Sentry.flush()
+                os._exit(return_code)  # pylint: disable=protected-access
 
     def return_code(self, timeout=0):
         # We call this multiple times, but we can only wait on the process once

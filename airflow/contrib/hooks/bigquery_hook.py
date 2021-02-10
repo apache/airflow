@@ -21,9 +21,9 @@
 This module contains a BigQuery Hook, as well as a very basic PEP 249
 implementation for BigQuery.
 """
-
-import time
+import logging
 import six
+import time
 from builtins import range
 from copy import deepcopy
 from six import iteritems
@@ -42,6 +42,8 @@ from pandas_gbq import read_gbq
 from pandas_gbq.gbq import \
     _test_google_api_imports as gbq_test_google_api_imports
 from pandas_gbq.gbq import GbqConnector
+
+log = logging.getLogger(__name__)
 
 
 class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
@@ -83,7 +85,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         return build(
             'bigquery', 'v2', http=http_authorized, cache_discovery=False)
 
-    def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
+    def insert_rows(self, table, rows, target_fields=None, commit_every=1000, **kwargs):
         """
         Insertion is currently unsupported. Theoretically, you could use
         BigQuery's streaming API to insert rows into a table, but this hasn't
@@ -91,7 +93,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         """
         raise NotImplementedError()
 
-    def get_pandas_df(self, sql, parameters=None, dialect=None):
+    def get_pandas_df(self, sql, parameters=None, dialect=None, **kwargs):
         """
         Returns a Pandas DataFrame for the results produced by a BigQuery
         query. The DbApiHook method must be overridden because Pandas
@@ -108,6 +110,8 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         :param dialect: Dialect of BigQuery SQL – legacy SQL or standard SQL
             defaults to use `self.use_legacy_sql` if not specified
         :type dialect: str in {'legacy', 'standard'}
+        :param kwargs: (optional) passed into pandas_gbq.read_gbq method
+        :type kwargs: dict
         """
         private_key = self._get_field('key_path', None) or self._get_field('keyfile_dict', None)
 
@@ -118,7 +122,8 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
                         project_id=self._get_field('project'),
                         dialect=dialect,
                         verbose=False,
-                        private_key=private_key)
+                        private_key=private_key,
+                        **kwargs)
 
     def table_exists(self, project_id, dataset_id, table_id):
         """
@@ -2233,7 +2238,6 @@ def _split_tablename(table_input, default_project_id, var_name=None):
 
     if project_id is None:
         if var_name is not None:
-            log = LoggingMixin().log
             log.info(
                 'Project not included in %s: %s; using project "%s"',
                 var_name, table_input, default_project_id

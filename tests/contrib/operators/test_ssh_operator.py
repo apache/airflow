@@ -152,10 +152,8 @@ class SSHOperatorTest(TestCase):
         os.environ['AIRFLOW_CONN_' + conn_id.upper()] = "ssh://test_id@localhost"
 
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
-        if six.PY2:
-            self.assertRaisesRegex = self.assertRaisesRegexp
-        with self.assertRaisesRegex(AirflowException,
-                                    "Cannot operate without ssh_hook or ssh_conn_id."):
+        with six.assertRaisesRegex(self, AirflowException,
+                                   "Cannot operate without ssh_hook or ssh_conn_id."):
             task_0 = SSHOperator(task_id="test", command=COMMAND,
                                  timeout=TIMEOUT, dag=self.dag)
             task_0.execute(None)

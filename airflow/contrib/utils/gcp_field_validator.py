@@ -92,7 +92,7 @@ following types:
   ranges of values), booleans or any other types of fields.
 * API version: (key="api_version") if API version is specified, then the field will only
   be validated when api_version used at field validator initialization matches exactly the
-  the version specified. If you want to declare fields that are available in several
+  version specified. If you want to declare fields that are available in several
   versions of the APIs, you should specify the field as many times as many API versions
   should be supported (each time with different API version).
 * if none of the keys ("type", "regexp", "custom_validation" - the field is not validated
@@ -251,7 +251,7 @@ class GcpBodyFieldValidator(LoggingMixin):
         if not value:
             raise GcpFieldValidationException(
                 "The body field '{}' can't be empty. Please provide a value."
-                .format(full_field_path, value))
+                .format(full_field_path))
 
     def _validate_dict(self, children_validation_specs, full_field_path, value):
         # type: (dict, str, dict) -> None

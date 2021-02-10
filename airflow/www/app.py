@@ -17,8 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import datetime
+import logging
+import os
 from typing import Any
 
+import flask
+import flask_login
 import six
 from flask import Flask
 from flask_admin import Admin, base
@@ -29,10 +34,10 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 import airflow
-from airflow import models, version, LoggingMixin
+from airflow import models, version
 from airflow.configuration import conf
 from airflow.models.connection import Connection
-from airflow.settings import Session
+from airflow.settings import Session, STATE_COLORS
 
 from airflow.www.blueprints import routes
 from airflow.logging_config import configure_logging
@@ -41,23 +46,26 @@ from airflow import settings
 from airflow.utils.net import get_hostname
 
 csrf = CSRFProtect()
+log = logging.getLogger(__name__)
 
 
 def create_app(config=None, testing=False):
+
     app = Flask(__name__)
     if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
-            num_proxies=conf.get("webserver", "PROXY_FIX_NUM_PROXIES", fallback=None),
             x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
             x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
             x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
             x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
             x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
         )
-    app.secret_key = conf.get('webserver', 'SECRET_KEY')
+    app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(minutes=settings.get_session_lifetime_config())
     app.config['LOGIN_DISABLED'] = not conf.getboolean(
         'webserver', 'AUTHENTICATE')
+
+    app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
@@ -65,6 +73,9 @@ def create_app(config=None, testing=False):
 
     if config:
         app.config.from_mapping(config)
+
+    if 'SQLALCHEMY_ENGINE_OPTIONS' not in app.config:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = settings.prepare_engine_args()
 
     csrf.init_app(app)
 
@@ -153,7 +164,6 @@ def create_app(config=None, testing=False):
 
         def integrate_plugins():
             """Integrate plugins to the context"""
-            log = LoggingMixin().log
             from airflow.plugins_manager import (
                 admin_views, flask_blueprints, menu_links)
             for v in admin_views:
@@ -189,7 +199,8 @@ def create_app(config=None, testing=False):
                 'log_auto_tailing_offset': conf.getint(
                     'webserver', 'log_auto_tailing_offset', fallback=30),
                 'log_animation_speed': conf.getint(
-                    'webserver', 'log_animation_speed', fallback=1000)
+                    'webserver', 'log_animation_speed', fallback=1000),
+                'state_color_mapping': STATE_COLORS
             }
 
         @app.before_request

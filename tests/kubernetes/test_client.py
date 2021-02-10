@@ -17,19 +17,19 @@
 
 import unittest
 
-from airflow.contrib.kubernetes.kube_client import RefreshConfiguration, get_kube_client
+from airflow.kubernetes.kube_client import RefreshConfiguration, get_kube_client
 from tests.compat import mock
 
 
 class TestClient(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.kubernetes.kube_client.config')
+    @mock.patch('airflow.kubernetes.kube_client.config')
     def test_load_cluster_config(self, _):
         client = get_kube_client(in_cluster=True)
         assert not isinstance(client.api_client.configuration, RefreshConfiguration)
 
-    @mock.patch('airflow.contrib.kubernetes.kube_client.config')
-    @mock.patch('airflow.contrib.kubernetes.refresh_config._get_kube_config_loader_for_yaml_file')
+    @mock.patch('airflow.kubernetes.kube_client.config')
+    @mock.patch('airflow.kubernetes.refresh_config._get_kube_config_loader_for_yaml_file')
     def test_load_file_config(self, _, _2):
         client = get_kube_client(in_cluster=False)
         assert isinstance(client.api_client.configuration, RefreshConfiguration)

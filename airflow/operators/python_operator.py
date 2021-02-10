@@ -234,8 +234,8 @@ class PythonVirtualenvOperator(PythonOperator):
         python_version=None,  # type: Optional[str]
         use_dill=False,  # type: bool
         system_site_packages=True,  # type: bool
-        op_args=None,  # type: Iterable
-        op_kwargs=None,  # type: Dict
+        op_args=None,  # type: Optional[Iterable]
+        op_kwargs=None,  # type: Optional[Dict]
         provide_context=False,  # type: bool
         string_args=None,  # type: Optional[Iterable[str]]
         templates_dict=None,  # type: Optional[Dict]
@@ -330,13 +330,19 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def _write_args(self, input_filename):
         # serialize args to file
+        if self.use_dill:
+            serializer = dill
+        else:
+            serializer = pickle
+        # some items from context can't be loaded in virtual env
+        # see pr https://github.com/apache/airflow/pull/8256
+        not_serializable = {'dag', 'task', 'ti', 'macros', 'task_instance', 'var'}
         if self._pass_op_args():
+            kwargs = {key: value for key, value in self.op_kwargs.items()
+                      if key not in not_serializable}
             with open(input_filename, 'wb') as f:
-                arg_dict = ({'args': self.op_args, 'kwargs': self.op_kwargs})
-                if self.use_dill:
-                    dill.dump(arg_dict, f)
-                else:
-                    pickle.dump(arg_dict, f)
+                arg_dict = ({'args': self.op_args, 'kwargs': kwargs})
+                serializer.dump(arg_dict, f)
 
     def _read_result(self, output_filename):
         if os.stat(output_filename).st_size == 0:

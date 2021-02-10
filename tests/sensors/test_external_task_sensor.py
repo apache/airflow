@@ -27,6 +27,7 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.external_task_sensor import ExternalTaskMarker, ExternalTaskSensor
 from airflow.sensors.time_sensor import TimeSensor
+from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
@@ -251,6 +252,28 @@ exit 0
                 ignore_ti_state=True
             )
 
+    def test_external_task_sensor_fn_multiple_args(self):
+        """Check this task sensor passes multiple args with full context. If no failure, means clean run."""
+        self.test_time_sensor()
+
+        def my_func(dt, context):
+            assert context['execution_date'] == dt
+            return dt + timedelta(0)
+
+        op1 = ExternalTaskSensor(
+            task_id='test_external_task_sensor_multiple_arg_fn',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            execution_date_fn=my_func,
+            allowed_states=['success'],
+            dag=self.dag
+        )
+        op1.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_ti_state=True
+        )
+
     def test_external_task_sensor_error_delta_and_fn(self):
         self.test_time_sensor()
         # Test that providing execution_delta and a function raises an error
@@ -315,6 +338,26 @@ exit 0
                 end_date=DEFAULT_DATE,
                 ignore_ti_state=True
             )
+
+
+class TestExternalTaskMarker(unittest.TestCase):
+    def test_serialized_fields(self):
+        self.assertTrue({"recursion_depth"}.issubset(ExternalTaskMarker.get_serialized_fields()))
+
+    def test_serialized_external_task_marker(self):
+        dag = DAG('test_serialized_external_task_marker', start_date=DEFAULT_DATE)
+        task = ExternalTaskMarker(
+            task_id="parent_task",
+            external_dag_id="external_task_marker_child",
+            external_task_id="child_task1",
+            dag=dag
+        )
+
+        serialized_op = SerializedBaseOperator.serialize_operator(task)
+        deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
+        self.assertEqual(deserialized_op.task_type, 'ExternalTaskMarker')
+        self.assertEqual(getattr(deserialized_op, 'external_dag_id'), 'external_task_marker_child')
+        self.assertEqual(getattr(deserialized_op, 'external_task_id'), 'child_task1')
 
 
 @pytest.fixture
@@ -386,7 +429,7 @@ def dag_bag_ext():
     return dag_bag
 
 
-def run_tasks(dag_bag):
+def run_tasks(dag_bag, execution_date=DEFAULT_DATE):
     """
     Run all tasks in the DAGs in the given dag_bag. Return the TaskInstance objects as a dict
     keyed by task_id.
@@ -395,7 +438,7 @@ def run_tasks(dag_bag):
 
     for dag in dag_bag.dags.values():
         for task in dag.tasks:
-            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+            ti = TaskInstance(task=task, execution_date=execution_date)
             tis[task.task_id] = ti
             ti.run(ignore_all_deps=True, ignore_ti_state=True, mark_success=True)
             assert_ti_state_equal(ti, State.SUCCESS)
@@ -411,12 +454,12 @@ def assert_ti_state_equal(task_instance, state):
     assert task_instance.state == state
 
 
-def clear_tasks(dag_bag, dag, task):
+def clear_tasks(dag_bag, dag, task, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE):
     """
     Clear the task and its downstream tasks recursively for the dag in the given dagbag.
     """
     subdag = dag.sub_dag(task_regex="^{}$".format(task.task_id), include_downstream=True)
-    subdag.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, dag_bag=dag_bag)
+    subdag.clear(start_date=start_date, end_date=end_date, dag_bag=dag_bag)
 
 
 # pylint: disable=redefined-outer-name
@@ -432,6 +475,30 @@ def test_external_task_marker_transitive(dag_bag_ext):
     ti_b_3 = tis["task_b_3"]
     assert_ti_state_equal(ti_a_0, State.NONE)
     assert_ti_state_equal(ti_b_3, State.NONE)
+
+
+def test_external_task_marker_future(dag_bag_ext):
+    """
+    Test clearing tasks with no end_date. This is the case when users clear tasks with
+    Future, Downstream and Recursive selected.
+    """
+    date_0 = DEFAULT_DATE
+    date_1 = DEFAULT_DATE + timedelta(days=1)
+
+    tis_date_0 = run_tasks(dag_bag_ext, execution_date=date_0)
+    tis_date_1 = run_tasks(dag_bag_ext, execution_date=date_1)
+
+    dag_0 = dag_bag_ext.get_dag("dag_0")
+    task_a_0 = dag_0.get_task("task_a_0")
+    # This should clear all tasks on dag_0 to dag_3 on both date_0 and date_1
+    clear_tasks(dag_bag_ext, dag_0, task_a_0, end_date=None)
+
+    ti_a_0_date_0 = tis_date_0["task_a_0"]
+    ti_b_3_date_0 = tis_date_0["task_b_3"]
+    ti_b_3_date_1 = tis_date_1["task_b_3"]
+    assert_ti_state_equal(ti_a_0_date_0, State.NONE)
+    assert_ti_state_equal(ti_b_3_date_0, State.NONE)
+    assert_ti_state_equal(ti_b_3_date_1, State.NONE)
 
 
 def test_external_task_marker_exception(dag_bag_ext):
@@ -502,3 +569,49 @@ def test_external_task_marker_cyclic(dag_bag_cyclic):
     task_a_0 = dag_0.get_task("task_a_0")
     with pytest.raises(AirflowException, match="Maximum recursion depth 3"):
         clear_tasks(dag_bag_cyclic, dag_0, task_a_0)
+
+
+@pytest.fixture
+def dag_bag_multiple():
+    """
+    Create a DagBag containing two DAGs, linked by multiple ExternalTaskMarker.
+    """
+    dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+    daily_dag = DAG("daily_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
+    agg_dag = DAG("agg_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
+    dag_bag.bag_dag(daily_dag, None, daily_dag)
+    dag_bag.bag_dag(agg_dag, None, agg_dag)
+
+    daily_task = DummyOperator(task_id="daily_tas", dag=daily_dag)
+
+    start = DummyOperator(task_id="start", dag=agg_dag)
+    for i in range(25):
+        task = ExternalTaskMarker(task_id="{}_{}".format(daily_task.task_id, i),
+                                  external_dag_id=daily_dag.dag_id,
+                                  external_task_id=daily_task.task_id,
+                                  execution_date="{{ macros.ds_add(ds, -1 * %s) }}" % i,
+                                  dag=agg_dag)
+        start >> task
+
+    yield dag_bag
+
+
+@pytest.mark.quarantined
+@pytest.mark.backend("postgres", "mysql")
+def test_clear_multiple_external_task_marker(dag_bag_multiple):
+    """
+    Test clearing a dag that has multiple ExternalTaskMarker.
+
+    sqlite3 parser stack size is 100 lexical items by default so this puts a hard limit on
+    the level of nesting in the sql. This test is intentionally skipped in sqlite.
+    """
+    agg_dag = dag_bag_multiple.get_dag("agg_dag")
+
+    for delta in range(len(agg_dag.tasks)):
+        execution_date = DEFAULT_DATE + timedelta(days=delta)
+        run_tasks(dag_bag_multiple, execution_date=execution_date)
+
+    # There used to be some slowness caused by calling count() inside DAG.clear().
+    # That has since been fixed. It should take no more than a few seconds to call
+    # dag.clear() here.
+    assert agg_dag.clear(start_date=execution_date, end_date=execution_date, dag_bag=dag_bag_multiple) == 51

@@ -25,6 +25,12 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow 1.10.14](#airflow-11014)
+- [Airflow 1.10.13](#airflow-11013)
+- [Airflow 1.10.12](#airflow-11012)
+- [Airflow 1.10.11](#airflow-11011)
+- [Airflow 1.10.10](#airflow-11010)
+- [Airflow 1.10.9](#airflow-1109)
 - [Airflow 1.10.8](#airflow-1108)
 - [Airflow 1.10.7](#airflow-1107)
 - [Airflow 1.10.6](#airflow-1106)
@@ -41,8 +47,6 @@ assists users migrating to a new version.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Airflow 1.10.8
-
 <!--
 
 I'm glad you want to write a new note. Remember that this note is intended for users.
@@ -58,12 +62,229 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+## Airflow 1.10.14
+
+### `[scheduler] max_threads` config has been renamed to `[scheduler] parsing_processes`
+
+From Airflow 1.10.14, `max_threads` config under `[scheduler]` section has been renamed to `parsing_processes`.
+
+This is to align the name with the actual code where the Scheduler launches the number of processes defined by
+`[scheduler] parsing_processes` to parse the DAG files.
+
+### Airflow CLI changes in line with  2.0
+
+The Airflow CLI has been organized so that related commands are grouped together as subcommands,
+which means that if you use these commands in your scripts, you have to make changes to them.
+
+This section describes the changes that have been made, and what you need to do to update your script.
+
+The ability to manipulate users from the command line has been changed. ``airflow create_user``,  ``airflow delete_user``
+ and ``airflow list_users`` has been grouped to a single command `airflow users` with optional flags `create`, `list` and `delete`.
+
+The `airflow list_dags` command is now `airflow dags list`, `airflow pause` is `airflow dags pause`, etc.
+
+In Airflow 1.10 and 2.0 there is an `airflow config` command but there is a difference in behavior. In Airflow 1.10,
+it prints all config options while in Airflow 2.0, it's a command group. `airflow config` is now `airflow config list`.
+You can check other options by running the command `airflow config --help`
+
+Compatibility with the old CLI has been maintained, but they will no longer appear in the help
+
+You can learn about the commands by running ``airflow --help``. For example to get help about the ``celery`` group command,
+you have to run the help command: ``airflow celery --help``.
+
+| Old command                   | New command                        |     Group          |
+|-------------------------------|------------------------------------|--------------------|
+| ``airflow worker``            | ``airflow celery worker``          |    ``celery``      |
+| ``airflow flower``            | ``airflow celery flower``          |    ``celery``      |
+| ``airflow trigger_dag``       | ``airflow dags trigger``           |    ``dags``        |
+| ``airflow delete_dag``        | ``airflow dags delete``            |    ``dags``        |
+| ``airflow show_dag``          | ``airflow dags show``              |    ``dags``        |
+| ``airflow list_dag``          | ``airflow dags list``              |    ``dags``        |
+| ``airflow dag_status``        | ``airflow dags status``            |    ``dags``        |
+| ``airflow backfill``          | ``airflow dags backfill``          |    ``dags``        |
+| ``airflow list_dag_runs``     | ``airflow dags list-runs``         |    ``dags``        |
+| ``airflow pause``             | ``airflow dags pause``             |    ``dags``        |
+| ``airflow unpause``           | ``airflow dags unpause``           |    ``dags``        |
+| ``airflow next_execution``    | ``airflow dags next-execution``    |    ``dags``        |
+| ``airflow test``              | ``airflow tasks test``             |    ``tasks``       |
+| ``airflow clear``             | ``airflow tasks clear``            |    ``tasks``       |
+| ``airflow list_tasks``        | ``airflow tasks list``             |    ``tasks``       |
+| ``airflow task_failed_deps``  | ``airflow tasks failed-deps``      |    ``tasks``       |
+| ``airflow task_state``        | ``airflow tasks state``            |    ``tasks``       |
+| ``airflow run``               | ``airflow tasks run``              |    ``tasks``       |
+| ``airflow render``            | ``airflow tasks render``           |    ``tasks``       |
+| ``airflow initdb``            | ``airflow db init``                |     ``db``         |
+| ``airflow resetdb``           | ``airflow db reset``               |     ``db``         |
+| ``airflow upgradedb``         | ``airflow db upgrade``             |     ``db``         |
+| ``airflow checkdb``           | ``airflow db check``               |     ``db``         |
+| ``airflow shell``             | ``airflow db shell``               |     ``db``         |
+| ``airflow pool``              | ``airflow pools``                  |     ``pools``      |
+| ``airflow create_user``       | ``airflow users create``           |     ``users``      |
+| ``airflow delete_user``       | ``airflow users delete``           |     ``users``      |
+| ``airflow list_users``        | ``airflow users list``             |     ``users``      |
+| ``airflow rotate_fernet_key`` | ``airflow rotate-fernet-key``      |                    |
+| ``airflow sync_perm``         | ``airflow sync-perm``              |                    |
+
+## Airflow 1.10.13
+
+### TimeSensor is now timezone aware
+
+Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
+
+Now it will compare `target_time` with the current time in the timezone of the DAG,
+defaulting to the `default_timezone` in the global config.
+
+### Removed Kerberos support for HDFS hook
+
+The HDFS hook's Kerberos support has been removed due to removed python-krbV dependency from PyPI
+and generally lack of support for SSL in Python3 (Snakebite-py3 we use as dependency has no
+support for SSL connection to HDFS).
+
+SSL support still works for WebHDFS hook.
+
+### Unify user session lifetime configuration
+
+In previous version of Airflow user session lifetime could be configured by
+`session_lifetime_days` and `force_log_out_after` options. In practise only `session_lifetime_days`
+had impact on session lifetime, but it was limited to values in day.
+We have removed mentioned options and introduced new `session_lifetime_minutes`
+option which simplify session lifetime configuration.
+
+Before
+
+ ```ini
+[webserver]
+force_log_out_after = 0
+session_lifetime_days = 30
+ ```
+
+After
+
+ ```ini
+[webserver]
+session_lifetime_minutes = 43200
+ ```
+
+### Adding Operators, Hooks and Sensors via Airflow Plugins is deprecated
+
+The ability to import Operators, Hooks and Senors via the plugin mechanism has been deprecated and will raise warnings
+in Airflow 1.10.13 and will be removed completely in Airflow 2.0.
+
+Check http://airflow.apache.org/docs/1.10.13/howto/custom-operator.html to see how you can create and import
+Custom Hooks, Operators and Sensors.
+
+## Airflow 1.10.12
+
+### Clearing tasks skipped by SkipMixin will skip them
+
+Previously, when tasks skipped by SkipMixin (such as BranchPythonOperator, BaseBranchOperator and ShortCircuitOperator) are cleared, they execute. Since 1.10.12, when such skipped tasks are cleared,
+they will be skipped again by the newly introduced NotPreviouslySkippedDep.
+
+### The pod_mutation_hook function will now accept a kubernetes V1Pod object
+
+As of airflow 1.10.12, using the `airflow.contrib.kubernetes.Pod` class in the `pod_mutation_hook` is now deprecated. Instead we recommend that users
+treat the `pod` parameter as a `kubernetes.client.models.V1Pod` object. This means that users now have access to the full Kubernetes API
+when modifying airflow pods
+
+### pod_template_file option now available in the KubernetesPodOperator
+
+Users can now offer a path to a yaml for the KubernetesPodOperator using the `pod_template_file` parameter.
+
+## Airflow 1.10.11
+
+### Use NULL as default value for dag.description
+
+Now use NULL as default value for dag.description in dag table
+
+### Restrict editing DagRun State in the old UI (Flask-admin based UI)
+
+Before 1.10.11 it was possible to edit DagRun State in the `/admin/dagrun/` page
+ to any text.
+
+In Airflow 1.10.11+, the user can only choose the states from the list.
+
+### Experimental API will deny all request by default.
+
+The previous default setting was to allow all API requests without authentication, but this poses security
+risks to users who miss this fact. This changes the default for new installs to deny all requests by default.
+
+**Note**: This will not change the behavior for existing installs, please update check your airflow.cfg
+
+If you wish to have the experimental API work, and aware of the risks of enabling this without authentication
+(or if you have your own authentication layer in front of Airflow) you can get
+the previous behaviour on a new install by setting this in your airflow.cfg:
+
+```
+[api]
+auth_backend = airflow.api.auth.backend.default
+```
+
+### XCom Values can no longer be added or changed from the Webserver
+
+Since XCom values can contain pickled data, we would no longer allow adding or
+changing XCom values from the UI.
+
+### Default for `run_as_user` configured has been changed to 50000 from 0
+
+The UID to run the first process of the Worker PODs when using has been changed to `50000`
+from the previous default of `0`. The previous default was an empty string but the code used `0` if it was
+empty string.
+
+**Before**:
+
+```ini
+[kubernetes]
+run_as_user =
+```
+
+**After**:
+
+```ini
+[kubernetes]
+run_as_user = 50000
+```
+
+This is done to avoid running the container as `root` user.
+
+## Airflow 1.10.10
+
+### Setting Empty string to a Airflow Variable will return an empty string
+
+Previously when you set an Airflow Variable with an empty string (`''`), the value you used to get
+back was ``None``. This will now return an empty string (`'''`)
+
+Example:
+
+```python
+>> Variable.set('test_key', '')
+>> Variable.get('test_key')
+```
+
+The above code returned `None` previously, now it will return `''`.
+
+### Make behavior of `none_failed` trigger rule consistent with documentation
+The behavior of the `none_failed` trigger rule is documented as "all parents have not failed (`failed` or
+    `upstream_failed`) i.e. all parents have succeeded or been skipped." As previously implemented, the actual behavior
+    would skip if all parents of a task had also skipped.
+
+### Add new trigger rule `none_failed_or_skipped`
+The fix to `none_failed` trigger rule breaks workflows that depend on the previous behavior.
+    If you need the old behavior, you should change the tasks with `none_failed` trigger rule to `none_failed_or_skipped`.
+
+### Success Callback will be called when a task in marked as success from UI
+
+When a task is marked as success by a user from Airflow UI - `on_success_callback` will be called
+
+## Airflow 1.10.9
+
+No breaking changes.
+
+## Airflow 1.10.8
 
 ### Failure callback will be called when task is marked failed
 When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
 
 See [AIRFLOW-5621](https://jira.apache.org/jira/browse/AIRFLOW-5621) for details
-
 
 ## Airflow 1.10.7
 
@@ -135,12 +356,6 @@ by default, rather than using the default timezone of the MySQL server.
 This is the correct behavior for use with BigQuery, since BigQuery
 assumes that TIMESTAMP columns without time zones are in UTC. To
 preserve the previous behavior, set `ensure_utc` to `False.`
-
-### Python 2 support is going away
-
-Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.5 and up.
-
-If you have a specific task that still requires Python 2 then you can use the PythonVirtualenvOperator for this.
 
 ### Changes to DatastoreHook
 
@@ -269,7 +484,7 @@ If the `AIRFLOW_CONFIG` environment variable was not set and the
 will discover its config file using the `$AIRFLOW_CONFIG` and `$AIRFLOW_HOME`
 environment variables rather than checking for the presence of a file.
 
-### Changes in Google Cloud Platform related operators
+### Changes in Google Cloud related operators
 
 Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
 the project id configured in
@@ -296,7 +511,7 @@ Operators involved:
 
 Other GCP operators are unaffected.
 
-### Changes in Google Cloud Platform related hooks
+### Changes in Google Cloud related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
 than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
@@ -364,7 +579,7 @@ gct_hook.create_transfer_job(body)
 ```
 The change results from the unification of all hooks and adjust to
 [the official recommendations](https://lists.apache.org/thread.html/e8534d82be611ae7bcb21ba371546a4278aad117d5e50361fd8f14fe@%3Cdev.airflow.apache.org%3E)
-for the Google Cloud Platform.
+for the Google Cloud.
 
 The signature of `wait_for_transfer_job` method in `GCPTransferServiceHook` has changed.
 
@@ -971,14 +1186,11 @@ dags_are_paused_at_creation = False
 
 If you specify a hive conf to the run_cli command of the HiveHook, Airflow add some
 convenience variables to the config. In case you run a secure Hadoop setup it might be
-required to whitelist these variables by adding the following to your configuration:
+required to allow these variables by adjusting you hive configuration to add `airflow\.ctx\..*` to the regex
+of user-editable configuration properties. See
+[the Hive docs on Configuration Properties][hive.security.authorization.sqlstd] for more info.
 
-```
-<property>
-     <name>hive.security.authorization.sqlstd.confwhitelist.append</name>
-     <value>airflow\.ctx\..*</value>
-</property>
-```
+[hive.security.authorization.sqlstd]: https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82903061#ConfigurationProperties-SQLStandardBasedAuthorization.1
 
 ### Google Cloud Operator and Hook alignment
 

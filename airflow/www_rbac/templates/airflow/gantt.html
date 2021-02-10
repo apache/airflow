@@ -19,10 +19,15 @@
 
 {% block head_css %}
 {{ super() }}
-<link rel="stylesheet" type="text/css"
-    href="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
 <link type="text/css" href="{{ url_for('static', filename='css/gantt.css') }}" rel="stylesheet" />
 <link type="text/css" href="{{ url_for('static', filename='css/tree.css') }}" rel="stylesheet" />
+<style type="text/css">
+  {% for state, state_color in state_color_mapping.items() %}
+    rect.{{state}} {
+      fill: {{state_color}};
+    }
+  {% endfor %}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -32,7 +37,7 @@
     Base date: {{ form.base_date(class_="form-control") }}
     Number of runs: {{ form.num_runs(class_="form-control") }}
     Run:<input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
-    {{ form.execution_date(class_="form-control") | safe }}
+    {{ form.execution_date(class_="form-control") }}
     <input type="submit" value="Go" class="btn btn-default" action="" method="get">
     <input type="hidden" name="root" value="{{ root if root else '' }}">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
@@ -46,23 +51,25 @@
 
 {% block tail %}
 {{ super() }}
-<script src="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.js') }}"></script>
 <script src="{{ url_for_asset('d3.min.js') }}"></script>
 <script src="{{ url_for_asset('d3-tip.js') }}"></script>/
 <script src="{{ url_for_asset('ganttChartD3v2.js') }}"></script>
+<script src="{{ url_for_asset('task-instances.js') }}"></script>
 <script>
   $( document ).ready(function() {
     var dag_id = '{{ dag.dag_id }}';
     var task_id = '';
-    var exection_date = '';
-    data = {{ data |tojson|safe }};
+    var execution_date = '';
+    data = {{ data |tojson }};
     var gantt = d3.gantt()
       .taskTypes(data.taskNames)
-      .taskStatus(data.taskStatus)
       .height(data.height)
       .selector('.gantt')
       .tickFormat("%H:%M:%S");
     gantt(data.tasks);
+    $('body').on('airflow.timezone-change', (e) => {
+      gantt.redraw(data.tasks);
+    });
   });
 </script>
 

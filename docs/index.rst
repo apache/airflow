@@ -83,28 +83,32 @@ Content
     ui
     concepts
     profiling
-    cli
     scheduler
     executor/index
+    dag-run
     plugins
     security
     timezone
-    api
+    Using the CLI <usage-cli>
     integration
     metrics
     errors
     kubernetes
     lineage
     dag-serialization
+    backport-providers
     changelog
     best-practices
+    production-deployment
     faq
-    macros
     privacy_notice
 
 .. toctree::
     :maxdepth: 1
     :caption: References
 
+    CLI <cli-ref>
+    Macros <macros-ref>
     Python API <_api/index>
     Configurations <configurations-ref>
+    REST API <rest-api-ref>

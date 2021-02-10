@@ -16,11 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Provides lineage support functions
+"""
+import logging
+
 from functools import wraps
 
 from airflow.configuration import conf
 from airflow.lineage.datasets import DataSet
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
 from itertools import chain
@@ -28,7 +32,7 @@ from itertools import chain
 PIPELINE_OUTLETS = "pipeline_outlets"
 PIPELINE_INLETS = "pipeline_inlets"
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def _get_backend():

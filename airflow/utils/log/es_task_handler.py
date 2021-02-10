@@ -181,7 +181,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             try:
                 metadata['max_offset'] = s[max_log_line - 1].execute()[-1].offset if max_log_line > 0 else 0
             except Exception:
-                self.log.exception('Could not get current log size with log_id: {}'.format(log_id))
+                self.log.exception('Could not get current log size with log_id: %s', log_id)
 
         logs = []
         if max_log_line != 0:
@@ -203,7 +203,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.mark_end_on_close = not ti.raw
 
         if self.json_format:
-            self.formatter = JSONFormatter(self.formatter._fmt, json_fields=self.json_fields, extras={
+            self.formatter = JSONFormatter(json_fields=self.json_fields, extras={
                 'dag_id': str(ti.dag_id),
                 'task_id': str(ti.task_id),
                 'execution_date': self._clean_execution_date(ti.execution_date),

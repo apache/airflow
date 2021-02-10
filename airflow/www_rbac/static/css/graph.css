@@ -18,79 +18,91 @@
  */
 
 svg {
-    overflow: hidden;
+  overflow: hidden;
 }
 
 .node rect {
-    stroke: #333;
-    stroke-width: 1px;
-    fill: #fff;
+  stroke: #333;
+  stroke-width: 1px;
+  fill: #fff;
 }
 
 .edgeLabel rect {
-    fill: #fff;
+  fill: #fff;
 }
 
 .edgePath {
-    stroke: #333;
-    stroke-width: 1px;
+  stroke: #333;
+  stroke-width: 1px;
 }
 
 g.node rect {
-    stroke-width: 3px;
-    stroke: white;
-    cursor: pointer;
+  stroke: #fff;
+  stroke-width: 3px;
+  cursor: pointer;
 }
+
 g.node .label {
   font-size: inherit;
   font-weight: normal;
 }
+
 g.node text {
-    cursor: pointer;
+  cursor: pointer;
 }
+
 g.node.success rect {
-    stroke: green;
+  stroke: green;
 }
+
 g.node.up_for_retry rect {
-    stroke: gold;
+  stroke: gold;
 }
-g.node.up_for_reschedule rect{
-    stroke: turquoise;
+
+g.node.up_for_reschedule rect {
+  stroke: turquoise;
 }
+
 g.node.queued rect {
-    stroke: grey;
+  stroke: grey;
 }
-g.node.running rect{
-    stroke: lime;
+
+g.node.running rect {
+  stroke: lime;
 }
+
 g.node.failed rect {
-    stroke: red;
+  stroke: red;
 }
-g.node.shutdown rect{
-    stroke: blue;
+
+g.node.shutdown rect {
+  stroke: blue;
 }
-g.node.upstream_failed rect{
-    stroke: orange;
+
+g.node.upstream_failed rect {
+  stroke: orange;
 }
-g.node.skipped rect{
-    stroke: pink;
+
+g.node.skipped rect {
+  stroke: pink;
 }
+
 div#svg_container {
- border: 1px solid black;
- background-color: #EEE;
- cursor: move;
+  border: 1px solid #000;
+  background-color: #eee;
+  cursor: move;
 }
 
 #refresh_button {
-    top: 15px;
-    right: 15px;
-    position: relative;
+  top: 15px;
+  right: 15px;
+  position: relative;
 }
 
 #loading {
-    margin: auto;
-    display: none;
-    position: relative;
-    width: 100px;
-    top: -550px;
+  margin: auto;
+  display: none;
+  position: relative;
+  width: 100px;
+  top: -550px;
 }

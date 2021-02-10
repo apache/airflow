@@ -40,7 +40,22 @@ The time zone is set in ``airflow.cfg``. By default it is set to utc, but you ch
 an arbitrary IANA time zone, e.g. ``Europe/Amsterdam``. It is dependent on ``pendulum``, which is more accurate than ``pytz``.
 Pendulum is installed when you install Airflow.
 
-Please note that the Web UI currently only runs in UTC.
+Web UI
+------
+
+By default the Web UI (RBAC) will show times in UTC. It is possible to change the timezone shown (only in RBAC UI) by using the menu in the top right (click on the clock to activate it):
+
+.. image:: img/ui-timezone-chooser.png
+
+"Local" is detected from the browser's timezone. The "Server" value comes from the ``default_timezone`` setting under the ``core`` section.
+
+The users' selected timezone is stored in LocalStorage so is a pre-browser setting.
+
+.. note::
+
+  If you have configured your Airflow install to use a different default timezone and want the UI to use this same timezone, set ``default_ui_timezone`` under the ``webserver`` section to either an empty string, or the same value.
+
+  (It currently defaults to UTC to keep behavoiur of the UI consistent by default between point-releases.)
 
 Concepts
 --------
@@ -55,7 +70,7 @@ You can use ``timezone.is_localized()`` and ``timezone.is_naive()`` to determine
 
 Because Airflow uses time-zone-aware datetime objects. If your code creates datetime objects they need to be aware too.
 
-.. code:: python
+.. code-block:: python
 
     from airflow.utils import timezone
 
@@ -73,7 +88,7 @@ in such a way that it is assumed that the naive date time is already in the defa
 words if you have a default time zone setting of ``Europe/Amsterdam`` and create a naive datetime ``start_date`` of
 ``datetime(2017,1,1)`` it is assumed to be a ``start_date`` of Jan 1, 2017 Amsterdam time.
 
-.. code:: python
+.. code-block:: python
 
     default_args=dict(
         start_date=datetime(2016, 1, 1),
@@ -102,7 +117,7 @@ you just installed Airflow it will be set to ``utc``, which is recommended. You 
 it is therefore important to make sure this setting is equal on all Airflow nodes.
 
 
-.. code:: python
+.. code-block:: python
 
     [core]
     default_timezone = utc
@@ -114,7 +129,7 @@ Time zone aware DAGs
 Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware ``start_date``
 using ``pendulum``.
 
-.. code:: python
+.. code-block:: python
 
     import pendulum
 
@@ -140,7 +155,7 @@ Templates
 Airflow returns time zone aware datetimes in templates, but does not convert them to local time so they remain in UTC.
 It is left up to the DAG to handle this.
 
-.. code:: python
+.. code-block:: python
 
     import pendulum
 

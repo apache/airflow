@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 import flask_login
 
 # Need to expose these downstream
@@ -29,9 +30,8 @@ from flask_oauthlib.client import OAuth
 from airflow import models
 from airflow.configuration import conf
 from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def get_config_param(param):
@@ -95,6 +95,10 @@ class GoogleAuthBackend(object):
             consumer_key=get_config_param('client_id'),
             consumer_secret=get_config_param('client_secret'),
             request_token_params={'scope': [
+                'https://www.googleapis.com/auth/userinfo.profile',
+                'https://www.googleapis.com/auth/userinfo.email'],
+                'prompt': get_config_param('prompt')
+            } if get_config_param('prompt') else {'scope': [
                 'https://www.googleapis.com/auth/userinfo.profile',
                 'https://www.googleapis.com/auth/userinfo.email']},
             base_url='https://www.google.com/accounts/',

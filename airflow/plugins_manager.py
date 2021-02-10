@@ -25,26 +25,52 @@ from __future__ import unicode_literals
 from builtins import object
 import imp
 import inspect
+import logging
 import os
 import re
-from typing import Any, Dict, List, Set, Type
+import sys
+import warnings
+from typing import Any, Dict, List, Type
 
-import pkg_resources
+from six import with_metaclass
+
+try:
+    import importlib_metadata
+except ImportError:
+    import importlib.metadata as importlib_metadata
 
 from airflow import settings
 from airflow.models.baseoperator import BaseOperatorLink
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 import_errors = {}
+
+
+PY37 = sys.version_info >= (3, 7)
 
 
 class AirflowPluginException(Exception):
     pass
 
 
-class AirflowPlugin(object):
+class _MetaPluginClass(type):
+    def __new__(cls, name, bases, props):
+        if props.get('operators', []) or props.get('sensors', []):
+            warnings.warn(
+                "Registering operators or sensors in plugins is deprecated -- these should be treated like "
+                "'plain' python modules, and imported normally in DAGs.\n"
+                "\n"
+                "Airflow 2.0 has removed the ability to register these types in plugins. See "
+                "<http://airflow.apache.org/docs/stable/howto/custom-operator.html>.",
+                category=FutureWarning,
+                stacklevel=2,
+            )
+
+        return super(_MetaPluginClass, cls).__new__(cls, name, bases, props)
+
+
+class AirflowPlugin(with_metaclass(_MetaPluginClass, object)):
     name = None  # type: str
     operators = []  # type: List[Any]
     sensors = []  # type: List[Any]
@@ -87,6 +113,23 @@ class AirflowPlugin(object):
         """
 
 
+def entry_points_with_dist(group):
+    """
+    Return EntryPoint objects of the given group, along with the distribution information.
+
+    This is like the ``entry_points()`` function from importlib.metadata,
+    except it also returns the distribution the entry_point was loaded from.
+
+    :param group: FIlter results to only this entrypoint group
+    :return: Generator of (EntryPoint, Distribution) objects for the specified groups
+    """
+    for dist in importlib_metadata.distributions():
+        for e in dist.entry_points:
+            if e.group != group:
+                continue
+            yield (e, dist)
+
+
 def load_entrypoint_plugins(entry_points, airflow_plugins):
     """
     Load AirflowPlugin subclasses from the entrypoints
@@ -99,41 +142,23 @@ def load_entrypoint_plugins(entry_points, airflow_plugins):
     :type airflow_plugins: list[type[airflow.plugins_manager.AirflowPlugin]]
     :rtype: list[airflow.plugins_manager.AirflowPlugin]
     """
-    for entry_point in entry_points:
+    global import_errors  # pylint: disable=global-statement
+    for entry_point, dist in entry_points:
         log.debug('Importing entry_point plugin %s', entry_point.name)
-        plugin_obj = entry_point.load()
-        if is_valid_plugin(plugin_obj, airflow_plugins):
+        try:
+            plugin_obj = entry_point.load()
+            plugin_obj.__usable_import_name = entry_point.module
+            if not is_valid_plugin(plugin_obj, airflow_plugins):
+                continue
+
             if callable(getattr(plugin_obj, 'on_load', None)):
                 plugin_obj.on_load()
+
                 airflow_plugins.append(plugin_obj)
+        except Exception as e:  # pylint: disable=broad-except
+            log.exception("Failed to import plugin %s", entry_point.name)
+            import_errors[entry_point.module] = str(e)
     return airflow_plugins
-
-
-def register_inbuilt_operator_links():
-    """
-    Register all the Operators Links that are already defined for the operators
-    in the "airflow" project. Example: QDSLink (Operator Link for Qubole Operator)
-
-    This is required to populate the "whitelist" of allowed classes when deserializing operator links
-    """
-    inbuilt_operator_links = set()  # type: Set[Type]
-
-    try:
-        from airflow.contrib.operators.bigquery_operator import BigQueryConsoleLink, BigQueryConsoleIndexableLink  # noqa E501 # pylint: disable=R0401,line-too-long
-        inbuilt_operator_links.update([BigQueryConsoleLink, BigQueryConsoleIndexableLink])
-    except ImportError:
-        pass
-
-    try:
-        from airflow.contrib.operators.qubole_operator import QDSLink   # pylint: disable=R0401
-        inbuilt_operator_links.update([QDSLink])
-    except ImportError:
-        pass
-
-    registered_operator_link_classes.update({
-        "{}.{}".format(link.__module__, link.__name__): link
-        for link in inbuilt_operator_links
-    })
 
 
 def is_valid_plugin(plugin_obj, existing_plugins):
@@ -176,12 +201,24 @@ for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):
                 continue
 
             log.debug('Importing plugin module %s', filepath)
+
+            if mod_name == "__init__":
+                compat_import_name = root
+            else:
+                compat_import_name = os.path.join(root, mod_name)
+
+            compat_import_name = os.path.relpath(
+                compat_import_name,
+                settings.PLUGINS_FOLDER,
+            ).replace(os.sep, '.')
+
             # normalize root path as namespace
             namespace = '_'.join([re.sub(norm_pattern, '__', root), mod_name])
 
             m = imp.load_source(namespace, filepath)
             for obj in list(m.__dict__.values()):
                 if is_valid_plugin(obj, plugins):
+                    obj.__usable_import_name = compat_import_name
                     plugins.append(obj)
 
         except Exception as e:
@@ -190,9 +227,59 @@ for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):
             import_errors[filepath] = str(e)
 
 plugins = load_entrypoint_plugins(
-    pkg_resources.iter_entry_points('airflow.plugins'),
+    entry_points_with_dist('airflow.plugins'),
     plugins
 )
+
+
+def make_deprecated_module(kind, plugin, objects=None):
+    name = 'airflow.{}.{}'.format(kind, plugin.name)
+    module = imp.new_module(name)
+    module._name = name.split('.')[-1]
+    if objects is None:
+        objects = getattr(plugin, kind)
+    module._objects = objects
+    objects = {o.__name__: o for o in objects}
+
+    def __getattr__(attrname):
+        """Get attribute."""
+        if attrname not in objects:
+            raise AttributeError("module '{}' has no attribute '{}'".format(name, attrname))
+
+        stacklevel = 2 if PY37 else 3
+
+        obj = objects[attrname]
+        # Use __qualname__ where we have it for Py 3.3+
+        obj_name = getattr(obj, '__qualname__', obj.__name__)
+
+        # Work out what the "correct" import name should be
+        if obj.__module__ == plugin.__module__:
+            # Class is defined in the plugin
+            correct_import_name = '.'.join((plugin.__usable_import_name, obj_name))
+        else:
+            # Class was imported from somewhere else, just direct user to use that instead
+            correct_import_name = '.'.join((obj.__module__, obj_name))
+
+        warnings.warn(
+            "Importing '{}' from under 'airflow.{}.*' has been deprecated and should be directly "
+            "imported as '{}' instead.\n"
+            "\n"
+            "Support for importing from within the airflow namespace for plugins will be dropped entirely "
+            "in Airflow 2.0. See <http://airflow.apache.org/docs/stable/howto/custom-operator.html>.".format(
+                attrname, kind, correct_import_name
+            ),
+            category=FutureWarning,
+            stacklevel=stacklevel
+        )
+        return obj
+
+    def __dir__():
+        return objects.keys()
+
+    module.__getattr__ = __getattr__
+    module.__dir__ = __dir__
+
+    return module
 
 
 def make_module(name, objects):
@@ -230,11 +317,13 @@ during deserialization
 
 for p in plugins:
     operators_modules.append(
-        make_module('airflow.operators.' + p.name, p.operators + p.sensors))
+        make_deprecated_module('operators', p, p.operators + p.sensors))
     sensors_modules.append(
-        make_module('airflow.sensors.' + p.name, p.sensors)
+        make_deprecated_module('sensors', p)
     )
-    hooks_modules.append(make_module('airflow.hooks.' + p.name, p.hooks))
+    hooks_modules.append(
+        make_deprecated_module('hooks', p)
+    )
     executors_modules.append(
         make_module('airflow.executors.' + p.name, p.executors))
     macros_modules.append(make_module('airflow.macros.' + p.name, p.macros))

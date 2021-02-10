@@ -56,17 +56,18 @@ class TestPool(unittest.TestCase):
         self.assertEqual(pool.pool, self.pools[0].pool)
 
     def test_get_pool_non_existing(self):
-        self.assertRaisesRegexp(PoolNotFound,
-                                "^Pool 'test' doesn't exist$",
-                                pool_api.get_pool,
-                                name='test')
+        six.assertRaisesRegex(self, PoolNotFound,
+                              "^Pool 'test' doesn't exist$",
+                              pool_api.get_pool,
+                              name='test')
 
     def test_get_pool_bad_name(self):
         for name in ('', '    '):
-            self.assertRaisesRegexp(AirflowBadRequest,
-                                    "^Pool name shouldn't be empty$",
-                                    pool_api.get_pool,
-                                    name=name)
+            six.assertRaisesRegex(self,
+                                  AirflowBadRequest,
+                                  "^Pool name shouldn't be empty$",
+                                  pool_api.get_pool,
+                                  name=name)
 
     def test_get_pools(self):
         pools = sorted(pool_api.get_pools(),
@@ -96,20 +97,21 @@ class TestPool(unittest.TestCase):
 
     def test_create_pool_bad_name(self):
         for name in ('', '    '):
-            self.assertRaisesRegexp(AirflowBadRequest,
-                                    "^Pool name shouldn't be empty$",
-                                    pool_api.create_pool,
-                                    name=name,
-                                    slots=5,
-                                    description='')
+            six.assertRaisesRegex(self,
+                                  AirflowBadRequest,
+                                  "^Pool name shouldn't be empty$",
+                                  pool_api.create_pool,
+                                  name=name,
+                                  slots=5,
+                                  description='')
 
     def test_create_pool_bad_slots(self):
-        self.assertRaisesRegexp(AirflowBadRequest,
-                                "^Bad value for `slots`: foo$",
-                                pool_api.create_pool,
-                                name='foo',
-                                slots='foo',
-                                description='')
+        six.assertRaisesRegex(self, AirflowBadRequest,
+                              "^Bad value for `slots`: foo$",
+                              pool_api.create_pool,
+                              name='foo',
+                              slots='foo',
+                              description='')
 
     def test_delete_pool(self):
         pool = pool_api.delete_pool(name=self.pools[-1].pool)
@@ -118,21 +120,23 @@ class TestPool(unittest.TestCase):
             self.assertEqual(session.query(models.Pool).count(), self.TOTAL_POOL_COUNT - 1)
 
     def test_delete_pool_non_existing(self):
-        self.assertRaisesRegexp(pool_api.PoolNotFound,
-                                "^Pool 'test' doesn't exist$",
-                                pool_api.delete_pool,
-                                name='test')
+        six.assertRaisesRegex(self, pool_api.PoolNotFound,
+                              "^Pool 'test' doesn't exist$",
+                              pool_api.delete_pool,
+                              name='test')
 
     def test_delete_pool_bad_name(self):
         for name in ('', '    '):
-            self.assertRaisesRegexp(AirflowBadRequest,
-                                    "^Pool name shouldn't be empty$",
-                                    pool_api.delete_pool,
-                                    name=name)
+            six.assertRaisesRegex(self,
+                                  AirflowBadRequest,
+                                  "^Pool name shouldn't be empty$",
+                                  pool_api.delete_pool,
+                                  name=name)
 
     def test_delete_default_pool_not_allowed(self):
-        with self.assertRaisesRegex(AirflowBadRequest,
-                                    "^default_pool cannot be deleted$"):
+        with six.assertRaisesRegex(self,
+                                   AirflowBadRequest,
+                                   "^default_pool cannot be deleted$"):
             pool_api.delete_pool(Pool.DEFAULT_POOL_NAME)
 
 

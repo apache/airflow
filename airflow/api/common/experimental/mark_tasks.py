@@ -137,8 +137,7 @@ def all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates):  #
         filter(
             TaskInstance.dag_id.in_(sub_dag_run_ids),
             TaskInstance.execution_date.in_(confirmed_dates)  # noqa: E123
-        ).\
-        filter(
+        ).filter(  # noqa: E123
             or_(
                 TaskInstance.state.is_(None),
                 TaskInstance.state != state
@@ -154,13 +153,12 @@ def get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates):  # n
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.execution_date.in_(confirmed_dates),
             TaskInstance.task_id.in_(task_ids)  # noqa: E123
-        ).\
-        filter(
+        ).filter(  # noqa: E123
             or_(
                 TaskInstance.state.is_(None),
                 TaskInstance.state != state
             )
-        )
+        )  # noqa: E123
     return qry_dag
 
 

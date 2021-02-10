@@ -20,72 +20,91 @@
 
 from __future__ import print_function
 import errno
+import hashlib
 import importlib
+import itertools
+import locale
 import logging
 
 import os
+import platform
 import subprocess
 import textwrap
 import random
 import string
+import yaml
+from collections import OrderedDict, namedtuple
 from importlib import import_module
 
 import getpass
+
 import reprlib
 import argparse
+
+import requests
+import tenacity
 from builtins import input
 from tempfile import NamedTemporaryFile
 
-from airflow.utils.dot_renderer import render_dag
-from airflow.utils.timezone import parse as parsedate
 import json
 from tabulate import tabulate
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
+import io
+import psutil
+import re
 import signal
 import sys
 import threading
-import traceback
 import time
-import psutil
-import re
-from urllib.parse import urlunparse
-from typing import Any
+import traceback
+
+from typing import Any, cast
 
 import airflow
 from airflow import api
 from airflow import jobs, settings
-from airflow.configuration import conf
+from airflow.configuration import conf, get_airflow_home
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
 from airflow.models import (
     Connection, DagModel, DagBag, DagPickle, TaskInstance, DagRun, Variable, DAG
 )
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_QUEUED_DEPS)
+from airflow.typing_compat import Protocol
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.lock import initialize as scheduler_lock_init
+from airflow.utils.dot_renderer import render_dag
 from airflow.utils.net import get_hostname
+from airflow.utils.timezone import parse as parsedate
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
 from airflow.www.app import (cached_app, create_app)
 from airflow.www_rbac.app import cached_app as cached_app_rbac
 from airflow.www_rbac.app import create_app as create_app_rbac
 from airflow.www_rbac.app import cached_appbuilder
+from airflow.version import version as airflow_version
 
+import pygments
+from pygments.formatters.terminal import TerminalFormatter
+from pygments.lexers.configs import IniLexer
 from sqlalchemy.orm import exc
 import six
+from six.moves.urllib_parse import urlunparse, urlsplit, urlunsplit
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
                                auth=api.API_AUTH.api_auth.CLIENT_AUTH)
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 DAGS_FOLDER = settings.DAGS_FOLDER
 
-if "BUILDING_AIRFLOW_DOCS" in os.environ:
+BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
+
+if BUILD_DOCS:
     DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
 
 
@@ -223,6 +242,7 @@ def backfill(args, dag=None):
         )
 
 
+@cli_utils.deprecated_action(new_name='dags trigger')
 @cli_utils.action_logging
 def trigger_dag(args):
     """
@@ -241,6 +261,7 @@ def trigger_dag(args):
         raise AirflowException(err)
 
 
+@cli_utils.deprecated_action(new_name='dags delete')
 @cli_utils.action_logging
 def delete_dag(args):
     """
@@ -261,6 +282,41 @@ def delete_dag(args):
         print("Bail.")
 
 
+def _pool_wrapper(args, get=None, set=None, delete=None, export=None, imp=None):
+    args.get = get
+    args.set = set
+    args.delete = delete
+    args.export = export
+    setattr(args, 'import', imp)
+    pool(args)
+
+
+def pool_list(args):
+    _pool_wrapper(args)
+
+
+def pool_get(args):
+    _pool_wrapper(args, get=args.pool)
+
+
+def pool_set(args):
+    _pool_wrapper(args, set=(args.name, args.slots, args.description))
+
+
+def pool_delete(args):
+    _pool_wrapper(args, delete=pool.name)
+
+
+def pool_import(args):
+    _pool_wrapper(args, imp=args.file)
+
+
+def pool_export(args):
+    _pool_wrapper(args, export=args.file)
+
+
+@cli_utils.deprecated_action(new_name=['pools list', 'pools get', 'pools set', 'pools delete', 'pools import',
+                                       'pools export'])
 @cli_utils.action_logging
 def pool(args):
     def _tabulate(pools):
@@ -330,6 +386,36 @@ def pool_export_helper(filepath):
     return pools
 
 
+def _vars_wrapper(args, get=None, set=None, delete=None, export=None, imp=None):
+    args.get = get
+    args.set = set
+    args.delete = delete
+    args.export = export
+    setattr(args, 'import', imp)
+    variables(args)
+
+
+def variables_get(args):
+    _vars_wrapper(args, get=args.key)
+
+
+def variables_delete(args):
+    _vars_wrapper(args, delete=args.key)
+
+
+def variables_set(args):
+    _vars_wrapper(args, set=args.key)
+
+
+def variables_import(args):
+    _vars_wrapper(args, imp=args.file)
+
+
+def variables_export(args):
+    _vars_wrapper(args, export=args.file)
+
+
+@cli_utils.deprecated_action(new_name='variables')
 @cli_utils.action_logging
 def variables(args):
     if args.get:
@@ -402,11 +488,13 @@ def export_helper(filepath):
     print("{} variables successfully exported to {}".format(len(var_dict), filepath))
 
 
+@cli_utils.deprecated_action(new_name='dags pause')
 @cli_utils.action_logging
 def pause(args):
     set_is_paused(True, args)
 
 
+@cli_utils.deprecated_action(new_name='dags unpause')
 @cli_utils.action_logging
 def unpause(args):
     set_is_paused(False, args)
@@ -420,6 +508,7 @@ def set_is_paused(is_paused, args):
     print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
 
 
+@cli_utils.deprecated_action(new_name='dags show')
 def show_dag(args):
     dag = get_dag(args)
     dot = render_dag(dag)
@@ -498,6 +587,8 @@ def _run(args, dag, ti):
         executor.end()
 
 
+# Don't warn on deprecation on this one. It is deprecated, but it is used almost exclusively internally, and
+# by not warning we have to make a smaller code change.
 @cli_utils.action_logging
 def run(args, dag=None):
     if dag:
@@ -524,7 +615,7 @@ def run(args, dag=None):
         dag = get_dag(args)
     elif not dag:
         with db.create_session() as session:
-            print('Loading pickle id %s', args.pickle)
+            print('Loading pickle id ', args.pickle)
             dag_pickle = session.query(DagPickle).filter(DagPickle.id == args.pickle).first()
             if not dag_pickle:
                 raise AirflowException("Who hid the pickle!? [missing pickle]")
@@ -537,16 +628,44 @@ def run(args, dag=None):
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
-    print("Running %s on host %s", ti, hostname)
+    print("Running {} on host {}".format(ti, hostname))
 
     if args.interactive:
         _run(args, dag, ti)
     else:
-        with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
-            _run(args, dag, ti)
+        if settings.DONOT_MODIFY_HANDLERS:
+            with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
+                _run(args, dag, ti)
+        else:
+            # Get all the Handlers from 'airflow.task' logger
+            # Add these handlers to the root logger so that we can get logs from
+            # any custom loggers defined in the DAG
+            airflow_logger_handlers = logging.getLogger('airflow.task').handlers
+            root_logger = logging.getLogger()
+            root_logger_handlers = root_logger.handlers
+
+            # Remove all handlers from Root Logger to avoid duplicate logs
+            for handler in root_logger_handlers:
+                root_logger.removeHandler(handler)
+
+            for handler in airflow_logger_handlers:
+                root_logger.addHandler(handler)
+            root_logger.setLevel(logging.getLogger('airflow.task').level)
+
+            with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
+                _run(args, dag, ti)
+
+            # We need to restore the handlers to the loggers as celery worker process
+            # can call this command multiple times,
+            # so if we don't reset this then logs from next task would go to the wrong place
+            for handler in airflow_logger_handlers:
+                root_logger.removeHandler(handler)
+            for handler in root_logger_handlers:
+                root_logger.addHandler(handler)
     logging.shutdown()
 
 
+@cli_utils.deprecated_action(new_name='tasks failed-deps')
 @cli_utils.action_logging
 def task_failed_deps(args):
     """
@@ -574,6 +693,7 @@ def task_failed_deps(args):
         print("Task instance dependencies are all met.")
 
 
+@cli_utils.deprecated_action(new_name='tasks state')
 @cli_utils.action_logging
 def task_state(args):
     """
@@ -587,6 +707,7 @@ def task_state(args):
     print(ti.current_state())
 
 
+@cli_utils.deprecated_action(new_name='dags state')
 @cli_utils.action_logging
 def dag_state(args):
     """
@@ -599,6 +720,7 @@ def dag_state(args):
     print(dr[0].state if len(dr) > 0 else None)
 
 
+@cli_utils.deprecated_action(new_name='dags next-execution')
 @cli_utils.action_logging
 def next_execution(args):
     """
@@ -624,6 +746,7 @@ def next_execution(args):
         print(None)
 
 
+@cli_utils.deprecated_action(new_name='rotate-fernet-key')
 @cli_utils.action_logging
 def rotate_fernet_key(args):
     session = settings.Session()
@@ -635,6 +758,7 @@ def rotate_fernet_key(args):
     session.commit()
 
 
+@cli_utils.deprecated_action(new_name=['dags list', 'dags report'])
 @cli_utils.action_logging
 def list_dags(args):
     dagbag = DagBag(process_subdir(args.subdir))
@@ -646,10 +770,17 @@ def list_dags(args):
     """)
     dag_list = "\n".join(sorted(dagbag.dags))
     print(s.format(dag_list=dag_list))
-    if args.report:
+    if getattr(args, 'report', False):
         print(dagbag.dagbag_report())
 
 
+def list_dags_report(args):
+    args.report = True
+    args.deprecation_warning = False
+    list_dags(args)
+
+
+@cli_utils.deprecated_action(new_name='tasks list')
 @cli_utils.action_logging
 def list_tasks(args, dag=None):
     dag = dag or get_dag(args)
@@ -660,6 +791,7 @@ def list_tasks(args, dag=None):
         print("\n".join(sorted(tasks)))
 
 
+@cli_utils.deprecated_action(new_name='tasks test')
 @cli_utils.action_logging
 def test(args, dag=None):
     # We want log outout from operators etc to show up here. Normally
@@ -696,6 +828,7 @@ def test(args, dag=None):
         logging.getLogger('airflow.task').propagate = False
 
 
+@cli_utils.deprecated_action(new_name='tasks render')
 @cli_utils.action_logging
 def render(args):
     dag = get_dag(args)
@@ -711,6 +844,7 @@ def render(args):
         """.format(attr, getattr(task, attr))))
 
 
+@cli_utils.deprecated_action(new_name='tasks clear')
 @cli_utils.action_logging
 def clear(args):
     logging.basicConfig(
@@ -737,31 +871,11 @@ def clear(args):
     )
 
 
-def get_num_ready_workers_running(gunicorn_master_proc):
-    workers = psutil.Process(gunicorn_master_proc.pid).children()
-
-    def ready_prefix_on_cmdline(proc):
-        try:
-            cmdline = proc.cmdline()
-            if len(cmdline) > 0:
-                return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
-        except psutil.NoSuchProcess:
-            pass
-        return False
-
-    ready_workers = [proc for proc in workers if ready_prefix_on_cmdline(proc)]
-    return len(ready_workers)
-
-
-def get_num_workers_running(gunicorn_master_proc):
-    workers = psutil.Process(gunicorn_master_proc.pid).children()
-    return len(workers)
-
-
-def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
+class GunicornMonitor(LoggingMixin):
     """
     Runs forever, monitoring the child processes of @gunicorn_master_proc and
-    restarting workers occasionally.
+    restarting workers occasionally or when files in the plug-in directory
+    has been modified.
     Each iteration of the loop traverses one edge of this state transition
     diagram, where each state (node) represents
     [ num_ready_workers_running / num_workers_running ]. We expect most time to
@@ -778,98 +892,263 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
     master process, which increases and decreases the number of child workers
     respectively. Gunicorn guarantees that on TTOU workers are terminated
     gracefully and that the oldest worker is terminated.
-    """
 
-    def wait_until_true(fn, timeout=0):
+    :param gunicorn_master_pid: pid of the main Gunicorn process
+    :param num_workers_expected: Number of workers to run the Gunicorn web server
+    :param master_timeout: Number of seconds the webserver waits before killing gunicorn master that
+        doesn't respond
+    :param worker_refresh_interval: Number of seconds to wait before refreshing a batch of workers.
+    :param worker_refresh_batch_size: Number of workers to refresh at a time. When set to 0, worker
+        refresh is disabled. When nonzero, airflow periodically refreshes webserver workers by
+        bringing up new ones and killing old ones.
+    :param reload_on_plugin_change: If set to True, Airflow will track files in plugins_follder directory.
+        When it detects changes, then reload the gunicorn.
+    """
+    def __init__(
+        self,
+        gunicorn_master_pid,
+        num_workers_expected,
+        master_timeout,
+        worker_refresh_interval,
+        worker_refresh_batch_size,
+        reload_on_plugin_change
+    ):
+        super(GunicornMonitor, self).__init__()
+        self.gunicorn_master_proc = psutil.Process(gunicorn_master_pid)
+        self.num_workers_expected = num_workers_expected
+        self.master_timeout = master_timeout
+        self.worker_refresh_interval = worker_refresh_interval
+        self.worker_refresh_batch_size = worker_refresh_batch_size
+        self.reload_on_plugin_change = reload_on_plugin_change
+
+        self._num_workers_running = 0
+        self._num_ready_workers_running = 0
+        self._last_refresh_time = time.time() if worker_refresh_interval > 0 else None
+        self._last_plugin_state = self._generate_plugin_state() if reload_on_plugin_change else None
+        self._restart_on_next_plugin_check = False
+
+    def _generate_plugin_state(self):
+        """
+        Generate dict of filenames and last modification time of all files in settings.PLUGINS_FOLDER
+        directory.
+        """
+        if not settings.PLUGINS_FOLDER:
+            return {}
+
+        all_filenames = []
+        for (root, _, filenames) in os.walk(settings.PLUGINS_FOLDER):
+            all_filenames.extend(os.path.join(root, f) for f in filenames)
+        plugin_state = {f: self._get_file_hash(f) for f in sorted(all_filenames)}
+        return plugin_state
+
+    @staticmethod
+    def _get_file_hash(fname):
+        """Calculate MD5 hash for file"""
+        hash_md5 = hashlib.md5()
+        with open(fname, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+
+    def _get_num_ready_workers_running(self):
+        """Returns number of ready Gunicorn workers by looking for READY_PREFIX in process name"""
+        workers = psutil.Process(self.gunicorn_master_proc.pid).children()
+
+        def ready_prefix_on_cmdline(proc):
+            try:
+                cmdline = proc.cmdline()
+                if len(cmdline) > 0:  # pylint: disable=len-as-condition
+                    return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
+            except psutil.NoSuchProcess:
+                pass
+            return False
+
+        ready_workers = [proc for proc in workers if ready_prefix_on_cmdline(proc)]
+        return len(ready_workers)
+
+    def _get_num_workers_running(self):
+        """Returns number of running Gunicorn workers processes"""
+        workers = psutil.Process(self.gunicorn_master_proc.pid).children()
+        return len(workers)
+
+    def _wait_until_true(self, fn, timeout=0):
         """
         Sleeps until fn is true
         """
-        t = time.time()
+        start_time = time.time()
         while not fn():
-            if 0 < timeout and timeout <= time.time() - t:
+            if 0 < timeout <= time.time() - start_time:
                 raise AirflowWebServerTimeout(
-                    "No response from gunicorn master within {0} seconds"
-                    .format(timeout))
+                    "No response from gunicorn master within {0} seconds".format(timeout)
+                )
             time.sleep(0.1)
 
-    def start_refresh(gunicorn_master_proc):
-        batch_size = conf.getint('webserver', 'worker_refresh_batch_size')
-        log.debug('%s doing a refresh of %s workers', state, batch_size)
-        sys.stdout.flush()
-        sys.stderr.flush()
-
+    def _spawn_new_workers(self, count):
+        """
+        Send signal to kill the worker.
+        :param count: The number of workers to spawn
+        """
         excess = 0
-        for _ in range(batch_size):
-            gunicorn_master_proc.send_signal(signal.SIGTTIN)
+        for _ in range(count):
+            # TTIN: Increment the number of processes by one
+            self.gunicorn_master_proc.send_signal(signal.SIGTTIN)
             excess += 1
-            wait_until_true(lambda: num_workers_expected + excess ==
-                            get_num_workers_running(gunicorn_master_proc),
-                            master_timeout)
+            self._wait_until_true(
+                lambda: self.num_workers_expected + excess == self._get_num_workers_running(),
+                timeout=self.master_timeout
+            )
 
-    try:
-        wait_until_true(lambda: num_workers_expected ==
-                        get_num_workers_running(gunicorn_master_proc),
-                        master_timeout)
-        while True:
-            num_workers_running = get_num_workers_running(gunicorn_master_proc)
-            num_ready_workers_running = \
-                get_num_ready_workers_running(gunicorn_master_proc)
+    def _kill_old_workers(self, count):
+        """
+        Send signal to kill the worker.
+        :param count: The number of workers to kill
+        """
+        for _ in range(count):
+            count -= 1
+            # TTOU: Decrement the number of processes by one
+            self.gunicorn_master_proc.send_signal(signal.SIGTTOU)
+            self._wait_until_true(
+                lambda: self.num_workers_expected + count == self._get_num_workers_running(),
+                timeout=self.master_timeout)
 
-            state = '[{0} / {1}]'.format(num_ready_workers_running, num_workers_running)
+    def _reload_gunicorn(self):
+        """
+        Send signal to reload the gunciron configuration. When gunciorn receive signals, it reload the
+        configuration, start the new worker processes with a new configuration and gracefully
+        shutdown older workers.
+        """
+        # HUP: Reload the configuration.
+        self.gunicorn_master_proc.send_signal(signal.SIGHUP)
+        time.sleep(1)
+        self._wait_until_true(
+            lambda: self.num_workers_expected == self._get_num_workers_running(),
+            timeout=self.master_timeout
+        )
 
-            # Whenever some workers are not ready, wait until all workers are ready
-            if num_ready_workers_running < num_workers_running:
-                log.debug('%s some workers are starting up, waiting...', state)
-                sys.stdout.flush()
+    def start(self):
+        """
+        Starts monitoring the webserver.
+        """
+        self.log.debug("Start monitoring gunicorn")
+        try:  # pylint: disable=too-many-nested-blocks
+            self._wait_until_true(
+                lambda: self.num_workers_expected == self._get_num_workers_running(),
+                timeout=self.master_timeout
+            )
+            while True:
+                if not self.gunicorn_master_proc.is_running():
+                    sys.exit(1)
+                self._check_workers()
+                # Throttle loop
                 time.sleep(1)
 
-            # Kill a worker gracefully by asking gunicorn to reduce number of workers
-            elif num_workers_running > num_workers_expected:
-                excess = num_workers_running - num_workers_expected
-                log.debug('%s killing %s workers', state, excess)
+        except (AirflowWebServerTimeout, OSError) as err:
+            self.log.error(err)
+            self.log.error("Shutting down webserver")
+            try:
+                self.gunicorn_master_proc.terminate()
+                self.gunicorn_master_proc.wait()
+            finally:
+                sys.exit(1)
 
-                for _ in range(excess):
-                    gunicorn_master_proc.send_signal(signal.SIGTTOU)
-                    excess -= 1
-                    wait_until_true(lambda: num_workers_expected + excess ==
-                                    get_num_workers_running(gunicorn_master_proc),
-                                    master_timeout)
+    def _check_workers(self):
+        num_workers_running = self._get_num_workers_running()
+        num_ready_workers_running = self._get_num_ready_workers_running()
 
-            # Start a new worker by asking gunicorn to increase number of workers
-            elif num_workers_running == num_workers_expected:
-                refresh_interval = conf.getint('webserver', 'worker_refresh_interval')
-                log.debug(
-                    '%s sleeping for %ss starting doing a refresh...',
-                    state, refresh_interval
+        # Whenever some workers are not ready, wait until all workers are ready
+        if num_ready_workers_running < num_workers_running:
+            self.log.debug(
+                '[%d / %d] Some workers are starting up, waiting...',
+                num_ready_workers_running, num_workers_running
+            )
+            time.sleep(1)
+            return
+
+        # If there are too many workers, then kill a worker gracefully by asking gunicorn to reduce
+        # number of workers
+        if num_workers_running > self.num_workers_expected:
+            excess = min(num_workers_running - self.num_workers_expected, self.worker_refresh_batch_size)
+            self.log.debug(
+                '[%d / %d] Killing %s workers', num_ready_workers_running, num_workers_running, excess
+            )
+            self._kill_old_workers(excess)
+            return
+
+        # If there are too few workers, start a new worker by asking gunicorn
+        # to increase number of workers
+        if num_workers_running < self.num_workers_expected:
+            self.log.error(
+                "[%d / %d] Some workers seem to have died and gunicorn did not restart "
+                "them as expected",
+                num_ready_workers_running, num_workers_running
+            )
+            time.sleep(10)
+            num_workers_running = self._get_num_workers_running()
+            if num_workers_running < self.num_workers_expected:
+                new_worker_count = min(
+                    num_workers_running - self.worker_refresh_batch_size, self.worker_refresh_batch_size
                 )
-                time.sleep(refresh_interval)
-                start_refresh(gunicorn_master_proc)
+                self.log.debug(
+                    '[%d / %d] Spawning %d workers',
+                    num_ready_workers_running, num_workers_running, new_worker_count
+                )
+                self._spawn_new_workers(num_workers_running)
+            return
 
-            else:
-                # num_ready_workers_running == num_workers_running < num_workers_expected
-                log.error((
-                    "%s some workers seem to have died and gunicorn"
-                    "did not restart them as expected"
-                ), state)
-                time.sleep(10)
-                if len(
-                    psutil.Process(gunicorn_master_proc.pid).children()
-                ) < num_workers_expected:
-                    start_refresh(gunicorn_master_proc)
-    except (AirflowWebServerTimeout, OSError) as err:
-        log.error(err)
-        log.error("Shutting down webserver")
-        try:
-            gunicorn_master_proc.terminate()
-            gunicorn_master_proc.wait()
-        finally:
-            sys.exit(1)
+        # Now the number of running and expected worker should be equal
+
+        # If workers should be restarted periodically.
+        if self.worker_refresh_interval > 0 and self._last_refresh_time:
+            # and we refreshed the workers a long time ago, refresh the workers
+            last_refresh_diff = (time.time() - self._last_refresh_time)
+            if self.worker_refresh_interval < last_refresh_diff:
+                num_new_workers = self.worker_refresh_batch_size
+                self.log.debug(
+                    '[%d / %d] Starting doing a refresh. Starting %d workers.',
+                    num_ready_workers_running, num_workers_running, num_new_workers
+                )
+                self._spawn_new_workers(num_new_workers)
+                self._last_refresh_time = time.time()
+                return
+
+        # if we should check the directory with the plugin,
+        if self.reload_on_plugin_change:
+            # compare the previous and current contents of the directory
+            new_state = self._generate_plugin_state()
+            # If changed, wait until its content is fully saved.
+            if new_state != self._last_plugin_state:
+                self.log.debug(
+                    '[%d / %d] Plugins folder changed. The gunicorn will be restarted the next time the '
+                    'plugin directory is checked, if there is no change in it.',
+                    num_ready_workers_running, num_workers_running
+                )
+                self._restart_on_next_plugin_check = True
+                self._last_plugin_state = new_state
+            elif self._restart_on_next_plugin_check:
+                self.log.debug(
+                    '[%d / %d] Starts reloading the gunicorn configuration.',
+                    num_ready_workers_running, num_workers_running
+                )
+                self._restart_on_next_plugin_check = False
+                self._last_refresh_time = time.time()
+                self._reload_gunicorn()
 
 
 @cli_utils.action_logging
 def webserver(args):
     py2_deprecation_waring()
     print(settings.HEADER)
+
+    # Check for old/insecure config, and fail safe (i.e. don't launch) if the config is wildly insecure.
+    if conf.get('webserver', 'secret_key') == 'temporary_key':
+        print(
+            "ERROR: The `secret_key` setting under the webserver config has an insecure "
+            "value - Airflow has failed safe and refuses to start. Please change this value to a new, "
+            "per-environment, randomly generated string, for example using this command `openssl rand "
+            "-hex 30`",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
     error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
@@ -922,13 +1201,13 @@ def webserver(args):
 
         run_args = [
             'gunicorn',
-            '-w', str(num_workers),
-            '-k', str(args.workerclass),
-            '-t', str(worker_timeout),
-            '-b', args.hostname + ':' + str(args.port),
-            '-n', 'airflow-webserver',
-            '-p', str(pid),
-            '-c', 'python:airflow.www.gunicorn_config',
+            '--workers', str(num_workers),
+            '--worker-class', str(args.workerclass),
+            '--timeout', str(worker_timeout),
+            '--bind', args.hostname + ':' + str(args.port),
+            '--name', 'airflow-webserver',
+            '--pid', str(pid),
+            '--config', 'python:airflow.www.gunicorn_config',
         ]
 
         if args.access_logfile:
@@ -938,7 +1217,7 @@ def webserver(args):
             run_args += ['--error-logfile', str(args.error_logfile)]
 
         if args.daemon:
-            run_args += ['-D']
+            run_args += ['--daemon']
 
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
@@ -948,19 +1227,24 @@ def webserver(args):
 
         gunicorn_master_proc = None
 
-        def kill_proc(dummy_signum, dummy_frame):
+        def kill_proc(signum, _):
+            log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             gunicorn_master_proc.wait()
             sys.exit(0)
 
-        def monitor_gunicorn(gunicorn_master_proc):
+        def monitor_gunicorn(gunicorn_master_pid):
             # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
-            if conf.getint('webserver', 'worker_refresh_interval') > 0:
-                master_timeout = conf.getint('webserver', 'web_server_master_timeout')
-                restart_workers(gunicorn_master_proc, num_workers, master_timeout)
-            else:
-                while True:
-                    time.sleep(1)
+            GunicornMonitor(
+                gunicorn_master_pid=gunicorn_master_pid,
+                num_workers_expected=num_workers,
+                master_timeout=conf.getint('webserver', 'web_server_master_timeout'),
+                worker_refresh_interval=conf.getint('webserver', 'worker_refresh_interval', fallback=30),
+                worker_refresh_batch_size=conf.getint('webserver', 'worker_refresh_batch_size', fallback=1),
+                reload_on_plugin_change=conf.getboolean(
+                    'webserver', 'reload_on_plugin_change', fallback=False
+                ),
+            ).start()
 
         if args.daemon:
             base, ext = os.path.splitext(pid)
@@ -989,7 +1273,7 @@ def webserver(args):
                         time.sleep(0.1)
 
                 gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
-                monitor_gunicorn(gunicorn_master_proc)
+                monitor_gunicorn(gunicorn_master_proc.pid)
 
             stdout.close()
             stderr.close()
@@ -999,7 +1283,7 @@ def webserver(args):
             signal.signal(signal.SIGINT, kill_proc)
             signal.signal(signal.SIGTERM, kill_proc)
 
-            monitor_gunicorn(gunicorn_master_proc)
+            monitor_gunicorn(gunicorn_master_proc.pid)
 
 
 @cli_utils.action_logging
@@ -1068,6 +1352,199 @@ def _serve_logs(env, skip_serve_logs=False):
     return None
 
 
+@cli_utils.deprecated_action(new_name='kubernetes generate-dag-yaml')
+@cli_utils.action_logging
+def kubernetes_generate_dag_yaml(args):
+    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig
+    from airflow.kubernetes.pod_generator import PodGenerator
+    from airflow.kubernetes.pod_launcher import PodLauncher
+    from airflow.kubernetes.worker_configuration import WorkerConfiguration
+    from kubernetes.client.api_client import ApiClient
+    dag = get_dag(args)
+    yaml_output_path = args.output_path
+    kube_config = KubeConfig()
+    for task in dag.tasks:
+        ti = TaskInstance(task, args.execution_date)
+        pod = PodGenerator.construct_pod(
+            dag_id=args.dag_id,
+            task_id=ti.task_id,
+            pod_id=AirflowKubernetesScheduler._create_pod_id(  # pylint: disable=W0212
+                args.dag_id, ti.task_id),
+            try_number=ti.try_number,
+            date=ti.execution_date,
+            command=ti.command_as_list(),
+            kube_executor_config=PodGenerator.from_obj(ti.executor_config),
+            worker_uuid="worker-config",
+            namespace=kube_config.executor_namespace,
+            worker_config=WorkerConfiguration(kube_config=kube_config).as_pod()
+        )
+        api_client = ApiClient()
+        pod = PodLauncher._mutate_pod_backcompat(pod)
+        date_string = AirflowKubernetesScheduler._datetime_to_label_safe_datestring(  # pylint: disable=W0212
+            args.execution_date)
+        yaml_file_name = "{}_{}_{}.yml".format(args.dag_id, ti.task_id, date_string)
+        os.makedirs(os.path.dirname(yaml_output_path + "/airflow_yaml_output/"), exist_ok=True)
+        with open(yaml_output_path + "/airflow_yaml_output/" + yaml_file_name, "w") as output:
+            sanitized_pod = api_client.sanitize_for_serialization(pod)
+            output.write(yaml.dump(sanitized_pod))
+    print("YAML output can be found at {}/airflow_yaml_output/".format(yaml_output_path))
+
+
+@cli_utils.action_logging
+def generate_pod_template(args):
+    from airflow.executors.kubernetes_executor import KubeConfig
+    from airflow.kubernetes.worker_configuration import WorkerConfiguration
+    from kubernetes.client.api_client import ApiClient
+    kube_config = KubeConfig()
+    worker_configuration_pod = WorkerConfiguration(kube_config=kube_config).as_pod()
+    api_client = ApiClient()
+    yaml_file_name = "airflow_template.yml"
+    yaml_output_path = args.output_path
+    if not os.path.exists(yaml_output_path):
+        os.makedirs(yaml_output_path)
+    with open(yaml_output_path + "/" + yaml_file_name, "w") as output:
+        sanitized_pod = api_client.sanitize_for_serialization(worker_configuration_pod)
+        sanitized_pod = json.dumps(sanitized_pod)
+        sanitized_pod = json.loads(sanitized_pod)
+        output.write(yaml.safe_dump(sanitized_pod))
+    output_string = """
+Congratulations on migrating your kubernetes configs to the pod_template_file!
+
+This is a critical first step on your migration to Airflow 2.0.
+
+Please check the following file and ensure that all configurations are correct: {yaml_file_name}
+
+
+Please place this file in a desired location on your machine and set the following airflow.cfg config:
+
+```
+[kubernetes]
+    pod_template_file=/path/to/{yaml_file_name}
+```
+
+You will now have full access to the Kubernetes API.
+
+Please note that the following configs will no longer be considered when the pod_template_file is set:
+
+worker_container_image_pull_policy
+airflow_configmap
+airflow_local_settings_configmap
+dags_in_image
+dags_volume_subpath
+dags_volume_mount_point
+dags_volume_claim
+logs_volume_subpath
+logs_volume_claim
+dags_volume_host
+logs_volume_host
+env_from_configmap_ref
+env_from_secret_ref
+git_repo
+git_branch
+git_sync_depth
+git_subpath
+git_sync_rev
+git_user
+git_password
+git_sync_root
+git_sync_dest
+git_dags_folder_mount_point
+git_ssh_key_secret_name
+git_ssh_known_hosts_configmap_name
+git_sync_credentials_secret
+git_sync_container_repository
+git_sync_container_tag
+git_sync_init_container_name
+git_sync_run_as_user
+worker_service_account_name
+image_pull_secrets
+gcp_service_account_keys
+affinity
+tolerations
+run_as_user
+fs_group
+[kubernetes_node_selectors]
+[kubernetes_annotations]
+[kubernetes_environment_variables]
+[kubernetes_secrets]
+[kubernetes_labels]
+
+
+Happy Airflowing!
+
+""".format(yaml_file_name=yaml_file_name)
+    print(output_string)
+
+
+@cli_utils.action_logging
+def cleanup_pods(args):
+    from kubernetes.client.rest import ApiException
+
+    from airflow.kubernetes.kube_client import get_kube_client
+
+    """Clean up k8s pods in evicted/failed/succeeded states"""
+    namespace = args.namespace
+
+    # https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
+    # All Containers in the Pod have terminated in success, and will not be restarted.
+    pod_succeeded = 'succeeded'
+
+    # All Containers in the Pod have terminated, and at least one Container has terminated in failure.
+    # That is, the Container either exited with non-zero status or was terminated by the system.
+    pod_failed = 'failed'
+
+    # https://kubernetes.io/docs/tasks/administer-cluster/out-of-resource/
+    pod_reason_evicted = 'evicted'
+    # If pod is failed and restartPolicy is:
+    # * Always: Restart Container; Pod phase stays Running.
+    # * OnFailure: Restart Container; Pod phase stays Running.
+    # * Never: Pod phase becomes Failed.
+    pod_restart_policy_never = 'never'
+
+    print('Loading Kubernetes configuration')
+    kube_client = get_kube_client()
+    print('Listing pods in namespace {}'.format(namespace))
+    continue_token = None
+    while True:  # pylint: disable=too-many-nested-blocks
+        pod_list = kube_client.list_namespaced_pod(namespace=namespace, limit=500, _continue=continue_token)
+        for pod in pod_list.items:
+            pod_name = pod.metadata.name
+            print('Inspecting pod {}'.format(pod_name))
+            pod_phase = pod.status.phase.lower()
+            pod_reason = pod.status.reason.lower() if pod.status.reason else ''
+            pod_restart_policy = pod.spec.restart_policy.lower()
+
+            if (
+                pod_phase == pod_succeeded
+                or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
+                or (pod_reason == pod_reason_evicted)
+            ):
+                print('Deleting pod "{}" phase "{}" and reason "{}", restart policy "{}"'.format(
+                    pod_name, pod_phase, pod_reason, pod_restart_policy)
+                )
+                try:
+                    _delete_pod(pod.metadata.name, namespace)
+                except ApiException as e:
+                    print("can't remove POD: {}".format(e), file=sys.stderr)
+                continue
+            print('No action taken on pod {}'.format(pod_name))
+        continue_token = pod_list.metadata._continue  # pylint: disable=protected-access
+        if not continue_token:
+            break
+
+
+def _delete_pod(name, namespace):
+    """Helper Function for cleanup_pods"""
+    from kubernetes import client
+
+    core_v1 = client.CoreV1Api()
+    delete_options = client.V1DeleteOptions()
+    print('Deleting POD "{}" from "{}" namespace'.format(name, namespace))
+    api_response = core_v1.delete_namespaced_pod(name=name, namespace=namespace, body=delete_options)
+    print(api_response)
+
+
+@cli_utils.deprecated_action(new_name='celery worker')
 @cli_utils.action_logging
 def worker(args):
     env = os.environ.copy()
@@ -1079,6 +1556,7 @@ def worker(args):
 
     # Celery worker
     from airflow.executors.celery_executor import app as celery_app
+    from celery import maybe_patch_concurrency
     from celery.bin import worker
 
     autoscale = args.autoscale
@@ -1099,7 +1577,14 @@ def worker(args):
     }
 
     if conf.has_option("celery", "pool"):
-        options["pool"] = conf.get("celery", "pool")
+        pool = conf.get("celery", "pool")
+        options["pool"] = pool
+        # Celery pools of type eventlet and gevent use greenlets, which
+        # requires monkey patching the app:
+        # https://eventlet.net/doc/patching.html#monkey-patch
+        # Otherwise task instances hang on the workers and are never
+        # executed.
+        maybe_patch_concurrency(['-P', pool])
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker",
@@ -1135,6 +1620,7 @@ def worker(args):
         sp.kill()
 
 
+@cli_utils.deprecated_action(new_name='db init')
 def initdb(args):  # noqa
     py2_deprecation_waring()
     print("DB: " + repr(settings.engine.url))
@@ -1148,6 +1634,7 @@ def initscheduler(args):  # noqa
     print("Done.")
 
 
+@cli_utils.deprecated_action(new_name='db reset')
 def resetdb(args):
     py2_deprecation_waring()
     print("DB: " + repr(settings.engine.url))
@@ -1159,6 +1646,7 @@ def resetdb(args):
         print("Bail.")
 
 
+@cli_utils.deprecated_action(new_name='db shell')
 @cli_utils.action_logging
 def shell(args):
     """Run a shell that allows to access database access"""
@@ -1200,6 +1688,7 @@ def upgradedb(args):  # noqa
     db.upgradedb()
 
 
+@cli_utils.deprecated_action(new_name='db check')
 @cli_utils.action_logging
 def checkdb(args):  # noqa
     py2_deprecation_waring()
@@ -1209,13 +1698,33 @@ def checkdb(args):  # noqa
 
 def version(args):  # noqa
     py2_deprecation_waring()
-    print(settings.HEADER + "  v" + airflow.__version__)
+    print(airflow.__version__)
 
 
 alternative_conn_specs = ['conn_type', 'conn_host',
                           'conn_login', 'conn_password', 'conn_schema', 'conn_port']
 
 
+def _conn_wrapper(args, list=None, delete=None, add=None):
+    args.list = list
+    args.delete = delete
+    args.add = add
+    connections(args)
+
+
+def connections_list(args):
+    _conn_wrapper(args, list=True)
+
+
+def connections_add(args):
+    _conn_wrapper(args, add=True)
+
+
+def connections_delete(args):
+    _conn_wrapper(args, delete=True)
+
+
+@cli_utils.deprecated_action(sub_commands=True)
 @cli_utils.action_logging
 def connections(args):
     if args.list:
@@ -1349,6 +1858,7 @@ def connections(args):
         return
 
 
+@cli_utils.deprecated_action(new_name='celery flower')
 @cli_utils.action_logging
 def flower(args):
     broka = conf.get('celery', 'BROKER_URL')
@@ -1428,6 +1938,7 @@ def kerberos(args):  # noqa
         airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
 
 
+@cli_utils.deprecated_action(new_name='users create')
 @cli_utils.action_logging
 def create_user(args):
     fields = {
@@ -1468,6 +1979,7 @@ def create_user(args):
         raise SystemExit('Failed to create user.')
 
 
+@cli_utils.deprecated_action(new_name='users delete')
 @cli_utils.action_logging
 def delete_user(args):
     if not args.username:
@@ -1486,6 +1998,7 @@ def delete_user(args):
         raise SystemExit('Failed to delete user.')
 
 
+@cli_utils.deprecated_action(new_name='users list')
 @cli_utils.action_logging
 def list_users(args):
     appbuilder = cached_appbuilder()
@@ -1499,6 +2012,7 @@ def list_users(args):
     print(msg)
 
 
+@cli_utils.deprecated_action(new_name='dags list-runs')
 @cli_utils.action_logging
 def list_dag_runs(args, dag=None):
     if dag:
@@ -1551,14 +2065,16 @@ def list_dag_runs(args, dag=None):
         print(record)
 
 
+@cli_utils.deprecated_action(new_name='sync-perm')
 @cli_utils.action_logging
 def sync_perm(args): # noqa
     if settings.RBAC:
         appbuilder = cached_appbuilder()
         print('Updating permission, view-menu for all existing roles')
         appbuilder.sm.sync_roles()
+        appbuilder.add_permissions(update_perms=True)
         print('Updating permission on all DAG views')
-        dags = DagBag().dags.values()
+        dags = DagBag(store_serialized_dags=settings.STORE_SERIALIZED_DAGS).dags.values()
         for dag in dags:
             appbuilder.sm.sync_perm_for_dag(
                 dag.dag_id,
@@ -1567,17 +2083,1357 @@ def sync_perm(args): # noqa
         print('The sync_perm command only works for rbac UI.')
 
 
-class Arg(object):
-    def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
-                 type=None, choices=None, metavar=None):
+@cli_utils.deprecated_action(new_name='config list')
+def config(args):
+    """Show current application configuration"""
+    with io.StringIO() as output:
+        conf.write(output)
+        code = output.getvalue()
+        if cli_utils.should_use_colors(args):
+            code = pygments.highlight(
+                code=code, formatter=TerminalFormatter(), lexer=IniLexer()
+            )
+        print(code)
+
+
+class Anonymizer(Protocol):
+    """Anonymizer protocol."""
+
+    def process_path(self, value):
+        """Remove pii from paths"""
+
+    def process_username(self, value):
+        """Remove pii from ussername"""
+
+    def process_url(self, value):
+        """Remove pii from URL"""
+
+
+class NullAnonymizer(Anonymizer):
+    """Do nothing."""
+
+    def _identity(self, value):
+        return value
+
+    process_path = process_username = process_url = _identity
+
+    del _identity
+
+
+class PiiAnonymizer(Anonymizer):
+    """Remove personally identifiable info from path."""
+
+    def __init__(self):
+        home_path = os.path.expanduser("~")
+        username = getpass.getuser()
+        self._path_replacements = OrderedDict([
+            (home_path, "${HOME}"), (username, "${USER}")
+        ])
+
+    def process_path(self, value):
+        if not value:
+            return value
+        for src, target in self._path_replacements.items():
+            value = value.replace(src, target)
+        return value
+
+    def process_username(self, value):
+        if not value:
+            return value
+        return value[0] + "..." + value[-1]
+
+    def process_url(self, value):
+        if not value:
+            return value
+
+        url_parts = urlsplit(value)
+        netloc = None
+        if url_parts.netloc:
+            # unpack
+            userinfo = None
+            host = None
+            username = None
+            password = None
+
+            if "@" in url_parts.netloc:
+                userinfo, _, host = url_parts.netloc.partition("@")
+            else:
+                host = url_parts.netloc
+            if userinfo:
+                if ":" in userinfo:
+                    username, _, password = userinfo.partition(":")
+                else:
+                    username = userinfo
+
+            # anonymize
+            username = self.process_username(username) if username else None
+            password = "PASSWORD" if password else None
+
+            # pack
+            if username and password and host:
+                netloc = username + ":" + password + "@" + host
+            elif username and host:
+                netloc = username + "@" + host
+            elif password and host:
+                netloc = ":" + password + "@" + host
+            elif host:
+                netloc = host
+            else:
+                netloc = ""
+
+        return urlunsplit((url_parts.scheme, netloc, url_parts.path, url_parts.query, url_parts.fragment))
+
+
+class OperatingSystem:
+    """Operating system"""
+
+    WINDOWS = "Windows"
+    LINUX = "Linux"
+    MACOSX = "Mac OS"
+    CYGWIN = "Cygwin"
+
+    @staticmethod
+    def get_current():
+        """Get current operating system"""
+        if os.name == "nt":
+            return OperatingSystem.WINDOWS
+        elif "linux" in sys.platform:
+            return OperatingSystem.LINUX
+        elif "darwin" in sys.platform:
+            return OperatingSystem.MACOSX
+        elif "cygwin" in sys.platform:
+            return OperatingSystem.CYGWIN
+        return None
+
+
+class Architecture:
+    """Compute architecture"""
+
+    X86_64 = "x86_64"
+    X86 = "x86"
+    PPC = "ppc"
+    ARM = "arm"
+
+    @staticmethod
+    def get_current():
+        """Get architecture"""
+        return _MACHINE_TO_ARCHITECTURE.get(platform.machine().lower())
+
+
+_MACHINE_TO_ARCHITECTURE = {
+    "amd64": Architecture.X86_64,
+    "x86_64": Architecture.X86_64,
+    "i686-64": Architecture.X86_64,
+    "i386": Architecture.X86,
+    "i686": Architecture.X86,
+    "x86": Architecture.X86,
+    "ia64": Architecture.X86,  # Itanium is different x64 arch, treat it as the common x86.
+    "powerpc": Architecture.PPC,
+    "power macintosh": Architecture.PPC,
+    "ppc64": Architecture.PPC,
+    "armv6": Architecture.ARM,
+    "armv6l": Architecture.ARM,
+    "arm64": Architecture.ARM,
+    "armv7": Architecture.ARM,
+    "armv7l": Architecture.ARM,
+}
+
+
+class AirflowInfo:
+    """All information related to Airflow, system and other."""
+
+    def __init__(self, anonymizer):
+        self.airflow_version = airflow_version
+        self.system = SystemInfo(anonymizer)
+        self.tools = ToolsInfo(anonymizer)
+        self.paths = PathsInfo(anonymizer)
+        self.config = ConfigInfo(anonymizer)
+
+    def __str__(self):
+        return (
+            textwrap.dedent(
+                """\
+                Apache Airflow [{version}]
+
+                {system}
+
+                {tools}
+
+                {paths}
+
+                {config}
+                """
+            )
+            .strip()
+            .format(
+                version=self.airflow_version,
+                system=self.system,
+                tools=self.tools,
+                paths=self.paths,
+                config=self.config,
+            )
+        )
+
+
+class SystemInfo:
+    """Basic system and python information"""
+
+    def __init__(self, anonymizer):
+        self.operating_system = OperatingSystem.get_current()
+        self.arch = Architecture.get_current()
+        self.uname = platform.uname()
+        self.locale = locale.getdefaultlocale()
+        self.python_location = anonymizer.process_path(sys.executable)
+        self.python_version = sys.version.replace("\n", " ")
+
+    def __str__(self):
+        return (
+            textwrap.dedent(
+                """\
+                Platform: [{os}, {arch}] {uname}
+                Locale: {locale}
+                Python Version: [{python_version}]
+                Python Location: [{python_location}]
+                """
+            )
+            .strip()
+            .format(
+                os=self.operating_system or "NOT AVAILABLE",
+                arch=self.arch or "NOT AVAILABLE",
+                uname=self.uname,
+                locale=self.locale,
+                python_version=self.python_version,
+                python_location=self.python_location,
+            )
+        )
+
+
+class PathsInfo:
+    """Path information"""
+
+    def __init__(self, anonymizer):
+        system_path = os.environ.get("PATH", "").split(os.pathsep)
+
+        self.airflow_home = anonymizer.process_path(get_airflow_home())
+        self.system_path = [anonymizer.process_path(p) for p in system_path]
+        self.python_path = [anonymizer.process_path(p) for p in sys.path]
+        self.airflow_on_path = any(
+            os.path.exists(os.path.join(path_elem, "airflow")) for path_elem in system_path
+        )
+
+    def __str__(self):
+        return (
+            textwrap.dedent(
+                """\
+                Airflow Home: [{airflow_home}]
+                System PATH: [{system_path}]
+                Python PATH: [{python_path}]
+                airflow on PATH: [{airflow_on_path}]
+                """
+            )
+            .strip()
+            .format(
+                airflow_home=self.airflow_home,
+                system_path=os.pathsep.join(self.system_path),
+                python_path=os.pathsep.join(self.python_path),
+                airflow_on_path=self.airflow_on_path,
+            )
+        )
+
+
+class ConfigInfo:
+    """"Most critical config properties"""
+
+    def __init__(self, anonymizer):
+        self.executor = conf.get("core", "executor")
+        self.dags_folder = anonymizer.process_path(
+            conf.get("core", "dags_folder", fallback="NOT AVAILABLE")
+        )
+        self.plugins_folder = anonymizer.process_path(
+            conf.get("core", "plugins_folder", fallback="NOT AVAILABLE")
+        )
+        self.base_log_folder = anonymizer.process_path(
+            conf.get("core", "base_log_folder", fallback="NOT AVAILABLE")
+        )
+        self.sql_alchemy_conn = anonymizer.process_url(
+            conf.get("core", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
+        )
+
+    def __str__(self):
+        return (
+            textwrap.dedent(
+                """\
+                Executor: [{executor}]
+                SQL Alchemy Conn: [{sql_alchemy_conn}]
+                DAGS Folder: [{dags_folder}]
+                Plugins Folder: [{plugins_folder}]
+                Base Log Folder: [{base_log_folder}]
+                """
+            )
+            .strip()
+            .format(
+                executor=self.executor,
+                sql_alchemy_conn=self.sql_alchemy_conn,
+                dags_folder=self.dags_folder,
+                plugins_folder=self.plugins_folder,
+                base_log_folder=self.base_log_folder,
+            )
+        )
+
+
+class ToolsInfo:
+    """The versions of the tools that Airflow uses"""
+
+    def __init__(self, anonymize):
+        del anonymize  # Nothing to anonymize here.
+        self.git_version = self._get_version(["git", "--version"])
+        self.ssh_version = self._get_version(["ssh", "-V"])
+        self.kubectl_version = self._get_version(["kubectl", "version", "--short=True", "--client=True"])
+        self.gcloud_version = self._get_version(["gcloud", "version"], grep=b"Google Cloud SDK")
+        self.cloud_sql_proxy_version = self._get_version(["cloud_sql_proxy", "--version"])
+        self.mysql_version = self._get_version(["mysql", "--version"])
+        self.sqlite3_version = self._get_version(["sqlite3", "--version"])
+        self.psql_version = self._get_version(["psql", "--version"])
+
+    def _get_version(self, cmd, grep=None):
+        """Return tools version."""
+        try:
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        except OSError:
+            return "NOT AVAILABLE"
+        stdoutdata, _ = proc.communicate()
+        data = [f for f in stdoutdata.split(b"\n") if f]
+        if grep:
+            data = [line for line in data if grep in line]
+        if len(data) != 1:
+            return "NOT AVAILABLE"
+        else:
+            return data[0].decode()
+
+    def __str__(self):
+        return (
+            textwrap.dedent(
+                """\
+                git: [{git}]
+                ssh: [{ssh}]
+                kubectl: [{kubectl}]
+                gcloud: [{gcloud}]
+                cloud_sql_proxy: [{cloud_sql_proxy}]
+                mysql: [{mysql}]
+                sqlite3: [{sqlite3}]
+                psql: [{psql}]
+                """
+            )
+            .strip()
+            .format(
+                git=self.git_version,
+                ssh=self.ssh_version,
+                kubectl=self.kubectl_version,
+                gcloud=self.gcloud_version,
+                cloud_sql_proxy=self.cloud_sql_proxy_version,
+                mysql=self.mysql_version,
+                sqlite3=self.sqlite3_version,
+                psql=self.psql_version,
+            )
+        )
+
+
+class FileIoException(Exception):
+    """Raises when error happens in FileIo.io integration"""
+
+
+@tenacity.retry(
+    stop=tenacity.stop_after_attempt(5),
+    wait=tenacity.wait_exponential(multiplier=1, max=10),
+    retry=tenacity.retry_if_exception_type(FileIoException),
+    before=tenacity.before_log(log, logging.DEBUG),
+    after=tenacity.after_log(log, logging.DEBUG),
+)
+def _upload_text_to_fileio(content):
+    """Uload text file to File.io service and return lnk"""
+    resp = requests.post("https://file.io", files={"file": ("airflow-report.txt", content)})
+    if not resp.ok:
+        raise FileIoException("Failed to send report to file.io service.")
+    try:
+        return resp.json()["link"]
+    except ValueError as e:
+        log.debug(e)
+        raise FileIoException("Failed to send report to file.io service.")
+
+
+def _send_report_to_fileio(info):
+    print("Uploading report to file.io service.")
+    try:
+        link = _upload_text_to_fileio(str(info))
+        print("Report uploaded.")
+        print()
+        print("Link:\t", link)
+        print()
+    except FileIoException as ex:
+        print(str(ex))
+
+
+def info(args):
+    """
+    Show information related to Airflow, system and other.
+    """
+    # Enforce anonymization, when file_io upload is tuned on.
+    anonymizer = PiiAnonymizer() if args.anonymize or args.file_io else NullAnonymizer()
+    info = AirflowInfo(anonymizer)
+    if args.file_io:
+        _send_report_to_fileio(info)
+    else:
+        print(info)
+
+
+def upgrade_check(args):
+    sys.exit("""
+Please install apache-airflow-upgrade-check distribution from PyPI to perform upgrade checks
+""")
+
+
+# Used in Arg to enable `None' as a distinct value from "not passed"
+_UNSET = object()
+
+
+class Arg:
+    """Class to keep information about command line argument"""
+
+    # pylint: disable=redefined-builtin,unused-argument
+    def __init__(
+        self,
+        flags=_UNSET,
+        help=_UNSET,
+        action=_UNSET,
+        default=_UNSET,
+        nargs=_UNSET,
+        type=_UNSET,
+        choices=_UNSET,
+        required=_UNSET,
+        metavar=_UNSET,
+    ):
         self.flags = flags
-        self.help = help
-        self.action = action
-        self.default = default
-        self.nargs = nargs
-        self.type = type
-        self.choices = choices
-        self.metavar = metavar
+        self.kwargs = {}
+        for k, v in locals().items():
+            if v is _UNSET:
+                continue
+            if k in ("self", "flags"):
+                continue
+
+            self.kwargs[k] = v
+
+    # pylint: enable=redefined-builtin,unused-argument
+
+    def add_to_parser(self, parser):
+        """Add this argument to an ArgumentParser"""
+        parser.add_argument(*self.flags, **self.kwargs)
+
+
+def positive_int(value):
+    """Define a positive int type for an argument."""
+    try:
+        value = int(value)
+        if value > 0:
+            return value
+    except ValueError:
+        pass
+    raise argparse.ArgumentTypeError("invalid positive int value: '{}'".format(value))
+
+
+# Shared
+ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
+ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
+ARG_EXECUTION_DATE = Arg(("execution_date",), help="The execution date of the DAG", type=parsedate)
+ARG_TASK_REGEX = Arg(
+    ("-t", "--task-regex"), help="The regex to filter specific task_ids to backfill (optional)"
+)
+ARG_SUBDIR = Arg(
+    ("-S", "--subdir"),
+    help=(
+        "File location or directory from which to look for the dag. "
+        "Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the "
+        "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' "
+    ),
+    default='[AIRFLOW_HOME]/dags' if BUILD_DOCS else settings.DAGS_FOLDER,
+)
+ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
+ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
+ARG_OUTPUT_PATH = Arg(
+    (
+        "-o",
+        "--output-path",
+    ),
+    help="The output for generated yaml files",
+    type=str,
+    default="[CWD]" if BUILD_DOCS else os.getcwd(),
+)
+ARG_DRY_RUN = Arg(
+    ("-n", "--dry-run"),
+    help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
+    action="store_true",
+)
+ARG_PID = Arg(("--pid",), help="PID file location", nargs='?')
+ARG_DAEMON = Arg(
+    ("-D", "--daemon"), help="Daemonize instead of running in the foreground", action="store_true"
+)
+ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file")
+ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file")
+ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file")
+ARG_YES = Arg(
+    ("-y", "--yes"), help="Do not prompt to confirm reset. Use with care!", action="store_true", default=False
+)
+
+# list_dag_runs
+ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
+ARG_NO_BACKFILL = Arg(
+    ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
+)
+ARG_STATE = Arg(("--state",), help="Only list the dag runs corresponding to the state")
+
+# backfill
+ARG_MARK_SUCCESS = Arg(
+    ("-m", "--mark-success"), help="Mark jobs as succeeded without running them", action="store_true"
+)
+ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
+ARG_POOL = Arg(("--pool",), "Resource pool to use")
+
+# list_tasks
+ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
+
+# clear
+ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="store_true")
+ARG_ONLY_FAILED = Arg(("-f", "--only-failed"), help="Only failed jobs", action="store_true")
+ARG_ONLY_RUNNING = Arg(("-r", "--only-running"), help="Only running jobs", action="store_true")
+ARG_DOWNSTREAM = Arg(("-d", "--downstream"), help="Include downstream tasks", action="store_true")
+ARG_EXCLUDE_SUBDAGS = Arg(("-x", "--exclude-subdags"), help="Exclude subdags", action="store_true")
+ARG_EXCLUDE_PARENTDAG = Arg(
+    ("-X", "--exclude-parentdag"),
+    help="Exclude ParentDAGS if the task cleared is a part of a SubDAG",
+    action="store_true",
+)
+ARG_DAG_REGEX = Arg(
+    ("-R", "--dag-regex"), help="Search dag_id as regex instead of exact string", action="store_true"
+)
+
+# show_dag
+ARG_SAVE = Arg(("-s", "--save"), help="Saves the result to the indicated file.")
+
+ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", action='store_true')
+
+# trigger_dag
+ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
+ARG_CONF = Arg(('-c', '--conf'), help="JSON string that gets pickled into the DagRun's conf attribute")
+ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
+
+# pool
+ARG_POOL_NAME = Arg(("pool",), metavar='NAME', help="Pool name")
+ARG_POOL_SLOTS = Arg(("slots",), type=int, help="Pool slots")
+ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
+ARG_POOL_IMPORT = Arg(("file",), metavar="FILEPATH", help="Import pools from JSON file")
+ARG_POOL_EXPORT = Arg(("file",), metavar="FILEPATH", help="Export all pools to JSON file")
+
+# variables
+ARG_VAR = Arg(("key",), help="Variable key")
+ARG_VAR_VALUE = Arg(("value",), metavar='VALUE', help="Variable value")
+ARG_DEFAULT = Arg(
+    ("-d", "--default"), metavar="VAL", default=None, help="Default value returned if variable does not exist"
+)
+ARG_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
+ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
+ARG_VAR_EXPORT = Arg(("file",), help="Export all variables to JSON file")
+
+# kerberos
+ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs='?')
+ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs='?', default=conf.get('kerberos', 'keytab'))
+# run
+# TODO(aoen): "force" is a poor choice of name here since it implies it overrides
+# all dependencies (not just past success), e.g. the ignore_depends_on_past
+# dependency. This flag should be deprecated and renamed to 'ignore_ti_state' and
+# the "ignore_all_dependencies" command should be called the"force" command
+# instead.
+ARG_INTERACTIVE = Arg(
+    ('-N', '--interactive'),
+    help='Do not capture standard output and error streams (useful for interactive debugging)',
+    action='store_true',
+)
+ARG_FORCE = Arg(
+    ("-f", "--force"),
+    help="Ignore previous task instance state, rerun regardless if task already succeeded/failed",
+    action="store_true",
+)
+ARG_RAW = Arg(("-r", "--raw"), argparse.SUPPRESS, "store_true")
+ARG_IGNORE_ALL_DEPENDENCIES = Arg(
+    ("-A", "--ignore-all-dependencies"),
+    help="Ignores all non-critical dependencies, including ignore_ti_state and ignore_task_deps",
+    action="store_true",
+)
+# TODO(aoen): ignore_dependencies is a poor choice of name here because it is too
+# vague (e.g. a task being in the appropriate state to be run is also a dependency
+# but is not ignored by this flag), the name 'ignore_task_dependencies' is
+# slightly better (as it ignores all dependencies that are specific to the task),
+# so deprecate the old command name and use this instead.
+ARG_IGNORE_DEPENDENCIES = Arg(
+    ("-i", "--ignore-dependencies"),
+    help="Ignore task-specific dependencies, e.g. upstream, depends_on_past, and retry delay dependencies",
+    action="store_true",
+)
+ARG_IGNORE_DEPENDS_ON_PAST = Arg(
+    ("-I", "--ignore-depends-on-past"),
+    help="Ignore depends_on_past dependencies (but respect upstream dependencies)",
+    action="store_true",
+)
+ARG_SHIP_DAG = Arg(
+    ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
+)
+ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entire dag (used internally)")
+ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
+ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
+
+# worker
+ARG_QUEUES = Arg(
+    ("-q", "--queues"),
+    help="Comma delimited list of queues to serve",
+    default=conf.get('celery', 'DEFAULT_QUEUE'),
+)
+ARG_CONCURRENCY = Arg(
+    ("-c", "--concurrency"),
+    type=int,
+    help="The number of worker processes",
+    default=conf.get('celery', 'worker_concurrency'),
+)
+ARG_CELERY_HOSTNAME = Arg(
+    ("-H", "--celery-hostname"),
+    help="Set the hostname of celery worker if you have multiple workers on a single machine",
+)
+
+# flower
+ARG_BROKER_API = Arg(("-a", "--broker-api"), help="Broker API")
+ARG_FLOWER_HOSTNAME = Arg(
+    ("-H", "--hostname"),
+    default=conf.get('celery', 'FLOWER_HOST'),
+    help="Set the hostname on which to run the server",
+)
+ARG_FLOWER_PORT = Arg(
+    ("-p", "--port"),
+    default=conf.get('celery', 'FLOWER_PORT'),
+    type=int,
+    help="The port on which to run the server",
+)
+ARG_FLOWER_CONF = Arg(("-c", "--flower-conf"), help="Configuration file for flower")
+ARG_FLOWER_URL_PREFIX = Arg(
+    ("-u", "--url-prefix"), default=conf.get('celery', 'FLOWER_URL_PREFIX'), help="URL prefix for Flower"
+)
+ARG_FLOWER_BASIC_AUTH = Arg(
+    ("-A", "--basic-auth"),
+    default=conf.get('celery', 'FLOWER_BASIC_AUTH'),
+    help=(
+        "Securing Flower with Basic Authentication. "
+        "Accepts user:password pairs separated by a comma. "
+        "Example: flower_basic_auth = user1:password1,user2:password2"
+    ),
+)
+ARG_TASK_PARAMS = Arg(("-t", "--task-params"), help="Sends a JSON params dict to the task")
+ARG_POST_MORTEM = Arg(
+    ("-m", "--post-mortem"), action="store_true", help="Open debugger on uncaught exception"
+)
+
+# connections
+ARG_CONN_ID = Arg(('conn_id',), help='Connection id, required to get/add/delete a connection', type=str)
+ARG_CONN_URI = Arg(
+    ('--conn-uri',), help='Connection URI, required to add a connection without conn_type', type=str
+)
+ARG_CONN_TYPE = Arg(
+    ('--conn-type',), help='Connection type, required to add a connection without conn_uri', type=str
+)
+ARG_CONN_HOST = Arg(('--conn-host',), help='Connection host, optional when adding a connection', type=str)
+ARG_CONN_LOGIN = Arg(('--conn-login',), help='Connection login, optional when adding a connection', type=str)
+ARG_CONN_PASSWORD = Arg(
+    ('--conn-password',), help='Connection password, optional when adding a connection', type=str
+)
+ARG_CONN_SCHEMA = Arg(
+    ('--conn-schema',), help='Connection schema, optional when adding a connection', type=str
+)
+ARG_CONN_PORT = Arg(('--conn-port',), help='Connection port, optional when adding a connection', type=str)
+ARG_CONN_EXTRA = Arg(
+    ('--conn-extra',), help='Connection `Extra` field, optional when adding a connection', type=str
+)
+
+# users
+ARG_USERNAME = Arg(('-u', '--username'), help='Username of the user', required=True, type=str)
+ARG_FIRSTNAME = Arg(('-f', '--firstname'), help='First name of the user', required=True, type=str)
+ARG_LASTNAME = Arg(('-l', '--lastname'), help='Last name of the user', required=True, type=str)
+ARG_ROLE = Arg(
+    ('-r', '--role'),
+    help='Role of the user. Existing roles include Admin, User, Op, Viewer, and Public',
+    required=True,
+    type=str,
+)
+ARG_EMAIL = Arg(('-e', '--email'), help='Email of the user', required=True, type=str)
+ARG_PASSWORD = Arg(
+    ('-p', '--password'),
+    help='Password of the user, required to create a user without --use-random-password',
+    type=str,
+)
+ARG_USE_RANDOM_PASSWORD = Arg(
+    ('--use-random-password',),
+    help='Do not prompt for password. Use random string instead.'
+    ' Required to create a user without --password ',
+    default=False,
+    action='store_true',
+)
+
+# roles
+ARG_AUTOSCALE = Arg(('-a', '--autoscale'), help="Minimum and Maximum number of worker to autoscale")
+ARG_SKIP_SERVE_LOGS = Arg(
+    ("-s", "--skip-serve-logs"),
+    default=False,
+    help="Don't start the serve logs process along with the workers",
+    action="store_true",
+)
+
+# kubernetes cleanup-pods
+ARG_NAMESPACE = Arg(
+    ("--namespace",),
+    default='default',
+    help="Kubernetes Namespace",
+)
+
+ALTERNATIVE_CONN_SPECS_ARGS = [
+    ARG_CONN_TYPE,
+    ARG_CONN_HOST,
+    ARG_CONN_LOGIN,
+    ARG_CONN_PASSWORD,
+    ARG_CONN_SCHEMA,
+    ARG_CONN_PORT,
+]
+
+# A special "argument" (that is hidden from help) that sets `args.deprecation_warning=False` in the resulting
+# Namespace. Add this to any commands that use the same implementation function in new and old names to
+# supresses the warning for the new form.
+NOT_DEPRECATED = Arg(("--deprecation_warning",), help=argparse.SUPPRESS, default=False, required=False)
+
+_ActionCommand = namedtuple('ActionCommand', ['name', 'help', 'func', 'args', 'description', 'epilog',
+                                              'prog'])
+_GroupCommand = namedtuple('GroupCommand', ['name', 'help', 'subcommands', 'description', 'epilog'])
+
+_ActionCommand.__new__.__defaults__ = (None,) * len(_ActionCommand._fields)  # type: ignore
+_GroupCommand.__new__.__defaults__ = (None,) * len(_GroupCommand._fields)  # type: ignore
+
+ActionCommand = cast(Any, _ActionCommand)
+GroupCommand = cast(Any, _GroupCommand)
+
+
+DAGS_COMMANDS = (
+    ActionCommand(
+        name='list',
+        help="List all the DAGs",
+        func=list_dags,
+        args=(ARG_SUBDIR, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='report',
+        help='Show DagBag loading report',
+        func=list_dags_report,
+        args=(ARG_SUBDIR, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='list-runs',
+        help="List DAG runs given a DAG id",
+        description=(
+            "List DAG runs given a DAG id. If state option is given, it will only search for all the "
+            "dagruns with the given state. If no_backfill option is given, it will filter out all "
+            "backfill dagruns for given dag id. If start_date is given, it will filter out all the "
+            "dagruns that were executed before this date. If end_date is given, it will filter out "
+            "all the dagruns that were executed after this date. "
+        ),
+        func=list_dag_runs,
+        args=(ARG_DAG_ID_OPT, ARG_NO_BACKFILL, ARG_STATE, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='state',
+        help="Get the status of a dag run",
+        func=dag_state,
+        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='next-execution',
+        help="Get the next execution datetimes of a DAG",
+        description=(
+            "Get the next execution datetimes of a DAG. It returns one execution unless the "
+            "num-executions option is given"
+        ),
+        func=next_execution,
+        args=(ARG_DAG_ID, ARG_SUBDIR, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='pause',
+        help='Pause a DAG',
+        func=pause,
+        args=(ARG_DAG_ID, ARG_SUBDIR, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='unpause',
+        help='Resume a paused DAG',
+        func=unpause,
+        args=(ARG_DAG_ID, ARG_SUBDIR, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='trigger',
+        help='Trigger a DAG run',
+        func=trigger_dag,
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_RUN_ID, ARG_CONF, ARG_EXEC_DATE, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='delete',
+        help="Delete all DB records related to the specified DAG",
+        func=delete_dag,
+        args=(ARG_DAG_ID, ARG_YES, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='show',
+        help="Displays DAG's tasks with their dependencies",
+        description=(
+            "The --imgcat option only works in iTerm.\n"
+            "\n"
+            "For more information, see: https://www.iterm2.com/documentation-images.html\n"
+            "\n"
+            "The --save option saves the result to the indicated file.\n"
+            "\n"
+            "The file format is determined by the file extension. "
+            "For more information about supported "
+            "format, see: https://www.graphviz.org/doc/info/output.html\n"
+            "\n"
+            "If you want to create a PNG file then you should execute the following command:\n"
+            "airflow dags show <DAG_ID> --save output.png\n"
+            "\n"
+            "If you want to create a DOT file then you should execute the following command:\n"
+            "airflow dags show <DAG_ID> --save output.dot\n"
+        ),
+        func=show_dag,
+        args=(
+            ARG_DAG_ID,
+            ARG_SUBDIR,
+            ARG_SAVE,
+            ARG_IMGCAT,
+            NOT_DEPRECATED,
+        ),
+    ),
+)
+TASKS_COMMANDS = (
+    ActionCommand(
+        name='list',
+        help="List the tasks within a DAG",
+        func=list_tasks,
+        args=(ARG_DAG_ID, ARG_TREE, ARG_SUBDIR, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='clear',
+        help="Clear a set of task instance, as if they never ran",
+        func=clear,
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_REGEX,
+            ARG_START_DATE,
+            ARG_END_DATE,
+            ARG_SUBDIR,
+            ARG_UPSTREAM,
+            ARG_DOWNSTREAM,
+            ARG_YES,
+            ARG_ONLY_FAILED,
+            ARG_ONLY_RUNNING,
+            ARG_EXCLUDE_SUBDAGS,
+            ARG_EXCLUDE_PARENTDAG,
+            ARG_DAG_REGEX,
+            NOT_DEPRECATED,
+        ),
+    ),
+    ActionCommand(
+        name='state',
+        help="Get the status of a task instance",
+        func=task_state,
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='failed-deps',
+        help="Returns the unmet dependencies for a task instance",
+        description=(
+            "Returns the unmet dependencies for a task instance from the perspective of the scheduler. "
+            "In other words, why a task instance doesn't get scheduled and then queued by the scheduler, "
+            "and then run by an executor."
+        ),
+        func=task_failed_deps,
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='render',
+        help="Render a task instance's template(s)",
+        func=render,
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='run',
+        help="Run a single task instance",
+        func=run,
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_EXECUTION_DATE,
+            ARG_SUBDIR,
+            ARG_MARK_SUCCESS,
+            ARG_FORCE,
+            ARG_POOL,
+            ARG_CFG_PATH,
+            ARG_LOCAL,
+            ARG_RAW,
+            ARG_IGNORE_ALL_DEPENDENCIES,
+            ARG_IGNORE_DEPENDENCIES,
+            ARG_IGNORE_DEPENDS_ON_PAST,
+            ARG_SHIP_DAG,
+            ARG_PICKLE,
+            ARG_JOB_ID,
+            ARG_INTERACTIVE,
+            NOT_DEPRECATED,
+        ),
+    ),
+    ActionCommand(
+        name='test',
+        help="Test a task instance",
+        description=(
+            "Test a task instance. This will run a task without checking for dependencies or recording "
+            "its state in the database"
+        ),
+        func=test,
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_EXECUTION_DATE,
+            ARG_SUBDIR,
+            ARG_DRY_RUN,
+            ARG_TASK_PARAMS,
+            ARG_POST_MORTEM,
+            NOT_DEPRECATED,
+        ),
+    ),
+)
+POOLS_COMMANDS = (
+    ActionCommand(
+        name='list',
+        help='List pools',
+        func=pool_list,
+        args=(NOT_DEPRECATED,),
+    ),
+    ActionCommand(
+        name='get',
+        help='Get pool size',
+        func=pool_get,
+        args=(
+            ARG_POOL_NAME,
+            NOT_DEPRECATED,
+        ),
+    ),
+    ActionCommand(
+        name='set',
+        help='Configure pool',
+        func=pool_set,
+        args=(
+            ARG_POOL_NAME,
+            ARG_POOL_SLOTS,
+            ARG_POOL_DESCRIPTION,
+            NOT_DEPRECATED,
+        ),
+    ),
+    ActionCommand(
+        name='delete',
+        help='Delete pool',
+        func=pool_delete,
+        args=(
+            ARG_POOL_NAME,
+            NOT_DEPRECATED,
+        ),
+    ),
+    ActionCommand(
+        name='import',
+        help='Import pools',
+        func=pool_import,
+        args=(
+            ARG_POOL_IMPORT,
+            NOT_DEPRECATED,
+        ),
+    ),
+    ActionCommand(
+        name='export',
+        help='Export all pools',
+        func=pool_import,
+        args=(
+            ARG_POOL_EXPORT,
+            NOT_DEPRECATED,
+        ),
+    ),
+)
+VARIABLES_COMMANDS = (
+    ActionCommand(
+        name='get',
+        help='Get variable',
+        func=variables_get,
+        args=(ARG_VAR, ARG_JSON, ARG_DEFAULT, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='set',
+        help='Set variable',
+        func=variables_set,
+        args=(ARG_VAR, ARG_VAR_VALUE, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='delete',
+        help='Delete variable',
+        func=variables_delete,
+        args=(ARG_VAR, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='import',
+        help='Import variables',
+        func=variables_import,
+        args=(ARG_VAR_IMPORT, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='export',
+        help='Export all variables',
+        func=variables_export,
+        args=(ARG_VAR_EXPORT, NOT_DEPRECATED),
+    ),
+)
+DB_COMMANDS = (
+    ActionCommand(
+        name='init',
+        help="Initialize the metadata database",
+        func=initdb,
+        args=(NOT_DEPRECATED,),
+    ),
+    ActionCommand(
+        name='reset',
+        help="Burn down and rebuild the metadata database",
+        func=resetdb,
+        args=(ARG_YES, NOT_DEPRECATED),
+    ),
+    ActionCommand(
+        name='upgrade',
+        help="Upgrade the metadata database to latest version",
+        func=upgrade_check,
+        args=(NOT_DEPRECATED,),
+    ),
+    ActionCommand(
+        name='shell',
+        help="Runs a shell to access the database",
+        func=shell,
+        args=(NOT_DEPRECATED,),
+    ),
+    ActionCommand(
+        name='check',
+        help="Check if the database can be reached",
+        func=checkdb,
+        args=(NOT_DEPRECATED,),
+    ),
+)
+CONNECTIONS_COMMANDS = (
+    ActionCommand(
+        name='list',
+        help='List connections',
+        func=connections_list,
+        args=(NOT_DEPRECATED,),
+    ),
+    ActionCommand(
+        name='add',
+        help='Add a connection',
+        func=connections_add,
+        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_EXTRA, NOT_DEPRECATED) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
+    ),
+    ActionCommand(
+        name='delete',
+        help='Delete a connection',
+        func=connections_delete,
+        args=(ARG_CONN_ID, NOT_DEPRECATED),
+    ),
+)
+
+USERS_COMMANDS = (
+    ActionCommand(
+        name='list',
+        help='List users',
+        func=list_users,
+        args=(NOT_DEPRECATED,),
+    ),
+    ActionCommand(
+        name='create',
+        help='Create a user',
+        func=create_user,
+        args=(
+            ARG_ROLE,
+            ARG_USERNAME,
+            ARG_EMAIL,
+            ARG_FIRSTNAME,
+            ARG_LASTNAME,
+            ARG_PASSWORD,
+            ARG_USE_RANDOM_PASSWORD,
+            NOT_DEPRECATED,
+        ),
+        epilog=(
+            'examples:\n'
+            'To create an user with "Admin" role and username equals to "admin", run:\n'
+            '\n'
+            '    $ airflow users create \\\n'
+            '          --username admin \\\n'
+            '          --firstname FIRST_NAME \\\n'
+            '          --lastname LAST_NAME \\\n'
+            '          --role Admin \\\n'
+            '          --email admin@example.org'
+        ),
+    ),
+    ActionCommand(
+        name='delete',
+        help='Delete a user',
+        func=delete_user,
+        args=(ARG_USERNAME, NOT_DEPRECATED),
+    ),
+)
+
+CELERY_COMMANDS = (
+    ActionCommand(
+        name='worker',
+        help="Start a Celery worker node",
+        func=worker,
+        args=(
+            ARG_QUEUES,
+            ARG_CONCURRENCY,
+            ARG_CELERY_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
+            ARG_AUTOSCALE,
+            ARG_SKIP_SERVE_LOGS,
+            NOT_DEPRECATED,
+        ),
+    ),
+    ActionCommand(
+        name='flower',
+        help="Start a Celery Flower",
+        func=flower,
+        args=(
+            ARG_FLOWER_HOSTNAME,
+            ARG_FLOWER_PORT,
+            ARG_FLOWER_CONF,
+            ARG_FLOWER_URL_PREFIX,
+            ARG_FLOWER_BASIC_AUTH,
+            ARG_BROKER_API,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
+            NOT_DEPRECATED,
+        ),
+    ),
+)
+
+CONFIG_COMMANDS = (
+    ActionCommand(
+        name='list',
+        help='List options for the configuration',
+        func=config,
+        args=(NOT_DEPRECATED,),
+    ),
+)
+
+KUBERNETES_COMMANDS = (
+    ActionCommand(
+        name='cleanup-pods',
+        help="Clean up Kubernetes pods in evicted/failed/succeeded states",
+        func=cleanup_pods,
+        args=(ARG_NAMESPACE, ),
+    ),
+    ActionCommand(
+        name='generate-dag-yaml',
+        help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
+        "launching into a cluster",
+        func=kubernetes_generate_dag_yaml,
+        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, NOT_DEPRECATED),
+    ),
+)
+
+airflow_commands = [
+    GroupCommand(
+        name='dags',
+        help='Manage DAGs',
+        subcommands=DAGS_COMMANDS,
+    ),
+    GroupCommand(
+        name="kubernetes", help='Tools to help run the KubernetesExecutor', subcommands=KUBERNETES_COMMANDS
+    ),
+    GroupCommand(
+        name='tasks',
+        help='Manage tasks',
+        subcommands=TASKS_COMMANDS,
+    ),
+    GroupCommand(
+        name='pools',
+        help="Manage pools",
+        subcommands=POOLS_COMMANDS,
+    ),
+    GroupCommand(
+        name='variables',
+        help="Manage variables",
+        subcommands=VARIABLES_COMMANDS,
+    ),
+    GroupCommand(
+        name='db',
+        help="Database operations",
+        subcommands=DB_COMMANDS,
+    ),
+    ActionCommand(
+        name='kerberos',
+        help="Start a kerberos ticket renewer",
+        func=kerberos,
+        args=(ARG_PRINCIPAL, ARG_KEYTAB, ARG_PID, ARG_DAEMON, ARG_STDOUT, ARG_STDERR, ARG_LOG_FILE),
+    ),
+    GroupCommand(
+        name='connections',
+        help="Manage connections",
+        subcommands=CONNECTIONS_COMMANDS,
+    ),
+    GroupCommand(
+        name='users',
+        help="Manage users",
+        subcommands=USERS_COMMANDS,
+    ),
+    ActionCommand(
+        name='sync-perm',
+        help="Update permissions for existing roles and DAGs",
+        func=sync_perm,
+        args=(NOT_DEPRECATED,),
+    ),
+    ActionCommand(
+        name='rotate-fernet-key',
+        func=rotate_fernet_key,
+        help='Rotate encrypted connection credentials and variables',
+        description=(
+            'Rotate all encrypted connection credentials and variables; see '
+            'https://airflow.apache.org/docs/stable/howto/secure-connections.html'
+            '#rotating-encryption-keys'
+        ),
+        args=(NOT_DEPRECATED,),
+    ),
+    GroupCommand(name="config", help='View configuration', subcommands=CONFIG_COMMANDS),
+    GroupCommand(
+        name="celery",
+        help='Celery components',
+        description=(
+            'Start celery components. Works only when using CeleryExecutor. For more information, see '
+            'https://airflow.apache.org/docs/stable/executor/celery.html'
+        ),
+        subcommands=CELERY_COMMANDS,
+    ),
+]
+ALL_COMMANDS_DICT = {sp.name: sp for sp in airflow_commands}
+DAG_CLI_COMMANDS = {'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs'}
+
+
+class AirflowHelpFormatter(argparse.HelpFormatter):
+    """
+    Custom help formatter to display help message.
+
+    It displays simple commands and groups of commands in separate sections.
+    """
+
+    def _format_action(self, action):
+        if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
+
+            parts = []
+            action_header = self._format_action_invocation(action)
+            action_header = '%*s%s\n' % (self._current_indent, '', action_header)
+            parts.append(action_header)
+
+            self._indent()
+            subactions = action._get_subactions()  # pylint: disable=protected-access
+
+            action_subcommands, group_subcommands = partition(
+                lambda d: isinstance(ALL_COMMANDS_DICT.get(d.dest, None), GroupCommand), subactions
+            )
+            # Remove deprecated groups from the list -- we don't want to show them
+            parts.append("\n")
+            parts.append('%*s%s:\n' % (self._current_indent, '', "Groups"))
+            self._indent()
+            for subaction in group_subcommands:
+                parts.append(self._format_action(subaction))
+            self._dedent()
+
+            parts.append("\n")
+            parts.append('%*s%s:\n' % (self._current_indent, '', "Commands"))
+            self._indent()
+
+            for subaction in action_subcommands:
+                if getattr(action.choices[subaction.dest], 'hide_from_toplevel_help', False):
+                    continue
+                parts.append(self._format_action(subaction))
+            self._dedent()
+            self._dedent()
+
+            # return a single string
+            return self._join_parts(parts)
+
+        return super(AirflowHelpFormatter, self)._format_action(action)
+
+
+def partition(pred, iterable):
+    iter_1, iter_2 = itertools.tee(iterable)
+    return itertools.filterfalse(pred, iter_1), filter(pred, iter_2)
+
+
+def _sort_args(args):
+    """Sort subcommand optional args, keep positional args"""
+
+    def get_long_option(arg):
+        """Get long option from Arg.flags"""
+        return arg.flags[0] if len(arg.flags) == 1 else arg.flags[1]
+
+    positional, optional = partition(lambda x: x.flags[0].startswith("-"), args)
+    for p in positional:
+        yield p
+    for o in sorted(optional, key=lambda x: get_long_option(x).lower()):
+        yield o
+
+
+def _add_command(subparsers, sub):
+
+    sub_proc = subparsers.add_parser(
+        sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog,
+    )
+    sub_proc.formatter_class = argparse.RawTextHelpFormatter
+
+    if isinstance(sub, GroupCommand):
+        return _add_group_command(sub, sub_proc)
+    elif isinstance(sub, ActionCommand):
+        if sub.prog:
+            sub_proc.prog = sub.prog
+        return _add_action_command(sub, sub_proc)
+    else:
+        raise AirflowException("Invalid command definition.")
+
+
+def _add_action_command(sub, sub_proc):
+    for arg in _sort_args(sub.args):
+        arg.add_to_parser(sub_proc)
+    sub_proc.set_defaults(func=sub.func)
+
+
+def _add_group_command(sub, sub_proc):
+    subcommands = sub.subcommands
+    sub_subparsers = sub_proc.add_subparsers(dest="subcommand", metavar="COMMAND")
+    sub_subparsers.required = True
+
+    for command in sorted(subcommands, key=lambda x: x.name):
+        _add_command(sub_subparsers, command)
+    return sub_proc, sub_subparsers
 
 
 class CLIFactory(object):
@@ -1588,6 +3444,11 @@ class CLIFactory(object):
         'execution_date': Arg(
             ("execution_date",), help="The execution date of the DAG",
             type=parsedate),
+        'output_path': Arg(
+            ('-o', '--output-path'),
+            help="output path for yaml file",
+            default=os.getcwd()
+        ),
         'task_regex': Arg(
             ("-t", "--task_regex"),
             "The regex to filter specific task_ids to backfill (optional)"),
@@ -1604,7 +3465,10 @@ class CLIFactory(object):
             ("-e", "--end_date"), "Override end_date YYYY-MM-DD",
             type=parsedate),
         'dry_run': Arg(
-            ("-dr", "--dry_run"), "Perform a dry run", "store_true"),
+            ("-dr", "--dry_run"),
+            "Perform a dry run for each task. Only renders Template Fields "
+            "for each task, nothing else",
+            "store_true"),
         'pid': Arg(
             ("--pid",), "PID file location",
             nargs='?'),
@@ -1728,16 +3592,16 @@ class CLIFactory(object):
         # show_dag
         'save': Arg(
             ("-s", "--save"),
-            "Saves the result to the indicated file.\n"
+            "Saves the result to the indicated file. The file format is determined by the file extension.\n"
             "\n"
-            "The file format is determined by the file extension. For more information about supported "
-            "format, see: https://www.graphviz.org/doc/info/output.html\n"
+            "To see more information about supported format for show_dags command, see: "
+            "https://www.graphviz.org/doc/info/output.html\n"
             "\n"
             "If you want to create a PNG file then you should execute the following command:\n"
-            "airflow dags show <DAG_ID> --save output.png\n"
+            "airflow show_dag <DAG_ID> --save output.png\n"
             "\n"
             "If you want to create a DOT file then you should execute the following command:\n"
-            "airflow dags show <DAG_ID> --save output.dot\n"
+            "airflow show_dag <DAG_ID> --save output.dot\n"
         ),
         'imgcat': Arg(
             ("--imgcat", ),
@@ -2054,6 +3918,27 @@ class CLIFactory(object):
             default=False,
             help="Don't start the serve logs process along with the workers.",
             action="store_true"),
+        'color': Arg(
+            ('--color',),
+            help="Do emit colored output (default: auto)",
+            choices={cli_utils.ColorMode.ON, cli_utils.ColorMode.OFF, cli_utils.ColorMode.AUTO},
+            default=cli_utils.ColorMode.AUTO),
+        # info
+        'anonymize': Arg(
+            ('--anonymize',),
+            help=(
+                'Minimize any personal identifiable information. '
+                'Use it when sharing output with others.'
+            ),
+            action='store_true'
+        ),
+        'file_io': Arg(
+            ('--file-io',),
+            help=(
+                'Send output to file.io service and returns link.'
+            ),
+            action='store_true'
+        )
     }
     subparsers = (
         {
@@ -2074,6 +3959,40 @@ class CLIFactory(object):
                 'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
             )
         }, {
+            'func': generate_pod_template,
+            'help': "Reads your airflow.cfg and migrates your configurations into a "
+                    "airflow_template.yaml file. From this point a user can link"
+                    "this file to airflow using the `pod_template_file` argument"
+                    "and modify using the Kubernetes API",
+            'args': ('output_path',),
+        }, {
+            'func': serve_logs,
+            'help': "Serve logs generate by worker",
+            'args': tuple(),
+        }, {
+            'func': scheduler,
+            'help': "Start a scheduler instance",
+            'args': ('dag_id_opt', 'subdir', 'run_duration', 'num_runs',
+                     'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
+                     'log_file'),
+        }, {
+            'func': webserver,
+            'help': "Start a Airflow webserver instance",
+            'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
+                     'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
+                     'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
+        }, {
+            'help': 'Show the version',
+            'func': version,
+            'args': tuple(),
+        }, {
+            'help': 'Show information about current Airflow and environment',
+            'func': info,
+            'args': ('anonymize', 'file_io', ),
+        },
+    )
+    deprecated_subparsers = (
+        {
             'func': list_dag_runs,
             'help': "List dag runs given a DAG id. If state option is given, it will only"
                     "search for all the dagruns with the given state. "
@@ -2086,6 +4005,15 @@ class CLIFactory(object):
             'func': list_tasks,
             'help': "List the tasks within a DAG",
             'args': ('dag_id', 'tree', 'subdir'),
+        }, {
+            'func': kubernetes_generate_dag_yaml,
+            'help': "List dag runs given a DAG id. If state option is given, it will only"
+                    "search for all the dagruns with the given state. "
+                    "If no_backfill option is given, it will filter out"
+                    "all backfill dagruns for given dag id.",
+            'args': (
+                'dag_id', 'output_path', 'subdir', 'execution_date'
+            )
         }, {
             'func': clear,
             'help': "Clear a set of task instance, as if they never ran",
@@ -2122,11 +4050,6 @@ class CLIFactory(object):
             'help': "CRUD operations on variables",
             "args": ('set', 'get', 'json', 'default',
                      'var_import', 'var_export', 'var_delete'),
-        }, {
-            'func': kerberos,
-            'help': "Start a kerberos ticket renewer",
-            'args': ('principal', 'keytab', 'pid',
-                     'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': render,
             'help': "Render a task instance's template(s)",
@@ -2168,10 +4091,6 @@ class CLIFactory(object):
             'help': "Get the status of a task instance",
             'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
         }, {
-            'func': serve_logs,
-            'help': "Serve logs generate by worker",
-            'args': tuple(),
-        }, {
             'func': test,
             'help': (
                 "Test a task instance. This will run a task without checking for "
@@ -2179,12 +4098,6 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
                 'task_params', 'post_mortem'),
-        }, {
-            'func': webserver,
-            'help': "Start a Airflow webserver instance",
-            'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
-                     'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",
@@ -2202,12 +4115,6 @@ class CLIFactory(object):
             'help': "Runs a shell to access the database",
             'args': tuple(),
         }, {
-            'func': scheduler,
-            'help': "Start a scheduler instance",
-            'args': ('dag_id_opt', 'subdir', 'run_duration', 'num_runs',
-                     'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
-                     'log_file'),
-        }, {
             'func': worker,
             'help': "Start a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
@@ -2217,10 +4124,6 @@ class CLIFactory(object):
             'help': "Start a Celery Flower",
             'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
                      'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
-        }, {
-            'func': version,
-            'help': "Show the version",
-            'args': tuple(),
         }, {
             'func': connections,
             'help': "List/Add/Delete connections",
@@ -2257,37 +4160,114 @@ class CLIFactory(object):
                     '#rotating-encryption-keys.',
             'args': (),
         },
+        {
+            'help': 'Show current application configuration',
+            'func': config,
+            'args': ('color', ),
+        },
+        {
+            'name': 'upgrade_check',
+            'help': 'Check if you can safely upgrade to the new version.',
+            'func': upgrade_check,
+            'from_module': 'airflow.upgrade.checker',
+            'args': (),
+        },
     )
-    subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
-    dag_subparsers = (
+    deprecated_dag_subparsers = (
         'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
 
     @classmethod
     def get_parser(cls, dag_parser=False):
         """Creates and returns command line argument parser"""
+
+        deprecated_subparsers_dict = {sp['func'].__name__: sp for sp in cls.deprecated_subparsers}
+
         class DefaultHelpParser(argparse.ArgumentParser):
             """Override argparse.ArgumentParser.error and use print_help instead of print_usage"""
             def error(self, message):
                 self.print_help()
                 self.exit(2, '\n{} command error: {}, see help above.\n'.format(self.prog, message))
-        parser = DefaultHelpParser()
-        subparsers = parser.add_subparsers(
-            help='sub-command help', dest='subcommand')
+
+            def parse_known_args(self, args, namespace):
+                # Compat hack for optional sub-arguments in Py 2.7
+                fake_opt = getattr(self, "_fake_optional_subparser", False) and \
+                    (args == [] or args[0].startswith('-'))
+                if fake_opt:
+                    args = ["deprecated_"] + args
+
+                args, remain = super(DefaultHelpParser, self).parse_known_args(args, namespace)
+
+                if fake_opt:
+                    # So it doesn't show up as "deprecated_"
+                    args.subcommand = self._fake_optional_subparser
+                return args, remain
+
+        parser = DefaultHelpParser(formatter_class=AirflowHelpFormatter)
+        subparsers = parser.add_subparsers(dest='subcommand', metavar="GROUP_OR_COMMAND")
         subparsers.required = True
 
-        subparser_list = cls.dag_subparsers if dag_parser else cls.subparsers_dict.keys()
-        for sub in subparser_list:
-            sub = cls.subparsers_dict[sub]
+        subparser_list = DAG_CLI_COMMANDS if dag_parser else ALL_COMMANDS_DICT.keys()
+        for sub_name in sorted(subparser_list):
+            action = _add_command(subparsers, ALL_COMMANDS_DICT[sub_name])
+
+            # Deprecated "mode select", and new sub-command version? Merge them
+            # so they both work, but don't show help for the deprecated
+            # options!
+            if sub_name in deprecated_subparsers_dict and action is not None:
+                sp, sub_subparsers = action
+                deprecated = deprecated_subparsers_dict.pop(sub_name)
+                sp.set_defaults(func=deprecated['func'])
+                if six.PY3:
+                    sub_subparsers.required = False
+
+                    for arg in deprecated['args']:
+                        if 'dag_id' in arg and dag_parser:
+                            continue
+                        arg = cls.args[arg]
+                        # Don't show these options in the help output
+                        kwargs = arg.kwargs.copy()
+                        kwargs['help'] = argparse.SUPPRESS
+                        sp.add_argument(*arg.flags, **kwargs)
+                else:
+                    # Py2 doesn't support optional subcommands, so we have to fake it
+                    sp._fake_optional_subparser = sub_name
+                    _add_command(sub_subparsers, ActionCommand(
+                        prog=sp.prog,
+                        name='deprecated_',
+                        help=deprecated['help'],
+                        func=deprecated['func'],
+                        args=(cls.args[arg] for arg in deprecated['args']),
+                    ))
+
+        if dag_parser:
+            subparser_list = [
+                (deprecated_subparsers_dict[name], False)
+                for name in cls.deprecated_dag_subparsers
+            ]
+        else:
+            current = zip(cls.subparsers, itertools.repeat(False))
+            deprecated = zip(deprecated_subparsers_dict.values(), itertools.repeat(True))
+            subparser_list = itertools.chain(current, deprecated)
+        for (sub, hide_from_toplevel_help) in subparser_list:
+            if hide_from_toplevel_help and BUILD_DOCS:
+                # Don't show the deprecated commands in the docs
+                continue
+
             sp = subparsers.add_parser(sub['func'].__name__, help=sub['help'])
+            sp.hide_from_toplevel_help = hide_from_toplevel_help
+            sp.set_defaults(func=sub['func'])
+            if 'from_module' in sub:
+                try:
+                    mod = importlib.import_module(sub['from_module'])
+                    mod.register_arguments(sp)
+                    continue
+                except ImportError:
+                    pass
             for arg in sub['args']:
                 if 'dag_id' in arg and dag_parser:
                     continue
                 arg = cls.args[arg]
-                kwargs = {
-                    f: v
-                    for f, v in vars(arg).items() if f != 'flags' and v}
-                sp.add_argument(*arg.flags, **kwargs)
-            sp.set_defaults(func=sub['func'])
+                sp.add_argument(*arg.flags, **arg.kwargs)
         return parser
 
 

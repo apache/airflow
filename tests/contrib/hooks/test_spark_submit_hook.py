@@ -358,6 +358,30 @@ class TestSparkSubmitHook(unittest.TestCase):
         self.assertEqual(dict_cmd["--master"], "k8s://https://k8s-master")
         self.assertEqual(dict_cmd["--deploy-mode"], "cluster")
 
+    def test_resolve_connection_spark_k8s_cluster_ns_conf(self):
+        # Given we specify the config option directly
+        conf = {
+            'spark.kubernetes.namespace': 'airflow',
+        }
+        hook = SparkSubmitHook(conn_id='spark_k8s_cluster', conf=conf)
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        dict_cmd = self.cmd_args_to_dict(cmd)
+        expected_spark_connection = {"spark_home": "/opt/spark",
+                                     "queue": None,
+                                     "spark_binary": "spark-submit",
+                                     "master": "k8s://https://k8s-master",
+                                     "deploy_mode": "cluster",
+                                     "namespace": "airflow"}
+        self.assertEqual(connection, expected_spark_connection)
+        self.assertEqual(dict_cmd["--master"], "k8s://https://k8s-master")
+        self.assertEqual(dict_cmd["--deploy-mode"], "cluster")
+        self.assertEqual(dict_cmd["--conf"], "spark.kubernetes.namespace=airflow")
+
     def test_resolve_connection_spark_home_set_connection(self):
         # Given
         hook = SparkSubmitHook(conn_id='spark_home_set')
@@ -682,7 +706,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         self.assertEqual(kill_cmd[3], '--kill')
         self.assertEqual(kill_cmd[4], 'driver-20171128111415-0001')
 
-    @patch('airflow.contrib.kubernetes.kube_client.get_kube_client')
+    @patch('airflow.kubernetes.kube_client.get_kube_client')
     @patch('airflow.contrib.hooks.spark_submit_hook.subprocess.Popen')
     def test_k8s_process_on_kill(self, mock_popen, mock_client_method):
         # Given

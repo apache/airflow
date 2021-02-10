@@ -23,6 +23,7 @@ import unittest
 import urllib
 from typing import Union, List
 import pendulum
+import pytest
 from freezegun import freeze_time
 from mock import patch, mock_open
 from parameterized import parameterized, param
@@ -30,13 +31,16 @@ from sqlalchemy.orm.session import Session
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.contrib.sensors.python_sensor import PythonSensor
-from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
+from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
+from airflow.models import (
+    DAG, DagRun, Pool, RenderedTaskInstanceFields, TaskFail, TaskInstance as TI, TaskReschedule, Variable,
+)
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNING_DEPS
+from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
@@ -50,6 +54,7 @@ class TaskInstanceTest(unittest.TestCase):
 
     def setUp(self):
         db.clear_db_pools()
+        db.clear_rendered_ti_fields()
         with create_session() as session:
             test_pool = Pool(pool='test_pool', slots=1)
             session.add(test_pool)
@@ -57,6 +62,7 @@ class TaskInstanceTest(unittest.TestCase):
 
     def tearDown(self):
         db.clear_db_pools()
+        db.clear_rendered_ti_fields()
         with create_session() as session:
             session.query(TaskFail).delete()
             session.query(TaskReschedule).delete()
@@ -344,6 +350,19 @@ class TaskInstanceTest(unittest.TestCase):
         db.clear_db_pools()
         self.assertEqual(ti.state, State.SUCCESS)
 
+    def test_pool_slots_property(self):
+        """
+        test that try to create a task with pool_slots less than 1
+        """
+        def create_task_instance():
+            dag = models.DAG(dag_id='test_run_pooling_task')
+            task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
+                                 pool='test_pool', pool_slots=0, owner='airflow',
+                                 start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+            return TI(task=task, execution_date=timezone.utcnow())
+
+        self.assertRaises(AirflowException, create_task_instance)
+
     @provide_session
     def test_ti_updates_with_task(self, session=None):
         """
@@ -447,58 +466,64 @@ class TaskInstanceTest(unittest.TestCase):
         run_with_error(ti)
         self.assertEqual(ti.state, State.FAILED)
 
-    def test_retry_handling(self):
+    @parameterized.expand([
+        (False, None,),
+        (True, {'env': None, 'bash_command': 'echo test_retry_handling; exit 1'},),
+    ])
+    def test_retry_handling(self, dag_serialization, expected_rendered_ti_fields):
         """
         Test that task retries are handled properly
         """
-        dag = models.DAG(dag_id='test_retry_handling')
-        task = BashOperator(
-            task_id='test_retry_handling_op',
-            bash_command='exit 1',
-            retries=1,
-            retry_delay=datetime.timedelta(seconds=0),
-            dag=dag,
-            owner='test_pool',
-            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        with patch("airflow.models.taskinstance.STORE_SERIALIZED_DAGS", dag_serialization):
+            dag = models.DAG(dag_id='test_retry_handling')
+            task = BashOperator(
+                task_id='test_retry_handling_op',
+                bash_command='echo {{dag.dag_id}}; exit 1',
+                retries=1,
+                retry_delay=datetime.timedelta(seconds=0),
+                dag=dag,
+                owner='test_pool',
+                start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
-        def run_with_error(ti):
-            try:
-                ti.run()
-            except AirflowException:
-                pass
+            def run_with_error(ti):
+                try:
+                    ti.run()
+                except AirflowException:
+                    pass
 
-        ti = TI(
-            task=task, execution_date=timezone.utcnow())
-        self.assertEqual(ti.try_number, 1)
+            ti = TI(
+                task=task, execution_date=timezone.utcnow())
+            self.assertEqual(ti.try_number, 1)
 
-        # first run -- up for retry
-        run_with_error(ti)
-        self.assertEqual(ti.state, State.UP_FOR_RETRY)
-        self.assertEqual(ti._try_number, 1)
-        self.assertEqual(ti.try_number, 2)
+            # first run -- up for retry
+            run_with_error(ti)
+            self.assertEqual(ti.state, State.UP_FOR_RETRY)
+            self.assertEqual(ti._try_number, 1)
+            self.assertEqual(ti.try_number, 2)
 
-        # second run -- fail
-        run_with_error(ti)
-        self.assertEqual(ti.state, State.FAILED)
-        self.assertEqual(ti._try_number, 2)
-        self.assertEqual(ti.try_number, 3)
+            # second run -- fail
+            run_with_error(ti)
+            self.assertEqual(ti.state, State.FAILED)
+            self.assertEqual(ti._try_number, 2)
+            self.assertEqual(ti.try_number, 3)
 
-        # Clear the TI state since you can't run a task with a FAILED state without
-        # clearing it first
-        dag.clear()
+            # Clear the TI state since you can't run a task with a FAILED state without
+            # clearing it first
+            dag.clear()
 
-        # third run -- up for retry
-        run_with_error(ti)
-        self.assertEqual(ti.state, State.UP_FOR_RETRY)
-        self.assertEqual(ti._try_number, 3)
-        self.assertEqual(ti.try_number, 4)
+            # third run -- up for retry
+            run_with_error(ti)
+            self.assertEqual(ti.state, State.UP_FOR_RETRY)
+            self.assertEqual(ti._try_number, 3)
+            self.assertEqual(ti.try_number, 4)
 
-        # fourth run -- fail
-        run_with_error(ti)
-        ti.refresh_from_db()
-        self.assertEqual(ti.state, State.FAILED)
-        self.assertEqual(ti._try_number, 4)
-        self.assertEqual(ti.try_number, 5)
+            # fourth run -- fail
+            run_with_error(ti)
+            ti.refresh_from_db()
+            self.assertEqual(ti.state, State.FAILED)
+            self.assertEqual(ti._try_number, 4)
+            self.assertEqual(ti.try_number, 5)
+            self.assertEqual(RenderedTaskInstanceFields.get_templated_fields(ti), expected_rendered_ti_fields)
 
     def test_next_retry_datetime(self):
         delay = datetime.timedelta(seconds=30)
@@ -1384,6 +1409,22 @@ class TaskInstanceTest(unittest.TestCase):
         context_arg_2 = mock_on_retry_2.call_args[0][0]
         assert context_arg_2 and "task_instance" in context_arg_2
 
+        # test the scenario where normally we would retry but have been asked to fail
+        mock_on_failure_3 = mock.MagicMock()
+        mock_on_retry_3 = mock.MagicMock()
+        task3 = DummyOperator(task_id="test_handle_failure_on_force_fail",
+                              on_failure_callback=mock_on_failure_3,
+                              on_retry_callback=mock_on_retry_3,
+                              retries=1,
+                              dag=dag)
+        ti3 = TI(task=task3, execution_date=start_date)
+        ti3.state = State.FAILED
+        ti3.handle_failure("test force_fail handling", force_fail=True)
+
+        context_arg_3 = mock_on_failure_3.call_args[0][0]
+        assert context_arg_3 and "task_instance" in context_arg_3
+        mock_on_retry_3.assert_not_called()
+
     @parameterized.expand(
         [
             ('{{ var.value.a_variable }}', 'a test value'),
@@ -1449,3 +1490,113 @@ class TaskInstanceTest(unittest.TestCase):
         context = ti.get_template_context()
         with self.assertRaises(KeyError):
             task.render_template('{{ var.json.get("missing_variable") }}', context)
+
+    def test_does_not_retry_on_airflow_fail_exception(self):
+        def fail():
+            raise AirflowFailException("hopeless")
+
+        dag = models.DAG(dag_id='test_does_not_retry_on_airflow_fail_exception')
+        task = PythonOperator(
+            task_id='test_raise_airflow_fail_exception',
+            dag=dag,
+            python_callable=fail,
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0),
+            retries=1
+        )
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        try:
+            ti.run()
+        except AirflowFailException:
+            pass  # expected
+        self.assertEqual(State.FAILED, ti.state)
+
+    def test_retries_on_other_exceptions(self):
+        def fail():
+            raise AirflowException("maybe this will pass?")
+
+        dag = models.DAG(dag_id='test_retries_on_other_exceptions')
+        task = PythonOperator(
+            task_id='test_raise_other_exception',
+            dag=dag,
+            python_callable=fail,
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0),
+            retries=1
+        )
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        try:
+            ti.run()
+        except AirflowException:
+            pass  # expected
+        self.assertEqual(State.UP_FOR_RETRY, ti.state)
+
+    @parameterized.expand([
+        (True, ),
+        (False, )
+    ])
+    def test_get_rendered_template_fields(self, store_serialized_dag):
+        # SetUp
+        settings.STORE_SERIALIZED_DAGS = store_serialized_dag
+
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+
+        with create_session() as session:
+            session.add(RenderedTaskInstanceFields(ti))
+
+        # Create new TI for the same Task
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            new_task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
+
+        new_ti = TI(task=new_task, execution_date=DEFAULT_DATE)
+        new_ti.get_rendered_template_fields()
+
+        self.assertEqual(settings.STORE_SERIALIZED_DAGS, store_serialized_dag)
+        self.assertEqual("op1", ti.task.bash_command)
+
+        # CleanUp
+        with create_session() as session:
+            session.query(RenderedTaskInstanceFields).delete()
+
+    def test_operator_field_with_serialization(self):
+
+        dag = DAG('test_queries', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='op', dag=dag)
+        self.assertEqual(task.task_type, 'DummyOperator')
+
+        # Verify that ti.operator field renders correctly "without" Serialization
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        self.assertEqual(ti.operator, "DummyOperator")
+
+        serialized_op = SerializedBaseOperator.serialize_operator(task)
+        deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
+        self.assertEqual(deserialized_op.task_type, 'DummyOperator')
+        # Verify that ti.operator field renders correctly "with" Serialization
+        ser_ti = TI(task=deserialized_op, execution_date=datetime.datetime.now())
+        self.assertEqual(ser_ti.operator, "DummyOperator")
+
+
+@pytest.mark.parametrize("pool_override", [None, "test_pool2"])
+def test_refresh_from_task(pool_override):
+    task = DummyOperator(task_id="dummy", queue="test_queue", pool="test_pool1", pool_slots=3,
+                         priority_weight=10, run_as_user="test", retries=30,
+                         executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}})
+    ti = TI(task, execution_date=pendulum.datetime(2020, 1, 1))
+    ti.refresh_from_task(task, pool_override=pool_override)
+
+    assert ti.queue == task.queue
+
+    if pool_override:
+        assert ti.pool == pool_override
+    else:
+        assert ti.pool == task.pool
+
+    assert ti.pool_slots == task.pool_slots
+    assert ti.priority_weight == task.priority_weight_total
+    assert ti.run_as_user == task.run_as_user
+    assert ti.max_tries == task.retries
+    assert ti.executor_config == task.executor_config
+    assert ti.operator == DummyOperator.__name__

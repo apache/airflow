@@ -17,13 +17,16 @@
 ---
 version: "2.2"
 services:
-  airflow-testing:
-    # We need to mount files an directories individually because some files
+  airflow:
+    stdin_open: true  # docker run -i
+    tty: true  # docker run -t
+    # We need to mount files and directories individually because some files
     # such apache_airflow.egg-info should not be mounted from host
-    # we only mount those files that it makes sense to edit while developing
+    # we only mount those files, so that it makes sense to edit while developing
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
+      # START automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
       - ../../../.bash_aliases:/root/.bash_aliases:cached
       - ../../../.bash_history:/root/.bash_history:cached
       - ../../../.coveragerc:/opt/airflow/.coveragerc:cached
@@ -31,31 +34,28 @@ services:
       - ../../../.flake8:/opt/airflow/.flake8:cached
       - ../../../.github:/opt/airflow/.github:cached
       - ../../../.inputrc:/root/.inputrc:cached
-      - ../../../.kube:/root/.kube:cached
       - ../../../.rat-excludes:/opt/airflow/.rat-excludes:cached
-      - ../../../CHANGELOG.txt:/opt/airflow/CHANGELOG:cached
-      - ../../../Dockerfile:/opt/airflow/Dockerfile:cached
+      - ../../../CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
       - ../../../LICENSE:/opt/airflow/LICENSE:cached
       - ../../../MANIFEST.in:/opt/airflow/MANIFEST.in:cached
       - ../../../NOTICE:/opt/airflow/NOTICE:cached
       - ../../../airflow:/opt/airflow/airflow:cached
-      - ../../../common:/opt/airflow/common:cached
       - ../../../dags:/opt/airflow/dags:cached
       - ../../../dev:/opt/airflow/dev:cached
       - ../../../docs:/opt/airflow/docs:cached
-      - ../../../files:/files:cached
+      - ../../../dist:/dist:cached
       - ../../../hooks:/opt/airflow/hooks:cached
       - ../../../logs:/root/airflow/logs:cached
       - ../../../pytest.ini:/opt/airflow/pytest.ini:cached
       - ../../../scripts:/opt/airflow/scripts:cached
-      - ../../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached
+      - ../../../scripts/perf:/opt/airflow/scripts/perf:cached
+      - ../../../scripts/in_container/entrypoint_ci.sh:/entrypoint:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
-      - ../../../tmp:/opt/airflow/tmp:cached
-    environment:
-      - HOST_USER_ID
-      - HOST_GROUP_ID
-      - PYTHONDONTWRITEBYTECODE
+      - ../../../kubernetes_tests:/opt/airflow/kubernetes_tests:cached
+      - ../../../chart:/opt/airflow/chart:cached
+      - ../../../tmp:/tmp:cached
+      # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"

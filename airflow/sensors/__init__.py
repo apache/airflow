@@ -20,6 +20,9 @@
 import sys
 import os as _os
 
+
+PY37 = sys.version_info >= (3, 7)
+
 _sensors = {
     'base_sensor_operator': ['BaseSensorOperator'],
     'external_task_sensor': ['ExternalTaskSensor'],
@@ -46,6 +49,10 @@ def _integrate_plugins():
     from airflow.plugins_manager import sensors_modules
     for sensors_module in sensors_modules:
         sys.modules[sensors_module.__name__] = sensors_module
+
+        if not PY37:
+            from pep562 import Pep562
+            sensors_module = Pep562(sensors_module.__name__)
         globals()[sensors_module._name] = sensors_module
 
         ##########################################################

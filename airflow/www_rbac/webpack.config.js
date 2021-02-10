@@ -1,4 +1,4 @@
-/**
+/*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,10 @@
 const webpack = require('webpack');
 const path = require('path');
 const ManifestPlugin = require('webpack-manifest-plugin');
-const CleanWebpackPlugin = require('clean-webpack-plugin');
+const cwplg = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const MomentLocalesPlugin = require('moment-locales-webpack-plugin');
 
 // Input Directory (airflow/www_rbac)
 // noinspection JSUnresolvedVariable
@@ -36,15 +37,18 @@ const config = {
     connectionForm: `${STATIC_DIR}/js/connection_form.js`,
     base: `${STATIC_DIR}/js/base.js`,
     ie: `${STATIC_DIR}/js/ie.js`,
-    graph: `${STATIC_DIR}/js/graph.js`,
+    'task-instances': `${STATIC_DIR}/js/task-instances.js`,
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
     main: `${STATIC_DIR}/css/main.css`,
-    airflowDefaultTheme : `${STATIC_DIR}/css/bootstrap-theme.css`,
+    airflowDefaultTheme: `${STATIC_DIR}/css/bootstrap-theme.css`,
+    moment: 'moment-timezone',
   },
   output: {
     path: BUILD_DIR,
     filename: '[name].[chunkhash].js',
     chunkFilename: '[name].[chunkhash].js',
+    library: ['Airflow', '[name]'],
+    libraryTarget: 'umd',
   },
   resolve: {
     extensions: [
@@ -54,12 +58,10 @@ const config = {
     ],
   },
   module: {
-    rules: [
-      {
+    rules: [{
         test: /datatables\.net.*/,
         loader: 'imports-loader?define=>false',
-      },
-      {
+      }, {
         test: /\.jsx?$/,
         exclude: /node_modules/,
         loader: 'babel-loader',
@@ -68,30 +70,36 @@ const config = {
       {
         test: /\.css$/,
         include: STATIC_DIR,
-        use: [
-          MiniCssExtractPlugin.loader,
+        use: [{
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              esModule: true,
+            },
+          },
           'css-loader',
         ],
       },
       /* for css linking images */
       {
-        test: /\.png$/,
-        loader: 'url-loader?limit=100000',
-      },
-      {
-        test: /\.jpg$/,
-        loader: 'file-loader',
-      },
-      {
-        test: /\.gif$/,
-        loader: 'file-loader',
+        test: /\.(png|jpg|gif)$/i,
+        use: [{
+          loader: 'url-loader',
+          options: {
+            limit: 100000,
+          },
+        }, ],
       },
       /* for font-awesome */
       {
         test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        loader: 'url-loader?limit=10000&mimetype=application/font-woff',
-      },
-      {
+        use: [{
+          loader: 'url-loader',
+          options: {
+            limit: 100000,
+            mimetype: 'application/font-woff',
+          },
+        }, ],
+      }, {
         test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         loader: 'file-loader',
       },
@@ -99,12 +107,16 @@ const config = {
   },
   plugins: [
     new ManifestPlugin(),
-    new CleanWebpackPlugin(['static/dist']),
-    new MiniCssExtractPlugin({ filename: '[name].[chunkhash].css' }),
+    new cwplg.CleanWebpackPlugin({
+      verbose: true,
+    }),
+    new MiniCssExtractPlugin({
+      filename: '[name].[chunkhash].css'
+    }),
 
     // MomentJS loads all the locale, making it a huge JS file.
     // This will ignore the locales from momentJS
-    new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
+    new MomentLocalesPlugin(),
 
     new webpack.DefinePlugin({
       'process.env': {
@@ -114,20 +126,43 @@ const config = {
     // Since we have all the dependencies separated from hard-coded JS within HTML,
     // this seems like an efficient solution for now. Will update that once
     // we'll have the dependencies imported within the custom JS
-    new CopyWebpackPlugin([
-      { from: 'node_modules/nvd3/build/*.min.*', flatten: true },
-      // Update this when upgrade d3 package, as the path in new D3 is different
-      { from: 'node_modules/d3/d3.min.*', flatten: true },
-      { from: 'node_modules/dagre-d3/dist/*.min.*', flatten: true },
-      { from: 'node_modules/d3-tip/dist/index.js', to: 'd3-tip.js', flatten: true },
-      { from: 'node_modules/bootstrap-3-typeahead/*min.*', flatten: true },
-      {
-        from: 'node_modules/bootstrap-toggle/**/*bootstrap-toggle.min.*',
-        flatten: true,
-      },
-      { from: 'node_modules/datatables.net/**/**.min.*', flatten: true },
-      { from: 'node_modules/datatables.net-bs/**/**.min.*', flatten: true },
-    ], { copyUnmodified: true }),
+    new CopyWebpackPlugin({
+      patterns: [{
+          from: 'node_modules/nvd3/build/*.min.*',
+          flatten: true
+        },
+        // Update this when upgrade d3 package, as the path in new D3 is different
+        {
+          from: 'node_modules/d3/d3.min.*',
+          flatten: true
+        }, {
+          from: 'node_modules/dagre-d3/dist/*.min.*',
+          flatten: true
+        }, {
+          from: 'node_modules/d3-tip/dist/index.js',
+          to: 'd3-tip.js',
+          flatten: true
+        }, {
+          from: 'node_modules/bootstrap-3-typeahead/*min.*',
+          flatten: true
+        }, {
+          from: 'node_modules/bootstrap-toggle/**/*bootstrap-toggle.min.*',
+          flatten: true,
+        }, {
+          from: 'node_modules/datatables.net/**/**.min.*',
+          flatten: true
+        }, {
+          from: 'node_modules/datatables.net-bs/**/**.min.*',
+          flatten: true
+        }, {
+          from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css',
+          flatten: true
+        }, {
+          from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js',
+          flatten: true
+        },
+      ],
+    }),
   ],
 };
 

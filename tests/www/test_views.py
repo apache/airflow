@@ -25,9 +25,19 @@ import sys
 
 import os
 import shutil
+import urllib
+
 import pytest
 import tempfile
 import unittest
+
+import six
+from flask._compat import PY2
+
+from airflow.operators.bash_operator import BashOperator
+from airflow.utils import timezone
+from airflow.utils.db import create_session
+from parameterized import parameterized
 from tests.compat import mock
 
 from six.moves.urllib.parse import quote_plus
@@ -40,6 +50,8 @@ from airflow import models
 from airflow.configuration import conf
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
@@ -879,6 +891,119 @@ class TestDeleteDag(unittest.TestCase):
         session.commit()
 
 
+class TestRenderedView(unittest.TestCase):
+
+    def setUp(self):
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+        self.default_date = datetime(2020, 3, 1)
+        self.dag = DAG(
+            "testdag",
+            start_date=self.default_date,
+            user_defined_filters={"hello": lambda name: 'Hello ' + name},
+            user_defined_macros={"fullname": lambda fname, lname: fname + " " + lname}
+        )
+        self.task1 = BashOperator(
+            task_id='task1',
+            bash_command='{{ task_instance_key_str }}',
+            dag=self.dag
+        )
+        self.task2 = BashOperator(
+            task_id='task2',
+            bash_command='echo {{ fullname("Apache", "Airflow") | hello }}',
+            dag=self.dag
+        )
+        SerializedDagModel.write_dag(self.dag)
+        with create_session() as session:
+            session.query(RTIF).delete()
+
+    def tearDown(self):
+        super(TestRenderedView, self).tearDown()
+        with create_session() as session:
+            session.query(RTIF).delete()
+
+    def percent_encode(self, obj):
+        if PY2:
+            return urllib.quote_plus(str(obj))
+        else:
+            return urllib.parse.quote_plus(str(obj))
+
+    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_rendered_view(self, get_dag_function):
+        """
+        Test that the Rendered View contains the values from RenderedTaskInstanceFields
+        """
+        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+
+        self.assertEqual(self.task1.bash_command, '{{ task_instance_key_str }}')
+        ti = TaskInstance(self.task1, self.default_date)
+
+        with create_session() as session:
+            session.add(RTIF(ti))
+
+        url = ('/admin/airflow/rendered?task_id=task1&dag_id=testdag&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+
+        resp = self.app.get(url, follow_redirects=True)
+        self.assertIn("testdag__task1__20200301", resp.data.decode('utf-8'))
+
+    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_rendered_view_for_unexecuted_tis(self, get_dag_function):
+        """
+        Test that the Rendered View is able to show rendered values
+        even for TIs that have not yet executed
+        """
+        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+
+        self.assertEqual(self.task1.bash_command, '{{ task_instance_key_str }}')
+
+        url = ('/admin/airflow/rendered?task_id=task1&dag_id=task1&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+
+        resp = self.app.get(url, follow_redirects=True)
+        self.assertIn("testdag__task1__20200301", resp.data.decode('utf-8'))
+
+    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_user_defined_filter_and_macros_raise_error(self, get_dag_function):
+        """
+        Test that the Rendered View is able to show rendered values
+        even for TIs that have not yet executed
+        """
+        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+
+        self.assertEqual(self.task2.bash_command,
+                         'echo {{ fullname("Apache", "Airflow") | hello }}')
+
+        url = ('/admin/airflow/rendered?task_id=task2&dag_id=testdag&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+
+        resp = self.app.get(url, follow_redirects=True)
+        self.assertNotIn("echo Hello Apache Airflow", resp.data.decode('utf-8'))
+
+        if six.PY3:
+            self.assertIn(
+                "Webserver does not have access to User-defined Macros or Filters "
+                "when Dag Serialization is enabled. Hence for the task that have not yet "
+                "started running, please use &#39;airflow tasks render&#39; for debugging the "
+                "rendering of template_fields.<br/><br/>OriginalError: no filter named &#39;hello&#39",
+                resp.data.decode('utf-8'))
+        else:
+            self.assertIn(
+                "Webserver does not have access to User-defined Macros or Filters "
+                "when Dag Serialization is enabled. Hence for the task that have not yet "
+                "started running, please use &#39;airflow tasks render&#39; for debugging the "
+                "rendering of template_fields.",
+                resp.data.decode('utf-8'))
+
+
+@pytest.mark.quarantined
 class TestTriggerDag(unittest.TestCase):
 
     def setUp(self):
@@ -907,6 +1032,115 @@ class TestTriggerDag(unittest.TestCase):
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
         self.assertIn("manual__", run.run_id)
+
+    @pytest.mark.xfail(condition=True, reason="This test might be flaky on mysql")
+    def test_trigger_dag_conf(self):
+
+        test_dag_id = "example_bash_operator"
+        conf_dict = {'string': 'Hello, World!'}
+
+        DR = models.DagRun
+        self.session.query(DR).delete()
+        self.session.commit()
+
+        self.app.post('/admin/airflow/trigger?dag_id={}'.format(test_dag_id),
+                      data={'conf': json.dumps(conf_dict)})
+
+        run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+        self.assertIsNotNone(run)
+        self.assertIn("manual__", run.run_id)
+        self.assertEqual(run.conf, conf_dict)
+
+    @pytest.mark.xfail(condition=True, reason="This test might be flaky on mysql")
+    def test_trigger_dag_conf_malformed(self):
+        test_dag_id = "example_bash_operator"
+
+        DR = models.DagRun
+        self.session.query(DR).delete()
+        self.session.commit()
+
+        response = self.app.post('/admin/airflow/trigger?dag_id={}'.format(test_dag_id),
+                                 data={'conf': '{"a": "b"'})
+        self.assertIn('Invalid JSON configuration', response.data.decode('utf-8'))
+
+        run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+        self.assertIsNone(run)
+
+    def test_trigger_dag_form(self):
+        test_dag_id = "example_bash_operator"
+
+        resp = self.app.get('/admin/airflow/trigger?dag_id={}'.format(test_dag_id))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('Trigger DAG: {}'.format(test_dag_id), resp.data.decode('utf-8'))
+
+    @mock.patch('airflow.models.dag.DAG.create_dagrun')
+    def test_trigger_dag(self, mock_dagrun):
+        test_dag_id = "example_bash_operator"
+        execution_date = timezone.utcnow()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+        mock_dagrun.return_value = DagRun(
+            dag_id=test_dag_id, run_id=run_id,
+            execution_date=execution_date, start_date=datetime(2020, 1, 1, 1, 1, 1),
+            external_trigger=True,
+            conf={},
+            state="running"
+        )
+
+        response = self.app.post(
+            '/admin/airflow/trigger?dag_id={}'.format(test_dag_id), data={}, follow_redirects=True)
+        self.assertIn(
+            'Triggered example_bash_operator, it should start any moment now.',
+            response.data.decode('utf-8'))
+
+    @mock.patch('airflow.models.dag.DAG.create_dagrun')
+    @mock.patch('airflow.utils.dag_processing.os.path.isfile')
+    @conf_vars({("core", "store_serialized_dags"): "True"})
+    def test_trigger_serialized_dag(self, mock_os_isfile, mock_dagrun):
+        mock_os_isfile.return_value = False
+
+        test_dag_id = "example_bash_operator"
+        execution_date = timezone.utcnow()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+        mock_dagrun.return_value = DagRun(
+            dag_id=test_dag_id, run_id=run_id,
+            execution_date=execution_date, start_date=datetime(2020, 1, 1, 1, 1, 1),
+            external_trigger=True,
+            conf={},
+            state="running"
+        )
+
+        response = self.app.post(
+            '/admin/airflow/trigger?dag_id={}'.format(test_dag_id), data={}, follow_redirects=True)
+        self.assertIn(
+            'Triggered example_bash_operator, it should start any moment now.',
+            response.data.decode('utf-8'))
+
+    @parameterized.expand([
+        ("javascript:alert(1)", "/admin/"),
+        ("http://google.com", "/admin/"),
+        (
+            "%2Fadmin%2Fairflow%2Ftree%3Fdag_id%3Dexample_bash_operator"
+            "&dag_id=example_bash_operator';alert(33)//",
+            "/admin/airflow/tree?dag_id=example_bash_operator"
+        ),
+        (
+            "%2Fadmin%2Fairflow%2Ftree%3Fdag_id%3Dexample_bash_operator&dag_id=example_bash_operator",
+            "/admin/airflow/tree?dag_id=example_bash_operator"
+        ),
+        (
+            "%2Fadmin%2Fairflow%2Fgraph%3Fdag_id%3Dexample_bash_operator&dag_id=example_bash_operator",
+            "/admin/airflow/graph?dag_id=example_bash_operator"
+        ),
+    ])
+    def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
+        test_dag_id = "example_bash_operator"
+        response = self.app.get(
+            '/admin/airflow/trigger?dag_id={}&origin={}'.format(test_dag_id, test_origin))
+        self.assertIn(
+            '<button class="btn" onclick="location.href = \'{}\'; return false">'.format(
+                expected_origin),
+            response.data.decode('utf-8'))
 
 
 class HelpersTest(unittest.TestCase):
@@ -1100,6 +1334,8 @@ class TestTaskStats(unittest.TestCase):
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_xcom', stats)
+        self.assertEqual(set(stats['example_bash_operator'][0].keys()),
+                         {'state', 'count'})
 
     def test_selected_dags(self):
         resp = self.app.get(
@@ -1121,6 +1357,13 @@ class TestTaskStats(unittest.TestCase):
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_xcom', stats)
         self.assertNotIn('example_subdag_operator', stats)
+
+    def test_dag_stats(self):
+        resp = self.app.get('/admin/airflow/dag_stats', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(set(list(stats.items())[0][1][0].keys()),
+                         {'state', 'count'})
 
 
 if __name__ == '__main__':

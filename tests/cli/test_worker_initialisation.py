@@ -28,7 +28,7 @@ from tests.test_utils.config import conf_vars
 
 patch('airflow.utils.cli.action_logging', lambda x: x).start()
 from airflow.bin import cli # noqa
-mock_args = Namespace(queues=1, concurrency=1)
+mock_args = Namespace(queues=1, concurrency=1, subcommand='worker')
 
 
 class TestWorkerPrecheck(unittest.TestCase):

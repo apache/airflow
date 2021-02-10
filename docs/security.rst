@@ -68,7 +68,6 @@ attack. Creating a new user has to be done via a Python REPL on the same machine
     $ python
     Python 2.7.9 (default, Feb 10 2015, 03:28:08)
     Type "help", "copyright", "credits" or "license" for more information.
-    >>> import airflow
     >>> from airflow import models, settings
     >>> from airflow.contrib.auth.backends.password_auth import PasswordUser
     >>> user = PasswordUser(models.User())
@@ -83,6 +82,12 @@ attack. Creating a new user has to be done via a Python REPL on the same machine
 
 LDAP
 ''''
+
+.. note::
+
+   This is for flask-admin based web UI only. If you are using FAB-based web UI with RBAC feature,
+   check the `Security section of FAB docs <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
+   for how to configure in ``webserver_config.py`` file.
 
 To turn on LDAP authentication configure your ``airflow.cfg`` as follows. Please note that the example uses
 an encrypted connection to the ldap server as we do not want passwords be readable on the network level.
@@ -149,6 +154,55 @@ only the dags which it is owner of, unless it is a superuser.
 
     [webserver]
     filter_by_owner = True
+
+
+API Authentication
+------------------
+
+Authentication for the API is handled separately to the Web Authentication. The default is to
+deny all requests:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.deny_all
+
+.. versionchanged:: 1.10.11
+
+    In Airflow <1.10.11, the default setting was to allow all API requests without authentication, but this
+    posed security risks for if the Webserver is publicly accessible.
+
+If you wish to have the experimental API work, and aware of the risks of enabling this without authentication
+(or if you have your own authentication layer in front of Airflow) you can set the following in ``airflow.cfg``:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.default
+
+Two "real" methods for authentication are currently supported for the API.
+
+To enabled Password authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.contrib.auth.backends.password_auth
+
+It's usage is similar to the Password Authentication used for the Web interface.
+
+To enable Kerberos authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.kerberos_auth
+
+    [kerberos]
+    keytab = <KEYTAB>
+
+The Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
+principal exists in the keytab file.
 
 
 Kerberos
@@ -266,15 +320,28 @@ To use kerberos authentication, you must install Airflow with the ``kerberos`` e
 
    pip install 'apache-airflow[kerberos]'
 
+.. note::
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
 OAuth Authentication
 --------------------
+
+.. note::
+
+   This is for flask-admin based web UI only. If you are using FAB-based web UI with RBAC feature,
+   check the `Security section of FAB docs <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
+   for how to configure in ``webserver_config.py`` file.
 
 GitHub Enterprise (GHE) Authentication
 ''''''''''''''''''''''''''''''''''''''
 
 The GitHub Enterprise authentication backend can be used to authenticate users
 against an installation of GitHub Enterprise using OAuth2. You can optionally
-specify a team whitelist (composed of slug cased team names) to restrict login
+specify a team allowed list (composed of slug cased team names) to restrict login
 to only members of those teams.
 
 .. code-block:: bash
@@ -290,7 +357,7 @@ to only members of those teams.
     oauth_callback_route = /example/ghe_oauth/callback
     allowed_teams = 1, 345, 23
 
-.. note:: If you do not specify a team whitelist, anyone with a valid account on
+.. note:: If you do not specify a team allowed list, anyone with a valid account on
    your GHE installation will be able to login to Airflow.
 
 To use GHE authentication, you must install Airflow with the ``github_enterprise`` extras group:
@@ -298,6 +365,14 @@ To use GHE authentication, you must install Airflow with the ``github_enterprise
 .. code-block:: bash
 
    pip install 'apache-airflow[github_enterprise]'
+
+.. note::
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -327,7 +402,13 @@ Google Authentication
 
 The Google authentication backend can be used to authenticate users
 against Google using OAuth2. You must specify the domains to restrict
-login, separated with a comma, to only members of those domains.
+login, separated with a comma, to only members of those domains. You
+also need to select an option for `user consent prompt behaviour <https://developers.google.com/identity/protocols/oauth2/web-server#userconsentprompt>`_, one of:
+
+consent: Prompt the user for consent.
+select_account: Prompt the user to select an account.
+none: Do not display any authentication or consent screens.
+'': the user will be prompted only the first time your project requests access
 
 .. code-block:: ini
 
@@ -339,13 +420,22 @@ login, separated with a comma, to only members of those domains.
     client_id = google_client_id
     client_secret = google_client_secret
     oauth_callback_route = /oauth2callback
-    domain = "example1.com,example2.com"
+    domain = example1.com,example2.com
+    prompt = <One of : consent, select_account, none or ''>
 
 To use Google authentication, you must install Airflow with the ``google_auth`` extras group:
 
 .. code-block:: bash
 
    pip install 'apache-airflow[google_auth]'
+
+.. note::
+   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
+   does not yet work with Apache Airflow and might leads to errors in installation - depends on your choice
+   of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
+   ``pip upgrade --pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+   ``--use-deprecated legacy-resolver`` to your pip install command.
+
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -483,7 +573,7 @@ Viewer
 ^^^^^^
 ``Viewer`` users have limited viewer permissions
 
-.. code:: python
+.. code-block:: python
 
     VIEWER_PERMS = {
         'menu_access',
@@ -514,7 +604,7 @@ Viewer
 
 on limited web views
 
-.. code:: python
+.. code-block:: python
 
     VIEWER_VMS = {
         'Airflow',
@@ -542,7 +632,7 @@ User
 ^^^^
 ``User`` users have ``Viewer`` permissions plus additional user permissions
 
-.. code:: python
+.. code-block:: python
 
     USER_PERMS = {
         'can_dagrun_clear',
@@ -569,7 +659,7 @@ Op
 ^^
 ``Op`` users have ``User`` permissions plus additional op permissions
 
-.. code:: python
+.. code-block:: python
 
     OP_PERMS = {
         'can_conf',
@@ -578,7 +668,7 @@ Op
 
 on ``User`` web views plus these additional op web views
 
-.. code:: python
+.. code-block:: python
 
     OP_VMS = {
         'Admin',

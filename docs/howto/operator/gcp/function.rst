@@ -24,6 +24,11 @@ Google Cloud Functions Operators
   :depth: 1
   :local:
 
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+.. include:: _partials/prerequisite_tasks.rst
+
 .. _howto/operator:GcfFunctionDeleteOperator:
 
 GcfFunctionDeleteOperator
@@ -202,3 +207,12 @@ More information
 
 See Google Cloud API documentation `to create a function
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_.
+
+
+Reference
+---------
+
+For further information, look at:
+
+* `Google Cloud API Documentation <https://cloud.google.com/functions/docs/reference/rest/>`__
+* `Product Documentation <https://cloud.google.com/functions/docs/>`__

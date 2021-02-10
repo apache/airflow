@@ -105,7 +105,7 @@ class PrestoHook(DbApiHook):
         except DatabaseError as e:
             raise PrestoException(self._get_pretty_exception_message(e))
 
-    def get_pandas_df(self, hql, parameters=None):
+    def get_pandas_df(self, hql, parameters=None, **kwargs):
         """
         Get a pandas dataframe from a sql query.
         """
@@ -118,10 +118,10 @@ class PrestoHook(DbApiHook):
             raise PrestoException(self._get_pretty_exception_message(e))
         column_descriptions = cursor.description
         if data:
-            df = pandas.DataFrame(data)
+            df = pandas.DataFrame(data, **kwargs)
             df.columns = [c[0] for c in column_descriptions]
         else:
-            df = pandas.DataFrame()
+            df = pandas.DataFrame(**kwargs)
         return df
 
     def run(self, hql, parameters=None):

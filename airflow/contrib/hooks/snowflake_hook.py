@@ -44,6 +44,7 @@ class SnowflakeHook(DbApiHook):
         self.region = kwargs.pop("region", None)
         self.role = kwargs.pop("role", None)
         self.schema = kwargs.pop("schema", None)
+        self.authenticator = kwargs.pop("authenticator", None)
 
     def _get_conn_params(self):
         """
@@ -56,6 +57,7 @@ class SnowflakeHook(DbApiHook):
         database = conn.extra_dejson.get('database', None)
         region = conn.extra_dejson.get("region", None)
         role = conn.extra_dejson.get('role', None)
+        authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
 
         conn_config = {
             "user": conn.login,
@@ -65,8 +67,8 @@ class SnowflakeHook(DbApiHook):
             "account": self.account or account or '',
             "warehouse": self.warehouse or warehouse or '',
             "region": self.region or region or '',
-            "role": self.role or role or ''
-
+            "role": self.role or role,
+            "authenticator": self.authenticator or authenticator
         }
 
         """
@@ -103,7 +105,7 @@ class SnowflakeHook(DbApiHook):
         """
         conn_config = self._get_conn_params()
         uri = 'snowflake://{user}:{password}@{account}/{database}/'
-        uri += '{schema}?warehouse={warehouse}&role={role}'
+        uri += '{schema}?warehouse={warehouse}&role={role}&authenticator={authenticator}'
         return uri.format(**conn_config)
 
     def get_conn(self):

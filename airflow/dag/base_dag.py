@@ -64,14 +64,6 @@ class BaseDag(object):
         raise NotImplementedError()
 
     @abstractmethod
-    def is_paused(self):
-        """
-        :return: whether this DAG is paused or not
-        :rtype: bool
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
     def pickle_id(self):
         """
         :return: The pickle ID for this DAG, if it has one. Otherwise None.

@@ -19,8 +19,12 @@
 
 import unittest
 import mock
+import six
 
 from airflow.utils import net
+from tests.test_utils.config import conf_vars
+from airflow.exceptions import AirflowConfigException
+import re
 
 
 def get_hostname():
@@ -43,12 +47,9 @@ class GetHostname(unittest.TestCase):
         )
         self.assertTrue(net.get_hostname() == 'awesomehostname')
 
-    @mock.patch('airflow.utils.net.conf')
-    def test_get_hostname_set_incorrect(self, patched_conf):
-        patched_conf.get = mock.Mock(
-            return_value='tests.utils.test_net'
-        )
-        with self.assertRaises(ValueError):
+    @conf_vars({('core', 'hostname_callable'): 'tests.utils.test_net'})
+    def test_get_hostname_set_incorrect(self):
+        with self.assertRaises(TypeError):
             net.get_hostname()
 
     @mock.patch('airflow.utils.net.conf')
@@ -57,4 +58,30 @@ class GetHostname(unittest.TestCase):
             return_value='tests.utils.test_net:missing_func'
         )
         with self.assertRaises(AttributeError):
+            net.get_hostname()
+
+    @mock.patch('socket.getfqdn', return_value='first')
+    @conf_vars({('core', 'hostname_callable'): None})
+    def test_get_hostname_unset_2_0(self, mock_getfqdn):
+        self.assertEqual('first', net.get_hostname())
+
+    @conf_vars({('core', 'hostname_callable'): 'tests.utils.test_net.get_hostname'})
+    def test_get_hostname_set_2_0(self):
+        self.assertEqual('awesomehostname', net.get_hostname())
+
+    @conf_vars({('core', 'hostname_callable'): 'tests.utils.test_net'})
+    def test_get_hostname_set_incorrect_2_0(self):
+        with self.assertRaises(TypeError):
+            net.get_hostname()
+
+    @conf_vars({('core', 'hostname_callable'): 'tests.utils.test_net.missing_func'})
+    def test_get_hostname_set_missing_2_0(self):
+        with six.assertRaisesRegex(
+            self,
+            AirflowConfigException,
+            re.escape(
+                'The object could not be loaded. Please check "hostname_callable" key in "core" section. '
+                'Current value: "tests.utils.test_net.missing_func"'
+            ),
+        ):
             net.get_hostname()

@@ -30,6 +30,8 @@ from airflow.settings import Session
 from airflow.utils.state import State
 from airflow.utils import dates, timezone
 from airflow.www import utils, app as application
+from airflow.www.utils import wrapped_markdown
+from airflow.www_rbac.utils import wrapped_markdown as wrapped_markdown_rbac
 from tests.test_utils.config import conf_vars
 
 if six.PY2:
@@ -249,40 +251,6 @@ class UtilsTest(unittest.TestCase):
                 self.assertEqual(anonymous_username, kwargs['owner'])
                 mocked_session_instance.add.assert_called_once()
 
-    def test_open_maybe_zipped_normal_file(self):
-        with mock.patch(
-                'io.open', mock.mock_open(read_data="data")) as mock_file:
-            utils.open_maybe_zipped('/path/to/some/file.txt')
-            mock_file.assert_called_with('/path/to/some/file.txt', mode='r')
-
-    def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
-        path = '/path/to/fakearchive.zip.other/file.txt'
-        with mock.patch(
-                'io.open', mock.mock_open(read_data="data")) as mock_file:
-            utils.open_maybe_zipped(path)
-            mock_file.assert_called_with(path, mode='r')
-
-    @mock.patch("zipfile.is_zipfile")
-    @mock.patch("zipfile.ZipFile")
-    def test_open_maybe_zipped_archive(self, mocked_ZipFile, mocked_is_zipfile):
-        mocked_is_zipfile.return_value = True
-        instance = mocked_ZipFile.return_value
-        instance.open.return_value = mock.mock_open(read_data="data")
-
-        utils.open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
-
-        assert mocked_is_zipfile.call_count == 1
-        (args, kwargs) = mocked_is_zipfile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        assert mocked_ZipFile.call_count == 1
-        (args, kwargs) = mocked_ZipFile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        assert instance.open.call_count == 1
-        (args, kwargs) = instance.open.call_args_list[0]
-        self.assertEqual('deep/path/to/file.txt', args[0])
-
     def test_get_python_source_from_method(self):
         class AMockClass(object):
             def a_method(self):
@@ -392,6 +360,32 @@ class TestDecorators(unittest.TestCase):
         self.session.commit()
         self.check_last_log("example_bash_operator", event="clear",
                             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
+
+
+class TestWrappedMarkdown(unittest.TestCase):
+
+    def test_wrapped_markdown_with_docstring_curly_braces(self):
+        rendered = wrapped_markdown("{braces}", css_class="a_class")
+        self.assertEqual('<div class="rich_doc a_class" ><p>{braces}</p></div>', rendered)
+
+    def test_wrapped_markdown_with_some_markdown(self):
+        rendered = wrapped_markdown("*italic*\n**bold**\n", css_class="a_class")
+        self.assertEqual(
+            '''<div class="rich_doc a_class" ><p><em>italic</em>
+<strong>bold</strong></p></div>''', rendered)
+
+
+class TestWrappedMarkdownRbac(unittest.TestCase):
+
+    def test_wrapped_markdown_with_docstring_curly_braces(self):
+        rendered = wrapped_markdown_rbac("{braces}", css_class="a_class")
+        self.assertEqual('<div class="rich_doc a_class" ><p>{braces}</p></div>', rendered)
+
+    def test_wrapped_markdown_with_some_markdown(self):
+        rendered = wrapped_markdown_rbac("*italic*\n**bold**\n", css_class="a_class")
+        self.assertEqual(
+            '''<div class="rich_doc a_class" ><p><em>italic</em>
+<strong>bold</strong></p></div>''', rendered)
 
 
 if __name__ == '__main__':

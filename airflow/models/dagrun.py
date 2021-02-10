@@ -23,13 +23,14 @@ from sqlalchemy import (
     Column, Integer, String, Boolean, PickleType, Index, UniqueConstraint, func, DateTime, or_,
     and_
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 from sqlalchemy.orm.session import Session
 from airflow.exceptions import AirflowException
-from airflow.models.base import Base, ID_LEN
-from airflow.settings import Stats
-from airflow.ti_deps.dep_context import DepContext
+from airflow.models.base import ID_LEN, Base
+from airflow.settings import Stats, task_instance_mutation_hook
+from airflow.ti_deps.dep_context import SCHEDULEABLE_STATES, DepContext
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -186,7 +187,6 @@ class DagRun(Base, LoggingMixin):
 
         if self.dag and self.dag.partial:
             tis = tis.filter(TaskInstance.task_id.in_(self.dag.task_ids))
-
         return tis.all()
 
     @provide_session
@@ -254,53 +254,42 @@ class DagRun(Base, LoggingMixin):
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
 
-        :return: State
+        :return: ready_tis: the tis that can be scheduled in the current loop
+        :rtype ready_tis: list[airflow.models.TaskInstance]
         """
 
         dag = self.get_dag()
-
-        tis = self.get_task_instances(session=session)
-        self.log.debug("Updating state for %s considering %s task(s)", self, len(tis))
-
+        ready_tis = []
+        tis = [ti for ti in self.get_task_instances(session=session,
+                                                    state=State.task_states + (State.SHUTDOWN,))]
+        self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
         for ti in list(tis):
-            # skip in db?
-            if ti.state == State.REMOVED:
-                tis.remove(ti)
-            else:
-                ti.task = dag.get_task(ti.task_id)
+            ti.task = dag.get_task(ti.task_id)
 
-        # pre-calculate
-        # db is faster
         start_dttm = timezone.utcnow()
-        unfinished_tasks = self.get_task_instances(
-            state=State.unfinished(),
-            session=session
-        )
+        unfinished_tasks = [t for t in tis if t.state in State.unfinished()]
+        finished_tasks = [t for t in tis if t.state in State.finished() + [State.UPSTREAM_FAILED]]
         none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
         none_task_concurrency = all(t.task.task_concurrency is None
                                     for t in unfinished_tasks)
         # small speed up
-        if unfinished_tasks and none_depends_on_past and none_task_concurrency:
-            # todo: this can actually get pretty slow: one task costs between 0.01-015s
-            no_dependencies_met = True
-            for ut in unfinished_tasks:
-                # We need to flag upstream and check for changes because upstream
-                # failures/re-schedules can result in deadlock false positives
-                old_state = ut.state
-                deps_met = ut.are_dependencies_met(
-                    dep_context=DepContext(
-                        flag_upstream_failed=True,
-                        ignore_in_retry_period=True,
-                        ignore_in_reschedule_period=True),
-                    session=session)
-                if deps_met or old_state != ut.current_state(session=session):
-                    no_dependencies_met = False
-                    break
+        if unfinished_tasks:
+            scheduleable_tasks = [ut for ut in unfinished_tasks if ut.state in SCHEDULEABLE_STATES]
+            self.log.debug(
+                "number of scheduleable tasks for %s: %s task(s)",
+                self, len(scheduleable_tasks))
+            ready_tis, changed_tis = self._get_ready_tis(scheduleable_tasks, finished_tasks, session)
+            self.log.debug("ready tis length for %s: %s task(s)", self, len(ready_tis))
+            if none_depends_on_past and none_task_concurrency:
+                # small speed up
+                are_runnable_tasks = ready_tis or self._are_premature_tis(
+                    unfinished_tasks, finished_tasks, session) or changed_tis
 
         duration = (timezone.utcnow() - start_dttm).total_seconds() * 1000
         Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
 
-        leaf_tis = [ti for ti in tis if ti.task_id in {t.task_id for t in dag.leaves}]
+        leaf_task_ids = {t.task_id for t in dag.leaves}
+        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
 
         # if all roots finished and at least one failed, the run failed
         if not unfinished_tasks and any(
@@ -321,7 +310,7 @@ class DagRun(Base, LoggingMixin):
 
         # if *all tasks* are deadlocked, the run failed
         elif (unfinished_tasks and none_depends_on_past and
-              none_task_concurrency and no_dependencies_met):
+              none_task_concurrency and not are_runnable_tasks):
             self.log.info('Deadlock; marking run %s failed', self)
             self.set_state(State.FAILED)
             dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
@@ -331,13 +320,83 @@ class DagRun(Base, LoggingMixin):
         else:
             self.set_state(State.RUNNING)
 
+        self._emit_true_scheduling_delay_stats_for_finished_state(finished_tasks)
         self._emit_duration_stats_for_finished_state()
 
         # todo: determine we want to use with_for_update to make sure to lock the run
         session.merge(self)
         session.commit()
 
-        return self.state
+        return ready_tis
+
+    def _get_ready_tis(self, scheduleable_tasks, finished_tasks, session):
+        ready_tis = []
+        changed_tis = False
+        for st in scheduleable_tasks:
+            st_old_state = st.state
+            if st.are_dependencies_met(
+                dep_context=DepContext(
+                    flag_upstream_failed=True,
+                    finished_tasks=finished_tasks),
+                    session=session):
+                ready_tis.append(st)
+            elif st_old_state != st.current_state(session=session):
+                changed_tis = True
+        return ready_tis, changed_tis
+
+    def _are_premature_tis(self, unfinished_tasks, finished_tasks, session):
+        # there might be runnable tasks that are up for retry and from some reason(retry delay, etc) are
+        # not ready yet so we set the flags to count them in
+        for ut in unfinished_tasks:
+            if ut.are_dependencies_met(
+                dep_context=DepContext(
+                    flag_upstream_failed=True,
+                    ignore_in_retry_period=True,
+                    ignore_in_reschedule_period=True,
+                    finished_tasks=finished_tasks),
+                    session=session):
+                return True
+
+    def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis):
+        """
+        This is a helper method to emit the true scheduling delay stats, which is defined as
+        the time when the first task in DAG starts minus the expected DAG run datetime.
+        This method will be used in the update_state method when the state of the DagRun
+        is updated to a completed status (either success or failure). The method will find the first
+        started task within the DAG and calculate the expected DagRun start time (based on
+        dag.execution_date & dag.schedule_interval), and minus these two values to get the delay.
+        The emitted data may contains outlier (e.g. when the first task was cleared, so
+        the second task's start_date will be used), but we can get rid of the the outliers
+        on the stats side through the dashboards tooling built.
+        Note, the stat will only be emitted if the DagRun is a scheduler triggered one
+        (i.e. external_trigger is False).
+        """
+        if self.state == State.RUNNING:
+            return
+        if self.external_trigger:
+            return
+        if not finished_tis:
+            return
+
+        try:
+            dag = self.get_dag()
+
+            if not self.dag.schedule_interval or self.dag.schedule_interval == "@once":
+                # We can't emit this metric if there is no following schedule to cacluate from!
+                return
+
+            ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
+            ordered_tis_by_start_date.sort(key=lambda ti: ti.start_date, reverse=False)
+            first_start_date = ordered_tis_by_start_date[0].start_date
+            if first_start_date:
+                # dag.following_schedule calculates the expected start datetime for a scheduled dagrun
+                # i.e. a daily flow for execution date 1/1/20 actually runs on 1/2/20 hh:mm:ss,
+                # and ti.start_date will be 1/2/20 hh:mm:ss so the following schedule is comparison
+                true_delay = first_start_date - dag.following_schedule(self.execution_date)
+                if true_delay.total_seconds() > 0:
+                    Stats.timing('dagrun.{}.first_task_scheduling_delay'.format(dag.dag_id), true_delay)
+        except Exception as e:
+            self.log.warning('Failed to record first_task_scheduling_delay metric:\n', e)
 
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:
@@ -361,9 +420,10 @@ class DagRun(Base, LoggingMixin):
         tis = self.get_task_instances(session=session)
 
         # check for removed or restored tasks
-        task_ids = []
+        task_ids = set()
         for ti in tis:
-            task_ids.append(ti.task_id)
+            task_instance_mutation_hook(ti)
+            task_ids.add(ti.task_id)
             task = None
             try:
                 task = dag.get_task(ti.task_id)
@@ -384,6 +444,7 @@ class DagRun(Base, LoggingMixin):
                               "removed from DAG '{}'".format(ti, dag))
                 Stats.incr("task_restored_to_dag.{}".format(dag.dag_id), 1, 1)
                 ti.state = State.NONE
+            session.merge(ti)
 
         # check for missing tasks
         for task in six.itervalues(dag.task_dict):
@@ -395,9 +456,19 @@ class DagRun(Base, LoggingMixin):
                     "task_instance_created-{}".format(task.__class__.__name__),
                     1, 1)
                 ti = TaskInstance(task, self.execution_date)
+                task_instance_mutation_hook(ti)
                 session.add(ti)
 
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError as err:
+            self.log.info(str(err))
+            self.log.info(
+                'Hit IntegrityError while creating the TIs for %s - %s',
+                dag.dag_id, self.execution_date
+            )
+            self.log.info('Doing session rollback.')
+            session.rollback()
 
     @staticmethod
     def get_run(session, dag_id, execution_date):

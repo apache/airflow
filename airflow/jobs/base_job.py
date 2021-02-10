@@ -85,7 +85,7 @@ class BaseJob(Base, LoggingMixin):
             *args, **kwargs):
         self.hostname = get_hostname()
         self.executor = executor or executors.get_default_executor()
-        self.executor_class = executor.__class__.__name__
+        self.executor_class = self.executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
@@ -128,7 +128,7 @@ class BaseJob(Base, LoggingMixin):
         """
         return (
             self.state == State.RUNNING and
-            (timezone.utcnow() - self.latest_heartbeat).seconds < self.heartrate * grace_multiplier
+            (timezone.utcnow() - self.latest_heartbeat).total_seconds() < self.heartrate * grace_multiplier
         )
 
     @provide_session
@@ -164,7 +164,7 @@ class BaseJob(Base, LoggingMixin):
         This also allows for any job to be killed externally, regardless
         of who is running it or on which machine it is running.
 
-        Note that if your heartbeat is set to 60 seconds and you call this
+        Note that if your heart rate is set to 60 seconds and you call this
         method after 10 seconds of processing since the last heartbeat, it
         will sleep 50 seconds to complete the 60 seconds and keep a steady
         heart rate. If you go over 60 seconds before calling it, it won't
@@ -181,17 +181,14 @@ class BaseJob(Base, LoggingMixin):
             if self.state == State.SHUTDOWN:
                 self.kill()
 
-            is_unit_test = conf.getboolean('core', 'unit_test_mode')
-            if not is_unit_test:
-                # Figure out how long to sleep for
-                sleep_for = 0
-                if self.latest_heartbeat:
-                    seconds_remaining = self.heartrate - \
-                        (timezone.utcnow() - self.latest_heartbeat)\
-                        .total_seconds()
-                    sleep_for = max(0, seconds_remaining)
-
-                sleep(sleep_for)
+            # Figure out how long to sleep for
+            sleep_for = 0
+            if self.latest_heartbeat:
+                seconds_remaining = self.heartrate - \
+                    (timezone.utcnow() - self.latest_heartbeat)\
+                    .total_seconds()
+                sleep_for = max(0, seconds_remaining)
+            sleep(sleep_for)
 
             # Update last heartbeat time
             with create_session() as session:

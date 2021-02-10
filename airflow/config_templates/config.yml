@@ -254,6 +254,16 @@
       type: string
       example: ~
       default: ""
+    - name: sql_alchemy_connect_args
+      description: |
+        Import path for connect args in SqlAlchemy. Default to an empty dict.
+        This is useful when you want to configure db engine args that SqlAlchemy won't parse
+        in connection string.
+        See https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine.params.connect_args
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: ~
     - name: parallelism
       description: |
         The amount of parallelism as a setting to the executor. This defines
@@ -286,11 +296,20 @@
       default: "16"
     - name: load_examples
       description: |
-        Whether to load the examples that ship with Airflow. It's good to
+        Whether to load the DAG examples that ship with Airflow. It's good to
         get started, but you probably want to set this to False in a production
         environment
       version_added: ~
       type: string
+      example: ~
+      default: "True"
+    - name: load_default_connections
+      description: |
+        Whether to load the default connections that ship with Airflow. It's good to
+        get started, but you probably want to set this to False in a production
+        environment
+      version_added: 1.10.10
+      type: boolean
       example: ~
       default: "True"
     - name: plugins_folder
@@ -414,7 +433,7 @@
       default: "0"
     - name: store_serialized_dags
       description: |
-        Whether to serialises DAGs and persist them in DB.
+        Whether to serialise DAGs and persist them in DB.
         If set to True, Webserver reads from DB instead of parsing DAG files
         More details: https://airflow.apache.org/docs/stable/dag-serialization.html
       version_added: 1.10.7
@@ -428,6 +447,36 @@
       type: string
       example: ~
       default: "30"
+    - name: min_serialized_dag_fetch_interval
+      description: |
+        Fetching serialized DAG can not be faster than a minimum interval to reduce database
+        read rate. This config controls when your DAGs are updated in the Webserver
+      version_added: 1.10.12
+      type: string
+      example: ~
+      default: "10"
+    - name: store_dag_code
+      description: |
+        Whether to persist DAG files code in DB.
+        If set to True, Webserver reads file contents from DB instead of
+        trying to access files in a DAG folder. Defaults to same as the
+        ``store_serialized_dags`` setting.
+      version_added: 1.10.10
+      type: string
+      example: "False"
+      default: ~
+    - name: max_num_rendered_ti_fields_per_task
+      description: |
+        Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
+        in the Database.
+        When Dag Serialization is enabled (``store_serialized_dags=True``), all the template_fields
+        for each of Task Instance are stored in the Database.
+        Keeping this number small may cause an error when you try to view ``Rendered`` tab in
+        TaskInstance view for older tasks.
+      version_added: 1.10.10
+      type: integer
+      example: ~
+      default: "30"
     - name: check_slas
       description: |
         On each dagrun check against defined SLAs
@@ -435,6 +484,34 @@
       type: string
       example: ~
       default: "True"
+    - name: xcom_backend
+      description: |
+        Path to custom XCom class that will be used to store and resolve operators results
+      version_added: 1.10.12
+      type: string
+      example: "path.to.CustomXCom"
+      default: "airflow.models.xcom.BaseXCom"
+
+- name: secrets
+  description: ~
+  options:
+    - name: backend
+      description: |
+        Full class name of secrets backend to enable (will precede env vars and metastore in search path)
+      version_added: 1.10.10
+      type: string
+      example: "airflow.contrib.secrets.aws_systems_manager.SystemsManagerParameterStoreBackend"
+      default: ""
+    - name: backend_kwargs
+      description: |
+        The backend_kwargs param is loaded into a dictionary and passed to __init__ of secrets backend class.
+        See documentation for the secrets backend you are using. JSON is expected.
+        Example for AWS Systems Manager ParameterStore:
+        ``{{"connections_prefix": "/airflow/connections", "profile_name": "default"}}``
+      version_added: 1.10.10
+      type: string
+      example: ~
+      default: ""
 - name: cli
   description: ~
   options:
@@ -472,11 +549,13 @@
   options:
     - name: auth_backend
       description: |
-        How to authenticate users of the API
+        How to authenticate users of the API. See
+        https://airflow.apache.org/docs/stable/security.html for possible values.
+        ("airflow.api.auth.backend.default" allows all requests for historic reasons)
       version_added: ~
       type: string
       example: ~
-      default: "airflow.api.auth.backend.default"
+      default: "airflow.api.auth.backend.deny_all"
 - name: lineage
   description: ~
   options:
@@ -577,6 +656,16 @@
       type: string
       example: ~
       default: "http://localhost:8080"
+    - name: default_ui_timezone
+      description: |
+        Default timezone to display all dates in the RBAC UI, can be UTC, system, or
+        any IANA timezone string (e.g. Europe/Amsterdam). If left empty the
+        default value of core/default_timezone will be used
+      version_added: 1.10.10
+      type: string
+      example: "America/New_York"
+      # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
+      default: "UTC"
     - name: web_server_host
       description: |
         The ip specified when starting the web server
@@ -637,6 +726,14 @@
       type: string
       example: ~
       default: "30"
+    - name: reload_on_plugin_change
+      description: |
+        If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
+        then reload the gunicorn.
+      version_added: 1.10.11
+      type: boolean
+      example: ~
+      default: "False"
     - name: secret_key
       description: |
         Secret key used to run your flask app
@@ -644,7 +741,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "temporary_key"
+      default: "{SECRET_KEY}"
     - name: workers
       description: |
         Number of workers to run the Gunicorn web server
@@ -900,25 +997,18 @@
       description: |
         Update FAB permissions and sync security manager roles
         on webserver startup
-      version_added: 1.10.7
+      version_added: 1.10.10
       type: string
       example: ~
       default: "True"
-    - name: force_log_out_after
+    - name: session_lifetime_minutes
       description: |
-        Minutes of non-activity before logged out from UI
-        0 means never get forcibly logged out
-      version_added: 1.10.8
-      type: string
+        The UI cookie lifetime in minutes. User will be logged out from UI after
+        ``session_lifetime_minutes`` of non-activity
+      version_added: 1.10.13
+      type: int
       example: ~
-      default: "0"
-    - name: session_lifetime_days
-      description: |
-        The UI cookie lifetime in days
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "30"
+      default: "43200"
 
 - name: email
   description: ~
@@ -1020,7 +1110,7 @@
       version_added: ~
       type: string
       example: 16,12
-      default: 16,12
+      default: ~
     - name: worker_log_server_port
       description: |
         When you start an airflow worker, airflow starts a tiny web server
@@ -1349,10 +1439,10 @@
       type: string
       example: ~
       default: ""
-    - name: max_threads
+    - name: parsing_processes
       description: |
-        The scheduler can run multiple threads in parallel to schedule dags.
-        This defines how many threads will run.
+        The scheduler can run multiple processes in parallel to parse dags.
+        This defines how many processes will run.
       version_added: ~
       type: string
       example: ~
@@ -1674,6 +1764,14 @@
       type: string
       example: ~
       default: ""
+    - name: pod_template_file
+      description: |
+        Path to the YAML pod file. If set, all other kubernetes-related fields are ignored.
+        (This feature is experimental)
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: ""
     - name: worker_container_tag
       description: ~
       version_added: ~
@@ -1688,11 +1786,19 @@
       default: "IfNotPresent"
     - name: delete_worker_pods
       description: |
-        If True (default), worker pods will be deleted upon termination
+        If True, all worker pods will be deleted upon termination
       version_added: ~
       type: string
       example: ~
       default: "True"
+    - name: delete_worker_pods_on_failure
+      description: |
+        If False (and delete_worker_pods is True),
+        failed worker pods will not be deleted so users can investigate them.
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: "False"
     - name: worker_pods_creation_batch_size
       description: |
         Number of Kubernetes Worker Pod creation calls per scheduler loop
@@ -1707,6 +1813,14 @@
       type: string
       example: ~
       default: "default"
+    - name: multi_namespace_mode
+      description: |
+        Allows users to launch pods in multiple namespaces.
+        Will require creating a cluster-role for the scheduler
+      version_added: 1.10.12
+      type: boolean
+      example: ~
+      default: "False"
     - name: airflow_configmap
       description: |
         The name of the Kubernetes ConfigMap containing the Airflow Configuration (this file)
@@ -1754,6 +1868,13 @@
       description: |
         For either git sync or volume mounted DAGs, the worker will look in this subpath for DAGs
       version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: dags_volume_mount_point
+      description: |
+        For either git sync or volume mounted DAGs, the worker will mount the volume in this path
+      version_added: 1.10.11
       type: string
       example: ~
       default: ""
@@ -1823,6 +1944,14 @@
       type: string
       example: ~
       default: ""
+    - name: git_sync_depth
+      description: |
+        Use a shallow clone with a history truncated to the specified number of commits.
+        0 - do not use shallow clone.
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: "1"
     - name: git_subpath
       description: ~
       version_added: ~
@@ -2043,15 +2172,25 @@
       version_added: 1.10.4
       type: string
       example: ~
-      default: >-
-        {{"_request_timeout" : [60,60] }}
+      default: ""
+    - name: delete_option_kwargs
+      description: |
+        Optional keyword arguments to pass to the ``delete_namespaced_pod`` kubernetes client
+        ``core_v1_api`` method when using the Kubernetes Executor.
+        This should be an object and can contain any of the options listed in the ``v1DeleteOptions``
+        class defined here:
+        https://github.com/kubernetes-client/python/blob/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/models/v1_delete_options.py#L19
+      version_added: 1.10.12
+      type: string
+      example: '{"grace_period_seconds": 10}'
+      default: ""
     - name: run_as_user
       description: |
         Specifies the uid to run the first process of the worker pods containers as
       version_added: 1.10.3
       type: string
       example: ~
-      default: ""
+      default: "50000"
     - name: fs_group
       description: |
         Specifies a gid to associate with all containers in the worker pods

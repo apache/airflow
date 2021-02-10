@@ -132,6 +132,7 @@ extensions = [
     'exampleinclude',
     'docroles',
     'removemarktransform',
+    'sphinx_copybutton',
 ]
 
 autodoc_default_options = {
@@ -185,7 +186,6 @@ release = airflow.__version__
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = [
-    '_api/airflow/_vendor',
     '_api/airflow/api',
     '_api/airflow/bin',
     '_api/airflow/config_templates',
@@ -199,9 +199,9 @@ exclude_patterns = [
     '_api/airflow/dag',
     '_api/airflow/default_login',
     '_api/airflow/example_dags',
-    '_api/airflow/exceptions',
     '_api/airflow/index.rst',
     '_api/airflow/jobs',
+    '_api/airflow/kubernetes_deprecated',
     '_api/airflow/lineage',
     '_api/airflow/logging_config',
     '_api/airflow/macros',
@@ -213,12 +213,17 @@ exclude_patterns = [
     '_api/airflow/sentry',
     '_api/airflow/stats',
     '_api/airflow/task',
+    '_api/airflow/typing_compat',
+    '_api/airflow/kubernetes',
     '_api/airflow/ti_deps',
+    '_api/airflow/upgrade',
     '_api/airflow/utils',
     '_api/airflow/version',
     '_api/airflow/www',
     '_api/airflow/www_rbac',
+    '_api/kubernetes_executor',
     '_api/main',
+    '_api/mesos_executor',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]
@@ -478,6 +483,7 @@ autoapi_ignore = [
     '*/airflow/contrib/operators/s3_to_gcs_transfer_operator.py',
     '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
     '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
+    '*/airflow/kubernetes/kubernetes_request_factory/*',
 
     '*/node_modules/*',
     '*/migrations/*',
@@ -499,22 +505,27 @@ html_context = {
     # For more information look at:
     # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/layout.html#L222-L232
     'theme_analytics_id': 'UA-140539454-1',
-    # Variables used to build a button for editing the source code
-    #
-    # The path is created according to the following template:
-    #
-    # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
-    # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
-    # {{ pagename }}{{ suffix }}
-    #
-    # More information:
-    # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
-    # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
-    #
-    'theme_vcs_pageview_mode': 'edit',
-    'conf_py_path': '/docs/',
-    'github_user': 'apache',
-    'github_repo': 'airflow',
-    'github_version': os.environ.get('GITHUB_TREE', None),
-    'display_github': os.environ.get('GITHUB_TREE', None) is not None,
 }
+if airflow_theme_is_available:
+    html_context = {
+        # Variables used to build a button for editing the source code
+        #
+        # The path is created according to the following template:
+        #
+        # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
+        # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
+        # {{ pagename }}{{ suffix }}
+        #
+        # More information:
+        # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
+        # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
+        # https://github.com/apache/airflow-site/blob/91f760c/sphinx_airflow_theme/sphinx_airflow_theme/suggest_change_button.html#L36-L40
+        #
+        'theme_vcs_pageview_mode': 'edit',
+        'conf_py_path': '/docs/',
+        'github_user': 'apache',
+        'github_repo': 'airflow',
+        'github_version': 'master',
+        'display_github': 'master',
+        'suffix': '.rst',
+    }

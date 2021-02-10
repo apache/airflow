@@ -14,18 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 import random
 import time
 from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
-    log = LoggingMixin().log
 
     for i in range(0, max_n):
         try:

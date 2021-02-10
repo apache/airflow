@@ -34,7 +34,7 @@ In order to filter DAGs (e.g by team), you can add tags in each dag.
 The filter is saved in a cookie and can be reset by the reset button.
 For example:
 
-.. code:: python
+.. code-block:: python
 
    dag = DAG('dag', tags=['team1', 'sql'])
 

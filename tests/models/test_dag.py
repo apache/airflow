@@ -24,6 +24,9 @@ import os
 import re
 import unittest
 from tempfile import NamedTemporaryFile
+
+import pytest
+from parameterized import parameterized
 from tests.compat import mock
 
 import pendulum
@@ -33,14 +36,17 @@ from mock import patch
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowDagCycleException
-from airflow.models import DAG, DagModel, TaskInstance as TI
+from airflow.models import DAG, DagModel, DagTag, TaskInstance as TI
+from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.dag_processing import list_py_file_paths
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
+from tests.test_utils.db import clear_db_dags
 
 
 class DagTest(unittest.TestCase):
@@ -652,6 +658,15 @@ class DagTest(unittest.TestCase):
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
 
+    def test_dagtag_repr(self):
+        clear_db_dags()
+        dag = DAG('dag-test-dagtag', start_date=DEFAULT_DATE, tags=['tag-1', 'tag-2'])
+        dag.sync_to_db()
+        with create_session() as session:
+            self.assertEqual({'tag-1', 'tag-2'},
+                             {repr(t) for t in session.query(DagTag).filter(
+                                 DagTag.dag_id == 'dag-test-dagtag').all()})
+
     @patch('airflow.models.dag.timezone.utcnow')
     def test_sync_to_db(self, mock_now):
         dag = DAG(
@@ -940,3 +955,73 @@ class DagTest(unittest.TestCase):
 
         sub_dag = dag.sub_dag('t2', include_upstream=True, include_downstream=False)
         self.assertEqual(id(sub_dag.task_dict['t1'].downstream_list[0].dag), id(sub_dag))
+
+    @parameterized.expand([
+        (None, None),
+        ("@daily", "0 0 * * *"),
+        ("@weekly", "0 0 * * 0"),
+        ("@monthly", "0 0 1 * *"),
+        ("@quarterly", "0 0 1 */3 *"),
+        ("@yearly", "0 0 1 1 *"),
+        ("@once", None),
+        (datetime.timedelta(days=1), datetime.timedelta(days=1)),
+    ])
+    def test_normalized_schedule_interval(
+        self, schedule_interval, expected_n_schedule_interval
+    ):
+        dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
+
+        self.assertEqual(dag.normalized_schedule_interval, expected_n_schedule_interval)
+        self.assertEqual(dag.schedule_interval, schedule_interval)
+
+    def test_duplicate_task_ids_raise_warning_with_dag_context_manager(self):
+        """Verify tasks with Duplicate task_id show warning"""
+
+        deprecation_msg = "The requested task could not be added to the DAG with dag_id test_dag because " \
+                          "a task with task_id t1 is already in the DAG. Starting in Airflow 2.0, trying " \
+                          "to overwrite a task will raise an exception."
+
+        with pytest.warns(PendingDeprecationWarning) as record:
+            with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+                t1 = DummyOperator(task_id="t1")
+                t2 = BashOperator(task_id="t1", bash_command="sleep 1")
+                t1 >> t2
+
+            warning = record[0]
+            assert str(warning.message) == deprecation_msg
+            assert issubclass(PendingDeprecationWarning, warning.category)
+
+            self.assertEqual(dag.task_dict, {t1.task_id: t1})
+
+    def test_duplicate_task_ids_raise_warning(self):
+        """Verify tasks with Duplicate task_id show warning"""
+
+        deprecation_msg = "The requested task could not be added to the DAG with dag_id test_dag " \
+                          "because a task with task_id t1 is already in the DAG. Starting in Airflow 2.0, " \
+                          "trying to overwrite a task will raise an exception."
+
+        with pytest.warns(PendingDeprecationWarning) as record:
+            dag = DAG("test_dag", start_date=DEFAULT_DATE)
+            t1 = DummyOperator(task_id="t1", dag=dag)
+            t2 = BashOperator(task_id="t1", bash_command="sleep 1", dag=dag)
+            t1 >> t2
+
+            warning = record[0]
+            assert str(warning.message) == deprecation_msg
+            assert issubclass(PendingDeprecationWarning, warning.category)
+
+            self.assertEqual(dag.task_dict, {t1.task_id: t1})
+
+    def test_get_paused_dag_ids(self):
+        dag_id = "test_get_paused_dag_ids"
+        dag = DAG(dag_id, is_paused_upon_creation=True)
+        dag.sync_to_db()
+        self.assertIsNotNone(DagModel.get_dagmodel(dag_id))
+
+        paused_dag_ids = DagModel.get_paused_dag_ids([dag_id])
+        self.assertEqual(paused_dag_ids, {dag_id})
+
+        with create_session() as session:
+            session.query(DagModel).filter(
+                DagModel.dag_id == dag_id).delete(
+                synchronize_session=False)

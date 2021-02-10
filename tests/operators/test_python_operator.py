@@ -22,6 +22,7 @@ from __future__ import print_function, unicode_literals
 import copy
 import logging
 import os
+import pytest
 
 import unittest
 
@@ -32,11 +33,14 @@ from datetime import timedelta, date
 
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance as TI, DAG, DagRun
+from airflow.models.taskinstance import clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.operators.python_operator import PythonVirtualenvOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.settings import Session
 from airflow.utils import timezone
+from tests.test_utils.db import clear_db_runs, clear_db_dags
 from airflow.utils.db import create_session
 from airflow.utils.state import State
 
@@ -340,6 +344,75 @@ class TestPythonOperator(TestPythonBase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
 
+class TestPythonVirtualenvOperator(TestPythonBase):
+    @classmethod
+    def setUpClass(cls):
+        super(TestPythonVirtualenvOperator, cls).setUpClass()
+        clear_db_runs()
+
+    def setUp(self):
+        super(TestPythonVirtualenvOperator, self).setUp()
+
+        def del_env(key):
+            try:
+                del os.environ[key]
+            except KeyError:
+                pass
+
+        del_env('AIRFLOW_CTX_DAG_ID')
+        del_env('AIRFLOW_CTX_TASK_ID')
+        del_env('AIRFLOW_CTX_EXECUTION_DATE')
+        del_env('AIRFLOW_CTX_DAG_RUN_ID')
+        self.dag = DAG(
+            'test_dag',
+            default_args={
+                'owner': 'airflow',
+                'start_date': DEFAULT_DATE})
+        self.addCleanup(self.dag.clear)
+        self.clear_run()
+        self.addCleanup(self.clear_run)
+
+    def tearDown(self):
+        super(TestPythonVirtualenvOperator, self).tearDown()
+        clear_db_runs()
+        clear_db_dags()
+
+        for var in TI_CONTEXT_ENV_VARS:
+            if var in os.environ:
+                del os.environ[var]
+
+    def clear_run(self):
+        self.run = False
+
+    def do_run(self):
+        self.run = True
+
+    def is_run(self):
+        return self.run
+
+    def test_config_context(self):
+        """
+        This test ensures we can use dag_run from the context
+        to access the configuration at run time that's being
+        passed from the UI, CLI, and REST API.
+        """
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def pass_function(**kwargs):
+            kwargs['dag_run'].conf
+
+        t = PythonVirtualenvOperator(task_id='config_dag_run', dag=self.dag,
+                                     provide_context=True,
+                                     python_callable=pass_function)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+
 class BranchOperatorTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -491,7 +564,7 @@ class BranchOperatorTest(unittest.TestCase):
             elif ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.NONE)
             else:
-                raise Exception
+                raise
 
     def test_with_skip_in_branch_downstream_dependencies2(self):
         self.branch_op = BranchPythonOperator(task_id='make_choice',
@@ -520,7 +593,63 @@ class BranchOperatorTest(unittest.TestCase):
             elif ti.task_id == 'branch_2':
                 self.assertEqual(ti.state, State.NONE)
             else:
-                raise Exception
+                raise
+
+    def test_clear_skipped_downstream_task(self):
+        """
+        After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
+        should not cause it to be executed.
+        """
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_1')
+        branches = [self.branch_1, self.branch_2]
+        branch_op >> branches
+        self.dag.clear()
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        for task in branches:
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_1':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_2':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise
+
+        children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
+
+        # Clear the children tasks.
+        with create_session() as session:
+            clear_task_instances(children_tis, session=session, dag=self.dag)
+
+        # Run the cleared tasks again.
+        for task in branches:
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        # Check if the states are correct after children tasks are cleared.
+        for ti in dr.get_task_instances():
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_1':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_2':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise
 
 
 class ShortCircuitOperatorTest(unittest.TestCase):
@@ -660,3 +789,100 @@ class ShortCircuitOperatorTest(unittest.TestCase):
                 self.assertEqual(ti.state, State.NONE)
             else:
                 raise
+
+    def test_clear_skipped_downstream_task(self):
+        """
+        After a downstream task is skipped by ShortCircuitOperator, clearing the skipped task
+        should not cause it to be executed.
+        """
+        dag = DAG('shortcircuit_clear_skipped_downstream_task',
+                  default_args={
+                      'owner': 'airflow',
+                      'start_date': DEFAULT_DATE
+                  },
+                  schedule_interval=INTERVAL)
+        short_op = ShortCircuitOperator(task_id='make_choice',
+                                        dag=dag,
+                                        python_callable=lambda: False)
+        downstream = DummyOperator(task_id='downstream', dag=dag)
+
+        short_op >> downstream
+
+        dag.clear()
+
+        dr = dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        downstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'downstream':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise
+
+        # Clear downstream
+        with create_session() as session:
+            clear_task_instances([t for t in tis if t.task_id == "downstream"],
+                                 session=session,
+                                 dag=dag)
+
+        # Run downstream again
+        downstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        # Check if the states are correct.
+        for ti in dr.get_task_instances():
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'downstream':
+                self.assertEqual(ti.state, State.SKIPPED)
+            else:
+                raise
+
+
+@pytest.mark.parametrize(
+    "choice,expected_states",
+    [
+        ("task1", [State.SUCCESS, State.SUCCESS, State.SUCCESS]),
+        ("join", [State.SUCCESS, State.SKIPPED, State.SUCCESS]),
+    ]
+)
+def test_empty_branch(choice, expected_states):
+    """
+    Tests that BranchPythonOperator handles empty branches properly.
+    """
+    with DAG(
+        'test_empty_branch',
+        start_date=DEFAULT_DATE,
+    ) as dag:
+        branch = BranchPythonOperator(task_id='branch', python_callable=lambda: choice)
+        task1 = DummyOperator(task_id='task1')
+        join = DummyOperator(task_id='join', trigger_rule="none_failed_or_skipped")
+
+        branch >> [task1, join]
+        task1 >> join
+
+    dag.clear(start_date=DEFAULT_DATE)
+
+    task_ids = ["branch", "task1", "join"]
+
+    tis = {}
+    for task_id in task_ids:
+        task_instance = TI(dag.get_task(task_id), execution_date=DEFAULT_DATE)
+        tis[task_id] = task_instance
+        task_instance.run()
+
+    def get_state(ti):
+        ti.refresh_from_db()
+        return ti.state
+
+    assert [get_state(tis[task_id]) for task_id in task_ids] == expected_states

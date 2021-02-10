@@ -18,11 +18,14 @@
 # under the License.
 
 import unittest
+from uuid import UUID
 
 from mock import patch
 
 from airflow import settings
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
+
+MOCK_UUID = UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
 
 
 class TestKubeResourceVersion(unittest.TestCase):
@@ -47,9 +50,9 @@ class TestKubeWorkerIdentifier(unittest.TestCase):
         session.query(KubeWorkerIdentifier).update({
             KubeWorkerIdentifier.worker_uuid: ''
         })
-        mock_uuid.return_value = 'abcde'
+        mock_uuid.return_value = MOCK_UUID
         worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid(session)
-        self.assertEqual(worker_uuid, 'abcde')
+        self.assertEqual(worker_uuid, str(MOCK_UUID))
 
     def test_get_or_create_exist(self):
         session = settings.Session()

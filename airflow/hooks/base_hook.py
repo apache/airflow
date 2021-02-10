@@ -17,21 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Base class for all hooks"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import logging
 import os
 import random
-from typing import Iterable
+from typing import List
 
+from airflow import secrets
 from airflow.models import Connection
 from airflow.exceptions import AirflowException
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
+
+log = logging.getLogger(__name__)
 
 
 class BaseHook(LoggingMixin):
@@ -68,19 +73,19 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
-    def get_connections(cls, conn_id):  # type: (str) -> Iterable[Connection]
-        conn = cls._get_connection_from_env(conn_id)
-        if conn:
-            conns = [conn]
-        else:
-            conns = cls._get_connections_from_db(conn_id)
-        return conns
+    def get_connections(cls, conn_id):  # type: (str) -> List[Connection]
+        """
+        Get all connections as an iterable.
+
+        :param conn_id: connection id
+        :return: array of connections
+        """
+        return secrets.get_connections(conn_id)
 
     @classmethod
     def get_connection(cls, conn_id):  # type: (str) -> Connection
         conn = random.choice(list(cls.get_connections(conn_id)))
         if conn.host:
-            log = LoggingMixin().log
             log.info("Using connection to: %s", conn.log_info())
         return conn
 

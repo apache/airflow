@@ -61,26 +61,142 @@ to the connection you wish to edit in the connection list.
 Modify the connection properties and click the ``Save`` button to save your
 changes.
 
-Creating a Connection with Environment Variables
-------------------------------------------------
+.. _connection/cli:
 
-Connections in Airflow pipelines can be created using environment variables.
-The environment variable needs to have a prefix of ``AIRFLOW_CONN_`` for
-Airflow with the value in a URI format to use the connection properly.
+Creating a Connection from the CLI
+----------------------------------
 
-When referencing the connection in the Airflow pipeline, the ``conn_id``
-should be the name of the variable without the prefix. For example, if the
-``conn_id`` is named ``postgres_master`` the environment variable should be
-named ``AIRFLOW_CONN_POSTGRES_MASTER`` (note that the environment variable
-must be all uppercase).
+You may add a connection to the database from the CLI.
 
-Airflow assumes the value returned from the environment variable to be in a URI
-format (e.g. ``postgres://user:password@localhost:5432/master`` or
-``s3://accesskey:secretkey@S3``). The underscore character is not allowed
-in the scheme part of URI, so it must be changed to a hyphen character
-(e.g. ``google-compute-platform`` if ``conn_type`` is ``google_compute_platform``).
-Query parameters are parsed to one-dimensional dict and then used to fill extra.
+Obtain the URI for your connection (see :ref:`Generating a Connection URI <generating_connection_uri>`).
 
+Then add connection like so:
+
+.. code-block:: bash
+
+    airflow connections --add --conn_id 'my_prod_db' --conn_uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
+
+Alternatively you may specify each parameter individually:
+
+.. code-block:: bash
+
+    airflow connections --add \
+        --conn_id 'my_prod_db' \
+        --conn_login 'login' \
+        --conn_password 'password' \
+        ...
+
+.. _environment_variables_secrets_backend:
+
+Storing a Connection in Environment Variables
+---------------------------------------------
+
+The environment variable naming convention is ``AIRFLOW_CONN_<conn_id>``, all uppercase.
+
+So if your connection id is ``my_prod_db`` then the variable name should be ``AIRFLOW_CONN_MY_PROD_DB``.
+
+.. note::
+
+    Single underscores surround ``CONN``.  This is in contrast with the way ``airflow.cfg``
+    parameters are stored, where double underscores surround the config section name.
+
+The value of this environment variable must use airflow's URI format for connections.  See the section
+:ref:`Generating a Connection URI <generating_connection_uri>` for more details.
+
+Using .bashrc (or similar)
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If storing the environment variable in something like ``~/.bashrc``, add as follows:
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_MY_PROD_DATABASE='my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
+
+Using docker .env
+^^^^^^^^^^^^^^^^^
+
+If using with a docker ``.env`` file, you may need to remove the single quotes.
+
+.. code-block::
+
+    AIRFLOW_CONN_MY_PROD_DATABASE=my-conn-type://login:password@host:port/schema?param1=val1&param2=val2
+
+Alternative secrets backend
+---------------------------
+
+In addition to retrieving connections from environment variables or the metastore database, you can enable
+an alternative secrets backend to retrieve connections. For more details see :doc:`../use-alternative-secrets-backend`
+
+
+Connection URI format
+---------------------
+
+In general, Airflow's URI format is like so:
+
+.. code-block::
+
+    my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2
+
+The above URI would produce a ``Connection`` object equivalent to the following:
+
+.. code-block:: python
+
+    Connection(
+        conn_id='',
+        conn_type='my_conn_type',
+        login='my-login',
+        password='my-password',
+        host='my-host',
+        port=5432,
+        schema='my-schema',
+        extra=json.dumps(dict(param1='val1', param2='val2'))
+    )
+
+You can verify a URI is parsed correctly like so:
+
+.. code-block:: pycon
+
+    >>> from airflow.models.connection import Connection
+
+    >>> c = Connection(uri='my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2')
+    >>> print(c.login)
+    my-login
+    >>> print(c.password)
+    my-password
+
+.. _generating_connection_uri:
+
+Generating a connection URI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To make connection URI generation easier, the :py:class:`~airflow.models.connection.Connection` class has a
+convenience method :py:meth:`~airflow.models.connection.Connection.get_uri`.  It can be used like so:
+
+.. code-block:: pycon
+
+    >>> import json
+    >>> from airflow.models.connection import Connection
+
+    >>> c = Connection(
+    >>>     conn_id='some_conn',
+    >>>     conn_type='mysql',
+    >>>     host='myhost.com',
+    >>>     login='myname',
+    >>>     password='mypassword',
+    >>>     extra=json.dumps(dict(this_param='some val', that_param='other val*')),
+    >>> )
+    >>> print(f"AIRFLOW_CONN_{c.conn_id.upper()}='{c.get_uri()}'")
+    AIRFLOW_CONN_SOME_CONN='mysql://myname:mypassword@myhost.com?this_param=some+val&that_param=other+val%2A'
+
+Additionally, if you have created a connection via the UI, and you need to switch to an environment variable,
+you can get the URI like so:
+
+.. code-block:: python
+
+    from airflow.hooks.base_hook import BaseHook
+
+    conn = BaseHook.get_connection('postgres_default')
+    print(f"AIRFLOW_CONN_{conn.conn_id.upper()}='{conn.get_uri()}'")
 
 .. _manage-connections-connection-types:
 

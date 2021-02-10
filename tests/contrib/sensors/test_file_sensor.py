@@ -41,7 +41,6 @@ class FileSensorTest(unittest.TestCase):
             'provide_context': True
         }
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
-        dag.schedule_interval = '@once'
         self.hook = hook
         self.dag = dag
 
