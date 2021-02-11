@@ -410,8 +410,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         return pod.metadata.labels['try_number'] == context['ti'].try_number
 
     def _set_name(self, name):
-        if self.pod_template_file or self.full_pod_spec:
-            return None
         validate_key(name, max_length=220)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
 
