@@ -124,8 +124,9 @@ name ``base`` and a second container containing your desired sidecar.
     :start-after: [START task_with_sidecar]
     :end-before: [END task_with_sidecar]
 
-You can also create custom ``pod_template_file`` on a per-task basis so that you can recycle the same base values between multiple tasks.
-This will replace the default ``pod_template_file`` named in the airflow.cfg and then override that template using the ``pod_override_spec``.
+You can also create custom ``pod_template_file`` on a per-task basis so that you can recycle the same base values between multiple tasks by
+setting the ``pod_template_override`` option. This will replace the default ``pod_template_file`` named in the airflow.cfg and then override
+that template using the ``pod_override_spec``.
 
 Here is an example of a task with both features:
 
