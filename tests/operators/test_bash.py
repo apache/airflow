@@ -42,9 +42,7 @@ class TestBashOperator(unittest.TestCase):
         """
         Test that env variables are exported correctly to the task bash environment.
         """
-        now = datetime.utcnow()
-        now = now.replace(tzinfo=timezone.utc)
-
+        utc_now = datetime.utcnow().replace(tzinfo=timezone.utc)
         dag = DAG(
             dag_id='bash_op_test',
             default_args={'owner': 'airflow', 'retries': 100, 'start_date': DEFAULT_DATE},
@@ -54,8 +52,8 @@ class TestBashOperator(unittest.TestCase):
 
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=now,
-            start_date=now,
+            execution_date=utc_now,
+            start_date=utc_now,
             state=State.RUNNING,
             external_trigger=False,
         )
@@ -75,7 +73,7 @@ class TestBashOperator(unittest.TestCase):
             with mock.patch.dict(
                 'os.environ', {'AIRFLOW_HOME': 'MY_PATH_TO_AIRFLOW_HOME', 'PYTHONPATH': 'AWESOME_PYTHONPATH'}
             ):
-                task.run(DEFAULT_DATE, DEFAULT_DATE, ignore_first_depends_on_past=True, ignore_ti_state=True)
+                task.run(utc_now, utc_now, ignore_first_depends_on_past=True, ignore_ti_state=True)
 
             with open(tmp_file.name) as file:
                 output = ''.join(file.readlines())
@@ -84,8 +82,8 @@ class TestBashOperator(unittest.TestCase):
                 assert 'AWESOME_PYTHONPATH' in output
                 assert 'bash_op_test' in output
                 assert 'echo_env_vars' in output
-                assert DEFAULT_DATE.isoformat() in output
-                assert DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE) in output
+                assert utc_now.isoformat() in output
+                assert DagRun.generate_run_id(DagRunType.MANUAL, utc_now) in output
 
     @parameterized.expand(
         [
