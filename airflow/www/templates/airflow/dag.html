@@ -375,13 +375,13 @@
   {{ super() }}
   <script>
     function updateQueryStringParameter(uri, key, value) {
-      var re = new RegExp('([?&])' + key + '=.*?(&|$)', 'i');
+      var re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
       var separator = uri.indexOf('?') !== -1 ? '&' : '?';
       if (uri.match(re)) {
-        return uri.replace(re, '$1' + key + "=" + value + '$2');
+        return uri.replace(re, `$1${key}=${value}$2`);
       }
       else {
-        return uri + separator + key + '=' + value;
+        return `${uri}${separator}${key}=${value}`;
       }
     }
 
@@ -415,7 +415,7 @@
     });
 
     function updateButtonUrl(elm, params) {
-      elm.setAttribute('href', elm.dataset.baseUrl + '?' + $.param(params));
+      elm.setAttribute('href',  `${elm.dataset.baseUrl}?${$.param(params)}`);
     }
 
     function updateModalUrls() {
@@ -475,7 +475,7 @@
           $('#div_btn_subdag').hide();
       else {
           $('#div_btn_subdag').show();
-          subdag_id = '{{ dag.dag_id }}.' + t;
+          subdag_id = `{{ dag.dag_id }}.${t}`;
       }
 
       $('#dag_dl_logs').hide();
@@ -502,7 +502,7 @@
 
         var showLabel = index;
         if (index != 0) {
-          url += '&try_number=' + index;
+          url += `&try_number=${index}`;
         } else {
           showLabel = 'All';
         }
@@ -542,7 +542,7 @@
           $.ajax(
             {url: url,
              cache: false,
-             success: function (data, textStatus, jqXHR) {
+             success: function (data) {
                external_link.attr('href', data['url']);
                external_link.removeClass('disabled');
                link_tooltip.tooltip('disable');
@@ -597,7 +597,7 @@
     })
 
     // DAG Modal actions
-    $('form button[data-action]').click(function (e) {
+    $('form button[data-action]').click(function () {
       var form = $(this).closest('form').get(0);
       form.execution_date.value = execution_date;
       form.origin.value = window.location;

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export MOUNT_LOCAL_SOURCES="false"
+export MOUNT_SELECTED_LOCAL_SOURCES="false"
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$(dirname "${BASH_SOURCE[0]}")/../../scripts/ci/libraries/_script_init.sh"

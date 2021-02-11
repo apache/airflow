@@ -47,7 +47,7 @@ class TestMarkTasks(unittest.TestCase):
         models.DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
         dagbag = models.DagBag(include_examples=True, read_dags_from_db=True)
         dagbag.collect_dags_from_db()
-        cls.dag1 = dagbag.dags['example_bash_operator']
+        cls.dag1 = dagbag.dags['miscellaneous_test_dag']
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
         cls.dag2.sync_to_db()
@@ -370,10 +370,19 @@ class TestMarkTasks(unittest.TestCase):
 
 
 class TestMarkDAGRun(unittest.TestCase):
+    INITIAL_TASK_STATES = {
+        'runme_0': State.SUCCESS,
+        'runme_1': State.SKIPPED,
+        'runme_2': State.UP_FOR_RETRY,
+        'also_run_this': State.QUEUED,
+        'run_after_loop': State.RUNNING,
+        'run_this_last': State.FAILED,
+    }
+
     @classmethod
     def setUpClass(cls):
         dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
-        cls.dag1 = dagbag.dags['example_bash_operator']
+        cls.dag1 = dagbag.dags['miscellaneous_test_dag']
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
         cls.dag2.sync_to_db()
@@ -382,27 +391,28 @@ class TestMarkDAGRun(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
 
+    def _get_num_tasks_with_starting_state(self, state: State, inclusion: bool):
+        """
+        If ``inclusion=True``, get num tasks with initial state ``state``.
+        Otherwise, get number tasks with initial state not equal to ``state``
+        :param state: State to compare against
+        :param inclusion: whether to look for inclusion or exclusion
+        :return: number of tasks meeting criteria
+        """
+        states = self.INITIAL_TASK_STATES.values()
+
+        def compare(x, y):
+            return x == y if inclusion else x != y
+
+        return len([s for s in states if compare(s, state)])
+
     def _set_default_task_instance_states(self, dr):
-        # success task
-        dr.get_task_instance('runme_0').set_state(State.SUCCESS)
-        # skipped task
-        dr.get_task_instance('runme_1').set_state(State.SKIPPED)
-        # retry task
-        dr.get_task_instance('runme_2').set_state(State.UP_FOR_RETRY)
-        # queued task
-        dr.get_task_instance('also_run_this').set_state(State.QUEUED)
-        # running task
-        dr.get_task_instance('run_after_loop').set_state(State.RUNNING)
-        # failed task
-        dr.get_task_instance('run_this_last').set_state(State.FAILED)
+        for task_id, state in self.INITIAL_TASK_STATES.items():
+            dr.get_task_instance(task_id).set_state(state)
 
     def _verify_task_instance_states_remain_default(self, dr):
-        assert dr.get_task_instance('runme_0').state == State.SUCCESS
-        assert dr.get_task_instance('runme_1').state == State.SKIPPED
-        assert dr.get_task_instance('runme_2').state == State.UP_FOR_RETRY
-        assert dr.get_task_instance('also_run_this').state == State.QUEUED
-        assert dr.get_task_instance('run_after_loop').state == State.RUNNING
-        assert dr.get_task_instance('run_this_last').state == State.FAILED
+        for task_id, state in self.INITIAL_TASK_STATES.items():
+            assert dr.get_task_instance(task_id).state == state
 
     @provide_session
     def _verify_task_instance_states(self, dag, date, state, session=None):
@@ -445,7 +455,8 @@ class TestMarkDAGRun(unittest.TestCase):
         altered = set_dag_run_state_to_success(self.dag1, date, commit=True)
 
         # All except the SUCCESS task should be altered.
-        assert len(altered) == 5
+        expected = self._get_num_tasks_with_starting_state(State.SUCCESS, inclusion=False)
+        assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.SUCCESS)
         self._verify_task_instance_states(self.dag1, date, State.SUCCESS)
         self._verify_dag_run_dates(self.dag1, date, State.SUCCESS, middle_time)
@@ -457,9 +468,9 @@ class TestMarkDAGRun(unittest.TestCase):
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_failed(self.dag1, date, commit=True)
-
         # Only running task should be altered.
-        assert len(altered) == 1
+        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
@@ -487,7 +498,8 @@ class TestMarkDAGRun(unittest.TestCase):
         altered = set_dag_run_state_to_success(self.dag1, date, commit=True)
 
         # All except the SUCCESS task should be altered.
-        assert len(altered) == 5
+        expected = self._get_num_tasks_with_starting_state(State.SUCCESS, inclusion=False)
+        assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.SUCCESS)
         self._verify_task_instance_states(self.dag1, date, State.SUCCESS)
         self._verify_dag_run_dates(self.dag1, date, State.SUCCESS, middle_time)
@@ -499,9 +511,9 @@ class TestMarkDAGRun(unittest.TestCase):
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_failed(self.dag1, date, commit=True)
-
         # Only running task should be altered.
-        assert len(altered) == 1
+        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
@@ -529,7 +541,8 @@ class TestMarkDAGRun(unittest.TestCase):
         altered = set_dag_run_state_to_success(self.dag1, date, commit=True)
 
         # All except the SUCCESS task should be altered.
-        assert len(altered) == 5
+        expected = self._get_num_tasks_with_starting_state(State.SUCCESS, inclusion=False)
+        assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.SUCCESS)
         self._verify_task_instance_states(self.dag1, date, State.SUCCESS)
         self._verify_dag_run_dates(self.dag1, date, State.SUCCESS, middle_time)
@@ -543,7 +556,8 @@ class TestMarkDAGRun(unittest.TestCase):
         altered = set_dag_run_state_to_failed(self.dag1, date, commit=True)
 
         # Only running task should be altered.
-        assert len(altered) == 1
+        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        assert len(altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         assert dr.get_task_instance('run_after_loop').state == State.FAILED
         self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
@@ -578,15 +592,17 @@ class TestMarkDAGRun(unittest.TestCase):
 
         will_be_altered = set_dag_run_state_to_failed(self.dag1, date, commit=False)
 
-        # Only the running task will be altered.
-        assert len(will_be_altered) == 1
+        # Only the running task shouldbe altered.
+        expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
+        assert len(will_be_altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
 
         will_be_altered = set_dag_run_state_to_success(self.dag1, date, commit=False)
 
         # All except the SUCCESS task should be altered.
-        assert len(will_be_altered) == 5
+        expected = self._get_num_tasks_with_starting_state(State.SUCCESS, inclusion=False)
+        assert len(will_be_altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
 

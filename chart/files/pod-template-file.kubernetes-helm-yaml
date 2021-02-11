@@ -61,13 +61,16 @@ spec:
           name: git-sync-ssh-key
           subPath: ssh
 {{- end }}
-{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
+{{- if .Values.dags.persistence.enabled }}
         - mountPath: {{ include "airflow_dags_mount_path" . }}
           name: dags
           readOnly: true
-{{- if .Values.dags.gitSync.enabled }}
-          subPath: {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
 {{- end }}
+{{- if .Values.dags.gitSync.enabled }}
+        - mountPath: {{ include "airflow_dags" . }}
+          name: dags
+          readOnly: true
+          subPath: {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
 {{- end }}
   hostNetwork: false
   {{- if or .Values.registry.secretName .Values.registry.connection }}
@@ -77,6 +80,7 @@ spec:
   restartPolicy: Never
   securityContext:
     runAsUser: {{ .Values.uid }}
+    fsGroup: {{ .Values.gid }}
   nodeSelector: {{ toYaml .Values.nodeSelector | nindent 4 }}
   affinity: {{ toYaml .Values.affinity | nindent 4 }}
   tolerations: {{ toYaml .Values.tolerations | nindent 4 }}

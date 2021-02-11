@@ -981,6 +981,10 @@
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "array"
+                },
+                "extraMappings": {
+                    "description": "Additional mappings for statsd exporter.",
+                    "type": "array"
                 }
             }
         },

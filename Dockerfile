@@ -49,6 +49,9 @@ ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 
 ARG AIRFLOW_PIP_VERSION=20.2.4
 
+# By default PIP has progress bar but you can disable it.
+ARG PIP_PROGRESS_BAR="on"
+
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
@@ -172,6 +175,10 @@ RUN if [[ -f /docker-context-files/.pypirc ]]; then \
 ARG AIRFLOW_PIP_VERSION
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 
+# By default PIP has progress bar but you can disable it.
+ARG PIP_PROGRESS_BAR
+ENV PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR}
+
 # Install Airflow with "--user" flag, so that we can copy the whole .local folder to the final image
 # from the build image and always in non-editable mode
 ENV AIRFLOW_INSTALL_USER_FLAG="--user"
@@ -240,9 +247,9 @@ ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 ENV AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
 # By default latest released version of airflow is installed (when empty) but this value can be overridden
-# and we can install specific version of airflow this way.
-ARG AIRFLOW_INSTALL_VERSION=""
-ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
+# and we can install version according to specification (For example ==2.0.2 or <3.0.0).
+ARG AIRFLOW_VERSION_SPECIFICATION=""
+ENV AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION}
 
 # We can seet this value to true in case we want to install .whl .tar.gz packages placed in the
 # docker-context-files folder. This can be done for both - additional packages you want to install

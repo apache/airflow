@@ -125,7 +125,7 @@ class TestPluginsManager:
         with mock_plugin_manager(plugins=[AirflowTestPropertyPlugin()]):
             from airflow import plugins_manager
 
-            caplog.set_level(logging.DEBUG)
+            caplog.set_level(logging.DEBUG, "airflow.plugins_manager")
             plugins_manager.ensure_plugins_loaded()
 
             assert 'AirflowTestPropertyPlugin' in str(plugins_manager.plugins)

@@ -586,13 +586,16 @@ class TestOpenMaybeZipped(unittest.TestCase):
 
     @mock.patch("zipfile.is_zipfile")
     @mock.patch("zipfile.ZipFile")
-    def test_open_maybe_zipped_archive(self, mocked_zip_file, mocked_is_zipfile):
+    @mock.patch("io.TextIOWrapper")
+    def test_open_maybe_zipped_archive(self, mocked_text_io_wrapper, mocked_zip_file, mocked_is_zipfile):
         mocked_is_zipfile.return_value = True
+        open_return_value = mock.mock_open(read_data="data")
         instance = mocked_zip_file.return_value
-        instance.open.return_value = mock.mock_open(read_data="data")
+        instance.open.return_value = open_return_value
 
         open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
 
+        mocked_text_io_wrapper.assert_called_once_with(open_return_value)
         mocked_is_zipfile.assert_called_once_with('/path/to/archive.zip')
         mocked_zip_file.assert_called_once_with('/path/to/archive.zip', mode='r')
         instance.open.assert_called_once_with('deep/path/to/file.txt')

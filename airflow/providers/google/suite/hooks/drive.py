@@ -19,7 +19,7 @@
 from typing import Any, Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import HttpRequest, MediaFileUpload
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
@@ -119,6 +119,77 @@ class GoogleDriveHook(GoogleBaseHook):
                 current_parent = file.get("id")
         # Return the ID of the last directory
         return current_parent
+
+    def get_media_request(self, file_id: str) -> HttpRequest:
+        """
+        Returns a get_media http request to a Google Drive object.
+
+        :param file_id: The Google Drive file id
+        :type file_id: str
+        :return: request
+        :rtype: HttpRequest
+        """
+        service = self.get_conn()
+        request = service.files().get_media(fileId=file_id)  # pylint: disable=no-member
+        return request
+
+    def exists(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
+        """
+        Checks to see if a file exists within a Google Drive folder
+
+        :param folder_id: The id of the Google Drive folder in which the file resides
+        :type folder_id: str
+        :param file_name: The name of a file in Google Drive
+        :type file_name: str
+        :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
+        :type drive_id: str
+        :return: True if the file exists, False otherwise
+        :rtype: bool
+        """
+        return bool(self.get_file_id(folder_id=folder_id, file_name=file_name, drive_id=drive_id))
+
+    def get_file_id(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
+        """
+        Returns the file id of a Google Drive file
+
+        :param folder_id: The id of the Google Drive folder in which the file resides
+        :type folder_id: str
+        :param file_name: The name of a file in Google Drive
+        :type file_name: str
+        :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
+        :type drive_id: str
+        :return: Google Drive file id if the file exists, otherwise None
+        :rtype: str if file exists else None
+        """
+        query = f"name = '{file_name}'"
+        if folder_id:
+            query += f" and parents in '{folder_id}'"
+        service = self.get_conn()
+        if drive_id:
+            files = (
+                service.files()  # pylint: disable=no-member
+                .list(
+                    q=query,
+                    spaces="drive",
+                    fields="files(id, mimeType)",
+                    orderBy="modifiedTime desc",
+                    driveId=drive_id,
+                    includeItemsFromAllDrives=True,
+                    supportsAllDrives=True,
+                    corpora="drive",
+                )
+                .execute(num_retries=self.num_retries)
+            )
+        else:
+            files = (
+                service.files()  # pylint: disable=no-member
+                .list(q=query, spaces="drive", fields="files(id, mimeType)", orderBy="modifiedTime desc")
+                .execute(num_retries=self.num_retries)
+            )
+        file_metadata = {}
+        if files['files']:
+            file_metadata = {"id": files['files'][0]['id'], "mime_type": files['files'][0]['mimeType']}
+        return file_metadata
 
     def upload_file(self, local_location: str, remote_location: str) -> str:
         """

@@ -85,6 +85,10 @@
       <td>{{ dag.owner }}</td>
     </tr>
     <tr>
+      <th>DAG Run Timeout</th>
+      <td>{{ dag.dagrun_timeout }}</td>
+    </tr>
+    <tr>
       <th>Tags</th>
       <td>
         {% if tags is defined and tags %}

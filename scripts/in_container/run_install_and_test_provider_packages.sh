@@ -67,9 +67,9 @@ function install_airflow_as_specified() {
         uninstall_providers
     else
         echo
-        echo "Install airflow from PyPI including [${AIRFLOW_EXTRAS}] extras"
+        echo "Install airflow from PyPI without extras"
         echo
-        install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
+        install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
         uninstall_providers
     fi
     group_end
@@ -95,7 +95,7 @@ function discover_all_provider_packages() {
     # Columns is to force it wider, so it doesn't wrap at 80 characters
     COLUMNS=180 airflow providers list
 
-    local expected_number_of_providers=62
+    local expected_number_of_providers=63
     local actual_number_of_providers
     actual_providers=$(airflow providers list --output yaml | grep package_name)
     actual_number_of_providers=$(wc -l <<<"$actual_providers")
@@ -197,7 +197,6 @@ setup_provider_packages
 verify_parameters
 install_airflow_as_specified
 install_remaining_dependencies
-reinstall_azure_storage_blob
 install_provider_packages
 import_all_provider_classes
 

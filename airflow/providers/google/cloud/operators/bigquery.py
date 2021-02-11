@@ -1658,6 +1658,99 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         )
 
 
+class BigQueryUpdateTableOperator(BaseOperator):
+    """
+    This operator is used to update table for your Project in BigQuery.
+    Use ``fields`` to specify which fields of table to update. If a field
+    is listed in ``fields`` and is ``None`` in table, it will be deleted.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryUpdateTableOperator`
+
+    :param dataset_id: The id of dataset. Don't need to provide,
+        if datasetId in table_reference.
+    :param table_id: The id of table. Don't need to provide,
+        if tableId in table_reference.
+    :type table_id: str
+    :param table_resource: Dataset resource that will be provided with request body.
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
+    :type table_resource: Dict[str, Any]
+    :param fields: The fields of ``table`` to change, spelled as the Table
+        properties (e.g. "friendly_name").
+    :type fields: List[str]
+    :param project_id: The name of the project where we want to create the table.
+        Don't need to provide, if projectId in table_reference.
+    :type project_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
+    :rtype: table
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
+    """
+
+    template_fields = (
+        'dataset_id',
+        'table_id',
+        'project_id',
+        'impersonation_chain',
+    )
+    template_fields_renderers = {"table_resource": "json"}
+    ui_color = BigQueryUIColors.TABLE.value
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        table_resource: Dict[str, Any],
+        fields: Optional[List[str]] = None,
+        dataset_id: Optional[str] = None,
+        table_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.project_id = project_id
+        self.fields = fields
+        self.gcp_conn_id = gcp_conn_id
+        self.table_resource = table_resource
+        self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
+        super().__init__(**kwargs)
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+        return bq_hook.update_table(
+            table_resource=self.table_resource,
+            fields=self.fields,
+            dataset_id=self.dataset_id,
+            table_id=self.table_id,
+            project_id=self.project_id,
+        )
+
+
 class BigQueryUpdateDatasetOperator(BaseOperator):
     """
     This operator is used to update dataset for your Project in BigQuery.
@@ -1675,7 +1768,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     :type dataset_id: str
     :param dataset_resource: Dataset resource that will be provided with request body.
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
-    :type dataset_resource: dict
+    :type dataset_resource: Dict[str, Any]
     :param fields: The properties of dataset to change (e.g. "friendly_name").
     :type fields: Sequence[str]
     :param project_id: The name of the project where we want to create the dataset.
@@ -1713,7 +1806,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     def __init__(
         self,
         *,
-        dataset_resource: dict,
+        dataset_resource: Dict[str, Any],
         fields: Optional[List[str]] = None,
         dataset_id: Optional[str] = None,
         project_id: Optional[str] = None,

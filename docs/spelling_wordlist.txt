@@ -141,6 +141,7 @@ Fileshares
 Filesystem
 Firehose
 Firestore
+Flink
 FluentD
 Fokko
 Formaturas
@@ -238,6 +239,7 @@ Mapreduce
 Masternode
 Maxime
 Memorystore
+Mariadb
 Mesos
 MessageAttributes
 Metastore
@@ -324,6 +326,7 @@ Seki
 Sendgrid
 Siddharth
 SlackHook
+Spark
 SparkPi
 SparkR
 SparkSQL
@@ -600,6 +603,7 @@ customDataImportUids
 customizable
 customizations
 cx
+daemonize
 dagbag
 dagbags
 dagmodel
@@ -978,6 +982,7 @@ mv
 mypy
 mysql
 mysqlclient
+mysqldb
 mytaxi
 namenode
 namespace
@@ -1277,6 +1282,7 @@ syspath
 systemd
 tableauserverclient
 tablefmt
+tableId
 tagKey
 tagValue
 tao

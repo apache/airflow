@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Master](#master)
+- [Airflow 2.0.1](#airflow-201)
 - [Airflow 2.0.0](#airflow-200)
 - [Airflow 1.10.14](#airflow-11014)
 - [Airflow 1.10.13](#airflow-11013)
@@ -52,6 +53,36 @@ assists users migrating to a new version.
 
 ## Master
 
+<!--
+
+I'm glad you want to write a new note. Remember that this note is intended for users.
+Make sure it contains the following information:
+
+- [ ] Previous behaviors
+- [ ] New behaviors
+- [ ] If possible, a simple example of how to migrate. This may include a simple code example.
+- [ ] If possible, the benefit for the user after migration e.g. "we want to make these changes to unify class names."
+- [ ] If possible, the reason for the change, which adds more context to that interested, e.g. reference for Airflow Improvement Proposal.
+
+More tips can be found in the guide:
+https://developers.google.com/style/inclusive-documentation
+
+-->
+
+
+## Airflow 2.0.1
+
+### Permission to view Airflow Configurations has been removed from `User` and `Viewer` role
+
+Previously, Users with `User` or `Viewer` role were able to get/view configurations using
+the REST API or in the Webserver. From Airflow 2.0.1, only users with `Admin` or `Op` role would be able
+to get/view Configurations.
+
+To allow users with other roles to view configuration, add `can read on Configurations` permissions to that role.
+
+Note that if `[webserver] expose_config` is set to `False`, the API will throw a `403` response even if
+the user has role with `can read on Configurations` permission.
+
 ### Default `[celery] worker_concurrency` is changed to `16`
 
 The default value for `[celery] worker_concurrency` was `16` for Airflow <2.0.0.
@@ -69,6 +100,17 @@ From Airflow 2.0.0, the scheduling decisions have been moved from
 DagFileProcessor to Scheduler, so we can keep the default a bit higher: `30`.
 
 ## Airflow 2.0.0
+
+The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
+and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
+to use this version. Sometimes necessary configuration changes are also required.
+This document describes the changes that have been made, and what you need to do to update your usage.
+
+If you experience issues or have questions, please file [an issue](https://github.com/apache/airflow/issues/new/choose).
+
+### Major changes
+
+This section describes the major changes that have been made in this release.
 
 ### The experimental REST API is disabled by default
 
@@ -230,36 +272,7 @@ def execution_date_fn(execution_date, ds_nodash, dag):
 ### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
 
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
-`[webserver] cookie_samesite` has bee changed to `Lax` from `None`.
-
-The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
-and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
-to use this version. Sometimes necessary configuration changes are also required.
-This document describes the changes that have been made, and what you need to do to update your usage.
-
-If you experience issues or have questions, please file [an issue](https://github.com/apache/airflow/issues/new/choose).
-
-<!--
-
-I'm glad you want to write a new note. Remember that this note is intended for users.
-Make sure it contains the following information:
-
-- [ ] Previous behaviors
-- [ ] New behaviors
-- [ ] If possible, a simple example of how to migrate. This may include a simple code example.
-- [ ] If possible, the benefit for the user after migration e.g. "we want to make these changes to unify class names."
-- [ ] If possible, the reason for the change, which adds more context to that interested, e.g. reference for Airflow Improvement Proposal.
-
-More tips can be found in the guide:
-https://developers.google.com/style/inclusive-documentation
-
--->
-
-### Major changes
-
-This section describes the major changes that have been made in this release.
-
-
+`[webserver] cookie_samesite` has been changed to `Lax` from `''` (empty string) .
 
 #### Changes to import paths
 

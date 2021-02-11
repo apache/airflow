@@ -22,7 +22,9 @@ description: |
     `Papermill <https://github.com/nteract/papermill>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
+
 integrations:
   - integration-name: Papermill
     external-doc-url: https://github.com/nteract/papermill

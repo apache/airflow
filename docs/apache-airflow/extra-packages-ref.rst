@@ -50,7 +50,7 @@ Those are extras that add dependencies needed for integration with other Apache 
 +=====================+=====================================================+======================================================================+===========+
 | apache.atlas        | ``pip install 'apache-airflow[apache.atlas]'``      | Apache Atlas to use Data Lineage feature                             |           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
-| apache.beam         | ``pip install 'apache-airflow[apache.beam]'``       | Apache Beam operators & hooks                                        |           |
+| apache.beam         | ``pip install 'apache-airflow[apache.beam]'``       | Apache Beam operators & hooks                                        |     *     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+
 | apache.cassandra    | ``pip install 'apache-airflow[apache.cassandra]'``  | Cassandra related operators & hooks                                  |     *     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+-----------+

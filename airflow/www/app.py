@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import warnings
 from datetime import timedelta
 from typing import Optional
 
@@ -79,7 +80,16 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
     flask_app.config['SESSION_COOKIE_HTTPONLY'] = True
     flask_app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
-    flask_app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
+
+    cookie_samesite_config = conf.get('webserver', 'COOKIE_SAMESITE')
+    if cookie_samesite_config == "":
+        warnings.warn(
+            "Old deprecated value found for `cookie_samesite` option in `[webserver]` section. "
+            "Using `Lax` instead. Change the value to `Lax` in airflow.cfg to remove this warning.",
+            DeprecationWarning,
+        )
+        cookie_samesite_config = "Lax"
+    flask_app.config['SESSION_COOKIE_SAMESITE'] = cookie_samesite_config
 
     if config:
         flask_app.config.from_mapping(config)

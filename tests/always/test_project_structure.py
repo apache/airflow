@@ -158,6 +158,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'bigquery_to_mysql'),
         ('cloud', 'cassandra_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
+        ('suite', 'drive'),
         ('ads', 'ads_to_gcs'),
     }
 

@@ -196,7 +196,7 @@
         //.attr("width", width + margin.left + margin.right)
       .append("g")
       .attr("class", "level")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        .attr("transform", `translate(${margin.left},${margin.top})`);
 
         data.x0 = 0;
         data.y0 = 0;
@@ -207,7 +207,7 @@
         var base_node = nodes[1];
 
       var num_square = base_node.instances.length;
-      var extent = d3.extent(base_node.instances, function(d,i) {
+      var extent = d3.extent(base_node.instances, function(d) {
         return new Date(d.execution_date);
       });
       var xScale = d3.time.scale()
@@ -220,7 +220,7 @@
       d3.select("#tree-svg")
       .insert("g")
       .attr("transform",
-        "translate("+ (square_x + margin.left) +", " + axisHeight + ")")
+        `translate(${square_x + margin.left}, ${axisHeight})`)
       .attr("class", "axis").call(
         d3.svg.axis()
         .scale(xScale)
@@ -261,7 +261,7 @@
 
       d3.select(self.frameElement).transition()
           .duration(duration)
-          .style("height", height + "px");
+          .style("height", `${height}px`);
 
       // Compute the "layout".
       nodes.forEach(function(n, i) {
@@ -274,8 +274,8 @@
 
       var nodeEnter = node.enter().append("g")
       .attr("class", node_class)
-      .attr("transform", function(d) {
-        return "translate(" + source.y0 + "," + source.x0 + ")";
+      .attr("transform", function() {
+        return `translate(${source.y0},${source.x0})`;
       })
       .style("opacity", 1e-6);
 
@@ -287,28 +287,28 @@
             var tt = "";
             if (d.operator != undefined) {
               if (d.operator != undefined) {
-                tt += "operator: " + escapeHtml(d.operator) + "<br>";
+                tt += `operator: ${escapeHtml(d.operator)}<br>`;
               }
 
-              tt += "depends_on_past: " + escapeHtml(d.depends_on_past) + "<br>";
-              tt += "upstream: " + escapeHtml(d.num_dep) + "<br>";
-              tt += "retries: " + escapeHtml(d.retries) + "<br>";
-              tt += "owner: " + escapeHtml(d.owner) + "<br>";
-              tt += "start_date: " + escapeHtml(d.start_date) + "<br>";
-              tt += "end_date: " + escapeHtml(d.end_date) + "<br>";
+              tt += `depends_on_past: ${escapeHtml(d.depends_on_past)}<br>`;
+              tt += `upstream: ${escapeHtml(d.num_dep)}<br>`;
+              tt += `retries: ${escapeHtml(d.retries)}<br>`;
+              tt += `owner: ${escapeHtml(d.owner)}<br>`;
+              tt += `start_date: ${escapeHtml(d.start_date)}<br>`;
+              tt += `end_date: ${escapeHtml(d.end_date)}<br>`;
             }
             taskTip.direction('e')
             taskTip.show(tt, this)
             d3.select(this).transition()
              .style('stroke-width', 3)
           })
-          .on('mouseout', function(d, i) {
+          .on('mouseout', function(d) {
             taskTip.hide(d)
             d3.select(this).transition()
              .style("stroke-width", function(d) {return is_dag_run(d)? "2": "1"})
           })
           .attr("height", barHeight)
-          .attr("width", function(d, i) {return barWidth - d.y;})
+          .attr("width", function(d) {return barWidth - d.y;})
           .style("fill", function(d) {return d.ui_color;})
           .attr("task_id", function(d){return d.name})
           .on("click", toggles);
@@ -324,7 +324,7 @@
       nodeEnter.append('g')
           .attr("class", "stateboxes")
           .attr("transform",
-            function(d, i) { return "translate(" + (square_x-d.y) + ",0)"; })
+            function(d) { return `translate(${square_x - d.y},0)`; })
           .selectAll("rect").data(function(d) { return d.instances; })
           .enter()
           .append('rect')
@@ -337,7 +337,7 @@
             else
                 call_modal(d.task_id, d.execution_date, nodeobj[d.task_id].extra_links, d.try_number, undefined);
           })
-          .attr("class", function(d) {return "state " + d.state})
+          .attr("class", function(d) {return `state ${d.state}`})
           .attr("data-toggle", "tooltip")
           .attr("rx", function(d) {return is_dag_run(d)? "5": "1"})
           .attr("ry", function(d) {return is_dag_run(d)? "5": "1"})
@@ -351,7 +351,7 @@
             d3.select(this).transition()
              .style('stroke-width', 3)
           })
-          .on('mouseout', function(d,i) {
+          .on('mouseout', function(d) {
             taskTip.hide(d)
             d3.select(this).transition()
              .style("stroke-width", function(d) {return is_dag_run(d)? "2": "1"})
@@ -365,19 +365,19 @@
       // Transition nodes to their new position.
       nodeEnter.transition()
           .duration(duration)
-          .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; })
+          .attr("transform", function(d) { return `translate(${d.y},${d.x})`; })
           .style("opacity", 1);
 
       node.transition()
           .duration(duration)
           .attr("class", node_class)
-          .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; })
+          .attr("transform", function(d) { return `translate(${d.y},${d.x})`; })
           .style("opacity", 1);
 
       // Transition exiting nodes to the parent's new position.
       node.exit().transition()
           .duration(duration)
-          .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
+          .attr("transform", function() { return `translate(${source.y},${source.x})`; })
           .style("opacity", 1e-6)
           .remove();
 
@@ -388,7 +388,7 @@
       // Enter any new links at the parent's previous position.
       link.enter().insert("path", "g")
           .attr("class", "link")
-          .attr("d", function(d) {
+          .attr("d", function() {
             var o = {x: source.x0, y: source.y0};
             return diagonal({source: o, target: o});
           })
@@ -404,7 +404,7 @@
       // Transition exiting nodes to the parent's new position.
       link.exit().transition()
           .duration(duration)
-          .attr("d", function(d) {
+          .attr("d", function() {
             var o = {x: source.x, y: source.y};
             return diagonal({source: o, target: o});
           })
@@ -421,7 +421,7 @@
 
     function toggles(clicked_d) {
         // Collapse nodes with the same task id
-        d3.selectAll("[task_id='" + clicked_d.name + "']").each(function(d){
+        d3.selectAll(`[task_id='${clicked_d.name}']`).each(function(d){
           if(clicked_d != d && d.children) {
               d._children = d.children;
               d.children = null;

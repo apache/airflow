@@ -17,9 +17,12 @@
  under the License.
  -->
 
-# Migration Guide
+# Release 2021.2.5
 
-## 2.0.0
+## Breaking changes
 
-We updated the support for `slack_sdk` from ``>=2.0.0,<3.0.0`` to ``>=3.0.0,<4.0.0``. In most cases, this doesn't mean any breaking changes to the DAG files, but if you used this library directly then you have to make the changes.
-For details, see [the Migration Guide](https://slack.dev/python-slack-sdk/v3-migration/index.html#from-slackclient-2-x) for Python Slack SDK.
+We updated the support for `slack_sdk` from `>=2.0.0,<3.0.0` to `>=3.0.0,<4.0.0`. In most cases,
+this doesn't mean any breaking changes to the DAG files, but if you used this library directly then
+you have to make the changes. For details, see
+[the Migration Guide](https://slack.dev/python-slack-sdk/v3-migration/index.html#from-slackclient-2-x)
+for Python Slack SDK.

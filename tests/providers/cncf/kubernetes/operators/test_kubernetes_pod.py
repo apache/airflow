@@ -72,6 +72,28 @@ class TestKubernetesPodOperator(unittest.TestCase):
             config_file=file_path,
         )
 
+    def test_env_vars(self):
+        # WHEN
+        env_vars = [k8s.V1EnvVar(name="{{ bar }}", value='{{ foo }}')]
+        from tests.models import DEFAULT_DATE
+
+        with DAG("test-dag", start_date=DEFAULT_DATE):
+            k = KubernetesPodOperator(
+                namespace='default',
+                image="ubuntu:16.04",
+                cmds=["bash", "-cx"],
+                arguments=["echo 10"],
+                env_vars=env_vars,
+                labels={"foo": "bar"},
+                name="test",
+                task_id="task",
+                in_cluster=False,
+                do_xcom_push=False,
+            )
+        k.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
+        assert k.env_vars[0].value == "footemplated"
+        assert k.env_vars[0].name == "bartemplated"
+
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")

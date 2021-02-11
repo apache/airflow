@@ -21,8 +21,7 @@ import unittest
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.monitoring_v3.proto.alert_pb2 import AlertPolicy
-from google.cloud.monitoring_v3.proto.notification_pb2 import NotificationChannel
+from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.providers.google.cloud.operators.stackdriver import (
     StackdriverDeleteAlertOperator,
@@ -42,16 +41,15 @@ TEST_FILTER = 'filter'
 TEST_ALERT_POLICY_1 = {
     "combiner": "OR",
     "name": "projects/sd-project/alertPolicies/12345",
-    "creationRecord": {"mutatedBy": "user123", "mutateTime": "2020-01-01T00:00:00.000000Z"},
     "enabled": True,
-    "displayName": "test display",
+    "display_name": "test display",
     "conditions": [
         {
-            "conditionThreshold": {
+            "condition_threshold": {
                 "comparison": "COMPARISON_GT",
-                "aggregations": [{"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE"}],
+                "aggregations": [{"alignment_eriod": {'seconds': 60}, "per_series_aligner": "ALIGN_RATE"}],
             },
-            "displayName": "Condition display",
+            "display_name": "Condition display",
             "name": "projects/sd-project/alertPolicies/123/conditions/456",
         }
     ],
@@ -60,16 +58,15 @@ TEST_ALERT_POLICY_1 = {
 TEST_ALERT_POLICY_2 = {
     "combiner": "OR",
     "name": "projects/sd-project/alertPolicies/6789",
-    "creationRecord": {"mutatedBy": "user123", "mutateTime": "2020-01-01T00:00:00.000000Z"},
     "enabled": False,
-    "displayName": "test display",
+    "display_name": "test display",
     "conditions": [
         {
-            "conditionThreshold": {
+            "condition_threshold": {
                 "comparison": "COMPARISON_GT",
-                "aggregations": [{"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE"}],
+                "aggregations": [{"alignment_period": {'seconds': 60}, "per_series_aligner": "ALIGN_RATE"}],
             },
-            "displayName": "Condition display",
+            "display_name": "Condition display",
             "name": "projects/sd-project/alertPolicies/456/conditions/789",
         }
     ],
@@ -108,7 +105,16 @@ class TestStackdriverListAlertPoliciesOperator(unittest.TestCase):
             timeout=DEFAULT,
             metadata=None,
         )
-        assert [{'name': 'test-name'}] == result
+        assert [
+            {
+                'combiner': 0,
+                'conditions': [],
+                'display_name': '',
+                'name': 'test-name',
+                'notification_channels': [],
+                'user_labels': {},
+            }
+        ] == result
 
 
 class TestStackdriverEnableAlertPoliciesOperator(unittest.TestCase):
@@ -179,7 +185,17 @@ class TestStackdriverListNotificationChannelsOperator(unittest.TestCase):
             timeout=DEFAULT,
             metadata=None,
         )
-        assert [{'name': 'test-123'}] == result
+        assert [
+            {
+                'description': '',
+                'display_name': '',
+                'labels': {},
+                'name': 'test-123',
+                'type_': '',
+                'user_labels': {},
+                'verification_status': 0,
+            }
+        ] == result
 
 
 class TestStackdriverEnableNotificationChannelsOperator(unittest.TestCase):

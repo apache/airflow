@@ -10,6 +10,9 @@
     "postgres",
     "ssh"
   ],
+  "apache.beam": [
+    "google"
+  ],
   "apache.druid": [
     "apache.hive"
   ],
@@ -32,6 +35,7 @@
   ],
   "google": [
     "amazon",
+    "apache.beam",
     "apache.cassandra",
     "cncf.kubernetes",
     "facebook",

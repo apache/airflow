@@ -767,11 +767,11 @@ class DataprocDeleteClusterOperator(BaseOperator):
     """
     Deletes a cluster in a project.
 
-    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
+    :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to (templated).
     :type project_id: str
-    :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :param region: Required. The Cloud Dataproc region in which to handle the request (templated).
     :type region: str
-    :param cluster_name: Required. The cluster name.
+    :param cluster_name: Required. The cluster name (templated).
     :type cluster_name: str
     :param cluster_uuid: Optional. Specifying the ``cluster_uuid`` means the RPC should fail
         if cluster with specified UUID does not exist.
@@ -801,7 +801,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('impersonation_chain',)
+    template_fields = ('project_id', 'region', 'cluster_name', 'impersonation_chain')
 
     @apply_defaults
     def __init__(

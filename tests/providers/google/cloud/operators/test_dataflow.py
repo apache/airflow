@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import copy
 import unittest
 from copy import deepcopy
 from unittest import mock
@@ -115,35 +115,56 @@ class TestDataflowPythonOperator(unittest.TestCase):
         assert self.dataflow.dataflow_default_options == DEFAULT_OPTIONS_PYTHON
         assert self.dataflow.options == EXPECTED_ADDITIONAL_OPTIONS
 
+    @mock.patch(
+        'airflow.providers.google.cloud.operators.dataflow.process_line_and_extract_dataflow_job_id_callback'
+    )
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.BeamHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.GCSHook')
-    def test_exec(self, gcs_hook, dataflow_mock):
+    def test_exec(self, gcs_hook, dataflow_hook_mock, beam_hook_mock, mock_callback_on_job_id):
         """Test DataflowHook is created and the right args are passed to
         start_python_workflow.
 
         """
-        start_python_hook = dataflow_mock.return_value.start_python_dataflow
+        start_python_mock = beam_hook_mock.return_value.start_python_pipeline
         gcs_provide_file = gcs_hook.return_value.provide_file
+        job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         self.dataflow.execute(None)
-        assert dataflow_mock.called
-        expected_options = {
-            'project': 'test',
-            'staging_location': 'gs://test/staging',
-            'output': 'gs://test/output',
-            'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION},
-        }
+        beam_hook_mock.assert_called_once_with(runner="DataflowRunner")
+        self.assertTrue(self.dataflow.py_file.startswith('/tmp/dataflow'))
         gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
-        start_python_hook.assert_called_once_with(
-            job_name=JOB_NAME,
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback=mock.ANY)
+        dataflow_hook_mock.assert_called_once_with(
+            gcp_conn_id="google_cloud_default",
+            delegate_to=mock.ANY,
+            poll_sleep=POLL_SLEEP,
+            impersonation_chain=None,
+            drain_pipeline=False,
+            cancel_timeout=mock.ANY,
+            wait_until_finished=None,
+        )
+        expected_options = {
+            "project": dataflow_hook_mock.return_value.project_id,
+            "staging_location": 'gs://test/staging',
+            "job_name": job_name,
+            "region": TEST_LOCATION,
+            'output': 'gs://test/output',
+            'labels': {'foo': 'bar', 'airflow-version': 'v2-1-0-dev0'},
+        }
+        start_python_mock.assert_called_once_with(
             variables=expected_options,
-            dataflow=mock.ANY,
+            py_file=gcs_provide_file.return_value.__enter__.return_value.name,
             py_options=PY_OPTIONS,
             py_interpreter=PY_INTERPRETER,
             py_requirements=None,
             py_system_site_packages=False,
-            on_new_job_id_callback=mock.ANY,
-            project_id=None,
+            process_line_callback=mock_callback_on_job_id.return_value,
+        )
+        dataflow_hook_mock.return_value.wait_for_done.assert_called_once_with(
+            job_id=mock.ANY,
+            job_name=job_name,
             location=TEST_LOCATION,
+            multiple_jobs=False,
         )
         assert self.dataflow.py_file.startswith('/tmp/dataflow')
 
@@ -172,110 +193,182 @@ class TestDataflowJavaOperator(unittest.TestCase):
         assert self.dataflow.options == EXPECTED_ADDITIONAL_OPTIONS
         assert self.dataflow.check_if_running == CheckJobRunning.WaitForRun
 
+    @mock.patch(
+        'airflow.providers.google.cloud.operators.dataflow.process_line_and_extract_dataflow_job_id_callback'
+    )
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.BeamHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.GCSHook')
-    def test_exec(self, gcs_hook, dataflow_mock):
+    def test_exec(self, gcs_hook, dataflow_hook_mock, beam_hook_mock, mock_callback_on_job_id):
         """Test DataflowHook is created and the right args are passed to
         start_java_workflow.
 
         """
-        start_java_hook = dataflow_mock.return_value.start_java_dataflow
+        start_java_mock = beam_hook_mock.return_value.start_java_pipeline
         gcs_provide_file = gcs_hook.return_value.provide_file
+        job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         self.dataflow.check_if_running = CheckJobRunning.IgnoreJob
+
         self.dataflow.execute(None)
-        assert dataflow_mock.called
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback=mock.ANY)
         gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
-        start_java_hook.assert_called_once_with(
-            job_name=JOB_NAME,
-            variables=mock.ANY,
-            jar=mock.ANY,
+        expected_variables = {
+            'project': dataflow_hook_mock.return_value.project_id,
+            'stagingLocation': 'gs://test/staging',
+            'jobName': job_name,
+            'region': TEST_LOCATION,
+            'output': 'gs://test/output',
+            'labels': {'foo': 'bar', 'airflow-version': 'v2-1-0-dev0'},
+        }
+
+        start_java_mock.assert_called_once_with(
+            variables=expected_variables,
+            jar=gcs_provide_file.return_value.__enter__.return_value.name,
             job_class=JOB_CLASS,
-            append_job_name=True,
-            multiple_jobs=None,
-            on_new_job_id_callback=mock.ANY,
-            project_id=None,
+            process_line_callback=mock_callback_on_job_id.return_value,
+        )
+        dataflow_hook_mock.return_value.wait_for_done.assert_called_once_with(
+            job_id=mock.ANY,
+            job_name=job_name,
             location=TEST_LOCATION,
+            multiple_jobs=None,
         )
 
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.BeamHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.GCSHook')
-    def test_check_job_running_exec(self, gcs_hook, dataflow_mock):
+    def test_check_job_running_exec(self, gcs_hook, dataflow_mock, beam_hook_mock):
         """Test DataflowHook is created and the right args are passed to
         start_java_workflow.
 
         """
         dataflow_running = dataflow_mock.return_value.is_job_dataflow_running
         dataflow_running.return_value = True
-        start_java_hook = dataflow_mock.return_value.start_java_dataflow
+        start_java_hook = beam_hook_mock.return_value.start_java_pipeline
         gcs_provide_file = gcs_hook.return_value.provide_file
         self.dataflow.check_if_running = True
-        self.dataflow.execute(None)
-        assert dataflow_mock.called
-        gcs_provide_file.assert_not_called()
-        start_java_hook.assert_not_called()
-        dataflow_running.assert_called_once_with(
-            name=JOB_NAME, variables=mock.ANY, project_id=None, location=TEST_LOCATION
-        )
 
+        self.dataflow.execute(None)
+
+        self.assertTrue(dataflow_mock.called)
+        start_java_hook.assert_not_called()
+        gcs_provide_file.assert_called_once()
+        variables = {
+            'project': dataflow_mock.return_value.project_id,
+            'stagingLocation': 'gs://test/staging',
+            'jobName': JOB_NAME,
+            'region': TEST_LOCATION,
+            'output': 'gs://test/output',
+            'labels': {'foo': 'bar', 'airflow-version': 'v2-1-0-dev0'},
+        }
+        dataflow_running.assert_called_once_with(name=JOB_NAME, variables=variables)
+
+    @mock.patch(
+        'airflow.providers.google.cloud.operators.dataflow.process_line_and_extract_dataflow_job_id_callback'
+    )
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.BeamHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.GCSHook')
-    def test_check_job_not_running_exec(self, gcs_hook, dataflow_mock):
+    def test_check_job_not_running_exec(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, mock_callback_on_job_id
+    ):
         """Test DataflowHook is created and the right args are passed to
         start_java_workflow with option to check if job is running
-
         """
-        dataflow_running = dataflow_mock.return_value.is_job_dataflow_running
+        is_job_dataflow_running_variables = None
+
+        def set_is_job_dataflow_running_variables(*args, **kwargs):
+            nonlocal is_job_dataflow_running_variables
+            is_job_dataflow_running_variables = copy.deepcopy(kwargs.get("variables"))
+
+        dataflow_running = dataflow_hook_mock.return_value.is_job_dataflow_running
+        dataflow_running.side_effect = set_is_job_dataflow_running_variables
         dataflow_running.return_value = False
-        start_java_hook = dataflow_mock.return_value.start_java_dataflow
+        start_java_mock = beam_hook_mock.return_value.start_java_pipeline
         gcs_provide_file = gcs_hook.return_value.provide_file
         self.dataflow.check_if_running = True
+
         self.dataflow.execute(None)
-        assert dataflow_mock.called
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback=mock.ANY)
         gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
-        start_java_hook.assert_called_once_with(
-            job_name=JOB_NAME,
-            variables=mock.ANY,
-            jar=mock.ANY,
+        expected_variables = {
+            'project': dataflow_hook_mock.return_value.project_id,
+            'stagingLocation': 'gs://test/staging',
+            'jobName': JOB_NAME,
+            'region': TEST_LOCATION,
+            'output': 'gs://test/output',
+            'labels': {'foo': 'bar', 'airflow-version': 'v2-1-0-dev0'},
+        }
+        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
+        expected_variables["jobName"] = job_name
+        start_java_mock.assert_called_once_with(
+            variables=expected_variables,
+            jar=gcs_provide_file.return_value.__enter__.return_value.name,
             job_class=JOB_CLASS,
-            append_job_name=True,
-            multiple_jobs=None,
-            on_new_job_id_callback=mock.ANY,
-            project_id=None,
-            location=TEST_LOCATION,
+            process_line_callback=mock_callback_on_job_id.return_value,
         )
-        dataflow_running.assert_called_once_with(
-            name=JOB_NAME, variables=mock.ANY, project_id=None, location=TEST_LOCATION
+        dataflow_hook_mock.return_value.wait_for_done.assert_called_once_with(
+            job_id=mock.ANY,
+            job_name=job_name,
+            location=TEST_LOCATION,
+            multiple_jobs=None,
         )
 
+    @mock.patch(
+        'airflow.providers.google.cloud.operators.dataflow.process_line_and_extract_dataflow_job_id_callback'
+    )
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.BeamHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch('airflow.providers.google.cloud.operators.dataflow.GCSHook')
-    def test_check_multiple_job_exec(self, gcs_hook, dataflow_mock):
+    def test_check_multiple_job_exec(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, mock_callback_on_job_id
+    ):
         """Test DataflowHook is created and the right args are passed to
-        start_java_workflow with option to check multiple jobs
-
+        start_java_workflow with option to check if job is running
         """
-        dataflow_running = dataflow_mock.return_value.is_job_dataflow_running
+        is_job_dataflow_running_variables = None
+
+        def set_is_job_dataflow_running_variables(*args, **kwargs):
+            nonlocal is_job_dataflow_running_variables
+            is_job_dataflow_running_variables = copy.deepcopy(kwargs.get("variables"))
+
+        dataflow_running = dataflow_hook_mock.return_value.is_job_dataflow_running
+        dataflow_running.side_effect = set_is_job_dataflow_running_variables
         dataflow_running.return_value = False
-        start_java_hook = dataflow_mock.return_value.start_java_dataflow
+        start_java_mock = beam_hook_mock.return_value.start_java_pipeline
         gcs_provide_file = gcs_hook.return_value.provide_file
-        self.dataflow.multiple_jobs = True
         self.dataflow.check_if_running = True
+        self.dataflow.multiple_jobs = True
+
         self.dataflow.execute(None)
-        assert dataflow_mock.called
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback=mock.ANY)
         gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
-        start_java_hook.assert_called_once_with(
-            job_name=JOB_NAME,
-            variables=mock.ANY,
-            jar=mock.ANY,
+        expected_variables = {
+            'project': dataflow_hook_mock.return_value.project_id,
+            'stagingLocation': 'gs://test/staging',
+            'jobName': JOB_NAME,
+            'region': TEST_LOCATION,
+            'output': 'gs://test/output',
+            'labels': {'foo': 'bar', 'airflow-version': 'v2-1-0-dev0'},
+        }
+        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
+        expected_variables["jobName"] = job_name
+        start_java_mock.assert_called_once_with(
+            variables=expected_variables,
+            jar=gcs_provide_file.return_value.__enter__.return_value.name,
             job_class=JOB_CLASS,
-            append_job_name=True,
-            multiple_jobs=True,
-            on_new_job_id_callback=mock.ANY,
-            project_id=None,
-            location=TEST_LOCATION,
+            process_line_callback=mock_callback_on_job_id.return_value,
         )
-        dataflow_running.assert_called_once_with(
-            name=JOB_NAME, variables=mock.ANY, project_id=None, location=TEST_LOCATION
+        dataflow_hook_mock.return_value.wait_for_done.assert_called_once_with(
+            job_id=mock.ANY,
+            job_name=job_name,
+            location=TEST_LOCATION,
+            multiple_jobs=True,
         )
 
 
