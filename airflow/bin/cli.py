@@ -857,7 +857,8 @@ def clear(args):
                 task_regex=args.task_regex,
                 include_downstream=args.downstream,
                 include_upstream=args.upstream)
-
+    if args.yes:
+        args.no_confirm = args.yes
     DAG.clear_dags(
         dags,
         start_date=args.start_date,
@@ -2576,7 +2577,10 @@ ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file")
 ARG_YES = Arg(
     ("-y", "--yes"), help="Do not prompt to confirm reset. Use with care!", action="store_true", default=False
 )
-
+ARG_NO_CONFIRM = Arg(
+    ("-c", "--no_confirm"), help="Do not request confirmation. Use with care!", action="store_true",
+    default=False
+)
 # list_dag_runs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
 ARG_NO_BACKFILL = Arg(
@@ -2933,6 +2937,7 @@ TASKS_COMMANDS = (
             ARG_UPSTREAM,
             ARG_DOWNSTREAM,
             ARG_YES,
+            ARG_NO_CONFIRM,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
             ARG_EXCLUDE_SUBDAGS,
@@ -4013,7 +4018,7 @@ class CLIFactory(object):
             'help': "Clear a set of task instance, as if they never ran",
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
-                'upstream', 'downstream', 'no_confirm', 'only_failed',
+                'upstream', 'downstream', 'no_confirm', 'only_failed', 'yes',
                 'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
         }, {
             'func': pause,
