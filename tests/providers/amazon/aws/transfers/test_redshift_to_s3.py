@@ -28,7 +28,7 @@ from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
-class TestRedshiftToS3Transfer(unittest.TestCase):
+class TestRedshiftToS3Operator(unittest.TestCase):
     @parameterized.expand(
         [
             [True, "key/table_"],

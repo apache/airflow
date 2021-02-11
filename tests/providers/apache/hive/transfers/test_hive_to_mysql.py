@@ -29,7 +29,7 @@ from tests.test_utils.mock_hooks import MockHiveServer2Hook, MockMySqlHook
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
 
-class TestHiveToMySqlTransfer(TestHiveEnvironment):
+class TestHiveToMySqlOperator(TestHiveEnvironment):
     def setUp(self):
         self.kwargs = dict(
             sql='sql',

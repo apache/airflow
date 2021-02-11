@@ -18,12 +18,12 @@
 from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.operators.check_operator import CheckOperator
+from airflow.operators.check_operator import SQLCheckOperator
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook
 from airflow.utils.decorators import apply_defaults
 
 
-class DruidCheckOperator(CheckOperator):
+class DruidCheckOperator(SQLCheckOperator):
     """
     Performs checks against Druid. The ``DruidCheckOperator`` expects
     a sql query that will return a single row. Each value on that

@@ -34,7 +34,7 @@ from google.cloud.bigquery import TableReference
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
+from airflow.operators.check_operator import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.utils.decorators import apply_defaults
@@ -87,7 +87,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
 
 
-class BigQueryCheckOperator(CheckOperator):
+class BigQueryCheckOperator(SQLCheckOperator):
     """
     Performs checks against BigQuery. The ``BigQueryCheckOperator`` expects
     a sql query that will return a single row. Each value on that
@@ -183,7 +183,7 @@ class BigQueryCheckOperator(CheckOperator):
         )
 
 
-class BigQueryValueCheckOperator(ValueCheckOperator):
+class BigQueryValueCheckOperator(SQLValueCheckOperator):
     """
     Performs a simple value check using sql code.
 
@@ -258,7 +258,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
         )
 
 
-class BigQueryIntervalCheckOperator(IntervalCheckOperator):
+class BigQueryIntervalCheckOperator(SQLIntervalCheckOperator):
     """
     Checks that the values of metrics given as SQL expressions are within
     a certain tolerance of the ones from days_back before.

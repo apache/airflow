@@ -23,7 +23,7 @@ from airflow.providers.mysql.transfers.presto_to_mysql import PrestoToMySqlOpera
 from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
 
 
-class TestPrestoToMySqlTransfer(TestHiveEnvironment):
+class TestPrestoToMySqlOperator(TestHiveEnvironment):
     def setUp(self):
         self.kwargs = dict(
             sql='sql',

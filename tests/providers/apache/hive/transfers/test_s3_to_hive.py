@@ -40,10 +40,10 @@ except ImportError:
     mock_s3 = None
 
 
-class TestS3ToHiveTransfer(unittest.TestCase):
+class TestS3ToHiveOperator(unittest.TestCase):
     def setUp(self):
         self.file_names = {}
-        self.task_id = 'S3ToHiveTransferTest'
+        self.task_id = 'S3ToHiveOperatorTest'
         self.s3_key = 'S32hive_test_file'
         self.field_dict = OrderedDict([('Sno', 'BIGINT'), ('Some,Text', 'STRING')])
         self.hive_table = 'S32hive_test_table'
@@ -72,7 +72,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
         try:
             header = b"Sno\tSome,Text \n"
             line1 = b"1\tAirflow Test\n"
-            line2 = b"2\tS32HiveTransfer\n"
+            line2 = b"2\tS3ToHiveOperator\n"
             self.tmp_dir = mkdtemp(prefix='test_tmps32hive_')
             # create sample txt, gz and bz2 with and without headers
             with NamedTemporaryFile(mode='wb+', dir=self.tmp_dir, delete=False) as f_txt_h:
@@ -221,7 +221,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
                 self._check_file_equality(args[0], op_fn, ext),
                 f'{ext} output file not as expected',
             )
-            # Execute S3ToHiveTransfer
+            # Execute S3ToHiveOperator
             s32hive = S3ToHiveOperator(**self.kwargs)
             s32hive.execute(None)
 
@@ -236,7 +236,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
         select_expression = "SELECT * FROM S3Object s"
         bucket = 'bucket'
 
-        # Only testing S3ToHiveTransfer calls S3Hook.select_key with
+        # Only testing S3ToHiveOperator calls S3Hook.select_key with
         # the right parameters and its execute method succeeds here,
         # since Moto doesn't support select_object_content as of 1.3.2.
         for (ext, has_header) in product(['.txt', '.gz', '.GZ'], [True, False]):
@@ -264,7 +264,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
             with mock.patch(
                 'airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key', return_value=""
             ) as mock_select_key:
-                # Execute S3ToHiveTransfer
+                # Execute S3ToHiveOperator
                 s32hive = S3ToHiveOperator(**self.kwargs)
                 s32hive.execute(None)
 

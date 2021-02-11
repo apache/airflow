@@ -26,8 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.check_operator import (
     CheckOperator,
-    IntervalCheckOperator,
-    ThresholdCheckOperator,
+    SQLIntervalCheckOperator,
+    SQLThresholdCheckOperator,
     ValueCheckOperator,
 )
 from airflow.operators.dummy import DummyOperator
@@ -141,9 +141,9 @@ class TestValueCheckOperator(unittest.TestCase):
             operator.execute()
 
 
-class TestIntervalCheckOperator(unittest.TestCase):
+class TestSQLIntervalCheckOperator(unittest.TestCase):
     def _construct_operator(self, table, metric_thresholds, ratio_formula, ignore_zero):
-        return IntervalCheckOperator(
+        return SQLIntervalCheckOperator(
             task_id="test_task",
             table=table,
             metrics_thresholds=metric_thresholds,
@@ -162,7 +162,7 @@ class TestIntervalCheckOperator(unittest.TestCase):
                 ignore_zero=False,
             )
 
-    @mock.patch.object(IntervalCheckOperator, "get_db_hook")
+    @mock.patch.object(SQLIntervalCheckOperator, "get_db_hook")
     def test_execute_not_ignore_zero(self, mock_get_db_hook):
         mock_hook = mock.Mock()
         mock_hook.get_first.return_value = [0]
@@ -180,7 +180,7 @@ class TestIntervalCheckOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             operator.execute()
 
-    @mock.patch.object(IntervalCheckOperator, "get_db_hook")
+    @mock.patch.object(SQLIntervalCheckOperator, "get_db_hook")
     def test_execute_ignore_zero(self, mock_get_db_hook):
         mock_hook = mock.Mock()
         mock_hook.get_first.return_value = [0]
@@ -197,7 +197,7 @@ class TestIntervalCheckOperator(unittest.TestCase):
 
         operator.execute()
 
-    @mock.patch.object(IntervalCheckOperator, "get_db_hook")
+    @mock.patch.object(SQLIntervalCheckOperator, "get_db_hook")
     def test_execute_min_max(self, mock_get_db_hook):
         mock_hook = mock.Mock()
 
@@ -227,7 +227,7 @@ class TestIntervalCheckOperator(unittest.TestCase):
         with pytest.raises(AirflowException, match="f0, f1, f2"):
             operator.execute()
 
-    @mock.patch.object(IntervalCheckOperator, "get_db_hook")
+    @mock.patch.object(SQLIntervalCheckOperator, "get_db_hook")
     def test_execute_diff(self, mock_get_db_hook):
         mock_hook = mock.Mock()
 
@@ -258,11 +258,11 @@ class TestIntervalCheckOperator(unittest.TestCase):
             operator.execute()
 
 
-class TestThresholdCheckOperator(unittest.TestCase):
+class TestSQLThresholdCheckOperator(unittest.TestCase):
     def _construct_operator(self, sql, min_threshold, max_threshold):
         dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
 
-        return ThresholdCheckOperator(
+        return SQLThresholdCheckOperator(
             task_id="test_task",
             sql=sql,
             min_threshold=min_threshold,
@@ -270,7 +270,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
             dag=dag,
         )
 
-    @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
+    @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
     def test_pass_min_value_max_value(self, mock_get_db_hook):
         mock_hook = mock.Mock()
         mock_hook.get_first.return_value = (10,)
@@ -280,7 +280,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
 
         operator.execute()
 
-    @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
+    @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
     def test_fail_min_value_max_value(self, mock_get_db_hook):
         mock_hook = mock.Mock()
         mock_hook.get_first.return_value = (10,)
@@ -291,7 +291,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
         with pytest.raises(AirflowException, match="10.*20.0.*100.0"):
             operator.execute()
 
-    @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
+    @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
     def test_pass_min_sql_max_sql(self, mock_get_db_hook):
         mock_hook = mock.Mock()
         mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
@@ -301,7 +301,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
 
         operator.execute()
 
-    @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
+    @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
     def test_fail_min_sql_max_sql(self, mock_get_db_hook):
         mock_hook = mock.Mock()
         mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
@@ -312,7 +312,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
         with pytest.raises(AirflowException, match="10.*20.*100"):
             operator.execute()
 
-    @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
+    @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
     def test_pass_min_value_max_sql(self, mock_get_db_hook):
         mock_hook = mock.Mock()
         mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
@@ -322,7 +322,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
 
         operator.execute()
 
-    @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
+    @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
     def test_fail_min_sql_max_value(self, mock_get_db_hook):
         mock_hook = mock.Mock()
         mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
