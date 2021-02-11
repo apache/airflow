@@ -2681,7 +2681,6 @@ class TestRenderedView(TestBase):
 
 
 class TestTriggerDag(TestBase):
-
     def setUp(self):
         super().setUp()
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
