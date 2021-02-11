@@ -113,9 +113,11 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
 class BaseTimetable(LoggingMixin):
     """Base Timetable class."""
 
-    def __init__(self):
+    def __init__(self, allow_future_exec_dates=True, start_date=None, end_date=None):
         self.import_errors = []
         self.allow_future_exec_dates = True
+        self.start_date = start_date
+        self.end_date = end_date
 
     @abstractmethod
     def date_range(
@@ -127,11 +129,11 @@ class BaseTimetable(LoggingMixin):
         raise NotImplementedError()
 
     @abstractmethod
-    def following_schedule(self, dttm):
+    def next_execution_time(self, dttm, inclusive=False):
         raise NotImplementedError()
 
     @abstractmethod
-    def previous_schedule(self, dttm):
+    def prev_execution_time(self, dttm):
         raise NotImplementedError()
 
     @abstractmethod
@@ -147,6 +149,70 @@ class BaseTimetable(LoggingMixin):
         raise NotImplementedError()
 
 
+class DailyTimetable(BaseTimetable):
+    """Daily Timetable"""
+
+    SUNDAY = "sunday"
+    MONDAY = "monday"
+    TUESDAY = "tuesday"
+    WEDNESDAY = "wednesday"
+    THURSDAY = "thursday"
+    FRIDAY = "friday"
+    SATURDAY = "saturday"
+
+    def __init__(
+        self,
+        days=None,
+        hour=None,
+        minute=None,
+        times=None,
+        timezone=None,
+        **kwargs,
+    ):
+        if (hour or minute) and times:
+            raise Exception()
+        self.__init__(self, **kwargs)
+        self.days = days
+        self.hour = hour
+        self.minute = minute
+        self.times = times
+        self.timezone = timezone
+
+
+class WeekdayTimetable(DailyTimetable):
+    """Weekday Timetable"""
+
+    def __init__(self, hour=None, minute=None, times=None, timezone=None, **kwargs):
+        if (hour or minute) and times:
+            raise Exception()
+
+        super().__init__(
+            days=[self.MONDAY, self.TUESDAY, self.WEDNESDAY, self.THURSDAY, self.FRIDAY],
+            hour=hour,
+            minute=minute,
+            times=times,
+            timezone=timezone,
+            **kwargs,
+        )
+
+
+class TradingDayTimetable(BaseTimetable):
+    """Trading Day Timetable"""
+
+    def __init__(self, country_code="US", hour=None, minute=None, times=None, **kwargs):
+        if (hour or minute) and times:
+            raise Exception()
+        super().__init__(**kwargs)
+
+
+class StaticTimetable(BaseTimetable):
+    """Static Timetable"""
+
+    def __init__(self, times, **kwargs):
+        self.__init__(**kwargs)
+        self.times = times
+
+
 class CronTimetable(BaseTimetable):
     """Timetable implementation for Cron."""
 
@@ -157,8 +223,9 @@ class CronTimetable(BaseTimetable):
         catchup=None,
         start_date=None,
         end_date=None,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.schedule_interval = schedule_interval
         self.timezone = timezone
         self.catchup = catchup
@@ -218,7 +285,7 @@ class CronTimetable(BaseTimetable):
             start_date=start_date, end_date=end_date, num=num, delta=self.normalized_schedule_interval()
         )
 
-    def following_schedule(self, dttm):
+    def next_execution_time(self, dttm):
         """
         Calculates the following schedule for this dag in UTC.
 
@@ -246,7 +313,7 @@ class CronTimetable(BaseTimetable):
         elif self.normalized_schedule_interval() is not None:
             return timezone.convert_to_utc(dttm + self.normalized_schedule_interval())
 
-    def previous_schedule(self, dttm):
+    def prev_execution_time(self, dttm):
         """
         Calculates the previous schedule for this dag in UTC
 
@@ -301,7 +368,7 @@ class CronTimetable(BaseTimetable):
             # For "@once" it can be created "now"
             return (next_execution_date, next_execution_date)
 
-        return (next_execution_date, self.following_schedule(next_execution_date))
+        return (next_execution_date, self.next_execution_time(next_execution_date))
 
     def _next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime], tasks):
         """
@@ -327,12 +394,12 @@ class CronTimetable(BaseTimetable):
             # one period before, so that timezone.utcnow() is AFTER
             # the period end, and the job can be created...
             now = timezone.utcnow()
-            next_start = self.following_schedule(now)
-            last_start = self.previous_schedule(now)
+            next_start = self.next_execution_time(now)
+            last_start = self.prev_execution_time(now)
             if next_start <= now or isinstance(self.schedule_interval, timedelta):
                 new_start = last_start
             else:
-                new_start = self.previous_schedule(last_start)
+                new_start = self.prev_execution_time(last_start)
 
             if self.start_date:
                 if new_start >= self.start_date:
@@ -348,11 +415,11 @@ class CronTimetable(BaseTimetable):
                 next_run_date = self._normalize_schedule(min(task_start_dates))
                 self.log.debug("Next run date based on tasks %s", next_run_date)
         else:
-            next_run_date = self.following_schedule(date_last_automated_dagrun)
+            next_run_date = self.next_execution_time(date_last_automated_dagrun)
 
         if date_last_automated_dagrun and next_run_date:
             while next_run_date <= date_last_automated_dagrun:
-                next_run_date = self.following_schedule(next_run_date)
+                next_run_date = self.next_execution_time(next_run_date)
 
         # don't ever schedule prior to the dag's start_date
         if self.start_date:
@@ -403,18 +470,18 @@ class CronTimetable(BaseTimetable):
 
         while next_run_date and next_run_date <= using_end_date:
             run_dates.append(next_run_date)
-            next_run_date = self.following_schedule(next_run_date)
+            next_run_date = self.next_execution_time(next_run_date)
 
         return run_dates
 
     def _normalize_schedule(self, dttm):
         """Returns dttm + interval unless dttm is first interval then it returns dttm"""
-        following = self.following_schedule(dttm)
+        following = self.next_execution_time(dttm)
 
         # in case of @once
         if not following:
             return dttm
-        if self.previous_schedule(following) != dttm:
+        if self.prev_execution_time(following) != dttm:
             return following
 
         return dttm
@@ -764,10 +831,10 @@ class DAG(LoggingMixin):
         self.timetable.date_range(start_date, num, end_date)
 
     def following_schedule(self, dttm):
-        self.timetable.following_schedule(dttm)
+        self.timetable.next_execution_time(dttm)
 
     def previous_schedule(self, dttm):
-        self.timetable.previous_schedule(dttm)
+        self.timetable.prev_execution_time(dttm)
 
     def next_dagrun_info(
         self,
