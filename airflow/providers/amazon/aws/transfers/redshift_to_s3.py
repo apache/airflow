@@ -113,7 +113,9 @@ class RedshiftToS3Operator(BaseOperator):
         elif self.schema and self.table:
             self._select_query = f"SELECT * FROM {self.schema}.{self.table}"
         else:
-            raise ValueError('Please provide both `schema` and `table` params or `select_query` to fetch the data.')
+            raise ValueError(
+                'Please provide both `schema` and `table` params or `select_query` to fetch the data.'
+            )
 
         if self.include_header and 'HEADER' not in [uo.upper().strip() for uo in self.unload_options]:
             self.unload_options = list(self.unload_options) + [
@@ -139,7 +141,9 @@ class RedshiftToS3Operator(BaseOperator):
         credentials_block = build_credentials_block(credentials)
         unload_options = '\n\t\t\t'.join(self.unload_options)
 
-        unload_query = self._build_unload_query(credentials_block, self._select_query, self.s3_key, unload_options)
+        unload_query = self._build_unload_query(
+            credentials_block, self._select_query, self.s3_key, unload_options
+        )
 
         self.log.info('Executing UNLOAD command...')
         postgres_hook.run(unload_query, self.autocommit)
