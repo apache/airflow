@@ -227,6 +227,7 @@ Kylin
 LanguageServiceClient
 LaunchTemplateParameters
 Letsbonus
+LevelDB
 Lifecycle
 LineItem
 ListGenerator
@@ -924,6 +925,7 @@ latin
 ldap
 ldaps
 leahecole
+leveldb
 libs
 libz
 licence
@@ -1060,6 +1062,7 @@ pkill
 plaintext
 platformVersion
 pluggable
+plyvel
 png
 podName
 podSpec

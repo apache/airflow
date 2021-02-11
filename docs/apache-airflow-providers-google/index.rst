@@ -65,6 +65,7 @@ Google services including:
   - `Google Firebase <https://firebase.google.com/>`__
   - `Google Marketing Platform <https://marketingplatform.google.com/>`__
   - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
+  - `Google LevelDB <https://github.com/google/leveldb>`__
 
 
 Release: 2.1.0
@@ -130,6 +131,7 @@ PIP package                             Version required
 ``grpcio-gcp``                          ``>=0.2.2``
 ``json-merge-patch``                    ``~=0.2``
 ``pandas-gbq``
+``plyvel``
 ======================================  ===================
 
 Cross provider package dependencies

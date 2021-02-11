@@ -24,6 +24,10 @@ from airflow.utils.decorators import apply_defaults
 class LevelDBOperator(BaseOperator):
     """
     Execute command in LevelDB
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:LevelDBOperator`
     """
 
     @apply_defaults

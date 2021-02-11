@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import pytest
 import unittest
 from unittest import mock
+
+import pytest
 
 from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook, LevelDBHookException
 
@@ -38,8 +39,9 @@ class TestLevelDBHook(unittest.TestCase):
         self.hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
         assert self.hook.run('get', b'test_key0') is None, "Initially, this key in LevelDB is empty"
         self.hook.run('put', b'test_key0', b'test_value0')
-        assert self.hook.run('get', b'test_key0') == b'test_value0', \
-            'Connection to LevelDB with PUT and GET works.'
+        assert (
+            self.hook.run('get', b'test_key0') == b'test_value0'
+        ), 'Connection to LevelDB with PUT and GET works.'
         self.hook.run('delete', b'test_key0')
         assert self.hook.run('get', b'test_key0') is None, 'Connection to LevelDB with DELETE works.'
         self.hook.close_conn()
@@ -108,10 +110,16 @@ class TestLevelDBHook(unittest.TestCase):
 
             # a and b are equal
             return 0
+
         """Test comparator"""
         self.hook = LevelDBHook(leveldb_conn_id='leveldb_default')
-        self.hook.get_conn(name='/tmp/testdb2/', create_if_missing=True, comparator=comparator,
-                           comparator_name=b'CaseInsensitiveComparator')
-        assert self.hook.db is not None, "Check existence of DB object(with comparator) in connection creation"
+        self.hook.get_conn(
+            name='/tmp/testdb2/',
+            create_if_missing=True,
+            comparator=comparator,
+            comparator_name=b'CaseInsensitiveComparator',
+        )
+        assert (
+            self.hook.db is not None
+        ), "Check existence of DB object(with comparator) in connection creation"
         self.hook.close_conn()
-

@@ -315,6 +315,7 @@ google = [
     'grpcio-gcp>=0.2.2',
     'json-merge-patch~=0.2',
     'pandas-gbq',
+    'plyvel',
 ]
 grpc = [
     'google-auth>=1.0.0, <2.0.0dev',
@@ -354,9 +355,6 @@ kylin = ['kylinpy>=2.6']
 ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
-]
-leveldb = [
-    'plyvel',
 ]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
@@ -553,7 +551,6 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'jdbc': jdbc,
     'jenkins': jenkins,
     'jira': jira,
-    'leveldb': leveldb,
     'microsoft.azure': azure,
     'microsoft.mssql': mssql,
     'microsoft.winrm': winrm,

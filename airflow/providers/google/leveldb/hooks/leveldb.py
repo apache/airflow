@@ -17,7 +17,7 @@
 """Hook for Level DB"""
 import plyvel
 from plyvel import DB
-from typing import List, Callable, Optional
+from typing import Callable, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -44,11 +44,23 @@ class LevelDBHook(BaseHook):
         self.connection = self.get_connection(leveldb_conn_id)
         self.db = None
 
-    def get_conn(self, name: str = '/tmp/testdb/', create_if_missing: bool = False, error_if_exists: bool = False,
-                 paranoid_checks: bool = None, write_buffer_size: bool = None, max_open_files: int = None,
-                 lru_cache_size: int = None, block_size: int = None, block_restart_interval: int = None,
-                 max_file_size: bool = None, compression: str = 'snappy', bloom_filter_bits: int = 0,
-                 comparator: Callable = None, comparator_name: bytes = None, ) -> DB:
+    def get_conn(
+        self,
+        name: str = '/tmp/testdb/',
+        create_if_missing: bool = False,
+        error_if_exists: bool = False,
+        paranoid_checks: bool = None,
+        write_buffer_size: bool = None,
+        max_open_files: int = None,
+        lru_cache_size: int = None,
+        block_size: int = None,
+        block_restart_interval: int = None,
+        max_file_size: bool = None,
+        compression: str = 'snappy',
+        bloom_filter_bits: int = 0,
+        comparator: Callable = None,
+        comparator_name: bytes = None,
+    ) -> DB:
         """Creates Plyvel DB https://plyvel.readthedocs.io/en/latest/api.html#DB
         :param name(str - path to create database(str, e.g. '/tmp/testdb/')
         :param create_if_missing (bool) – whether a new database should be created if needed
@@ -68,12 +80,22 @@ class LevelDBHook(BaseHook):
         """
         if self.db is not None:
             return self.db
-        self.db = plyvel.DB(name=name, create_if_missing=create_if_missing, error_if_exists=error_if_exists,
-                            paranoid_checks=paranoid_checks, write_buffer_size=write_buffer_size,
-                            max_open_files=max_open_files, lru_cache_size=lru_cache_size, block_size=block_size,
-                            block_restart_interval=block_restart_interval, max_file_size=max_file_size,
-                            compression=compression, bloom_filter_bits=bloom_filter_bits, comparator=comparator,
-                            comparator_name=comparator_name)
+        self.db = plyvel.DB(
+            name=name,
+            create_if_missing=create_if_missing,
+            error_if_exists=error_if_exists,
+            paranoid_checks=paranoid_checks,
+            write_buffer_size=write_buffer_size,
+            max_open_files=max_open_files,
+            lru_cache_size=lru_cache_size,
+            block_size=block_size,
+            block_restart_interval=block_restart_interval,
+            max_file_size=max_file_size,
+            compression=compression,
+            bloom_filter_bits=bloom_filter_bits,
+            comparator=comparator,
+            comparator_name=comparator_name
+        )
         return self.db
 
     def close_conn(self) -> None:
@@ -83,8 +105,14 @@ class LevelDBHook(BaseHook):
             db.close()
             self.db = None
 
-    def run(self, command: str, key: bytes, value: bytes = None, keys: List[bytes] = None,
-            values: List[bytes] = None) -> Optional[bytes]:
+    def run(
+        self,
+        command: str,
+        key: bytes,
+        value: bytes = None,
+        keys: List[bytes] = None,
+        values: List[bytes] = None
+    ) -> Optional[bytes]:
         """
         Execute operation with leveldb
                 :param command - command of plyvel(python wrap for leveldb) for DB object (str, e.g. 'put','get',

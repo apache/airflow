@@ -24,6 +24,7 @@ description: |
       - `Google Ads <https://ads.google.com/>`__
       - `Google Cloud (GCP) <https://cloud.google.com/>`__
       - `Google Firebase <https://firebase.google.com/>`__
+      - `Google LevelDB <https://github.com/google/leveldb/>`__
       - `Google Marketing Platform <https://marketingplatform.google.com/>`__
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
@@ -308,6 +309,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/workflows.rst
     tags: [gcp]
+  - integration-name: Google LevelDB
+    external-doc-url: https://github.com/google/leveldb/blob/master/doc/index.md
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/leveldb/leveldb.rst
+    tags: [google]
 
 operators:
   - integration-name: Google Ads
@@ -429,6 +435,9 @@ operators:
   - integration-name: Google Spreadsheet
     python-modules:
       - airflow.providers.google.suite.operators.sheets
+  - integration-name: Google LevelDB
+    python-modules:
+      - airflow.providers.google.leveldb.operators.leveldb
 
 sensors:
   - integration-name: Google BigQuery
@@ -611,6 +620,9 @@ hooks:
   - integration-name: Google Spreadsheet
     python-modules:
       - airflow.providers.google.suite.hooks.sheets
+  - integration-name: Google LevelDB
+    python-modules:
+      - airflow.providers.google.leveldb.hooks.leveldb
 
 transfers:
   - source-integration-name: Presto
@@ -719,6 +731,7 @@ hook-class-names:
   - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook
   - airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook
   - airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
+  - airflow.providers.google.common.hooks.leveldb.LevelDBHook
 
 extra-links:
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink

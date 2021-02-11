@@ -122,6 +122,7 @@ CONNECTIONS_LIST = [
     'jenkins',
     'jira',
     'kubernetes',
+    'leveldb',
     'livy',
     'mongo',
     'mssql',
