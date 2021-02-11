@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from io import BytesIO
 from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
@@ -83,30 +82,15 @@ class GoogleDriveToLocalOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.file_metadata = None
 
-    def _set_file_metadata(self, gdrive_hook):
-        if not self.file_metadata:
-            self.file_metadata = gdrive_hook.get_file_id(
-                folder_id=self.folder_id, file_name=self.filename, drive_id=self.drive_id
-            )
-        return self.file_metadata
-
-    def _download_data(self, gdrive_hook: GoogleDriveHook, output_file: str):
-        file_handle = BytesIO()
-        self._set_file_metadata(gdrive_hook=gdrive_hook)
-        file_id = self.file_metadata["id"]
-        request = gdrive_hook.get_media_request(file_id=file_id)
-        gdrive_hook.download_content_from_request(
-            file_handle=file_handle, request=request, chunk_size=104857600
-        )
-
-        with open(output_file, "wb") as f:
-            f.write(file_handle.getbuffer())
-
     def execute(self, context):
         self.log.info('Executing download: %s into %s', self.filename, self.output_file)
         gdrive_hook = GoogleDriveHook(
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
+        self.file_metadata = gdrive_hook.get_file_id(
+            folder_id=self.folder_id, file_name=self.filename, drive_id=self.drive_id
+        )
 
-        self._download_data(gdrive_hook=gdrive_hook, output_file=self.output_file)
+        with open(self.output_file, "wb") as file:
+            gdrive_hook.download_file(file_id=self.file_metadata["id"], file_handle=file)
