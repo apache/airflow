@@ -100,6 +100,7 @@ class TestDockerOperator(unittest.TestCase):
             dns_search=None,
             cap_add=None,
             extra_hosts=None,
+            privileged=False,
         )
         self.tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
         self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
