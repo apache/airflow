@@ -2681,7 +2681,6 @@ class TestRenderedView(TestBase):
 
 
 class TestTriggerDag(TestBase):
-    EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
 
     def setUp(self):
         super().setUp()
@@ -2826,26 +2825,6 @@ class TestTriggerDag(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         response_data = resp.data.decode()
         assert "Access is Denied" in response_data
-
-    @mock.patch('airflow.executors.executor_loader.ExecutorLoader.get_default_executor')
-    def test_run_executor_has_job_id(self, get_default_executor_function):
-        """Makes sure that dags triggered from the UI are assigned a job_id"""
-        executor = CeleryExecutor()
-        executor.heartbeat = lambda: True
-        get_default_executor_function.return_value = executor
-
-        task_id = 'runme_0'
-
-        form = dict(
-            task_id=task_id,
-            dag_id="example_bash_operator",
-            ignore_all_deps="false",
-            ignore_ti_state="false",
-            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
-            origin='/home',
-        )
-        self.client.post('run', data=form, follow_redirects=True)
-        assert executor.job_id is not None
 
 
 class TestExtraLinks(TestBase):
