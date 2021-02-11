@@ -268,7 +268,7 @@ def execution_date_fn(execution_date, ds_nodash, dag):
 ### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
 
 As [recommended](https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE) by Flask, the
-`[webserver] cookie_samesite` has been changed to `Lax` from `None`.
+`[webserver] cookie_samesite` has been changed to `Lax` from `''` (empty string) .
 
 #### Changes to import paths
 
