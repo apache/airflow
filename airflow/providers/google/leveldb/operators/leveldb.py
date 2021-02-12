@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Callable, Optional
+from typing import Callable, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
@@ -85,15 +85,29 @@ class LevelDBOperator(BaseOperator):
         :returns value from get or None(Optional[bytes])
         """
         leveldb_hook = LevelDBHook(leveldb_conn_id=self.leveldb_conn_id)
-        leveldb_hook.get_conn(name=self.name, create_if_missing=self.create_if_missing,
-                              error_if_exists=self.error_if_exists, paranoid_checks=self.paranoid_checks,
-                              write_buffer_size=self.write_buffer_size, max_open_files=self.max_open_files,
-                              lru_cache_size=self.lru_cache_size, block_size=self.block_size,
-                              block_restart_interval=self.block_restart_interval, max_file_size=self.max_file_size,
-                              compression=self.compression, bloom_filter_bits=self.bloom_filter_bits,
-                              comparator=self.comparator, comparator_name=self.comparator_name)
-        value = leveldb_hook.run(command=self.command, key=self.key, value=self.value, keys=self.keys,
-                                 values=self.values)
+        leveldb_hook.get_conn(
+            name=self.name,
+            create_if_missing=self.create_if_missing,
+            error_if_exists=self.error_if_exists,
+            paranoid_checks=self.paranoid_checks,
+            write_buffer_size=self.write_buffer_size,
+            max_open_files=self.max_open_files,
+            lru_cache_size=self.lru_cache_size,
+            block_size=self.block_size,
+            block_restart_interval=self.block_restart_interval,
+            max_file_size=self.max_file_size,
+            compression=self.compression,
+            bloom_filter_bits=self.bloom_filter_bits,
+            comparator=self.comparator,
+            comparator_name=self.comparator_name
+        )
+        value = leveldb_hook.run(
+            command=self.command,
+            key=self.key,
+            value=self.value,
+            keys=self.keys,
+            values=self.values
+        )
         self.log.info("Done. Returned value was: %s", str(value))
         leveldb_hook.close_conn()
         return value

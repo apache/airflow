@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Level DB"""
+from typing import Callable, List, Optional
+
 import plyvel
 from plyvel import DB
-from typing import Callable, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -94,7 +95,7 @@ class LevelDBHook(BaseHook):
             compression=compression,
             bloom_filter_bits=bloom_filter_bits,
             comparator=comparator,
-            comparator_name=comparator_name
+            comparator_name=comparator_name,
         )
         return self.db
 
@@ -111,7 +112,7 @@ class LevelDBHook(BaseHook):
         key: bytes,
         value: bytes = None,
         keys: List[bytes] = None,
-        values: List[bytes] = None
+        values: List[bytes] = None,
     ) -> Optional[bytes]:
         """
         Execute operation with leveldb
