@@ -835,7 +835,7 @@ The entrypoint can also create webserver user automatically when you enter it. y
 production, it is only useful if you would like to run a quick test with the production image.
 You need to pass at least password to create such user via ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` or
 ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` similarly like for other ``*_CMD`` variables, the content of
-the ``*_CMD`` will be evaluated as shell command and it's output will be set ass password.
+the ``*_CMD`` will be evaluated as shell command and it's output will be set as password.
 
 User creation will fail if none of the ``PASSWORD`` variables are set - there is no default for
 password for security reasons.
