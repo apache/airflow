@@ -74,7 +74,7 @@ class AwsGlueJobHook(AwsBaseHook):
         self.role_name = iam_role_name
         self.s3_glue_logs = 'logs/glue-logs/'
         kwargs['client_type'] = 'glue'
-        super().__init__(*args, **kwargs)
+        super().__init__(region_name=region_name, *args, **kwargs)
 
     def list_jobs(self) -> List:
         """:return: Lists of Jobs"""
