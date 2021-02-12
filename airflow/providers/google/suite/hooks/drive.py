@@ -220,7 +220,13 @@ class GoogleDriveHook(GoogleBaseHook):
         return file.get("id")
 
     def download_file(self, file_id: str, file_handle):
+        """
+        Download a file from Google Drive.
+
+        :param file_id: the id of the file
+        :type file_id: str
+        :param file_handle: file handle used to write the content to
+        :type file_handle: io.TextIOWrapper
+        """
         request = self.get_media_request(file_id=file_id)
-        self.download_content_from_request(
-            file_handle=file_handle, request=request, chunk_size=104857600
-        )
+        self.download_content_from_request(file_handle=file_handle, request=request, chunk_size=104857600)
