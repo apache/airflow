@@ -302,6 +302,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         last_message_logged = None
         last_line_logged = None
 
+        # pylint: disable=too-many-nested-blocks
         while True:
             try:
                 cg_state = self._ci_hook.get_state(resource_group, name)
@@ -361,7 +362,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     return 1
                 else:
                     self.log.exception("Exception while getting container groups")
-            except Exception:
+            except Exception: # pylint: disable=broad-except
                 self.log.exception("Exception while getting container groups")
 
             sleep(5)
