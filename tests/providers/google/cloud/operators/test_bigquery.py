@@ -45,6 +45,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryIntervalCheckOperator,
     BigQueryPatchDatasetOperator,
     BigQueryUpdateDatasetOperator,
+    BigQueryUpdateTableOperator,
     BigQueryUpsertTableOperator,
     BigQueryValueCheckOperator,
 )
@@ -230,6 +231,28 @@ class TestBigQueryGetDatasetOperator(unittest.TestCase):
         operator.execute(None)
         mock_hook.return_value.get_dataset.assert_called_once_with(
             dataset_id=TEST_DATASET, project_id=TEST_GCP_PROJECT_ID
+        )
+
+
+class TestBigQueryUpdateTableOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_execute(self, mock_hook):
+        table_resource = {"friendlyName": 'Test TB'}
+        operator = BigQueryUpdateTableOperator(
+            table_resource=table_resource,
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        operator.execute(None)
+        mock_hook.return_value.update_table.assert_called_once_with(
+            table_resource=table_resource,
+            fields=None,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
         )
 
 
