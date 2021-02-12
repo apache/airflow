@@ -297,12 +297,11 @@ class AzureContainerInstancesOperator(BaseOperator):
             except Exception:  # pylint: disable=broad-except
                 self.log.exception("Could not delete container group")
 
-    def _monitor_logging(self, resource_group: str, name: str) -> int:
+        def _monitor_logging(self, resource_group: str, name: str) -> int:
         last_state = None
         last_message_logged = None
         last_line_logged = None
 
-        # pylint: disable=too-many-nested-blocks
         while True:
             try:
                 cg_state = self._ci_hook.get_state(resource_group, name)
@@ -317,8 +316,11 @@ class AzureContainerInstancesOperator(BaseOperator):
                         c_state.detail_status,
                     )
 
-                    messages = [event.message for event in instance_view.events]
-                    last_message_logged = self._log_last(messages, last_message_logged)
+                    if instance_view.events is not None:
+                        messages = [event.message for event in instance_view.events]
+                        last_message_logged = self._log_last(
+                            messages, last_message_logged
+                        )
                 else:
                     state = cg_state.provisioning_state
                     exit_code = 0
@@ -338,7 +340,9 @@ class AzureContainerInstancesOperator(BaseOperator):
                         )
 
                 if state == "Terminated":
-                    self.log.error("Container exited with detail_status %s", detail_status)
+                    self.log.error(
+                        "Container exited with detail_status %s", detail_status
+                    )
                     return exit_code
 
                 if state == "Failed":
@@ -348,7 +352,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             except AirflowTaskTimeout:
                 raise
             except CloudError as err:
-                if 'ResourceNotFound' in str(err):
+                if "ResourceNotFound" in str(err):
                     self.log.warning(
                         "ResourceNotFound, container is probably removed "
                         "by another process "
@@ -357,10 +361,10 @@ class AzureContainerInstancesOperator(BaseOperator):
                     return 1
                 else:
                     self.log.exception("Exception while getting container groups")
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception("Exception while getting container groups")
 
-            sleep(1)
+            sleep(5)
 
     def _log_last(self, logs: Optional[list], last_line_logged: Any) -> Optional[Any]:
         if logs:
