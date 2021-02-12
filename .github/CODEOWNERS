@@ -1,0 +1,30 @@
+# Core
+/airflow/executors/ @kaxil @XD-DENG @ashb @turbaszek
+/airflow/jobs/ @kaxil @ashb @XD-DENG
+/airflow/models @kaxil @XD-DENG @ashb @turbaszek
+
+# Kubernetes
+/airflow/kubernetes @dimberman
+/airflow/kubernetes_executor_templates @dimberman
+/airflow/executors/celery_kubernetes_executor.py @dimberman
+/chart/ @dimberman
+
+# Docs
+/docs/ @mik-laj @kaxil @vikramkoka
+
+# API
+/airflow/api/ @mik-laj @kaxil
+/airflow/api_connexion/ @mik-laj @kaxil
+
+# WWW
+/airflow/www/ @ryanahamilton
+
+# Providers
+/airflow/providers/google @turbaszek @mik-laj
+
+# Dev tools
+/.github/workflows/ @potuk @ashb @kaxil
+breeze @potiuk
+/dev/ @potuk @ashb @kaxil
+/provider_packages/ @potiuk
+/scripts/ @potiuk
