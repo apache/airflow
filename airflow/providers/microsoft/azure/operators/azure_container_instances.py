@@ -297,7 +297,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             except Exception:  # pylint: disable=broad-except
                 self.log.exception("Could not delete container group")
 
-        def _monitor_logging(self, resource_group: str, name: str) -> int:
+    def _monitor_logging(self, resource_group: str, name: str) -> int:
         last_state = None
         last_message_logged = None
         last_line_logged = None
