@@ -47,7 +47,6 @@ class TestBaseChartTest(unittest.TestCase):
             ('ServiceAccount', 'TEST-BASIC-scheduler'),
             ('ServiceAccount', 'TEST-BASIC-statsd'),
             ('ServiceAccount', 'TEST-BASIC-webserver'),
-            ('ServiceAccount', 'TEST-BASIC-worker'),
             ('Secret', 'TEST-BASIC-postgresql'),
             ('Secret', 'TEST-BASIC-airflow-metadata'),
             ('Secret', 'TEST-BASIC-airflow-result-backend'),
