@@ -353,7 +353,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         retries: Optional[int] = conf.getint('core', 'default_task_retries', fallback=0),
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
-        max_retry_delay: Optional[datetime] = None,
+        max_retry_delay: Optional[timedelta] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         depends_on_past: bool = False,
