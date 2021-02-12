@@ -35,7 +35,7 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   }
 
   const tzFormat = 'z (Z)';
-  const localTZ = moment.defaultZone.name;
+  const localTZ = moment.defaultZone.name.toUpperCase();
   startDate = moment.utc(startDate);
   endDate = moment.utc(endDate);
   dagTZ = dagTZ.toUpperCase();
