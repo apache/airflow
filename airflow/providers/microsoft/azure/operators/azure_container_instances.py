@@ -360,7 +360,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             except Exception:  # pylint: disable=broad-except
                 self.log.exception("Exception while getting container groups")
 
-        sleep(1)
+            sleep(1)
 
     def _log_last(self, logs: Optional[list], last_line_logged: Any) -> Optional[Any]:
         if logs:
