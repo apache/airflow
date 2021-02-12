@@ -17,7 +17,7 @@
 
 
 
-Google LevelDB Operators
+Google LevelDB Operator
 ================================
 
 `LevelDB <https://github.com/google/leveldb>`__ is a fast key-value storage library written at Google that provides
@@ -27,15 +27,9 @@ an ordered mapping from string keys to string values.
   :depth: 1
   :local:
 
-Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
-
-.. include::/operators/_partials/prerequisite_tasks.rst
-
-
 .. _howto/operator:LevelDBOperator:
 
-Get, put, delete key or write_batch
+Put key
 ^^^^^^^^^^^^^^^
 
 Get, put, delete key or write_batch, create database with comparator or different options in LevelDB is performed with the
@@ -46,10 +40,6 @@ Get, put, delete key or write_batch, create database with comparator or differen
     :dedent: 4
     :start-after: [START howto_operator_leveldb_put_key]
     :end-before: [END howto_operator_leveldb_put_key]
-
-You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.leveldb.operators.leveldb.LevelDBOperator`
-parameters which allows you to dynamically determine values.
 
 
 Reference

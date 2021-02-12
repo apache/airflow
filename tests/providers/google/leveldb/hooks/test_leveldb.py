@@ -24,6 +24,10 @@ from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook, LevelDBH
 
 
 class TestLevelDBHook(unittest.TestCase):
+    def __init__(self):
+        super().__init__()
+        self.hook = None
+
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_get_conn_db_is_not_none(self):
         """Test get_conn method of hook"""
@@ -96,6 +100,8 @@ class TestLevelDBHook(unittest.TestCase):
 
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_comparator(self):
+        """Test comparator"""
+
         def comparator(a, b):
             a = a.lower()
             b = b.lower()
@@ -111,7 +117,6 @@ class TestLevelDBHook(unittest.TestCase):
             # a and b are equal
             return 0
 
-        """Test comparator"""
         self.hook = LevelDBHook(leveldb_conn_id='leveldb_default')
         self.hook.get_conn(
             name='/tmp/testdb2/',

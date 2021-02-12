@@ -45,6 +45,9 @@ class LevelDBHook(BaseHook):
         self.connection = self.get_connection(leveldb_conn_id)
         self.db = None
 
+    # pylint: disable=too-many-arguments
+    # Fifteen is reasonable in this case.
+
     def get_conn(
         self,
         name: str = '/tmp/testdb/',
@@ -74,9 +77,10 @@ class LevelDBHook(BaseHook):
         :param block_restart_interval (int) – block restart interval for delta encoding of keys
         :param max_file_size (bool) – maximum file size (in bytes)
         :param compression (bool) – whether to use Snappy compression (enabled by default))
-        :param bloom_filter_bits (int) – the number of bits to use for a bloom filter; the default of 0 means that no
-        bloom filter will be used
-        :param comparator (callable) – a custom comparator callable that takes two byte strings and returns an integer
+        :param bloom_filter_bits (int) – the number of bits to use for a bloom filter; the default of 0
+        means that no bloom filter will be used
+        :param comparator (callable) – a custom comparator callable that takes two byte strings and
+        returns an integer
         :param comparator_name (bytes) – name for the custom comparator
         """
         if self.db is not None:
@@ -116,23 +120,25 @@ class LevelDBHook(BaseHook):
     ) -> Optional[bytes]:
         """
         Execute operation with leveldb
-                :param command - command of plyvel(python wrap for leveldb) for DB object (str, e.g. 'put','get',
-                'delete','write_batch')
+                :param command - command of plyvel(python wrap for leveldb) for DB object (str, e.g.
+                 'put','get','delete','write_batch')
                 :param key - key for command(put,get,delete) execution(bytes, e.g. b'key', b'another-key')
                 :param value - value for command(put) execution(bytes, e.g. b'value', b'another-value')
-                :param keys - keys for command(write_batch) execution(List[bytes], e.g. [b'key', b'another-key'])
-                :param values - values for command(write_batch) execution(List[bytes], e.g. [b'value', b'another-value']
+                :param keys - keys for command(write_batch) execution(List[bytes], e.g.
+                [b'key', b'another-key'])
+                :param values - values for command(write_batch) execution(List[bytes], e.g.
+                [b'value', b'another-value']
                 :returns value from get or None(Optional[bytes])
                 )
         """
         if command == 'put':
-            self.put(key, value)
+            return self.put(key, value)
         elif command == 'get':
             return self.get(key)
         elif command == 'delete':
-            self.delete(key)
+            return self.delete(key)
         elif command == 'write_batch':
-            self.write_batch(keys, values)
+            return self.write_batch(keys, values)
         else:
             raise LevelDBHookException("Unknown command for LevelDB hook")
 
@@ -165,6 +171,6 @@ class LevelDBHook(BaseHook):
             :param keys - keys for write_batch execution(List[bytes], e.g. [b'key', b'another-key'])
             :param values - values for write_batch execution(List[bytes], e.g. [b'value', b'another-value'])
         """
-        with self.db.write_batch() as b:
-            for i in range(len(keys)):
-                b.put(keys[i], values[i])
+        with self.db.write_batch() as batch:
+            for i, key in enumerate(keys):
+                batch.put(key, values[i])

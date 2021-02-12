@@ -30,6 +30,9 @@ class LevelDBOperator(BaseOperator):
         :ref:`howto/operator:LevelDBOperator`
     """
 
+    # pylint: disable=too-many-instance-attributes
+    # Twenty is reasonable in this case.
+
     @apply_defaults
     def __init__(
         self,
@@ -99,14 +102,14 @@ class LevelDBOperator(BaseOperator):
             compression=self.compression,
             bloom_filter_bits=self.bloom_filter_bits,
             comparator=self.comparator,
-            comparator_name=self.comparator_name
+            comparator_name=self.comparator_name,
         )
         value = leveldb_hook.run(
             command=self.command,
             key=self.key,
             value=self.value,
             keys=self.keys,
-            values=self.values
+            values=self.values,
         )
         self.log.info("Done. Returned value was: %s", str(value))
         leveldb_hook.close_conn()
