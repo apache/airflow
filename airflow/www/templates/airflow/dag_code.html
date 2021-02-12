@@ -32,23 +32,8 @@
 {% block tail_js %}
   {{ super() }}
   <script>
-    function toggleWrap() {
-      $('.code pre').toggleClass('wrap')
-    };
-
-    // We blur task_ids in demo mode
-    $(document).ready(function() {
-      if ("{{ demo_mode }}" == "True") {
-        $("pre span.s").css({
-          'text-shadow': '0 0 10px red',
-          'color': 'transparent',
-        });
-      }
-    });
-
-    // pygments generates the HTML so set wrap toggle via js
-    if ("{{ wrapped }}" == "True") {
-      toggleWrap();
-    };
+    const isDemoMode = '{{ demo_mode }}' === 'True';
+    const isWrapped = '{{ wrapped }}' === 'True';
   </script>
+  <script src="{{ url_for_asset('dagCode.js') }}"></script>
 {% endblock %}

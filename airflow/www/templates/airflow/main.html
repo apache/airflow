@@ -79,13 +79,14 @@
 
   <script>
     // below variables are used in main.js
+    // keep as var, changing to const or let breaks other code
     var Airflow = {
       serverTimezone: '{{ server_timezone }}',
-      defaultUITimezone: '{{ default_ui_timezone }}'
+      defaultUITimezone: '{{ default_ui_timezone }}',
     };
     var hostName = '{{ hostname }}';
     var csrfToken = '{{ csrf_token() }}';
-    $("time[title]").tooltip()
+    $('time[title]').tooltip();
   </script>
   <!--[if IE ]>
   <script src="{{ url_for_asset('ie.js') }}"></script>

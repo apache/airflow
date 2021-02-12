@@ -66,22 +66,6 @@
 {% endblock %}
 
 {% block tail %}
-  <script>
-    function handleCheck() {
-      if ($('#isCumulative').is(':checked')) {
-        $('#dur_chart').hide();
-        $('#cum_dur_chart').show();
-      } else {
-        $('#dur_chart').show();
-        $('#cum_dur_chart').hide();
-      };
-    };
-    $( document ).on('chartload', function() {
-      handleCheck();
-    });
-    $('#isCumulative').click(function() {
-      handleCheck();
-    });
-  </script>
+  <script src="{{ url_for_asset('durationChart.js') }}"></script>
   {{ super() }}
 {% endblock %}

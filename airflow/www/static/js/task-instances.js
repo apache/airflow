@@ -21,7 +21,7 @@
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
 import { escapeHtml } from './main';
-import { defaultFormat, formatDateTime } from './datetime-utils';
+import { defaultFormat, formatDateTime } from './datetime_utils';
 
 function makeDateTimeHTML(start, end) {
   // check task ended or not
