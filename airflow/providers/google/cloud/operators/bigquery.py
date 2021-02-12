@@ -841,6 +841,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
     :type view: dict
+    :param materialized_view: [Optional] The materialized view definition.
+    :type materialized_view: dict
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
         **Example**: ::
 
@@ -875,9 +877,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         'gcs_schema_object',
         'labels',
         'view',
+        'materialized_view',
         'impersonation_chain',
     )
-    template_fields_renderers = {"table_resource": "json"}
+    template_fields_renderers = {"table_resource": "json", "materialized_view": "json"}
     ui_color = BigQueryUIColors.TABLE.value
 
     # pylint: disable=too-many-arguments
@@ -897,6 +900,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
         view: Optional[Dict] = None,
+        materialized_view: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
         location: Optional[str] = None,
         cluster_fields: Optional[List[str]] = None,
@@ -916,6 +920,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
         self.view = view
+        self.materialized_view = materialized_view
         self.encryption_configuration = encryption_configuration
         self.location = location
         self.cluster_fields = cluster_fields
@@ -952,6 +957,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 cluster_fields=self.cluster_fields,
                 labels=self.labels,
                 view=self.view,
+                materialized_view=self.materialized_view,
                 encryption_configuration=self.encryption_configuration,
                 table_resource=self.table_resource,
                 exists_ok=False,

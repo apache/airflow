@@ -98,6 +98,26 @@ with models.DAG(
     )
     # [END howto_operator_bigquery_delete_view]
 
+    # [START howto_operator_bigquery_create_materialized_view]
+    create_materialized_view = BigQueryCreateEmptyTableOperator(
+        task_id="create_materialized_view",
+        dataset_id=DATASET_NAME,
+        table_id="test_materialized_view",
+        materialized_view={
+            "query": f"SELECT SUM(salary)  AS sum_salary FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
+            "enableRefresh": True,
+            "refreshIntervalMs": 2000000,
+        },
+    )
+    # [END howto_operator_bigquery_create_materialized_view]
+
+    # [START howto_operator_bigquery_delete_materialized_view]
+    delete_materialized_view = BigQueryDeleteTableOperator(
+        task_id="delete_materialized_view",
+        deletion_dataset_table=f"{PROJECT_ID}.{DATASET_NAME}.test_materialized_view",
+    )
+    # [END howto_operator_bigquery_delete_materialized_view]
+
     # [START howto_operator_bigquery_create_external_table]
     create_external_table = BigQueryCreateExternalTableOperator(
         task_id="create_external_table",
@@ -185,10 +205,10 @@ with models.DAG(
 
     create_dataset >> patch_dataset >> update_dataset >> get_dataset >> get_dataset_result >> delete_dataset
 
-    update_dataset >> create_table >> create_view >> update_table >> [
+    update_dataset >> create_table >> create_view >> create_materialized_view >> update_table >> [
         get_dataset_tables,
         delete_view,
-    ] >> upsert_table >> delete_table >> delete_dataset
+    ] >> upsert_table >> delete_materialized_view >> delete_table >> delete_dataset
     update_dataset >> create_external_table >> delete_dataset
 
 with models.DAG(
