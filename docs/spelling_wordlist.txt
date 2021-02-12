@@ -1388,6 +1388,7 @@ webpage
 webserver
 webservers
 webservice
+werkzeug
 whitespace
 whl
 winrm
