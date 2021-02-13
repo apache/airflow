@@ -48,7 +48,7 @@ class TestWebserverAuth(unittest.TestCase):
         with self.app.test_client() as test_client:
             response = test_client.post("api/v1/login", json=payload)
         assert isinstance(response.json["token"], str)
-        assert response.json['email'] == "test@fab.org"
+        assert response.json["user"]['email'] == "test@fab.org"
 
     def test_can_view_other_endpoints(self):
         payload = {"username": "test", "password": "test"}
