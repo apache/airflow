@@ -43,7 +43,7 @@ with models.DAG(
         task_id="download_from_gdrive_to_local",
         folder_id=FOLDER_ID,
         file_name=FILE_NAME,
-        output_file=OUTPUT_FILE
+        output_file=OUTPUT_FILE,
     )
     # [END download_from_gdrive_to_local]
     detect_file >> download_from_gdrive_to_local

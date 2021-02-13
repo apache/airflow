@@ -34,8 +34,8 @@ class GoogleDriveToLocalOperator(BaseOperator):
     :type output_file: str
     :param folder_id: The folder id of the folder in which the Google Drive file resides
     :type folder_id: str
-    :param filename: The name of the file residing in Google Drive
-    :type filename: str
+    :param file_name: The name of the file residing in Google Drive
+    :type file_name: str
     :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
     :type drive_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
@@ -56,7 +56,7 @@ class GoogleDriveToLocalOperator(BaseOperator):
     template_fields = [
         "output_file",
         "folder_id",
-        "filename",
+        "file_name",
         "drive_id",
         "impersonation_chain",
     ]
@@ -66,7 +66,7 @@ class GoogleDriveToLocalOperator(BaseOperator):
         self,
         *,
         output_file: str,
-        filename: str,
+        file_name: str,
         folder_id: str,
         drive_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -77,20 +77,19 @@ class GoogleDriveToLocalOperator(BaseOperator):
         self.output_file = output_file
         self.folder_id = folder_id
         self.drive_id = drive_id
-        self.filename = filename
+        self.file_name = file_name
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.file_metadata = None
 
     def execute(self, context):
-        self.log.info('Executing download: %s into %s', self.filename, self.output_file)
+        self.log.info('Executing download: %s into %s', self.file_name, self.output_file)
         gdrive_hook = GoogleDriveHook(
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        self.file_metadata = gdrive_hook.get_file_id(
-            folder_id=self.folder_id, file_name=self.filename, drive_id=self.drive_id
+        file_metadata = gdrive_hook.get_file_id(
+            folder_id=self.folder_id, file_name=self.file_name, drive_id=self.drive_id
         )
 
         with open(self.output_file, "wb") as file:
-            gdrive_hook.download_file(file_id=self.file_metadata["id"], file_handle=file)
+            gdrive_hook.download_file(file_id=file_metadata["id"], file_handle=file)
