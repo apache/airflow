@@ -161,8 +161,13 @@ ARG AIRFLOW_EXTRAS
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS}
 
+# Allows to override constraints source
+ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
+ENV CONSTRAINTS_GITHUB_REPOSITORY=${CONSTRAINTS_GITHUB_REPOSITORY}
+
 ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
-ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ARG AIRFLOW_CONSTRAINTS="constraints"
+ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${AIRFLOW_CONSTRAINTS_REFERENCE}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 
 ENV PATH=${PATH}:/root/.local/bin
@@ -264,9 +269,11 @@ ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
-# * urllib3 - required to keep boto3 happy
 # * chardet<4 - required to keep snowflake happy
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="urllib3<1.26 chardet<4"
+# * urllib3 - required to keep boto3 happy
+# * pytz<2021.0: required by snowflake provider
+# * pyjwt<2.0.0: flask-jwt-extended requires it
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 urllib3<1.26 pytz<2021.0 pyjwt<2.0.0"
 
 WORKDIR /opt/airflow
 

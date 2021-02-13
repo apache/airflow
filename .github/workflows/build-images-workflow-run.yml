@@ -34,6 +34,11 @@ env:
   GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
+  # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
+  # Airflow one is going to be used
+  CONSTRAINTS_GITHUB_REPOSITORY: >-
+    ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || github.repository }}
   # This token is WRITE one - workflow_run type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # This token should not be empty in workflow_run type of event.

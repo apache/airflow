@@ -171,6 +171,7 @@ for dag_no in range(1, DAG_COUNT + 1):
             "__".join(
                 [
                     DAG_PREFIX,
+                    # pylint: disable=no-member
                     f"SHAPE={SHAPE.name.lower()}",
                     f"DAGS_COUNT={dag_no}_of_{DAG_COUNT}",
                     f"TASKS_COUNT=${TASKS_COUNT}",

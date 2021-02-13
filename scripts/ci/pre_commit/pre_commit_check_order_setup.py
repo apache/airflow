@@ -115,48 +115,60 @@ def check_provider_requirements(setup_context: str) -> None:
     """
     Test for an order of dependencies in PROVIDERS_REQUIREMENTS in setup.py
     """
-    print("[blue]Checking providers_requirements[/]")
+    print("[blue]Checking PROVIDERS_REQUIREMENTS[/]")
     pattern_providers_requirements = re.compile(r'PROVIDERS_REQUIREMENTS: [^{]*\{(.*?)}\n', re.DOTALL)
     providers_requirements = pattern_providers_requirements.findall(setup_context)[0]
     pattern_dependent = re.compile("'(.*?)'")
     src = pattern_dependent.findall(providers_requirements)
-    _check_list_sorted(src, "Order of dependencies in: providers_require")
+    _check_list_sorted(src, "Order of dependencies in: PROVIDERS_REQUIREMENTS")
 
 
-def check_extras_require(setup_context: str) -> None:
+def check_core_extras_requirements(setup_context: str) -> None:
     """
-    Test for an order of dependencies in EXTRAS_REQUIREMENTS in setup.py
+    Test for an order of dependencies in CORE_EXTRAS_REQUIREMENTS in setup.py
     """
-    print("[blue]Checking extras_requirements[/]")
-    pattern_extras_requires = re.compile(r'EXTRAS_REQUIREMENTS: [^{]*{(.*?)}\n', re.DOTALL)
+    print("[blue]Checking CORE_EXTRAS_REQUIREMENTS[/]")
+    pattern_extras_requires = re.compile(r'CORE_EXTRAS_REQUIREMENTS: [^{]*{(.*?)}\n', re.DOTALL)
     extras_requires = pattern_extras_requires.findall(setup_context)[0]
     pattern_dependent = re.compile(r"'(.*?)'")
     src = pattern_dependent.findall(extras_requires)
-    _check_list_sorted(src, "Order of dependencies in: extras_require")
+    _check_list_sorted(src, "Order of dependencies in: CORE_EXTRAS_REQUIREMENTS")
+
+
+def check_additional_extras_requirements(setup_context: str) -> None:
+    """
+    Test for an order of dependencies in EXTRAS_REQUIREMENTS in setup.py
+    """
+    print("[blue]Checking ADDITIONAL_EXTRAS_REQUIREMENTS[/]")
+    pattern_extras_requires = re.compile(r'ADDITIONAL_EXTRAS_REQUIREMENTS: [^{]*{(.*?)}\n', re.DOTALL)
+    extras_requires = pattern_extras_requires.findall(setup_context)[0]
+    pattern_dependent = re.compile(r"'(.*?)'")
+    src = pattern_dependent.findall(extras_requires)
+    _check_list_sorted(src, "Order of dependencies in: ADDITIONAL_EXTRAS_REQUIREMENTS")
 
 
 def check_extras_deprecated_aliases(setup_context: str) -> None:
     """
     Test for an order of dependencies in EXTRAS_DEPRECATED_ALIASES in setup.py
     """
-    print("[blue]Checking extras deprecated aliases[/]")
+    print("[blue]Checking extras EXTRAS_DEPRECATED_ALIASES[/]")
     pattern_extras_deprecated_aliases = re.compile(r'EXTRAS_DEPRECATED_ALIASES: [^{]*{(.*?)}\n', re.DOTALL)
     extras_deprecated_aliases = pattern_extras_deprecated_aliases.findall(setup_context)[0]
     pattern_dependent = re.compile("'(.*?)',")
     src = pattern_dependent.findall(extras_deprecated_aliases)
-    _check_list_sorted(src, "Order of dependencies in: extras_deprecated_aliases")
+    _check_list_sorted(src, "Order of dependencies in: EXTRAS_DEPRECATED_ALIASES")
 
 
 def check_preinstalled_providers(setup_context: str) -> None:
     """
     Test for an order of providers in PREINSTALLED_PROVIDERS in setup.py
     """
-    print("[blue]Checking preinstalled providers[/]")
+    print("[blue]Checking PREINSTALLED_PROVIDERS[/]")
     pattern_preinstalled_providers = re.compile(r'PREINSTALLED_PROVIDERS = \[(.*?)]\n', re.DOTALL)
     preinstalled_providers = pattern_preinstalled_providers.findall(setup_context)[0]
     pattern_dependent = re.compile("'(.*?)',")
     src = pattern_dependent.findall(preinstalled_providers)
-    _check_list_sorted(src, "Order of dependencies in: preinstalled_providers")
+    _check_list_sorted(src, "Order of dependencies in: PREINSTALLED_PROVIDERS")
 
 
 def check_install_and_setup_requires() -> None:
@@ -185,7 +197,8 @@ if __name__ == '__main__':
     check_alias_dependent_group(setup_context_main)
     check_sub_dependent_group(setup_context_main)
     check_provider_requirements(setup_context_main)
-    check_extras_require(setup_context_main)
+    check_core_extras_requirements(setup_context_main)
+    check_additional_extras_requirements(setup_context_main)
     check_extras_deprecated_aliases(setup_context_main)
     check_preinstalled_providers(setup_context_main)
     check_install_and_setup_requires()
