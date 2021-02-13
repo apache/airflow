@@ -28,6 +28,9 @@
 # Dev tools
 /.github/workflows/ @potiuk @ashb @kaxil
 breeze @potiuk
+breeze-complete @potiuk
+Dockerfile @potiuk
+Dockerfile.ci @potiuk
 /dev/ @potiuk @ashb @kaxil
 /provider_packages/ @potiuk
 /scripts/ @potiuk
