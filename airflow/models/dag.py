@@ -1189,7 +1189,7 @@ class DAG(BaseDag, LoggingMixin):
                           end_date=end_date,
                           only_failed=only_failed,
                           only_running=only_running,
-                          confirm_prompt=confirm_prompt,
+                          confirm_prompt=False,
                           include_subdags=include_subdags,
                           reset_dag_runs=reset_dag_runs,
                           dry_run=False,
