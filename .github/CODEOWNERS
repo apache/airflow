@@ -3,6 +3,9 @@
 /airflow/jobs/ @kaxil @ashb @XD-DENG
 /airflow/models @kaxil @XD-DENG @ashb @turbaszek
 
+# DAG Serialization
+/airflow/serialization @kaxil
+
 # Kubernetes
 /airflow/kubernetes @dimberman
 /airflow/kubernetes_executor_templates @dimberman
