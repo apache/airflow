@@ -219,7 +219,7 @@ class GoogleDriveHook(GoogleBaseHook):
         self.log.info("File %s uploaded to gdrive://%s.", local_location, remote_location)
         return file.get("id")
 
-    def download_file(self, file_id: str, file_handle, chunk_size=104857600):
+    def download_file(self, file_id: str, file_handle: io.TextIOWrapper, chunk_size: int = 104857600):
         """
         Download a file from Google Drive.
 
