@@ -162,7 +162,7 @@ not work or will produce unusable Airflow installation.
 In order to have repeatable installation, starting from **Airflow 1.10.10** and updated in
 **Airflow 1.10.13** we also keep a set of "known-to-be-working" constraint files in the
 ``constraints-master``, ``constraints-2-0`` and ``constraints-1-10`` orphan branches and then we create tag
-for each released version e.g. ``constraints-2.0.0``. This way, when we keep a tested and working set of dependencies.
+for each released version e.g. ``constraints-2.0.1``. This way, when we keep a tested and working set of dependencies.
 
 Those "known-to-be-working" constraints are per major/minor python version. You can use them as constraint
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
@@ -176,7 +176,7 @@ You can create the URL to the file substituting the variables in the template be
 
 where:
 
-- ``AIRFLOW_VERSION`` - Airflow version (e.g. ``2.0.0``) or ``master``, ``2-0``, ``1-10`` for latest development version
+- ``AIRFLOW_VERSION`` - Airflow version (e.g. ``2.0.1``) or ``master``, ``2-0``, ``1-10`` for latest development version
 - ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.7``
 
 Installation script
@@ -190,11 +190,11 @@ If you don't need to install any extra extra, you can use the command set below:
 
 .. code-block:: bash
 
-    AIRFLOW_VERSION=2.0.0
+    AIRFLOW_VERSION=2.0.1
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-2.0.1/constraints-3.6.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 **Installing with extras**
@@ -204,7 +204,7 @@ you can use the script below (the example below installs postgres and google ext
 
 .. code-block:: bash
 
-    AIRFLOW_VERSION=2.0.0
+    AIRFLOW_VERSION=2.0.1
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"

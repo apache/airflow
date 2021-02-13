@@ -974,6 +974,35 @@ class TestTableOperations(_BigQueryBaseTestClass):
         for res, exp in zip(result, table_list):
             assert res["tableId"] == exp["tableReference"]["tableId"]
 
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_materialized_view(self, mock_bq_client, mock_table):
+        query = """
+            SELECT product, SUM(amount)
+            FROM `test-project-id.test_dataset_id.test_table_prefix*`
+            GROUP BY product
+            """
+        materialized_view = {
+            'query': query,
+            'enableRefresh': True,
+            'refreshIntervalMs': 2000000,
+        }
+
+        self.hook.create_empty_table(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            materialized_view=materialized_view,
+            retry=DEFAULT_RETRY,
+        )
+        body = {'tableReference': TABLE_REFERENCE_REPR, 'materializedView': materialized_view}
+        mock_table.from_api_repr.assert_called_once_with(body)
+        mock_bq_client.return_value.create_table.assert_called_once_with(
+            table=mock_table.from_api_repr.return_value,
+            exists_ok=True,
+            retry=DEFAULT_RETRY,
+        )
+
 
 class TestBigQueryCursor(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")

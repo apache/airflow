@@ -274,6 +274,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         cluster_fields: Optional[List[str]] = None,
         labels: Optional[Dict] = None,
         view: Optional[Dict] = None,
+        materialized_view: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
         retry: Optional[Retry] = DEFAULT_RETRY,
         num_retries: Optional[int] = None,
@@ -330,6 +331,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "useLegacySql": False
             }
 
+        :param materialized_view: [Optional] The materialized view definition.
+        :type materialized_view: dict
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
             **Example**: ::
 
@@ -365,6 +368,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         if view:
             _table_resource['view'] = view
+
+        if materialized_view:
+            _table_resource['materializedView'] = materialized_view
 
         if encryption_configuration:
             _table_resource["encryptionConfiguration"] = encryption_configuration

@@ -146,7 +146,7 @@
     // JSON.parse is faster for large payloads than an object literal (because the JSON grammar is simpler!)
     var data = JSON.parse({{ data|tojson }});
     var barHeight = 20;
-    var axisHeight = 40;
+    var axisHeight = 50;
     var square_x = parseInt(500 * devicePixelRatio);
     var square_size = 10;
     var square_spacing = 2;
@@ -207,11 +207,8 @@
         var base_node = nodes[1];
 
       var num_square = base_node.instances.length;
-      var extent = d3.extent(base_node.instances, function(d) {
-        return new Date(d.execution_date);
-      });
-      var xScale = d3.time.scale()
-      .domain(extent)
+
+      var xScale = d3.scale.linear()
       .range([
         square_size/2,
         (num_square * square_size) + ((num_square-1) * square_spacing) - (square_size/2)
@@ -225,7 +222,16 @@
         d3.svg.axis()
         .scale(xScale)
         .orient("top")
-        .ticks(2)
+        // show a tick every 5 instances
+        .ticks(Math.floor(num_square / 5) || 1)
+        .tickFormat((d, i) => {
+          if (!num_square || (d > 0 && num_square < 3)) {
+            // don't render ticks when there are no instances or when the ticks would overlap
+            return '';
+          }
+          var tickIndex = d === 1 ? num_square - 1 : Math.round(d * num_square);
+          return moment(base_node.instances[tickIndex].execution_date).format('MMM DD, HH:mm');
+        })
       )
       .selectAll("text")
       .attr("transform", "rotate(-30)")

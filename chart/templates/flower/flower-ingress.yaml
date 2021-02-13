@@ -29,9 +29,8 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-  {{- with .Values.ingress.flower.annotations }}
-  annotations:
-  {{ toYaml . | indent 4 }}
+  {{- if .Values.ingress.flower.annotations }}
+  annotations: {{ toYaml .Values.ingress.flower.annotations | nindent 4 }}
   {{- end }}
 spec:
   {{- if .Values.ingress.flower.tls.enabled }}
@@ -43,9 +42,13 @@ spec:
   rules:
     - http:
         paths:
-          - path: {{ .Values.ingress.flower.path }}
-            backend:
+          - backend:
               serviceName: {{ .Release.Name }}-flower
               servicePort: flower-ui
+            {{- if .Values.ingress.flower.path }}
+            path: {{ .Values.ingress.flower.path }}
+            {{- end }}
+      {{- if .Values.ingress.flower.host }}
       host: {{ .Values.ingress.flower.host }}
+      {{- end }}
 {{- end }}
