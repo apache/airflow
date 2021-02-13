@@ -21,6 +21,14 @@
 
 {% block page_title %}{{ dag.dag_id }} - Code - Airflow{% endblock %}
 
+{% block head %}
+  {{ super() }}
+  <head>
+    <meta name="demo_mode" content="{{ demo_mode }}">
+    <meta name="wrapped" content="{{ wrapped }}">
+  </head>
+{% endblock %}
+
 {% block content %}
   {{ super() }}
   <div class="code-wrap">
@@ -31,9 +39,5 @@
 
 {% block tail_js %}
   {{ super() }}
-  <script>
-    const isDemoMode = '{{ demo_mode }}' === 'True';
-    const isWrapped = '{{ wrapped }}' === 'True';
-  </script>
   <script src="{{ url_for_asset('dagCode.js') }}"></script>
 {% endblock %}

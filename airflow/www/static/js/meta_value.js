@@ -17,19 +17,10 @@
  * under the License.
  */
 
-function handleCheck() {
-  if ($('#isCumulative').is(':checked')) {
-    $('#dur_chart').hide();
-    $('#cum_dur_chart').show();
-  } else {
-    $('#dur_chart').show();
-    $('#cum_dur_chart').hide();
+export default function getMetaValue(name) {
+  const elem = document.querySelector(`meta[name="${name}"]`);
+  if (!elem) {
+    return null;
   }
+  return elem.getAttribute('content');
 }
-$(document).on('chartload', () => {
-  handleCheck();
-});
-
-$('#isCumulative').on('click', () => {
-  handleCheck();
-});

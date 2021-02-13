@@ -17,6 +17,11 @@
  * under the License.
  */
 
+import getMetaValue from './meta_value';
+
+const isDemoMode = getMetaValue('demo_mode');
+const isWrapped = getMetaValue('wrapped');
+
 document.addEventListener('DOMContentLoaded', () => {
   // We blur task_ids in demo mode
   if (isDemoMode) {
