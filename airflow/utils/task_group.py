@@ -113,7 +113,6 @@ class TaskGroup(TaskMixin):
         # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
         if group_id in self.used_group_ids:
             base = re.split(r'__\d+$', group_id)[0]
-            print([(i, type(i)) for i in self.used_group_ids])
             suffixes = sorted(
                 [
                     int(re.split(r'^.+__', used_group_id)[1])
