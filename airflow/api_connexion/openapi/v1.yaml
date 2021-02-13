@@ -1490,6 +1490,32 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /login:
+    post:
+      summary: User login
+      description: |
+        Verify user and return a user object and JWT token as well
+      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      operationId: login
+      tags: [User]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLogin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
 components:
   # Reusable schemas (data models)
   schemas:
@@ -3296,6 +3322,7 @@ tags:
   - name: Role
   - name: Permission
   - name: User
+  - name: Auth
 
 externalDocs:
   url: https://airflow.apache.org/docs/apache-airflow/stable/

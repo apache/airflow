@@ -14,13 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
 from flask import Response, current_app
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
+from airflow.api_connexion.webserver_auth import requires_authentication
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
@@ -28,10 +28,13 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 def check_authentication() -> None:
     """Checks that the request has valid authorization information."""
     response = current_app.api_auth.requires_authentication(Response)()
-    if response.status_code != 200:
+    jwt_response = requires_authentication(Response)()
+    if response.status_code != 200 and jwt_response.status_code != 200:
         # since this handler only checks authentication, not authorization,
         # we should always return 401
-        raise Unauthenticated(headers=response.headers)
+        if response.status_code != 200:
+            raise Unauthenticated(headers=response.headers)
+        raise Unauthenticated(headers=jwt_response.headers)
 
 
 def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
