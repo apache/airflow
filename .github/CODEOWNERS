@@ -1,7 +1,7 @@
 # Core
 /airflow/executors/ @kaxil @XD-DENG @ashb @turbaszek
 /airflow/jobs/ @kaxil @ashb @XD-DENG
-/airflow/models @kaxil @XD-DENG @ashb @turbaszek
+/airflow/models/ @kaxil @XD-DENG @ashb @turbaszek
 
 # DAG Serialization
 /airflow/serialization/ @kaxil
