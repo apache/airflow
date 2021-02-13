@@ -28,7 +28,7 @@ class GoogleDriveToLocalOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleDriveToGCSOperator`
+        :ref:`howto/operator:GoogleDriveToLocalOperator`
 
     :param output_file: Path to downloaded file
     :type output_file: str
