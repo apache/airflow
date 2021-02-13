@@ -59,6 +59,51 @@ the example below.
 
 The exact format description is described in the SQLAlchemy documentation, see `Database Urls <https://docs.sqlalchemy.org/en/14/core/engines.html>`__. We will also show you some examples below.
 
+Setting up a SQLite Database
+----------------------------
+
+SQLite database can be used to run Airflow for development purpose as it does not require any database server
+(the database is stored in a local file). There are a few limitations of using the SQLite database (for example
+it only works with Sequential Executor) and it should NEVER be used for production.
+
+There is a minimum version of sqlite3 required to run Airflow 2.0+ - minimum version is 3.15.0. Some of the
+older systems have an earlier version of sqlite installed by default and for those system you need to manually
+upgrade SQLite to use version newer than 3.15.0. Note, that this is not a ``python library`` version, it's the
+SQLite system-level application that needs to be upgraded. There are different ways how SQLIte might be
+installed, you can find some information about that at the `official website of SQLite
+<https://www.sqlite.org/index.html>`_ and in the documentation specific to distribution of your Operating
+System.
+
+**Troubleshooting**
+
+Sometimes even if you upgrade SQLite to higher version and your local python reports higher version,
+the python interpreter used by Airflow might still use the older version available in the
+``LD_LIBRARY_PATH`` set for the python interpreter that is used to start Airflow.
+
+You can make sure which version is used by the interpreter by running this check:
+
+.. code-block:: bash
+
+    root@b8a8e73caa2c:/opt/airflow# python
+    Python 3.6.12 (default, Nov 25 2020, 03:59:00)
+    [GCC 8.3.0] on linux
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import sqlite3
+    >>> sqlite3.sqlite_version
+    '3.27.2'
+    >>>
+
+But be aware that setting environment variables for your Airflow deployment might change which SQLite
+library is found first, so you might want to make sure that the "high-enough" version of SQLite is the only
+version installed in your system.
+
+An example URI for the sqlite database:
+
+.. code-block:: text
+
+    sqlite:////home/airflow/airflow.db
+
+
 Setting up a MySQL Database
 ---------------------------
 
