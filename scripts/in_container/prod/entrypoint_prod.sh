@@ -55,7 +55,12 @@ function wait_for_connection {
 
     if [[ ${connection_url} != sqlite* ]]; then
         # Auto-detect DB parameters
-        [[ ${connection_url} =~ ([^:]*)://([^:]*[@.*]?):([^@]*)@?([^/:]*):?([0-9]*)/([^\?]*)\??(.*) ]] && \
+        # Examples:
+        #  postgres://YourUserName:password@YourHostname:5432/YourDatabaseName
+        #  postgres://YourUserName:password@YourHostname:5432/YourDatabaseName
+        #  postgres://YourUserName:@YourHostname:/YourDatabaseName
+        #  postgres://YourUserName@YourHostname/YourDatabaseName
+        [[ ${connection_url} =~ ([^:]*)://([^:@]*):?([^@]*)@?([^/:]*):?([0-9]*)/([^\?]*)\??(.*) ]] && \
             detected_backend=${BASH_REMATCH[1]} &&
             # Not used USER match
             # Not used PASSWORD match
