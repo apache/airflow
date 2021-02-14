@@ -17,39 +17,32 @@
 
 from typing import List, NamedTuple
 
-from flask_appbuilder.security.sqla.models import Role
+from flask_appbuilder.security.sqla.models import ViewMenu
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.api_connexion.schemas.permission_schema import PermissionViewSchema
 
-
-class RoleCollectionItemSchema(SQLAlchemySchema):
-    """Role item shema"""
+class ViewMenuCollectionItemSchema(SQLAlchemySchema):
+    """ViewMenu Schema"""
 
     class Meta:
         """Meta"""
 
-        model = Role
+        model = ViewMenu
 
     id = auto_field()
     name = auto_field()
-    permissions = fields.List(fields.Nested(PermissionViewSchema))
 
 
-class RoleCollection(NamedTuple):
-    """List of roles"""
+class ViewMenuCollection(NamedTuple):
+    """ViewMenu list"""
 
-    roles: List[Role]
+    view_menus: List[ViewMenu]
     total_entries: int
 
 
-class RoleCollectionSchema(Schema):
-    """List of roles"""
+class ViewMenuCollectionSchema(Schema):
+    """ViewMenu list schema"""
 
-    roles = fields.List(fields.Nested(RoleCollectionItemSchema))
+    view_menus = fields.List(fields.Nested(ViewMenuCollectionItemSchema))
     total_entries = fields.Int()
-
-
-role_collection_item_schema = RoleCollectionItemSchema()
-role_collection_schema = RoleCollectionSchema()

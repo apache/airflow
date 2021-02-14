@@ -17,39 +17,47 @@
 
 from typing import List, NamedTuple
 
-from flask_appbuilder.security.sqla.models import Role
+from flask_appbuilder.security.sqla.models import Permission, PermissionView
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.api_connexion.schemas.permission_schema import PermissionViewSchema
+from airflow.api_connexion.schemas.view_menu_schema import ViewMenuCollectionItemSchema
 
 
-class RoleCollectionItemSchema(SQLAlchemySchema):
-    """Role item shema"""
+class PermissionCollectionItemSchema(SQLAlchemySchema):
+    """Permission Schema"""
 
     class Meta:
         """Meta"""
 
-        model = Role
+        model = Permission
 
     id = auto_field()
     name = auto_field()
-    permissions = fields.List(fields.Nested(PermissionViewSchema))
 
 
-class RoleCollection(NamedTuple):
-    """List of roles"""
+class PermissionCollection(NamedTuple):
+    """Permission Collection"""
 
-    roles: List[Role]
+    permissions: List[Permission]
     total_entries: int
 
 
-class RoleCollectionSchema(Schema):
-    """List of roles"""
+class PermissionCollectionSchema(Schema):
+    """Permissions list schema"""
 
-    roles = fields.List(fields.Nested(RoleCollectionItemSchema))
+    permissions = fields.List(fields.Nested(PermissionCollectionItemSchema))
     total_entries = fields.Int()
 
 
-role_collection_item_schema = RoleCollectionItemSchema()
-role_collection_schema = RoleCollectionSchema()
+class PermissionViewSchema(SQLAlchemySchema):
+    """Permission View Schema"""
+
+    class Meta:
+        """Meta"""
+
+        model = PermissionView
+
+    id = auto_field()
+    permission = fields.Nested(PermissionCollectionItemSchema)
+    view_menu = fields.Nested(ViewMenuCollectionItemSchema)
