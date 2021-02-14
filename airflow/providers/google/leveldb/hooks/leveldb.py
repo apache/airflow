@@ -65,7 +65,8 @@ class LevelDBHook(BaseHook):
         comparator: Callable = None,
         comparator_name: bytes = None,
     ) -> DB:
-        """Creates Plyvel DB https://plyvel.readthedocs.io/en/latest/api.html#DB
+        """
+        Creates Plyvel DB https://plyvel.readthedocs.io/en/latest/api.html#DB
         :param name(str - path to create database(str, e.g. '/tmp/testdb/')
         :param create_if_missing (bool) – whether a new database should be created if needed
         :param error_if_exists (bool) – whether to raise an exception if the database already exists
@@ -120,16 +121,16 @@ class LevelDBHook(BaseHook):
     ) -> Optional[bytes]:
         """
         Execute operation with leveldb
-                :param command - command of plyvel(python wrap for leveldb) for DB object (str, e.g.
-                 'put','get','delete','write_batch')
-                :param key - key for command(put,get,delete) execution(bytes, e.g. b'key', b'another-key')
-                :param value - value for command(put) execution(bytes, e.g. b'value', b'another-value')
-                :param keys - keys for command(write_batch) execution(List[bytes], e.g.
-                [b'key', b'another-key'])
-                :param values - values for command(write_batch) execution(List[bytes], e.g.
-                [b'value', b'another-value']
-                :returns value from get or None(Optional[bytes])
-                )
+        :param command - command of plyvel(python wrap for leveldb) for DB object (str, e.g.
+        'put','get','delete','write_batch')
+        :param key - key for command(put,get,delete) execution(bytes, e.g. b'key', b'another-key')
+        :param value - value for command(put) execution(bytes, e.g. b'value', b'another-value')
+        :param keys - keys for command(write_batch) execution(List[bytes], e.g.
+        [b'key', b'another-key'])
+        :param values - values for command(write_batch) execution(List[bytes], e.g.
+        [b'value', b'another-value']
+        :returns value from get or None(Optional[bytes])
+        )
         """
         if command == 'put':
             return self.put(key, value)
@@ -145,31 +146,31 @@ class LevelDBHook(BaseHook):
     def put(self, key: bytes, value: bytes):
         """
         Put a single value into a leveldb db by key
-            :param key - key for put execution(bytes, e.g. b'key', b'another-key')
-            :param value - value for put execution(bytes, e.g. b'value', b'another-value')
+        :param key - key for put execution(bytes, e.g. b'key', b'another-key')
+        :param value - value for put execution(bytes, e.g. b'value', b'another-value')
         """
         self.db.put(key, value)
 
     def get(self, key: bytes) -> bytes:
         """
         Get a single value into a leveldb db by key
-            :param key - key for get execution(bytes, e.g. b'key', b'another-key')
-            :returns value(bytes, e.g. b'value', b'another-value')
+        :param key - key for get execution(bytes, e.g. b'key', b'another-key')
+        :returns value(bytes, e.g. b'value', b'another-value')
         """
         return self.db.get(key)
 
     def delete(self, key: bytes):
         """
         Delete a single value in a leveldb db by key
-            :param key - key for delete execution(bytes, e.g. b'key', b'another-key')
+        :param key - key for delete execution(bytes, e.g. b'key', b'another-key')
         """
         self.db.delete(key)
 
     def write_batch(self, keys: List[bytes], values: List[bytes]):
         """
         Write batch of values in a leveldb db by keys
-            :param keys - keys for write_batch execution(List[bytes], e.g. [b'key', b'another-key'])
-            :param values - values for write_batch execution(List[bytes], e.g. [b'value', b'another-value'])
+        :param keys - keys for write_batch execution(List[bytes], e.g. [b'key', b'another-key'])
+        :param values - values for write_batch execution(List[bytes], e.g. [b'value', b'another-value'])
         """
         with self.db.write_batch() as batch:
             for i, key in enumerate(keys):

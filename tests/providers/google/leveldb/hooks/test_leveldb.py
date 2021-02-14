@@ -24,79 +24,76 @@ from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook, LevelDBH
 
 
 class TestLevelDBHook(unittest.TestCase):
-    def __init__(self):
-        super().__init__()
-        self.hook = None
 
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_get_conn_db_is_not_none(self):
         """Test get_conn method of hook"""
-        self.hook = LevelDBHook(leveldb_conn_id='leveldb_default')
-        self.hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
-        assert self.hook.db is not None, "Check existence of DB object in connection creation"
-        self.hook.close_conn()
+        hook = LevelDBHook(leveldb_conn_id='leveldb_default')
+        hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
+        assert hook.db is not None, "Check existence of DB object in connection creation"
+        hook.close_conn()
 
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_run(self):
         """Test run method of hook"""
-        self.hook = LevelDBHook(leveldb_conn_id='leveldb_default')
-        self.hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
-        assert self.hook.run('get', b'test_key0') is None, "Initially, this key in LevelDB is empty"
-        self.hook.run('put', b'test_key0', b'test_value0')
+        hook = LevelDBHook(leveldb_conn_id='leveldb_default')
+        hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
+        assert hook.run('get', b'test_key0') is None, "Initially, this key in LevelDB is empty"
+        hook.run('put', b'test_key0', b'test_value0')
         assert (
-            self.hook.run('get', b'test_key0') == b'test_value0'
+            hook.run('get', b'test_key0') == b'test_value0'
         ), 'Connection to LevelDB with PUT and GET works.'
-        self.hook.run('delete', b'test_key0')
-        assert self.hook.run('get', b'test_key0') is None, 'Connection to LevelDB with DELETE works.'
-        self.hook.close_conn()
+        hook.run('delete', b'test_key0')
+        assert hook.run('get', b'test_key0') is None, 'Connection to LevelDB with DELETE works.'
+        hook.close_conn()
 
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_get(self):
         """Test get method of hook"""
-        self.hook = LevelDBHook(leveldb_conn_id='leveldb_default')
-        db = self.hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
+        hook = LevelDBHook(leveldb_conn_id='leveldb_default')
+        db = hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
         db.put(b'test_key', b'test_value')
-        assert self.hook.get(b'test_key') == b'test_value'
-        self.hook.close_conn()
+        assert hook.get(b'test_key') == b'test_value'
+        hook.close_conn()
 
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_put(self):
         """Test put method of hook"""
-        self.hook = LevelDBHook(leveldb_conn_id='leveldb_default')
-        db = self.hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
-        self.hook.put(b'test_key2', b'test_value2')
+        hook = LevelDBHook(leveldb_conn_id='leveldb_default')
+        db = hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
+        hook.put(b'test_key2', b'test_value2')
         assert db.get(b'test_key2') == b'test_value2'
-        self.hook.close_conn()
+        hook.close_conn()
 
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_delete(self):
         """Test delete method of hook"""
-        self.hook = LevelDBHook(leveldb_conn_id='leveldb_default')
-        db = self.hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
+        hook = LevelDBHook(leveldb_conn_id='leveldb_default')
+        db = hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
         db.put(b'test_key3', b'test_value3')
-        self.hook.delete(b'test_key3')
+        hook.delete(b'test_key3')
         assert db.get(b'test_key3') is None
-        self.hook.close_conn()
+        hook.close_conn()
 
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_write_batch(self):
         """Test write batch method of hook"""
-        self.hook = LevelDBHook(leveldb_conn_id='leveldb_default')
-        db = self.hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
+        hook = LevelDBHook(leveldb_conn_id='leveldb_default')
+        db = hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
         keys = [b'key', b'another-key']
         values = [b'value', b'another-value']
-        self.hook.write_batch(keys, values)
+        hook.write_batch(keys, values)
         assert db.get(b'key') == b'value'
         assert db.get(b'another-key') == b'another-value'
-        self.hook.close_conn()
+        hook.close_conn()
 
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_exception(self):
         """Test raising exception of hook in run method if we have unknown command in input"""
-        self.hook = LevelDBHook(leveldb_conn_id='leveldb_default')
-        self.hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
+        hook = LevelDBHook(leveldb_conn_id='leveldb_default')
+        hook.get_conn(name='/tmp/testdb/', create_if_missing=True)
         with pytest.raises(LevelDBHookException):
-            self.hook.run(command='other_command', key=b'key', value=b'value')
+            hook.run(command='other_command', key=b'key', value=b'value')
 
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_comparator(self):
@@ -117,14 +114,14 @@ class TestLevelDBHook(unittest.TestCase):
             # a and b are equal
             return 0
 
-        self.hook = LevelDBHook(leveldb_conn_id='leveldb_default')
-        self.hook.get_conn(
+        hook = LevelDBHook(leveldb_conn_id='leveldb_default')
+        hook.get_conn(
             name='/tmp/testdb2/',
             create_if_missing=True,
             comparator=comparator,
             comparator_name=b'CaseInsensitiveComparator',
         )
         assert (
-            self.hook.db is not None
+            hook.db is not None
         ), "Check existence of DB object(with comparator) in connection creation"
-        self.hook.close_conn()
+        hook.close_conn()
