@@ -104,6 +104,7 @@ unit of work and continuity.
     production-deployment
     backport-providers
     faq
+    Issue reporting and resolution process <issue-triage-process>
     privacy_notice
 
 .. toctree::
