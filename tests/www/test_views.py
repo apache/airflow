@@ -254,7 +254,7 @@ class TestConnectionModelView(TestBase):
         cmv.prefill_form(form=mock_form, pk=1)
 
 
-class TestCopyConnectionModelView(TestBase):
+class TestMultiCopyConnectionModelView(TestBase):
     def setUp(self):
         super().setUp()
         conn1 = Connection(

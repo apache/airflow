@@ -2907,7 +2907,7 @@ class ConnectionModelView(AirflowModelView):
         self.update_redirect()
         return redirect(self.get_redirect())
 
-    @action('mulcopy', 'Copy', 'Are you sure you want to Duplicate selected connections?', single=False)
+    @action('mulcopy', 'Copy', 'Are you sure you want to duplicate the selected connections?', single=False)
     @provide_session
     @auth.has_access(
         [
@@ -2916,10 +2916,10 @@ class ConnectionModelView(AirflowModelView):
     )
     def action_mulcopy(self, connections, session=None):
         """Copy multiple connections"""
-        for selected_con in connections:
+        for selected_conn in connections:
             connection_ids = {conn[0] for conn in session.query(Connection.conn_id).all()}
-            new_conn_id = selected_con.conn_id
-            base = re.split(r'__\d+$', selected_con.conn_id)[0]
+            new_conn_id = selected_conn.conn_id
+            base = re.split(r'__\d+$', selected_conn.conn_id)[0]
             suffixes = sorted(
                 [
                     int(re.split(r'^.+__', conn_id)[1])
@@ -2934,14 +2934,14 @@ class ConnectionModelView(AirflowModelView):
 
             dup_conn = Connection(
                 new_conn_id,
-                selected_con.conn_type,
-                selected_con.description,
-                selected_con.host,
-                selected_con.login,
-                selected_con.password,
-                selected_con.schema,
-                selected_con.port,
-                selected_con.extra,
+                selected_conn.conn_type,
+                selected_conn.description,
+                selected_conn.host,
+                selected_conn.login,
+                selected_conn.password,
+                selected_conn.schema,
+                selected_conn.port,
+                selected_conn.extra,
             )
 
             session.add(dup_conn)
