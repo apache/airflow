@@ -17,9 +17,46 @@
 
 from typing import List, NamedTuple
 
-from flask_appbuilder.security.sqla.models import Role
+from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role, ViewMenu
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+
+
+class PermissionSchema(SQLAlchemySchema):
+    """Permission Schema"""
+
+    class Meta:
+        """Meta"""
+
+        model = Permission
+
+    id = auto_field()
+    name = auto_field()
+
+
+class ViewMenuSchema(SQLAlchemySchema):
+    """ViewMenu Schema"""
+
+    class Meta:
+        """Meta"""
+
+        model = ViewMenu
+
+    id = auto_field()
+    name = auto_field()
+
+
+class PermissionViewSchema(SQLAlchemySchema):
+    """Permission View Schema"""
+
+    class Meta:
+        """Meta"""
+
+        model = PermissionView
+
+    id = auto_field()
+    permission = fields.Nested(PermissionSchema)
+    view_menu = fields.Nested(ViewMenuSchema)
 
 
 class RoleCollectionItemSchema(SQLAlchemySchema):
@@ -30,9 +67,9 @@ class RoleCollectionItemSchema(SQLAlchemySchema):
 
         model = Role
 
-    id = auto_field(dump_only=True)
+    id = auto_field()
     name = auto_field()
-    permissions = auto_field()
+    permissions = fields.List(fields.Nested(PermissionViewSchema))
 
 
 class RoleCollection(NamedTuple):
@@ -49,5 +86,5 @@ class RoleCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-role_collection_item_schema = RoleCollectionSchema()
+role_collection_item_schema = RoleCollectionItemSchema()
 role_collection_schema = RoleCollectionSchema()
