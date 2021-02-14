@@ -24,7 +24,6 @@ from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook, LevelDBH
 
 
 class TestLevelDBHook(unittest.TestCase):
-
     @mock.patch.dict('os.environ', AIRFLOW_CONN_LEVELDB_DEFAULT="test")
     def test_get_conn_db_is_not_none(self):
         """Test get_conn method of hook"""
@@ -121,7 +120,5 @@ class TestLevelDBHook(unittest.TestCase):
             comparator=comparator,
             comparator_name=b'CaseInsensitiveComparator',
         )
-        assert (
-            hook.db is not None
-        ), "Check existence of DB object(with comparator) in connection creation"
+        assert hook.db is not None, "Check existence of DB object(with comparator) in connection creation"
         hook.close_conn()
