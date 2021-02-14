@@ -18,18 +18,40 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$(dirname "${BASH_SOURCE[0]}")/../libraries/_script_init.sh"
 
-function pull_ci_image() {
-    local image_name_with_tag="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-    start_end::group_start "Pulling ${image_name_with_tag} image"
+usage() {
+local cmdname
+cmdname="$(basename -- "$0")"
 
-    push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_CI_IMAGE}" "${image_name_with_tag}"
-    start_end::group_end
+cat << EOF
+Usage: ${cmdname} <IMAGE_TYPE> <DOCKER_IMAGE>
 
+Verify the user-specified docker image.
+
+Image Type can be one of the two values: CI or PROD
+
+EOF
 }
 
 
-build_images::prepare_ci_build
+if [[ "$#" -ne 2 ]]; then
+    >&2 echo "You must provide two argument - image type [PROD/CI] and image name."
+    usage
+    exit 1
+fi
 
-pull_ci_image
+IMAGE_TYPE="${1}"
+IMAGE_NAME="${2}"
 
-verify_image::verify_ci_image "${AIRFLOW_CI_IMAGE}"
+if ! docker image inspect "${IMAGE_NAME}" &>/dev/null; then
+    >&2 echo "Image '${IMAGE_NAME}' doesn't exists in local registry."
+    exit 1
+fi
+
+if [ "$(echo "${IMAGE_TYPE}" | tr '[:lower:]' '[:upper:]')" = "PROD" ]; then
+    verify_image::verify_prod_image "${IMAGE_NAME}"
+elif [ "$(echo "${IMAGE_TYPE}" | tr '[:lower:]' '[:upper:]')" = "CI" ]; then
+    verify_image::verify_ci_image "${IMAGE_NAME}"
+else
+    >&2 echo "Unsupported image type. Supported values: PROD, CI"
+    exit 1
+fi
