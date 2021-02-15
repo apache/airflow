@@ -767,8 +767,8 @@ Dependency management
 
 Airflow is not a standard python project. Most of the python projects fall into one of two types -
 application or library. As described in
-[StackOverflow Question](https://stackoverflow.com/questions/28509481/should-i-pin-my-python-dependencies-versions)
-decision whether to pin (freeze) dependency versions for a python project depends on the type. For
+`this StackOverflow question <https://stackoverflow.com/questions/28509481/should-i-pin-my-python-dependencies-versions>`_,
+the decision whether to pin (freeze) dependency versions for a python project depends on the type. For
 applications, dependencies should be pinned, but for libraries, they should be open.
 
 For application, pinning the dependencies makes it more stable to install in the future - because new
