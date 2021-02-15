@@ -18,14 +18,20 @@
 import unittest
 from unittest import mock
 
-from airflow.lineage import AUTO, apply_lineage, prepare_lineage
+from airflow.lineage import AUTO, apply_lineage, get_backend, prepare_lineage
 from airflow.lineage.backend import LineageBackend
 from airflow.lineage.entities import File
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
+from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+
+
+class CustomLineageBackend(LineageBackend):
+    def send_lineage(self, operator, inlets=None, outlets=None, context=None):
+        pass
 
 
 class TestLineage(unittest.TestCase):
@@ -114,17 +120,17 @@ class TestLineage(unittest.TestCase):
         assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
         assert op1.outlets[0].url == f1s.format(DEFAULT_DATE)
 
-    @mock.patch("airflow.lineage._get_backend")
-    def test_lineage_is_sent_to_backend(self, _get_backend):
+    @mock.patch("airflow.lineage.get_backend")
+    def test_lineage_is_sent_to_backend(self, get_backend):
         class TestBackend(LineageBackend):
-            def send_lineage(self, operator=None, inlets=None, outlets=None, context=None):
+            def send_lineage(self, operator, inlets=None, outlets=None, context=None):
                 assert len(inlets) == 1
                 assert len(outlets) == 1
 
         func = mock.Mock()
         func.__name__ = 'foo'
 
-        _get_backend.return_value = TestBackend()
+        get_backend.return_value = TestBackend()
 
         dag = DAG(dag_id='test_lineage_is_sent_to_backend', start_date=DEFAULT_DATE)
 
@@ -142,3 +148,13 @@ class TestLineage(unittest.TestCase):
         prep(op1, ctx1)
         post = apply_lineage(func)
         post(op1, ctx1)
+
+    def test_empty_lineage_backend(self):
+        be = get_backend()
+        assert be is None
+
+    @conf_vars({("lineage", "backend"): "tests.lineage.test_lineage.CustomLineageBackend"})
+    def test_resolve_lineage_class(self):
+        be = get_backend()
+        assert issubclass(be.__class__, LineageBackend)
+        assert isinstance(be, CustomLineageBackend)

@@ -16,17 +16,31 @@
 # specific language governing permissions and limitations
 # under the License.
 """Sends lineage metadata to a backend"""
+from typing import Optional
+
+import airflow
 
 
 class LineageBackend:
     """Sends lineage metadata to a backend"""
 
-    def send_lineage(self, operator=None, inlets=None, outlets=None, context=None):
+    def send_lineage(
+        self,
+        operator: 'airflow.models.baseoperator.BaseOperator',
+        inlets: Optional[list] = None,
+        outlets: Optional[list] = None,
+        context: Optional[dict] = None,
+    ):
         """
         Sends lineage metadata to a backend
+
         :param operator: the operator executing a transformation on the inlets and outlets
+        :type operator: airflow.models.baseoperator.BaseOperator
         :param inlets: the inlets to this operator
+        :type inlets: list
         :param outlets: the outlets from this operator
+        :type outlets: list
         :param context: the current context of the task instance
+        :type context: dict
         """
         raise NotImplementedError()

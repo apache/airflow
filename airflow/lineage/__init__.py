@@ -26,7 +26,6 @@ import jinja2
 from cattr import structure, unstructure
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
 from airflow.lineage.backend import LineageBackend
 from airflow.utils.module_loading import import_string
 
@@ -48,18 +47,19 @@ class Metadata:
     data: Dict = attr.ib()
 
 
-def _get_backend() -> Optional[LineageBackend]:
-    _backend: Optional[LineageBackend] = None
+def get_backend() -> Optional[LineageBackend]:
 
-    try:
-        _backend_str = conf.get("lineage", "backend")
-        _backend = import_string(_backend_str)  # pylint: disable=protected-access
-    except ImportError as err:
-        log.debug("Cannot import %s due to %s", _backend_str, err)  # pylint: disable=protected-access
-    except AirflowConfigException:
-        log.debug("Could not find lineage backend key in config")
+    clazz = conf.getimport("lineage", "backend", fallback=None)
 
-    return _backend
+    if clazz:
+        if not issubclass(clazz, LineageBackend):
+            raise TypeError(
+                f"Your custom Lineage class `{clazz.__name__}` is not a subclass of `{LineageBackend.__name__}`."
+            )
+        else:
+            return clazz()
+
+    return None
 
 
 def _get_instance(meta: Metadata):
@@ -99,7 +99,7 @@ def apply_lineage(func: T) -> T:
     Saves the lineage to XCom and if configured to do so sends it
     to the backend.
     """
-    _backend = _get_backend()
+    _backend = get_backend()
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
