@@ -71,18 +71,22 @@ jobs:
     name: "Build info"
     runs-on: >-
       ${{ (
-        github.event_name == 'push' ||
-        github.event_name == 'schedule' ||
-        github.event.pull_request.author_association == 'OWNER' ||
-        github.event.pull_request.author_association == 'MEMBER'
-      ) && 'self-hosted' || 'ubuntu-20.04' }}
-    env:
-      GITHUB_CONTEXT: ${{ toJson(github) }}
-      RUNS_ON: ${{ (
+        (
           github.event_name == 'push' ||
           github.event_name == 'schedule' ||
           github.event.pull_request.author_association == 'OWNER' ||
           github.event.pull_request.author_association == 'MEMBER'
+        ) && github.repository == 'apache/airflow'
+      ) && 'self-hosted' || 'ubuntu-20.04' }}
+    env:
+      GITHUB_CONTEXT: ${{ toJson(github) }}
+      RUNS_ON: ${{ (
+          (
+            github.event_name == 'push' ||
+            github.event_name == 'schedule' ||
+            github.event.pull_request.author_association == 'OWNER' ||
+            github.event.pull_request.author_association == 'MEMBER'
+          ) && github.repository == 'apache/airflow'
         ) && 'self-hosted' || 'ubuntu-20.04' }}
     outputs:
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
