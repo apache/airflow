@@ -22,6 +22,7 @@ from googleapiclient.discovery import Resource, build
 from googleapiclient.http import HttpRequest, MediaFileUpload
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from io import TextIOWrapper
 
 
 class GoogleDriveHook(GoogleBaseHook):
@@ -219,7 +220,7 @@ class GoogleDriveHook(GoogleBaseHook):
         self.log.info("File %s uploaded to gdrive://%s.", local_location, remote_location)
         return file.get("id")
 
-    def download_file(self, file_id: str, file_handle: io.TextIOWrapper, chunk_size: int = 104857600):
+    def download_file(self, file_id: str, file_handle: TextIOWrapper, chunk_size: int = 104857600):
         """
         Download a file from Google Drive.
 
