@@ -49,7 +49,7 @@ const config = {
     materialIcons: `${STATIC_DIR}/css/material-icons.css`,
     moment: 'moment-timezone',
     switch: `${STATIC_DIR}/css/switch.css`,
-    taskInstances: `${STATIC_DIR}/js/task-instances.js`,
+    taskInstances: `${STATIC_DIR}/js/task_instances.js`,
     taskInstance: `${STATIC_DIR}/js/task_instance.js`,
     tree: `${STATIC_DIR}/css/tree.css`,
     circles: `${STATIC_DIR}/js/circles.js`,
