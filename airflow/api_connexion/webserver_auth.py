@@ -22,7 +22,6 @@ from typing import Callable, TypeVar, cast
 import jwt
 from flask import Response, request
 
-from airflow.api_connexion.exceptions import BadRequest, PermissionDenied
 from airflow.configuration import conf
 
 SECRET = conf.get("webserver", "secret_key")
@@ -45,10 +44,9 @@ def decode_auth_token(auth_token):
     try:
         payload = jwt.decode(auth_token, SECRET, algorithms=['HS256'])
         return payload['sub']
-    except jwt.ExpiredSignatureError:
-        raise BadRequest(detail="The signature is expired, please login again")
-    except jwt.InvalidTokenError:
-        raise BadRequest(detail="The token provided is invalid")
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        # Do not raise exception here due to auth_backend auth
+        return
 
 
 def auth_current_user():
@@ -59,13 +57,13 @@ def auth_current_user():
         try:
             token = auth.split(" ")[1]
         except IndexError:
-            raise BadRequest(detail="The authorization header is malformed")
+            # Do not raise exception here due to auth_backend auth
+            return
     if token:
         user = decode_auth_token(token)
         if not isinstance(user, int):
             user = None
         return user
-    raise PermissionDenied(detail="You do not have permission to view this resource, please login")
 
 
 def requires_authentication(function: T):

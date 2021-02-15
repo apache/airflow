@@ -25,9 +25,7 @@ from tests.test_utils.config import conf_vars
 
 class TestWebserverAuth(unittest.TestCase):
     def setUp(self) -> None:
-        with conf_vars(
-            {("webserver", "session_lifetime_minutes"): "1", ("webserver", "secret_key"): "secret"}
-        ):
+        with conf_vars({("webserver", "session_lifetime_minutes"): "1"}):
             self.app = create_app(testing=True)
 
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
@@ -54,11 +52,9 @@ class TestWebserverAuth(unittest.TestCase):
         payload = {"username": "test", "password": "test"}
         with self.app.test_client() as test_client:
             response = test_client.post("api/v1/login", json=payload)
-            token = response.json["token"]
-
-            response2 = test_client.get("/api/v1/pools", headers={"Authorization": "Bearer " + token})
             assert current_user.email == "test@fab.org"
-
+            token = response.json["token"]
+            response2 = test_client.get("/api/v1/pools", headers={"Authorization": "Bearer " + token})
         assert response2.status_code == 200
         assert response2.json == {
             "pools": [
