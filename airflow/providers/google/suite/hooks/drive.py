@@ -16,13 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Drive service"""
+from io import TextIOWrapper
 from typing import Any, Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import HttpRequest, MediaFileUpload
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-from io import TextIOWrapper
 
 
 class GoogleDriveHook(GoogleBaseHook):

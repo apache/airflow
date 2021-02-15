@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from tempfile import NamedTemporaryFile
 from unittest import TestCase, mock
 
 from airflow.providers.google.cloud.transfers.gdrive_to_local import GoogleDriveToLocalOperator
@@ -22,17 +23,25 @@ from airflow.providers.google.cloud.transfers.gdrive_to_local import GoogleDrive
 TASK_ID = "test-drive-to-local-operator"
 FOLDER_ID = "1234567890qwerty"
 FILE_NAME = "file.pdf"
-OUTPUT_FILE = "out_file.pdf"
 
 
 class TestGoogleDriveToLocalOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.transfers.gdrive_to_local.GoogleDriveHook")
     def test_execute(self, hook_mock):
-        op = GoogleDriveToLocalOperator(
-            task_id=TASK_ID,
-            folder_id=FOLDER_ID,
-            file_name=FILE_NAME,
-            output_file=OUTPUT_FILE,
-        )
-        op.execute(context=None)
-        hook_mock.assert_called_once()
+        with NamedTemporaryFile("wb") as temp_file:
+            op = GoogleDriveToLocalOperator(
+                task_id=TASK_ID,
+                folder_id=FOLDER_ID,
+                file_name=FILE_NAME,
+                output_file=temp_file.name,
+            )
+            op.execute(context=None)
+            hook_mock.assert_called_once_with(delegate_to=None, impersonation_chain=None)
+
+            hook_mock.return_value.get_file_id.assert_called_once_with(
+                folder_id=FOLDER_ID, file_name=FILE_NAME, drive_id=None
+            )
+
+            hook_mock.return_value.download_file.assert_called_once_with(
+                file_id=mock.ANY, file_handle=mock.ANY
+            )
