@@ -1146,8 +1146,9 @@ class TestAirflowBaseViews(TestBase):
         xss_string = "<script>alert('Give me your credit card number')</script>"
         with conf_vars({('webserver', 'instance_name'): xss_string}):
             resp = self.client.get('home', follow_redirects=True)
-            escaped_xss_string = \
+            escaped_xss_string = (
                 "&lt;script&gt;alert(&#39;Give me your credit card number&#39;)&lt;/script&gt;"
+            )
             self.check_content_in_response(escaped_xss_string, resp)
             self.check_content_not_in_response(xss_string, resp)
 
@@ -1476,24 +1477,6 @@ class TestLogView(TestBase):
 
         assert 302 == response.status_code
         assert ExternalHandler.EXTERNAL_URL == response.headers['Location']
-
-
-class TestVersionView(TestBase):
-    def test_version(self):
-        with self.capture_templates() as templates:
-            resp = self.client.get('version', data=dict(
-                username='test',
-                password='test'
-            ), follow_redirects=True)
-            self.check_content_in_response('Version Info', resp)
-
-        self.assertEqual(len(templates), 1)
-        self.assertEqual(templates[0].name, 'airflow/version.html')
-        self.assertEqual(templates[0].local_context, dict(
-            airflow_version=version.version,
-            git_version=mock.ANY,
-            title='Version Info'
-        ))
 
 
 class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
