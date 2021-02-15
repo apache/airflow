@@ -245,7 +245,8 @@ datadog = [
     'datadog>=0.14.0',
 ]
 doc = [
-    'sphinx>=2.1.2',
+    # Sphinx is limited to < 3.5.0 because of https://github.com/sphinx-doc/sphinx/issues/8880
+    'sphinx>=2.1.2, <3.5.0',
     f'sphinx-airflow-theme{get_sphinx_theme_version()}',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
