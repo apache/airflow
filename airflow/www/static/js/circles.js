@@ -121,5 +121,7 @@ function toggle() {
   }
 }
 
-setInterval(toggle, duration * 3);
-toggle();
+document.addEventListener('DOMContentLoaded', () => {
+  setInterval(toggle, duration * 3);
+  toggle();
+});

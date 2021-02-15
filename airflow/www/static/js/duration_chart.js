@@ -26,10 +26,6 @@ function handleCheck() {
     $('#cum_dur_chart').hide();
   }
 }
-$(document).on('chartload', () => {
-  handleCheck();
-});
+$(document).on('chartload', handleCheck);
 
-$('#isCumulative').on('click', () => {
-  handleCheck();
-});
+$('#isCumulative').on('click', handleCheck);
