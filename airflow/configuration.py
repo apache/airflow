@@ -39,6 +39,7 @@ from cryptography.fernet import Fernet
 
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
+from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
@@ -243,7 +244,10 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             # Some of the features in storing rendered fields require sqlite version >= 3.15.0
             min_sqlite_version = '3.15.0'
             if StrictVersion(sqlite3.sqlite_version) < StrictVersion(min_sqlite_version):
-                raise AirflowConfigException(f"error: cannot use sqlite version < {min_sqlite_version}")
+                raise AirflowConfigException(
+                    f"error: sqlite C library version too old (< {min_sqlite_version}). "
+                    f"See {get_docs_url('howto/set-up-database.rst#setting-up-a-sqlite-database')}"
+                )
 
         if self.has_option('core', 'mp_start_method'):
             mp_start_method = self.get('core', 'mp_start_method')

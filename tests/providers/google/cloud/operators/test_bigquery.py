@@ -69,6 +69,11 @@ VIEW_DEFINITION = {
     "query": f"SELECT * FROM `{TEST_DATASET}.{TEST_TABLE_ID}`",
     "useLegacySql": False,
 }
+MATERIALIZED_VIEW_DEFINITION = {
+    'query': f'SELECT product, SUM(amount) FROM `{TEST_DATASET}.{TEST_TABLE_ID}` GROUP BY product',
+    'enableRefresh': True,
+    'refreshIntervalMs': 2000000,
+}
 
 
 class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
@@ -88,6 +93,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
             cluster_fields=None,
             labels=None,
             view=None,
+            materialized_view=None,
             encryption_configuration=None,
             table_resource=None,
             exists_ok=False,
@@ -113,6 +119,33 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
             cluster_fields=None,
             labels=None,
             view=VIEW_DEFINITION,
+            materialized_view=None,
+            encryption_configuration=None,
+            table_resource=None,
+            exists_ok=False,
+        )
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_create_materialized_view(self, mock_hook):
+        operator = BigQueryCreateEmptyTableOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            table_id=TEST_TABLE_ID,
+            materialized_view=MATERIALIZED_VIEW_DEFINITION,
+        )
+
+        operator.execute(None)
+        mock_hook.return_value.create_empty_table.assert_called_once_with(
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            table_id=TEST_TABLE_ID,
+            schema_fields=None,
+            time_partitioning={},
+            cluster_fields=None,
+            labels=None,
+            view=None,
+            materialized_view=MATERIALIZED_VIEW_DEFINITION,
             encryption_configuration=None,
             table_resource=None,
             exists_ok=False,
@@ -148,6 +181,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
             cluster_fields=cluster_fields,
             labels=None,
             view=None,
+            materialized_view=None,
             encryption_configuration=None,
             table_resource=None,
             exists_ok=False,

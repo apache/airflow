@@ -746,7 +746,7 @@ b) Choose pytest as test runner:
 
 c) Run/Debug tests using standard "Run/Debug" feature of IntelliJ
 
-.. image:: images/testing/run-tests.png
+.. image:: images/testing/run-test.png
     :align: center
     :alt: Run/Debug tests
 

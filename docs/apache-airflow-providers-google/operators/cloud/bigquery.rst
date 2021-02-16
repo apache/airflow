@@ -178,6 +178,15 @@ You can use this operator to create a view on top of an existing table.
     :start-after: [START howto_operator_bigquery_create_view]
     :end-before: [END howto_operator_bigquery_create_view]
 
+You can also use this operator to create a materialized view that periodically
+cache results of a query for increased performance and efficiency.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_bigquery_operations.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_create_materialized_view]
+    :end-before: [END howto_operator_bigquery_create_materialized_view]
+
 .. _howto/operator:BigQueryCreateExternalTableOperator:
 
 Create external table
@@ -257,6 +266,14 @@ You can also use this operator to delete a view.
     :dedent: 4
     :start-after: [START howto_operator_bigquery_delete_view]
     :end-before: [END howto_operator_bigquery_delete_view]
+
+You can also use this operator to delete a materialized view.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_bigquery_operations.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_delete_materialized_view]
+    :end-before: [END howto_operator_bigquery_delete_materialized_view]
 
 .. _howto/operator:BigQueryInsertJobOperator:
 

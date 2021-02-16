@@ -959,7 +959,7 @@ Old command                   New command                       Group
 ``airflow trigger_dag``       ``airflow dags trigger``          ``dags``
 ``airflow delete_dag``        ``airflow dags delete``           ``dags``
 ``airflow show_dag``          ``airflow dags show``             ``dags``
-``airflow list_dag``          ``airflow dags list``             ``dags``
+``airflow list_dags``         ``airflow dags list``             ``dags``
 ``airflow dag_status``        ``airflow dags status``           ``dags``
 ``airflow backfill``          ``airflow dags backfill``         ``dags``
 ``airflow list_dag_runs``     ``airflow dags list-runs``        ``dags``

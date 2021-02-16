@@ -220,6 +220,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator',
         'airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor',
         'airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor',
+        'airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor',
         'airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor',
         'airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor',
     }

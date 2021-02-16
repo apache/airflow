@@ -841,6 +841,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
     :type view: dict
+    :param materialized_view: [Optional] The materialized view definition.
+    :type materialized_view: dict
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
         **Example**: ::
 
@@ -866,6 +868,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
+    :type exists_ok: bool
     """
 
     template_fields = (
@@ -875,9 +879,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         'gcs_schema_object',
         'labels',
         'view',
+        'materialized_view',
         'impersonation_chain',
     )
-    template_fields_renderers = {"table_resource": "json"}
+    template_fields_renderers = {"table_resource": "json", "materialized_view": "json"}
     ui_color = BigQueryUIColors.TABLE.value
 
     # pylint: disable=too-many-arguments
@@ -897,10 +902,12 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
         view: Optional[Dict] = None,
+        materialized_view: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
         location: Optional[str] = None,
         cluster_fields: Optional[List[str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        exists_ok: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -916,11 +923,13 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
         self.view = view
+        self.materialized_view = materialized_view
         self.encryption_configuration = encryption_configuration
         self.location = location
         self.cluster_fields = cluster_fields
         self.table_resource = table_resource
         self.impersonation_chain = impersonation_chain
+        self.exists_ok = exists_ok
 
     def execute(self, context) -> None:
         bq_hook = BigQueryHook(
@@ -952,9 +961,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 cluster_fields=self.cluster_fields,
                 labels=self.labels,
                 view=self.view,
+                materialized_view=self.materialized_view,
                 encryption_configuration=self.encryption_configuration,
                 table_resource=self.table_resource,
-                exists_ok=False,
+                exists_ok=self.exists_ok,
             )
             self.log.info(
                 'Table %s.%s.%s created successfully', table.project, table.dataset_id, table.table_id
@@ -1351,6 +1361,8 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param exists_ok: If ``True``, ignore "already exists" errors when creating the dataset.
+    :type exists_ok: bool
         **Example**: ::
 
             create_new_dataset = BigQueryCreateEmptyDatasetOperator(
@@ -1383,6 +1395,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        exists_ok: bool = False,
         **kwargs,
     ) -> None:
 
@@ -1402,6 +1415,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         self.dataset_reference = dataset_reference if dataset_reference else {}
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.exists_ok = exists_ok
 
         super().__init__(**kwargs)
 
@@ -1419,7 +1433,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                 dataset_id=self.dataset_id,
                 dataset_reference=self.dataset_reference,
                 location=self.location,
-                exists_ok=False,
+                exists_ok=self.exists_ok,
             )
         except Conflict:
             dataset_id = self.dataset_reference.get("datasetReference", {}).get("datasetId", self.dataset_id)
