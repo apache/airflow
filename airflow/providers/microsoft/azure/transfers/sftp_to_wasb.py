@@ -61,6 +61,7 @@ class SFTPToWasbOperator(BaseOperator):
         as opposed to a cp command.
     :type move_object: bool
     """
+
     template_fields = ("sftp_source_path", "container_name", "blob_name")
 
     @apply_defaults
@@ -74,7 +75,7 @@ class SFTPToWasbOperator(BaseOperator):
         load_options: Optional[dict] = None,
         move_object: bool = False,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
 
@@ -87,8 +88,7 @@ class SFTPToWasbOperator(BaseOperator):
         self.load_options = load_options if load_options is not None else {}
         self.move_object = move_object
 
-    def execute(self,
-                context: Optional[Dict[Any, Any]]) -> None:
+    def execute(self, context: Optional[Dict[Any, Any]]) -> None:
         """Upload a file from SFTP to Azure Blob Storage."""
         sftp_files: List[SftpFile] = self.get_sftp_files_map()
         uploaded_files = self.copy_files_to_wasb(sftp_files)
@@ -110,9 +110,7 @@ class SFTPToWasbOperator(BaseOperator):
             )
 
             self.log.info(
-                "Found %s files at sftp source path: %s",
-                str(len(found_files)),
-                self.sftp_source_path
+                "Found %s files at sftp source path: %s", str(len(found_files)), self.sftp_source_path
             )
 
             for file in found_files:
@@ -138,8 +136,7 @@ class SFTPToWasbOperator(BaseOperator):
                 "Found {} in {}.".format(total_wildcards, self.sftp_source_path)
             )
 
-    def copy_files_to_wasb(self,
-                           sftp_files: List[SftpFile]) -> List[str]:
+    def copy_files_to_wasb(self, sftp_files: List[SftpFile]) -> List[str]:
         """Upload a list of files from sftp_files to Azure Blob Storage with a new Blob Name."""
         uploaded_files = []
         wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
@@ -153,17 +150,13 @@ class SFTPToWasbOperator(BaseOperator):
                     self.container_name,
                     file.blob_name,
                 )
-                wasb_hook.load_file(tmp.name,
-                                    self.container_name,
-                                    file.blob_name,
-                                    **self.load_options)
+                wasb_hook.load_file(tmp.name, self.container_name, file.blob_name, **self.load_options)
 
                 uploaded_files.append(file.sftp_file_path)
 
         return uploaded_files
 
-    def delete_files(self,
-                     uploaded_files: List[str]) -> None:
+    def delete_files(self, uploaded_files: List[str]) -> None:
         """Performs a move of a list of files at SFTP to Azure Blob Storage."""
         for sftp_file_path in uploaded_files:
             self.log.info("Executing delete of %s", sftp_file_path)
