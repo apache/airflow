@@ -37,6 +37,10 @@ class SFTPToWasbOperator(BaseOperator):
     """
     Transfer files to Azure Blob Storage from SFTP server.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SFTPToWasbOperator`
+
     :param sftp_source_path: The sftp remote path. This is the specified file path
         for downloading the single file or multiple files from the SFTP server.
         You can use only one wildcard within your path. The wildcard can appear

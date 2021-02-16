@@ -26,12 +26,12 @@ BLOB_PREFIX = os.environ.get("AZURE_BLOB_PREFIX", "airflow")
 SFTP_SRC_PATH = os.environ.get("AZURE_SFTP_SRC_PATH", "test-sftp-azure")
 
 with DAG(
-    "example_sftp_to_azure_blob",
+    "example_sftp_to_wasb",
     schedule_interval=None,
     start_date=days_ago(1),  # Override to match your needs
 ) as dag:
 
-    # [START how_to_sftp_to_azure_blob]
+    # [START how_to_sftp_to_wasb]
     transfer_files_to_azure = SFTPToWasbOperator(
         task_id="transfer_files_to_gcs",
         # SFTP args
@@ -42,4 +42,4 @@ with DAG(
         container_name=AZURE_CONTAINER_NAME,
         blob_prefix=BLOB_PREFIX,
     )
-    # [END how_to_sftp_to_azure_blob]
+    # [END how_to_sftp_to_wasb]

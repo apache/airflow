@@ -147,7 +147,7 @@ transfers:
     python-module: airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs
   - source-integration-name: SSH File Transfer Protocol (SFTP)
     target-integration-name: Microsoft Azure Data Lake Storage
-    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/sftp_to_azure_blob.rst
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/sftp_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.sftp_to_wasb
 
 hook-class-names:

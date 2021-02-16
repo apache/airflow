@@ -16,6 +16,8 @@
     specific language governing permissions and limitations
     under the License.
 
+
+
 Azure Blob Storage Transfer Operator
 ====================================
 The Blob service stores text and binary data as objects in the cloud.
@@ -61,5 +63,5 @@ Example usage:
 .. exampleinclude:: /../../airflow/providers/microsoft/azure/example_dags/example_sftp_to_wasb.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_sftp_to_azure_blob]
-    :end-before: [END how_to_sftp_to_azure_blob]
+    :start-after: [START how_to_sftp_to_wasb]
+    :end-before: [END how_to_sftp_to_wasb]
