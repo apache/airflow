@@ -82,7 +82,7 @@ class SFTPToWasbOperator(BaseOperator):
         self.wasb_conn_id = wasb_conn_id
         self.container_name = container_name
         self.wasb_conn_id = wasb_conn_id
-        self.load_options = load_options if load_options is not None else {}
+        self.load_options = load_options or {}
         self.move_object = move_object
 
     def dry_run(self) -> None:
