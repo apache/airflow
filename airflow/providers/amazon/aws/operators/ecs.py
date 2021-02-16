@@ -183,12 +183,6 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.client: Optional[ECSProtocol] = None
         self.arn: Optional[str] = None
         self.quota_retry = quota_retry
-        self.quota_retry = {
-            'stop_after_delay': 2,
-            'multiplier': 1,
-            'min': 1,
-            'max': 10,
-        }
 
     def execute(self, context):
         self.log.info(
