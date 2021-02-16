@@ -72,7 +72,6 @@ class SFTPToWasbOperator(BaseOperator):
         wasb_conn_id: str = 'wasb_default',
         load_options: Optional[dict] = None,
         move_object: bool = False,
-        *args,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
