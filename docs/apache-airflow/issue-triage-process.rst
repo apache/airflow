@@ -101,10 +101,10 @@ understand.
 
 Therefore, the priority labels used are:
 
-* ``Priority:critical``: Showstopper bug that should be resolved immediately and a patch issued as soon as possible. Typically, this is because it affects most users and would take down production systems.
-* ``Priority:high``: A high priority bug that affects many users and should be resolved quickly, but can wait for the next scheduled patch release.
-* ``Priority:medium``: A bug that should be fixed before the next release, but would not block a release if found during the release process.
-* ``Priority:low``: A bug with a simple workaround or a nuisance that does not stop mainstream functionality.
+* ``priority:critical``: Showstopper bug that should be resolved immediately and a patch issued as soon as possible. Typically, this is because it affects most users and would take down production systems.
+* ``priority:high``: A high priority bug that affects many users and should be resolved quickly, but can wait for the next scheduled patch release.
+* ``priority:medium``: A bug that should be fixed before the next release, but would not block a release if found during the release process.
+* ``priority:low``: A bug with a simple workaround or a nuisance that does not stop mainstream functionality.
 
 
 It's important to use priority labels effectively so we can triage incoming issues
