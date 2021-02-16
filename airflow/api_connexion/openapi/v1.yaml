@@ -1503,7 +1503,17 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Login'
+              type: object
+              properties:
+                username:
+                  description: The username of the user
+                  type: string
+                  nullable: false
+
+                password:
+                  description: The password of the user
+                  type: string
+                  nullable: false
       responses:
         '200':
           description: Success.
