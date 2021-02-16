@@ -230,7 +230,7 @@ class TestSFTPToWasbOperator(unittest.TestCase):
             container_name=CONTAINER_NAME,
             wasb_conn_id=WASB_CONN_ID,
             move_object=True,
-            blob_prefix=BLOB_PREFIX
+            blob_prefix=BLOB_PREFIX,
         )
 
         sftp_hook.return_value.get_tree_map.return_value = [
@@ -249,6 +249,7 @@ class TestSFTPToWasbOperator(unittest.TestCase):
             [mock.call("main_dir/test_object.json", mock.ANY)]
         )
 
-        mock_hook.return_value.load_file.assert_called_once_with(mock.ANY, CONTAINER_NAME, BLOB_PREFIX+"test_object"
-                                                                                                       ".json")
+        mock_hook.return_value.load_file.assert_called_once_with(
+            mock.ANY, CONTAINER_NAME, BLOB_PREFIX + "test_object" ".json"
+        )
         self.assertTrue(sftp_hook.return_value.delete_file.called, "File must be moved")

@@ -87,7 +87,7 @@ class SFTPToWasbOperator(BaseOperator):
         self.move_object = move_object
 
     def dry_run(self) -> None:
-        super(SFTPToWasbOperator, self).dry_run()
+        super().dry_run()
         sftp_files: List[SftpFile] = self.get_sftp_files_map()
         for file in sftp_files:
             self.log.info(
