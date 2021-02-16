@@ -36,15 +36,12 @@ dag = DAG(
 )
 
 # [START howto_operator_leveldb_get_key]
-
 get_key_leveldb_task = LevelDBOperator(
     task_id='get_key_leveldb', leveldb_conn_id='leveldb_default', command='get', key=b'key', dag=dag
 )
-
 # [END howto_operator_leveldb_get_key]
 
 # [START howto_operator_leveldb_put_key]
-
 put_key_leveldb_task = LevelDBOperator(
     task_id='put_key_leveldb',
     leveldb_conn_id='leveldb_default',
@@ -53,7 +50,6 @@ put_key_leveldb_task = LevelDBOperator(
     value=b'another_value',
     dag=dag,
 )
-
 # [END howto_operator_leveldb_put_key]
 
 get_key_leveldb_task >> put_key_leveldb_task

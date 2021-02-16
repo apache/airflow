@@ -66,7 +66,6 @@ class LevelDBOperator(BaseOperator):
         self.keys = keys
         self.values = values
         self.leveldb_conn_id = leveldb_conn_id
-        # below params for pylevel DB
         self.name = name
         self.create_if_missing = create_if_missing
         self.error_if_exists = error_if_exists
