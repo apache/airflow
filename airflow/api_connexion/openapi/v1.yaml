@@ -1498,22 +1498,7 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
       operationId: login
       tags: [User]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                username:
-                  description: The username of the user
-                  type: string
-                  nullable: false
 
-                password:
-                  description: The password of the user
-                  type: string
-                  nullable: false
       responses:
         '200':
           description: Success.
