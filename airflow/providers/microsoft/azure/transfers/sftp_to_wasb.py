@@ -15,13 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains SFTP to Azure Blob Storage operator.
-"""
+"""This module contains SFTP to Azure Blob Storage operator."""
 import os
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from cached_property import cached_property
 
@@ -46,8 +44,8 @@ class SFTPToWasbOperator(BaseOperator):
     :type sftp_source_path: str
     :param container_name: Name of the container.
     :type container_name: str
-    :param blob_name: Name of the blob.
-    :type blob_name: str
+    :param blob_prefix: Prefix to name a blob.
+    :type blob_prefix: str
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
     :type sftp_conn_id: str
@@ -69,7 +67,7 @@ class SFTPToWasbOperator(BaseOperator):
         self,
         sftp_source_path: str,
         container_name: str,
-        blob_name: str,
+        blob_prefix: str = "",
         sftp_conn_id: str = "sftp_default",
         wasb_conn_id: str = 'wasb_default',
         load_options: Optional[dict] = None,
@@ -80,10 +78,10 @@ class SFTPToWasbOperator(BaseOperator):
         super().__init__(*args, **kwargs)
 
         self.sftp_source_path = sftp_source_path
+        self.blob_prefix = blob_prefix
         self.sftp_conn_id = sftp_conn_id
         self.wasb_conn_id = wasb_conn_id
         self.container_name = container_name
-        self.blob_name = blob_name
         self.wasb_conn_id = wasb_conn_id
         self.load_options = load_options if load_options is not None else {}
         self.move_object = move_object
@@ -99,33 +97,34 @@ class SFTPToWasbOperator(BaseOperator):
         """Get SFTP files from the source path, it may use a WILDCARD to this end."""
         sftp_files = []
 
-        if WILDCARD in self.sftp_source_path:
-            self.check_wildcards_limit()
+        sftp_complete_path, prefix, delimiter = self.get_tree_behavior()
 
-            prefix, delimiter = self.sftp_source_path.split(WILDCARD, 1)
-            sftp_complete_path = os.path.dirname(prefix)
+        found_files, _, _ = self.sftp_hook.get_tree_map(
+            sftp_complete_path, prefix=prefix, delimiter=delimiter
+        )
 
-            found_files, _, _ = self.sftp_hook.get_tree_map(
-                sftp_complete_path, prefix=prefix, delimiter=delimiter
-            )
+        self.log.info("Found %s files at sftp source path: %s", str(len(found_files)), self.sftp_source_path)
 
-            self.log.info(
-                "Found %s files at sftp source path: %s", str(len(found_files)), self.sftp_source_path
-            )
-
-            for file in found_files:
-                future_blob_name = os.path.basename(file)
-                sftp_files.append(SftpFile(file, future_blob_name))
-
-        else:
-            sftp_files.append(SftpFile(self.sftp_source_path, self.blob_name))
+        for file in found_files:
+            future_blob_name = self.get_future_blob_name(file)
+            sftp_files.append(SftpFile(file, future_blob_name))
 
         return sftp_files
 
-    @cached_property
-    def sftp_hook(self):
-        """Property of sftp hook to be re-used."""
-        return SFTPHook(self.sftp_conn_id)
+    @staticmethod
+    def get_tree_behavior(self) -> Tuple[str, Optional[str], Optional[str]]:
+        """Extracts from source path the tree behavior to interact with the remote folder"""
+        self.check_wildcards_limit()
+
+        if self.source_path_contains_wildcard:
+
+            prefix, delimiter = self.sftp_source_path.split(WILDCARD, 1)
+
+            sftp_complete_path = os.path.dirname(prefix)
+
+            return sftp_complete_path, prefix, delimiter
+
+        return self.sftp_source_path, None, None
 
     def check_wildcards_limit(self) -> Any:
         """Check if there is multiple Wildcard."""
@@ -136,12 +135,25 @@ class SFTPToWasbOperator(BaseOperator):
                 "Found {} in {}.".format(total_wildcards, self.sftp_source_path)
             )
 
+    @property
+    def source_path_contains_wildcard(self) -> bool:
+        """Does source path contains a wildcard"""
+        return WILDCARD in self.sftp_source_path
+
+    @cached_property
+    def sftp_hook(self) -> SFTPHook:
+        """Property of sftp hook to be re-used."""
+        return SFTPHook(self.sftp_conn_id)
+
+    def get_future_blob_name(self, file: str) -> str:
+        """Get a blob name based by the previous name and a blob_prefix variable"""
+        return self.blob_prefix + os.path.basename(file)
+
     def copy_files_to_wasb(self, sftp_files: List[SftpFile]) -> List[str]:
         """Upload a list of files from sftp_files to Azure Blob Storage with a new Blob Name."""
         uploaded_files = []
         wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         for file in sftp_files:
-
             with NamedTemporaryFile("w") as tmp:
                 self.sftp_hook.retrieve_file(file.sftp_file_path, tmp.name)
                 self.log.info(
