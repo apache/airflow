@@ -23,7 +23,7 @@ Issue reporting and resolution process
 
 This document explains the issue tracking and triage process within Apache
 Airflow including labels, milestones, and priorities as well as the process
-of resolution of issues.
+of resolving issues.
 
 Labels
 ''''''
@@ -39,7 +39,7 @@ to indicate the following elements:
 
 **Kind**
 
-The “kind” of labels indicate “what kind of issue it is”. The most
+The “kind” labels indicate “what kind of issue it is”. The most
 commonly used “kind” labels are: bug, feature, documentation, or task.
 
 Therefore, when reporting an issue, the label of ``kind:bug`` is to
@@ -56,7 +56,7 @@ identified elements of work to be done, primarily as part of a larger
 change to be done as part of an AIP or something which needs to be cleaned
 up in the project.
 
-Issues of ``kind:documentation`` are exactly that, changes which need to be
+Issues of ``kind:documentation`` are for changes which need to be
 made to the documentation within the project.
 
 
@@ -69,7 +69,7 @@ and ``area:providers``. This is especially important since these are now
 being released and versioned independently.
 
 There are more detailed areas of the project such as Scheduler, Webserver,
-API, UI, Logging, and Kubernetes which are all conceptually under the
+API, UI, Logging, and Kubernetes, which are all conceptually under the
 “Airflow Core” area of the project.
 
 Similarly, some providers are broken out such as Apache (``provider/Apache``),
@@ -107,8 +107,8 @@ Therefore, the priority labels used are:
 * ``Priority:low``: A bug with a simple workaround or a nuisance that does not stop mainstream functionality.
 
 
-The importance of using priority effectively is to both triage incoming issues
-appropriately as well to make sure that when we release a new version of Airflow,
+It's important to use priority labels effectively so we can triage incoming issues
+appropriately and make sure that when we release a new version of Airflow,
 we can ship a release confident that there are no “production blocker” issues in it.
 
 
