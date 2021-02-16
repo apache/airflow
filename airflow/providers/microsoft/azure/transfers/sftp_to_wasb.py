@@ -74,7 +74,7 @@ class SFTPToWasbOperator(BaseOperator):
         move_object: bool = False,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.sftp_source_path = sftp_source_path
         self.blob_prefix = blob_prefix
