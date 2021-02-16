@@ -677,7 +677,7 @@ dingding                   http
 discord                    http
 google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,postgres,presto,sftp
 hashicorp                  google
-microsoft.azure            oracle
+microsoft.azure            google,oracle,sftp
 microsoft.mssql            odbc
 mysql                      amazon,presto,vertica
 opsgenie                   http
