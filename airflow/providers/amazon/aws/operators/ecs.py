@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.amazon.aws.models.exceptions import ECSOperatorError
 from airflow.typing_compat import Protocol, runtime_checkable
 from airflow.utils.decorators import apply_defaults
 
@@ -150,6 +151,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         awslogs_region: Optional[str] = None,
         awslogs_stream_prefix: Optional[str] = None,
         propagate_tags: Optional[str] = None,
+        quota_retry: Optional[dict] = None,
         reattach: bool = False,
         **kwargs,
     ):
@@ -180,6 +182,13 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.hook: Optional[AwsBaseHook] = None
         self.client: Optional[ECSProtocol] = None
         self.arn: Optional[str] = None
+        self.quota_retry = quota_retry
+        self.quota_retry = {
+            'stop_after_delay': 2,
+            'multiplier': 1,
+            'min': 1,
+            'max': 10,
+        }
 
     def execute(self, context):
         self.log.info(
@@ -206,6 +215,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
         return None
 
+    @AwsBaseHook.retry()
     def _start_task(self):
         run_opts = {
             'cluster': self.cluster,
@@ -235,7 +245,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
         failures = response['failures']
         if len(failures) > 0:
-            raise AirflowException(response)
+            raise ECSOperatorError(failures, response)
         self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']

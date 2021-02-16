@@ -27,11 +27,12 @@ This module contains Base AWS Hook.
 import configparser
 import datetime
 import logging
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import boto3
 import botocore
 import botocore.session
+import tenacity
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
 from cached_property import cached_property
@@ -40,7 +41,31 @@ from dateutil.tz import tzlocal
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
+from airflow.providers.amazon.aws.models.exceptions import ECSOperatorError
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+ECS_QUOTA_ERROR_REASONS = [
+    'RESOURCE:MEMORY',
+    'RESOURCE:CPU',
+]
+
+
+def is_quota_error(exception: Exception):
+    """Check if exception is related to ECS resource quota (CPU, MEM)."""
+    if isinstance(exception, ECSOperatorError):
+        return any(
+            quota_reason in failure['reason']
+            for quota_reason in ECS_QUOTA_ERROR_REASONS
+            for failure in exception.failures
+        )
+    return True
+
+
+class retry_if_quota_error(tenacity.retry_if_exception):  # pylint: disable=invalid-name
+    """Retries if there was an exception for exceeding the temporary quote limit."""
+
+    def __init__(self):
+        super().__init__(is_quota_error)
 
 
 class _SessionFactory(LoggingMixin):
@@ -483,6 +508,38 @@ class AwsBaseHook(BaseHook):
             return role
         else:
             return self.get_client_type("iam").get_role(RoleName=role)["Role"]["Arn"]
+
+    @staticmethod
+    def retry(*args, **kwargs) -> Callable:
+        """
+        A decorator that provides a mechanism to repeat requests in response to exceeding a temporary quote
+        limit.
+        """
+
+        def decorator(fun: Callable):
+            def decorator_f(self, *xargs, **xkwargs):
+                quota_retry = getattr(self, 'quota_retry', None)
+                if quota_retry is None:
+                    return fun(self, *xargs, **xkwargs)
+                multiplier = quota_retry.get('multiplier', 1)
+                min_limit = quota_retry.get('min', 1)
+                max_limit = quota_retry.get('max', 1)
+                stop_after_delay = quota_retry.get('stop_after_delay', 10)
+                logger = quota_retry.get('logger')
+                tenacity_logger = tenacity.before_log(logger, logging.DEBUG) if logger else None
+                default_kwargs = {
+                    'wait': tenacity.wait_exponential(multiplier=multiplier, max=max_limit, min=min_limit),
+                    'retry': retry_if_quota_error(),
+                    'stop': tenacity.stop_after_delay(stop_after_delay),
+                    'before': tenacity_logger,
+                    'after': tenacity_logger,
+                }
+                default_kwargs.update(**kwargs)
+                return tenacity.retry(*args, **default_kwargs)(fun)(self)
+
+            return decorator_f
+
+        return decorator
 
 
 def _parse_s3_config(

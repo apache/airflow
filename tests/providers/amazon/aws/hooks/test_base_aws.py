@@ -21,9 +21,11 @@ import unittest
 from unittest import mock
 
 import boto3
+import pytest
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.models.exceptions import ECSOperatorError
 
 try:
     from moto import mock_dynamodb2, mock_emr, mock_iam, mock_sts
@@ -266,3 +268,58 @@ class TestAwsBaseHook(unittest.TestCase):
             hook = AwsBaseHook(aws_conn_id=conn_id, client_type='s3')
             # should cause no exception
             hook.get_client_type('s3')
+
+
+class ECSOperatorErrorUntilCount:
+    """Holds counter state for invoking a method several times in a row."""
+
+    def __init__(self, count, quota_retry, **kwargs):
+        self.counter = 0
+        self.count = count
+        self.quota_retry = quota_retry
+        self.kwargs = kwargs
+
+    def __call__(self):
+        """
+        Raise an Forbidden until after count threshold has been crossed.
+        Then return True.
+        """
+        if self.counter < self.count:
+            self.counter += 1
+            raise ECSOperatorError(**self.kwargs)
+        return True
+
+
+@AwsBaseHook.retry()
+def _retryable_test_with_temporary_quota_retry(thing):
+    return thing()
+
+
+class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
+    def test_do_nothing_on_non_error(self):
+        result = _retryable_test_with_temporary_quota_retry(lambda: 42)
+        assert result, 42
+
+    def test_retry_on_quota_exception(self):
+        quota_retry = {
+            'stop_after_delay': 2,
+            'multiplier': 1,
+            'min': 1,
+            'max': 10,
+        }
+        custom_fn = ECSOperatorErrorUntilCount(
+            count=2,
+            failures=[{'reason': 'RESOURCE:CPU'}],
+            message='ECS quota exception.',
+            quota_retry=quota_retry,
+        )
+        result = _retryable_test_with_temporary_quota_retry(custom_fn)
+        assert custom_fn.counter == 2
+        assert result
+
+    def test_retry_on_non_quota_exception(self):
+        custom_fn = ECSOperatorErrorUntilCount(
+            count=2, failures=[{'reason': 'OTHER'}], message='Non quota exception.', quota_retry=None
+        )
+        with pytest.raises(Exception, match="Non quota exception."):
+            _retryable_test_with_temporary_quota_retry(custom_fn)
