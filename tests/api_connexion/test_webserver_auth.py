@@ -16,11 +16,18 @@
 # under the License.
 
 import unittest
+from base64 import b64encode
+from datetime import datetime, timedelta
 
+import jwt
 from flask_login import current_user
 
+from airflow.configuration import conf
 from airflow.www.app import create_app
 from tests.test_utils.config import conf_vars
+
+# We need to test with real secret for the none algorithm
+SECRET = conf.get("webserver", "secret_key")
 
 
 class TestWebserverAuth(unittest.TestCase):
@@ -42,16 +49,16 @@ class TestWebserverAuth(unittest.TestCase):
             )
 
     def test_successful_login(self):
-        payload = {"username": "test", "password": "test"}
+        token = "Basic " + b64encode(b"test:test").decode()
         with self.app.test_client() as test_client:
-            response = test_client.post("api/v1/login", json=payload)
+            response = test_client.post("api/v1/login", headers={"Authorization": token})
         assert isinstance(response.json["token"], str)
         assert response.json["user"]['email'] == "test@fab.org"
 
     def test_can_view_other_endpoints(self):
-        payload = {"username": "test", "password": "test"}
+        token = "Basic " + b64encode(b"test:test").decode()
         with self.app.test_client() as test_client:
-            response = test_client.post("api/v1/login", json=payload)
+            response = test_client.post("api/v1/login", headers={"Authorization": token})
             assert current_user.email == "test@fab.org"
             token = response.json["token"]
             response2 = test_client.get("/api/v1/pools", headers={"Authorization": "Bearer " + token})
@@ -69,3 +76,17 @@ class TestWebserverAuth(unittest.TestCase):
             ],
             "total_entries": 1,
         }
+
+    def test_raises_for_the_none_algorithm(self):
+        token = "Basic " + b64encode(b"test:test").decode()
+        payload = {
+            'exp': datetime.utcnow() + timedelta(minutes=10),
+            'iat': datetime.utcnow(),
+            'sub': self.tester.id,
+        }
+        forgedtoken = jwt.encode(payload, key=None, algorithm=None).decode()
+        with self.app.test_client() as test_client:
+            test_client.post("api/v1/login", headers={"Authorization": token})
+            assert current_user.email == "test@fab.org"
+            response = test_client.get("/api/v1/pools", headers={"Authorization": "Bearer " + forgedtoken})
+        assert response.status_code == 401
