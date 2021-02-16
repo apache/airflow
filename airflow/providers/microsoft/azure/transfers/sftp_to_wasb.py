@@ -86,6 +86,19 @@ class SFTPToWasbOperator(BaseOperator):
         self.load_options = load_options if load_options is not None else {}
         self.move_object = move_object
 
+    def dry_run(self) -> None:
+        super(SFTPToWasbOperator, self).dry_run()
+        sftp_files: List[SftpFile] = self.get_sftp_files_map()
+        for file in sftp_files:
+            self.log.info(
+                'Process will upload file from (SFTP) %s to wasb://%s as %s',
+                file.sftp_file_path,
+                self.container_name,
+                file.blob_name,
+            )
+            if self.move_object:
+                self.log.info("Executing delete of %s", file)
+
     def execute(self, context: Optional[Dict[Any, Any]]) -> None:
         """Upload a file from SFTP to Azure Blob Storage."""
         sftp_files: List[SftpFile] = self.get_sftp_files_map()
