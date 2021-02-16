@@ -83,9 +83,9 @@ class TestSFTPToWasbOperator(unittest.TestCase):
         )
         sftp_complete_path, prefix, delimiter = operator.get_tree_behavior()
 
-        self.assertEqual(sftp_complete_path, SOURCE_PATH_NO_WILDCARD, "not matched at expected complete path")
-        self.assertIsNone(prefix, "Prefix must be empty without wildcard")
-        self.assertIsNone(delimiter, "Delimiter must be empty")
+        self.assertEqual(sftp_complete_path, 'main_dir', "not matched at expected complete path")
+        self.assertEqual(prefix, 'main_dir/', "Prefix must be EQUAL TO wildcard")
+        self.assertEqual(delimiter, "", "Delimiter must be empty")
 
     @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook')
     @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook')
@@ -161,7 +161,7 @@ class TestSFTPToWasbOperator(unittest.TestCase):
         )
 
         sftp_hook.return_value.get_tree_map.return_value = [
-            [WILDCARD_FILE_NAME],
+            ["main_dir/test_object.json"],
             [],
             [],
         ]
@@ -176,6 +176,6 @@ class TestSFTPToWasbOperator(unittest.TestCase):
             [mock.call("main_dir/test_object.json", mock.ANY)]
         )
 
-        mock_hook.return_value.load_file.assert_called_once_with(mock.ANY, CONTAINER_NAME, "test.json")
+        mock_hook.return_value.load_file.assert_called_once_with(mock.ANY, CONTAINER_NAME, "test_object.json")
 
         operator.sftp_hook.delete_file.assert_not_called()
