@@ -17,13 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Renderer DAG (tasks and dependencies) to the graphviz object."""
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import graphviz
 
 from airflow.models import TaskInstance
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.taskmixin import TaskMixin
 from airflow.utils.state import State
+from airflow.www.views import dag_edges
 
 
 def _refine_color(color: str):
@@ -40,6 +43,68 @@ def _refine_color(color: str):
         color_b = color[3]
         return "#" + color_r + color_r + color_g + color_g + color_b + color_b
     return color
+
+
+def _draw_nodes(node: TaskMixin, parent_graph: graphviz.Digraph, states_by_task_id: Dict[str, str]) -> None:
+    """Draw the node and its children on the given parent_graph recursively."""
+    if isinstance(node, BaseOperator):
+        # Draw task
+        if states_by_task_id:
+            state = states_by_task_id.get(node.task_id, State.NONE)
+            color = State.color_fg(state)
+            fill_color = State.color(state)
+        else:
+            color = node.ui_fgcolor
+            fill_color = node.ui_color
+
+        parent_graph.node(
+            node.task_id,
+            _attributes={
+                "shape": "rectangle",
+                "style": "filled,rounded",
+                "color": _refine_color(color),
+                "fillcolor": _refine_color(fill_color),
+            },
+        )
+    else:
+        # Draw TaskGroup
+        with parent_graph.subgraph(name=f"cluster_{node.group_id}") as sub:
+            sub.attr(
+                shape="rectangle",
+                style="filled",
+                color=_refine_color(node.ui_fgcolor),
+                # Partially transparent CornflowerBlue
+                fillcolor="#6495ed7f",
+                label=node.label,
+            )
+
+            # Draw joins
+            if node.upstream_group_ids or node.upstream_task_ids:
+                parent_graph.node(
+                    node.upstream_join_id,
+                    _attributes={
+                        "label": "",
+                        "shape": "circle",
+                        "style": "filled,rounded",
+                        "color": _refine_color(node.ui_fgcolor),
+                        "fillcolor": _refine_color(node.ui_color),
+                    },
+                )
+
+            if node.downstream_group_ids or node.downstream_task_ids:
+                parent_graph.node(
+                    node.downstream_join_id,
+                    _attributes={
+                        "label": "",
+                        "shape": "circle",
+                        "style": "filled,rounded",
+                        "color": _refine_color(node.ui_fgcolor),
+                        "fillcolor": _refine_color(node.ui_color),
+                    },
+                )
+
+            for child in sorted(node.children.values(), key=lambda t: t.label):
+                _draw_nodes(child, sub, states_by_task_id)
 
 
 def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.Digraph:
@@ -66,30 +131,10 @@ def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.D
     states_by_task_id = None
     if tis is not None:
         states_by_task_id = {ti.task_id: ti.state for ti in tis}
-    for task in dag.tasks:
-        node_attrs = {
-            "shape": "rectangle",
-            "style": "filled,rounded",
-        }
-        if states_by_task_id is None:
-            node_attrs.update(
-                {
-                    "color": _refine_color(task.ui_fgcolor),
-                    "fillcolor": _refine_color(task.ui_color),
-                }
-            )
-        else:
-            state = states_by_task_id.get(task.task_id, State.NONE)
-            node_attrs.update(
-                {
-                    "color": State.color_fg(state),
-                    "fillcolor": State.color(state),
-                }
-            )
-        dot.node(
-            task.task_id,
-            _attributes=node_attrs,
-        )
-        for downstream_task_id in task.downstream_task_ids:
-            dot.edge(task.task_id, downstream_task_id)
+
+    _draw_nodes(dag.task_group, dot, states_by_task_id)
+
+    for edge in dag_edges(dag):
+        dot.edge(edge["source_id"], edge["target_id"])
+
     return dot

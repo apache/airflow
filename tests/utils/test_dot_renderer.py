@@ -23,9 +23,11 @@ from unittest import mock
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils import dot_renderer
 from airflow.utils.state import State
+from airflow.utils.task_group import TaskGroup
 
 START_DATE = datetime.datetime.now()
 
@@ -105,3 +107,40 @@ class TestDotRenderer(unittest.TestCase):
         # Should render DAG title with orientation
         assert "label=DAG_ID" in source
         assert f'label=DAG_ID labelloc=t rankdir={orientation}' in source
+
+    def test_render_task_group(self):
+        with DAG(dag_id="example_task_group", start_date=START_DATE) as dag:
+            start = DummyOperator(task_id="start")
+
+            with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
+                task_1 = DummyOperator(task_id="task_1")
+                task_2 = BashOperator(task_id="task_2", bash_command='echo 1')
+                task_3 = DummyOperator(task_id="task_3")
+
+                task_1 >> [task_2, task_3]
+
+            with TaskGroup("section_2", tooltip="Tasks for section_2") as section_2:
+                task_1 = DummyOperator(task_id="task_1")
+
+                with TaskGroup("inner_section_2", tooltip="Tasks for inner_section2"):
+                    task_2 = BashOperator(task_id="task_2", bash_command='echo 1')
+                    task_3 = DummyOperator(task_id="task_3")
+                    task_4 = DummyOperator(task_id="task_4")
+
+                    [task_2, task_3] >> task_4
+
+            end = DummyOperator(task_id='end')
+
+            start >> section_1 >> section_2 >> end
+
+        dot = dot_renderer.render_dag(dag)
+        source = dot.source
+
+        assert "subgraph cluster_None {" in source
+        assert (
+            """"section_1.upstream_join_id" [color="#000000" fillcolor=CornflowerBlue label="" shape=circle"""
+            in source
+        )
+        assert "subgraph cluster_section_1 {" in source
+        assert """subgraph "cluster_section_2.inner_section_2" {""" in source
+        assert '"section_2.upstream_join_id" -> "section_2.inner_section_2.task_2"' in source
