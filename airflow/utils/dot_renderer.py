@@ -67,20 +67,11 @@ def _draw_nodes(node: TaskMixin, parent_graph: graphviz.Digraph, states_by_task_
             },
         )
     else:
-        # Draw TaskGroup
-        with parent_graph.subgraph(name=f"cluster_{node.group_id}") as sub:
-            sub.attr(
-                shape="rectangle",
-                style="filled",
-                color=_refine_color(node.ui_fgcolor),
-                # Partially transparent CornflowerBlue
-                fillcolor="#6495ed7f",
-                label=node.label,
-            )
 
+        def draw_task_group(parent):
             # Draw joins
             if node.upstream_group_ids or node.upstream_task_ids:
-                parent_graph.node(
+                parent.node(
                     node.upstream_join_id,
                     _attributes={
                         "label": "",
@@ -88,11 +79,13 @@ def _draw_nodes(node: TaskMixin, parent_graph: graphviz.Digraph, states_by_task_
                         "style": "filled,rounded",
                         "color": _refine_color(node.ui_fgcolor),
                         "fillcolor": _refine_color(node.ui_color),
+                        "width": "0.2",
+                        "height": "0.2",
                     },
                 )
 
             if node.downstream_group_ids or node.downstream_task_ids:
-                parent_graph.node(
+                parent.node(
                     node.downstream_join_id,
                     _attributes={
                         "label": "",
@@ -100,11 +93,29 @@ def _draw_nodes(node: TaskMixin, parent_graph: graphviz.Digraph, states_by_task_
                         "style": "filled,rounded",
                         "color": _refine_color(node.ui_fgcolor),
                         "fillcolor": _refine_color(node.ui_color),
+                        "width": "0.2",
+                        "height": "0.2",
                     },
                 )
 
             for child in sorted(node.children.values(), key=lambda t: t.label):
-                _draw_nodes(child, sub, states_by_task_id)
+                _draw_nodes(child, parent, states_by_task_id)
+
+        # Draw TaskGroup
+        if node.is_root:
+            # No need to draw background for root TaskGroup.
+            draw_task_group(parent_graph)
+        else:
+            with parent_graph.subgraph(name=f"cluster_{node.group_id}") as sub:
+                sub.attr(
+                    shape="rectangle",
+                    style="filled",
+                    color=_refine_color(node.ui_fgcolor),
+                    # Partially transparent CornflowerBlue
+                    fillcolor="#6495ed7f",
+                    label=node.label,
+                )
+                draw_task_group(sub)
 
 
 def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.Digraph:
