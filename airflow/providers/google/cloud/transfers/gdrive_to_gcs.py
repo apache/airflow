@@ -37,6 +37,10 @@ class GoogleDriveToGCSOperator(BaseOperator):
     :param object_name: The Google Cloud Storage object name for the object created by the operator.
         For example: ``path/to/my/file/file.txt``.
     :type object_name: str
+    :param destination_bucket: Same as bucket_name, but for backward compatibly
+    :type destination_bucket: str
+    :param destination_object: Same as object_name, but for backward compatibly
+    :type destination_object: str
     :param folder_id: The folder id of the folder in which the Google Drive file resides
     :type folder_id: str
     :param file_name: The name of the file residing in Google Drive
@@ -63,6 +67,8 @@ class GoogleDriveToGCSOperator(BaseOperator):
     template_fields = [
         "bucket_name",
         "object_name",
+        "destination_bucket",
+        "destination_object",
         "folder_id",
         "file_name",
         "drive_id",
@@ -73,8 +79,10 @@ class GoogleDriveToGCSOperator(BaseOperator):
     def __init__(
         self,
         *,
-        bucket_name: str,
-        object_name: str,
+        bucket_name: Optional[str] = None,
+        object_name: Optional[str] = None,
+        destination_bucket: Optional[str] = None,  # deprecated
+        destination_object: Optional[str] = None,  # deprecated
         file_name: str,
         folder_id: str,
         drive_id: Optional[str] = None,
@@ -84,8 +92,8 @@ class GoogleDriveToGCSOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.bucket_name = bucket_name
-        self.object_name = object_name
+        self.bucket_name = destination_bucket or bucket_name
+        self.object_name = destination_object or object_name
         self.folder_id = folder_id
         self.drive_id = drive_id
         self.file_name = file_name
