@@ -37,7 +37,7 @@ from typing import (
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import TaskMixin
-from airflow.utils.decorators import signature
+from inspect import signature
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
