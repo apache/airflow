@@ -74,9 +74,16 @@ class TestDotRenderer(unittest.TestCase):
         source = dot.source
         # Should render DAG title
         assert "label=DAG_ID" in source
-        assert 'first [color=black fillcolor=tan shape=rectangle style="filled,rounded"]' in source
-        assert 'second [color=white fillcolor=green shape=rectangle style="filled,rounded"]' in source
-        assert 'third [color=black fillcolor=lime shape=rectangle style="filled,rounded"]' in source
+        assert (
+            'first [color=black fillcolor=tan label=first shape=rectangle style="filled,rounded"]' in source
+        )
+        assert (
+            'second [color=white fillcolor=green label=second shape=rectangle style="filled,rounded"]'
+            in source
+        )
+        assert (
+            'third [color=black fillcolor=lime label=third shape=rectangle style="filled,rounded"]' in source
+        )
 
     def test_should_render_dag_orientation(self):
         orientation = "TB"

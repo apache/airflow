@@ -60,6 +60,7 @@ def _draw_nodes(node: TaskMixin, parent_graph: graphviz.Digraph, states_by_task_
         parent_graph.node(
             node.task_id,
             _attributes={
+                "label": node.label,
                 "shape": "rectangle",
                 "style": "filled,rounded",
                 "color": _refine_color(color),
