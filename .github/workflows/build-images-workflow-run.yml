@@ -337,7 +337,7 @@ jobs:
             "Building the image: CI: ${{ matrix.python-version }}. See the
             [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
-        if: steps.defaults.outputs.proceed == 'true'
+        if: false && steps.defaults.outputs.proceed == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -366,7 +366,7 @@ jobs:
         if: steps.defaults.outputs.proceed == 'true'
       - name: Update GitHub Checks for Building image with status
         uses: ./main-airflow/.github/actions/checks-action
-        if: always() && steps.defaults.outputs.proceed == 'true'
+        if: false && always() && steps.defaults.outputs.proceed == 'true'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           check_id: ${{ steps.build-image-check.outputs.check_id }}
@@ -465,7 +465,7 @@ jobs:
             "Building the image: PROD: ${{ matrix.python-version }}. See the
             [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
-        if: steps.defaults.outputs.proceed == 'true'
+        if: false && steps.defaults.outputs.proceed == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -500,7 +500,7 @@ jobs:
         if: steps.defaults.outputs.proceed == 'true'
       - name: Update GitHub Checks for Building image with status
         uses: ./main-airflow/.github/actions/checks-action
-        if: always() && steps.defaults.outputs.proceed == 'true'
+        if: false && always() && steps.defaults.outputs.proceed == 'true'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           check_id: ${{ steps.build-image-check.outputs.check_id }}
