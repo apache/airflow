@@ -121,13 +121,8 @@ def init_plugins(app):
             appbuilder.add_view_no_menu(view["view"])
 
     for menu_link in sorted(plugins_manager.flask_appbuilder_menu_links, key=lambda x: x["name"]):
-        log.debug("Adding menu link %s", menu_link["name"])
-        appbuilder.add_link(
-            menu_link["name"],
-            href=menu_link["href"],
-            category=menu_link["category"],
-            category_icon=menu_link["category_icon"],
-        )
+        log.debug("Adding menu link %s to %s", menu_link["name"], menu_link["href"])
+        appbuilder.add_link(**menu_link)
 
     for blue_print in plugins_manager.flask_blueprints:
         log.debug("Adding blueprint %s:%s", blue_print["name"], blue_print["blueprint"].import_name)
