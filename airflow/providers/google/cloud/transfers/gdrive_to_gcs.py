@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from io import BytesIO
 from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
@@ -32,12 +31,12 @@ class GoogleDriveToGCSOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GoogleDriveToGCSOperator`
 
-    :param destination_bucket: The destination Google cloud storage bucket where the
+    :param bucket_name: The destination Google cloud storage bucket where the
         file should be written to
-    :type destination_bucket: str
-    :param destination_object: The Google Cloud Storage object name for the object created by the operator.
+    :type bucket_name: str
+    :param object_name: The Google Cloud Storage object name for the object created by the operator.
         For example: ``path/to/my/file/file.txt``.
-    :type destination_object: str
+    :type object_name: str
     :param folder_id: The folder id of the folder in which the Google Drive file resides
     :type folder_id: str
     :param file_name: The name of the file residing in Google Drive
@@ -62,8 +61,8 @@ class GoogleDriveToGCSOperator(BaseOperator):
     """
 
     template_fields = [
-        "destination_bucket",
-        "destination_object",
+        "bucket_name",
+        "object_name",
         "folder_id",
         "file_name",
         "drive_id",
@@ -74,8 +73,8 @@ class GoogleDriveToGCSOperator(BaseOperator):
     def __init__(
         self,
         *,
-        destination_bucket: str,
-        destination_object: str,
+        bucket_name: str,
+        object_name: str,
         file_name: str,
         folder_id: str,
         drive_id: Optional[str] = None,
@@ -85,38 +84,14 @@ class GoogleDriveToGCSOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.destination_bucket = destination_bucket
-        self.destination_object = destination_object
+        self.bucket_name = bucket_name
+        self.object_name = object_name
         self.folder_id = folder_id
         self.drive_id = drive_id
         self.file_name = file_name
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.file_metadata = None
-
-    def _set_file_metadata(self, gdrive_hook):
-        if not self.file_metadata:
-            self.file_metadata = gdrive_hook.get_file_id(
-                folder_id=self.folder_id, file_name=self.file_name, drive_id=self.drive_id
-            )
-        return self.file_metadata
-
-    def _upload_data(self, gcs_hook: GCSHook, gdrive_hook: GoogleDriveHook) -> str:
-        file_handle = BytesIO()
-        self._set_file_metadata(gdrive_hook=gdrive_hook)
-        file_id = self.file_metadata["id"]
-        mime_type = self.file_metadata["mime_type"]
-        request = gdrive_hook.get_media_request(file_id=file_id)
-        gdrive_hook.download_content_from_request(
-            file_handle=file_handle, request=request, chunk_size=104857600
-        )
-        gcs_hook.upload(
-            bucket_name=self.destination_bucket,
-            object_name=self.destination_object,
-            data=file_handle.getvalue(),
-            mime_type=mime_type,
-        )
 
     def execute(self, context):
         gdrive_hook = GoogleDriveHook(
@@ -129,4 +104,10 @@ class GoogleDriveToGCSOperator(BaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        self._upload_data(gdrive_hook=gdrive_hook, gcs_hook=gcs_hook)
+        file_metadata = gdrive_hook.get_file_id(
+            folder_id=self.folder_id, file_name=self.file_name, drive_id=self.drive_id
+        )
+        with gcs_hook.provide_file_and_upload(
+            bucket_name=self.bucket_name, object_name=self.object_name
+        ) as file:
+            gdrive_hook.download_file(file_id=file_metadata["id"], file_handle=file)
