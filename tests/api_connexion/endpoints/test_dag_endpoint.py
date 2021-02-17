@@ -121,7 +121,7 @@ class TestDagEndpoint:
                 dag_id=f"TEST_DAG_{num}",
                 fileloc=f"/tmp/dag_{num}.py",
                 schedule_interval="2 2 * * *",
-                is_active=True,
+                is_active=False,
             )
             session.add(dag_model)
 
@@ -148,6 +148,7 @@ class TestGetDag(TestDagEndpoint):
             "fileloc": "/tmp/dag_1.py",
             "file_token": 'Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk',
             "is_paused": False,
+            "is_active": False,
             "is_subdag": False,
             "owners": [],
             "root_dag_id": None,
@@ -172,6 +173,7 @@ class TestGetDag(TestDagEndpoint):
             "fileloc": "/tmp/dag_1.py",
             "file_token": 'Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk',
             "is_paused": False,
+            "is_active": False,
             "is_subdag": False,
             "owners": [],
             "root_dag_id": None,
@@ -228,6 +230,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "fileloc": __file__,
             "file_token": FILE_TOKEN,
             "is_paused": None,
+            "is_active": True,
             "is_subdag": False,
             "orientation": "LR",
             "owners": ['airflow'],
@@ -260,6 +263,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "fileloc": __file__,
             "file_token": FILE_TOKEN,
             "is_paused": None,
+            "is_active": True,
             "is_subdag": False,
             "orientation": "LR",
             "owners": ['airflow'],
@@ -292,6 +296,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "fileloc": __file__,
             "file_token": FILE_TOKEN,
             "is_paused": None,
+            "is_active": True,
             "is_subdag": False,
             "orientation": "LR",
             "owners": ['airflow'],
@@ -328,6 +333,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "fileloc": __file__,
             "file_token": FILE_TOKEN,
             "is_paused": None,
+            "is_active": True,
             "is_subdag": False,
             "orientation": "LR",
             "owners": ['airflow'],
@@ -366,6 +372,7 @@ class TestGetDagDetails(TestDagEndpoint):
             'fileloc': __file__,
             "file_token": FILE_TOKEN,
             'is_paused': None,
+            "is_active": True,
             'is_subdag': False,
             'orientation': 'LR',
             'owners': ['airflow'],
@@ -417,6 +424,7 @@ class TestGetDags(TestDagEndpoint):
                     "fileloc": "/tmp/dag_1.py",
                     "file_token": file_token,
                     "is_paused": False,
+                    "is_active": False,
                     "is_subdag": False,
                     "owners": [],
                     "root_dag_id": None,
@@ -432,6 +440,7 @@ class TestGetDags(TestDagEndpoint):
                     "fileloc": "/tmp/dag_2.py",
                     "file_token": file_token2,
                     "is_paused": False,
+                    "is_active": False,
                     "is_subdag": False,
                     "owners": [],
                     "root_dag_id": None,
@@ -443,6 +452,38 @@ class TestGetDags(TestDagEndpoint):
                 },
             ],
             "total_entries": 2,
+        } == response.json
+
+    @provide_session
+    def test_only_active_returns_active_dags(self, session):
+        self._create_dag_models(2)
+        dag_model = DagModel(
+            dag_id="TEST_DAG_3", fileloc="/tmp/dag_3.py", schedule_interval="2 2 * * *", is_active=True
+        )
+        session.add(dag_model)
+        response = self.client.get("api/v1/dags?only_active=True", environ_overrides={'REMOTE_USER': "test"})
+        file_token = SERIALIZER.dumps("/tmp/dag_3.py")
+        assert response.status_code == 200
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_3",
+                    "description": None,
+                    "fileloc": "/tmp/dag_3.py",
+                    "file_token": file_token,
+                    "is_paused": False,
+                    "is_active": True,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                },
+            ],
+            "total_entries": 1,
         } == response.json
 
     def test_should_respond_200_with_granular_dag_access(self):
@@ -538,6 +579,7 @@ class TestPatchDag(TestDagEndpoint):
             "fileloc": "/tmp/dag_1.py",
             "file_token": self.file_token,
             "is_paused": False,
+            "is_active": False,
             "is_subdag": False,
             "owners": [],
             "root_dag_id": None,
@@ -619,6 +661,7 @@ class TestPatchDag(TestDagEndpoint):
             "fileloc": "/tmp/dag_1.py",
             "file_token": self.file_token,
             "is_paused": False,
+            "is_active": False,
             "is_subdag": False,
             "owners": [],
             "root_dag_id": None,
