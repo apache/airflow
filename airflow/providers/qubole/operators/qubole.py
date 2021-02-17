@@ -283,6 +283,6 @@ class QuboleOperator(BaseOperator):
 
 
 def _get_template_fields(obj: BaseOperator) -> dict:
-    _class = object.__getattribute__(obj, '__class__')
-    _template_fields = object.__getattribute__(_class, 'template_fields')
-    return _template_fields
+    class_ = object.__getattribute__(obj, '__class__')
+    template_fields = object.__getattribute__(class_, 'template_fields')
+    return template_fields
