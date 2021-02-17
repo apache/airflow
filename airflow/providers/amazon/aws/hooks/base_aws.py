@@ -510,36 +510,32 @@ class AwsBaseHook(BaseHook):
             return self.get_client_type("iam").get_role(RoleName=role)["Role"]["Arn"]
 
     @staticmethod
-    def retry(*args, **kwargs) -> Callable:
+    def retry(fun: Callable):
         """
         A decorator that provides a mechanism to repeat requests in response to exceeding a temporary quote
         limit.
         """
 
-        def decorator(fun: Callable):
-            def decorator_f(self, *xargs, **xkwargs):
-                quota_retry = getattr(self, 'quota_retry', None)
-                if quota_retry is None:
-                    return fun(self, *xargs, **xkwargs)
-                multiplier = quota_retry.get('multiplier', 1)
-                min_limit = quota_retry.get('min', 1)
-                max_limit = quota_retry.get('max', 1)
-                stop_after_delay = quota_retry.get('stop_after_delay', 10)
-                logger = quota_retry.get('logger')
-                tenacity_logger = tenacity.before_log(logger, logging.DEBUG) if logger else None
-                default_kwargs = {
-                    'wait': tenacity.wait_exponential(multiplier=multiplier, max=max_limit, min=min_limit),
-                    'retry': retry_if_quota_error(),
-                    'stop': tenacity.stop_after_delay(stop_after_delay),
-                    'before': tenacity_logger,
-                    'after': tenacity_logger,
-                }
-                default_kwargs.update(**kwargs)
-                return tenacity.retry(*args, **default_kwargs)(fun)(self)
+        def decorator_f(self):
+            quota_retry = getattr(self, 'quota_retry', None)
+            if quota_retry is None:
+                return fun(self)
+            multiplier = quota_retry.get('multiplier', 1)
+            min_limit = quota_retry.get('min', 1)
+            max_limit = quota_retry.get('max', 1)
+            stop_after_delay = quota_retry.get('stop_after_delay', 10)
+            logger = quota_retry.get('logger')
+            tenacity_logger = tenacity.before_log(logger, logging.DEBUG) if logger else None
+            default_kwargs = {
+                'wait': tenacity.wait_exponential(multiplier=multiplier, max=max_limit, min=min_limit),
+                'retry': retry_if_quota_error(),
+                'stop': tenacity.stop_after_delay(stop_after_delay),
+                'before': tenacity_logger,
+                'after': tenacity_logger,
+            }
+            return tenacity.retry(**default_kwargs)(fun)(self)
 
-            return decorator_f
-
-        return decorator
+        return decorator_f
 
 
 def _parse_s3_config(

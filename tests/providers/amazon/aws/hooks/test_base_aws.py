@@ -290,7 +290,7 @@ class ECSOperatorErrorUntilCount:
         return True
 
 
-@AwsBaseHook.retry()
+@AwsBaseHook.retry
 def _retryable_test_with_temporary_quota_retry(thing):
     return thing()
 

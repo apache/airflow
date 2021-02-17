@@ -209,7 +209,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
         return None
 
-    @AwsBaseHook.retry()
+    @AwsBaseHook.retry
     def _start_task(self):
         run_opts = {
             'cluster': self.cluster,
