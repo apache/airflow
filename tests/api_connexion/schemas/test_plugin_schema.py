@@ -29,57 +29,27 @@ class TestPluginBase(unittest.TestCase):
     def setUp(self) -> None:
         self.mock_plugin = AirflowPlugin()
         self.mock_plugin.name = "test_plugin"
-        self.mock_plugin.number = 1
-        self.mock_plugin.attrs = {
-            'admin_views': [],
-            'appbuilder_menu_items': [],
-            'appbuilder_views': [],
-            'executors': [],
-            'flask_blueprints': [],
-            'global_operator_extra_links': [],
-            'hooks': [],
-            'macros': [],
-            'menu_links': [],
-            'operator_extra_links': [],
-            'source': None,
-        }
+
         self.mock_plugin_2 = AirflowPlugin()
         self.mock_plugin_2.name = "test_plugin_2"
-        self.mock_plugin_2.number = 2
-        self.mock_plugin_2.attrs = {
-            'admin_views': [],
-            'appbuilder_menu_items': [],
-            'appbuilder_views': [],
-            'executors': [],
-            'flask_blueprints': [],
-            'global_operator_extra_links': [],
-            'hooks': [],
-            'macros': [],
-            'menu_links': [],
-            'operator_extra_links': [],
-            'source': None,
-        }
 
 
 class TestPluginSchema(TestPluginBase):
     def test_serialize(self):
         deserialized_plugin = plugin_schema.dump(self.mock_plugin)
         assert deserialized_plugin == {
-            'attrs': {
-                'admin_views': [],
-                'appbuilder_menu_items': [],
-                'appbuilder_views': [],
-                'executors': [],
-                'flask_blueprints': [],
-                'global_operator_extra_links': [],
-                'hooks': [],
-                'macros': [],
-                'menu_links': [],
-                'operator_extra_links': [],
-                'source': None,
-            },
+            'admin_views': [],
+            'appbuilder_menu_items': [],
+            'appbuilder_views': [],
+            'executors': [],
+            'flask_blueprints': [],
+            'global_operator_extra_links': [],
+            'hooks': [],
+            'macros': [],
+            'menu_links': [],
+            'operator_extra_links': [],
+            'source': None,
             'name': 'test_plugin',
-            'number': 1,
         }
 
 
@@ -91,38 +61,32 @@ class TestPluginCollectionSchema(TestPluginBase):
         assert deserialized == {
             'plugins': [
                 {
-                    'attrs': {
-                        'admin_views': [],
-                        'appbuilder_menu_items': [],
-                        'appbuilder_views': [],
-                        'executors': [],
-                        'flask_blueprints': [],
-                        'global_operator_extra_links': [],
-                        'hooks': [],
-                        'macros': [],
-                        'menu_links': [],
-                        'operator_extra_links': [],
-                        'source': None,
-                    },
+                    'admin_views': [],
+                    'appbuilder_menu_items': [],
+                    'appbuilder_views': [],
+                    'executors': [],
+                    'flask_blueprints': [],
+                    'global_operator_extra_links': [],
+                    'hooks': [],
+                    'macros': [],
+                    'menu_links': [],
+                    'operator_extra_links': [],
+                    'source': None,
                     'name': 'test_plugin',
-                    'number': 1,
                 },
                 {
-                    'attrs': {
-                        'admin_views': [],
-                        'appbuilder_menu_items': [],
-                        'appbuilder_views': [],
-                        'executors': [],
-                        'flask_blueprints': [],
-                        'global_operator_extra_links': [],
-                        'hooks': [],
-                        'macros': [],
-                        'menu_links': [],
-                        'operator_extra_links': [],
-                        'source': None,
-                    },
+                    'admin_views': [],
+                    'appbuilder_menu_items': [],
+                    'appbuilder_views': [],
+                    'executors': [],
+                    'flask_blueprints': [],
+                    'global_operator_extra_links': [],
+                    'hooks': [],
+                    'macros': [],
+                    'menu_links': [],
+                    'operator_extra_links': [],
+                    'source': None,
                     'name': 'test_plugin_2',
-                    'number': 2,
                 },
             ],
             'total_entries': 2,

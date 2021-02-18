@@ -20,9 +20,11 @@ from typing import List, NamedTuple
 from marshmallow import Schema, fields
 
 
-class PluginAttrs(Schema):
-    """Plugin attrs"""
+class PluginSchema(Schema):
+    """Plugin schema"""
 
+    number = fields.Int()
+    name = fields.String()
     hooks = fields.List(fields.String())
     executors = fields.List(fields.String())
     macros = fields.List(fields.String())
@@ -30,18 +32,10 @@ class PluginAttrs(Schema):
     flask_blueprints = fields.List(fields.String())
     menu_links = fields.List(fields.String())
     appbuilder_views = fields.List(fields.String())
-    appbuilder_menu_items = fields.List(fields.String())
+    appbuilder_menu_items = fields.List(fields.Dict())
     global_operator_extra_links = fields.List(fields.String())
     operator_extra_links = fields.List(fields.String())
     source = fields.String()
-
-
-class PluginSchema(Schema):
-    """Plugin schema"""
-
-    number = fields.Int()
-    name = fields.String()
-    attrs = fields.Nested(PluginAttrs)
 
 
 class PluginCollection(NamedTuple):

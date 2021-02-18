@@ -60,21 +60,18 @@ class TestGetPlugins(unittest.TestCase):
         assert response.json == {
             'plugins': [
                 {
-                    'attrs': {
-                        'admin_views': [],
-                        'appbuilder_menu_items': [],
-                        'appbuilder_views': [],
-                        'executors': [],
-                        'flask_blueprints': [],
-                        'global_operator_extra_links': [],
-                        'hooks': [],
-                        'macros': [],
-                        'menu_links': [],
-                        'operator_extra_links': [],
-                        'source': None,
-                    },
+                    'admin_views': [],
+                    'appbuilder_menu_items': [],
+                    'appbuilder_views': [],
+                    'executors': [],
+                    'flask_blueprints': [],
+                    'global_operator_extra_links': [],
+                    'hooks': [],
+                    'macros': [],
+                    'menu_links': [],
+                    'operator_extra_links': [],
+                    'source': None,
                     'name': 'test_plugin',
-                    'number': 1,
                 }
             ],
             'total_entries': 1,

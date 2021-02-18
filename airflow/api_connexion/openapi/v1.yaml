@@ -1400,73 +1400,70 @@ paths:
                   name:
                     type: string
                     description: The name of the plugin
-                  attrs:
-                    type: object
-                    properties:
-                      hooks:
-                        type: array
-                        items:
-                          type: string
-                          nullable: true
-                        description: The plugin hooks
-                      executors:
-                        type: array
-                        items:
-                          type: string
-                          nullable: true
-                        description: The plugin executors
-                      macros:
-                        type: array
-                        items:
-                          type: string
-                          nullable: true
-                        description: The plugin macros
-                      admin_views:
-                        type: array
-                        items:
-                          type: string
-                          nullable: true
-                        description: The plugins admin views
-                      flask_blueprints:
-                        type: array
-                        items:
-                          type: string
-                          nullable: true
-                        description: The flask blueprints
-                      menu_links:
-                        type: array
-                        items:
-                          type: string
-                          nullable: true
-                        description: The menu links
-                      appbuilder_views:
-                        type: array
-                        items:
-                          type: string
-                          nullable: true
-                        description: The appuilder views
-                      appbuilder_menu_items:
-                        type: array
-                        items:
-                          type: string
-                          nullable: true
-                        description: The appbuilder menu items
-                      global_operator_extra_links:
-                        type: array
-                        items:
-                          type: string
-                          nullable: true
-                        description: The global operator extra links
-                      operator_extra_links:
-                        type: array
-                        items:
-                          type: string
-                          nullable: true
-                        description: Operator extra link
-                      source:
-                        type: string
-                        description: The plugin source
-                        nullable: false
+                  hooks:
+                    type: array
+                    items:
+                      type: string
+                      nullable: true
+                    description: The plugin hooks
+                  executors:
+                    type: array
+                    items:
+                      type: string
+                      nullable: true
+                    description: The plugin executors
+                  macros:
+                    type: array
+                    items:
+                      type: string
+                      nullable: true
+                    description: The plugin macros
+                  admin_views:
+                    type: array
+                    items:
+                      type: string
+                      nullable: true
+                    description: The plugins admin views
+                  flask_blueprints:
+                    type: array
+                    items:
+                      type: string
+                      nullable: true
+                    description: The flask blueprints
+                  menu_links:
+                    type: array
+                    items:
+                      type: string
+                      nullable: true
+                    description: The menu links
+                  appbuilder_views:
+                    type: array
+                    items:
+                      type: string
+                      nullable: true
+                    description: The appuilder views
+                  appbuilder_menu_items:
+                    type: array
+                    items:
+                      type: string
+                      nullable: true
+                    description: The Flask Appbuilder menu items
+                  global_operator_extra_links:
+                    type: array
+                    items:
+                      type: string
+                      nullable: true
+                    description: The global operator extra links
+                  operator_extra_links:
+                    type: array
+                    items:
+                      type: string
+                      nullable: true
+                    description: Operator extra links
+                  source:
+                    type: string
+                    description: The plugin source
+                    nullable: false
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
