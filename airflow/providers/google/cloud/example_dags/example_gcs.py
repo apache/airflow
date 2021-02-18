@@ -34,7 +34,7 @@ from airflow.providers.google.cloud.operators.gcs import (
 )
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceSensor,
-    GCSObjectsWtihPrefixExistenceSensor,
+    GCSObjectsWithPrefixExistenceSensor,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
@@ -180,7 +180,7 @@ with models.DAG(
     )
     # [END howto_sensor_object_exists_task]
     # [START howto_sensor_object_with_prefix_exists_task]
-    gcs_object_with_prefix_exists = GCSObjectsWtihPrefixExistenceSensor(
+    gcs_object_with_prefix_exists = GCSObjectsWithPrefixExistenceSensor(
         bucket=BUCKET_1,
         prefix=PATH_TO_UPLOAD_FILE_PREFIX,
         mode='poke',

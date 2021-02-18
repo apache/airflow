@@ -163,12 +163,12 @@ Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSe
     :start-after: [START howto_sensor_object_exists_task]
     :end-before: [END howto_sensor_object_exists_task]
 
-.. _howto/sensor:GCSObjectsWtihPrefixExistenceSensor:
+.. _howto/sensor:GCSObjectsWithPrefixExistenceSensor:
 
-GCSObjectsWtihPrefixExistenceSensor
+GCSObjectsWithPrefixExistenceSensor
 -----------------------------------
 
-Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor` to wait (poll) for the existence of a file with a specified prefix in Google Cloud Storage.
+Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor` to wait (poll) for the existence of a file with a specified prefix in Google Cloud Storage.
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs.py
     :language: python
