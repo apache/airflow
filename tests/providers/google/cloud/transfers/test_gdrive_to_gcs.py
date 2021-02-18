@@ -44,14 +44,16 @@ class TestGoogleDriveToGCSOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context)
+        meta = {"id": "123xyz"}
+        mock_gdrive_hook.return_value.get_file_id.return_value = meta
 
+        op.execute(context)
         mock_gdrive_hook.return_value.get_file_id.assert_called_once_with(
             folder_id=FOLDER_ID, file_name=FILE_NAME, drive_id=DRIVE_ID
         )
 
         mock_gdrive_hook.return_value.download_file.assert_called_once_with(
-            file_id=mock.ANY, file_handle=mock.ANY
+            file_id=meta["id"], file_handle=mock.ANY
         )
 
         mock_gcs_hook.return_value.provide_file_and_upload.assert_called_once_with(
