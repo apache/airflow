@@ -43,16 +43,23 @@ SQLite - 3.15+
             min_req_sqlite_version = Version('3.15')
             installed_sqlite_version = Version(session.execute('select sqlite_version();').scalar())
             if installed_sqlite_version < min_req_sqlite_version:
-                return "From Airflow 2.0, SQLite version below 3.15 is no longer supported. \n" + more_info
+                return "From Airflow 2.0, SQLite version below {} is no longer supported. \n{}".format(
+                    min_req_sqlite_version, more_info
+                )
 
         elif "postgres" in conn_str:
             min_req_postgres_version = Version('9.6')
             installed_postgres_version = Version(session.execute('SHOW server_version;').scalar())
             if installed_postgres_version < min_req_postgres_version:
-                return "From Airflow 2.0, PostgreSQL version below 9.6 is no longer supported. \n" + more_info
+                return "From Airflow 2.0, PostgreSQL version below {} is no longer supported. \n{}".format(
+                    min_req_postgres_version, more_info
+                )
 
         elif "mysql" in conn_str:
             min_req_mysql_version = Version('5.7')
-            installed_mysql_version = Version(session.execute('SELECT VERSION();').scalar())
+            # special treatment is needed here, because MySQL version may include a suffix like '-log'
+            installed_mysql_version = Version(session.execute('SELECT VERSION();').scalar().split('-')[0])
             if installed_mysql_version < min_req_mysql_version:
-                return "From Airflow 2.0, MySQL version below 5.7 is no longer supported. \n" + more_info
+                return "From Airflow 2.0, MySQL version below {} is no longer supported. \n{}".format(
+                    min_req_mysql_version, more_info
+                )
