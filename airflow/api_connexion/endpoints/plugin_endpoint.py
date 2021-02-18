@@ -22,7 +22,12 @@ from airflow.api_connexion.schemas.plugin_schema import PluginCollection, plugin
 from airflow.security import permissions
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN)])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
+    ]
+)
 def get_plugins():
     """Get plugins endpoint"""
     plugins_manager.ensure_plugins_loaded()
