@@ -62,7 +62,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
-from airflow.www.views import ConnectionModelView, get_safe_url
+from airflow.www.views import ConnectionModelView, get_safe_url, truncate_task_duration
 from tests.test_utils import fab_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
@@ -3311,3 +3311,15 @@ class TestHelperFunctions(TestBase):
         mock_url_for.return_value = "/home"
         with self.app.test_request_context(base_url="http://localhost:8080"):
             assert get_safe_url(test_url) == expected_url
+
+    @parameterized.expand(
+        [
+            (0.12345, 0.123),
+            (0.12355, 0.124),
+            (3.12, 3.12),
+            (9.99999, 10.0),
+            (10.01232, 10),
+        ]
+    )
+    def test_truncate_task_duration(self, test_duration, expected_duration):
+        assert truncate_task_duration(test_duration) == expected_duration
