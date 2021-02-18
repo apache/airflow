@@ -696,7 +696,7 @@ class TestPodGenerator(unittest.TestCase):
         }, sanitized_result)
 
     @mock.patch('uuid.uuid4')
-    def test_construct_pod_env_from_secretref_and_configmapref(self, mock_uuid):
+    def test_construct_pod_env_from_merge_secretref_and_configmapref(self, mock_uuid):
         mock_uuid.return_value = self.static_uuid
         executor_config = k8s.V1Pod(
             spec=k8s.V1PodSpec(
@@ -709,13 +709,28 @@ class TestPodGenerator(unittest.TestCase):
                                 'memory': '1G'
                             }
                         ),
-                        env_from=[ k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource("test_configmap")),
-                                  k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource("test_secretref"))]
+                        env_from=[ k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource("test_configmap")) ]
                     )
                 ]
             )
         )
-        worker_config = k8s.V1Pod()
+        worker_config = k8s.V1Pod(
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name='',
+                        resources=k8s.V1ResourceRequirements(
+                            limits={
+                                'cpu': '1m',
+                                'memory': '1G'
+                            }
+                        ),
+                        env_from=[ k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource("test_secretref"))]
+                    )
+                ]
+            )
+
+        )
 
         result = PodGenerator.construct_pod(
             'dag_id',
@@ -742,12 +757,12 @@ class TestPodGenerator(unittest.TestCase):
                     'command': ['command'],
                     'env': [],
                     'envFrom': [
+                        {'secretRef': {
+                            'name': 'test_secretref'
+                        }},
                         {
                         'configMapRef': {
                             'name': 'test_configmap'
-                        }},
-                        {'secretRef': {
-                            'name': 'test_secretref'
                         }}
                      ],
                     'name': 'base',
