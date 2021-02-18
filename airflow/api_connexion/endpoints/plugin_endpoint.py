@@ -14,12 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from airflow import plugins_manager
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.plugin_schema import PluginCollection, plugin_collection_schema
-from airflow.cli.commands.plugins_command import PLUGINS_ATTRIBUTES_TO_DUMP
 from airflow.security import permissions
+
+PLUGINS_ATTRIBUTES_TO_DUMP = [
+    "hooks",
+    "executors",
+    "macros",
+    "admin_views",
+    "flask_blueprints",
+    "menu_links",
+    "appbuilder_views",
+    "appbuilder_menu_items",
+    "global_operator_extra_links",
+    "operator_extra_links",
+    "source",
+]
 
 
 @security.requires_access(
