@@ -25,6 +25,11 @@ This document explains the issue tracking and triage process within Apache
 Airflow including labels, milestones, and priorities as well as the process
 of resolving issues.
 
+An unusual element of the Apache Airflow project is that you can open a PR
+to fix an issue or make an enhancement, without needing to open a PR first.
+This is intended to make it as easy as possible to contribute to
+the project.
+
 Labels
 ''''''
 
@@ -51,7 +56,7 @@ the desire for “new features” from “enhancements to existing features”,
 but in practice most “feature requests” are actually enhancement requests,
 so we decided to combine them both into ``kind:feature``.
 
-We recently introduced ``kind:task`` to categorize issues which are
+The ``kind:task`` is used to categorize issues which are
 identified elements of work to be done, primarily as part of a larger
 change to be done as part of an AIP or something which needs to be cleaned
 up in the project.
@@ -68,12 +73,14 @@ are: Airflow Core and Airflow Providers, which are referenced by ``area:core``
 and ``area:providers``. This is especially important since these are now
 being released and versioned independently.
 
-There are more detailed areas of the project such as Scheduler, Webserver,
+There are more detailed areas of the Core Airflow project such as Scheduler, Webserver,
 API, UI, Logging, and Kubernetes, which are all conceptually under the
 “Airflow Core” area of the project.
 
-Similarly, some providers are broken out such as Apache (``provider/Apache``),
-AWS (``provider/AWS``), Azure (``provider/Azure``), and Google (``provider/Google``).
+Similarly within Airflow Providers, the larger providers such as Apache, AWS, Azure,
+and Google who have many hooks and operators within them, have labels directly
+associated with them such as ``provider/Apache``, ``provider/AWS``,
+``provider/Azure``, and ``provider/Google``.
 These make it easier for developers working on a single provider to
 track issues for that provider.
 
@@ -111,6 +118,10 @@ It's important to use priority labels effectively so we can triage incoming issu
 appropriately and make sure that when we release a new version of Airflow,
 we can ship a release confident that there are no “production blocker” issues in it.
 
+This applies to both Core Airflow as well as the Airflow Providers. With the separation
+of the Providers release from Core Airflow, a ``priority:critical`` bug in a single
+provider could trigger an unplanned patch release of the Airflow Providers.
+
 
 **Milestones**
 
@@ -128,8 +139,9 @@ represents that it will be considered for that release, not that it is committed
 a release. Once a PR is created to fix that issue and when that PR is tagged with a
 milestone, it implies that the PR is intended to released in that milestone.
 
-It is worth noting that Airflow Core and Airflow Providers are now released and
-versioned separately, so they may have a different set of milestones.
+Please note that Airflow Core and Airflow Providers are now released and
+versioned separately. The use of milestones as described above is directed towards
+Airflow Core releases.
 
 
 **Transient Labels**
@@ -193,3 +205,4 @@ following situations:
 * The issue is a duplicate of an already reported issue. In such cases, the latter issue is marked as ``duplicate``.
 * Despite attempts to reproduce the issue to resolve it, the issue cannot be reproduced by the Airflow team based on the given information. In such cases, the issue is marked as ``Can’t Reproduce``.
 * In some cases, the original creator realizes that the issue was incorrectly reported and then marks it as ``invalid``. Also, a committer could mark it as ``invalid`` if the issue being reported is for an unsupported operation or environment.
+* In some cases, the issue may be legitimate, but may not be addressed in the short to medium term based on current project priorities or because this will be irrelevant because of an upcoming change. The committer could mark this as ``wontfix`` to set expectations that it won't be directly addressed in the near term.
