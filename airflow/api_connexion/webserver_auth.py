@@ -20,7 +20,9 @@ from functools import wraps
 from typing import Callable, TypeVar, cast
 
 import jwt
-from flask import Response, request
+from flask import Response, current_app, request
+from flask_appbuilder.const import AUTH_LDAP
+from flask_login import login_user
 
 from airflow.configuration import conf
 
@@ -46,24 +48,38 @@ def decode_auth_token(auth_token):
         return payload['sub']
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         # Do not raise exception here due to auth_backend auth
-        return
+        return None
 
 
 def auth_current_user():
     """Checks the authentication and return the current user"""
-    auth = request.headers.get("Authorization", None)
+    auth_header = request.headers.get("Authorization", None)
+    ab_security_manager = current_app.appbuilder.sm
     token = None
-    if auth:
+    user = None
+    if auth_header:
         try:
-            token = auth.split(" ")[1]
+            token = auth_header.split(" ")[1]
         except IndexError:
             # Do not raise exception here due to auth_backend auth
-            return
+            return None
+    if auth_header and auth_header.startswith("Basic"):
+        auth = request.authorization
+        if auth is None or not (auth.username and auth.password):
+            return None
+        if ab_security_manager.auth_type == AUTH_LDAP:
+            user = ab_security_manager.auth_user_ldap(auth.username, auth.password)
+        if user is None:
+            user = ab_security_manager.auth_user_db(auth.username, auth.password)
+        if user is not None:
+            login_user(user, remember=False)
+            return user
     if token:
         user = decode_auth_token(token)
         if not isinstance(user, int):
             user = None
         return user
+    return None
 
 
 def requires_authentication(function: T):

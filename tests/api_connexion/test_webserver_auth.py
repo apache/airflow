@@ -21,13 +21,11 @@ from datetime import datetime, timedelta
 
 import jwt
 from flask_login import current_user
+from parameterized import parameterized
 
-from airflow.configuration import conf
 from airflow.www.app import create_app
+from tests.test_utils.api_connexion_utils import assert_401
 from tests.test_utils.config import conf_vars
-
-# We need to test with real secret for the none algorithm
-SECRET = conf.get("webserver", "secret_key")
 
 
 class TestWebserverAuth(unittest.TestCase):
@@ -90,3 +88,39 @@ class TestWebserverAuth(unittest.TestCase):
             assert current_user.email == "test@fab.org"
             response = test_client.get("/api/v1/pools", headers={"Authorization": "Bearer " + forgedtoken})
         assert response.status_code == 401
+
+    @parameterized.expand(
+        [
+            ("basic",),
+            ("basic ",),
+            ("bearer",),
+            ("test:test",),
+            (b64encode(b"test:test").decode(),),
+            ("bearer ",),
+            ("basic: ",),
+            ("basic 123",),
+        ]
+    )
+    def test_malformed_headers(self, token):
+        with self.app.test_client() as test_client:
+            response = test_client.get("/api/v1/pools", headers={"Authorization": token})
+            assert response.status_code == 401
+            assert response.headers["Content-Type"] == "application/problem+json"
+            assert response.headers["WWW-Authenticate"] == "Basic"
+            assert_401(response)
+
+    @parameterized.expand(
+        [
+            ("basic " + b64encode(b"test").decode(),),
+            ("basic " + b64encode(b"test:").decode(),),
+            ("basic " + b64encode(b"test:123").decode(),),
+            ("basic " + b64encode(b"test test").decode(),),
+        ]
+    )
+    def test_invalid_auth_header(self, token):
+        with self.app.test_client() as test_client:
+            response = test_client.get("/api/v1/pools", headers={"Authorization": token})
+            assert response.status_code == 401
+            assert response.headers["Content-Type"] == "application/problem+json"
+            assert response.headers["WWW-Authenticate"] == "Basic"
+            assert_401(response)
