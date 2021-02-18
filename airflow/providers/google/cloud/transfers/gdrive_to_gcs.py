@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from logging import warning
 from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
@@ -93,7 +94,11 @@ class GoogleDriveToGCSOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.bucket_name = destination_bucket or bucket_name
+        if destination_bucket:
+            warning.warn("`destination_bucket ` is deprecated please use `bucket_name`", DeprecationWarning)
         self.object_name = destination_object or object_name
+        if destination_object:
+            warning.warn("`destination_object ` is deprecated please use `object_name`", DeprecationWarning)
         self.folder_id = folder_id
         self.drive_id = drive_id
         self.file_name = file_name
