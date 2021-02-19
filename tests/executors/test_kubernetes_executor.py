@@ -196,6 +196,26 @@ class TestKubernetesExecutor(unittest.TestCase):
 
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    def test_invalid_executor_config(self, mock_get_kube_client, mock_kubernetes_job_watcher):
+        executor = self.kubernetes_executor
+        executor.start()
+
+        assert executor.event_buffer == {}
+        executor.execute_async(
+            key=('dag', 'task', datetime.utcnow(), 1),
+            queue=None,
+            command=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
+            executor_config=k8s.V1Pod(
+                spec=k8s.V1PodSpec(
+                    containers=[k8s.V1Container(name="base", image="myimage", image_pull_policy="Always")]
+                )
+            ),
+        )
+
+        assert list(executor.event_buffer.values())[0][1] == "Invalid executor_config passed"
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     def test_change_state_running(self, mock_get_kube_client, mock_kubernetes_job_watcher):
         executor = self.kubernetes_executor
         executor.start()
