@@ -427,3 +427,39 @@ def integrate_macros_plugins() -> None:
             # Register the newly created module on airflow.macros such that it
             # can be accessed when rendering templates.
             setattr(macros, plugin.name, macros_module)
+
+
+def get_plugin_info(attrs_to_dump: Optional[List[str]] = None):
+    """
+    Dump plugins attributes
+
+    :param attrs_to_dump: A list of plugin attributes to dump
+    :type attrs_to_dump: List
+    """
+    plugins_attributes_to_dump = [
+        "hooks",
+        "executors",
+        "macros",
+        "admin_views",
+        "flask_blueprints",
+        "menu_links",
+        "appbuilder_views",
+        "appbuilder_menu_items",
+        "global_operator_extra_links",
+        "operator_extra_links",
+        "source",
+    ]
+    ensure_plugins_loaded()
+    integrate_executor_plugins()
+    integrate_macros_plugins()
+    initialize_web_ui_plugins()
+    initialize_extra_operators_links_plugins()
+    if not attrs_to_dump:
+        attrs_to_dump = plugins_attributes_to_dump
+    plugins_info = []
+    if plugins:
+        for plugin in plugins:
+            info = {"name": plugin.name}
+            info.update({n: getattr(plugin, n) for n in attrs_to_dump})
+            plugins_info.append(info)
+    return plugins_info
