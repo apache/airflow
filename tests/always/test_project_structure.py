@@ -169,6 +169,8 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         # Deprecated operator. Ignore it.
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
         '.CloudDataTransferServiceGCSToGCSOperator',
+        # Deprecated operator. Ignore it.
+        'airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor',
         # Base operator. Ignore it.
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator',
         # Deprecated operator. Ignore it
