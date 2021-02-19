@@ -505,7 +505,6 @@ devel = [
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
-    'testfixtures',
     'wheel',
     'yamllint',
 ]
