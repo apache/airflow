@@ -48,7 +48,7 @@ class TestFlower:
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "flower": {"enabled": True, "username": "flower", "password": "fl0w3r"},
+                "flower": {"username": "flower", "password": "fl0w3r"},
                 "ports": {"flowerUI": 7777},
             },
             show_only=["templates/flower/flower-deployment.yaml"],
@@ -68,7 +68,6 @@ class TestFlower:
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "flower": {"enabled": True},
                 "ports": {"flowerUI": 7777},
             },
             show_only=["templates/flower/flower-deployment.yaml"],

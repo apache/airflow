@@ -470,7 +470,7 @@ webserver:
 flower:
   # Enable flower.
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
-  enabled: false
+  enabled: true
   # Additional network policies as needed
   extraNetworkPolicies: []
   resources: {}

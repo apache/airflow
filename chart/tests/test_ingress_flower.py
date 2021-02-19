@@ -34,7 +34,6 @@ class IngressFlowerTest(unittest.TestCase):
             values={
                 "ingress": {"enabled": True, "flower": {"annotations": {"aa": "bb", "cc": "dd"}}},
                 "executor": "CeleryExecutor",
-                "flower": {"enabled": True},
             },
             show_only=["templates/flower/flower-ingress.yaml"],
         )
