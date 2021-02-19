@@ -494,7 +494,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             kube_executor_config = PodGenerator.from_obj(executor_config)
         except Exception:  # pylint: disable=broad-except
             self.log.error("Invalid executor_config for %s", key)
-            self.change_state(key=key, state=State.FAILED, info="Invalid executor_config passed")
+            self.fail(key=key, info="Invalid executor_config passed")
             return
 
         if executor_config:
