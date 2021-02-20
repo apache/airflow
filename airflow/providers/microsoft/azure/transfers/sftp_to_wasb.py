@@ -64,7 +64,7 @@ class SFTPToWasbOperator(BaseOperator):
     :type move_object: bool
     """
 
-    template_fields = ("sftp_source_path", "container_name", "blob_name")
+    template_fields = ("sftp_source_path", "container_name", "blob_prefix")
 
     @apply_defaults
     def __init__(
