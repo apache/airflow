@@ -493,7 +493,7 @@ devel = [
     'paramiko',
     'pipdeptree',
     'pre-commit',
-    'pylint==2.6.0',
+    'pylint',
     'pysftp',
     'pytest~=6.0',
     'pytest-cov',

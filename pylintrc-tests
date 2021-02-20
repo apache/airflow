@@ -155,7 +155,12 @@ disable=print-statement,
         missing-module-docstring,
         import-outside-toplevel,    # We import outside toplevel to avoid cyclic imports
         raise-missing-from,  # We don't use raise...from
-        misplaced-comparison-constant
+        misplaced-comparison-constant,
+        # Those checks are disabled for tests only
+        missing-docstring,
+        no-self-use,
+        too-many-public-methods,
+        protected-access
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
