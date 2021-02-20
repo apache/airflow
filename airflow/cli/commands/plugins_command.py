@@ -22,19 +22,6 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.plugins_manager import PluginsDirectorySource, get_plugin_info
 from airflow.utils.cli import suppress_logs_and_warning
 
-# list to maintain the order of items.
-PLUGINS_ATTRIBUTES_TO_DUMP = [
-    "source",
-    "hooks",
-    "executors",
-    "macros",
-    "flask_blueprints",
-    "appbuilder_views",
-    "appbuilder_menu_items",
-    "global_operator_extra_links",
-    "operator_extra_links",
-]
-
 
 def _get_name(class_like_object) -> str:
     if isinstance(class_like_object, (str, PluginsDirectorySource)):
@@ -52,7 +39,7 @@ def _join_plugins_names(value: Union[List[Any], Any]) -> str:
 @suppress_logs_and_warning
 def dump_plugins(args):
     """Dump plugins information"""
-    plugins_info: List[Dict[str, str]] = get_plugin_info(PLUGINS_ATTRIBUTES_TO_DUMP)
+    plugins_info: List[Dict[str, str]] = get_plugin_info()
     if not plugins_manager.plugins:
         print("No plugins loaded")
         return
