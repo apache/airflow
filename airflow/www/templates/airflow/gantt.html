@@ -21,6 +21,11 @@
 
 {% block page_title %}{{ dag.dag_id }} - Gantt - {{ appbuilder.app_name }}{% endblock %}
 
+{% block head_meta %}
+  {{ super() }}
+  <meta name="data" content="{{ data }}">
+{% endblock %}
+
 {% block head_css %}
   {{ super() }}
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('gantt.css') }}">
@@ -76,20 +81,5 @@
   {{ super() }}
   <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script src="{{ url_for_asset('d3-tip.js') }}"></script>
-  <script src="{{ url_for_asset('ganttChartD3v2.js') }}"></script>
-  <script src="{{ url_for_asset('taskInstances.js') }}"></script>
-  <script>
-    $( document ).ready(function() {
-      data = {{ data |tojson }};
-      var gantt = d3.gantt()
-        .taskTypes(data.taskNames)
-        .height(data.height)
-        .selector('.gantt')
-        .tickFormat("%H:%M:%S");
-      gantt(data.tasks);
-      $('body').on('airflow.timezone-change', () => {
-        gantt.redraw(data.tasks);
-      });
-    });
-  </script>
+  <script src="{{ url_for_asset('gantt.js') }}"></script>
 {% endblock %}
