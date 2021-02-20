@@ -709,7 +709,9 @@ class TestPodGenerator(unittest.TestCase):
                                 'memory': '1G'
                             }
                         ),
-                        env_from=[ k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource("test_configmap")) ]
+                        env_from=[k8s.V1EnvFromSource(
+                            config_map_ref=k8s.V1ConfigMapEnvSource("test_configmap"))
+                        ]
                     )
                 ]
             )
@@ -725,7 +727,9 @@ class TestPodGenerator(unittest.TestCase):
                                 'memory': '1G'
                             }
                         ),
-                        env_from=[ k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource("test_secretref"))]
+                        env_from=[
+                            k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource("test_secretref"))
+                        ]
                     )
                 ]
             )
@@ -760,11 +764,10 @@ class TestPodGenerator(unittest.TestCase):
                         {'secretRef': {
                             'name': 'test_secretref'
                         }},
-                        {
-                        'configMapRef': {
+                        {'configMapRef': {
                             'name': 'test_configmap'
                         }}
-                     ],
+                    ],
                     'name': 'base',
                     'image': 'kube_image',
                     'ports': [],
