@@ -221,6 +221,7 @@ Currently, **officially** using Airflow:
 1. [Indeed](https://www.indeed.com/) [[@chrismclennon](https://github.com/chrismclennon), [@raj-manvar](https://github.com/raj-manvar), [@Adil-Ibragimov](https://github.com/Adil-Ibragimov)]
 1. [ING](http://www.ing.com/)
 1. [Instacart 🥕](http://www.instacart.com/) [[@arp1t](https://github.com/arp1t) & [@code-sauce](https://github.com/code-sauce) & [@jasonlew](https://github.com/jasonlew) & [@j4p3](https://github.com/j4p3) & [@lubert](https://github.com/lubert) & [@mmontagna](https://github.com/mmontagna) & [@RyanAD](https://github.com/RyanAD) &[@zzadeh](https://github.com/zzadeh)]
+1. [Intellischool 🎓](https://intellischoo.co/) [[@intelliscl](https://github.com/intelliscl) & [@dave-philp](https://github.com/dave-philp)]
 1. [Intercom](http://www.intercom.com/) [[@fox](https://github.com/fox) & [@paulvic](https://github.com/paulvic)]
 1. [Interia](http://www.interia.pl)
 1. [Investorise](https://investorise.com/) [[@svenvarkel](https://github.com/svenvarkel)]
