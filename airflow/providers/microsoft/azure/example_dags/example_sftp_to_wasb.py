@@ -33,7 +33,7 @@ with DAG(
 
     # [START how_to_sftp_to_wasb]
     transfer_files_to_azure = SFTPToWasbOperator(
-        task_id="transfer_files_to_gcs",
+        task_id="transfer_files_from_sftp_to_wasb",
         # SFTP args
         sftp_conn_id="sftp_default",
         sftp_source_path=SFTP_SRC_PATH,
