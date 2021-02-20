@@ -1194,10 +1194,10 @@ class TestLogView(TestBase):
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
     ENDPOINT = f'log?dag_id={DAG_ID}&task_id={TASK_ID}&execution_date={DEFAULT_DATE}'
 
-    def setUp(self):
-        a_1 = dt.now()
+    @classmethod
+    def setUpClass(cls):
         # Make sure that the configure_logging is not cached
-        self.old_modules = dict(sys.modules)
+        cls.old_modules = dict(sys.modules)
 
         # Create a custom logging configuration
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
@@ -1209,17 +1209,19 @@ class TestLogView(TestBase):
         logging_config['handlers']['task'][
             'filename_template'
         ] = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(":", ".") }}/{{ try_number }}.log'
-
         # Write the custom logging configuration to a file
-        self.settings_folder = tempfile.mkdtemp()
-        settings_file = os.path.join(self.settings_folder, "airflow_local_settings.py")
+        cls.settings_folder = tempfile.mkdtemp()
+        settings_file = os.path.join(cls.settings_folder, "airflow_local_settings.py")
         new_logging_file = f"LOGGING_CONFIG = {logging_config}"
         with open(settings_file, 'w') as handle:
             handle.writelines(new_logging_file)
-        sys.path.append(self.settings_folder)
+        sys.path.append(cls.settings_folder)
 
         with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
-            self.app = application.create_app(testing=True)
+            cls.app = application.create_app(testing=True)
+
+    def setUp(self):
+        with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
             self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
             self.app.config['WTF_CSRF_ENABLED'] = False
             self.client = self.app.test_client()
@@ -1251,11 +1253,8 @@ class TestLogView(TestBase):
 
                 session.merge(self.ti)
                 session.merge(self.ti_removed_dag)
-        a_2 = dt.now()
-        assert f"SetUp {a_2 - a_1}" == "cheese"
 
     def tearDown(self):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         self.clear_table(TaskInstance)
 
         # Remove any new modules imported during the test run. This lets us
@@ -1263,10 +1262,14 @@ class TestLogView(TestBase):
         for mod in [m for m in sys.modules if m not in self.old_modules]:
             del sys.modules[mod]
 
-        sys.path.remove(self.settings_folder)
-        shutil.rmtree(self.settings_folder)
         self.logout()
         super().tearDown()
+
+    @classmethod
+    def tearDownClass(cls):
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+        sys.path.remove(cls.settings_folder)
+        shutil.rmtree(cls.settings_folder)
 
     @parameterized.expand(
         [
@@ -1280,24 +1283,21 @@ class TestLogView(TestBase):
         ]
     )
     def test_get_file_task_log(self, state, try_number, expected_num_logs_visible):
-        a_1 = dt.now()
         with create_session() as session:
             self.ti.state = state
             self.ti.try_number = try_number
             session.merge(self.ti)
-        a_2 = dt.now()
+
         response = self.client.get(
             TestLogView.ENDPOINT, data=dict(username='test', password='test'), follow_redirects=True
         )
-        a_3 = dt.now()
+
         assert response.status_code == 200
         assert 'Log by attempts' in response.data.decode('utf-8')
         for num in range(1, expected_num_logs_visible + 1):
             assert f'log-group-{num}' in response.data.decode('utf-8')
         assert 'log-group-0' not in response.data.decode('utf-8')
         assert f'log-group-{expected_num_logs_visible + 1}' not in response.data.decode('utf-8')
-        a_4 = dt.now()
-        assert f"{a_2 - a_1} {a_3-a_2} {a_4-a_3}" == "cheese"
 
     def test_get_logs_with_metadata_as_download_file(self):
         url_template = (
