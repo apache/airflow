@@ -1209,6 +1209,7 @@ class TestLogView(TestBase):
         logging_config['handlers']['task'][
             'filename_template'
         ] = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(":", ".") }}/{{ try_number }}.log'
+
         # Write the custom logging configuration to a file
         cls.settings_folder = tempfile.mkdtemp()
         settings_file = os.path.join(cls.settings_folder, "airflow_local_settings.py")
