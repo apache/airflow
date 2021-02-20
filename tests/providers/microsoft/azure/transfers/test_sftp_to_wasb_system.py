@@ -17,7 +17,6 @@
 
 
 import os
-
 import pytest
 
 from airflow.providers.microsoft.azure.example_dags.example_sftp_to_wasb import SFTP_SRC_PATH
