@@ -1195,6 +1195,7 @@ class TestLogView(TestBase):
     ENDPOINT = f'log?dag_id={DAG_ID}&task_id={TASK_ID}&execution_date={DEFAULT_DATE}'
 
     def setUp(self):
+        a_1 = dt.now()
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
 
@@ -1250,6 +1251,8 @@ class TestLogView(TestBase):
 
                 session.merge(self.ti)
                 session.merge(self.ti_removed_dag)
+        a_2 = dt.now()
+        assert f"SetUp {a_2 - a_1}" == "cheese"
 
     def tearDown(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -1277,20 +1280,24 @@ class TestLogView(TestBase):
         ]
     )
     def test_get_file_task_log(self, state, try_number, expected_num_logs_visible):
+        a_1 = dt.now()
         with create_session() as session:
             self.ti.state = state
             self.ti.try_number = try_number
             session.merge(self.ti)
-
+        a_2 = dt.now()
         response = self.client.get(
             TestLogView.ENDPOINT, data=dict(username='test', password='test'), follow_redirects=True
         )
+        a_3 = dt.now()
         assert response.status_code == 200
         assert 'Log by attempts' in response.data.decode('utf-8')
         for num in range(1, expected_num_logs_visible + 1):
             assert f'log-group-{num}' in response.data.decode('utf-8')
         assert 'log-group-0' not in response.data.decode('utf-8')
         assert f'log-group-{expected_num_logs_visible + 1}' not in response.data.decode('utf-8')
+        a_4 = dt.now()
+        assert f"{a_2 - a_1} {a_3-a_2} {a_4-a_3}" == "cheese"
 
     def test_get_logs_with_metadata_as_download_file(self):
         url_template = (
