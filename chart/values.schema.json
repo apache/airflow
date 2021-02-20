@@ -884,6 +884,10 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable flower.",
+                    "type": "boolean"
+                },
                 "extraNetworkPolicies": {
                     "description": "Additional network policies as needed.",
                     "type": "array"
