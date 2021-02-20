@@ -26,10 +26,12 @@ from tests.test_utils.azure_system_helpers import (
     AzureSystemTest,
     provide_wasb_default_connection,
 )
+
 CREDENTIALS_DIR = os.environ.get('CREDENTIALS_DIR', '/files/airflow-breeze-config/keys')
 WASB_DEFAULT_KEY = 'wasb_key.json'
 CREDENTIALS_PATH = os.path.join(CREDENTIALS_DIR, WASB_DEFAULT_KEY)
 FILENAME = "TEST.TXT"
+
 
 @pytest.mark.backend('postgres', 'mysql')
 @pytest.mark.credential_file(WASB_DEFAULT_KEY)
