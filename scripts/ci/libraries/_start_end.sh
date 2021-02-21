@@ -18,7 +18,7 @@
 
 # Starts group for Github Actions - makes logs much more readable
 function start_end::group_start {
-    if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+    if [[ ${GITHUB_ACTIONS=} == "true" && ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
         echo "::group::${1}"
     else
         echo
@@ -29,7 +29,7 @@ function start_end::group_start {
 
 # Ends group for Github Actions
 function start_end::group_end {
-    if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+    if [[ ${GITHUB_ACTIONS=} == "true" && ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
         echo -e "\033[0m"  # Disable any colors set in the group
         echo "::endgroup::"
     fi

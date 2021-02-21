@@ -466,14 +466,14 @@ function build_image::configure_github_docker_registry() {
             # For now ghcr.io can only authenticate using Personal Access Token with package access scope.
             # There are plans to implement GITHUB_TOKEN authentication but this is not implemented yet
             token="${CONTAINER_REGISTRY_TOKEN=}"
-            echo
-            echo "Using CONTAINER_REGISTRY_TOKEN!"
-            echo
+            verbosity::print_info
+            verbosity::print_info "Using CONTAINER_REGISTRY_TOKEN!"
+            verbosity::print_info
         elif [[ "${GITHUB_REGISTRY}" == "docker.pkg.github.com" ]]; then
             token="${GITHUB_TOKEN}"
-            echo
-            echo "Using GITHUB_TOKEN!"
-            echo
+            verbosity::print_info
+            verbosity::print_info "Using GITHUB_TOKEN!"
+            verbosity::print_info
         else
             echo
             echo  "${COLOR_RED}ERROR: Bad value of '${GITHUB_REGISTRY}'. Should be either 'ghcr.io' or 'docker.pkg.github.com'!${COLOR_RESET}"
@@ -481,9 +481,9 @@ function build_image::configure_github_docker_registry() {
             exit 1
         fi
         if [[ -z "${token}" ]] ; then
-            echo
-            echo "Skip logging in to Github Registry. No Token available!"
-            echo
+            verbosity::print_info
+            verbosity::print_info "Skip logging in to Github Registry. No Token available!"
+            verbosity::print_info
         fi
         if [[ -n "${token}" ]]; then
             echo "${token}" | docker login \
@@ -491,14 +491,14 @@ function build_image::configure_github_docker_registry() {
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
         else
-            echo "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
+            verbosity::print_info "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
         fi
-        echo "Make sure experimental docker features are enabled"
+        verbosity::print_info "Make sure experimental docker features are enabled"
         local new_config
         new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json")
         echo "${new_config}" > "${HOME}/.docker/config.json"
-        echo "Docker config after change:"
-        echo "${new_config}"
+        verbosity::print_info "Docker config after change:"
+        verbosity::print_info "${new_config}"
         start_end::group_end
     fi
 }
