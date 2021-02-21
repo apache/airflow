@@ -63,7 +63,7 @@ registered_operator_link_classes: Optional[Dict[str, Type]] = None
 Used by the DAG serialization code to only allow specific classes to be created
 during deserialization
 """
-PLUGINS_ATTRIBUTES_TO_DUMP = [
+PLUGINS_ATTRIBUTES_TO_DUMP = {
     "hooks",
     "executors",
     "macros",
@@ -75,7 +75,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = [
     "global_operator_extra_links",
     "operator_extra_links",
     "source",
-]
+}
 
 
 class AirflowPluginSource:
