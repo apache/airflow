@@ -18,20 +18,24 @@
 
 # Starts group for Github Actions - makes logs much more readable
 function start_end::group_start {
-    if [[ ${GITHUB_ACTIONS=} == "true" && ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
-        echo "::group::${1}"
-    else
-        echo
-        echo "${1}"
-        echo
+    if [[ ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
+        if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+            echo "::group::${1}"
+        else
+            echo
+            echo "${1}"
+            echo
+        fi
     fi
 }
 
 # Ends group for Github Actions
 function start_end::group_end {
-    if [[ ${GITHUB_ACTIONS=} == "true" && ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
-        echo -e "\033[0m"  # Disable any colors set in the group
-        echo "::endgroup::"
+    if [[ ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
+        if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
+            echo -e "\033[0m"  # Disable any colors set in the group
+            echo "::endgroup::"
+        fi
     fi
 }
 
