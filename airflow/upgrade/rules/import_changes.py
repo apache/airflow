@@ -110,7 +110,7 @@ class ImportChangesRule(BaseRule):
     def _check_file(file_path):
         problems = []
         providers = set()
-        with open(file_path, "r") as file:
+        with open(file_path, "r", errors="ignore") as file:
             content = file.read()
             for change in ImportChangesRule.ALL_CHANGES:
                 if change.old_class in content:

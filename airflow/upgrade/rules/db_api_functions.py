@@ -33,20 +33,16 @@ def check_run(cls):
     try:
         cls.__new__(cls).run("fake SQL")
         return return_error_string(cls, "run")
-    except NotImplementedError:
-        pass
     except Exception:
-        return return_error_string(cls, "run")
+        pass
 
 
 def check_get_records(cls):
     try:
         cls.__new__(cls).get_records("fake SQL")
         return return_error_string(cls, "get_records")
-    except NotImplementedError:
-        pass
     except Exception:
-        return return_error_string(cls, "get_records")
+        pass
 
 
 def return_error_string(cls, method):

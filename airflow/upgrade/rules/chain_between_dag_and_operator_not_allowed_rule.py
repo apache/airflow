@@ -36,7 +36,7 @@ class ChainBetweenDAGAndOperatorNotAllowedRule(BaseRule):
 
     def _check_file(self, file_path):
         problems = []
-        with open(file_path, "r") as file_pointer:
+        with open(file_path, "r", errors="ignore") as file_pointer:
             lines = file_pointer.readlines()
             python_space = r"\s*\\?\s*\n?\s*"
             # Find all the dag variable names.
