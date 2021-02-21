@@ -44,7 +44,7 @@ fi
 
 function check_upgrade_to_newer_dependencies() {
     # shellcheck disable=SC2153
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" == "true" ||
+    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ||
             ${EVENT_NAME} == 'push' || ${EVENT_NAME} == "scheduled" ]]; then
         # Trigger upgrading to latest constraints where label is set or when
         # SHA of the merge commit triggers rebuilding layer in the docker image
