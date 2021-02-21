@@ -63,6 +63,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
                 'the Cloudwatch logs connection exists.',
                 remote_conn_id,
             )
+            return None
 
     def _render_filename(self, ti, try_number):
         # Replace unsupported log group name characters

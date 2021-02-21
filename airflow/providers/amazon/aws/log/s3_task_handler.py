@@ -54,6 +54,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 'the S3 connection exists.',
                 remote_conn_id,
             )
+            return None
 
     def set_context(self, ti):
         super().set_context(ti)

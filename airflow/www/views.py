@@ -3641,6 +3641,7 @@ class TaskInstanceModelView(AirflowModelView):
             return redirect(self.get_redirect())
         except Exception:  # noqa pylint: disable=broad-except
             flash('Failed to clear task instances', 'error')
+            return None
 
     @provide_session
     def set_task_instance_state(self, tis, target_state, session=None):

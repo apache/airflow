@@ -243,6 +243,7 @@ class AllowListValidator:
 
     def __init__(self, allow_list=None):
         if allow_list:
+            # pylint: disable=consider-using-generator
             self.allow_list = tuple([item.strip().lower() for item in allow_list.split(',')])
         else:
             self.allow_list = None

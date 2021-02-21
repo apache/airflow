@@ -193,6 +193,9 @@ You should be aware, about a few things:
   FROM apache/airflow:2.0.0
   RUN pip install --no-cache-dir --user my-awesome-pip-dependency-to-add
 
+* As of 2.0.1 image the ``--user`` flag is turned on by default by setting ``PIP_USER`` environment variable
+  to ``true``. This can be disabled by un-setting the variable or by setting it to ``false``.
+
 
 * If your apt, or PyPI dependencies require some of the build-essentials, then your best choice is
   to follow the "Customize the image" route. However it requires to checkout sources of Apache Airflow,

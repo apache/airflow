@@ -66,6 +66,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 'the Wasb connection exists.',
                 remote_conn_id,
             )
+            return None
 
     def set_context(self, ti) -> None:
         super().set_context(ti)
@@ -159,6 +160,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             # return error if needed
             if return_error:
                 return msg
+            return None
 
     def wasb_write(self, log: str, remote_log_location: str, append: bool = True) -> None:
         """

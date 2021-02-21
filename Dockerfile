@@ -524,6 +524,9 @@ LABEL org.apache.airflow.distro="debian" \
   org.opencontainers.image.title="Production Airflow Image" \
   org.opencontainers.image.description="Installed Apache Airflow"
 
+# By default PIP will install everything in ~/.local
+ARG PIP_USER="true"
+ENV PIP_USER=${PIP_USER}
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD ["--help"]
