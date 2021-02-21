@@ -830,7 +830,7 @@ iam
 idempotence
 idempotency
 ie
-ignoreable
+ignorable
 ignoreUnknownValues
 imageORfile
 imagePullPolicy
