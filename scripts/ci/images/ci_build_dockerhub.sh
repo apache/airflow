@@ -115,7 +115,7 @@ else
     export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
     export INSTALL_AIRFLOW_VERSION="${DOCKER_TAG%-python*}"
     export AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${INSTALL_AIRFLOW_VERSION}"
-
+    export AIRFLOW_CONSTRAINTS="constraints"
     # shellcheck source=scripts/ci/libraries/_script_init.sh
     . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
     echo

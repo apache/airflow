@@ -30,7 +30,7 @@ build_images::prepare_ci_build
 build_images::rebuild_ci_image_if_needed
 
 python -m pip install --user pre-commit \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+  --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 
 export PATH=~/.local/bin:${PATH}
 

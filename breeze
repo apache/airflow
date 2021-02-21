@@ -239,7 +239,7 @@ function breeze::initialize_virtualenv() {
         set +e
         # We need to export this one to speed up Cassandra driver installation in virtualenv
         CASS_DRIVER_NO_CYTHON="1" pip install -e ".[devel]" \
-            --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+            --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
         res=$?
         set -e
         popd
@@ -846,8 +846,11 @@ function breeze::parse_arguments() {
             # Reference is mutually exclusive with version
             INSTALL_AIRFLOW_REFERENCE=""
             # Skip mounting local sources when airflow is installed from remote
-            INSTALL_PROVIDERS_FROM_SOURCES="false"
-            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION} and skip mounting sources"
+            if [[ ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]*$ ]]; then
+                echo "Install providers from PyPI"
+                INSTALL_PROVIDERS_FROM_SOURCES="false"
+            fi
+            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION}"
             echo
             shift 2
             ;;
@@ -1194,7 +1197,13 @@ function breeze::parse_arguments() {
             ;;
         --installation-method)
             export AIRFLOW_INSTALLATION_METHOD="${2}"
-            echo "Airflow installation method: ${PACKAGE_FORMAT}"
+            echo "Airflow installation method: ${AIRFLOW_INSTALLATION_METHOD}"
+            echo
+            shift 2
+            ;;
+        --generate-constraints-mode)
+            export GENERATE_CONSTRAINTS_MODE="${2}"
+            echo "Generate constraints mode: ${GENERATE_CONSTRAINTS_MODE}"
             echo
             shift 2
             ;;
@@ -1270,6 +1279,7 @@ function breeze::parse_arguments() {
             command_to_run="perform_generate_constraints"
             export FORCE_ANSWER_TO_QUESTIONS="yes"
             export FORCE_BUILD_IMAGES="true"
+            export SKIP_CHECK_REMOTE_IMAGE="true"
             export UPGRADE_TO_NEWER_DEPENDENCIES="true"
             shift
             ;;
@@ -1506,6 +1516,10 @@ function breeze::prepare_formatted_versions() {
     FORMATTED_INSTALLATION_METHOD=$(echo "${_breeze_allowed_installation_methods=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_INSTALLATION_METHOD
+
+    FORMATTED_GENERATE_CONSTRAINTS_MODE=$(echo "${_breeze_allowed_generate_constraints_modes=""}" |
+        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_GENERATE_CONSTRAINTS_MODE
 
     FORMATTED_GITHUB_REGISTRY=$(echo "${_breeze_allowed_github_registrys=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
@@ -1753,15 +1767,19 @@ $(breeze::flag_verbosity)
     export DETAILED_USAGE_GENERATE_CONSTRAINTS="
 ${CMDNAME} generate-constraints [FLAGS]
 
-      Generates pinned constraint files from setup.py. Those files are generated in files folder
-      - separate files for different python version. Those constraint files when pushed to orphan
-      constraints-master, constraints-2-0 and constraints-1-10 branches are used to generate
-      repeatable CI builds as well as run repeatable production image builds. You can use those
+      Generates pinned constraint files with all extras from setup.py. Those files are generated in
+      files folder - separate files for different python version. Those constraint files when
+      pushed to orphan constraints-master, constraints-2-0 and constraints-1-10 branches are used
+      to generate repeatable CI builds as well as run repeatable production image builds and
+      upgrades when you want to include installing or updating some of the released providers
+      released at the time particular airflow version was released. You can use those
       constraints to predictably install released Airflow versions. This is mainly used to test
-      the constraint generation - constraints are pushed to the orphan branches by a
-      successful scheduled CRON job in CI automatically.
+      the constraint generation or manually fix them - constraints are pushed to the orphan
+      branches by a successful scheduled CRON job in CI automatically, but sometimes manual fix
+      might be needed.
 
 Flags:
+$(breeze::flag_generate_constraints)
 $(breeze::flag_airflow_variants)
 $(breeze::flag_verbosity)
 "
@@ -2321,8 +2339,13 @@ function breeze::flag_local_file_mounting() {
 function breeze::flag_choose_different_airflow_version() {
     echo "
 -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
-        If specified, installs Airflow directly from PIP released version. This happens at
-        image building time in production image and at container entering time for CI image. One of:
+        In CI image, installs Airflow (in entrypoint) from PIP released version or using
+        the installation method specified (sdist, wheel, none).
+
+        In PROD image the installation of selected method or version happens during image building.
+        For PROD image, the 'none' options is not valid.
+
+        One of:
 
 ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
@@ -2337,8 +2360,9 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
         This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
 --installation-method INSTALLATION_METHOD
-        Method of installing airflow - either from the sources ('.') or from package
-        'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+        Method of installing airflow for production image - either from the sources ('.')
+        or from package 'apache-airflow' to install from PyPI.
+        Default in Breeze is to install from sources. One of:
 
 ${FORMATTED_INSTALLATION_METHOD}
 
@@ -2358,6 +2382,31 @@ ${FORMATTED_INSTALLATION_METHOD}
 
 "
 }
+
+#######################################################################################################
+#
+# Prints flags that allow to choose variants of constraint generation
+#
+# Global constants used:
+#       GENERATE_CONSTRAINTS_MODES
+#
+# Outputs:
+#    Flag information.
+#######################################################################################################
+function breeze::flag_generate_constraints() {
+    echo "
+--generate-constraints-mode GENERATE_CONSTRAINTS_MODE
+        Mode of generating constraints - determines whether providers are installed when generating
+        constraints and which version of them (either the ones from sources are used or the ones
+        from pypi.
+
+        One of:
+
+${FORMATTED_GENERATE_CONSTRAINTS_MODE}
+
+"
+}
+
 
 #######################################################################################################
 #

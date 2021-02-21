@@ -158,14 +158,16 @@ HEAD of development for constraints):
     pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow" \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
-You can also skip installing airflow by providing ``--install-airflow-version none`` parameter to Breeze:
+You can also skip installing airflow and install it from locally provided files by using
+``--install-from-local-files-when-building`` parameter and ``--disable-pypi-when-building`` to Breeze:
 
 .. code-block:: bash
 
   ./breeze build-image --python 3.7 --additional-extras=presto \
-      --production-image --install-airflow-version=none --install-from-local-files-when-building
+      --production-image --disable-pypi-when-building --install-from-local-files-when-building
 
-In this case you usually install airflow and all packages in ``docker-context-files`` folder.
+In this case you airflow and all packages (.whl files) should be placed in ``docker-context-files`` folder.
+
 
 Using cache during builds
 =========================

@@ -36,6 +36,8 @@ test -v UPGRADE_TO_NEWER_DEPENDENCIES
 test -v CONTINUE_ON_PIP_CHECK_FAILURE
 test -v AIRFLOW_CONSTRAINTS_LOCATION
 
+set -x
+
 function install_airflow() {
     # Sanity check for editable installation mode.
     if [[ ${AIRFLOW_INSTALLATION_METHOD} != "." && \

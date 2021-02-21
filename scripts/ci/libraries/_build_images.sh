@@ -693,7 +693,6 @@ function build_images::build_ci_image() {
         exit 1
     fi
     EXTRA_DOCKER_CI_BUILD_FLAGS=(
-        "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
     )
     if [[ ${CI} == "true" ]]; then
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
@@ -762,6 +761,9 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
         --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
+        --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
+        --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="${DEFAULT_CONSTRAINTS_BRANCH}" \
+        --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
         --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date --rfc-3339=seconds | sed 's/ /T/')" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
@@ -799,7 +801,14 @@ function build_images::prepare_prod_build() {
         export AIRFLOW_VERSION="${INSTALL_AIRFLOW_REFERENCE}"
         build_images::add_build_args_for_remote_install
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
-        # When --install-airflow-version is used then the image is build from PIP package
+        # When --install-airflow-version is used then the image is build using released PIP package
+        # For PROD image only numeric versions are allowed
+        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]*$ ]]; then
+            echo
+            echo  "${COLOR_RED}ERROR: Bad value for install-airflow-version: '${INSTALL_AIRFLOW_VERSION}'. Only numerical versions allowed for PROD image here'!${COLOR_RESET}"
+            echo
+            exit 1
+        fi
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
             "--build-arg" "AIRFLOW_INSTALLATION_METHOD=apache-airflow"
             "--build-arg" "AIRFLOW_VERSION_SPECIFICATION===${INSTALL_AIRFLOW_VERSION}"
@@ -906,6 +915,8 @@ function build_images::build_prod_images() {
         --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
+        --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
+        --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
         --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date --rfc-3339=seconds | sed 's/ /T/')" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \

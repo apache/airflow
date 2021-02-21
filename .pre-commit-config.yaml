@@ -547,13 +547,6 @@ repos:
         files: airflow/config_templates/config.yml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
-      - id: flynt
-        name: Convert to f-strings with flynt
-        entry: flynt
-        language: python
-        language_version: python3
-        additional_dependencies: ['flynt']
-        files: \.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: build
