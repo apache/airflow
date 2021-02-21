@@ -111,7 +111,7 @@ appdirs==1.4.4
 argcomplete==1.12.2
 arrow==0.17.0
 asn1crypto==1.4.0
-astroid==2.4.2
+astroid==2.5
 async-generator==1.10
 async-timeout==3.0.1
 atlasclient==1.0.0
@@ -212,7 +212,7 @@ future==0.18.2
 gcsfs==0.7.2
 gevent==21.1.2
 gitdb==4.0.5
-github3.py==1.3.0
+github3.py==2.0.0
 google-ads==4.0.0
 google-api-core==1.26.0
 google-api-python-client==1.12.8
@@ -382,7 +382,7 @@ pyenchant==3.2.0
 pyexasol==0.18.0
 pyflakes==2.2.0
 pykerberos==1.2.1
-pylint==2.6.2
+pylint==2.7.0
 pymongo==3.11.3
 pymssql==2.1.5
 pyodbc==4.0.30
