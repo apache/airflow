@@ -119,7 +119,7 @@ function push_pull_remove_images::pull_ci_images_if_needed() {
             if [[ -n ${DETECTED_TERMINAL=} ]]; then
                 echo -n "
 Docker pulling ${PYTHON_BASE_IMAGE}.
-                    " > "${DETECTED_TERMINAL}"
+" > "${DETECTED_TERMINAL}"
             fi
             if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
                 PYTHON_TAG_SUFFIX=""

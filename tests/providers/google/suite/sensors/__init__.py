@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,31 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from pylint.checkers import BaseChecker
-from pylint.interfaces import IAstroidChecker
-from pylint.lint import PyLinter
-
-
-class DoNotUseAssertsChecker(BaseChecker):
-    __implements__ = IAstroidChecker
-
-    name = 'do-not-use-asserts'
-    priority = -1
-    msgs = {
-        'E7401': (
-            'Do not use asserts.',
-            'do-not-use-asserts',
-            'Asserts should not be used in the main Airflow code.',
-        ),
-    }
-
-    def visit_assert(self, node):
-        self.add_message(
-            self.name,
-            node=node,
-        )
-
-
-def register(linter: PyLinter):
-    linter.register_checker(DoNotUseAssertsChecker(linter))

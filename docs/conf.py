@@ -318,7 +318,7 @@ if PACKAGE_NAME == 'apache-airflow':
     jinja_contexts = {
         'config_ctx': {"configs": default_config_yaml(), "deprecated_options": deprecated_options},
         'quick_start_ctx': {
-            'doc_root_url': (f'https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/')
+            'doc_root_url': f'https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/'
             if FOR_PRODUCTION
             else (
                 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/'

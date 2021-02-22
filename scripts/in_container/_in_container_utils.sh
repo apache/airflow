@@ -275,7 +275,7 @@ function install_airflow_from_wheel() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${1}"
+    pip install "${airflow_package}${extras}"
 }
 
 function install_airflow_from_sdist() {
@@ -292,20 +292,7 @@ function install_airflow_from_sdist() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${1}"
-}
-
-function reinstall_azure_storage_blob() {
-    group_start "Reinstalls azure-storage-blob (temporary workaround)"
-    # Reinstall azure-storage-blob here until https://github.com/apache/airflow/pull/12188 is solved
-    # Azure-storage-blob need to be reinstalled to overwrite azure-storage-blob installed by old version
-    # of the `azure-storage` library
-    echo
-    echo "Reinstalling azure-storage-blob"
-    echo
-    pip uninstall azure-storage azure-storage-blob azure-storage-file --yes
-    pip install azure-storage-blob azure-storage-file --no-deps --force-reinstall
-    group_end
+    pip install "${airflow_package}${extras}"
 }
 
 function install_remaining_dependencies() {
@@ -317,6 +304,10 @@ function install_remaining_dependencies() {
 function uninstall_airflow() {
     pip uninstall -y apache-airflow || true
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --
+}
+
+function uninstall_all_pip_packages() {
+    pip uninstall -y -r <(pip freeze)
 }
 
 function uninstall_providers() {
@@ -334,13 +325,51 @@ function uninstall_airflow_and_providers() {
 
 function install_released_airflow_version() {
     local version="${1}"
-    local extras="${2}"
     echo
-    echo "Installing released ${version} version of airflow with extras ${extras}"
+    echo "Installing released ${version} version of airflow without extras"
     echo
 
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install --upgrade "apache-airflow${extras}==${version}"
+    pip install --upgrade "apache-airflow==${version}"
+}
+
+function install_local_airflow_with_eager_upgrade() {
+    local extras
+    extras="${1}"
+    # we add eager requirements to make sure to take into account limitations that will allow us to
+    # install all providers
+    # shellcheck disable=SC2086
+    pip install -e ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+        --upgrade --upgrade-strategy eager
+}
+
+
+function install_all_providers_from_pypi_with_eager_upgrade() {
+    ALL_PROVIDERS_PACKAGES=$(python -c 'import setup; print(setup.get_all_provider_packages())')
+    local packages_to_install=()
+    local provider_package
+    local res
+    for provider_package in ${ALL_PROVIDERS_PACKAGES}
+    do
+        echo -n "Checking if ${provider_package} is available in PyPI: "
+        res=$(curl --head -s -o /dev/null -w "%{http_code}" "https://pypi.org/project/${provider_package}/")
+        if [[ ${res} == "200" ]]; then
+            packages_to_install+=( "${provider_package}" )
+            echo "${COLOR_GREEN}OK${COLOR_RESET}"
+        else
+            echo "${COLOR_YELLOW}Skipped${COLOR_RESET}"
+        fi
+    done
+    echo "Installing provider packages: ${packages_to_install[*]}"
+    # we add eager requirements to make sure to take into account limitations that will allow us to
+    # install all providers. We install only those packages that are available in PyPI - we might
+    # Have some new providers in the works and they might not yet be simply available in PyPI
+    # Installing it with Airflow makes sure that the version of package that matches current
+    # Airflow requirements will be used.
+    # shellcheck disable=SC2086
+    pip install -e . "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+        --upgrade --upgrade-strategy eager
+
 }
 
 function install_all_provider_packages_from_wheels() {

@@ -23,7 +23,7 @@
     },
     "extra-links": {
       "type": "array",
-      "description": "Class name that provide extra link functionality",
+      "description": "Operator class names that provide extra link functionality",
       "items": {
         "type": "string"
       }
@@ -31,8 +31,6 @@
   },
   "required": [
     "name",
-    "package-name",
-    "description",
-    "versions"
+    "description"
   ]
 }

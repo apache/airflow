@@ -49,6 +49,9 @@ ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 
 ARG AIRFLOW_PIP_VERSION=20.2.4
 
+# By default PIP has progress bar but you can disable it.
+ARG PIP_PROGRESS_BAR="on"
+
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
@@ -158,8 +161,13 @@ ARG AIRFLOW_EXTRAS
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS}
 
+# Allows to override constraints source
+ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
+ENV CONSTRAINTS_GITHUB_REPOSITORY=${CONSTRAINTS_GITHUB_REPOSITORY}
+
 ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
-ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ARG AIRFLOW_CONSTRAINTS="constraints"
+ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${AIRFLOW_CONSTRAINTS_REFERENCE}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 
 ENV PATH=${PATH}:/root/.local/bin
@@ -171,6 +179,10 @@ RUN if [[ -f /docker-context-files/.pypirc ]]; then \
 
 ARG AIRFLOW_PIP_VERSION
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
+
+# By default PIP has progress bar but you can disable it.
+ARG PIP_PROGRESS_BAR
+ENV PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR}
 
 # Install Airflow with "--user" flag, so that we can copy the whole .local folder to the final image
 # from the build image and always in non-editable mode
@@ -257,9 +269,11 @@ ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
-# * urllib3 - required to keep boto3 happy
 # * chardet<4 - required to keep snowflake happy
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="urllib3<1.26 chardet<4"
+# * urllib3 - required to keep boto3 happy
+# * pytz<2021.0: required by snowflake provider
+# * pyjwt<2.0.0: flask-jwt-extended requires it
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 urllib3<1.26 pytz<2021.0 pyjwt<2.0.0"
 
 WORKDIR /opt/airflow
 
@@ -509,6 +523,9 @@ LABEL org.apache.airflow.distro="debian" \
   org.opencontainers.image.title="Production Airflow Image" \
   org.opencontainers.image.description="Installed Apache Airflow"
 
+# By default PIP will install everything in ~/.local
+ARG PIP_USER="true"
+ENV PIP_USER=${PIP_USER}
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD ["--help"]

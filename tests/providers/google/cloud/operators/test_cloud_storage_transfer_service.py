@@ -778,6 +778,7 @@ class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
         )
 
         assert mock_transfer_hook.return_value.wait_for_transfer_job.called
+        assert not mock_transfer_hook.return_value.delete_transfer_job.called
 
     @mock.patch(
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
@@ -804,6 +805,63 @@ class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
         )
 
         assert not mock_transfer_hook.return_value.wait_for_transfer_job.called
+        assert not mock_transfer_hook.return_value.delete_transfer_job.called
+
+    @mock.patch(
+        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
+    )
+    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook')
+    def test_execute_delete_job_after_completion(self, mock_aws_hook, mock_transfer_hook):
+        mock_aws_hook.return_value.get_credentials.return_value = Credentials(
+            TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
+        )
+
+        operator = CloudDataTransferServiceS3ToGCSOperator(
+            task_id=TASK_ID,
+            s3_bucket=AWS_BUCKET_NAME,
+            gcs_bucket=GCS_BUCKET_NAME,
+            description=DESCRIPTION,
+            schedule=SCHEDULE_DICT,
+            wait=True,
+            delete_job_after_completion=True,
+        )
+
+        operator.execute(None)
+
+        mock_transfer_hook.return_value.create_transfer_job.assert_called_once_with(
+            body=VALID_TRANSFER_JOB_AWS_RAW
+        )
+
+        assert mock_transfer_hook.return_value.wait_for_transfer_job.called
+        assert mock_transfer_hook.return_value.delete_transfer_job.called
+
+    @mock.patch(
+        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
+    )
+    @mock.patch('airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook')
+    def test_execute_should_throw_ex_when_delete_job_without_wait(self, mock_aws_hook, mock_transfer_hook):
+        mock_aws_hook.return_value.get_credentials.return_value = Credentials(
+            TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
+        )
+
+        with pytest.raises(AirflowException) as ctx:
+
+            operator = CloudDataTransferServiceS3ToGCSOperator(
+                task_id=TASK_ID,
+                s3_bucket=AWS_BUCKET_NAME,
+                gcs_bucket=GCS_BUCKET_NAME,
+                description=DESCRIPTION,
+                schedule=SCHEDULE_DICT,
+                wait=False,
+                delete_job_after_completion=True,
+            )
+
+            operator.execute(None)
+
+        err = ctx.value
+        assert "If 'delete_job_after_completion' is True, then 'wait' must also be True." in str(err)
+        mock_aws_hook.assert_not_called()
+        mock_transfer_hook.assert_not_called()
 
 
 class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator(unittest.TestCase):
@@ -873,6 +931,7 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator(unittest.TestCa
             body=VALID_TRANSFER_JOB_GCS_RAW
         )
         assert mock_transfer_hook.return_value.wait_for_transfer_job.called
+        assert not mock_transfer_hook.return_value.delete_transfer_job.called
 
     @mock.patch(
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
@@ -893,3 +952,50 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator(unittest.TestCa
             body=VALID_TRANSFER_JOB_GCS_RAW
         )
         assert not mock_transfer_hook.return_value.wait_for_transfer_job.called
+        assert not mock_transfer_hook.return_value.delete_transfer_job.called
+
+    @mock.patch(
+        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
+    )
+    def test_execute_delete_job_after_completion(self, mock_transfer_hook):
+
+        operator = CloudDataTransferServiceGCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=GCS_BUCKET_NAME,
+            destination_bucket=GCS_BUCKET_NAME,
+            description=DESCRIPTION,
+            schedule=SCHEDULE_DICT,
+            wait=True,
+            delete_job_after_completion=True,
+        )
+
+        operator.execute(None)
+
+        mock_transfer_hook.return_value.create_transfer_job.assert_called_once_with(
+            body=VALID_TRANSFER_JOB_GCS_RAW
+        )
+        assert mock_transfer_hook.return_value.wait_for_transfer_job.called
+        assert mock_transfer_hook.return_value.delete_transfer_job.called
+
+    @mock.patch(
+        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
+    )
+    def test_execute_should_throw_ex_when_delete_job_without_wait(self, mock_transfer_hook):
+
+        with pytest.raises(AirflowException) as ctx:
+
+            operator = CloudDataTransferServiceS3ToGCSOperator(
+                task_id=TASK_ID,
+                s3_bucket=AWS_BUCKET_NAME,
+                gcs_bucket=GCS_BUCKET_NAME,
+                description=DESCRIPTION,
+                schedule=SCHEDULE_DICT,
+                wait=False,
+                delete_job_after_completion=True,
+            )
+
+            operator.execute(None)
+
+        err = ctx.value
+        assert "If 'delete_job_after_completion' is True, then 'wait' must also be True." in str(err)
+        mock_transfer_hook.assert_not_called()

@@ -176,7 +176,7 @@ function initialization::initialize_dockerhub_variables() {
 
 # Determine available integrations
 function initialization::initialize_available_integrations() {
-    export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap pinot presto rabbitmq redis"
+    export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap pinot presto rabbitmq redis statsd"
 }
 
 # Needs to be declared outside of function for MacOS
@@ -418,6 +418,9 @@ function initialization::initialize_image_build_variables() {
     # Determines if airflow should be installed from a specified reference in GitHub
     export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
 
+    # Determines which providers are used to generate constraints - source, pypi or no providers
+    export GENERATE_CONSTRAINTS_MODE=${GENERATE_CONSTRAINTS_MODE:="source-providers"}
+
     # whether installation of Airflow should be done via PIP. You can set it to false if you have
     # all the binary packages (including airflow) in the docker-context-files folder and use
     # INSTALL_FROM_DOCKER_CONTEXT_FILES="true" to install it from there.
@@ -432,6 +435,12 @@ function initialization::initialize_image_build_variables() {
     # direct constraints Location - can be URL or path to local file. If empty, it will be calculated
     # based on which Airflow version is installed and from where
     export AIRFLOW_CONSTRAINTS_LOCATION="${AIRFLOW_CONSTRAINTS_LOCATION:=""}"
+
+    # Suffix for constraints. Can be:
+    #   * 'constraints' = for constraints with PyPI released providers (default for installations)
+    #   * 'constraints-source-providers' for constraints with source version of providers (defaults in Breeze and CI)
+    #   * 'constraints-no-providers' for constraints without providers
+    export AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS:="constraints-source-providers"}"
 }
 
 # Determine version suffixes used to build provider packages
@@ -506,6 +515,8 @@ function initialization::initialize_github_variables() {
     export GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG:="latest"}
 
     export GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
+    # Allows to override the repository which is used as source of constraints during the build
+    export CONSTRAINTS_GITHUB_REPOSITORY=${CONSTRAINTS_GITHUB_REPOSITORY:="apache/airflow"}
 
     # Used only in CI environment
     export GITHUB_TOKEN="${GITHUB_TOKEN=""}"
@@ -717,6 +728,10 @@ function initialization::get_environment_for_builds_on_ci() {
 
     if [[ ${VERBOSE} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
         initialization::summarize_build_environment
+    fi
+
+    if [[ -z "${LIBRARY_PATH:-}" && -n "${LD_LIBRARY_PATH:-}" ]]; then
+      export LIBRARY_PATH="$LD_LIBRARY_PATH"
     fi
 }
 

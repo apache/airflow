@@ -959,7 +959,7 @@ Old command                   New command                       Group
 ``airflow trigger_dag``       ``airflow dags trigger``          ``dags``
 ``airflow delete_dag``        ``airflow dags delete``           ``dags``
 ``airflow show_dag``          ``airflow dags show``             ``dags``
-``airflow list_dag``          ``airflow dags list``             ``dags``
+``airflow list_dags``         ``airflow dags list``             ``dags``
 ``airflow dag_status``        ``airflow dags status``           ``dags``
 ``airflow backfill``          ``airflow dags backfill``         ``dags``
 ``airflow list_dag_runs``     ``airflow dags list-runs``        ``dags``
@@ -1166,7 +1166,7 @@ non-RBAC UI (``flask-admin`` based UI), update it to use ``flask_appbuilder_view
 
         @expose("/")
         def test(self):
-            return self.render("test_plugin/test.html", content="Hello galaxy!")
+            return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
     v_appbuilder_view = TestAppBuilderBaseView()
     v_appbuilder_package = {"name": "Test View",

@@ -26,6 +26,11 @@ function build_images::add_build_args_for_remote_install() {
         "--build-arg" "AIRFLOW_SOURCES_FROM=empty"
         "--build-arg" "AIRFLOW_SOURCES_TO=/empty"
     )
+    if [[ ${CI} == "true" ]]; then
+        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+            "--build-arg" "PIP_PROGRESS_BAR=off"
+        )
+    fi
     if [[ -n "${AIRFLOW_CONSTRAINTS_REFERENCE}" ]]; then
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE}"
@@ -463,14 +468,14 @@ function build_image::configure_github_docker_registry() {
             # For now ghcr.io can only authenticate using Personal Access Token with package access scope.
             # There are plans to implement GITHUB_TOKEN authentication but this is not implemented yet
             token="${CONTAINER_REGISTRY_TOKEN=}"
-            echo
-            echo "Using CONTAINER_REGISTRY_TOKEN!"
-            echo
+            verbosity::print_info
+            verbosity::print_info "Using CONTAINER_REGISTRY_TOKEN!"
+            verbosity::print_info
         elif [[ "${GITHUB_REGISTRY}" == "docker.pkg.github.com" ]]; then
             token="${GITHUB_TOKEN}"
-            echo
-            echo "Using GITHUB_TOKEN!"
-            echo
+            verbosity::print_info
+            verbosity::print_info "Using GITHUB_TOKEN!"
+            verbosity::print_info
         else
             echo
             echo  "${COLOR_RED}ERROR: Bad value of '${GITHUB_REGISTRY}'. Should be either 'ghcr.io' or 'docker.pkg.github.com'!${COLOR_RESET}"
@@ -478,9 +483,9 @@ function build_image::configure_github_docker_registry() {
             exit 1
         fi
         if [[ -z "${token}" ]] ; then
-            echo
-            echo "Skip logging in to Github Registry. No Token available!"
-            echo
+            verbosity::print_info
+            verbosity::print_info "Skip logging in to Github Registry. No Token available!"
+            verbosity::print_info
         fi
         if [[ -n "${token}" ]]; then
             echo "${token}" | docker login \
@@ -488,14 +493,14 @@ function build_image::configure_github_docker_registry() {
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
         else
-            echo "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
+            verbosity::print_info "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
         fi
-        echo "Make sure experimental docker features are enabled"
+        verbosity::print_info "Make sure experimental docker features are enabled"
         local new_config
         new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json")
         echo "${new_config}" > "${HOME}/.docker/config.json"
-        echo "Docker config after change:"
-        echo "${new_config}"
+        verbosity::print_info "Docker config after change:"
+        verbosity::print_info "${new_config}"
         start_end::group_end
     fi
 }
@@ -690,9 +695,12 @@ function build_images::build_ci_image() {
         exit 1
     fi
     EXTRA_DOCKER_CI_BUILD_FLAGS=(
-        "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
     )
-
+    if [[ ${CI} == "true" ]]; then
+        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+            "--build-arg" "PIP_PROGRESS_BAR=off"
+        )
+    fi
     if [[ -n "${AIRFLOW_CONSTRAINTS_LOCATION}" ]]; then
         EXTRA_DOCKER_CI_BUILD_FLAGS+=(
             "--build-arg" "AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}"
@@ -755,6 +763,9 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
         --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
+        --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
+        --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="${DEFAULT_CONSTRAINTS_BRANCH}" \
+        --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
         --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date --rfc-3339=seconds | sed 's/ /T/')" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
@@ -792,7 +803,14 @@ function build_images::prepare_prod_build() {
         export AIRFLOW_VERSION="${INSTALL_AIRFLOW_REFERENCE}"
         build_images::add_build_args_for_remote_install
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
-        # When --install-airflow-version is used then the image is build from PIP package
+        # When --install-airflow-version is used then the image is build using released PIP package
+        # For PROD image only numeric versions are allowed
+        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]*$ ]]; then
+            echo
+            echo  "${COLOR_RED}ERROR: Bad value for install-airflow-version: '${INSTALL_AIRFLOW_VERSION}'. Only numerical versions allowed for PROD image here'!${COLOR_RESET}"
+            echo
+            exit 1
+        fi
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
             "--build-arg" "AIRFLOW_INSTALLATION_METHOD=apache-airflow"
             "--build-arg" "AIRFLOW_VERSION_SPECIFICATION===${INSTALL_AIRFLOW_VERSION}"
@@ -899,6 +917,8 @@ function build_images::build_prod_images() {
         --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
+        --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
+        --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
         --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date --rfc-3339=seconds | sed 's/ /T/')" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \

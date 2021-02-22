@@ -21,11 +21,7 @@
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
 
 {% block page_title %}
-  {% if search_query %}
-    "{{ search_query }}" - DAGs - Airflow
-  {% else %}
-    DAGs - Airflow
-  {% endif %}
+  {% if search_query %}"{{ search_query }}" - {% endif %}DAGs - {{ appbuilder.app_name }}
 {% endblock %}
 
 {% block head_css %}
@@ -35,7 +31,7 @@
 {% endblock %}
 
 {% block content %}
-  <h2>DAGs</h2>
+  <h2>{{ page_title }}</h2>
   <div id="main_content">
     <div class="dags-table-wrap">
       <div class="row dags-table-header">

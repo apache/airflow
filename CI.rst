@@ -47,7 +47,7 @@ documentation building, and some more sophisticated static checks are run inside
 environment. This environment consist of two types of images: CI images and PROD images. CI Images
 are used for most of the tests and checks where PROD images are used in the Kubernetes tests.
 
-In order to run the tests, we need to make sure tha the images are built using latest sources and that it
+In order to run the tests, we need to make sure that the images are built using latest sources and that it
 is done quickly (full rebuild of such image from scratch might take ~15 minutes). Therefore optimisation
 techniques have been implemented that use efficiently cache from the GitHub Docker registry - in most cases
 this brings down the time needed to rebuild the image to ~4 minutes. In some cases (when dependencies change)
@@ -746,8 +746,7 @@ Documentation from the ``master`` branch is automatically published on Amazon S3
 To make this possible, GitHub Action has secrets set up with credentials
 for an Amazon Web Service account - ``DOCS_AWS_ACCESS_KEY_ID`` and ``DOCS_AWS_SECRET_ACCESS_KEY``.
 
-This account has permission to write/list/put objects to bucket ``apache-airflow-docs``. This bucket has public access configured, which means it is accessible through the website endpoint. For more information, see: `Hosting a static website on Amazon S3
- <https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html>`_
+This account has permission to write/list/put objects to bucket ``apache-airflow-docs``. This bucket has public access configured, which means it is accessible through the website endpoint. For more information, see: `Hosting a static website on Amazon S3 <https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html>`_
 
 Website endpoint: http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/
 
@@ -802,7 +801,7 @@ For example knowing that the CI build had 210056909 RUN_ID (you can find it from
   docker run -it docker.pkg.github.com/apache/airflow/master-python3.6-ci:210056909
 
 
-But you usually need to pass more variables amd complex setup if you want to connect to a database or
+But you usually need to pass more variables and complex setup if you want to connect to a database or
 enable some integrations. Therefore it is easiest to use `Breeze <BREEZE.rst>`_ for that. For example if
 you need to reproduce a MySQL environment with kerberos integration enabled for run 210056909, in python
 3.8 environment you can run:

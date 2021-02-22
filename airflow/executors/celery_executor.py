@@ -539,9 +539,9 @@ class BulkStateFetcher(LoggingMixin):
     Otherwise, multiprocessing.Pool will be used. Each task status will be downloaded individually.
     """
 
-    def __init__(self, sync_parralelism=None):
+    def __init__(self, sync_parallelism=None):
         super().__init__()
-        self._sync_parallelism = sync_parralelism
+        self._sync_parallelism = sync_parallelism
 
     def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
         """Gets status for many Celery tasks using the best method available."""

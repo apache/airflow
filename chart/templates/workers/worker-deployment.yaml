@@ -179,7 +179,7 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args: ["kerberos"]
           resources:
-          {{ toYaml .Values.workers.resources | indent 12 }}
+{{ toYaml .Values.workers.kerberosSidecar.resources | indent 12 }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}

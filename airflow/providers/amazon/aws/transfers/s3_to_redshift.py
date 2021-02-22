@@ -19,6 +19,7 @@ from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.decorators import apply_defaults
 
@@ -42,6 +43,9 @@ class S3ToRedshiftOperator(BaseOperator):
     :param redshift_conn_id: reference to a specific redshift database
     :type redshift_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
+        If the AWS connection contains 'aws_iam_role' in ``extras``
+        the operator will use AWS STS credentials with a token
+        https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
     :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
@@ -92,19 +96,23 @@ class S3ToRedshiftOperator(BaseOperator):
         self.autocommit = autocommit
         self.truncate_table = truncate_table
 
+    def _build_copy_query(self, credentials_block: str, copy_options: str) -> str:
+        return f"""
+                    COPY {self.schema}.{self.table}
+                    FROM 's3://{self.s3_bucket}/{self.s3_key}'
+                    with credentials
+                    '{credentials_block}'
+                    {copy_options};
+        """
+
     def execute(self, context) -> None:
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         credentials = s3_hook.get_credentials()
+        credentials_block = build_credentials_block(credentials)
         copy_options = '\n\t\t\t'.join(self.copy_options)
 
-        copy_statement = f"""
-            COPY {self.schema}.{self.table}
-            FROM 's3://{self.s3_bucket}/{self.s3_key}'
-            with credentials
-            'aws_access_key_id={credentials.access_key};aws_secret_access_key={credentials.secret_key}'
-            {copy_options};
-        """
+        copy_statement = self._build_copy_query(credentials_block, copy_options)
 
         if self.truncate_table:
             truncate_statement = f'TRUNCATE TABLE {self.schema}.{self.table};'

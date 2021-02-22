@@ -160,7 +160,7 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
 {{- end }}
-{{- if .Values.dags.persistence.enabled }}
+{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
             - name: dags
               mountPath: {{ template "airflow_dags_mount_path" . }}
 {{- end }}
@@ -168,8 +168,6 @@ spec:
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
 {{- end }}
 {{- if .Values.dags.gitSync.enabled }}
-            - name: dags
-              mountPath: {{ template "airflow_dags_mount_path" . }}
         {{- include "git_sync_container" . | indent 8 }}
 {{- end }}
         # Always start the garbage collector sidecar.

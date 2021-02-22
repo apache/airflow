@@ -1236,6 +1236,13 @@
       type: integer
       example: ~
       default: "43200"
+    - name: instance_name
+      description: |
+        Sets a custom page title for the DAGs overview page and site title for all pages
+      version_added: 2.1.0
+      type: string
+      example: ~
+      default:
 
 - name: email
   description: |
