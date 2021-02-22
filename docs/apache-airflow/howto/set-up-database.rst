@@ -140,7 +140,7 @@ Download source from sqlite.org, make and install locally.
     make
     make install
 
-Post install add /usr/local/lib to library path
+Post install add ``/usr/local/lib`` to library path
 
 .. code-block:: bash
 
