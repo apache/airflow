@@ -97,8 +97,8 @@ has outlets defined (e.g. by using ``add_outlets(..)`` or has out of the box sup
 .. _precedence: https://docs.python.org/3/reference/expressions.html
 
 
-LineageBackend
---------------
+Lineage Backend
+---------------
 
 It's possible to push the lineage metrics to a custom backend by providing an instance of a LinageBackend in the config:
 
@@ -107,7 +107,7 @@ It's possible to push the lineage metrics to a custom backend by providing an in
   [lineage]
   backend = my.lineage.CustomBackend
 
-The backend should inherit ``airflow.lineage.LineageBackend``.
+The backend should inherit from ``airflow.lineage.LineageBackend``.
 
 .. code-block:: python
 
