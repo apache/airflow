@@ -17,7 +17,7 @@
 from __future__ import absolute_import
 
 import re
-import os.path
+import os
 from airflow import conf
 from airflow.upgrade.rules.base_rule import BaseRule
 from airflow.utils.dag_processing import list_py_file_paths

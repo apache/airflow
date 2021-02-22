@@ -17,7 +17,7 @@
 
 import itertools
 from typing import NamedTuple, Optional, List
-import os.path
+import os
 from cached_property import cached_property
 from packaging.version import Version
 
