@@ -18,6 +18,7 @@
 """Sends lineage metadata to a backend"""
 from typing import Optional
 
+# pylint: disable=unused-import
 import airflow
 
 
