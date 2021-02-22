@@ -51,7 +51,7 @@ class TestImportChangesRule:
         [ImportChange.from_new_old_paths(NEW_PATH, OLD_PATH)],
     )
     def test_check(self, mock_list_files):
-        with NamedTemporaryFile("w+") as temp:
+        with NamedTemporaryFile("w+", suffix=".py") as temp:
             mock_list_files.return_value = [temp.name]
 
             temp.write("from airflow.contrib import %s" % OLD_CLASS)
@@ -65,3 +65,31 @@ class TestImportChangesRule:
         assert temp.name in msg
         assert OLD_PATH in msg
         assert OLD_CLASS in msg
+
+    @mock.patch("airflow.upgrade.rules.import_changes.list_py_file_paths")
+    @mock.patch(
+        "airflow.upgrade.rules.import_changes.ImportChangesRule.ALL_CHANGES",
+        [ImportChange.from_new_old_paths(NEW_PATH, OLD_PATH)],
+    )
+    def test_non_py_files_are_ignored(self, mock_list_files):
+        with NamedTemporaryFile("w+", suffix=".txt") as temp:
+            mock_list_files.return_value = [temp.name]
+
+            temp.write("from airflow.contrib import %s" % OLD_CLASS)
+            temp.flush()
+            msgs = list(ImportChangesRule().check())
+        assert len(msgs) == 0
+
+    @mock.patch("airflow.upgrade.rules.import_changes.list_py_file_paths")
+    @mock.patch(
+        "airflow.upgrade.rules.import_changes.ImportChangesRule.ALL_CHANGES",
+        [ImportChange.from_new_old_paths(NEW_PATH, OLD_PATH)],
+    )
+    def test_decode_error_are_handled(self, mock_list_files):
+        with NamedTemporaryFile("wb+", suffix=".py") as temp:
+            mock_list_files.return_value = [temp.name]
+
+            temp.write(b"from airflow \x03\x96")
+            temp.flush()
+            msgs = list(ImportChangesRule().check())
+        assert msgs[0] == "Unable to read python file {}".format(temp.name)

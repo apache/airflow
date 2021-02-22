@@ -111,12 +111,16 @@ class ImportChangesRule(BaseRule):
         problems = []
         providers = set()
         with open(file_path, "r") as file:
-            content = file.read()
-            for change in ImportChangesRule.ALL_CHANGES:
-                if change.old_class in content:
-                    problems.append(change.info(file_path))
-                    if change.providers_package:
-                        providers.add(change.providers_package)
+            try:
+                content = file.read()
+
+                for change in ImportChangesRule.ALL_CHANGES:
+                    if change.old_class in content:
+                        problems.append(change.info(file_path))
+                        if change.providers_package:
+                            providers.add(change.providers_package)
+            except UnicodeDecodeError:
+                problems.append("Unable to read python file {}".format(file_path))
         return problems, providers
 
     @staticmethod
