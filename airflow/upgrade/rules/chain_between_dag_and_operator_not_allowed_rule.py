@@ -17,7 +17,7 @@
 from __future__ import absolute_import
 
 import re
-
+import os.path
 from airflow import conf
 from airflow.upgrade.rules.base_rule import BaseRule
 from airflow.utils.dag_processing import list_py_file_paths
@@ -36,7 +36,7 @@ class ChainBetweenDAGAndOperatorNotAllowedRule(BaseRule):
 
     def _check_file(self, file_path):
         problems = []
-        with open(file_path, "r", errors="ignore") as file_pointer:
+        with open(file_path, "r") as file_pointer:
             lines = file_pointer.readlines()
             python_space = r"\s*\\?\s*\n?\s*"
             # Find all the dag variable names.
@@ -67,6 +67,7 @@ class ChainBetweenDAGAndOperatorNotAllowedRule(BaseRule):
     def check(self):
         dag_folder = conf.get("core", "dags_folder")
         file_paths = list_py_file_paths(directory=dag_folder, include_examples=False)
+        file_paths = [file for file in file_paths if os.path.splitext(file)[1] == ".py"]
         problems = []
         for file_path in file_paths:
             problems.extend(self._check_file(file_path))

@@ -17,7 +17,7 @@
 
 import itertools
 from typing import NamedTuple, Optional, List
-
+import os.path
 from cached_property import cached_property
 from packaging.version import Version
 
@@ -110,7 +110,7 @@ class ImportChangesRule(BaseRule):
     def _check_file(file_path):
         problems = []
         providers = set()
-        with open(file_path, "r", errors="ignore") as file:
+        with open(file_path, "r") as file:
             content = file.read()
             for change in ImportChangesRule.ALL_CHANGES:
                 if change.old_class in content:
@@ -138,6 +138,7 @@ class ImportChangesRule(BaseRule):
     def check(self):
         dag_folder = conf.get("core", "dags_folder")
         files = list_py_file_paths(directory=dag_folder, include_examples=False)
+        files = [file for file in files if os.path.splitext(file)[1] == ".py"]
         problems = []
         providers = set()
         # Split in to two groups - install backports first, then make changes
