@@ -19,17 +19,29 @@ import os
 
 from airflow import DAG
 from airflow.providers.microsoft.azure.transfers.sftp_to_wasb import SFTPToWasbOperator
+from airflow.providers.sftp.operators.sftp import SFTPOperator
 from airflow.utils.dates import days_ago
 
 AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "airflow")
 BLOB_PREFIX = os.environ.get("AZURE_BLOB_PREFIX", "airflow")
-SFTP_SRC_PATH = os.environ.get("AZURE_SFTP_SRC_PATH", "test-sftp-azure")
+SFTP_SRC_PATH = os.environ.get("AZURE_WASB_SFTP_SRC_PATH", "/sftp")
+LOCAL_FILE_PATH = os.environ.get("FILE_TO_SFTPWASB_LOCAL_SRC_PATH", "/tmp")
+SAMPLE_FILE_NAME = os.environ.get("FILE_TO_SFTPWASB", "sftp_to_wasb_test.txt")
+FILE_COMPLETE_PATH = os.path.join(LOCAL_FILE_PATH, SAMPLE_FILE_NAME)
+SFTP_FILE_COMPLETE_PATH = os.path.join(SFTP_SRC_PATH, SAMPLE_FILE_NAME)
 
 with DAG(
     "example_sftp_to_wasb",
     schedule_interval=None,
     start_date=days_ago(1),  # Override to match your needs
 ) as dag:
+
+    transfer_files_to_sftp = SFTPOperator(
+        task_id="transfer_files_from_local_to_sftp",
+        ssh_conn_id="sftp_default",
+        local_filepath=FILE_COMPLETE_PATH,
+        remote_filepath=SFTP_FILE_COMPLETE_PATH,
+    )
 
     # [START how_to_sftp_to_wasb]
     transfer_files_to_azure = SFTPToWasbOperator(
@@ -43,3 +55,5 @@ with DAG(
         blob_prefix=BLOB_PREFIX,
     )
     # [END how_to_sftp_to_wasb]
+
+    transfer_files_to_sftp >> transfer_files_to_azure

@@ -20,31 +20,48 @@ import os
 
 import pytest
 
-from airflow.providers.microsoft.azure.example_dags.example_sftp_to_wasb import SFTP_SRC_PATH
+from airflow.providers.microsoft.azure.example_dags.example_sftp_to_wasb import (
+    AZURE_CONTAINER_NAME,
+    BLOB_PREFIX,
+    FILE_COMPLETE_PATH,
+    LOCAL_FILE_PATH,
+    SAMPLE_FILE_NAME,
+    SFTP_FILE_COMPLETE_PATH,
+    SFTP_SRC_PATH,
+)
+from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+from airflow.providers.sftp.hooks.sftp import SFTPHook
 from tests.test_utils.azure_system_helpers import (
     AZURE_DAG_FOLDER,
     AzureSystemTest,
     provide_wasb_default_connection,
 )
+from tests.test_utils.sftp_system_helpers import provide_sftp_default_connection
 
 CREDENTIALS_DIR = os.environ.get('CREDENTIALS_DIR', '/files/airflow-breeze-config/keys')
+SFTP_DEFAULT_KEY = 'sftp_key.json'
 WASB_DEFAULT_KEY = 'wasb_key.json'
-CREDENTIALS_PATH = os.path.join(CREDENTIALS_DIR, WASB_DEFAULT_KEY)
-FILENAME = "TEST.TXT"
+CREDENTIALS_SFTP_PATH = os.path.join(CREDENTIALS_DIR, SFTP_DEFAULT_KEY)
+CREDENTIALS_WASB_PATH = os.path.join(CREDENTIALS_DIR, WASB_DEFAULT_KEY)
 
 
 @pytest.mark.backend('postgres', 'mysql')
 @pytest.mark.credential_file(WASB_DEFAULT_KEY)
+@pytest.mark.credential_file(SFTP_DEFAULT_KEY)
 class TestSFTPToWasbSystem(AzureSystemTest):
     def setUp(self):
         super().setUp()
-        self.create_dummy_file(FILENAME, SFTP_SRC_PATH)
+        self.create_dummy_file(SAMPLE_FILE_NAME, LOCAL_FILE_PATH)
 
     def tearDown(self):
-        os.remove(SFTP_SRC_PATH)
+        os.remove(FILE_COMPLETE_PATH)
         super().tearDown()
 
-    @provide_wasb_default_connection(CREDENTIALS_PATH)
+    @provide_wasb_default_connection(CREDENTIALS_WASB_PATH)
+    @provide_sftp_default_connection(CREDENTIALS_SFTP_PATH)
     def test_run_example_file_to_wasb(self):
-        print("ok")
         self.run_dag('example_sftp_to_wasb', AZURE_DAG_FOLDER)
+        WasbHook(wasb_conn_id="wasb_default").delete_file(
+            AZURE_CONTAINER_NAME, BLOB_PREFIX + SAMPLE_FILE_NAME
+        )
+        SFTPHook(ssh_conn_id="sftp_default").delete_file(SFTP_FILE_COMPLETE_PATH)
