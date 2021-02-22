@@ -1425,6 +1425,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ConnectionCollectionItem'
+        total_entries:
+          type: integer
 
     Connection:
       description: Full representation of the connection.
