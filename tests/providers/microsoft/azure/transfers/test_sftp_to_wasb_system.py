@@ -27,7 +27,6 @@ from airflow.providers.microsoft.azure.example_dags.example_sftp_to_wasb import 
     LOCAL_FILE_PATH,
     SAMPLE_FILE_NAME,
     SFTP_FILE_COMPLETE_PATH,
-    SFTP_SRC_PATH,
 )
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.sftp.hooks.sftp import SFTPHook
