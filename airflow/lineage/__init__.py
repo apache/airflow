@@ -48,13 +48,14 @@ class Metadata:
 
 
 def get_backend() -> Optional[LineageBackend]:
-
+    """Gets the lineage backend if defined in the configs"""
     clazz = conf.getimport("lineage", "backend", fallback=None)
 
     if clazz:
         if not issubclass(clazz, LineageBackend):
             raise TypeError(
-                f"Your custom Lineage class `{clazz.__name__}` is not a subclass of `{LineageBackend.__name__}`."
+                f"Your custom Lineage class `{clazz.__name__}` "
+                f"is not a subclass of `{LineageBackend.__name__}`."
             )
         else:
             return clazz()

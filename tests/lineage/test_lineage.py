@@ -121,7 +121,7 @@ class TestLineage(unittest.TestCase):
         assert op1.outlets[0].url == f1s.format(DEFAULT_DATE)
 
     @mock.patch("airflow.lineage.get_backend")
-    def test_lineage_is_sent_to_backend(self, get_backend):
+    def test_lineage_is_sent_to_backend(self, mock_get_backend):
         class TestBackend(LineageBackend):
             def send_lineage(self, operator, inlets=None, outlets=None, context=None):
                 assert len(inlets) == 1
@@ -130,7 +130,7 @@ class TestLineage(unittest.TestCase):
         func = mock.Mock()
         func.__name__ = 'foo'
 
-        get_backend.return_value = TestBackend()
+        mock_get_backend.return_value = TestBackend()
 
         dag = DAG(dag_id='test_lineage_is_sent_to_backend', start_date=DEFAULT_DATE)
 
@@ -150,11 +150,11 @@ class TestLineage(unittest.TestCase):
         post(op1, ctx1)
 
     def test_empty_lineage_backend(self):
-        be = get_backend()
-        assert be is None
+        backend = get_backend()
+        assert backend is None
 
     @conf_vars({("lineage", "backend"): "tests.lineage.test_lineage.CustomLineageBackend"})
     def test_resolve_lineage_class(self):
-        be = get_backend()
-        assert issubclass(be.__class__, LineageBackend)
-        assert isinstance(be, CustomLineageBackend)
+        backend = get_backend()
+        assert issubclass(backend.__class__, LineageBackend)
+        assert isinstance(backend, CustomLineageBackend)
