@@ -36,10 +36,7 @@ class TestGetPlugins(unittest.TestCase):
             cls.app,  # type: ignore
             username="test",
             role_name="Test",
-            permissions=[
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
-                (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
-            ],
+            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN)],
         )
         create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
