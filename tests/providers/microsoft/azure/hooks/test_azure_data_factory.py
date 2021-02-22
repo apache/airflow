@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=redefined-outer-name
+# pylint: disable=redefined-outer-name,unused-argument
 
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from pytest import fixture
@@ -134,9 +134,21 @@ def test_create_factory(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((MODEL,), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, MODEL)),
 )
 def test_update_factory(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook._factory_exists = Mock(return_value=True)
     hook.update_factory(*user_args)
 
     hook._conn.factories.create_or_update.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((MODEL, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, MODEL)),
+    implicit_factory=((MODEL,), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, MODEL)),
+)
+def test_update_factory_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook._factory_exists = Mock(return_value=False)
+
+    with pytest.raises(AirflowException, match=r"Factory .+ does not exist"):
+        hook.update_factory(*user_args)
 
 
 @parametrize(
@@ -174,9 +186,21 @@ def test_create_linked_service(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_linked_service(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook._linked_service_exists = Mock(return_value=True)
     hook.update_linked_service(*user_args)
 
     hook._conn.linked_services.create_or_update(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, MODEL, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME, MODEL)),
+    implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
+)
+def test_update_linked_service_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook._linked_service_exists = Mock(return_value=False)
+
+    with pytest.raises(AirflowException, match=r"Linked service .+ does not exist"):
+        hook.update_linked_service(*user_args)
 
 
 @parametrize(
@@ -214,9 +238,21 @@ def test_create_dataset(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_dataset(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook._dataset_exists = Mock(return_value=True)
     hook.update_dataset(*user_args)
 
     hook._conn.datasets.create_or_update.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, MODEL, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME, MODEL)),
+    implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
+)
+def test_update_dataset_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook._dataset_exists = Mock(return_value=False)
+
+    with pytest.raises(AirflowException, match=r"Dataset .+ does not exist"):
+        hook.update_dataset(*user_args)
 
 
 @parametrize(
@@ -254,9 +290,21 @@ def test_create_pipeline(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_pipeline(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook._pipeline_exists = Mock(return_value=True)
     hook.update_pipeline(*user_args)
 
     hook._conn.pipelines.create_or_update.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, MODEL, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME, MODEL)),
+    implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
+)
+def test_update_pipeline_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook._pipeline_exists = Mock(return_value=False)
+
+    with pytest.raises(AirflowException, match=r"Pipeline .+ does not exist"):
+        hook.update_pipeline(*user_args)
 
 
 @parametrize(
@@ -324,9 +372,21 @@ def test_create_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook._trigger_exists = Mock(return_value=True)
     hook.update_trigger(*user_args)
 
     hook._conn.triggers.create_or_update.assert_called_with(*sdk_args)
+
+
+@parametrize(
+    explicit_factory=((NAME, MODEL, RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY, NAME, MODEL)),
+    implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
+)
+def test_update_trigger_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
+    hook._trigger_exists = Mock(return_value=False)
+
+    with pytest.raises(AirflowException, match=r"Trigger .+ does not exist"):
+        hook.update_trigger(*user_args)
 
 
 @parametrize(
