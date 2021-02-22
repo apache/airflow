@@ -59,7 +59,7 @@ function install_airflow() {
         fi
 
         # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip~=${AIRFLOW_PIP_VERSION}"
         pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
     else \
         echo
@@ -69,13 +69,13 @@ function install_airflow() {
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
         # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip~=${AIRFLOW_PIP_VERSION}"
         # then upgrade if needed without using constraints to account for new limits in setup.py
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy only-if-needed \
             ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
         # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip~=${AIRFLOW_PIP_VERSION}"
         pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
     fi
 

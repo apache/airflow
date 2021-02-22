@@ -56,7 +56,7 @@ function install_airflow_and_providers_from_docker_context_files(){
             ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip~=${AIRFLOW_PIP_VERSION}"
         pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
     else
         echo
@@ -74,12 +74,12 @@ function install_airflow_and_providers_from_docker_context_files(){
             --constraint /tmp/constraints.txt
         rm /tmp/constraints.txt
         # make sure correct PIP version is used \
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip~=${AIRFLOW_PIP_VERSION}"
         # then upgrade if needed without using constraints to account for new limits in setup.py
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy only-if-needed \
              ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
         # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip~=${AIRFLOW_PIP_VERSION}"
         pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
     fi
 
@@ -100,7 +100,7 @@ install_all_other_packages_from_docker_context_files() {
     if [[ -n "${reinstalling_other_packages}" ]]; then \
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
         # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip~=${AIRFLOW_PIP_VERSION}"
     fi
 }
 

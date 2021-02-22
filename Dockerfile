@@ -46,7 +46,7 @@ ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=20.2.4
+ARG AIRFLOW_PIP_VERSION=21.0.1
 
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR="on"

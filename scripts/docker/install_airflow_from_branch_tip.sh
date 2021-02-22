@@ -42,7 +42,7 @@ function install_airflow_from_branch_tip() {
       "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
       --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
     # make sure correct PIP version is used
-    pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+    pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip~=${AIRFLOW_PIP_VERSION}"
     pip freeze | grep apache-airflow-providers | xargs pip uninstall --yes || true
     echo
     echo Uninstalling just airflow. Dependencies remain.

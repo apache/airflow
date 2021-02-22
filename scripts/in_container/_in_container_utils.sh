@@ -496,7 +496,7 @@ ${COLOR_RESET}
 
 function install_supported_pip_version() {
     group_start "Install supported PIP version ${AIRFLOW_PIP_VERSION}"
-    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+    pip install --upgrade "pip~=${AIRFLOW_PIP_VERSION}"
     group_end
 }
 
