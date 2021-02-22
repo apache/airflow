@@ -2236,8 +2236,9 @@ class CurvesView(BaseCRUDView):
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
     route_base = '/curves'
     datamodel = CustomSQLAInterface(models.TaskInstance)
-    search_columns = ['execution_date', 'car_code', 'measure_result', 'result', 'final_state']
+    search_columns = ['execution_date', 'car_code', 'error_tag', 'measure_result', 'result', 'final_state']
     label_columns = {
+        'error_tag': lazy_gettext('Error Tags'),
         'execution_date': lazy_gettext('Execution Date'), 'car_code': lazy_gettext('Car Code'),
         'measure_result': lazy_gettext('Measure Result'), 'result': lazy_gettext('Result'),
         'final_state': lazy_gettext('Final State')
