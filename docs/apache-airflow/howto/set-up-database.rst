@@ -114,7 +114,7 @@ Pre-req: You will need ``wget``, ``tar``, ``gzip``,`` gcc``, ``make``, and ``exp
 
   yum -y install wget tar gzip gcc make expect
 
-Download source from sqlite.org, make and install locally.
+Download source from https://sqlite.org/, make and install locally.
 
 .. code-block:: bash
 
