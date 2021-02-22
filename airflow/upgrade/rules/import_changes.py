@@ -87,7 +87,7 @@ class ImportChangesRule(BaseRule):
     if current_airflow_version < Version("2.0.0"):
 
         def _filter_incompatible_renames(arg):
-            new_path = arg[1]
+            new_path = arg[0]
             return (
                 not new_path.startswith("airflow.operators")
                 and not new_path.startswith("airflow.sensors")
