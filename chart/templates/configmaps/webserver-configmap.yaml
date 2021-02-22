@@ -18,10 +18,11 @@
 ################################
 ## Airflow ConfigMap
 #################################
+{{- if .Values.webserver.webserverConfig }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "airflow_config" . }}
+  name: {{ .Release.Name }}-webserver-config
   labels:
     tier: airflow
     component: config
@@ -30,35 +31,8 @@ metadata:
     heritage: {{ .Release.Service }}
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
-{{- end -}}
-{{- $Global := . }}
+{{- end }}
 data:
-  # These are system-specified config overrides.
-  airflow.cfg: |-
-    {{- range $section, $settings := .Values.config }}
-    [{{ $section }}]
-    {{- range $key, $val := $settings }}
-    {{ $key }} = {{ tpl ($val | toString) $Global }}
-    {{- end }}
-    {{ end }}
-
-  airflow_local_settings.py: |
-{{- if .Values.scheduler.airflowLocalSettings }}
-    {{ .Values.scheduler.airflowLocalSettings | nindent 4 }}
-{{- end }}
-{{- if and .Values.dags.gitSync.enabled  .Values.dags.gitSync.knownHosts }}
-  known_hosts: |
-    {{ .Values.dags.gitSync.knownHosts | nindent 4 }}
-{{- end }}
-{{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
-  pod_template_file.yaml: |-
-{{- if .Values.podTemplate }}
-    {{ .Values.podTemplate | nindent 4 }}
-{{- else }}
-{{ tpl (.Files.Get "files/pod-template-file.kubernetes-helm-yaml") . | nindent 4 }}
-{{- end }}
-{{- if .Values.kerberos.enabled }}
-  krb5.conf: |
-    {{ tpl .Values.kerberos.config . | nindent 4 }}
-{{- end }}
+  webserver_config.py: |
+    {{- .Values.webserver.webserverConfig | nindent 4 }}
 {{- end }}
