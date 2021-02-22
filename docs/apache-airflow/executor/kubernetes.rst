@@ -164,7 +164,7 @@ Additionally, the Kubernetes Executor enables specification of additional featur
 .. @startuml
 .. Airflow_Scheduler -> Kubernetes: Request a new pod with command "airflow run..."
 .. Kubernetes -> Airflow_Worker: Create Airflow worker with command "airflow run..."
-.. Airflow_Worker -> Airflow_DB: Report task passing or failure to DB
+.. Airflow_Worker -> Airflow_DB: Report task passing to DB
 .. Airflow_Worker -> Kubernetes: Pod completes with state "Succeeded" and k8s records in ETCD
 .. Kubernetes -> Airflow_Scheduler: Airflow scheduler reads "Succeeded" from k8s watcher thread
 .. @enduml
