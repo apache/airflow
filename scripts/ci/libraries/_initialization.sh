@@ -701,14 +701,16 @@ EOF
 # we used in other scripts
 function initialization::get_environment_for_builds_on_ci() {
     if [[ ${CI:=} == "true" ]]; then
+        export GITHUB_REPOSITORY="${GITHUB_REPOSITORY="apache/airflow"}"
         export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
         export CI_TARGET_BRANCH="${GITHUB_BASE_REF:="master"}"
-        export CI_BUILD_ID="${GITHUB_RUN_ID}"
-        export CI_JOB_ID="${GITHUB_JOB}"
-        export CI_EVENT_TYPE="${GITHUB_EVENT_NAME}"
-        export CI_REF="${GITHUB_REF:=}"
+        export CI_BUILD_ID="${GITHUB_RUN_ID="0"}"
+        export CI_JOB_ID="${GITHUB_JOB="0"}"
+        export CI_EVENT_TYPE="${GITHUB_EVENT_NAME="pull_request"}"
+        export CI_REF="${GITHUB_REF:="refs/head/master"}"
     else
         # CI PR settings
+        export GITHUB_REPOSITORY="${GITHUB_REPOSITORY="apache/airflow"}"
         export CI_TARGET_REPO="${CI_TARGET_REPO="apache/airflow"}"
         export CI_TARGET_BRANCH="${DEFAULT_BRANCH="master"}"
         export CI_BUILD_ID="${CI_BUILD_ID="0"}"
@@ -717,12 +719,8 @@ function initialization::get_environment_for_builds_on_ci() {
         export CI_REF="${CI_REF="refs/head/master"}"
     fi
 
-    if [[ ${VERBOSE} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
-        initialization::summarize_build_environment
-    fi
-
     if [[ -z "${LIBRARY_PATH:-}" && -n "${LD_LIBRARY_PATH:-}" ]]; then
-      export LIBRARY_PATH="$LD_LIBRARY_PATH"
+      export LIBRARY_PATH="${LD_LIBRARY_PATH}"
     fi
 }
 
@@ -828,6 +826,7 @@ function initialization::make_constants_read_only() {
 
     readonly PYTHON_BASE_IMAGE_VERSION
     readonly PYTHON_BASE_IMAGE
+    readonly AIRFLOW_PYTHON_BASE_IMAGE
     readonly AIRFLOW_CI_BASE_TAG
     readonly AIRFLOW_CI_IMAGE
     readonly AIRFLOW_CI_IMAGE_DEFAULT

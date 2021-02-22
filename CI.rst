@@ -245,7 +245,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                                        Image build variables                                                       |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false    |   false\*  | Determines whether the build should             |
-|                                         |             |             |            | attempt to upgrade all                          |
+|                                         |             |             |            | attempt to upgrade python base image and all    |
 |                                         |             |             |            | PIP dependencies to latest ones matching        |
 |                                         |             |             |            | ``setup.py`` limits. This tries to replicate    |
 |                                         |             |             |            | the situation of "fresh" user who just installs |

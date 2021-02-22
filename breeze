@@ -3151,11 +3151,19 @@ function breeze::make_sure_precommit_is_installed() {
 #
 #######################################################################################################
 function breeze::remove_images() {
-    set +e
-    docker rmi "${PYTHON_BASE_IMAGE}"  2>/dev/null >/dev/null
-    docker rmi "${AIRFLOW_CI_IMAGE}"   2>/dev/null >/dev/null
-    docker rmi "${AIRFLOW_PROD_IMAGE}" 2>/dev/null >/dev/null
-    set -e
+    # shellcheck disable=SC2086
+    docker rmi --force ${PYTHON_BASE_IMAGE} \
+                       ${GITHUB_REGISTRY_PYTHON_BASE_IMAGE} \
+                       ${AIRFLOW_PYTHON_BASE_IMAGE} \
+                       ${AIRFLOW_CI_IMAGE} \
+                       ${DEFAULT_CI_IMAGE} \
+                       ${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE} \
+                       ${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE} \
+                       ${AIRFLOW_PROD_IMAGE} \
+                       ${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE} \
+                       ${AIRFLOW_PROD_BUILD_IMAGE} \
+                       ${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE} \
+        2>/dev/null >/dev/null && true
     echo
     echo "###################################################################"
     echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
@@ -3476,6 +3484,8 @@ function breeze::determine_python_version_to_use_in_breeze() {
 breeze::setup_default_breeze_constants
 
 initialization::initialize_common_environment
+
+initialization::get_environment_for_builds_on_ci
 
 breeze::determine_python_version_to_use_in_breeze
 

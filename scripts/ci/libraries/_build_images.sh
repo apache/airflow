@@ -373,7 +373,7 @@ function build_images::get_docker_image_names() {
     # CI image to build
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
     # Default CI image
-    export AIRFLOW_CI_PYTHON_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:python${PYTHON_MAJOR_MINOR_VERSION}-${BRANCH_NAME}"
+    export AIRFLOW_PYTHON_BASE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:python${PYTHON_MAJOR_MINOR_VERSION}-${BRANCH_NAME}"
     # CI image to build
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
 
@@ -742,7 +742,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     fi
     docker build \
         "${EXTRA_DOCKER_CI_BUILD_FLAGS[@]}" \
-        --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
+        --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
@@ -895,7 +895,7 @@ function build_images::build_prod_images() {
     fi
     docker build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
-        --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
+        --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
@@ -932,7 +932,7 @@ function build_images::build_prod_images() {
     fi
     docker build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
-        --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
+        --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
@@ -954,6 +954,8 @@ function build_images::build_prod_images() {
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
+        --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
+        --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
         --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date --rfc-3339=seconds | sed 's/ /T/')" \
         "${additional_dev_args[@]}" \
