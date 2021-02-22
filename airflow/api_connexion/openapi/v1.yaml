@@ -132,6 +132,7 @@ info:
     | Airflow version | Description |
     |-|-|
     | v2.0 | Initial release |
+    | v2.0.2    | Added /plugins endpoint |
 
     # Trying the API
 
