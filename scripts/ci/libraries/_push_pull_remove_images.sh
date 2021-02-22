@@ -104,14 +104,14 @@ function push_pull_remove_images::pull_image_github_dockerhub() {
     set -e
 }
 
-# Pulls base python image used to build CI and PROD imaages, depending on the parameters used
-# if UPGRADE_TO_NEWER_DEPENDENCIES is set - then it pulls latest python image available first and
+# Pulls the base Python image. This image is used as base for CI and PROD imaages, depending on the parameters used:
+#
+# * if UPGRADE_TO_NEWER_DEPENDENCIES is noy false, then it pulls the latest Python image available first and
 #     adds `org.opencontainers.image.source` label to it, so that it is linked to Airflow repository when
 #     we push it to GHCR registry
-# Otherwise, if we are using any of the registries, it pulls the python base image from those registries.
-#     In case we pull specific build image (via suffix), it will pull the right image using the
-#     specified suffix
-
+# * If UPGRADE_TO_NEWER_DEPENDENCIES it pulls the Python base image from either GitHub registry or from DockerHub
+#     depending on USE_GITHUB_REGISTRY variable. In case we pull specific build image (via suffix)
+#     it will pull the right image using the specified suffix
 function push_pull_remove_images::pull_base_python_image() {
     echo
     echo "Force pull base image ${AIRFLOW_PYTHON_BASE_IMAGE}. Upgrade to newer dependencies: ${UPGRADE_TO_NEWER_DEPENDENCIES}"
