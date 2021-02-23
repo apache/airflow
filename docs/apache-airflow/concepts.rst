@@ -198,6 +198,9 @@ Example DAG built with the TaskFlow API
         html_content=email_info['body']
     )
 
+To retrieve current Task execution context dictionary and use it in the function check:
+:ref:`Accessing context <concepts:accessing_context>`.
+
 DAG decorator
 -------------
 
@@ -356,6 +359,8 @@ someone inserts a new task before ``task__2``. The ``task_id`` after that will a
 This is going to produce ``task__1``, ``task__2``, ``task__3``, ``task__4``. But at this point the ``task__3`` is
 no longer the same ``task__3`` as before. This may create confusion when analyzing history logs / DagRuns of a DAG
 that changed over time.
+
+.. _concepts:accessing_context:
 
 Accessing current context
 -------------------------
