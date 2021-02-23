@@ -53,6 +53,7 @@ class TestGlueJobHook(unittest.TestCase):
         )
         iam_role = hook.get_iam_execution_role()
         assert iam_role is not None
+        assert hook.region_name is None
 
     @mock.patch.object(AwsGlueJobHook, "get_iam_execution_role")
     @mock.patch.object(AwsGlueJobHook, "get_conn")
@@ -96,6 +97,7 @@ class TestGlueJobHook(unittest.TestCase):
         glue_job_run = glue_job_hook.initialize_job(some_script_arguments)
         glue_job_run_state = glue_job_hook.get_job_state(glue_job_run['JobName'], glue_job_run['JobRunId'])
         assert glue_job_run_state == mock_job_run_state, 'Mocks but be equal'
+        assert glue_job_hook.region_name == self.some_aws_region
 
 
 if __name__ == '__main__':

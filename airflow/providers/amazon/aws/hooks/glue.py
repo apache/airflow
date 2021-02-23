@@ -72,12 +72,12 @@ class AwsGlueJobHook(AwsBaseHook):
         self.script_location = script_location
         self.retry_limit = retry_limit
         self.num_of_dpus = num_of_dpus
-        self.region_name = region_name
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
         self.s3_glue_logs = 'logs/glue-logs/'
         self.create_job_kwargs = create_job_kwargs or {}
         kwargs['client_type'] = 'glue'
+        kwargs['region_name'] = region_name
         super().__init__(*args, **kwargs)
 
     def list_jobs(self) -> List:
