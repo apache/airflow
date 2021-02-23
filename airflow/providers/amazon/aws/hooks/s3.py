@@ -30,7 +30,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
-from boto3.s3.transfer import S3Transfer
+from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
@@ -115,6 +115,12 @@ class S3Hook(AwsBaseHook):
             if not isinstance(self.extra_args, dict):
                 raise ValueError(f"extra_args '{self.extra_args!r}' must be of type {dict}")
             del kwargs['extra_args']
+        self.use_threads = True
+        if 'use_threads' in kwargs:
+            self.use_threads = kwargs['use_threads']
+            if not isinstance(self.use_threads, bool):
+                raise ValueError(f"use_threads '{self.use_threads!r}' must be of type {bool}")
+            del kwargs['use_threads']
 
         super().__init__(*args, **kwargs)
 
@@ -651,7 +657,13 @@ class S3Hook(AwsBaseHook):
             extra_args['ACL'] = acl_policy
 
         client = self.get_conn()
-        client.upload_fileobj(file_obj, bucket_name, key, ExtraArgs=extra_args)
+        client.upload_fileobj(
+            file_obj,
+            bucket_name,
+            key,
+            ExtraArgs=extra_args,
+            Config=TransferConfig(use_threads=self.use_threads),
+        )
 
     def copy_object(
         self,
