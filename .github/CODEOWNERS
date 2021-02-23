@@ -17,7 +17,7 @@
 
 # API
 /airflow/api/ @mik-laj @kaxil
-/airflow/api_connexion/ @mik-laj @kaxil
+/airflow/api_connexion/ @mik-laj @kaxil @ephraimbuddy
 
 # WWW
 /airflow/www/ @ryanahamilton @ashb
