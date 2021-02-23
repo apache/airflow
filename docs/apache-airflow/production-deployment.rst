@@ -56,9 +56,9 @@ Once that is done, you can run -
 Multi-Node Cluster
 ==================
 
-Airflow uses :class:`~airflow.executors.sequential_executor.SequentialExecutor` by default. However, by it
+Airflow uses :class:`~airflow.executors.sequential_executor.SequentialExecutor` by default. However, by its
 nature, the user is limited to executing at most one task at a time. ``Sequential Executor`` also pauses
-the scheduler when it runs a task, hence not recommended in a production setup. You should use the
+the scheduler when it runs a task, hence it is not recommended in a production setup. You should use the
 :class:`~airflow.executors.local_executor.LocalExecutor` for a single machine.
 For a multi-node setup, you should use the :doc:`Kubernetes executor <../executor/kubernetes>` or
 the :doc:`Celery executor <../executor/celery>`.
