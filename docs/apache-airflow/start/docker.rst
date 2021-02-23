@@ -72,7 +72,7 @@ On **Linux**, the mounted volumes in container use the native Linux filesystem u
     mkdir ./dags ./logs ./plugins
     echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
 
-On **all operating system**, you need to run database migrations and create the first user account. To do it, run.
+On **all operating systems**, you need to run database migrations and create the first user account. To do it, run.
 
 .. code-block:: bash
 
