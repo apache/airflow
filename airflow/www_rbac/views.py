@@ -2267,6 +2267,22 @@ class CurvesView(BaseCRUDView):
             page=page,
             page_size=page_size,
         )
+        
+        error_tag_vals = ErrorTag.get_all_dict() or {}
+        for t in lst:
+            ret = []
+            try:
+                error_tags = json.loads(t.error_tag or '[]')
+                if not error_tags:
+                     t.view_error_tags = u'无异常标签'
+                for tag in error_tags:
+                    v= error_tag_vals.get(str(tag), '')
+                    if not v:
+                        continue
+                    ret.append(v)
+            except Exception as e:
+                 t.view_error_tags = ','.join(ret)
+            t.view_error_tags =  ','.join(ret)
 
         selected_tasks = {}
         tasks = list(get_task_instances_by_entity_ids(curves_list))

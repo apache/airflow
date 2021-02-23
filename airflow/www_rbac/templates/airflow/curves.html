@@ -81,6 +81,10 @@
                                       {{ 'badge-success' if task.final_state=='OK' else 'badge-danger' if task.final_state=='NOK' else 'badge-secondary'}}">{{
                   task.final_state if task.final_state else '未确认' }}</a>
               </p>
+              <p class="list-group-item-text ml-4"><span>{{ _('Error Tags') }}：</span>
+                <a
+                  class="badge badge-danger">{{task.view_error_tags if task.view_error_tags else '无异常标签' }}</a>
+              </p>
             </button>
           </td>
         </tr>
