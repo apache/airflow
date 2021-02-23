@@ -43,6 +43,16 @@ class TestAwsS3Hook:
         hook = S3Hook()
         assert hook.get_conn() is not None
 
+    @mock_s3
+    def test_use_threads_default_value(self):
+        hook = S3Hook()
+        assert hook.transfer_config.use_threads is True
+
+    @mock_s3
+    def test_use_threads_set_value(self):
+        hook = S3Hook(transfer_config_args={"use_threads": False})
+        assert hook.transfer_config.use_threads is False
+
     def test_parse_s3_url(self):
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-key.txt")
         assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"

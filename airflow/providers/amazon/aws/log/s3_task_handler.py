@@ -46,7 +46,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         try:
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
-            return S3Hook(remote_conn_id)
+            return S3Hook(remote_conn_id, transfer_config_args={"use_threads": False})
         except Exception as e:  # pylint: disable=broad-except
             self.log.exception(
                 'Could not create an S3Hook with connection id "%s". '
