@@ -26,8 +26,6 @@ from airflow.providers.tableau.sensors.tableau_job_status import (
     TableauJobStatusSensor,
 )
 
-# pylint: disable=do-not-use-asserts
-
 
 class TestTableauJobStatusSensor(unittest.TestCase):
     """

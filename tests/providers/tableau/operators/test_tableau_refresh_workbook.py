@@ -23,8 +23,6 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.tableau.operators.tableau_refresh_workbook import TableauRefreshWorkbookOperator
 
-# pylint: disable=do-not-use-asserts
-
 
 class TestTableauRefreshWorkbookOperator(unittest.TestCase):
     """

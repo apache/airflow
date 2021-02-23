@@ -22,8 +22,6 @@ from airflow import configuration, models
 from airflow.providers.tableau.hooks.tableau import TableauHook
 from airflow.utils import db
 
-# pylint: disable=do-not-use-asserts
-
 
 class TestTableauHook(unittest.TestCase):
     """
