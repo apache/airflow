@@ -30,8 +30,24 @@ from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
-py39 = sys.version_info >= (3, 9)
-importlib_metadata = 'importlib.metadata' if py39 else 'importlib_metadata'
+importlib_metadata_string = 'importlib_metadata'
+
+try:
+    import importlib_metadata  # pylint: disable=unused-import
+
+    # If importlib_metadata is installed, it takes precedence over built-in importlib.metadata in PY39
+    # so we should use the default declared above
+except ImportError:
+    try:
+        import importlib.metadata  # pylint: disable=unused-import
+
+        # only when we do not have importlib_metadata, the importlib.metadata is actually used
+        importlib_metadata = 'importlib.metadata'
+    except ImportError:
+        raise Exception(
+            "Either importlib_metadata must be installed or importlib.metadata must be"
+            " available in system libraries (Python 3.9+). We seem to have neither."
+        )
 
 ON_LOAD_EXCEPTION_PLUGIN = """
 from airflow.plugins_manager import AirflowPlugin
@@ -283,9 +299,9 @@ class TestPluginsManager:
         mock_entrypoint.load.side_effect = ImportError('my_fake_module not found')
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch(f'{importlib_metadata}.distributions', return_value=[mock_dist]), caplog.at_level(
-            logging.ERROR, logger='airflow.plugins_manager'
-        ):
+        with mock.patch(
+            f'{importlib_metadata_string}.distributions', return_value=[mock_dist]
+        ), caplog.at_level(logging.ERROR, logger='airflow.plugins_manager'):
             load_entrypoint_plugins()
 
             received_logs = caplog.text
@@ -358,7 +374,7 @@ class TestEntryPointSource:
         mock_dist.version = '1.0.0'
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch(f'{importlib_metadata}.distributions', return_value=[mock_dist]):
+        with mock.patch(f'{importlib_metadata_string}.distributions', return_value=[mock_dist]):
             plugins_manager.load_entrypoint_plugins()
 
         source = plugins_manager.EntryPointSource(mock_entrypoint, mock_dist)

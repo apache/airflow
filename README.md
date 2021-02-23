@@ -127,9 +127,9 @@ We **highly** recommend upgrading to the latest Airflow major release at the ear
 
 Apache Airflow is tested with:
 
-|                      | Main version (dev)        | Stable version (2.0.2)   |
+|                      | Main version (dev)        | Stable version (2.1.0)   |
 | -------------------- | ------------------------- | ------------------------ |
-| Python               | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            |
+| Python               | 3.6, 3.7, 3.8, 3.9        | 3.6, 3.7, 3.8            |
 | Kubernetes           | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         |
 | PostgreSQL           | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
 | MySQL                | 5.7, 8                    | 5.7, 8                   |

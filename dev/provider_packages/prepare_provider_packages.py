@@ -51,6 +51,8 @@ from rich.console import Console
 from rich.progress import Progress
 from rich.syntax import Syntax
 
+ALL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9"]
+
 try:
     from yaml import CSafeLoader as SafeLoader
 except ImportError:
@@ -208,6 +210,7 @@ class ProviderPackageDetails(NamedTuple):
     documentation_provider_package_path: str
     provider_description: str
     versions: List[str]
+    excluded_python_versions: List[str]
 
 
 ENTITY_NAMES = {
@@ -1445,6 +1448,7 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
         documentation_provider_package_path=get_documentation_package_path(provider_package_id),
         provider_description=provider_info['description'],
         versions=provider_info['versions'],
+        excluded_python_versions=provider_info.get("excluded-python-versions") or [],
     )
 
 
@@ -1483,6 +1487,12 @@ def get_provider_jinja_context(
     )
     with open(changelog_path) as changelog_file:
         changelog = changelog_file.read()
+    supported_python_versions = [
+        p for p in ALL_PYTHON_VERSIONS if p not in provider_details.excluded_python_versions
+    ]
+    python_requires = "~=3.6"
+    for p in provider_details.excluded_python_versions:
+        python_requires += f", !={p}"
     context: Dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
         "README_FILE": "README.rst",
@@ -1517,6 +1527,8 @@ def get_provider_jinja_context(
             provider_details.documentation_provider_package_path,
         ),
         "CHANGELOG": changelog,
+        "SUPPORTED_PYTHON_VERSIONS": supported_python_versions,
+        "PYTHON_REQUIRES": python_requires,
     }
     return context
 
