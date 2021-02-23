@@ -33,8 +33,6 @@ env:
   UPGRADE_TO_NEWER_DEPENDENCIES: false
   PYTHON_MAJOR_MINOR_VERSION: 3.6
   USE_GITHUB_REGISTRY: "true"
-  # Might be either 'ghcr.io' or 'docker.pkg.github.com'
-  GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
   # This token is WRITE one - schedule type of events always have the WRITE token
@@ -46,6 +44,7 @@ env:
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+  GITHUB_REGISTRY: ${{ secrets.OVERRIDE_GITHUB_REGISTRY }}
 
 jobs:
 
@@ -88,6 +87,8 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+        env:
+          GITHUB_REGISTRY: ${{ steps.determine-github-registry.outputs.githubRegistry }}
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - uses: actions/upload-artifact@v2

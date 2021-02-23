@@ -33,8 +33,6 @@ environments we use. Most of our CI jobs are written as bash scripts which are e
 the CI jobs. And we have  a number of variables determine build behaviour.
 
 
-
-
 GitHub Actions runs
 -------------------
 
@@ -53,14 +51,23 @@ techniques have been implemented that use efficiently cache from the GitHub Dock
 this brings down the time needed to rebuild the image to ~4 minutes. In some cases (when dependencies change)
 it can be ~6-7 minutes and in case base image of Python releases new patch-level, it can be ~12 minutes.
 
+Container Registry used as cache
+--------------------------------
+
+For the CI builds of our we are using Container Registry to store results of the "Build Image" workflow
+and pass it to the "CI Build" workflow.
+
 Currently in master version of Airflow we run tests in 3 different versions of Python (3.6, 3.7, 3.8)
 which means that we have to build 6 images (3 CI ones and 3 PROD ones). Yet we run around 12 jobs
 with each of the CI images. That is a lot of time to just build the environment to run. Therefore
-we are utilising ``workflow_run`` feature of GitHub Actions. This feature allows to run a separate,
-independent workflow, when the main workflow is run - this separate workflow is different than the main
-one, because by default it runs using ``master`` version of the sources but also - and most of all - that
-it has WRITE access to the repository. This is especially important in our case where Pull Requests to
-Airflow might come from any repository, and it would be a huge security issue if anyone from outside could
+we are utilising ``workflow_run`` feature of GitHub Actions.
+
+This feature allows to run a separate, independent workflow, when the main workflow is run -
+this separate workflow is different than the main one, because by default it runs using ``master`` version
+of the sources but also - and most of all - that it has WRITE access to the repository.
+
+This is especially important in our case where Pull Requests to Airflow might come from any repository,
+and it would be a huge security issue if anyone from outside could
 utilise the WRITE access to Apache Airflow repository via an external Pull Request.
 
 Thanks to the WRITE access and fact that the 'workflow_run' by default uses the 'master' version of the
@@ -71,9 +78,56 @@ this image can be built only once and used by all the jobs running tests. The im
 rather than build it from the scratch. Pulling such image takes ~ 1 minute, thanks to that we are saving
 a lot of precious time for jobs.
 
+We can use either of the two available GitHub Container registries as cache:
 
-Local runs
-----------
+* Legacy `GitHub Package Registry <https://github.com/features/packages>`_ which is not very
+  stable, uses old infrastructure of GitHub and it lacks certain features - notably it does not allow
+  us to delete the old image. The benefit of using GitHub Package Registry is that it works
+  out-of-the-box (write authentication is done using ``GITHUB_TOKEN`` and users do not have to do any
+  action to make it work in case they want to run build using their own forks. Also those images
+  do not provide public access, so you need to login to ``docker.pkg.github.com`` docker registry
+  using your username and personal token to be able to pull those images.
+
+* The new `GitHub Container Registry <https://docs.github.com/en/packages/guides/about-github-container-registry>`_
+  which is in Public Beta, has many more features (including permission management, public access and
+  image retention possibility). It has also the drawback (at least as of January 2020) that you need to
+  have separate personal access token created as ``PAT_CR`` secret in your repository with write access
+  to registry in order to make it works. You also have to manually manage permissions of the images,
+  i.e. after creating images for the first time, you need to set their visibility to "Public" and
+  add ``Admin`` permissions to group of people managing the images (in our case ``airflow-committers`` group).
+  This makes it not very suitable to use GitHub container registry if you want to run builds of Airflow
+  in your own forks (note - it does not affect pull requests from forks to Airflow).
+
+Those two images have different naming schemas. See `Images documentation <IMAGES.rst>`_ for details.
+
+You can choose which registry should be used by the repository by setting ``OVERRIDE_GITHUB_REGISTRY`` secret
+to either ``docker.pkg.github.com`` for Github Package Registry or ``ghcr.io`` for GitHub Container Registry.
+Default is the Github Package Registry one. The Pull Request forks have no access to the secret but they
+auto-detect the registry used when they wait for the images.
+
+You can interact with the Github Registry images (pull/push) via `Breeze <BREEZE.rst>`_  - you can
+pass ``--github-registry`` flag wih  either ``docker.pkg.github.com`` for Github Package Registry or
+``ghcr.io`` for GitHub Container Registry and pull/push operations will be performed using the chosen
+registry, using appropriate naming convention. This allows building and pushing the images locally by
+committers who have access to push/pull those images.
+
+
+Github Container Registry Token
+-------------------------------
+
+Unlike GitHub Packages, GitHub Registry requires a personal access token added as ``PAT_CR`` secret in order
+to make it works. This token has to have "Registry Write" scope. Ideally you should not use a token
+of a person who has access to many repositories, because this token allows to write packages in
+ANY repository, where the person has write access (including private organisations). Ideally, you need to have
+a separate account with only access to that repository and generate Personal Access Token with Package
+Registry write permission for that Account. Discussion about setting up such account is opened at
+`ASF Jira <https://issues.apache.org/jira/projects/INFRA/issues/INFRA-20959>`_. More info about
+the token for GitHub Container Registry can be found
+`here <https://docs.github.com/en/packages/guides/migrating-to-github-container-registry-for-docker-images#authenticating-with-the-container-registry>`_
+
+
+Locally replicating CI failures
+-------------------------------
 
 The main goal of the CI philosophy we have that no matter how complex the test and integration
 infrastructure, as a developer you should be able to reproduce and re-run any of the failed checks
@@ -800,7 +854,7 @@ you need to reproduce a MySQL environment with kerberos integration enabled for 
 
 .. code-block:: bash
 
-  ./breeze --github-image-id 210056909 --python 3.8 --integration kerberos
+  ./breeze --github-image-id 210056909 --github-registry docker.pkg.github.com --python 3.8
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in
@@ -834,3 +888,51 @@ Scheduled build flow
 .. image:: images/ci/scheduled_ci_flow.png
     :align: center
     :alt: Scheduled build flow
+
+
+Adding new Python versions to CI
+--------------------------------
+
+In 2.0 line we currently support Python 3.6, 3.7, 3.8.
+
+In order to add a new version the following operations should be done (example uses python 3.9)
+
+* copy the latest constraints in ``constraints-master`` branch from previous versions and name it
+  using the new Python version (``constraints-3.9.txt``). Commit and push
+
+* add the new python version to `breeze-complete <breeze-complete>`_ and
+  `_initialization.sh <scripts/ci/libraries/_initialization.sh>`_ - tests will fail if they are not
+  in sync.
+
+* build image locally for both prod and CI locally using Breeze:
+
+.. code-block:: bash
+
+  ./breeze build-image --python 3.9
+
+* push image as cache to DockerHub and both registries:
+
+.. code-block:: bash
+
+  ./breeze push-image --python 3.9
+  ./breeze push-image --python 3.9 --github-registry ghcr.io
+  ./breeze push-image --python 3.9 --github-registry docker.pkg.github.com
+
+* Find the 3 new images (main, ci, build) created in
+  `GitHub Container registry<https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_
+  go to Package Settings and turn on ``Public Visibility`` and add ``airflow-committers``
+  group as ``Admin Role`` to all of them.
+
+* In `DockerHub <https://hub.docker.com/repository/docker/apache/airflow/builds/edit>`_  create three entries
+  for automatically built nightly-tag and release images:
+
+
++-------------+----------------+-----------------------+---------------------+---------------+-----------+---------------+------------------------------------------------------------------------+
+| Source type | Source         | Docker Tag            | Dockerfile location | Build Context | Autobuild | Build caching | Comment                                                                |
++=============+================+=======================+=====================+===============+===========+===============+========================================================================+
+| Tag         | nightly-master | master-python3.9      | Dockerfile          | /             | x         | -             | Nightly CI/PROD images from successful scheduled master nightly builds |
++-------------+----------------+-----------------------+---------------------+---------------+-----------+---------------+------------------------------------------------------------------------+
+| Branch      | v2-0-stable    | v2-0-stable-python3.9 | Dockerfile          | /             | x         |               | CI/PROD images automatically built pushed stable branch                |
++-------------+----------------+-----------------------+---------------------+---------------+-----------+---------------+------------------------------------------------------------------------+
+| Tag         | /^([1-2].*)$/  | {\1}-python3.9        | Dockerfile          | /             | x         |               | CI/PROD images automatically built from pushed release tags            |
++-------------+----------------+-----------------------+---------------------+---------------+-----------+---------------+------------------------------------------------------------------------+

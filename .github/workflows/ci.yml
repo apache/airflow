@@ -67,7 +67,6 @@ env:
   #
   # You can also switch back to building images locally and disabling the "Build Images" workflow
   # by defining AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE secret with value set to "false"
-
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE != 'false' }}
 
 jobs:
@@ -203,6 +202,9 @@ jobs:
     env:
       BACKEND: sqlite
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+      WAIT_FOR_IMAGE: ${{ needs.build-info.outputs.waitForImage }}
+    outputs:
+      githubRegistry: ${{ steps.wait-for-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -222,16 +224,20 @@ jobs:
       - name: >
           Wait for CI images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
+        id: wait-for-images
         env:
           CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
             ${{needs.build-info.outputs.pythonVersionsListAsString}}
         # We wait for the images to be available either from the build-ci-image step or from
-        # "build-images-workflow-run.yml' run as pull_request_target (it has the write
-        # permissions in case pull_request from fork is run.
+        # "build-images-workflow-run.yml' run as pull_request_target.
         # We are utilising single job to wait for all images because this job merely waits
-        # For the images to be available. The test jobs wait for it to complete!
+        # for the images to be available.
+        # The test jobs wait for it to complete if WAIT_FOR_IMAGE is 'true'!
+        # The job will set the output "githubRegistry" - result of auto-detect which registry has
+        # been used by checking where the image can be downloaded from.
+        #
         run: ./scripts/ci/images/ci_wait_for_all_ci_images.sh
-        if: needs.build-info.outputs.waitForImage == 'true'
+
 
   verify-ci-images:
     timeout-minutes: 20
@@ -243,6 +249,7 @@ jobs:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
     env:
       BACKEND: sqlite
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -270,6 +277,7 @@ jobs:
       SKIP: "pylint,identity"
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -360,6 +368,7 @@ jobs:
       # to the image but we want to static-check all of them
       MOUNT_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -397,6 +406,8 @@ jobs:
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
     if: needs.build-info.outputs.docs-build == 'true'
+    env:
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -446,6 +457,7 @@ jobs:
       BACKPORT_PACKAGES: "true"
       VERSION_SUFFIX_FOR_PYPI: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -495,6 +507,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     strategy:
       matrix:
         package-format: ['wheel', 'sdist']
@@ -547,6 +560,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: "dev"
       PACKAGE_FORMAT: ${{ matrix.package-format }}
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     strategy:
       matrix:
         package-format: ['wheel', 'sdist']
@@ -583,6 +597,7 @@ jobs:
       TEST_TYPES: "Helm"
       BACKEND: "sqlite"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -644,6 +659,7 @@ jobs:
       RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
       TEST_TYPE: ""
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -702,6 +718,7 @@ jobs:
       RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
       TEST_TYPE: ""
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -757,6 +774,7 @@ jobs:
       RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
       TEST_TYPE: ""
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -817,6 +835,7 @@ jobs:
       TEST_TYPE: ""
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -908,11 +927,13 @@ jobs:
     name: "Wait for PROD images"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
+    if: needs.build-info.outputs.image-build == 'true'
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-    if: needs.build-info.outputs.image-build == 'true'
+    outputs:
+      githubRegistry: ${{ steps.wait-for-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -932,11 +953,18 @@ jobs:
       - name: >
           Wait for PROD images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
+        # We wait for the images to be available either from the build-ci-image step or from
+        # "build-images-workflow-run.yml' run as pull_request_target.
+        # We are utilising single job to wait for all images because this job merely waits
+        # For the images to be available. The test jobs wait for it to complete!
+        # The job will set the output "githubRegistry" - result of auto-detect which registry has
+        # been used by checking where the image can be downloaded from.
+        #
+        id: wait-for-images
         env:
           CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
             ${{needs.build-info.outputs.pythonVersionsListAsString}}
         run: ./scripts/ci/images/ci_wait_for_all_prod_images.sh
-        if: needs.build-info.outputs.waitForImage == 'true'
 
   verify-prod-images:
     timeout-minutes: 20
@@ -948,6 +976,7 @@ jobs:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
     env:
       BACKEND: sqlite
+      GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -986,6 +1015,7 @@ jobs:
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
       KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
       HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
+      GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-kubernetes-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -1067,6 +1097,7 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+      GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1115,6 +1146,7 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1145,6 +1177,7 @@ jobs:
       - ci-images
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     # Only run it for direct pushes
     if: >
       github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
