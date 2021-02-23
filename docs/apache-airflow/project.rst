@@ -45,6 +45,7 @@ Committers
 - @bolkedebruin (Bolke de Bruin)
 - @criccomini (Chris Riccomini)
 - @dimberman (Daniel Imberman)
+- @ephraimbuddy (Ephraim Anierobi)
 - @feluelle (Felix Uellendall)
 - @feng-tao (Tao Feng)
 - @fokko (Fokko Driesprong)
