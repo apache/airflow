@@ -636,6 +636,9 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
                 opt = self._get_env_var_option(section, key)
             except ValueError:
                 continue
+            if opt is None:
+                log.warning("Ignoring unknown env var '%s'", env_var)
+                continue
             if not display_sensitive and env_var != self._env_var_name('core', 'unit_test_mode'):
                 opt = '< hidden >'
             elif raw:
