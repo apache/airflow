@@ -10,6 +10,7 @@ AnalyzeEntitiesResponse
 AnalyzeSentimentResponse
 AnalyzeSyntaxResponse
 Anand
+Anierobi
 AnnotateTextResponse
 Ansible
 AppBuilder
@@ -127,6 +128,7 @@ EmrCreateJobFlow
 Enum
 Env
 EnvVar
+Ephraim
 ExaConnection
 Exasol
 Failover
@@ -712,6 +714,7 @@ env
 envFrom
 envvar
 eols
+ephraimbuddy
 errno
 eslint
 etl
