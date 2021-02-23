@@ -120,7 +120,7 @@ six==1.15.0
 sortedcontainers==2.3.0
 statsd==3.3.0
 swagger-ui-bundle==0.0.8
-tabulate==0.8.8
+tabulate==0.8.9
 tblib==1.7.0
 tenacity==6.2.0
 termcolor==1.1.0

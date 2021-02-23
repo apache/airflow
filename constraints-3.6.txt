@@ -104,7 +104,7 @@ apache-airflow-providers-telegram==1.0.1
 apache-airflow-providers-vertica==1.0.1
 apache-airflow-providers-yandex==1.0.1
 apache-airflow-providers-zendesk==1.0.1
-apache-beam==2.27.0
+apache-beam==2.28.0
 apipkg==1.5
 apispec==3.3.2
 appdirs==1.4.4
@@ -238,7 +238,7 @@ google-cloud-logging==2.2.0
 google-cloud-memcache==0.3.0
 google-cloud-monitoring==2.0.1
 google-cloud-os-login==2.1.0
-google-cloud-pubsub==2.3.0
+google-cloud-pubsub==2.4.0
 google-cloud-redis==2.0.0
 google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.19.1
@@ -465,11 +465,10 @@ starkbank-ecdsa==1.1.0
 statsd==3.3.0
 swagger-ui-bundle==0.0.8
 tableauserverclient==0.15.0
-tabulate==0.8.8
+tabulate==0.8.9
 tblib==1.7.0
 tenacity==6.2.0
 termcolor==1.1.0
-testfixtures==6.17.1
 text-unidecode==1.3
 textwrap3==0.9.2
 thrift-sasl==0.4.2
