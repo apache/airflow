@@ -435,7 +435,7 @@ class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual
     pass
 
 
-class FilterReg(fab_sqlafilters.BaseFilter):
+class FilterErrorTagReg(fab_sqlafilters.BaseFilter):
     name = "Reg"
     arg_name = "ct"
 
@@ -446,7 +446,7 @@ class FilterReg(fab_sqlafilters.BaseFilter):
 
 class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     conversion_table = (
-        (('is_errortag', [FilterReg]),) +
+        (('is_errortag', [FilterErrorTagReg]),) +
         (('is_utcdatetime', [UtcAwareFilterEqual,
                              UtcAwareFilterGreater,
                              UtcAwareFilterSmaller,
