@@ -38,7 +38,6 @@ class TestPluginSchema(TestPluginBase):
     def test_serialize(self):
         deserialized_plugin = plugin_schema.dump(self.mock_plugin)
         assert deserialized_plugin == {
-            'admin_views': [],
             'appbuilder_menu_items': [],
             'appbuilder_views': [],
             'executors': [],
@@ -46,7 +45,6 @@ class TestPluginSchema(TestPluginBase):
             'global_operator_extra_links': [],
             'hooks': [],
             'macros': [],
-            'menu_links': [],
             'operator_extra_links': [],
             'source': None,
             'name': 'test_plugin',
@@ -61,7 +59,6 @@ class TestPluginCollectionSchema(TestPluginBase):
         assert deserialized == {
             'plugins': [
                 {
-                    'admin_views': [],
                     'appbuilder_menu_items': [],
                     'appbuilder_views': [],
                     'executors': [],
@@ -69,13 +66,11 @@ class TestPluginCollectionSchema(TestPluginBase):
                     'global_operator_extra_links': [],
                     'hooks': [],
                     'macros': [],
-                    'menu_links': [],
                     'operator_extra_links': [],
                     'source': None,
                     'name': 'test_plugin',
                 },
                 {
-                    'admin_views': [],
                     'appbuilder_menu_items': [],
                     'appbuilder_views': [],
                     'executors': [],
@@ -83,7 +78,6 @@ class TestPluginCollectionSchema(TestPluginBase):
                     'global_operator_extra_links': [],
                     'hooks': [],
                     'macros': [],
-                    'menu_links': [],
                     'operator_extra_links': [],
                     'source': None,
                     'name': 'test_plugin_2',
