@@ -62,8 +62,9 @@ Your reverse proxy (ex: nginx) should be configured as follow:
           server_name lab.mycompany.com;
 
           location /myorg/flower/ {
-              rewrite ^/myorg/flower/(.*)$ /$1 break;  # remove prefix from http header
-              proxy_pass http://localhost:5555;
+              # since flower 0.9.5, rewrite is required no more
+              # rewrite ^/myorg/flower/(.*)$ /$1 break;  # remove prefix from http header
+              proxy_pass http://localhost:5555/myorg/flower;
               proxy_set_header Host $host;
               proxy_redirect off;
               proxy_http_version 1.1;
@@ -71,6 +72,8 @@ Your reverse proxy (ex: nginx) should be configured as follow:
               proxy_set_header Connection "upgrade";
           }
       }
+      
+      
 
 To ensure that Airflow generates URLs with the correct scheme when
 running behind a TLS-terminating proxy, you should configure the proxy
