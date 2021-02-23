@@ -61,8 +61,6 @@ class TestPluginsCommand(unittest.TestCase):
                 'hooks': [PluginHook.__name__],
                 'executors': [],
                 'macros': [],
-                'admin_views': [],
-                'menu_links': [],
                 'flask_blueprints': [],
                 'appbuilder_views': [],
                 'appbuilder_menu_items': [],
