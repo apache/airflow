@@ -59,7 +59,7 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
     clear_db_dags,
-    clear_db_errors,
+    clear_db_import_errors,
     clear_db_jobs,
     clear_db_pools,
     clear_db_runs,
@@ -106,7 +106,7 @@ class TestDagFileProcessor(unittest.TestCase):
         clear_db_pools()
         clear_db_dags()
         clear_db_sla_miss()
-        clear_db_errors()
+        clear_db_import_errors()
         clear_db_jobs()
         clear_db_serialized_dags()
 
@@ -781,7 +781,7 @@ class TestSchedulerJob(unittest.TestCase):
         clear_db_pools()
         clear_db_dags()
         clear_db_sla_miss()
-        clear_db_errors()
+        clear_db_import_errors()
 
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
@@ -4001,7 +4001,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
         clear_db_pools()
         clear_db_dags()
         clear_db_sla_miss()
-        clear_db_errors()
+        clear_db_import_errors()
         clear_db_serialized_dags()
         clear_db_dags()
 

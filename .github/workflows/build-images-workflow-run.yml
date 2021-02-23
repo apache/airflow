@@ -30,10 +30,13 @@ env:
   DB_RESET: "true"
   VERBOSE: "true"
   USE_GITHUB_REGISTRY: "true"
-  # Might be either 'ghcr.io' or 'docker.pkg.github.com'
-  GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
+  # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
+  # Airflow one is going to be used
+  CONSTRAINTS_GITHUB_REPOSITORY: >-
+    ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || github.repository }}
   # This token is WRITE one - workflow_run type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # This token should not be empty in workflow_run type of event.
@@ -42,13 +45,14 @@ env:
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   BUILD_IMAGES: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE != 'false' }}
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
+  GITHUB_REGISTRY: ${{ secrets.OVERRIDE_GITHUB_REGISTRY }}
 
 jobs:
 
   cancel-workflow-runs:
     timeout-minutes: 10
     name: "Cancel workflow runs"
-    runs-on: [self-hosted]
+    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
     outputs:
       sourceHeadRepo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
       sourceHeadBranch: ${{ steps.source-run-info.outputs.sourceHeadBranch }}
@@ -61,7 +65,7 @@ jobs:
       sourceEvent: ${{ steps.source-run-info.outputs.sourceEvent }}
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
       buildImages: ${{ steps.build-images.outputs.buildImages }}
-      runsOn: '["self-hosted"]'
+      runsOn: ${{ github.repository == 'apache/airflow' && '["self-hosted"]' || '["ubuntu-20.04"]' }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2

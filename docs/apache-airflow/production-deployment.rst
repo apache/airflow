@@ -56,9 +56,9 @@ Once that is done, you can run -
 Multi-Node Cluster
 ==================
 
-Airflow uses :class:`~airflow.executors.sequential_executor.SequentialExecutor` by default. However, by it
+Airflow uses :class:`~airflow.executors.sequential_executor.SequentialExecutor` by default. However, by its
 nature, the user is limited to executing at most one task at a time. ``Sequential Executor`` also pauses
-the scheduler when it runs a task, hence not recommended in a production setup. You should use the
+the scheduler when it runs a task, hence it is not recommended in a production setup. You should use the
 :class:`~airflow.executors.local_executor.LocalExecutor` for a single machine.
 For a multi-node setup, you should use the :doc:`Kubernetes executor <../executor/kubernetes>` or
 the :doc:`Celery executor <../executor/celery>`.
@@ -196,6 +196,9 @@ You should be aware, about a few things:
 
   FROM apache/airflow:2.0.1
   RUN pip install --no-cache-dir --user my-awesome-pip-dependency-to-add
+
+* As of 2.0.1 image the ``--user`` flag is turned on by default by setting ``PIP_USER`` environment variable
+  to ``true``. This can be disabled by un-setting the variable or by setting it to ``false``.
 
 
 * If your apt, or PyPI dependencies require some of the build-essentials, then your best choice is
@@ -835,7 +838,7 @@ The entrypoint can also create webserver user automatically when you enter it. y
 production, it is only useful if you would like to run a quick test with the production image.
 You need to pass at least password to create such user via ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` or
 ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` similarly like for other ``*_CMD`` variables, the content of
-the ``*_CMD`` will be evaluated as shell command and it's output will be set ass password.
+the ``*_CMD`` will be evaluated as shell command and it's output will be set as password.
 
 User creation will fail if none of the ``PASSWORD`` variables are set - there is no default for
 password for security reasons.

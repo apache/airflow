@@ -21,7 +21,7 @@
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
 import { escapeHtml } from './main';
-import { defaultFormat, formatDateTime } from './datetime-utils';
+import { defaultFormat, formatDateTime } from './datetime_utils';
 
 function makeDateTimeHTML(start, end) {
   // check task ended or not
@@ -35,7 +35,7 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   }
 
   const tzFormat = 'z (Z)';
-  const localTZ = moment.defaultZone.name;
+  const localTZ = moment.defaultZone.name.toUpperCase();
   startDate = moment.utc(startDate);
   endDate = moment.utc(endDate);
   dagTZ = dagTZ.toUpperCase();

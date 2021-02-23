@@ -233,6 +233,12 @@ class TestApp(unittest.TestCase):
         app = application.cached_app(testing=True)
         assert app.config['PERMANENT_SESSION_LIFETIME'] == timedelta(minutes=3600)
 
+    @conf_vars({('webserver', 'cookie_samesite'): ''})
+    @mock.patch("airflow.www.app.app", None)
+    def test_correct_default_is_set_for_cookie_samesite(self):
+        app = application.cached_app(testing=True)
+        assert app.config['SESSION_COOKIE_SAMESITE'] == 'Lax'
+
 
 class TestFlaskCli(unittest.TestCase):
     def test_flask_cli_should_display_routes(self):

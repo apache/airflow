@@ -330,7 +330,7 @@ class DagBag(LoggingMixin):
             if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
                 # todo: create ignore list
                 # Don't want to spam user with skip messages
-                if not self.has_logged or True:
+                if not self.has_logged:
                     self.has_logged = True
                     self.log.info(
                         "File %s:%s assumed to contain no DAGs. Skipping.", filepath, zip_info.filename

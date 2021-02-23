@@ -111,6 +111,14 @@ FILTER_TAGS_COOKIE = 'tags_filter'
 FILTER_STATUS_COOKIE = 'dag_status_filter'
 
 
+def truncate_task_duration(task_duration):
+    """
+    Cast the task_duration to an int was for optimization for large/huge dags if task_duration > 10s
+    otherwise we keep it as a float with 3dp
+    """
+    return int(task_duration) if task_duration > 10.0 else round(task_duration, 3)
+
+
 def get_safe_url(url):
     """Given a user-supplied URL, ensure it points to our web server"""
     valid_schemes = ['http', 'https', '']
@@ -574,11 +582,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
 
+        page_title = conf.get(section="webserver", key="instance_name", fallback="DAGs")
+
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
+            page_title=page_title,
             page_size=dags_per_page,
             num_of_pages=num_of_pages,
             num_dag_from=min(start + 1, num_of_all_dags),
@@ -1922,7 +1933,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 # round to seconds to reduce payload size
                 task_instance_data[2] = int(task_instance.start_date.timestamp())
                 if task_instance.duration is not None:
-                    task_instance_data[3] = int(task_instance.duration)
+                    task_instance_data[3] = truncate_task_duration(task_instance.duration)
 
             return task_instance_data
 
@@ -3637,8 +3648,9 @@ class TaskInstanceModelView(AirflowModelView):
             flash(f"{len(task_instances)} task instances have been cleared")
             self.update_redirect()
             return redirect(self.get_redirect())
-        except Exception:  # noqa pylint: disable=broad-except
-            flash('Failed to clear task instances', 'error')
+        except Exception as e:  # noqa pylint: disable=broad-except
+            flash(f'Failed to clear task instances: "{e}"', 'error')
+            return None
 
     @provide_session
     def set_task_instance_state(self, tis, target_state, session=None):

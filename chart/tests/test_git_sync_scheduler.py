@@ -29,7 +29,26 @@ class GitSyncSchedulerTest(unittest.TestCase):
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "dags" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        # check that there is a volume and git-sync and scheduler container mount it
+        assert len(jmespath.search("spec.template.spec.volumes[?name=='dags']", docs[0])) > 0
+        assert (
+            len(
+                jmespath.search(
+                    "(spec.template.spec.containers[?name=='scheduler'].volumeMounts[])[?name=='dags']",
+                    docs[0],
+                )
+            )
+            > 0
+        )
+        assert (
+            len(
+                jmespath.search(
+                    "(spec.template.spec.containers[?name=='git-sync'].volumeMounts[])[?name=='dags']",
+                    docs[0],
+                )
+            )
+            > 0
+        )
 
     def test_validate_the_git_sync_container_spec(self):
         docs = render_chart(

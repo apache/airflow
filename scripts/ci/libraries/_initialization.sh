@@ -418,6 +418,9 @@ function initialization::initialize_image_build_variables() {
     # Determines if airflow should be installed from a specified reference in GitHub
     export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
 
+    # Determines which providers are used to generate constraints - source, pypi or no providers
+    export GENERATE_CONSTRAINTS_MODE=${GENERATE_CONSTRAINTS_MODE:="source-providers"}
+
     # whether installation of Airflow should be done via PIP. You can set it to false if you have
     # all the binary packages (including airflow) in the docker-context-files folder and use
     # INSTALL_FROM_DOCKER_CONTEXT_FILES="true" to install it from there.
@@ -432,6 +435,12 @@ function initialization::initialize_image_build_variables() {
     # direct constraints Location - can be URL or path to local file. If empty, it will be calculated
     # based on which Airflow version is installed and from where
     export AIRFLOW_CONSTRAINTS_LOCATION="${AIRFLOW_CONSTRAINTS_LOCATION:=""}"
+
+    # Suffix for constraints. Can be:
+    #   * 'constraints' = for constraints with PyPI released providers (default for installations)
+    #   * 'constraints-source-providers' for constraints with source version of providers (defaults in Breeze and CI)
+    #   * 'constraints-no-providers' for constraints without providers
+    export AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS:="constraints-source-providers"}"
 }
 
 # Determine version suffixes used to build provider packages
@@ -500,12 +509,14 @@ function initialization::initialize_github_variables() {
     # Defaults for interacting with GitHub
     export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
     export GITHUB_REGISTRY_IMAGE_SUFFIX=${GITHUB_REGISTRY_IMAGE_SUFFIX:="-v2"}
-    export GITHUB_REGISTRY=${GITHUB_REGISTRY:="ghcr.io"}
+    export GITHUB_REGISTRY=${GITHUB_REGISTRY:="docker.pkg.github.com"}
     export GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"}
     export GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG:="latest"}
     export GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG:="latest"}
 
     export GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
+    # Allows to override the repository which is used as source of constraints during the build
+    export CONSTRAINTS_GITHUB_REPOSITORY=${CONSTRAINTS_GITHUB_REPOSITORY:="apache/airflow"}
 
     # Used only in CI environment
     export GITHUB_TOKEN="${GITHUB_TOKEN=""}"
@@ -699,14 +710,16 @@ EOF
 # we used in other scripts
 function initialization::get_environment_for_builds_on_ci() {
     if [[ ${CI:=} == "true" ]]; then
+        export GITHUB_REPOSITORY="${GITHUB_REPOSITORY="apache/airflow"}"
         export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
         export CI_TARGET_BRANCH="${GITHUB_BASE_REF:="master"}"
-        export CI_BUILD_ID="${GITHUB_RUN_ID}"
-        export CI_JOB_ID="${GITHUB_JOB}"
-        export CI_EVENT_TYPE="${GITHUB_EVENT_NAME}"
-        export CI_REF="${GITHUB_REF:=}"
+        export CI_BUILD_ID="${GITHUB_RUN_ID="0"}"
+        export CI_JOB_ID="${GITHUB_JOB="0"}"
+        export CI_EVENT_TYPE="${GITHUB_EVENT_NAME="pull_request"}"
+        export CI_REF="${GITHUB_REF:="refs/head/master"}"
     else
         # CI PR settings
+        export GITHUB_REPOSITORY="${GITHUB_REPOSITORY="apache/airflow"}"
         export CI_TARGET_REPO="${CI_TARGET_REPO="apache/airflow"}"
         export CI_TARGET_BRANCH="${DEFAULT_BRANCH="master"}"
         export CI_BUILD_ID="${CI_BUILD_ID="0"}"
@@ -715,12 +728,8 @@ function initialization::get_environment_for_builds_on_ci() {
         export CI_REF="${CI_REF="refs/head/master"}"
     fi
 
-    if [[ ${VERBOSE} == "true" && ${PRINT_INFO_FROM_SCRIPTS} == "true" ]]; then
-        initialization::summarize_build_environment
-    fi
-
     if [[ -z "${LIBRARY_PATH:-}" && -n "${LD_LIBRARY_PATH:-}" ]]; then
-      export LIBRARY_PATH="$LD_LIBRARY_PATH"
+      export LIBRARY_PATH="${LD_LIBRARY_PATH}"
     fi
 }
 
@@ -827,6 +836,7 @@ function initialization::make_constants_read_only() {
 
     readonly PYTHON_BASE_IMAGE_VERSION
     readonly PYTHON_BASE_IMAGE
+    readonly AIRFLOW_PYTHON_BASE_IMAGE
     readonly AIRFLOW_CI_BASE_TAG
     readonly AIRFLOW_CI_IMAGE
     readonly AIRFLOW_CI_IMAGE_DEFAULT
