@@ -1488,6 +1488,30 @@ class TestTaskInstance(unittest.TestCase):
         assert ti_list[3].get_previous_start_date(state=State.SUCCESS) == ti_list[1].start_date
         assert ti_list[3].get_previous_start_date(state=State.SUCCESS) != ti_list[2].start_date
 
+    def test_get_previous_start_date_none(self):
+        """
+        Test that get_previous_start_date() can handle TaskInstance no start_date.
+        """
+        with DAG("test_get_previous_start_date_none", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
+            task = DummyOperator(task_id="op")
+
+        dag.create_dagrun(
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            run_type=DagRunType.MANUAL,
+        )
+
+        next_day = DEFAULT_DATE + datetime.timedelta(days=1)
+
+        dag.create_dagrun(
+            execution_date=next_day,
+            state=State.RUNNING,
+            run_type=DagRunType.MANUAL,
+        )
+
+        ti = TI(task=task, execution_date=next_day)
+        assert ti.get_previous_start_date() is None
+
     def test_pendulum_template_dates(self):
         dag = models.DAG(
             dag_id='test_pendulum_template_dates',
