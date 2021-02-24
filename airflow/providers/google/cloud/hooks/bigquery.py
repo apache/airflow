@@ -70,7 +70,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     conn_name_attr = 'gcp_conn_id'
     default_conn_name = 'google_cloud_default'
     conn_type = 'bigquery'
-    hook_name = 'BigQuery'
+    hook_name = 'Google BigQuery'
 
     def __init__(
         self,
