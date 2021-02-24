@@ -491,7 +491,7 @@ devel = [
     # See: https://github.com/spulec/moto/issues/3535
     'mock<4.0.3',
     'mongomock',
-    'moto',
+    'moto<2',
     'mypy==0.770',
     'parameterized',
     'paramiko',
