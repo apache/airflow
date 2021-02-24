@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Union
 from datadog import api, initialize
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

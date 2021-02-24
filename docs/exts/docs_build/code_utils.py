@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import os
 from contextlib import suppress
 
 
@@ -60,3 +60,14 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
         # Join lines
         code = "\n".join(code_lines)
     return code
+
+
+def pretty_format_path(path: str, start: str) -> str:
+    """Formats the path by marking the important part in bold."""
+    end = '\033[0m'
+    bold = '\033[1m'
+
+    relpath = os.path.relpath(path, start)
+    if relpath == path:
+        return f"{bold}path{end}"
+    return f"{start}/{bold}{relpath}{end}"

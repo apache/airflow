@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from metastore database"""
-
-from typing import TYPE_CHECKING, List
+import warnings
+from typing import TYPE_CHECKING, List, Optional
 
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.session import provide_session
@@ -31,12 +31,26 @@ class MetastoreBackend(BaseSecretsBackend):
 
     # pylint: disable=missing-docstring
     @provide_session
-    def get_connections(self, conn_id, session=None) -> List['Connection']:
+    def get_connection(self, conn_id, session=None) -> Optional['Connection']:
         from airflow.models.connection import Connection
 
-        conn_list = session.query(Connection).filter(Connection.conn_id == conn_id).all()
+        conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
         session.expunge_all()
-        return conn_list
+        return conn
+
+    # pylint: disable=missing-docstring
+    @provide_session
+    def get_connections(self, conn_id, session=None) -> List['Connection']:
+        warnings.warn(
+            "This method is deprecated. Please use "
+            "`airflow.secrets.metastore.MetastoreBackend.get_connection`.",
+            PendingDeprecationWarning,
+            stacklevel=3,
+        )
+        conn = self.get_connection(conn_id=conn_id, session=session)
+        if conn:
+            return [conn]
+        return []
 
     @provide_session
     def get_variable(self, key: str, session=None):

@@ -103,9 +103,13 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
     try:
         from airflow.cli.cli_parser import get_parser
 
+        settings.engine.pool.dispose()
+        settings.engine.dispose()
+
         parser = get_parser()
         # [1:] - remove "airflow" from the start of the command
         args = parser.parse_args(command_to_exec[1:])
+        args.shut_down_logging = False
 
         setproctitle(f"airflow task supervisor: {command_to_exec}")
 
@@ -116,6 +120,7 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
         ret = 1
     finally:
         Sentry.flush()
+        logging.shutdown()
         os._exit(ret)  # pylint: disable=protected-access
 
 
@@ -184,7 +189,7 @@ def on_celery_import_modules(*args, **kwargs):
     import airflow.macros
     import airflow.operators.bash
     import airflow.operators.python
-    import airflow.operators.subdag_operator  # noqa: F401
+    import airflow.operators.subdag  # noqa: F401
 
     try:
         import kubernetes.client  # noqa: F401
@@ -534,9 +539,9 @@ class BulkStateFetcher(LoggingMixin):
     Otherwise, multiprocessing.Pool will be used. Each task status will be downloaded individually.
     """
 
-    def __init__(self, sync_parralelism=None):
+    def __init__(self, sync_parallelism=None):
         super().__init__()
-        self._sync_parallelism = sync_parralelism
+        self._sync_parallelism = sync_parallelism
 
     def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
         """Gets status for many Celery tasks using the best method available."""

@@ -19,18 +19,19 @@
 import getpass
 import os
 import warnings
+from base64 import decodebytes
 from io import StringIO
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import paramiko
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
-class SSHHook(BaseHook):
+class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
     """
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
@@ -57,7 +58,30 @@ class SSHHook(BaseHook):
     :type keepalive_interval: int
     """
 
-    def __init__(
+    # key type name to paramiko PKey class
+    _default_pkey_mappings = {
+        'dsa': paramiko.DSSKey,
+        'ecdsa': paramiko.ECDSAKey,
+        'ed25519': paramiko.Ed25519Key,
+        'rsa': paramiko.RSAKey,
+    }
+
+    conn_name_attr = 'ssh_conn_id'
+    default_conn_name = 'ssh_default'
+    conn_type = 'ssh'
+    hook_name = 'SSH'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema'],
+            "relabeling": {
+                'login': 'Username',
+            },
+        }
+
+    def __init__(  # pylint: disable=too-many-statements
         self,
         ssh_conn_id: Optional[str] = None,
         remote_host: Optional[str] = None,
@@ -84,6 +108,7 @@ class SSHHook(BaseHook):
         self.no_host_key_check = True
         self.allow_host_key_change = False
         self.host_proxy = None
+        self.host_key = None
         self.look_for_keys = True
 
         # Placeholder for deprecated __enter__
@@ -107,13 +132,8 @@ class SSHHook(BaseHook):
 
                 private_key = extra_options.get('private_key')
                 private_key_passphrase = extra_options.get('private_key_passphrase')
-                if private_key and private_key_passphrase:
-                    self.pkey = paramiko.RSAKey.from_private_key(
-                        StringIO(private_key), password=private_key_passphrase
-                    )
-                elif private_key and not private_key_passphrase:
-                    self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
-
+                if private_key:
+                    self.pkey = self._pkey_from_private_key(private_key, passphrase=private_key_passphrase)
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
 
@@ -134,7 +154,9 @@ class SSHHook(BaseHook):
                     and str(extra_options["look_for_keys"]).lower() == 'false'
                 ):
                     self.look_for_keys = False
-
+                if "host_key" in extra_options and self.no_host_key_check is False:
+                    decoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
+                    self.host_key = paramiko.RSAKey(data=decoded_host_key)
         if self.pkey and self.key_file:
             raise AirflowException(
                 "Params key_file and private_key both provided.  Must provide no more than one."
@@ -183,10 +205,18 @@ class SSHHook(BaseHook):
                 'This wont protect against Man-In-The-Middle attacks'
             )
             client.load_system_host_keys()
+
         if self.no_host_key_check:
             self.log.warning('No Host Key Verification. This wont protect against Man-In-The-Middle attacks')
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        else:
+            if self.host_key is not None:
+                client_host_keys = client.get_host_keys()
+                client_host_keys.add(self.remote_host, 'ssh-rsa', self.host_key)
+            else:
+                pass  # will fallback to system host keys if none explicitly specified in conn extra
+
         connect_kwargs = dict(
             hostname=self.remote_host,
             username=self.username,
@@ -293,3 +323,24 @@ class SSHHook(BaseHook):
         )
 
         return self.get_tunnel(remote_port, remote_host, local_port)
+
+    def _pkey_from_private_key(self, private_key: str, passphrase: Optional[str] = None) -> paramiko.PKey:
+        """
+        Creates appropriate paramiko key for given private key
+
+        :param private_key: string containing private key
+        :return: `paramiko.PKey` appropriate for given key
+        :raises AirflowException: if key cannot be read
+        """
+        allowed_pkey_types = self._default_pkey_mappings.values()
+        for pkey_type in allowed_pkey_types:
+            try:
+                key = pkey_type.from_private_key(StringIO(private_key), password=passphrase)
+                return key
+            except paramiko.ssh_exception.SSHException:
+                continue
+        raise AirflowException(
+            'Private key provided cannot be read by paramiko.'
+            'Ensure key provided is valid for one of the following'
+            'key formats: RSA, DSS, ECDSA, or Ed25519'
+        )

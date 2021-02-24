@@ -21,7 +21,10 @@
   <a href="{{item.get_url()}}">{{_(item.label)}}</a>
 {% endmacro %}
 
-<li class="dropdown"><a href="{{ url_for('Airflow.index') }}">DAGs</a></li>
+{% if current_user.is_authenticated %}
+  <li class="dropdown"><a href="{{ url_for('Airflow.index') }}">DAGs</a></li>
+{% endif %}
+
 {% for item1 in menu.get_list() %}
   {% if item1 | is_menu_visible %}
     {% if item1.childs %}

@@ -20,3 +20,4 @@ services:
   airflow:
     volumes:
       - ../../../files:/files:cached
+      - ../../../dist:/dist:cached

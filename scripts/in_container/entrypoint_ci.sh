@@ -39,7 +39,6 @@ chmod 1777 /tmp
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
 PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
-BACKEND=${BACKEND:=sqlite}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -59,12 +58,6 @@ RUN_TESTS=${RUN_TESTS:="false"}
 CI=${CI:="false"}
 INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
-if [[ ${GITHUB_ACTIONS:="false"} == "false" ]]; then
-    # Create links for useful CLI tools
-    # shellcheck source=scripts/in_container/run_cli_tool.sh
-    source <(bash scripts/in_container/run_cli_tool.sh)
-fi
-
 if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
     export RUN_AIRFLOW_1_10="true"
 else
@@ -72,38 +65,74 @@ else
 fi
 
 if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
-    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
-        echo
-        echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
-        echo
-        pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
-        yarn install --frozen-lockfile
-        echo
-        popd &>/dev/null || exit 1
-    fi
-    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" ]]; then
-        pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
-        echo
-        echo "Building production version of JavaScript files (Sources mounted from Host)"
-        echo
-        echo
-        yarn run prod
-        echo
-        echo
-        popd &>/dev/null || exit 1
-    fi
+    export PYTHONPATH=${AIRFLOW_SOURCES}
+    echo
+    echo "Using already installed airflow version"
+    echo
+    "${AIRFLOW_SOURCES}/airflow/www/ask_for_recompile_assets_if_needed.sh"
     # Cleanup the logs, tmp when entering the environment
     sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
     sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
     mkdir -p "${AIRFLOW_SOURCES}"/logs/
     mkdir -p "${AIRFLOW_SOURCES}"/tmp/
-    export PYTHONPATH=${AIRFLOW_SOURCES}
+elif [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
+    echo
+    echo "Skip installing airflow - only install wheel/tar.gz packages that are present locally"
+    echo
+    uninstall_airflow_and_providers
+elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
+    echo
+    echo "Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
+    echo
+    uninstall_airflow_and_providers
+    install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
+    uninstall_providers
+elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
+    echo
+    echo "Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
+    echo
+    uninstall_airflow_and_providers
+    install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
+    uninstall_providers
 else
+    echo
+    echo "Install airflow from PyPI without extras"
+    echo
     install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
-
-if [[ ${INSTALL_WHEELS=} == "true" ]]; then
-  pip install /dist/*.whl || true
+if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
+    echo
+    echo "Install all packages from dist folder"
+    if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" ]]; then
+        echo "(except apache-airflow)"
+    fi
+    if [[ ${PACKAGE_FORMAT} == "both" ]]; then
+        echo
+        echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    echo
+    installable_files=()
+    for file in /dist/*.{whl,tar.gz}
+    do
+        if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" && ${file} == "apache?airflow-[0-9]"* ]]; then
+            # Skip Apache Airflow package - it's just been installed above with extras
+            echo "Skipping ${file}"
+            continue
+        fi
+        if [[ ${PACKAGE_FORMAT} == "wheel" && ${file} == *".whl" ]]; then
+            echo "Adding ${file} to install"
+            installable_files+=( "${file}" )
+        fi
+        if [[ ${PACKAGE_FORMAT} == "sdist" && ${file} == *".tar.gz" ]]; then
+            echo "Adding ${file} to install"
+            installable_files+=( "${file}" )
+        fi
+    done
+    if (( ${#installable_files[@]} )); then
+        pip install "${installable_files[@]}" --no-deps
+    fi
 fi
 
 export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
@@ -116,6 +145,9 @@ unset AIRFLOW__CORE__UNIT_TEST_MODE
 
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
+
+# Change the default worker_concurrency for tests
+export AIRFLOW__CELERY__WORKER_CONCURRENCY=8
 
 disable_rbac_if_requested
 
@@ -160,10 +192,14 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 # shellcheck source=scripts/in_container/run_init_script.sh
 . "${IN_CONTAINER_DIR}/run_init_script.sh"
 
-# shellcheck source=scripts/in_container/run_tmux.sh
-. "${IN_CONTAINER_DIR}/run_tmux.sh"
-
 cd "${AIRFLOW_SOURCES}"
+
+if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+    export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
+    export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+    # shellcheck source=scripts/in_container/bin/run_tmux
+    exec run_tmux
+fi
 
 set +u
 # If we do not want to run tests, we simply drop into bash
@@ -287,9 +323,9 @@ else
             ${TEST_TYPE} == "Integration" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
     else
-        >&2 echo
-        >&2 echo "Wrong test type ${TEST_TYPE}"
-        >&2 echo
+        echo
+        echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
+        echo
         exit 1
     fi
 

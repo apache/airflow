@@ -37,7 +37,7 @@ class TestErrorHandling(unittest.TestCase):
 
         # Then we have parsable JSON as output
 
-        self.assertEqual(404, resp_json["status"])
+        assert 404 == resp_json["status"]
 
         # When we are hitting non-api incorrect enpoint
 
@@ -45,8 +45,8 @@ class TestErrorHandling(unittest.TestCase):
 
         # Then we do not have JSON as response, rather standard HTML
 
-        self.assertIsNone(resp_json)
+        assert resp_json is None
 
         resp_json = self.client.put("/api/v1/variables").json
 
-        self.assertEqual('Method Not Allowed', resp_json["title"])
+        assert 'Method Not Allowed' == resp_json["title"]

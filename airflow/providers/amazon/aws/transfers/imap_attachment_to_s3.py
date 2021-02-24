@@ -28,7 +28,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:ImapAttachmentToS3Operator`
+        :ref:`howto/operator:ImapAttachmentToS3Operator`
 
     :param imap_attachment_name: The file name of the mail attachment that you want to transfer.
     :type imap_attachment_name: str

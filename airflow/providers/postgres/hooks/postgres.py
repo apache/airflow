@@ -26,7 +26,7 @@ import psycopg2.extras
 from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.models.connection import Connection
 
 CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
@@ -57,6 +57,8 @@ class PostgresHook(DbApiHook):
 
     conn_name_attr = 'postgres_conn_id'
     default_conn_name = 'postgres_default'
+    conn_type = 'postgres'
+    hook_name = 'Postgres'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
@@ -221,7 +223,7 @@ class PostgresHook(DbApiHook):
         else:
             target_fields_fragment = ''
 
-        sql = "INSERT INTO {} {} VALUES ({})".format(table, target_fields_fragment, ",".join(placeholders))
+        sql = f"INSERT INTO {table} {target_fields_fragment} VALUES ({','.join(placeholders)})"
 
         if replace:
             if target_fields is None:

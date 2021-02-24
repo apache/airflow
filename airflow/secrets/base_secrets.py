@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import warnings
 from abc import ABC
 from typing import TYPE_CHECKING, List, Optional
 
@@ -51,7 +52,7 @@ class BaseSecretsBackend(ABC):
         """
         raise NotImplementedError()
 
-    def get_connections(self, conn_id: str) -> List['Connection']:
+    def get_connection(self, conn_id: str) -> Optional['Connection']:
         """
         Return connection object with a given ``conn_id``.
 
@@ -62,9 +63,27 @@ class BaseSecretsBackend(ABC):
 
         conn_uri = self.get_conn_uri(conn_id=conn_id)
         if not conn_uri:
-            return []
+            return None
         conn = Connection(conn_id=conn_id, uri=conn_uri)
-        return [conn]
+        return conn
+
+    def get_connections(self, conn_id: str) -> List['Connection']:
+        """
+        Return connection object with a given ``conn_id``.
+
+        :param conn_id: connection id
+        :type conn_id: str
+        """
+        warnings.warn(
+            "This method is deprecated. Please use "
+            "`airflow.secrets.base_secrets.BaseSecretsBackend.get_connection`.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        conn = self.get_connection(conn_id=conn_id)
+        if conn:
+            return [conn]
+        return []
 
     def get_variable(self, key: str) -> Optional[str]:
         """

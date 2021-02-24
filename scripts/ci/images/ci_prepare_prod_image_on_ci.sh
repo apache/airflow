@@ -15,6 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+export INSTALL_FROM_PYPI="false"
+export INSTALL_PROVIDERS_FROM_SOURCES="false"
+export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
+export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+export DOCKER_CACHE="pulled"
+export VERBOSE="true"
+
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
@@ -23,21 +32,18 @@
 function build_prod_images_on_ci() {
     build_images::prepare_prod_build
 
-    rm -rf "${BUILD_CACHE_DIR}"
-    mkdir -pv "${BUILD_CACHE_DIR}"
-
     if [[ ${USE_GITHUB_REGISTRY} == "true" && ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
-
-        # Tries to wait for the image indefinitely
-        # skips further image checks - since we already have the target image
-
         build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}" \
             ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_IMAGE}"
 
-        build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" \
-            ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_BUILD_IMAGE}"
+        if [[ "${WAIT_FOR_PROD_BUILD_IMAGE=}" == "true" ]]; then
+            # If specified in variable - also waits for the build image
+            build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" \
+                ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_BUILD_IMAGE}"
+        fi
+
     else
-        build_images::build_prod_images
+        build_images::build_prod_images_from_locally_built_airflow_packages
     fi
 
 
@@ -47,62 +53,4 @@ function build_prod_images_on_ci() {
     unset FORCE_BUILD
 }
 
-
-
-function verify_prod_image_has_airflow_and_providers {
-    echo
-    echo "Airflow folders installed in the image:"
-    echo
-
-    AIRFLOW_INSTALLATION_LOCATION="/home/airflow/.local"
-
-    docker run --rm --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c \
-        'find '"${AIRFLOW_INSTALLATION_LOCATION}"'/lib/python*/site-packages/airflow/ -type d'
-
-    EXPECTED_MIN_AIRFLOW_DIRS_COUNT="60"
-    readonly EXPECTED_MIN_AIRFLOW_DIRS_COUNT
-
-    COUNT_AIRFLOW_DIRS=$(docker run --rm --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c \
-         'find '"${AIRFLOW_INSTALLATION_LOCATION}"'/lib/python*/site-packages/airflow/ -type d | grep -c -v "/airflow/providers"')
-
-    echo
-    echo "Number of airflow dirs: ${COUNT_AIRFLOW_DIRS}"
-    echo
-
-    if [[ "${COUNT_AIRFLOW_DIRS}" -lt "${EXPECTED_MIN_AIRFLOW_DIRS_COUNT}" ]]; then
-        >&2 echo
-        >&2 echo Number of airflow folders installed is less than ${EXPECTED_MIN_AIRFLOW_DIRS_COUNT}
-        >&2 echo This is unexpected. Please investigate, looking at the output above!
-        >&2 echo
-        exit 1
-    else
-        echo
-        echo "OK. Airflow seems to be installed!"
-        echo
-    fi
-
-    EXPECTED_MIN_PROVIDERS_DIRS_COUNT="240"
-    readonly EXPECTED_MIN_PROVIDERS_DIRS_COUNT
-
-    COUNT_AIRFLOW_PROVIDERS_DIRS=$(docker run --rm --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c \
-         'find '"${AIRFLOW_INSTALLATION_LOCATION}"'/lib/python*/site-packages/airflow/providers -type d | grep -c "" | xargs')
-
-    echo
-    echo "Number of providers dirs: ${COUNT_AIRFLOW_PROVIDERS_DIRS}"
-    echo
-
-    if [ "${COUNT_AIRFLOW_PROVIDERS_DIRS}" -lt "${EXPECTED_MIN_PROVIDERS_DIRS_COUNT}" ]; then
-        >&2 echo
-        >&2 echo Number of providers folders installed is less than ${EXPECTED_MIN_PROVIDERS_DIRS_COUNT}
-        >&2 echo This is unexpected. Please investigate, looking at the output above!
-        >&2 echo
-        exit 1
-    else
-        echo
-        echo "OK. Airflow Providers seems to be installed!"
-        echo
-    fi
-}
-
 build_prod_images_on_ci
-verify_prod_image_has_airflow_and_providers

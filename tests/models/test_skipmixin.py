@@ -26,7 +26,7 @@ from airflow import settings
 from airflow.models.dag import DAG
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -85,8 +85,8 @@ class TestSkipMixin(unittest.TestCase):
     def test_skip_none_tasks(self):
         session = Mock()
         SkipMixin().skip(dag_run=None, execution_date=None, tasks=[], session=session)
-        self.assertFalse(session.query.called)
-        self.assertFalse(session.commit.called)
+        assert not session.query.called
+        assert not session.commit.called
 
     def test_skip_all_except(self):
         dag = DAG(

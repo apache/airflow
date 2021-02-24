@@ -22,6 +22,7 @@ import unittest
 from contextlib import redirect_stdout
 from unittest import mock
 
+import pytest
 from parameterized import parameterized
 
 from airflow.cli import cli_parser
@@ -43,13 +44,13 @@ class TestCliGetConnection(unittest.TestCase):
     def test_cli_connection_get(self):
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_get(
-                self.parser.parse_args(["connections", "get", "google_cloud_default"])
+                self.parser.parse_args(["connections", "get", "google_cloud_default", "--output", "json"])
             )
             stdout = stdout.getvalue()
-        self.assertIn("URI: google-cloud-platform:///default", stdout)
+        assert "google-cloud-platform:///default" in stdout
 
     def test_cli_connection_get_invalid(self):
-        with self.assertRaisesRegex(SystemExit, re.escape("Connection not found.")):
+        with pytest.raises(SystemExit, match=re.escape("Connection not found.")):
             connection_command.connections_get(self.parser.parse_args(["connections", "get", "INVALID"]))
 
 
@@ -112,36 +113,27 @@ class TestCliListConnections(unittest.TestCase):
     def tearDown(self):
         clear_db_connections()
 
-    def test_cli_connections_list(self):
-        with redirect_stdout(io.StringIO()) as stdout:
-            connection_command.connections_list(self.parser.parse_args(["connections", "list"]))
-            stdout = stdout.getvalue()
-            lines = stdout.split("\n")
-
-        for conn_id, conn_type in self.EXPECTED_CONS:
-            self.assertTrue(any(conn_id in line and conn_type in line for line in lines))
-
-    def test_cli_connections_list_as_tsv(self):
-        args = self.parser.parse_args(["connections", "list", "--output", "tsv"])
-
+    def test_cli_connections_list_as_json(self):
+        args = self.parser.parse_args(["connections", "list", "--output", "json"])
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_list(args)
+            print(stdout.getvalue())
             stdout = stdout.getvalue()
-            lines = stdout.split("\n")
 
         for conn_id, conn_type in self.EXPECTED_CONS:
-            self.assertTrue(any(conn_id in line and conn_type in line for line in lines))
+            assert conn_type in stdout
+            assert conn_id in stdout
 
     def test_cli_connections_filter_conn_id(self):
-        args = self.parser.parse_args(["connections", "list", "--output", "tsv", '--conn-id', 'http_default'])
+        args = self.parser.parse_args(
+            ["connections", "list", "--output", "json", '--conn-id', 'http_default']
+        )
 
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_list(args)
             stdout = stdout.getvalue()
-            lines = stdout.split("\n")
 
-        conn_ids = [line.split("\t", 2)[0].strip() for line in lines[1:] if line]
-        self.assertEqual(conn_ids, ['http_default'])
+        assert "http_default" in stdout
 
 
 class TestCliExportConnections(unittest.TestCase):
@@ -178,7 +170,7 @@ class TestCliExportConnections(unittest.TestCase):
         clear_db_connections()
 
     def test_cli_connections_export_should_return_error_for_invalid_command(self):
-        with self.assertRaises(SystemExit):
+        with pytest.raises(SystemExit):
             self.parser.parse_args(
                 [
                     "connections",
@@ -187,7 +179,7 @@ class TestCliExportConnections(unittest.TestCase):
             )
 
     def test_cli_connections_export_should_return_error_for_invalid_format(self):
-        with self.assertRaises(SystemExit):
+        with pytest.raises(SystemExit):
             self.parser.parse_args(["connections", "export", "--format", "invalid", "/path/to/file"])
 
     @mock.patch('os.path.splitext')
@@ -205,8 +197,8 @@ class TestCliExportConnections(unittest.TestCase):
                 output_filepath,
             ]
         )
-        with self.assertRaisesRegex(
-            SystemExit, r"Unsupported file format. The file must have the extension .yaml, .json, .env"
+        with pytest.raises(
+            SystemExit, match=r"Unsupported file format. The file must have the extension .yaml, .json, .env"
         ):
             connection_command.connections_export(args)
 
@@ -235,7 +227,7 @@ class TestCliExportConnections(unittest.TestCase):
                 output_filepath,
             ]
         )
-        with self.assertRaisesRegex(Exception, r"dummy exception"):
+        with pytest.raises(Exception, match=r"dummy exception"):
             connection_command.connections_export(args)
 
         mock_splittext.assert_not_called()
@@ -265,7 +257,7 @@ class TestCliExportConnections(unittest.TestCase):
                 output_filepath,
             ]
         )
-        with self.assertRaisesRegex(Exception, r"dummy exception"):
+        with pytest.raises(Exception, match=r"dummy exception"):
             connection_command.connections_export(args)
 
         mock_splittext.assert_called_once()
@@ -405,7 +397,7 @@ class TestCliExportConnections(unittest.TestCase):
         mock_splittext.assert_called_once()
         mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
         mock_file_open.return_value.write.assert_called_once_with(mock.ANY)
-        self.assertIn(mock_file_open.return_value.write.call_args_list[0][0][0], expected_connections)
+        assert mock_file_open.return_value.write.call_args_list[0][0][0] in expected_connections
 
     @mock.patch('os.path.splitext')
     @mock.patch('builtins.open', new_callable=mock.mock_open())
@@ -434,7 +426,7 @@ class TestCliExportConnections(unittest.TestCase):
         mock_splittext.assert_called_once()
         mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
         mock_file_open.return_value.write.assert_called_once_with(mock.ANY)
-        self.assertIn(mock_file_open.return_value.write.call_args_list[0][0][0], expected_connections)
+        assert mock_file_open.return_value.write.call_args_list[0][0][0] in expected_connections
 
     @mock.patch('os.path.splitext')
     @mock.patch('builtins.open', new_callable=mock.mock_open())
@@ -504,10 +496,10 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new0",
-                    "--conn-uri=%s" % TEST_URL,
+                    f"--conn-uri={TEST_URL}",
                     "--conn-description=new0 description",
                 ],
-                "\tSuccessfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new0 description",
@@ -524,10 +516,10 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new1",
-                    "--conn-uri=%s" % TEST_URL,
+                    f"--conn-uri={TEST_URL}",
                     "--conn-description=new1 description",
                 ],
-                "\tSuccessfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new1 description",
@@ -544,11 +536,11 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new2",
-                    "--conn-uri=%s" % TEST_URL,
+                    f"--conn-uri={TEST_URL}",
                     "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
-                "\tSuccessfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": None,
@@ -565,13 +557,13 @@ class TestCliAddConnections(unittest.TestCase):
                     "connections",
                     "add",
                     "new3",
-                    "--conn-uri=%s" % TEST_URL,
+                    f"--conn-uri={TEST_URL}",
                     "--conn-extra",
                     "{'extra': 'yes'}",
                     "--conn-description",
                     "new3 description",
                 ],
-                "\tSuccessfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new3 description",
@@ -596,7 +588,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-schema=airflow",
                     "--conn-description=  new4 description  ",
                 ],
-                "\tSuccessfully added `conn_id`=new4 : hive_metastore://airflow:******@host:9083/airflow",
+                "Successfully added `conn_id`=new4 : hive_metastore://airflow:******@host:9083/airflow",
                 {
                     "conn_type": "hive_metastore",
                     "description": "  new4 description  ",
@@ -620,7 +612,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "{'extra': 'yes'}",
                     "--conn-description=new5 description",
                 ],
-                "\tSuccessfully added `conn_id`=new5 : google_cloud_platform://:@:",
+                "Successfully added `conn_id`=new5 : google_cloud_platform://:@:",
                 {
                     "conn_type": "google_cloud_platform",
                     "description": "new5 description",
@@ -640,7 +632,7 @@ class TestCliAddConnections(unittest.TestCase):
 
         stdout = stdout.getvalue()
 
-        self.assertIn(expected_output, stdout)
+        assert expected_output in stdout
         conn_id = cmd[2]
         with create_session() as session:
             comparable_attrs = [
@@ -654,31 +646,32 @@ class TestCliAddConnections(unittest.TestCase):
                 "schema",
             ]
             current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
-            self.assertEqual(expected_conn, {attr: getattr(current_conn, attr) for attr in comparable_attrs})
+            assert expected_conn == {attr: getattr(current_conn, attr) for attr in comparable_attrs}
 
     def test_cli_connections_add_duplicate(self):
         conn_id = "to_be_duplicated"
         connection_command.connections_add(
-            self.parser.parse_args(["connections", "add", conn_id, "--conn-uri=%s" % TEST_URL])
+            self.parser.parse_args(["connections", "add", conn_id, f"--conn-uri={TEST_URL}"])
         )
         # Check for addition attempt
-        with self.assertRaisesRegex(SystemExit, rf"A connection with `conn_id`={conn_id} already exists"):
+        with pytest.raises(SystemExit, match=rf"A connection with `conn_id`={conn_id} already exists"):
             connection_command.connections_add(
-                self.parser.parse_args(["connections", "add", conn_id, "--conn-uri=%s" % TEST_URL])
+                self.parser.parse_args(["connections", "add", conn_id, f"--conn-uri={TEST_URL}"])
             )
 
     def test_cli_connections_add_delete_with_missing_parameters(self):
         # Attempt to add without providing conn_uri
-        with self.assertRaisesRegex(
-            SystemExit, r"The following args are required to add a connection: \['conn-uri or conn-type'\]"
+        with pytest.raises(
+            SystemExit,
+            match=r"The following args are required to add a connection: \['conn-uri or conn-type'\]",
         ):
             connection_command.connections_add(self.parser.parse_args(["connections", "add", "new1"]))
 
     def test_cli_connections_add_invalid_uri(self):
         # Attempt to add with invalid uri
-        with self.assertRaisesRegex(SystemExit, r"The URI provided to --conn-uri is invalid: nonsense_uri"):
+        with pytest.raises(SystemExit, match=r"The URI provided to --conn-uri is invalid: nonsense_uri"):
             connection_command.connections_add(
-                self.parser.parse_args(["connections", "add", "new1", "--conn-uri=%s" % "nonsense_uri"])
+                self.parser.parse_args(["connections", "add", "new1", f"--conn-uri={'nonsense_uri'}"])
             )
 
 
@@ -712,14 +705,14 @@ class TestCliDeleteConnections(unittest.TestCase):
             stdout = stdout.getvalue()
 
         # Check deletion stdout
-        self.assertIn("\tSuccessfully deleted `conn_id`=new1", stdout)
+        assert "Successfully deleted connection with `conn_id`=new1" in stdout
 
         # Check deletions
         result = session.query(Connection).filter(Connection.conn_id == "new1").first()
 
-        self.assertTrue(result is None)
+        assert result is None
 
     def test_cli_delete_invalid_connection(self):
         # Attempt to delete a non-existing connection
-        with self.assertRaisesRegex(SystemExit, r"Did not find a connection with `conn_id`=fake"):
+        with pytest.raises(SystemExit, match=r"Did not find a connection with `conn_id`=fake"):
             connection_command.connections_delete(self.parser.parse_args(["connections", "delete", "fake"]))

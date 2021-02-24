@@ -63,7 +63,7 @@ def display_errors_summary(build_errors: Dict[str, List[DocBuildError]]) -> None
             print("-" * 20, f"Error {warning_no:3}", "-" * 20)
             print(error.message)
             print()
-            if error.file_path and error.line_no:
+            if error.file_path and error.file_path != "<unknown>" and error.line_no:
                 print(f"File path: {os.path.relpath(error.file_path, start=DOCS_DIR)} ({error.line_no})")
                 print()
                 print(prepare_code_snippet(error.file_path, error.line_no))

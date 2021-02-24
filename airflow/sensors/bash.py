@@ -20,7 +20,7 @@ import os
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

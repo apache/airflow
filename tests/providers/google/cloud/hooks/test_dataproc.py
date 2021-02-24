@@ -19,7 +19,8 @@
 import unittest
 from unittest import mock
 
-from google.cloud.dataproc_v1beta2.types import JobStatus  # pylint: disable=no-name-in-module
+import pytest
+from google.cloud.dataproc_v1beta2 import JobStatus  # pylint: disable=no-name-in-module
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
@@ -42,8 +43,6 @@ CLUSTER = {
     "project_id": GCP_PROJECT,
 }
 
-PARENT = "parent"
-NAME = "name"
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAPROC_STRING = "airflow.providers.google.cloud.hooks.dataproc.{}"
 
@@ -65,16 +64,40 @@ class TestDataprocHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=mock_client_info.return_value,
-            client_options={"api_endpoint": f"{GCP_LOCATION}-dataproc.googleapis.com:443"},
+            client_options=None,
+        )
+
+    @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock)
+    @mock.patch(DATAPROC_STRING.format("ClusterControllerClient"))
+    def test_get_cluster_client_region(self, mock_client, mock_client_info, mock_get_credentials):
+        self.hook.get_cluster_client(location='region1')
+        mock_client.assert_called_once_with(
+            credentials=mock_get_credentials.return_value,
+            client_info=mock_client_info.return_value,
+            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
     @mock.patch(DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock)
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceClient"))
-    def test_get_template_client(self, mock_client, mock_client_info, mock_get_credentials):
-        _ = self.hook.get_template_client
+    def test_get_template_client_global(self, mock_client, mock_client_info, mock_get_credentials):
+        _ = self.hook.get_template_client()
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=mock_client_info.return_value
+            credentials=mock_get_credentials.return_value,
+            client_info=mock_client_info.return_value,
+            client_options=None,
+        )
+
+    @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock)
+    @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceClient"))
+    def test_get_template_client_region(self, mock_client, mock_client_info, mock_get_credentials):
+        _ = self.hook.get_template_client(location='region1')
+        mock_client.assert_called_once_with(
+            credentials=mock_get_credentials.return_value,
+            client_info=mock_client_info.return_value,
+            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
@@ -85,7 +108,18 @@ class TestDataprocHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=mock_client_info.return_value,
-            client_options={"api_endpoint": f"{GCP_LOCATION}-dataproc.googleapis.com:443"},
+            client_options=None,
+        )
+
+    @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.client_info"), new_callable=mock.PropertyMock)
+    @mock.patch(DATAPROC_STRING.format("JobControllerClient"))
+    def test_get_job_client_region(self, mock_client, mock_client_info, mock_get_credentials):
+        self.hook.get_job_client(location='region1')
+        mock_client.assert_called_once_with(
+            credentials=mock_get_credentials.return_value,
+            client_info=mock_client_info.return_value,
+            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
@@ -99,11 +133,13 @@ class TestDataprocHook(unittest.TestCase):
         )
         mock_client.assert_called_once_with(location=GCP_LOCATION)
         mock_client.return_value.create_cluster.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            region=GCP_LOCATION,
-            cluster=CLUSTER,
+            request=dict(
+                project_id=GCP_PROJECT,
+                region=GCP_LOCATION,
+                cluster=CLUSTER,
+                request_id=None,
+            ),
             metadata=None,
-            request_id=None,
             retry=None,
             timeout=None,
         )
@@ -113,12 +149,14 @@ class TestDataprocHook(unittest.TestCase):
         self.hook.delete_cluster(project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME)
         mock_client.assert_called_once_with(location=GCP_LOCATION)
         mock_client.return_value.delete_cluster.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            region=GCP_LOCATION,
-            cluster_name=CLUSTER_NAME,
-            cluster_uuid=None,
+            request=dict(
+                project_id=GCP_PROJECT,
+                region=GCP_LOCATION,
+                cluster_name=CLUSTER_NAME,
+                cluster_uuid=None,
+                request_id=None,
+            ),
             metadata=None,
-            request_id=None,
             retry=None,
             timeout=None,
         )
@@ -128,9 +166,11 @@ class TestDataprocHook(unittest.TestCase):
         self.hook.diagnose_cluster(project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME)
         mock_client.assert_called_once_with(location=GCP_LOCATION)
         mock_client.return_value.diagnose_cluster.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            region=GCP_LOCATION,
-            cluster_name=CLUSTER_NAME,
+            request=dict(
+                project_id=GCP_PROJECT,
+                region=GCP_LOCATION,
+                cluster_name=CLUSTER_NAME,
+            ),
             metadata=None,
             retry=None,
             timeout=None,
@@ -142,9 +182,11 @@ class TestDataprocHook(unittest.TestCase):
         self.hook.get_cluster(project_id=GCP_PROJECT, region=GCP_LOCATION, cluster_name=CLUSTER_NAME)
         mock_client.assert_called_once_with(location=GCP_LOCATION)
         mock_client.return_value.get_cluster.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            region=GCP_LOCATION,
-            cluster_name=CLUSTER_NAME,
+            request=dict(
+                project_id=GCP_PROJECT,
+                region=GCP_LOCATION,
+                cluster_name=CLUSTER_NAME,
+            ),
             metadata=None,
             retry=None,
             timeout=None,
@@ -157,10 +199,12 @@ class TestDataprocHook(unittest.TestCase):
         self.hook.list_clusters(project_id=GCP_PROJECT, region=GCP_LOCATION, filter_=filter_)
         mock_client.assert_called_once_with(location=GCP_LOCATION)
         mock_client.return_value.list_clusters.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            region=GCP_LOCATION,
-            filter_=filter_,
-            page_size=None,
+            request=dict(
+                project_id=GCP_PROJECT,
+                region=GCP_LOCATION,
+                filter=filter_,
+                page_size=None,
+            ),
             metadata=None,
             retry=None,
             timeout=None,
@@ -178,14 +222,16 @@ class TestDataprocHook(unittest.TestCase):
         )
         mock_client.assert_called_once_with(location=GCP_LOCATION)
         mock_client.return_value.update_cluster.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            region=GCP_LOCATION,
-            cluster=CLUSTER,
-            cluster_name=CLUSTER_NAME,
-            update_mask=update_mask,
-            graceful_decommission_timeout=None,
+            request=dict(
+                project_id=GCP_PROJECT,
+                region=GCP_LOCATION,
+                cluster=CLUSTER,
+                cluster_name=CLUSTER_NAME,
+                update_mask=update_mask,
+                graceful_decommission_timeout=None,
+                request_id=None,
+            ),
             metadata=None,
-            request_id=None,
             retry=None,
             timeout=None,
         )
@@ -193,44 +239,47 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_create_workflow_template(self, mock_client):
         template = {"test": "test"}
-        mock_client.region_path.return_value = PARENT
+        parent = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}'
         self.hook.create_workflow_template(location=GCP_LOCATION, template=template, project_id=GCP_PROJECT)
-        mock_client.region_path.assert_called_once_with(GCP_PROJECT, GCP_LOCATION)
-        mock_client.create_workflow_template.assert_called_once_with(
-            parent=PARENT, template=template, retry=None, timeout=None, metadata=None
+        mock_client.return_value.create_workflow_template.assert_called_once_with(
+            request=dict(parent=parent, template=template), retry=None, timeout=None, metadata=()
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_instantiate_workflow_template(self, mock_client):
         template_name = "template_name"
-        mock_client.workflow_template_path.return_value = NAME
+        name = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}/workflowTemplates/{template_name}'
         self.hook.instantiate_workflow_template(
             location=GCP_LOCATION, template_name=template_name, project_id=GCP_PROJECT
         )
-        mock_client.workflow_template_path.assert_called_once_with(GCP_PROJECT, GCP_LOCATION, template_name)
-        mock_client.instantiate_workflow_template.assert_called_once_with(
-            name=NAME, version=None, parameters=None, request_id=None, retry=None, timeout=None, metadata=None
+        mock_client.return_value.instantiate_workflow_template.assert_called_once_with(
+            request=dict(name=name, version=None, parameters=None, request_id=None),
+            retry=None,
+            timeout=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_instantiate_inline_workflow_template(self, mock_client):
         template = {"test": "test"}
-        mock_client.region_path.return_value = PARENT
+        parent = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}'
         self.hook.instantiate_inline_workflow_template(
             location=GCP_LOCATION, template=template, project_id=GCP_PROJECT
         )
-        mock_client.region_path.assert_called_once_with(GCP_PROJECT, GCP_LOCATION)
-        mock_client.instantiate_inline_workflow_template.assert_called_once_with(
-            parent=PARENT, template=template, request_id=None, retry=None, timeout=None, metadata=None
+        mock_client.return_value.instantiate_inline_workflow_template.assert_called_once_with(
+            request=dict(parent=parent, template=template, request_id=None),
+            retry=None,
+            timeout=None,
+            metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job"))
     def test_wait_for_job(self, mock_get_job):
         mock_get_job.side_effect = [
-            mock.MagicMock(status=mock.MagicMock(state=JobStatus.RUNNING)),
-            mock.MagicMock(status=mock.MagicMock(state=JobStatus.ERROR)),
+            mock.MagicMock(status=mock.MagicMock(state=JobStatus.State.RUNNING)),
+            mock.MagicMock(status=mock.MagicMock(state=JobStatus.State.ERROR)),
         ]
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.hook.wait_for_job(job_id=JOB_ID, location=GCP_LOCATION, project_id=GCP_PROJECT, wait_time=0)
         calls = [
             mock.call(location=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),
@@ -243,9 +292,11 @@ class TestDataprocHook(unittest.TestCase):
         self.hook.get_job(location=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT)
         mock_client.assert_called_once_with(location=GCP_LOCATION)
         mock_client.return_value.get_job.assert_called_once_with(
-            region=GCP_LOCATION,
-            job_id=JOB_ID,
-            project_id=GCP_PROJECT,
+            request=dict(
+                region=GCP_LOCATION,
+                job_id=JOB_ID,
+                project_id=GCP_PROJECT,
+            ),
             retry=None,
             timeout=None,
             metadata=None,
@@ -256,10 +307,12 @@ class TestDataprocHook(unittest.TestCase):
         self.hook.submit_job(location=GCP_LOCATION, job=JOB, project_id=GCP_PROJECT)
         mock_client.assert_called_once_with(location=GCP_LOCATION)
         mock_client.return_value.submit_job.assert_called_once_with(
-            region=GCP_LOCATION,
-            job=JOB,
-            project_id=GCP_PROJECT,
-            request_id=None,
+            request=dict(
+                region=GCP_LOCATION,
+                job=JOB,
+                project_id=GCP_PROJECT,
+                request_id=None,
+            ),
             retry=None,
             timeout=None,
             metadata=None,
@@ -269,7 +322,7 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.submit_job"))
     def test_submit(self, mock_submit_job, mock_wait_for_job):
         mock_submit_job.return_value.reference.job_id = JOB_ID
-        with self.assertWarns(DeprecationWarning):
+        with pytest.warns(DeprecationWarning):
             self.hook.submit(project_id=GCP_PROJECT, job=JOB, region=GCP_LOCATION)
         mock_submit_job.assert_called_once_with(location=GCP_LOCATION, project_id=GCP_PROJECT, job=JOB)
         mock_wait_for_job.assert_called_once_with(
@@ -281,9 +334,11 @@ class TestDataprocHook(unittest.TestCase):
         self.hook.cancel_job(location=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT)
         mock_client.assert_called_once_with(location=GCP_LOCATION)
         mock_client.return_value.cancel_job.assert_called_once_with(
-            region=GCP_LOCATION,
-            job_id=JOB_ID,
-            project_id=GCP_PROJECT,
+            request=dict(
+                region=GCP_LOCATION,
+                job_id=JOB_ID,
+                project_id=GCP_PROJECT,
+            ),
             retry=None,
             timeout=None,
             metadata=None,
@@ -291,13 +346,15 @@ class TestDataprocHook(unittest.TestCase):
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
     def test_cancel_job_deprecation_warning(self, mock_client):
-        with self.assertWarns(DeprecationWarning):
+        with pytest.warns(DeprecationWarning):
             self.hook.cancel_job(job_id=JOB_ID, project_id=GCP_PROJECT)
         mock_client.assert_called_once_with(location='global')
         mock_client.return_value.cancel_job.assert_called_once_with(
-            region='global',
-            job_id=JOB_ID,
-            project_id=GCP_PROJECT,
+            request=dict(
+                region='global',
+                job_id=JOB_ID,
+                project_id=GCP_PROJECT,
+            ),
             retry=None,
             timeout=None,
             metadata=None,
@@ -335,72 +392,72 @@ class TestDataProcJobBuilder(unittest.TestCase):
             properties=properties,
         )
 
-        self.assertDictEqual(job, builder.job)
+        assert job == builder.job
 
     def test_add_labels(self):
         labels = {"key": "value"}
         self.builder.add_labels(labels)
-        self.assertIn("key", self.builder.job["job"]["labels"])
-        self.assertEqual("value", self.builder.job["job"]["labels"]["key"])
+        assert "key" in self.builder.job["job"]["labels"]
+        assert "value" == self.builder.job["job"]["labels"]["key"]
 
     def test_add_variables(self):
         variables = ["variable"]
         self.builder.add_variables(variables)
-        self.assertEqual(variables, self.builder.job["job"][self.job_type]["script_variables"])
+        assert variables == self.builder.job["job"][self.job_type]["script_variables"]
 
     def test_add_args(self):
         args = ["args"]
         self.builder.add_args(args)
-        self.assertEqual(args, self.builder.job["job"][self.job_type]["args"])
+        assert args == self.builder.job["job"][self.job_type]["args"]
 
     def test_add_query(self):
         query = ["query"]
         self.builder.add_query(query)
-        self.assertEqual({"queries": [query]}, self.builder.job["job"][self.job_type]["query_list"])
+        assert {"queries": [query]} == self.builder.job["job"][self.job_type]["query_list"]
 
     def test_add_query_uri(self):
         query_uri = "query_uri"
         self.builder.add_query_uri(query_uri)
-        self.assertEqual(query_uri, self.builder.job["job"][self.job_type]["query_file_uri"])
+        assert query_uri == self.builder.job["job"][self.job_type]["query_file_uri"]
 
     def test_add_jar_file_uris(self):
         jar_file_uris = ["jar_file_uris"]
         self.builder.add_jar_file_uris(jar_file_uris)
-        self.assertEqual(jar_file_uris, self.builder.job["job"][self.job_type]["jar_file_uris"])
+        assert jar_file_uris == self.builder.job["job"][self.job_type]["jar_file_uris"]
 
     def test_add_archive_uris(self):
         archive_uris = ["archive_uris"]
         self.builder.add_archive_uris(archive_uris)
-        self.assertEqual(archive_uris, self.builder.job["job"][self.job_type]["archive_uris"])
+        assert archive_uris == self.builder.job["job"][self.job_type]["archive_uris"]
 
     def test_add_file_uris(self):
         file_uris = ["file_uris"]
         self.builder.add_file_uris(file_uris)
-        self.assertEqual(file_uris, self.builder.job["job"][self.job_type]["file_uris"])
+        assert file_uris == self.builder.job["job"][self.job_type]["file_uris"]
 
     def test_add_python_file_uris(self):
         python_file_uris = ["python_file_uris"]
         self.builder.add_python_file_uris(python_file_uris)
-        self.assertEqual(python_file_uris, self.builder.job["job"][self.job_type]["python_file_uris"])
+        assert python_file_uris == self.builder.job["job"][self.job_type]["python_file_uris"]
 
     def test_set_main_error(self):
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             self.builder.set_main("test", "test")
 
     def test_set_main_class(self):
         main = "main"
         self.builder.set_main(main_class=main, main_jar=None)
-        self.assertEqual(main, self.builder.job["job"][self.job_type]["main_class"])
+        assert main == self.builder.job["job"][self.job_type]["main_class"]
 
     def test_set_main_jar(self):
         main = "main"
         self.builder.set_main(main_class=None, main_jar=main)
-        self.assertEqual(main, self.builder.job["job"][self.job_type]["main_jar_file_uri"])
+        assert main == self.builder.job["job"][self.job_type]["main_jar_file_uri"]
 
     def test_set_python_main(self):
         main = "main"
         self.builder.set_python_main(main)
-        self.assertEqual(main, self.builder.job["job"][self.job_type]["main_python_file_uri"])
+        assert main == self.builder.job["job"][self.job_type]["main_python_file_uri"]
 
     @mock.patch(DATAPROC_STRING.format("uuid.uuid4"))
     def test_set_job_name(self, mock_uuid):
@@ -409,7 +466,7 @@ class TestDataProcJobBuilder(unittest.TestCase):
         name = "name"
         self.builder.set_job_name(name)
         name += "_" + uuid[:8]
-        self.assertEqual(name, self.builder.job["job"]["reference"]["job_id"])
+        assert name == self.builder.job["job"]["reference"]["job_id"]
 
     def test_build(self):
-        self.assertEqual(self.builder.job, self.builder.build())
+        assert self.builder.job == self.builder.build()

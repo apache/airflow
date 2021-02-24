@@ -21,9 +21,12 @@ from urllib.parse import urlencode
 
 from cached_property import cached_property
 from google.api_core.gapic_v1.client_info import ClientInfo
+from google.auth.credentials import Credentials
 from google.cloud import logging as gcp_logging
+from google.cloud.logging import Resource
 from google.cloud.logging.handlers.transports import BackgroundThreadTransport, Transport
-from google.cloud.logging.resource import Resource
+from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
+from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
 
 from airflow import version
 from airflow.models import TaskInstance
@@ -99,16 +102,32 @@ class StackdriverTaskHandler(logging.Handler):
         self.resource: Resource = resource
         self.labels: Optional[Dict[str, str]] = labels
         self.task_instance_labels: Optional[Dict[str, str]] = {}
+        self.task_instance_hostname = 'default-hostname'
 
     @cached_property
-    def _client(self) -> gcp_logging.Client:
-        """Google Cloud Library API client"""
+    def _credentials_and_project(self) -> Tuple[Credentials, str]:
         credentials, project = get_credentials_and_project_id(
             key_path=self.gcp_key_path, scopes=self.scopes, disable_logging=True
         )
+        return credentials, project
+
+    @property
+    def _client(self) -> gcp_logging.Client:
+        """The Cloud Library API client"""
+        credentials, project = self._credentials_and_project
         client = gcp_logging.Client(
             credentials=credentials,
             project=project,
+            client_info=ClientInfo(client_library_version='airflow_v' + version.version),
+        )
+        return client
+
+    @property
+    def _logging_service_client(self) -> LoggingServiceV2Client:
+        """The Cloud logging service v2 client."""
+        credentials, _ = self._credentials_and_project
+        client = LoggingServiceV2Client(
+            credentials=credentials,
             client_info=ClientInfo(client_library_version='airflow_v' + version.version),
         )
         return client
@@ -146,10 +165,11 @@ class StackdriverTaskHandler(logging.Handler):
         :type task_instance:  :class:`airflow.models.TaskInstance`
         """
         self.task_instance_labels = self._task_instance_to_labels(task_instance)
+        self.task_instance_hostname = task_instance.hostname
 
     def read(
         self, task_instance: TaskInstance, try_number: Optional[int] = None, metadata: Optional[Dict] = None
-    ) -> Tuple[List[str], List[Dict]]:
+    ) -> Tuple[List[Tuple[Tuple[str, str]]], List[Dict[str, str]]]:
         """
         Read logs of given task instance from Stackdriver logging.
 
@@ -160,12 +180,14 @@ class StackdriverTaskHandler(logging.Handler):
         :type try_number: Optional[int]
         :param metadata: log metadata. It is used for steaming log reading and auto-tailing.
         :type metadata: Dict
-        :return: a tuple of list of logs and list of metadata
-        :rtype: Tuple[List[str], List[Dict]]
+        :return: a tuple of (
+            list of (one element tuple with two element tuple - hostname and logs)
+            and list of metadata)
+        :rtype: Tuple[List[Tuple[Tuple[str, str]]], List[Dict[str, str]]]
         """
         if try_number is not None and try_number < 1:
-            logs = [f"Error fetching the logs. Try number {try_number} is invalid."]
-            return logs, [{"end_of_log": "true"}]
+            logs = f"Error fetching the logs. Try number {try_number} is invalid."
+            return [((self.task_instance_hostname, logs),)], [{"end_of_log": "true"}]
 
         if not metadata:
             metadata = {}
@@ -188,7 +210,7 @@ class StackdriverTaskHandler(logging.Handler):
         if next_page_token:
             new_metadata['next_page_token'] = next_page_token
 
-        return [messages], [new_metadata]
+        return [((self.task_instance_hostname, messages),)], [new_metadata]
 
     def _prepare_log_filter(self, ti_labels: Dict[str, str]) -> str:
         """
@@ -210,9 +232,10 @@ class StackdriverTaskHandler(logging.Handler):
             escaped_value = value.replace("\\", "\\\\").replace('"', '\\"')
             return f'"{escaped_value}"'
 
+        _, project = self._credentials_and_project
         log_filters = [
             f'resource.type={escale_label_value(self.resource.type)}',
-            f'logName="projects/{self._client.project}/logs/{self.name}"',
+            f'logName="projects/{project}/logs/{self.name}"',
         ]
 
         for key, value in self.resource.labels.items():
@@ -252,6 +275,8 @@ class StackdriverTaskHandler(logging.Handler):
                     log_filter=log_filter, page_token=next_page_token
                 )
                 messages.append(new_messages)
+                if not messages:
+                    break
 
             end_of_log = True
             next_page_token = None
@@ -271,15 +296,21 @@ class StackdriverTaskHandler(logging.Handler):
         :return: Downloaded logs and next page token
         :rtype: Tuple[str, str]
         """
-        entries = self._client.list_entries(filter_=log_filter, page_token=page_token)
-        page = next(entries.pages)
-        next_page_token = entries.next_page_token
+        _, project = self._credentials_and_project
+        request = ListLogEntriesRequest(
+            resource_names=[f'projects/{project}'],
+            filter=log_filter,
+            page_token=page_token,
+            order_by='timestamp asc',
+            page_size=1000,
+        )
+        response = self._logging_service_client.list_log_entries(request=request)
+        page: ListLogEntriesResponse = next(response.pages)
         messages = []
-        for entry in page:
-            if "message" in entry.payload:
-                messages.append(entry.payload["message"])
-
-        return "\n".join(messages), next_page_token
+        for entry in page.entries:
+            if "message" in entry.json_payload:
+                messages.append(entry.json_payload["message"])
+        return "\n".join(messages), page.next_page_token
 
     @classmethod
     def _task_instance_to_labels(cls, ti: TaskInstance) -> Dict[str, str]:
@@ -315,7 +346,7 @@ class StackdriverTaskHandler(logging.Handler):
         :return: URL to the external log collection service
         :rtype: str
         """
-        project_id = self._client.project
+        _, project_id = self._credentials_and_project
 
         ti_labels = self._task_instance_to_labels(task_instance)
         ti_labels[self.LABEL_TRY_NUMBER] = str(try_number)
@@ -331,3 +362,6 @@ class StackdriverTaskHandler(logging.Handler):
 
         url = f"{self.LOG_VIEWER_BASE_URL}?{urlencode(url_query_string)}"
         return url
+
+    def close(self) -> None:
+        self._transport.flush()

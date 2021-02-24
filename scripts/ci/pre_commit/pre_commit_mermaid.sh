@@ -62,7 +62,7 @@ do
         if [[ ${mermaid_installed} != "true" ]]; then
             echo "Installing mermaid"
             mkdir -p "${MERMAID_INSTALLATION_DIR}/node_modules"
-            pushd "${MERMAID_INSTALLATION_DIR}"
+            pushd "${MERMAID_INSTALLATION_DIR}" >/dev/null 2>&1 || exit 1
             npm install mermaid.cli
             cat >"${MERMAID_CONFIG_FILE}" <<EOF
 {
@@ -96,9 +96,9 @@ EOF
             echo "Please add both files and commit them to repository"
             echo
         else
-            1>&2 echo
-            1>&2 echo "ERROR: Could not generate ${basename_file}.png"
-            1>&2 echo
+            echo
+            echo "\e[31mERROR: Could not generate ${basename_file}.png  ${COLOR_RESET}"
+            echo
             exit 1
         fi
     else

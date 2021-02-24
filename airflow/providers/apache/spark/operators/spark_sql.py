@@ -29,7 +29,7 @@ class SparkSqlOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:SparkSqlOperator`
+        :ref:`howto/operator:SparkSqlOperator`
 
     :param sql: The SQL query to execute. (templated)
     :type sql: str

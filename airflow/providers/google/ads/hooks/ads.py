@@ -28,7 +28,7 @@ from google.auth.exceptions import GoogleAuthError
 from googleapiclient.discovery import Resource
 
 from airflow import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class GoogleAdsHook(BaseHook):

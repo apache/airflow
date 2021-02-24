@@ -389,6 +389,7 @@ def delete_pool(name):
 
 
 @api_experimental.route('/lineage/<string:dag_id>/<string:execution_date>', methods=['GET'])
+@requires_authentication
 def get_lineage(dag_id: str, execution_date: str):
     """Get Lineage details for a DagRun"""
     # Convert string datetime into actual datetime

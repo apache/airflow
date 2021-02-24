@@ -22,6 +22,7 @@ LocalExecutor
     For more information on how the LocalExecutor works, take a look at the guide:
     :ref:`executor:LocalExecutor`
 """
+import logging
 import os
 import subprocess
 from abc import abstractmethod
@@ -115,6 +116,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             parser = get_parser()
             # [1:] - remove "airflow" from the start of the command
             args = parser.parse_args(command[1:])
+            args.shut_down_logging = False
 
             setproctitle(f"airflow task supervisor: {command}")
 
@@ -125,6 +127,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             self.log.error("Failed to execute task %s.", str(e))
         finally:
             Sentry.flush()
+            logging.shutdown()
             os._exit(ret)  # pylint: disable=protected-access
             raise RuntimeError('unreachable -- keep mypy happy')
 
@@ -170,7 +173,15 @@ class QueuedLocalWorker(LocalWorkerBase):
 
     def do_work(self) -> None:
         while True:
-            key, command = self.task_queue.get()
+            try:
+                key, command = self.task_queue.get()
+            except EOFError:
+                self.log.info(
+                    "Failed to read tasks from the task queue because the other "
+                    "end has closed the connection. Terminating worker %s.",
+                    self.name,
+                )
+                break
             try:
                 if key is None or command is None:
                     # Received poison pill, no more tasks to run

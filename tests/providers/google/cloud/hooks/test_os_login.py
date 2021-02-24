@@ -18,6 +18,7 @@ import re
 from typing import Dict, Sequence, Tuple
 from unittest import TestCase, mock
 
+import pytest
 from google.api_core.retry import Retry
 
 from airflow import AirflowException
@@ -37,7 +38,7 @@ TEST_CREDENTIALS = mock.MagicMock()
 TEST_BODY: Dict = mock.MagicMock()
 TEST_RETRY: Retry = mock.MagicMock()
 TEST_TIMEOUT: float = 4
-TEST_METADATA: Sequence[Tuple[str, str]] = []
+TEST_METADATA: Sequence[Tuple[str, str]] = ()
 TEST_PARENT: str = "users/test-user"
 
 
@@ -66,9 +67,11 @@ class TestOSLoginHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.import_ssh_public_key.assert_called_once_with(
-            parent=TEST_PARENT,
-            ssh_public_key=TEST_BODY,
-            project_id=TEST_PROJECT_ID,
+            request=dict(
+                parent=TEST_PARENT,
+                ssh_public_key=TEST_BODY,
+                project_id=TEST_PROJECT_ID,
+            ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -100,9 +103,11 @@ class TestOSLoginHookWithDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.import_ssh_public_key.assert_called_once_with(
-            parent=TEST_PARENT,
-            ssh_public_key=TEST_BODY,
-            project_id=TEST_PROJECT_ID_2,
+            request=dict(
+                parent=TEST_PARENT,
+                ssh_public_key=TEST_BODY,
+                project_id=TEST_PROJECT_ID_2,
+            ),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -134,9 +139,7 @@ class TestOSLoginHookWithoutDefaultProjectIdHook(TestCase):
             metadata=TEST_METADATA,
         )
         mock_get_conn.return_value.import_ssh_public_key.assert_called_once_with(
-            parent=TEST_PARENT,
-            ssh_public_key=TEST_BODY,
-            project_id=TEST_PROJECT_ID,
+            request=dict(parent=TEST_PARENT, ssh_public_key=TEST_BODY, project_id=TEST_PROJECT_ID),
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
@@ -165,7 +168,7 @@ class TestOSLoginHookMissingProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.os_login.OSLoginHook.get_conn")
     def test_import_ssh_public_key(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
-        with self.assertRaisesRegex(AirflowException, TEST_MESSAGE):
+        with pytest.raises(AirflowException, match=TEST_MESSAGE):
             self.hook.import_ssh_public_key(
                 user=TEST_USER,
                 ssh_public_key=TEST_BODY,

@@ -57,7 +57,7 @@ class LoggingCommandExecutor(LoggingMixin):
             self.log.info("Stdout: %s", output)
             self.log.info("Stderr: %s", err)
             raise AirflowException(
-                "Retcode {} on {} with stdout: {}, stderr: {}".format(retcode, " ".join(cmd), output, err)
+                f"Retcode {retcode} on {' '.join(cmd)} with stdout: {output}, stderr: {err}"
             )
         return output
 

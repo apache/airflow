@@ -23,7 +23,7 @@ of a record in a Cassandra cluster.
 from typing import Any, Dict
 
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -33,7 +33,7 @@ class CassandraRecordSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CassandraRecordSensor`
+        :ref:`howto/operator:CassandraRecordSensor`
 
     For example, if you want to wait for a record that has values 'v1' and 'v2' for each
     primary keys 'p1' and 'p2' to be populated in keyspace 'k' and table 't',

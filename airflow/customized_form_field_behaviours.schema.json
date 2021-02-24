@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "hidden_fields": {
+      "description": "List of hidden fields for the hook.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "relabeling": {
+      "type": "object",
+      "description": "Keeps information about re-labeling of field names.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "placeholders": {
+      "type": "object",
+      "description": "Placeholders that are used to fill the values",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "hidden_fields",
+    "relabeling"
+  ]
+}

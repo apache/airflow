@@ -21,7 +21,7 @@ from kubernetes import client
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -106,7 +106,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
         if self.attach_log and application_state in self.FAILURE_STATES + self.SUCCESS_STATES:
             self._log_driver(application_state, response)
         if application_state in self.FAILURE_STATES:
-            raise AirflowException("Spark application failed with state: %s" % application_state)
+            raise AirflowException(f"Spark application failed with state: {application_state}")
         elif application_state in self.SUCCESS_STATES:
             self.log.info("Spark application ended successfully")
             return True

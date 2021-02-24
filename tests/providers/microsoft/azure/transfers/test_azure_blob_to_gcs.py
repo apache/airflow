@@ -49,18 +49,18 @@ class TestAzureBlobStorageToGCSTransferOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
             task_id=TASK_ID,
         )
-        self.assertEqual(operator.wasb_conn_id, WASB_CONN_ID)
-        self.assertEqual(operator.blob_name, BLOB_NAME)
-        self.assertEqual(operator.file_path, FILE_PATH)
-        self.assertEqual(operator.container_name, CONTAINER_NAME)
-        self.assertEqual(operator.gcp_conn_id, GCP_CONN_ID)
-        self.assertEqual(operator.bucket_name, BUCKET_NAME)
-        self.assertEqual(operator.object_name, OBJECT_NAME)
-        self.assertEqual(operator.filename, FILENAME)
-        self.assertEqual(operator.gzip, GZIP)
-        self.assertEqual(operator.delegate_to, DELEGATE_TO)
-        self.assertEqual(operator.impersonation_chain, IMPERSONATION_CHAIN)
-        self.assertEqual(operator.task_id, TASK_ID)
+        assert operator.wasb_conn_id == WASB_CONN_ID
+        assert operator.blob_name == BLOB_NAME
+        assert operator.file_path == FILE_PATH
+        assert operator.container_name == CONTAINER_NAME
+        assert operator.gcp_conn_id == GCP_CONN_ID
+        assert operator.bucket_name == BUCKET_NAME
+        assert operator.object_name == OBJECT_NAME
+        assert operator.filename == FILENAME
+        assert operator.gzip == GZIP
+        assert operator.delegate_to == DELEGATE_TO
+        assert operator.impersonation_chain == IMPERSONATION_CHAIN
+        assert operator.task_id == TASK_ID
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.WasbHook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.GCSHook")

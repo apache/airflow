@@ -91,9 +91,9 @@ class TestGetSource(unittest.TestCase):
                 url, headers={"Accept": "text/plain"}, environ_overrides={'REMOTE_USER': "test"}
             )
 
-            self.assertEqual(200, response.status_code)
-            self.assertIn(dag_docstring, response.data.decode())
-            self.assertEqual('text/plain', response.headers['Content-Type'])
+            assert 200 == response.status_code
+            assert dag_docstring in response.data.decode()
+            assert 'text/plain' == response.headers['Content-Type']
 
     @parameterized.expand([(True,), (False,)])
     def test_should_respond_200_json(self, store_dag_code):
@@ -111,9 +111,9 @@ class TestGetSource(unittest.TestCase):
                 url, headers={"Accept": 'application/json'}, environ_overrides={'REMOTE_USER': "test"}
             )
 
-            self.assertEqual(200, response.status_code)
-            self.assertIn(dag_docstring, response.json['content'])
-            self.assertEqual('application/json', response.headers['Content-Type'])
+            assert 200 == response.status_code
+            assert dag_docstring in response.json['content']
+            assert 'application/json' == response.headers['Content-Type']
 
     @parameterized.expand([(True,), (False,)])
     def test_should_respond_406(self, store_dag_code):
@@ -130,7 +130,7 @@ class TestGetSource(unittest.TestCase):
                 url, headers={"Accept": 'image/webp'}, environ_overrides={'REMOTE_USER': "test"}
             )
 
-            self.assertEqual(406, response.status_code)
+            assert 406 == response.status_code
 
     @parameterized.expand([(True,), (False,)])
     def test_should_respond_404(self, store_dag_code):
@@ -143,7 +143,7 @@ class TestGetSource(unittest.TestCase):
                 url, headers={"Accept": 'application/json'}, environ_overrides={'REMOTE_USER': "test"}
             )
 
-            self.assertEqual(404, response.status_code)
+            assert 404 == response.status_code
 
     def test_should_raises_401_unauthenticated(self):
         serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))

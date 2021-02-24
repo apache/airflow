@@ -90,8 +90,7 @@ class FileProcessorHandler(logging.Handler):
             filename = os.path.join("native_dags", os.path.relpath(filename, airflow_directory))
         else:
             filename = os.path.relpath(filename, self.dag_dir)
-        ctx = {}
-        ctx['filename'] = filename
+        ctx = {'filename': filename}
 
         if self.filename_jinja_template:
             return self.filename_jinja_template.render(**ctx)

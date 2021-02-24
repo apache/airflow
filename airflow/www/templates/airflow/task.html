@@ -18,7 +18,7 @@
 #}
 
 {% extends "airflow/task_instance.html" %}
-{% block title %}Airflow - DAGs{% endblock %}
+{% block title %}DAGs - {{ appbuilder.app_name }}{% endblock %}
 
 {% block content %}
   {{ super() }}
@@ -29,7 +29,7 @@
       <th>Dependency</th>
       <th>Reason</th>
     </tr>
-    {% for dependency, reason in failed_dep_reasons %}
+    {% for dependency, reason in failed_dep_reasons|sort %}
       <tr>
         <td>{{ dependency }}</td>
         {% autoescape false %}
@@ -65,7 +65,7 @@
       {% for attr, value in task_attrs %}
         <tr>
           <td>{{ attr }}</td>
-          <td class="code">{{ value }}</td>
+          <td class="code wrap">{{ value }}</td>
         </tr>
       {% endfor %}
     </table>

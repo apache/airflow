@@ -18,6 +18,8 @@
 
 import unittest
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor
 
@@ -79,7 +81,7 @@ class TestEmrBaseSensor(unittest.TestCase):
             'ResponseMetadata': {'HTTPStatusCode': GOOD_HTTP_STATUS},
         }
 
-        self.assertEqual(operator.poke(None), False)
+        assert operator.poke(None) is False
 
     def test_poke_returns_false_when_http_response_is_bad(self):
         operator = EmrBaseSensorSubclass(
@@ -91,7 +93,7 @@ class TestEmrBaseSensor(unittest.TestCase):
             'ResponseMetadata': {'HTTPStatusCode': BAD_HTTP_STATUS},
         }
 
-        self.assertEqual(operator.poke(None), False)
+        assert operator.poke(None) is False
 
     def test_poke_raises_error_when_state_is_in_failed_states(self):
         operator = EmrBaseSensorSubclass(
@@ -103,9 +105,9 @@ class TestEmrBaseSensor(unittest.TestCase):
             'ResponseMetadata': {'HTTPStatusCode': GOOD_HTTP_STATUS},
         }
 
-        with self.assertRaises(AirflowException) as context:
+        with pytest.raises(AirflowException) as ctx:
             operator.poke(None)
 
-        self.assertIn('EMR job failed', str(context.exception))
-        self.assertIn(EXPECTED_CODE, str(context.exception))
-        self.assertNotIn(EMPTY_CODE, str(context.exception))
+        assert 'EMR job failed' in str(ctx.value)
+        assert EXPECTED_CODE in str(ctx.value)
+        assert EMPTY_CODE not in str(ctx.value)

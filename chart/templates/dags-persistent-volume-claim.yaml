@@ -19,7 +19,7 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: {{ .Release.Name }}-dags
+  name: {{ template "airflow_dags_volume_claim" . }}
   labels:
     tier: airflow
     component: dags-pvc

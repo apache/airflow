@@ -23,7 +23,7 @@ import warnings
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 
@@ -38,6 +38,9 @@ from airflow.utils.file import COMMENT_PATTERN
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 def get_connection_parameter_names() -> Set[str]:
@@ -258,7 +261,7 @@ def load_connections_dict(file_path: str) -> Dict[str, Any]:
 
     ``JSON``, `YAML` and ``.env`` files are supported.
 
-    :return: A dictionary where the key contains a connection ID and the value contains a list of connections.
+    :return: A dictionary where the key contains a connection ID and the value contains the connection.
     :rtype: Dict[str, airflow.models.connection.Connection]
     """
     log.debug("Loading connection")
@@ -310,16 +313,28 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
         return secrets
 
     @property
-    def _local_connections(self) -> Dict[str, List[Any]]:
+    def _local_connections(self) -> Dict[str, 'Connection']:
         if not self.connections_file:
             self.log.debug("The file for connection is not specified. Skipping")
             # The user may not specify any file.
             return {}
         return load_connections_dict(self.connections_file)
 
-    def get_connections(self, conn_id: str) -> List[Any]:
+    def get_connection(self, conn_id: str) -> Optional['Connection']:
         if conn_id in self._local_connections:
-            return [self._local_connections[conn_id]]
+            return self._local_connections[conn_id]
+        return None
+
+    def get_connections(self, conn_id: str) -> List[Any]:
+        warnings.warn(
+            "This method is deprecated. Please use "
+            "`airflow.secrets.local_filesystem.LocalFilesystemBackend.get_connection`.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        conn = self.get_connection(conn_id=conn_id)
+        if conn:
+            return [conn]
         return []
 
     def get_variable(self, key: str) -> Optional[str]:

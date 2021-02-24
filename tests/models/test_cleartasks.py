@@ -20,8 +20,9 @@ import datetime
 import unittest
 
 from airflow import settings
-from airflow.models import DAG, TaskInstance as TI, clear_task_instances
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.models import DAG, TaskInstance as TI, TaskReschedule, clear_task_instances
+from airflow.operators.dummy import DummyOperator
+from airflow.sensors.python import PythonSensor
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -62,10 +63,10 @@ class TestClearTasks(unittest.TestCase):
         ti0.refresh_from_db()
         ti1.refresh_from_db()
         # Next try to run will be try 2
-        self.assertEqual(ti0.try_number, 2)
-        self.assertEqual(ti0.max_tries, 1)
-        self.assertEqual(ti1.try_number, 2)
-        self.assertEqual(ti1.max_tries, 3)
+        assert ti0.try_number == 2
+        assert ti0.max_tries == 1
+        assert ti1.try_number == 2
+        assert ti1.max_tries == 3
 
     def test_clear_task_instances_without_task(self):
         dag = DAG(
@@ -89,8 +90,8 @@ class TestClearTasks(unittest.TestCase):
 
         # Remove the task from dag.
         dag.task_dict = {}
-        self.assertFalse(dag.has_task(task0.task_id))
-        self.assertFalse(dag.has_task(task1.task_id))
+        assert not dag.has_task(task0.task_id)
+        assert not dag.has_task(task1.task_id)
 
         with create_session() as session:
             qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
@@ -100,10 +101,10 @@ class TestClearTasks(unittest.TestCase):
         ti0.refresh_from_db()
         ti1.refresh_from_db()
         # Next try to run will be try 2
-        self.assertEqual(ti0.try_number, 2)
-        self.assertEqual(ti0.max_tries, 1)
-        self.assertEqual(ti1.try_number, 2)
-        self.assertEqual(ti1.max_tries, 2)
+        assert ti0.try_number == 2
+        assert ti0.max_tries == 1
+        assert ti1.try_number == 2
+        assert ti1.max_tries == 2
 
     def test_clear_task_instances_without_dag(self):
         dag = DAG(
@@ -133,10 +134,54 @@ class TestClearTasks(unittest.TestCase):
         ti0.refresh_from_db()
         ti1.refresh_from_db()
         # Next try to run will be try 2
-        self.assertEqual(ti0.try_number, 2)
-        self.assertEqual(ti0.max_tries, 1)
-        self.assertEqual(ti1.try_number, 2)
-        self.assertEqual(ti1.max_tries, 2)
+        assert ti0.try_number == 2
+        assert ti0.max_tries == 1
+        assert ti1.try_number == 2
+        assert ti1.max_tries == 2
+
+    def test_clear_task_instances_with_task_reschedule(self):
+        """Test that TaskReschedules are deleted correctly when TaskInstances are cleared"""
+
+        with DAG(
+            'test_clear_task_instances_with_task_reschedule',
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        ) as dag:
+            task0 = PythonSensor(task_id='0', python_callable=lambda: False, mode="reschedule")
+            task1 = PythonSensor(task_id='1', python_callable=lambda: False, mode="reschedule")
+
+        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
+        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+
+        dag.create_dagrun(
+            execution_date=ti0.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        ti0.run()
+        ti1.run()
+
+        with create_session() as session:
+
+            def count_task_reschedule(task_id):
+                return (
+                    session.query(TaskReschedule)
+                    .filter(
+                        TaskReschedule.dag_id == dag.dag_id,
+                        TaskReschedule.task_id == task_id,
+                        TaskReschedule.execution_date == DEFAULT_DATE,
+                        TaskReschedule.try_number == 1,
+                    )
+                    .count()
+                )
+
+            assert count_task_reschedule(ti0.task_id) == 1
+            assert count_task_reschedule(ti1.task_id) == 1
+            qry = session.query(TI).filter(TI.dag_id == dag.dag_id, TI.task_id == ti0.task_id).all()
+            clear_task_instances(qry, session, dag=dag)
+            assert count_task_reschedule(ti0.task_id) == 0
+            assert count_task_reschedule(ti1.task_id) == 1
 
     def test_dag_clear(self):
         dag = DAG(
@@ -152,33 +197,33 @@ class TestClearTasks(unittest.TestCase):
         )
 
         # Next try to run will be try 1
-        self.assertEqual(ti0.try_number, 1)
+        assert ti0.try_number == 1
         ti0.run()
-        self.assertEqual(ti0.try_number, 2)
+        assert ti0.try_number == 2
         dag.clear()
         ti0.refresh_from_db()
-        self.assertEqual(ti0.try_number, 2)
-        self.assertEqual(ti0.state, State.NONE)
-        self.assertEqual(ti0.max_tries, 1)
+        assert ti0.try_number == 2
+        assert ti0.state == State.NONE
+        assert ti0.max_tries == 1
 
         task1 = DummyOperator(task_id='test_dag_clear_task_1', owner='test', dag=dag, retries=2)
         ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
-        self.assertEqual(ti1.max_tries, 2)
+        assert ti1.max_tries == 2
         ti1.try_number = 1
         # Next try will be 2
         ti1.run()
-        self.assertEqual(ti1.try_number, 3)
-        self.assertEqual(ti1.max_tries, 2)
+        assert ti1.try_number == 3
+        assert ti1.max_tries == 2
 
         dag.clear()
         ti0.refresh_from_db()
         ti1.refresh_from_db()
         # after clear dag, ti2 should show attempt 3 of 5
-        self.assertEqual(ti1.max_tries, 4)
-        self.assertEqual(ti1.try_number, 3)
+        assert ti1.max_tries == 4
+        assert ti1.try_number == 3
         # after clear dag, ti1 should show attempt 2 of 2
-        self.assertEqual(ti0.try_number, 2)
-        self.assertEqual(ti0.max_tries, 1)
+        assert ti0.try_number == 2
+        assert ti0.max_tries == 1
 
     def test_dags_clear(self):
         # setup
@@ -207,32 +252,32 @@ class TestClearTasks(unittest.TestCase):
         # test clear all dags
         for i in range(num_of_dags):
             tis[i].run()
-            self.assertEqual(tis[i].state, State.SUCCESS)
-            self.assertEqual(tis[i].try_number, 2)
-            self.assertEqual(tis[i].max_tries, 0)
+            assert tis[i].state == State.SUCCESS
+            assert tis[i].try_number == 2
+            assert tis[i].max_tries == 0
 
         DAG.clear_dags(dags)
 
         for i in range(num_of_dags):
             tis[i].refresh_from_db()
-            self.assertEqual(tis[i].state, State.NONE)
-            self.assertEqual(tis[i].try_number, 2)
-            self.assertEqual(tis[i].max_tries, 1)
+            assert tis[i].state == State.NONE
+            assert tis[i].try_number == 2
+            assert tis[i].max_tries == 1
 
         # test dry_run
         for i in range(num_of_dags):
             tis[i].run()
-            self.assertEqual(tis[i].state, State.SUCCESS)
-            self.assertEqual(tis[i].try_number, 3)
-            self.assertEqual(tis[i].max_tries, 1)
+            assert tis[i].state == State.SUCCESS
+            assert tis[i].try_number == 3
+            assert tis[i].max_tries == 1
 
         DAG.clear_dags(dags, dry_run=True)
 
         for i in range(num_of_dags):
             tis[i].refresh_from_db()
-            self.assertEqual(tis[i].state, State.SUCCESS)
-            self.assertEqual(tis[i].try_number, 3)
-            self.assertEqual(tis[i].max_tries, 1)
+            assert tis[i].state == State.SUCCESS
+            assert tis[i].try_number == 3
+            assert tis[i].max_tries == 1
 
         # test only_failed
         from random import randint
@@ -247,13 +292,13 @@ class TestClearTasks(unittest.TestCase):
         for i in range(num_of_dags):
             tis[i].refresh_from_db()
             if i != failed_dag_idx:
-                self.assertEqual(tis[i].state, State.SUCCESS)
-                self.assertEqual(tis[i].try_number, 3)
-                self.assertEqual(tis[i].max_tries, 1)
+                assert tis[i].state == State.SUCCESS
+                assert tis[i].try_number == 3
+                assert tis[i].max_tries == 1
             else:
-                self.assertEqual(tis[i].state, State.NONE)
-                self.assertEqual(tis[i].try_number, 3)
-                self.assertEqual(tis[i].max_tries, 2)
+                assert tis[i].state == State.NONE
+                assert tis[i].try_number == 3
+                assert tis[i].max_tries == 2
 
     def test_operator_clear(self):
         dag = DAG(
@@ -277,16 +322,16 @@ class TestClearTasks(unittest.TestCase):
 
         ti2.run()
         # Dependency not met
-        self.assertEqual(ti2.try_number, 1)
-        self.assertEqual(ti2.max_tries, 1)
+        assert ti2.try_number == 1
+        assert ti2.max_tries == 1
 
         op2.clear(upstream=True)
         ti1.run()
         ti2.run(ignore_ti_state=True)
-        self.assertEqual(ti1.try_number, 2)
+        assert ti1.try_number == 2
         # max_tries is 0 because there is no task instance in db for ti1
         # so clear won't change the max_tries.
-        self.assertEqual(ti1.max_tries, 0)
-        self.assertEqual(ti2.try_number, 2)
+        assert ti1.max_tries == 0
+        assert ti2.try_number == 2
         # try_number (0) + retries(1)
-        self.assertEqual(ti2.max_tries, 1)
+        assert ti2.max_tries == 1

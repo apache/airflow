@@ -82,5 +82,5 @@ class OpsgenieAlertHook(HttpHook):
         return self.run(
             endpoint='v2/alerts',
             data=json.dumps(payload),
-            headers={'Content-Type': 'application/json', 'Authorization': 'GenieKey %s' % api_key},
+            headers={'Content-Type': 'application/json', 'Authorization': f'GenieKey {api_key}'},
         )

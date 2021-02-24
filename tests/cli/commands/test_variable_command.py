@@ -22,6 +22,8 @@ import tempfile
 import unittest.mock
 from contextlib import redirect_stdout
 
+import pytest
+
 from airflow import models
 from airflow.cli import cli_parser
 from airflow.cli.commands import variable_command
@@ -44,25 +46,26 @@ class TestCliVariables(unittest.TestCase):
     def test_variables_set(self):
         """Test variable_set command"""
         variable_command.variables_set(self.parser.parse_args(['variables', 'set', 'foo', 'bar']))
-        self.assertIsNotNone(Variable.get("foo"))
-        self.assertRaises(KeyError, Variable.get, "foo1")
+        assert Variable.get("foo") is not None
+        with pytest.raises(KeyError):
+            Variable.get("foo1")
 
     def test_variables_get(self):
         Variable.set('foo', {'foo': 'bar'}, serialize_json=True)
 
         with redirect_stdout(io.StringIO()) as stdout:
             variable_command.variables_get(self.parser.parse_args(['variables', 'get', 'foo']))
-            self.assertEqual('{\n  "foo": "bar"\n}\n', stdout.getvalue())
+            assert '{\n  "foo": "bar"\n}\n' == stdout.getvalue()
 
     def test_get_variable_default_value(self):
         with redirect_stdout(io.StringIO()) as stdout:
             variable_command.variables_get(
                 self.parser.parse_args(['variables', 'get', 'baz', '--default', 'bar'])
             )
-            self.assertEqual("bar\n", stdout.getvalue())
+            assert "bar\n" == stdout.getvalue()
 
     def test_get_variable_missing_variable(self):
-        with self.assertRaises(SystemExit):
+        with pytest.raises(SystemExit):
             variable_command.variables_get(self.parser.parse_args(['variables', 'get', 'no-existing-VAR']))
 
     def test_variables_set_different_types(self):
@@ -95,14 +98,14 @@ class TestCliVariables(unittest.TestCase):
         )
 
         # Assert value
-        self.assertEqual({'foo': 'oops'}, Variable.get('dict', deserialize_json=True))
-        self.assertEqual(['oops'], Variable.get('list', deserialize_json=True))
-        self.assertEqual('hello string', Variable.get('str'))  # cannot json.loads(str)
-        self.assertEqual(42, Variable.get('int', deserialize_json=True))
-        self.assertEqual(42.0, Variable.get('float', deserialize_json=True))
-        self.assertEqual(True, Variable.get('true', deserialize_json=True))
-        self.assertEqual(False, Variable.get('false', deserialize_json=True))
-        self.assertEqual(None, Variable.get('null', deserialize_json=True))
+        assert {'foo': 'oops'} == Variable.get('dict', deserialize_json=True)
+        assert ['oops'] == Variable.get('list', deserialize_json=True)
+        assert 'hello string' == Variable.get('str')  # cannot json.loads(str)
+        assert 42 == Variable.get('int', deserialize_json=True)
+        assert 42.0 == Variable.get('float', deserialize_json=True)
+        assert Variable.get('true', deserialize_json=True) is True
+        assert Variable.get('false', deserialize_json=True) is False
+        assert Variable.get('null', deserialize_json=True) is None
 
         os.remove('variables_types.json')
 
@@ -115,11 +118,12 @@ class TestCliVariables(unittest.TestCase):
         """Test variable_delete command"""
         variable_command.variables_set(self.parser.parse_args(['variables', 'set', 'foo', 'bar']))
         variable_command.variables_delete(self.parser.parse_args(['variables', 'delete', 'foo']))
-        self.assertRaises(KeyError, Variable.get, "foo")
+        with pytest.raises(KeyError):
+            Variable.get("foo")
 
     def test_variables_import(self):
         """Test variables_import command"""
-        with self.assertRaisesRegex(SystemExit, r"Invalid variables file"):
+        with pytest.raises(SystemExit, match=r"Invalid variables file"):
             variable_command.variables_import(self.parser.parse_args(['variables', 'import', os.devnull]))
 
     def test_variables_export(self):
@@ -143,14 +147,14 @@ class TestCliVariables(unittest.TestCase):
         variable_command.variables_delete(self.parser.parse_args(['variables', 'delete', 'foo']))
         variable_command.variables_import(self.parser.parse_args(['variables', 'import', tmp1.name]))
 
-        self.assertEqual('original', Variable.get('bar'))
-        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
+        assert 'original' == Variable.get('bar')
+        assert '{\n  "foo": "bar"\n}' == Variable.get('foo')
 
         # Second export
         variable_command.variables_export(self.parser.parse_args(['variables', 'export', tmp2.name]))
 
         second_exp = open(tmp2.name)
-        self.assertEqual(first_exp.read(), second_exp.read())
+        assert first_exp.read() == second_exp.read()
 
         # Clean up files
         second_exp.close()

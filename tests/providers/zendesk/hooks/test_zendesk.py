@@ -20,6 +20,7 @@
 import unittest
 from unittest import mock
 
+import pytest
 from zdesk import RateLimitError
 
 from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
@@ -41,7 +42,7 @@ class TestZendeskHook(unittest.TestCase):
         zendesk_hook = ZendeskHook("conn_id")
         zendesk_hook.get_conn = mock.Mock(return_value=conn_mock)
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             zendesk_hook.call("some_path", get_all_pages=False)
             mocked_time.sleep.assert_called_once_with(sleep_time)
 

@@ -20,6 +20,7 @@ import unittest
 from unittest import mock
 from unittest.mock import call
 
+import pytest
 import smbclient
 
 from airflow.exceptions import AirflowException
@@ -31,19 +32,19 @@ connection = Connection(host='ip', schema='share', login='username', password='p
 
 class TestSambaHook(unittest.TestCase):
     def test_get_conn_should_fail_if_conn_id_does_not_exist(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             SambaHook('conn')
 
-    @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_get_conn(self, get_conn_mock):
         get_conn_mock.return_value = connection
         hook = SambaHook('samba_default')
 
-        self.assertEqual(smbclient.SambaClient, type(hook.get_conn()))
+        assert isinstance(hook.get_conn(), smbclient.SambaClient)
         get_conn_mock.assert_called_once_with('samba_default')
 
     @mock.patch('airflow.providers.samba.hooks.samba.SambaHook.get_conn')
-    @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_push_from_local_should_succeed_if_destination_has_same_name_but_not_a_file(
         self, base_conn_mock, samba_hook_mock
     ):
@@ -67,7 +68,7 @@ class TestSambaHook(unittest.TestCase):
         samba_hook_mock.return_value.upload.assert_called_once_with(local_filepath, destination_filepath)
 
     @mock.patch('airflow.providers.samba.hooks.samba.SambaHook.get_conn')
-    @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_push_from_local_should_delete_file_if_exists_and_save_file(
         self, base_conn_mock, samba_hook_mock
     ):
@@ -94,7 +95,7 @@ class TestSambaHook(unittest.TestCase):
         samba_hook_mock.return_value.upload.assert_called_once_with(local_filepath, destination_filepath)
 
     @mock.patch('airflow.providers.samba.hooks.samba.SambaHook.get_conn')
-    @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_push_from_local_should_create_directory_if_not_exist_and_save_file(
         self, base_conn_mock, samba_hook_mock
     ):

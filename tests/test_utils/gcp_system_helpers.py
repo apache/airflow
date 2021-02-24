@@ -83,9 +83,12 @@ def provide_gcp_context(
     :param scopes: OAuth scopes for the connection
     :type scopes: Sequence
     :param project_id: The id of GCP project for the connection.
+        Default: ``os.environ["GCP_PROJECT_ID"]`` or None
     :type project_id: str
     """
     key_file_path = resolve_full_gcp_key_path(key_file_path)  # type: ignore
+    if project_id is None:
+        project_id = os.environ.get("GCP_PROJECT_ID")
     with provide_gcp_conn_and_credentials(
         key_file_path, scopes, project_id
     ), tempfile.TemporaryDirectory() as gcloud_config_tmp, mock.patch.dict(
@@ -162,6 +165,9 @@ class GoogleSystemTest(SystemTest):
         bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
         with TemporaryDirectory(prefix="airflow-gcp") as tmp_dir:
             tmp_path = os.path.join(tmp_dir, filename)
+            tmp_dir_path = os.path.dirname(tmp_path)
+            if tmp_dir_path:
+                os.makedirs(tmp_dir_path, exist_ok=True)
             with open(tmp_path, "w") as file:
                 file.writelines(lines)
                 file.flush()
@@ -181,7 +187,7 @@ class GoogleSystemTest(SystemTest):
                 "gsutil",
                 "iam",
                 "ch",
-                "serviceAccount:%s:admin" % account_email,
+                f"serviceAccount:{account_email}:admin",
                 bucket_name,
             ]
         )

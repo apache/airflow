@@ -22,6 +22,10 @@ from glob import glob
 from itertools import chain
 from typing import Iterable, List, Optional, Set
 
+import yaml
+
+import airflow
+from docs.exts.docs_build.docs_builder import ALL_PROVIDER_YAMLS  # pylint: disable=no-name-in-module
 from docs.exts.docs_build.errors import DocBuildError  # pylint: disable=no-name-in-module
 
 ROOT_PROJECT_DIR = os.path.abspath(
@@ -31,14 +35,14 @@ ROOT_PACKAGE_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
 DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
 
 
-def find_existing_guide_operator_names(src_dir: str) -> Set[str]:
+def find_existing_guide_operator_names(src_dir_pattern: str) -> Set[str]:
     """
     Find names of existing operators.
     :return names of existing operators.
     """
     operator_names = set()
 
-    paths = glob(f"{src_dir}/**/*.rst", recursive=True)
+    paths = glob(src_dir_pattern, recursive=True)
     for path in paths:
         with open(path) as f:
             operator_names |= set(re.findall(".. _howto/operator:(.+?):", f.read()))
@@ -49,65 +53,73 @@ def find_existing_guide_operator_names(src_dir: str) -> Set[str]:
 def extract_ast_class_def_by_name(ast_tree, class_name):
     """
     Extracts class definition by name
+
     :param ast_tree: AST tree
     :param class_name: name of the class.
     :return: class node found
     """
+    for node in ast.walk(ast_tree):
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            return node
 
-    class ClassVisitor(ast.NodeVisitor):
-        """Visitor."""
+    return None
 
-        def __init__(self):
-            self.found_class_node = None
 
-        def visit_ClassDef(self, node):  # pylint: disable=invalid-name
-            """
-            Visit class definition.
-            :param node: node.
-            :return:
-            """
-            if node.name == class_name:
-                self.found_class_node = node
-
-    visitor = ClassVisitor()
-    visitor.visit(ast_tree)
-
-    return visitor.found_class_node
+def _generate_missing_guide_error(path, line_no, operator_name):
+    return DocBuildError(
+        file_path=path,
+        line_no=line_no,
+        message=(
+            f"Link to the guide is missing in operator's description: {operator_name}.\n"
+            f"Please add link to the guide to the description in the following form:\n"
+            f"\n"
+            f".. seealso::\n"
+            f"    For more information on how to use this operator, take a look at the guide:\n"
+            f"    :ref:`howto/operator:{operator_name}`\n"
+        ),
+    )
 
 
 def check_guide_links_in_operator_descriptions() -> List[DocBuildError]:
     """Check if there are links to guides in operator's descriptions."""
-    # TODO: We should also check the guides  in the provider documentations.
-    #     For now, we are only checking the core documentation.
-    #     This is easiest to do after the content has been fully migrated.
     build_errors = []
 
-    def generate_build_error(path, line_no, operator_name):
-        return DocBuildError(
-            package_name=None,
-            file_path=path,
-            line_no=line_no,
-            message=(
-                f"Link to the guide is missing in operator's description: {operator_name}.\n"
-                f"Please add link to the guide to the description in the following form:\n"
-                f"\n"
-                f".. seealso::\n"
-                f"    For more information on how to use this operator, take a look at the guide:\n"
-                f"    :ref:`apache-airflow:howto/operator:{operator_name}`\n"
+    build_errors.extend(
+        _check_missing_guide_references(
+            operator_names=find_existing_guide_operator_names(
+                f"{DOCS_DIR}/apache-airflow/howto/operator/**/*.rst"
+            ),
+            python_module_paths=chain(
+                glob(f"{ROOT_PACKAGE_DIR}/operators/*.py"),
+                glob(f"{ROOT_PACKAGE_DIR}/sensors/*.py"),
             ),
         )
-
-    # Extract operators for which there are existing .rst guides
-    operator_names = find_existing_guide_operator_names(f"{DOCS_DIR}/howto/operator")
-
-    # Extract all potential python modules that can contain operators
-    python_module_paths = chain(
-        glob(f"{ROOT_PACKAGE_DIR}/operators/*.py"),
-        glob(f"{ROOT_PACKAGE_DIR}/sensors/*.py"),
-        glob(f"{ROOT_PACKAGE_DIR}/providers/**/operators/*.py", recursive=True),
-        glob(f"{ROOT_PACKAGE_DIR}/providers/**/sensors/*.py", recursive=True),
-        glob(f"{ROOT_PACKAGE_DIR}/providers/**/transfers/*.py", recursive=True),
     )
+
+    for provider in ALL_PROVIDER_YAMLS:
+        operator_names = {
+            *find_existing_guide_operator_names(f"{DOCS_DIR}/{provider['package-name']}/operators/**/*.rst"),
+            *find_existing_guide_operator_names(f"{DOCS_DIR}/{provider['package-name']}/operators.rst"),
+        }
+
+        # Extract all potential python modules that can contain operators
+        python_module_paths = chain(
+            glob(f"{provider['package-dir']}/**/operators/*.py", recursive=True),
+            glob(f"{provider['package-dir']}/**/sensors/*.py", recursive=True),
+            glob(f"{provider['package-dir']}/**/transfers/*.py", recursive=True),
+        )
+
+        build_errors.extend(
+            _check_missing_guide_references(
+                operator_names=operator_names, python_module_paths=python_module_paths
+            )
+        )
+
+    return build_errors
+
+
+def _check_missing_guide_references(operator_names, python_module_paths) -> List[DocBuildError]:
+    build_errors = []
 
     for py_module_path in python_module_paths:
         with open(py_module_path) as f:
@@ -115,7 +127,6 @@ def check_guide_links_in_operator_descriptions() -> List[DocBuildError]:
 
         if "This module is deprecated" in py_content:
             continue
-
         for existing_operator in operator_names:
             if f"class {existing_operator}" not in py_content:
                 continue
@@ -131,29 +142,57 @@ def check_guide_links_in_operator_descriptions() -> List[DocBuildError]:
             if "This class is deprecated." in docstring:
                 continue
 
-            if f":ref:`apache-airflow:howto/operator:{existing_operator}`" in ast.get_docstring(
-                class_def
-            ) or f":ref:`howto/operator:{existing_operator}`" in ast.get_docstring(class_def):
+            if f":ref:`howto/operator:{existing_operator}`" in ast.get_docstring(class_def):
                 continue
 
-            build_errors.append(generate_build_error(py_module_path, class_def.lineno, existing_operator))
+            build_errors.append(
+                _generate_missing_guide_error(py_module_path, class_def.lineno, existing_operator)
+            )
     return build_errors
 
 
-def assert_file_not_contains(file_path: str, pattern: str, message: str) -> Optional[DocBuildError]:
+def assert_file_not_contains(
+    *, file_path: str, pattern: str, message: Optional[str] = None
+) -> Optional[DocBuildError]:
     """
     Asserts that file does not contain the pattern. Return message error if it does.
+
     :param file_path: file
     :param pattern: pattern
     :param message: message to return
     """
+    return _extract_file_content(file_path, message, pattern, False)
+
+
+def assert_file_contains(
+    *, file_path: str, pattern: str, message: Optional[str] = None
+) -> Optional[DocBuildError]:
+    """
+    Asserts that file does contain the pattern. Return message error if it does not.
+
+    :param file_path: file
+    :param pattern: pattern
+    :param message: message to return
+    """
+    return _extract_file_content(file_path, message, pattern, True)
+
+
+def _extract_file_content(file_path: str, message: Optional[str], pattern: str, expected_contain: bool):
+    if not message:
+        message = f"Pattern '{pattern}' could not be found in '{file_path}' file."
     with open(file_path, "rb", 0) as doc_file:
         pattern_compiled = re.compile(pattern)
-
+        found = False
         for num, line in enumerate(doc_file, 1):
             line_decode = line.decode()
-            if re.search(pattern_compiled, line_decode):
+            result = re.search(pattern_compiled, line_decode)
+            if not expected_contain and result:
                 return DocBuildError(file_path=file_path, line_no=num, message=message)
+            elif expected_contain and result:
+                found = True
+
+        if expected_contain and not found:
+            return DocBuildError(file_path=file_path, line_no=None, message=message)
     return None
 
 
@@ -194,7 +233,7 @@ def find_modules(deprecated_only: bool = False) -> Set[str]:
 
 def check_exampleinclude_for_example_dags() -> List[DocBuildError]:
     """Checks all exampleincludes for  example dags."""
-    all_docs_files = glob(f"${DOCS_DIR}/**/*rst", recursive=True)
+    all_docs_files = glob(f"${DOCS_DIR}/**/*.rst", recursive=True)
     build_errors = []
     for doc_file in all_docs_files:
         build_error = assert_file_not_contains(
@@ -212,7 +251,7 @@ def check_exampleinclude_for_example_dags() -> List[DocBuildError]:
 
 def check_enforce_code_block() -> List[DocBuildError]:
     """Checks all code:: blocks."""
-    all_docs_files = glob(f"{DOCS_DIR}/**/*rst", recursive=True)
+    all_docs_files = glob(f"{DOCS_DIR}/**/*.rst", recursive=True)
     build_errors = []
     for doc_file in all_docs_files:
         build_error = assert_file_not_contains(
@@ -226,3 +265,116 @@ def check_enforce_code_block() -> List[DocBuildError]:
         if build_error:
             build_errors.append(build_error)
     return build_errors
+
+
+def check_example_dags_in_provider_tocs() -> List[DocBuildError]:
+    """Checks that each documentation for provider packages has a link to example DAGs in the TOC."""
+    build_errors = []
+
+    for provider in ALL_PROVIDER_YAMLS:
+        example_dags_dirs = list(glob(f"{provider['package-dir']}/**/example_dags", recursive=True))
+        if not example_dags_dirs:
+            continue
+        doc_file_path = f"{DOCS_DIR}/{provider['package-name']}/index.rst"
+
+        if len(example_dags_dirs) == 1:
+            package_rel_path = os.path.relpath(example_dags_dirs[0], start=ROOT_PROJECT_DIR)
+            github_url = f"https://github.com/apache/airflow/tree/master/{package_rel_path}"
+            expected_text = f"Example DAGs <{github_url}>"
+        else:
+            expected_text = "Example DAGs <example-dags>"
+
+        build_error = assert_file_contains(
+            file_path=doc_file_path,
+            pattern=re.escape(expected_text),
+            message=(
+                f"A link to the example DAGs in table of contents is missing. Can you add it?\n\n"
+                f"    {expected_text}"
+            ),
+        )
+        if build_error:
+            build_errors.append(build_error)
+
+    return build_errors
+
+
+def check_pypi_repository_in_provider_tocs() -> List[DocBuildError]:
+    """Checks that each documentation for provider packages has a link to PyPI files in the TOC."""
+    build_errors = []
+    for provider in ALL_PROVIDER_YAMLS:
+        doc_file_path = f"{DOCS_DIR}/{provider['package-name']}/index.rst"
+        expected_text = f"PyPI Repository <https://pypi.org/project/{provider['package-name']}/>"
+        build_error = assert_file_contains(
+            file_path=doc_file_path,
+            pattern=re.escape(expected_text),
+            message=(
+                f"A link to the PyPI in table of contents is missing. Can you add it?\n\n"
+                f"    {expected_text}"
+            ),
+        )
+        if build_error:
+            build_errors.append(build_error)
+
+    return build_errors
+
+
+def check_docker_image_tag_in_quick_start_guide() -> List[DocBuildError]:
+    """Check that a good docker image is used in the quick start guide for Docker."""
+    build_errors = []
+
+    compose_file_path = f"{DOCS_DIR}/apache-airflow/start/docker-compose.yaml"
+    expected_tag = 'master-python3.8' if "dev" in airflow.__version__ else airflow.__version__
+    # master tag is little outdated.
+    expected_image = f'apache/airflow:{expected_tag}'
+    with open(compose_file_path) as yaml_file:
+        content = yaml.safe_load(yaml_file)
+        current_image_expression = content['x-airflow-common']['image']
+        if expected_image not in current_image_expression:
+            build_errors.append(
+                DocBuildError(
+                    file_path=compose_file_path,
+                    line_no=None,
+                    message=(
+                        f"Invalid image in docker - compose.yaml\n"
+                        f"Current image expression: {current_image_expression}\n"
+                        f"Expected image: {expected_image}\n"
+                        f"Please check the value of x-airflow-common.image key"
+                    ),
+                )
+            )
+    build_error = assert_file_contains(
+        file_path=f"{DOCS_DIR}/apache-airflow/start/docker.rst",
+        pattern=re.escape(f'{expected_image}   "/usr/bin/dumb-init'),
+    )
+    if build_error:
+        build_errors.append(build_error)
+
+    return build_errors
+
+
+def check_airflow_versions_in_quick_start_guide() -> List[DocBuildError]:
+    """Check that a airflow version is presented in example in the quick start guide for Docker."""
+    build_errors = []
+
+    build_error = assert_file_contains(
+        file_path=f"{DOCS_DIR}/apache-airflow/start/docker.rst",
+        pattern=re.escape(f"airflow-init_1       | {airflow.__version__}"),
+    )
+    if build_error:
+        build_errors.append(build_error)
+
+    return build_errors
+
+
+def run_all_check() -> List[DocBuildError]:
+    """Run all checks from this module"""
+    general_errors = []
+    general_errors.extend(check_guide_links_in_operator_descriptions())
+    general_errors.extend(check_enforce_code_block())
+    general_errors.extend(check_exampleinclude_for_example_dags())
+    general_errors.extend(check_example_dags_in_provider_tocs())
+    general_errors.extend(check_pypi_repository_in_provider_tocs())
+    general_errors.extend(check_docker_image_tag_in_quick_start_guide())
+    general_errors.extend(check_airflow_versions_in_quick_start_guide())
+
+    return general_errors
