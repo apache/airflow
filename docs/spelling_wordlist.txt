@@ -66,6 +66,7 @@ Cloudwatch
 ClusterManagerClient
 Codecov
 Colour
+comparator
 ComputeNodeState
 Computenodes
 Config

@@ -84,6 +84,7 @@ class LevelDBOperator(BaseOperator):
     def execute(self, context) -> Optional[bytes]:
         """
         Execute command in LevelDB
+
         :returns value from get or None(Optional[bytes])
         """
         leveldb_hook = LevelDBHook(leveldb_conn_id=self.leveldb_conn_id)

@@ -31,7 +31,7 @@ class LevelDBHookException(AirflowException):
 class LevelDBHook(BaseHook):
     """
     Plyvel Wrapper to Interact With LevelDB Database
-    LevelDB Connection Documentation https://plyvel.readthedocs.io/en/latest/
+    `LevelDB Connection Documentation <https://plyvel.readthedocs.io/en/latest/>`__
     """
 
     conn_name_attr = 'leveldb_conn_id'
@@ -66,23 +66,38 @@ class LevelDBHook(BaseHook):
         comparator_name: bytes = None,
     ) -> DB:
         """
-        Creates Plyvel DB https://plyvel.readthedocs.io/en/latest/api.html#DB
-        :param name(str - path to create database(str, e.g. '/tmp/testdb/')
-        :param create_if_missing (bool) – whether a new database should be created if needed
-        :param error_if_exists (bool) – whether to raise an exception if the database already exists
-        :param  paranoid_checks (bool) – whether to enable paranoid checks
-        :param write_buffer_size (int) – size of the write buffer (in bytes)
-        :param max_open_files (int) – maximum number of files to keep open
-        :param lru_cache_size (int) – size of the LRU cache (in bytes)
-        :param block_size (int) – block size (in bytes)
-        :param block_restart_interval (int) – block restart interval for delta encoding of keys
-        :param max_file_size (bool) – maximum file size (in bytes)
-        :param compression (bool) – whether to use Snappy compression (enabled by default))
-        :param bloom_filter_bits (int) – the number of bits to use for a bloom filter; the default of 0
-        means that no bloom filter will be used
-        :param comparator (callable) – a custom comparator callable that takes two byte strings and
-        returns an integer
-        :param comparator_name (bytes) – name for the custom comparator
+        Creates `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__
+
+        :param name: path to create database e.g. `/tmp/testdb/`)
+        :type name: str
+        :param create_if_missing: whether a new database should be created if needed
+        :type create_if_missing: bool
+        :param error_if_exists: whether to raise an exception if the database already exists
+        :type error_if_exists: bool
+        :param paranoid_checks: whether to enable paranoid checks
+        :type paranoid_checks: bool
+        :param write_buffer_size: size of the write buffer (in bytes)
+        :type write_buffer_size: int
+        :param max_open_files: maximum number of files to keep open
+        :type max_open_files: int
+        :param lru_cache_size: size of the LRU cache (in bytes)
+        :type lru_cache_size: int
+        :param block_size: block size (in bytes)
+        :type block_size: int
+        :param block_restart_interval: block restart interval for delta encoding of keys
+        :type block_restart_interval: int
+        :param max_file_size: maximum file size (in bytes)
+        :type max_file_size: bool
+        :param compression: whether to use Snappy compression (enabled by default))
+        :type compression: bool
+        :param bloom_filter_bits: the number of bits to use for a bloom filter; the default of 0
+            means that no bloom filter will be used
+        :type bloom_filter_bits: int
+        :param comparator: a custom comparator callable that takes two byte strings and
+            returns an integer
+        :type comparator: callable
+        :param comparator_name: name for the custom comparator
+        :type comparator_name: bytes
         """
         if self.db is not None:
             return self.db
@@ -121,16 +136,20 @@ class LevelDBHook(BaseHook):
     ) -> Optional[bytes]:
         """
         Execute operation with leveldb
-        :param command - command of plyvel(python wrap for leveldb) for DB object (str, e.g.
-        'put','get','delete','write_batch')
-        :param key - key for command(put,get,delete) execution(bytes, e.g. b'key', b'another-key')
-        :param value - value for command(put) execution(bytes, e.g. b'value', b'another-value')
-        :param keys - keys for command(write_batch) execution(List[bytes], e.g.
-        [b'key', b'another-key'])
-        :param values - values for command(write_batch) execution(List[bytes], e.g.
-        [b'value', b'another-value']
-        :returns value from get or None(Optional[bytes])
-        )
+
+        :param command: command of plyvel(python wrap for leveldb) for DB object e.g.
+            ``"put"``, ``"get"``, ``"delete"``, ``"write_batch"``.
+        :type command: str
+        :param key: key for command(put,get,delete) execution(, e.g. ``b'key'``, ``b'another-key'``)
+        :type key: bytes
+        :param value: value for command(put) execution(bytes, e.g. ``b'value'``, ``b'another-value'``)
+        :type value: bytes
+        :param keys: keys for command(write_batch) execution(List[bytes], e.g. ``[b'key', b'another-key'])``
+        :type keys: List[bytes]
+        :param values: values for command(write_batch) execution e.g. ``[b'value'``, ``b'another-value']``
+        :param values: List[bytes]
+        :returns: value from get or None
+        :rtype: Optional[bytes]
         """
         if command == 'put':
             return self.put(key, value)
@@ -146,31 +165,43 @@ class LevelDBHook(BaseHook):
     def put(self, key: bytes, value: bytes):
         """
         Put a single value into a leveldb db by key
-        :param key - key for put execution(bytes, e.g. b'key', b'another-key')
-        :param value - value for put execution(bytes, e.g. b'value', b'another-value')
+
+        :param key: key for put execution, e.g. ``b'key'``, ``b'another-key'``
+        :type key: bytes
+        :param value: value for put execution e.g. ``b'value'``, ``b'another-value'``
+        :type value: bytes
         """
         self.db.put(key, value)
 
     def get(self, key: bytes) -> bytes:
         """
         Get a single value into a leveldb db by key
-        :param key - key for get execution(bytes, e.g. b'key', b'another-key')
-        :returns value(bytes, e.g. b'value', b'another-value')
+
+        :param key: key for get execution, e.g. ``b'key'``, ``b'another-key'``
+        :type key: bytes
+        :param value: value for get execution e.g. ``b'value'``, ``b'another-value'``
+        :type value: bytes
         """
         return self.db.get(key)
 
     def delete(self, key: bytes):
         """
-        Delete a single value in a leveldb db by key
-        :param key - key for delete execution(bytes, e.g. b'key', b'another-key')
+        Delete a single value in a leveldb db by key.
+
+        :param key: key for delete execution, e.g. ``b'key'``, ``b'another-key'``
+        :type key: bytes
         """
         self.db.delete(key)
 
     def write_batch(self, keys: List[bytes], values: List[bytes]):
         """
         Write batch of values in a leveldb db by keys
-        :param keys - keys for write_batch execution(List[bytes], e.g. [b'key', b'another-key'])
-        :param values - values for write_batch execution(List[bytes], e.g. [b'value', b'another-value'])
+
+        :param keys: keys for write_batch execution e.g. ``[b'key', b'another-key']``
+        :param keys: List[bytes]
+        :param values: values for write_batch execution e.g. ``[b'value', b'another-value']``
+        :param values: List[bytes]
+
         """
         with self.db.write_batch() as batch:
             for i, key in enumerate(keys):
