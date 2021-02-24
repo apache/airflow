@@ -273,7 +273,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(50), nullable=False)
-    pool_slots = Column(Integer, default=1)
+    pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
