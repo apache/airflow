@@ -17,6 +17,7 @@
 # under the License.
 from contextlib import closing
 from typing import Any, Dict, Optional, Tuple
+from io import StringIO
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -24,6 +25,7 @@ from cryptography.hazmat.primitives import serialization
 # pylint: disable=no-name-in-module
 from snowflake import connector
 from snowflake.connector import SnowflakeConnection
+from snowflake.connector.util_text import split_statements
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -148,11 +150,9 @@ class SnowflakeHook(DbApiHook):
         call. So for allowing to pass files or strings with several queries this method is coded,
         that relies on run from DBApiHook
         """
-        if isinstance(sql, str):
-            with closing(self.get_conn()) as conn:
-                if self.supports_autocommit:
-                    self.set_autocommit(conn, autocommit)
+        conn = self.get_conn()
+        self.set_autocommit(conn, autocommit)
 
-                    conn.execute_string(sql, parameters)
-        else:
-            super().run(sql, autocommit, parameters)
+        queries = [item[0] for item in split_statements(StringIO(sql))]
+        for query in queries:
+            super().run(query, autocommit, parameters)
