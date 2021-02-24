@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
 from typing import Any, Dict, Optional
 
 from airflow.models import BaseOperator
