@@ -381,6 +381,8 @@ using ``@task`` decorator.
 Current context is accessible only during the task execution. The context is not accessible during
 ``pre_execute`` or ``post_execute``. Calling this method outside execution context will raise an error.
 
+The context dictionary contains the keys mentioned in the table: :doc:`macros-ref`.
+
 Task Instances
 ==============
 
