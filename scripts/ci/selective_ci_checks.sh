@@ -42,7 +42,7 @@ else
     FULL_TESTS_NEEDED_LABEL="false"
 fi
 
-function check_upgrade_to_newer_dependencies() {
+function check_upgrade_to_newer_dependencies_needed() {
     # shellcheck disable=SC2153
     if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ||
             ${EVENT_NAME} == 'push' || ${EVENT_NAME} == "scheduled" ]]; then
@@ -51,8 +51,6 @@ function check_upgrade_to_newer_dependencies() {
         # Each build that upgrades to latest constraints will get truly latest constraints, not those
         # Cached in the image this way
         upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
-    else
-        upgrade_to_newer_dependencies="false"
     fi
 }
 
@@ -216,7 +214,7 @@ function set_outputs_run_everything_and_exit() {
     set_basic_checks_only "false"
     set_docs_build "true"
     set_image_build "true"
-    set_upgrade_to_newer_dependencies "${INCOMING_COMMIT_SHA}"
+    set_upgrade_to_newer_dependencies "${upgrade_to_newer_dependencies}"
     exit
 }
 
@@ -607,7 +605,9 @@ function calculate_test_types_to_run() {
     start_end::group_end
 }
 
-start_end::group_start "Check if COMMIT_SHA passed"
+
+
+upgrade_to_newer_dependencies="false"
 
 if (($# < 1)); then
     echo
@@ -623,11 +623,14 @@ if (($# < 1)); then
 else
     INCOMING_COMMIT_SHA="${1}"
     readonly INCOMING_COMMIT_SHA
+    echo
+    echo "Commit SHA passed: ${INCOMING_COMMIT_SHA}!"
+    echo
+    readonly FULL_TESTS_NEEDED_LABEL
 fi
-start_end::group_end
 
-check_upgrade_to_newer_dependencies
-readonly FULL_TESTS_NEEDED_LABEL
+check_upgrade_to_newer_dependencies_needed
+
 output_all_basic_variables
 
 image_build_needed="false"
