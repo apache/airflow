@@ -124,9 +124,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             # local machine even if there are errors reading remote logs, as
             # returned remote_log will contain error messages.
             remote_log = self.wasb_read(remote_loc, return_error=True)
-            log = '*** Reading remote log from {remote_loc}.\n{remote_log}\n'.format(
-                remote_loc=remote_loc, remote_log=remote_log.decode('utf-8')
-            )
+            log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         else:
             return super()._read(ti, try_number)
