@@ -293,18 +293,25 @@ jobs:
         if: "!contains(needs.build-info.outputs.runsOn, 'self-hosted')"
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Get Python version"
+        run: "echo \"::set-output name=host-python-version::$(python -c
+ 'import platform; print(platform.python_version())')\""
+        id: host-python-version
       - name: "Cache pre-commit local-installation"
         uses: actions/cache@v2
         with:
           path: ~/.local
-          key: pre-commit-local-installation-${{ hashFiles('setup.py', 'setup.cfg') }}
-          restore-keys: pre-commit-local-installation-
+          key: "pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-\
+${{ hashFiles('setup.py', 'setup.cfg') }}"
+          restore-keys: "\
+pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-"
       - name: "Cache pre-commit envs: no-pylint"
         uses: actions/cache@v2
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit-no-pylint-${{ hashFiles('.pre-commit-config.yaml') }}
-          restore-keys: pre-commit-no-pylint-
+          key: "pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}-\
+${{ hashFiles('.pre-commit-config.yaml') }}"
+          restore-keys: pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}
       - name: "Static checks: except pylint"
         run: ./scripts/ci/static_checks/run_static_checks.sh
         env:
@@ -339,18 +346,25 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
-      - name: "Cache pre-commit local installation"
+      - name: "Get Python version"
+        run: "echo \"::set-output name=host-python-version::$(python -c
+ 'import platform; print(platform.python_version())')\""
+        id: host-python-version
+      - name: "Cache pre-commit local-installation"
         uses: actions/cache@v2
         with:
           path: ~/.local
-          key: pre-commit-local-installation-${{ hashFiles('setup.py', 'setup.cfg') }}
-          restore-keys: pre-commit-local-installation-
-      - name: "Cache pre-commit envs - basic"
+          key: "pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-\
+${{ hashFiles('setup.py', 'setup.cfg') }}"
+          restore-keys: "\
+pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-"
+      - name: "Cache pre-commit envs: no-pylint"
         uses: actions/cache@v2
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit-basic-${{ hashFiles('.pre-commit-config.yaml') }}
-          restore-keys: pre-commit-basic-
+          key: "pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}-\
+${{ hashFiles('.pre-commit-config.yaml') }}"
+          restore-keys: pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}
       - name: "Static checks: basic checks only"
         run: ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
         env:
@@ -383,18 +397,25 @@ jobs:
         if: "!contains(needs.build-info.outputs.runsOn, 'self-hosted')"
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Get Python version"
+        run: "echo \"::set-output name=host-python-version::$(python -c
+ 'import platform; print(platform.python_version())')\""
+        id: host-python-version
       - name: "Cache pre-commit local-installation"
         uses: actions/cache@v2
         with:
           path: ~/.local
-          key: pre-commit-local-installation-${{ hashFiles('setup.py', 'setup.cfg') }}
-          restore-keys: pre-commit-local-installation-
+          key: "pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-\
+${{ hashFiles('setup.py', 'setup.cfg') }}"
+          restore-keys: "\
+pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-"
       - name: "Cache pre-commit envs - pylint"
         uses: actions/cache@v2
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit-pylint-${{ hashFiles('.pre-commit-config.yaml') }}
-          restore-keys: pre-commit-pylint-
+          key: "pre-commit-pylint-${{steps.host-python-version.outputs.host-python-version}}-\
+${{ hashFiles('.pre-commit-config.yaml') }}"
+          restore-keys: pre-commit-pylint-${{steps.host-python-version.outputs.host-python-version}}
       - name: "Static checks: pylint"
         run: ./scripts/ci/static_checks/run_static_checks.sh pylint
         env:
