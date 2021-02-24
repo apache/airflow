@@ -423,7 +423,7 @@ requests-toolbelt==0.9.1
 requests==2.25.1
 responses==0.12.1
 rich==9.2.0
-rsa==4.7.1
+rsa==4.7.2
 s3transfer==0.3.4
 sasl==0.2.1
 semver==2.13.0
@@ -496,7 +496,7 @@ websocket-client==0.57.0
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.26.0
-yandexcloud==0.73.0
+yandexcloud==0.74.0
 yarl==1.6.3
 zdesk==2.7.1
 zict==2.0.0

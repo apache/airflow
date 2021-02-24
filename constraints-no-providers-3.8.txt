@@ -112,7 +112,7 @@ requests-kerberos==0.12.0
 requests-oauthlib==1.1.0
 requests==2.25.1
 rich==9.2.0
-rsa==4.7.1
+rsa==4.7.2
 sasl==0.2.1
 sentry-sdk==0.20.3
 setproctitle==1.2.2
