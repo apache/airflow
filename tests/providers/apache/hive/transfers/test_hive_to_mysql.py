@@ -156,7 +156,7 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
         raw_select_name_query = mock_hive_hook.get_records.call_args_list[0][0][0]
         actual_select_name_query = re.sub(r'\s{2,}', ' ', raw_select_name_query).strip()
         expected_select_name_query = 'SELECT name FROM airflow.static_babynames LIMIT 100'
-        self.assertEqual(expected_select_name_query, actual_select_name_query)
+        assert expected_select_name_query == actual_select_name_query
 
         actual_hive_conf = mock_hive_hook.get_records.call_args_list[0][1]['hive_conf']
         expected_hive_conf = {
@@ -165,7 +165,7 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
             'airflow.ctx.task_id': 'hive_to_mysql_check',
             'airflow.ctx.execution_date': '2015-01-01T00:00:00+00:00',
         }
-        self.assertEqual(expected_hive_conf, actual_hive_conf)
+        assert expected_hive_conf == actual_hive_conf
 
         expected_mysql_preoperator = [
             'DROP TABLE IF EXISTS test_static_babynames;',

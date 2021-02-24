@@ -21,6 +21,7 @@ import unittest
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.providers.google.cloud.operators.stackdriver import (
     StackdriverDeleteAlertOperator,
@@ -40,16 +41,15 @@ TEST_FILTER = 'filter'
 TEST_ALERT_POLICY_1 = {
     "combiner": "OR",
     "name": "projects/sd-project/alertPolicies/12345",
-    "creationRecord": {"mutatedBy": "user123", "mutateTime": "2020-01-01T00:00:00.000000Z"},
     "enabled": True,
-    "displayName": "test display",
+    "display_name": "test display",
     "conditions": [
         {
-            "conditionThreshold": {
+            "condition_threshold": {
                 "comparison": "COMPARISON_GT",
-                "aggregations": [{"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE"}],
+                "aggregations": [{"alignment_eriod": {'seconds': 60}, "per_series_aligner": "ALIGN_RATE"}],
             },
-            "displayName": "Condition display",
+            "display_name": "Condition display",
             "name": "projects/sd-project/alertPolicies/123/conditions/456",
         }
     ],
@@ -58,16 +58,15 @@ TEST_ALERT_POLICY_1 = {
 TEST_ALERT_POLICY_2 = {
     "combiner": "OR",
     "name": "projects/sd-project/alertPolicies/6789",
-    "creationRecord": {"mutatedBy": "user123", "mutateTime": "2020-01-01T00:00:00.000000Z"},
     "enabled": False,
-    "displayName": "test display",
+    "display_name": "test display",
     "conditions": [
         {
-            "conditionThreshold": {
+            "condition_threshold": {
                 "comparison": "COMPARISON_GT",
-                "aggregations": [{"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE"}],
+                "aggregations": [{"alignment_period": {'seconds': 60}, "per_series_aligner": "ALIGN_RATE"}],
             },
-            "displayName": "Condition display",
+            "display_name": "Condition display",
             "name": "projects/sd-project/alertPolicies/456/conditions/789",
         }
     ],
@@ -94,7 +93,8 @@ class TestStackdriverListAlertPoliciesOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.stackdriver.StackdriverHook')
     def test_execute(self, mock_hook):
         operator = StackdriverListAlertPoliciesOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
-        operator.execute(None)
+        mock_hook.return_value.list_alert_policies.return_value = [AlertPolicy(name="test-name")]
+        result = operator.execute(None)
         mock_hook.return_value.list_alert_policies.assert_called_once_with(
             project_id=None,
             filter_=TEST_FILTER,
@@ -105,6 +105,16 @@ class TestStackdriverListAlertPoliciesOperator(unittest.TestCase):
             timeout=DEFAULT,
             metadata=None,
         )
+        assert [
+            {
+                'combiner': 0,
+                'conditions': [],
+                'display_name': '',
+                'name': 'test-name',
+                'notification_channels': [],
+                'user_labels': {},
+            }
+        ] == result
 
 
 class TestStackdriverEnableAlertPoliciesOperator(unittest.TestCase):
@@ -160,7 +170,11 @@ class TestStackdriverListNotificationChannelsOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.stackdriver.StackdriverHook')
     def test_execute(self, mock_hook):
         operator = StackdriverListNotificationChannelsOperator(task_id=TEST_TASK_ID, filter_=TEST_FILTER)
-        operator.execute(None)
+        mock_hook.return_value.list_notification_channels.return_value = [
+            NotificationChannel(name="test-123")
+        ]
+
+        result = operator.execute(None)
         mock_hook.return_value.list_notification_channels.assert_called_once_with(
             project_id=None,
             filter_=TEST_FILTER,
@@ -171,6 +185,17 @@ class TestStackdriverListNotificationChannelsOperator(unittest.TestCase):
             timeout=DEFAULT,
             metadata=None,
         )
+        assert [
+            {
+                'description': '',
+                'display_name': '',
+                'labels': {},
+                'name': 'test-123',
+                'type_': '',
+                'user_labels': {},
+                'verification_status': 0,
+            }
+        ] == result
 
 
 class TestStackdriverEnableNotificationChannelsOperator(unittest.TestCase):

@@ -1,12 +1,17 @@
 {
   "amazon": [
     "apache.hive",
+    "exasol",
+    "ftp",
     "google",
     "imap",
     "mongo",
     "mysql",
     "postgres",
     "ssh"
+  ],
+  "apache.beam": [
+    "google"
   ],
   "apache.druid": [
     "apache.hive"
@@ -30,12 +35,14 @@
   ],
   "google": [
     "amazon",
+    "apache.beam",
     "apache.cassandra",
     "cncf.kubernetes",
     "facebook",
     "microsoft.azure",
     "microsoft.mssql",
     "mysql",
+    "oracle",
     "postgres",
     "presto",
     "salesforce",

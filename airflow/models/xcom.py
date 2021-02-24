@@ -71,9 +71,7 @@ class BaseXCom(Base, LoggingMixin):
             self.value = pickle.loads(self.value)
 
     def __repr__(self):
-        return '<XCom "{key}" ({task_id} @ {execution_date})>'.format(
-            key=self.key, task_id=self.task_id, execution_date=self.execution_date
-        )
+        return f'<XCom "{self.key}" ({self.task_id} @ {self.execution_date})>'
 
     @classmethod
     @provide_session
@@ -247,7 +245,10 @@ class BaseXCom(Base, LoggingMixin):
         """Deserialize XCom value from str or pickle object"""
         enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
         if enable_pickling:
-            return pickle.loads(result.value)
+            try:
+                return pickle.loads(result.value)
+            except pickle.UnpicklingError:
+                return json.loads(result.value.decode('UTF-8'))
         try:
             return json.loads(result.value.decode('UTF-8'))
         except JSONDecodeError:

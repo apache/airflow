@@ -29,7 +29,7 @@ ignore-patterns=
 
 # Use multiple processes to speed up Pylint. Specifying 0 will auto-detect the
 # number of processors available to use.
-jobs=1
+jobs=0
 
 # Control the amount of potential inferred values when inferring a single
 # object. This can help the performance when dealing with large functions or
@@ -38,7 +38,7 @@ limit-inference-results=100
 
 # List of plugins (as comma separated values of python modules names) to load,
 # usually to register additional checkers.
-load-plugins=tests.airflow_pylint.do_not_use_asserts,tests.airflow_pylint.disable_checks_for_tests
+#load-plugins=tests.airflow_pylint.do_not_use_asserts,tests.airflow_pylint.disable_checks_for_tests
 
 # Pickle collected data for later comparisons.
 persistent=yes
@@ -138,7 +138,6 @@ disable=print-statement,
         xreadlines-attribute,
         exception-escape,
         comprehension-escape,
-        bad-continuation,  # Throws incorrect errors, see https://github.com/ambv/black/issues/48
         duplicate-code,  # deemed unnecessary
         abstract-method,  # deemed unnecessary
         keyword-arg-before-vararg,  # deemed unnecessary
@@ -155,6 +154,8 @@ disable=print-statement,
         ungrouped-imports,  # Disabled to avoid conflict with isort import order rules, which is enabled in the project.
         missing-module-docstring,
         import-outside-toplevel,    # We import outside toplevel to avoid cyclic imports
+        raise-missing-from,  # We don't use raise...from
+        misplaced-comparison-constant
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

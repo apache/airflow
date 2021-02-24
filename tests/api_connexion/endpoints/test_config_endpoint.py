@@ -16,6 +16,7 @@
 # under the License.
 
 import textwrap
+from contextlib import ExitStack
 from unittest.mock import patch
 
 from airflow.security import permissions
@@ -37,6 +38,8 @@ MOCK_CONF = {
 class TestGetConfig:
     @classmethod
     def setup_class(cls) -> None:
+        cls.exit_stack = ExitStack()
+        cls.exit_stack.enter_context(conf_vars({('webserver', 'expose_config'): 'True'}))
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         create_user(
@@ -53,6 +56,8 @@ class TestGetConfig:
     def teardown_class(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
         delete_user(cls.app, username="test_no_permissions")  # type: ignore
+
+        cls.exit_stack.close()
 
     def setup_method(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -124,3 +129,13 @@ class TestGetConfig:
         )
 
         assert response.status_code == 403
+
+    @conf_vars({('webserver', 'expose_config'): 'False'})
+    def test_should_respond_403_when_expose_config_off(self):
+        response = self.client.get(
+            "/api/v1/config",
+            headers={'Accept': 'application/json'},
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 403
+        assert "chose not to expose" in response.json['detail']

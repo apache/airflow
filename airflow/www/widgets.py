@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
 from flask_appbuilder.widgets import RenderTemplateWidget
 from markupsafe import Markup
 from wtforms.widgets import html_params
@@ -46,3 +46,27 @@ class AirflowDateTimePickerWidget:
         template = self.data_template
 
         return Markup(template % {"text": html_params(type="text", value=field.data, **kwargs)})
+
+
+class AirflowDateTimePickerROWidget(AirflowDateTimePickerWidget):
+    """Airflow Read-only date time picker widget"""
+
+    def __call__(self, field, **kwargs):
+        kwargs['readonly'] = 'true'
+        return super().__call__(field, **kwargs)
+
+
+class BS3TextFieldROWidget(BS3TextFieldWidget):
+    """Read-only single-line text input Widget (BS3TextFieldWidget)"""
+
+    def __call__(self, field, **kwargs):
+        kwargs['readonly'] = 'true'
+        return super().__call__(field, **kwargs)
+
+
+class BS3TextAreaROWidget(BS3TextAreaFieldWidget):
+    """Read-only multi-line text area Widget (BS3TextAreaROWidget)"""
+
+    def __call__(self, field, **kwargs):
+        kwargs['readonly'] = 'true'
+        return super().__call__(field, **kwargs)

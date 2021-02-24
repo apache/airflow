@@ -99,7 +99,7 @@ class GunicornMonitor(LoggingMixin):
 
         self._num_workers_running = 0
         self._num_ready_workers_running = 0
-        self._last_refresh_time = time.time() if worker_refresh_interval > 0 else None
+        self._last_refresh_time = time.monotonic() if worker_refresh_interval > 0 else None
         self._last_plugin_state = self._generate_plugin_state() if reload_on_plugin_change else None
         self._restart_on_next_plugin_check = False
 
@@ -149,9 +149,9 @@ class GunicornMonitor(LoggingMixin):
 
     def _wait_until_true(self, fn, timeout: int = 0) -> None:
         """Sleeps until fn is true"""
-        start_time = time.time()
+        start_time = time.monotonic()
         while not fn():
-            if 0 < timeout <= time.time() - start_time:
+            if 0 < timeout <= time.monotonic() - start_time:
                 raise AirflowWebServerTimeout(f"No response from gunicorn master within {timeout} seconds")
             sleep(0.1)
 
@@ -258,15 +258,16 @@ class GunicornMonitor(LoggingMixin):
             num_workers_running = self._get_num_workers_running()
             if num_workers_running < self.num_workers_expected:
                 new_worker_count = min(
-                    num_workers_running - self.worker_refresh_batch_size, self.worker_refresh_batch_size
+                    self.num_workers_expected - num_workers_running, self.worker_refresh_batch_size
                 )
-                self.log.debug(
+                # log at info since we are trying fix an error logged just above
+                self.log.info(
                     '[%d / %d] Spawning %d workers',
                     num_ready_workers_running,
                     num_workers_running,
                     new_worker_count,
                 )
-                self._spawn_new_workers(num_workers_running)
+                self._spawn_new_workers(new_worker_count)
             return
 
         # Now the number of running and expected worker should be equal
@@ -274,7 +275,7 @@ class GunicornMonitor(LoggingMixin):
         # If workers should be restarted periodically.
         if self.worker_refresh_interval > 0 and self._last_refresh_time:
             # and we refreshed the workers a long time ago, refresh the workers
-            last_refresh_diff = time.time() - self._last_refresh_time
+            last_refresh_diff = time.monotonic() - self._last_refresh_time
             if self.worker_refresh_interval < last_refresh_diff:
                 num_new_workers = self.worker_refresh_batch_size
                 self.log.debug(
@@ -284,7 +285,7 @@ class GunicornMonitor(LoggingMixin):
                     num_new_workers,
                 )
                 self._spawn_new_workers(num_new_workers)
-                self._last_refresh_time = time.time()
+                self._last_refresh_time = time.monotonic()
                 return
 
         # if we should check the directory with the plugin,
@@ -308,7 +309,7 @@ class GunicornMonitor(LoggingMixin):
                     num_workers_running,
                 )
                 self._restart_on_next_plugin_check = False
-                self._last_refresh_time = time.time()
+                self._last_refresh_time = time.monotonic()
                 self._reload_gunicorn()
 
 
@@ -316,6 +317,19 @@ class GunicornMonitor(LoggingMixin):
 def webserver(args):
     """Starts Airflow Webserver"""
     print(settings.HEADER)
+
+    # Check for old/insecure config, and fail safe (i.e. don't launch) if the config is wildly insecure.
+    if conf.get('webserver', 'secret_key') == 'temporary_key':
+        from rich import print as rich_print
+
+        rich_print(
+            "[red][bold]ERROR:[/bold] The `secret_key` setting under the webserver config has an insecure "
+            "value - Airflow has failed safe and refuses to start. Please change this value to a new, "
+            "per-environment, randomly generated string, for example using this command `[cyan]openssl rand "
+            "-hex 30[/cyan]`",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
     error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')

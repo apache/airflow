@@ -30,7 +30,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
-from boto3.s3.transfer import S3Transfer
+from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
@@ -103,6 +103,9 @@ class S3Hook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
+    conn_type = 's3'
+    hook_name = 'S3'
+
     def __init__(self, *args, **kwargs) -> None:
         kwargs['client_type'] = 's3'
 
@@ -112,6 +115,14 @@ class S3Hook(AwsBaseHook):
             if not isinstance(self.extra_args, dict):
                 raise ValueError(f"extra_args '{self.extra_args!r}' must be of type {dict}")
             del kwargs['extra_args']
+
+        self.transfer_config = TransferConfig()
+        if 'transfer_config_args' in kwargs:
+            transport_config_args = kwargs['transfer_config_args']
+            if not isinstance(transport_config_args, dict):
+                raise ValueError(f"transfer_config_args '{transport_config_args!r} must be of type {dict}")
+            self.transfer_config = TransferConfig(**transport_config_args)
+            del kwargs['transfer_config_args']
 
         super().__init__(*args, **kwargs)
 
@@ -499,7 +510,7 @@ class S3Hook(AwsBaseHook):
             extra_args['ACL'] = acl_policy
 
         client = self.get_conn()
-        client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args)
+        client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args, Config=self.transfer_config)
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -512,6 +523,7 @@ class S3Hook(AwsBaseHook):
         encrypt: bool = False,
         encoding: Optional[str] = None,
         acl_policy: Optional[str] = None,
+        compression: Optional[str] = None,
     ) -> None:
         """
         Loads a string to S3
@@ -536,11 +548,26 @@ class S3Hook(AwsBaseHook):
         :param acl_policy: The string to specify the canned ACL policy for the
             object to be uploaded
         :type acl_policy: str
+        :param compression: Type of compression to use, currently only gzip is supported.
+        :type compression: str
         """
         encoding = encoding or 'utf-8'
 
         bytes_data = string_data.encode(encoding)
+
+        # Compress string
+        available_compressions = ['gzip']
+        if compression is not None and compression not in available_compressions:
+            raise NotImplementedError(
+                "Received {} compression type. String "
+                "can currently be compressed in {} "
+                "only.".format(compression, available_compressions)
+            )
+        if compression == 'gzip':
+            bytes_data = gz.compress(bytes_data)
+
         file_obj = io.BytesIO(bytes_data)
+
         self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
         file_obj.close()
 
@@ -632,7 +659,13 @@ class S3Hook(AwsBaseHook):
             extra_args['ACL'] = acl_policy
 
         client = self.get_conn()
-        client.upload_fileobj(file_obj, bucket_name, key, ExtraArgs=extra_args)
+        client.upload_fileobj(
+            file_obj,
+            bucket_name,
+            key,
+            ExtraArgs=extra_args,
+            Config=self.transfer_config,
+        )
 
     def copy_object(
         self,

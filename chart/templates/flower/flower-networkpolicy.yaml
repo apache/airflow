@@ -18,7 +18,9 @@
 ################################
 ## Airflow Flower NetworkPolicy
 #################################
-{{- if (and .Values.networkPolicies.enabled (eq .Values.executor "CeleryExecutor")) }}
+{{- if .Values.flower.enabled }}
+{{- $celery_executors := list "CeleryExecutor" "CeleryKubernetesExecutor"}}
+{{- if and .Values.networkPolicies.enabled (has .Values.executor $celery_executors) }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -39,13 +41,14 @@ spec:
       component: flower
       release: {{ .Release.Name }}
   policyTypes:
-  - Ingress
-  ingress:
-  - from:
+    - Ingress
 {{- if .Values.flower.extraNetworkPolicies }}
-{{ toYaml .Values.flower.extraNetworkPolicies | indent 4 }}
+  ingress:
+    - from:
+{{ toYaml .Values.flower.extraNetworkPolicies | indent 6 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.ports.flowerUI }}
 {{- end }}
-    ports:
-    - protocol: TCP
-      port: {{ .Values.ports.flowerUI }}
+{{- end }}
 {{- end }}

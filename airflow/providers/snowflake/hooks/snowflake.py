@@ -27,7 +27,7 @@ from snowflake import connector
 from snowflake.connector import SnowflakeConnection
 from snowflake.connector.util_text import split_statements
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class SnowflakeHook(DbApiHook):
@@ -38,6 +38,8 @@ class SnowflakeHook(DbApiHook):
 
     conn_name_attr = 'snowflake_conn_id'
     default_conn_name = 'snowflake_default'
+    conn_type = 'snowflake'
+    hook_name = 'Snowflake'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:

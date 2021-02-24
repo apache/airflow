@@ -18,10 +18,10 @@
 """Hook for Slack"""
 from typing import Any, Optional
 
-from slack import WebClient
+from slack_sdk import WebClient
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SlackHook(BaseHook):  # noqa
@@ -41,7 +41,7 @@ class SlackHook(BaseHook):  # noqa
         slack_hook.call("chat.postMessage", json={"channel": "#random", "text": "Hello world!"})
 
         # Call method from Slack SDK (you have to handle errors yourself)
-        #  For more details check https://slack.dev/python-slackclient/basic_usage.html#sending-a-message
+        #  For more details check https://slack.dev/python-slack-sdk/web/index.html#messaging
         slack_hook.client.chat_postMessage(channel="#random", text="Hello world!")
 
     :param token: Slack API token
@@ -82,7 +82,7 @@ class SlackHook(BaseHook):  # noqa
 
         raise AirflowException('Cannot get token: No valid Slack token nor slack_conn_id supplied.')
 
-    def call(self, api_method: str, *args, **kwargs) -> None:
+    def call(self, api_method: str, **kwargs) -> None:
         """
         Calls Slack WebClient `WebClient.api_call` with given arguments.
 
@@ -100,4 +100,4 @@ class SlackHook(BaseHook):  # noqa
         :param json: JSON for the body to attach to the request. Optional.
         :type json: dict
         """
-        self.client.api_call(api_method, *args, **kwargs)
+        self.client.api_call(api_method, **kwargs)

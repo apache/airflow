@@ -51,7 +51,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             http=mock_authorize.return_value,
             cache_discovery=False,
         )
-        self.assertEqual(mock_build.return_value, result)
+        assert mock_build.return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -69,7 +69,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             profileId=PROFILE_ID, reportId=REPORT_ID
         )
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -90,7 +90,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             profileId=PROFILE_ID, reportId=REPORT_ID, fileId=file_id
         )
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -110,7 +110,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             profileId=PROFILE_ID, reportId=REPORT_ID, fileId=file_id
         )
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -130,7 +130,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             profileId=PROFILE_ID, body=report
         )
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -171,7 +171,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             sortOrder=sort_order,
         )
 
-        self.assertEqual(items * 4, result)
+        assert items * 4 == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -189,7 +189,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             profileId=PROFILE_ID, reportId=REPORT_ID, body=update_mask
         )
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -207,7 +207,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             profileId=PROFILE_ID, reportId=REPORT_ID, synchronous=synchronous
         )
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -225,7 +225,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             profileId=PROFILE_ID, reportId=REPORT_ID
         )
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform."
@@ -264,7 +264,7 @@ class TestGoogleCampaignManagerHook(TestCase):
             profileId=PROFILE_ID, body=batch_request_mock.return_value
         )
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."
@@ -303,4 +303,4 @@ class TestGoogleCampaignManagerHook(TestCase):
             profileId=PROFILE_ID, body=batch_request_mock.return_value
         )
 
-        self.assertEqual(return_value, result)
+        assert return_value == result

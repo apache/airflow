@@ -21,6 +21,7 @@ import unittest
 from unittest import mock
 from unittest.mock import Mock
 
+import pytest
 import statsd
 
 import airflow
@@ -107,7 +108,7 @@ class TestStats(unittest.TestCase):
     )
     def test_load_custom_statsd_client(self):
         importlib.reload(airflow.stats)
-        self.assertEqual('CustomStatsd', type(airflow.stats.Stats.statsd).__name__)
+        assert 'CustomStatsd' == type(airflow.stats.Stats.statsd).__name__  # noqa: E721
 
     @conf_vars(
         {
@@ -127,9 +128,9 @@ class TestStats(unittest.TestCase):
         }
     )
     def test_load_invalid_custom_stats_client(self):
-        with self.assertRaisesRegex(
+        with pytest.raises(
             AirflowConfigException,
-            re.escape(
+            match=re.escape(
                 'Your custom Statsd client must extend the statsd.'
                 'StatsClient in order to ensure backwards compatibility.'
             ),

@@ -1,0 +1,117 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+"""This module allows to connect to a Neo4j database."""
+
+from neo4j import GraphDatabase, Neo4jDriver, Result
+
+from airflow.hooks.base import BaseHook
+from airflow.models import Connection
+
+
+class Neo4jHook(BaseHook):
+    """
+    Interact with Neo4j.
+
+    Performs a connection to Neo4j and runs the query.
+    """
+
+    conn_name_attr = 'neo4j_conn_id'
+    default_conn_name = 'neo4j_default'
+    conn_type = 'neo4j'
+    hook_name = 'Neo4j'
+
+    def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.neo4j_conn_id = conn_id
+        self.connection = kwargs.pop("connection", None)
+        self.client = None
+        self.extras = None
+        self.uri = None
+
+    def get_conn(self) -> Neo4jDriver:
+        """
+        Function that initiates a new Neo4j connection
+        with username, password and database schema.
+        """
+        self.connection = self.get_connection(self.neo4j_conn_id)
+        self.extras = self.connection.extra_dejson.copy()
+
+        self.uri = self.get_uri(self.connection)
+        self.log.info('URI: %s', self.uri)
+
+        if self.client is not None:
+            return self.client
+
+        is_encrypted = self.connection.extra_dejson.get('encrypted', False)
+
+        self.client = GraphDatabase.driver(
+            self.uri, auth=(self.connection.login, self.connection.password), encrypted=is_encrypted
+        )
+
+        return self.client
+
+    def get_uri(self, conn: Connection) -> str:
+        """
+        Build the uri based on extras
+        - Default - uses bolt scheme(bolt://)
+        - neo4j_scheme - neo4j://
+        - certs_self_signed - neo4j+ssc://
+        - certs_trusted_ca - neo4j+s://
+        :param conn: connection object.
+        :return: uri
+        """
+        use_neo4j_scheme = conn.extra_dejson.get('neo4j_scheme', False)
+        scheme = 'neo4j' if use_neo4j_scheme else 'bolt'
+
+        # Self signed certificates
+        ssc = conn.extra_dejson.get('certs_self_signed', False)
+
+        # Only certificates signed by CA.
+        trusted_ca = conn.extra_dejson.get('certs_trusted_ca', False)
+        encryption_scheme = ''
+
+        if ssc:
+            encryption_scheme = '+ssc'
+        elif trusted_ca:
+            encryption_scheme = '+s'
+
+        return '{scheme}{encryption_scheme}://{host}:{port}'.format(
+            scheme=scheme,
+            encryption_scheme=encryption_scheme,
+            host=conn.host,
+            port='7687' if conn.port is None else f'{conn.port}',
+        )
+
+    def run(self, query) -> Result:
+        """
+        Function to create a neo4j session
+        and execute the query in the session.
+
+
+        :param query: Neo4j query
+        :return: Result
+        """
+        driver = self.get_conn()
+        if not self.connection.schema:
+            with driver.session() as session:
+                result = session.run(query)
+        else:
+            with driver.session(database=self.connection.schema) as session:
+                result = session.run(query)
+        return result

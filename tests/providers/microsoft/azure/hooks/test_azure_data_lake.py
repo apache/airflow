@@ -43,9 +43,9 @@ class TestAzureDataLakeHook(unittest.TestCase):
         from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
 
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
-        self.assertIsNone(hook._conn)
-        self.assertEqual(hook.conn_id, 'adl_test_key')
-        self.assertIsInstance(hook.get_conn(), core.AzureDLFileSystem)
+        assert hook._conn is None
+        assert hook.conn_id == 'adl_test_key'
+        assert isinstance(hook.get_conn(), core.AzureDLFileSystem)
         assert mock_lib.auth.called
 
     @mock.patch(
@@ -132,3 +132,14 @@ class TestAzureDataLakeHook(unittest.TestCase):
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         hook.list('file_path/some_folder/')
         mock_fs.return_value.walk.assert_called_once_with('file_path/some_folder/')
+
+    @mock.patch(
+        'airflow.providers.microsoft.azure.hooks.azure_data_lake.core.AzureDLFileSystem', autospec=True
+    )
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.lib', autospec=True)
+    def test_remove(self, mock_lib, mock_fs):
+        from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
+
+        hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
+        hook.remove('filepath', True)
+        mock_fs.return_value.remove.assert_called_once_with('filepath', recursive=True)

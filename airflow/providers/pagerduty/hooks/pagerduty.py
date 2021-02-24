@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional
 import pdpyras
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class PagerdutyHook(BaseHook):
@@ -145,7 +145,7 @@ class PagerdutyHook(BaseHook):
 
         actions = ('trigger', 'acknowledge', 'resolve')
         if action not in actions:
-            raise ValueError("Event action must be one of: %s" % ', '.join(actions))
+            raise ValueError(f"Event action must be one of: {', '.join(actions)}")
         data = {
             "event_action": action,
             "payload": payload,

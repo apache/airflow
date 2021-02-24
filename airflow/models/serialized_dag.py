@@ -86,6 +86,8 @@ class SerializedDagModel(Base):
         backref=backref('serialized_dag', uselist=False, innerjoin=True),
     )
 
+    load_op_links = True
+
     def __init__(self, dag: DAG):
         self.dag_id = dag.dag_id
         self.fileloc = dag.full_filepath
@@ -163,6 +165,8 @@ class SerializedDagModel(Base):
     @property
     def dag(self):
         """The DAG deserialized from the ``data`` column"""
+        SerializedDAG._load_operator_extra_links = self.load_op_links  # pylint: disable=protected-access
+
         if isinstance(self.data, dict):
             dag = SerializedDAG.from_dict(self.data)  # type: Any
         else:

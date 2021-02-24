@@ -20,7 +20,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, List, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class PigCliHook(BaseHook):
@@ -33,7 +33,12 @@ class PigCliHook(BaseHook):
 
     """
 
-    def __init__(self, pig_cli_conn_id: str = "pig_cli_default") -> None:
+    conn_name_attr = 'pig_cli_conn_id'
+    default_conn_name = 'pig_cli_default'
+    conn_type = 'pig_cli'
+    hook_name = 'Pig Client Wrapper'
+
+    def __init__(self, pig_cli_conn_id: str = default_conn_name) -> None:
         super().__init__()
         conn = self.get_connection(pig_cli_conn_id)
         self.pig_properties = conn.extra_dejson.get('pig_properties', '')

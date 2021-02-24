@@ -36,7 +36,7 @@ class AWSDataSyncOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:AWSDataSyncOperator`
+        :ref:`howto/operator:AWSDataSyncOperator`
 
     .. note:: There may be 0, 1, or many existing DataSync Tasks defined in your AWS
         environment. The default behavior is to create a new Task if there are 0, or
@@ -351,7 +351,7 @@ class AWSDataSyncOperator(BaseOperator):
                     self.log.log(level, '%s=%s', k, v)
 
         if not result:
-            raise AirflowException("Failed TaskExecutionArn %s" % self.task_execution_arn)
+            raise AirflowException(f"Failed TaskExecutionArn {self.task_execution_arn}")
 
     def on_kill(self) -> None:
         """Cancel the submitted DataSync task."""

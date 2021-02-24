@@ -29,7 +29,6 @@ from google.cloud.pubsub_v1.types import (
     ReceivedMessage,
     RetryPolicy,
 )
-from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
@@ -958,6 +957,6 @@ class PubSubPullOperator(BaseOperator):
         :param context: same as in `execute`
         :return: value to be saved to XCom.
         """
-        messages_json = [MessageToDict(m) for m in pulled_messages]
+        messages_json = [ReceivedMessage.to_dict(m) for m in pulled_messages]
 
         return messages_json

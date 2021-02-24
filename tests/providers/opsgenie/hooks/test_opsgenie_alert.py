@@ -19,6 +19,7 @@
 import json
 import unittest
 
+import pytest
 import requests_mock
 
 from airflow.exceptions import AirflowException
@@ -78,35 +79,33 @@ class TestOpsgenieAlertHook(unittest.TestCase):
     def test_get_api_key(self):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
         api_key = hook._get_api_key()
-        self.assertEqual('eb243592-faa2-4ba2-a551q-1afdf565c889', api_key)
+        assert 'eb243592-faa2-4ba2-a551q-1afdf565c889' == api_key
 
     def test_get_conn_defaults_host(self):
         hook = OpsgenieAlertHook()
         hook.get_conn()
-        self.assertEqual('https://api.opsgenie.com', hook.base_url)
+        assert 'https://api.opsgenie.com' == hook.base_url
 
     @requests_mock.mock()
     def test_call_with_success(self, m):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
         m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
         resp = hook.execute(payload=self._payload)
-        self.assertEqual(resp.status_code, 202)
-        self.assertEqual(resp.json(), self._mock_success_response_body)
+        assert resp.status_code == 202
+        assert resp.json() == self._mock_success_response_body
 
     @requests_mock.mock()
     def test_api_key_set(self, m):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
         m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
         resp = hook.execute(payload=self._payload)
-        self.assertEqual(
-            resp.request.headers.get('Authorization'), 'GenieKey eb243592-faa2-4ba2-a551q-1afdf565c889'
-        )
+        assert resp.request.headers.get('Authorization') == 'GenieKey eb243592-faa2-4ba2-a551q-1afdf565c889'
 
     @requests_mock.mock()
     def test_api_key_not_set(self, m):
         hook = OpsgenieAlertHook()
         m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             hook.execute(payload=self._payload)
 
     @requests_mock.mock()
@@ -114,4 +113,4 @@ class TestOpsgenieAlertHook(unittest.TestCase):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
         m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
         resp = hook.execute(payload=self._payload)
-        self.assertEqual(json.loads(resp.request.body), self._payload)
+        assert json.loads(resp.request.body) == self._payload

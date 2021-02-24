@@ -22,15 +22,19 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
+
 integrations:
   - integration-name: Kubernetes
     external-doc-url: https://kubernetes.io/
     how-to-guide:
-      - /docs/howto/operator/kubernetes.rst
+      - /docs/apache-airflow-providers-cncf-kubernetes/operators.rst
+    logo: /integration-logos/kubernetes/Kubernetes.png
     tags: [software]
   - integration-name: Spark on Kubernetes
     external-doc-url: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator
+    logo: /integration-logos/kubernetes/Spark-On-Kubernetes.png
     tags: [software]
 
 operators:
@@ -48,3 +52,6 @@ hooks:
   - integration-name: Kubernetes
     python-modules:
       - airflow.providers.cncf.kubernetes.hooks.kubernetes
+
+hook-class-names:
+  - airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook

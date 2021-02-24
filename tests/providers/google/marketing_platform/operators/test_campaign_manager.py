@@ -126,7 +126,7 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
             profile_id=profile_id, report_id=report_id, file_id=file_id
         )
         gcs_hook_mock.assert_called_once_with(
-            google_cloud_storage_conn_id=GCP_CONN_ID,
+            gcp_conn_id=GCP_CONN_ID,
             delegate_to=None,
             impersonation_chain=None,
         )

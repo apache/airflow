@@ -42,7 +42,7 @@ from qds_sdk.qubole import Qubole
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.utils.state import State
 
 log = logging.getLogger(__name__)
@@ -109,9 +109,26 @@ COMMAND_ARGS, HYPHEN_ARGS = build_command_args()
 class QuboleHook(BaseHook):
     """Hook for Qubole communication"""
 
+    conn_name_attr = 'qubole_conn_id'
+    default_conn_name = 'qubole_default'
+    conn_type = 'qubole'
+    hook_name = 'Qubole'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['login', 'schema', 'port', 'extra'],
+            "relabeling": {
+                'host': 'API Endpoint',
+                'password': 'Auth Token',
+            },
+            "placeholders": {'host': 'https://<env>.qubole.com/api'},
+        }
+
     def __init__(self, *args, **kwargs) -> None:  # pylint: disable=unused-argument
         super().__init__()
-        conn = self.get_connection(kwargs['qubole_conn_id'])
+        conn = self.get_connection(kwargs.get('qubole_conn_id', self.default_conn_name))
         Qubole.configure(api_token=conn.password, api_url=conn.host)
         self.task_id = kwargs['task_id']
         self.dag_id = kwargs['dag'].dag_id
@@ -245,7 +262,7 @@ class QuboleHook(BaseHook):
         for key, value in self.kwargs.items():  # pylint: disable=too-many-nested-blocks
             if key in COMMAND_ARGS[cmd_type]:
                 if key in HYPHEN_ARGS:
-                    args.append("--{}={}".format(key.replace('_', '-'), value))
+                    args.append(f"--{key.replace('_', '-')}={value}")
                 elif key in positional_args_list:
                     inplace_args = value
                 elif key == 'tags':
@@ -256,7 +273,7 @@ class QuboleHook(BaseHook):
                 else:
                     args.append(f"--{key}={value}")
 
-        args.append("--tags={}".format(','.join(filter(None, tags))))
+        args.append(f"--tags={','.join(filter(None, tags))}")
 
         if inplace_args is not None:
             args += inplace_args.split(' ')

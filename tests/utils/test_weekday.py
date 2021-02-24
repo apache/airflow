@@ -23,18 +23,18 @@ from airflow.utils.weekday import WeekDay
 
 class TestWeekDay(unittest.TestCase):
     def test_weekday_enum_length(self):
-        self.assertEqual(len(WeekDay), 7)
+        assert len(WeekDay) == 7
 
     def test_weekday_name_value(self):
         weekdays = "MONDAY TUESDAY WEDNESDAY THURSDAY FRIDAY SATURDAY SUNDAY"
         weekdays = weekdays.split()
         for i, weekday in enumerate(weekdays, start=1):
             weekday_enum = WeekDay(i)
-            self.assertEqual(weekday_enum, i)
-            self.assertEqual(int(weekday_enum), i)
-            self.assertEqual(weekday_enum.name, weekday)
-            self.assertTrue(weekday_enum in WeekDay)
-            self.assertTrue(0 < weekday_enum < 8)
-            self.assertIsInstance(weekday_enum, WeekDay)
-            self.assertIsInstance(weekday_enum, int)
-            self.assertIsInstance(weekday_enum, Enum)
+            assert weekday_enum == i
+            assert int(weekday_enum) == i
+            assert weekday_enum.name == weekday
+            assert weekday_enum in WeekDay
+            assert 0 < weekday_enum < 8
+            assert isinstance(weekday_enum, WeekDay)
+            assert isinstance(weekday_enum, int)
+            assert isinstance(weekday_enum, Enum)

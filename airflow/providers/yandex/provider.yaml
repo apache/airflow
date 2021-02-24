@@ -22,17 +22,20 @@ description: |
     Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.0.1
+  - 1.0.0
 
 integrations:
   - integration-name: Yandex.Cloud
     external-doc-url: https://cloud.yandex.com/
+    logo: /integration-logos/yandex/Yandex-Cloud.png
     tags: [service]
 
   - integration-name: Yandex.Cloud Dataproc
     external-doc-url: https://cloud.yandex.com/dataproc
     how-to-guide:
-      - /docs/howto/operator/yandexcloud.rst
+      - /docs/apache-airflow-providers-yandex/operators.rst
+    logo: /integration-logos/yandex/Yandex-Cloud.png
     tags: [service]
 
 operators:
@@ -47,3 +50,6 @@ hooks:
   - integration-name: Yandex.Cloud Dataproc
     python-modules:
       - airflow.providers.yandex.hooks.yandexcloud_dataproc
+
+hook-class-names:
+  - airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook

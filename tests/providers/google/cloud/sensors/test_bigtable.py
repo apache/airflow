@@ -20,6 +20,7 @@ import unittest
 from unittest import mock
 
 import google.api_core.exceptions
+import pytest
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState
 from parameterized import parameterized
@@ -44,7 +45,7 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
     def test_empty_attribute(self, missing_attribute, project_id, instance_id, table_id, mock_hook):
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             BigtableTableReplicationCompletedSensor(
                 project_id=project_id,
                 instance_id=instance_id,
@@ -53,8 +54,8 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
                 gcp_conn_id=GCP_CONN_ID,
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
-        err = e.exception
-        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
+        err = ctx.value
+        assert str(err) == f'Empty parameter: {missing_attribute}'
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
@@ -69,7 +70,7 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        self.assertFalse(op.poke(None))
+        assert not op.poke(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -90,7 +91,7 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        self.assertFalse(op.poke(None))
+        assert not op.poke(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -108,7 +109,7 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        self.assertFalse(op.poke(None))
+        assert not op.poke(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -126,7 +127,7 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        self.assertTrue(op.poke(None))
+        assert op.poke(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,

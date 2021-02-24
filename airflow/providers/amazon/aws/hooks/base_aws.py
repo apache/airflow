@@ -21,7 +21,7 @@ This module contains Base AWS Hook.
 
 .. seealso::
     For more information on how to use this hook, take a look at the guide:
-    :ref:`apache-airflow:howto/connection:AWSHook`
+    :ref:`howto/connection:AWSHook`
 """
 
 import configparser
@@ -38,7 +38,7 @@ from cached_property import cached_property
 from dateutil.tz import tzlocal
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -328,9 +328,14 @@ class AwsBaseHook(BaseHook):
     :type config: Optional[botocore.client.Config]
     """
 
+    conn_name_attr = 'aws_conn_id'
+    default_conn_name = 'aws_default'
+    conn_type = 'aws'
+    hook_name = 'Amazon Web Services'
+
     def __init__(
         self,
-        aws_conn_id: Optional[str] = "aws_default",
+        aws_conn_id: Optional[str] = default_conn_name,
         verify: Union[bool, str, None] = None,
         region_name: Optional[str] = None,
         client_type: Optional[str] = None,

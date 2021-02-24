@@ -21,7 +21,10 @@ import unittest
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from smtplib import SMTPServerDisconnected
 from unittest import mock
+
+import pytest
 
 from airflow import utils
 from airflow.configuration import conf
@@ -37,46 +40,49 @@ class TestEmail(unittest.TestCase):
     def test_get_email_address_single_email(self):
         emails_string = 'test1@example.com'
 
-        self.assertEqual(get_email_address_list(emails_string), [emails_string])
+        assert get_email_address_list(emails_string) == [emails_string]
 
     def test_get_email_address_comma_sep_string(self):
         emails_string = 'test1@example.com, test2@example.com'
 
-        self.assertEqual(get_email_address_list(emails_string), EMAILS)
+        assert get_email_address_list(emails_string) == EMAILS
 
     def test_get_email_address_colon_sep_string(self):
         emails_string = 'test1@example.com; test2@example.com'
 
-        self.assertEqual(get_email_address_list(emails_string), EMAILS)
+        assert get_email_address_list(emails_string) == EMAILS
 
     def test_get_email_address_list(self):
         emails_list = ['test1@example.com', 'test2@example.com']
 
-        self.assertEqual(get_email_address_list(emails_list), EMAILS)
+        assert get_email_address_list(emails_list) == EMAILS
 
     def test_get_email_address_tuple(self):
         emails_tuple = ('test1@example.com', 'test2@example.com')
 
-        self.assertEqual(get_email_address_list(emails_tuple), EMAILS)
+        assert get_email_address_list(emails_tuple) == EMAILS
 
     def test_get_email_address_invalid_type(self):
         emails_string = 1
 
-        self.assertRaises(TypeError, get_email_address_list, emails_string)
+        with pytest.raises(TypeError):
+            get_email_address_list(emails_string)
 
     def test_get_email_address_invalid_type_in_iterable(self):
         emails_list = ['test1@example.com', 2]
 
-        self.assertRaises(TypeError, get_email_address_list, emails_list)
+        with pytest.raises(TypeError):
+            get_email_address_list(emails_list)
 
     def setUp(self):
         conf.remove_option('email', 'EMAIL_BACKEND')
+        conf.remove_option('email', 'EMAIL_CONN_ID')
 
     @mock.patch('airflow.utils.email.send_email')
     def test_default_backend(self, mock_send_email):
         res = utils.email.send_email('to', 'subject', 'content')
         mock_send_email.assert_called_once_with('to', 'subject', 'content')
-        self.assertEqual(mock_send_email.return_value, res)
+        assert mock_send_email.return_value == res
 
     @mock.patch('airflow.utils.email.send_email_smtp')
     def test_custom_backend(self, mock_send_email):
@@ -92,8 +98,9 @@ class TestEmail(unittest.TestCase):
             bcc=None,
             mime_charset='utf-8',
             mime_subtype='mixed',
+            conn_id='smtp_default',
         )
-        self.assertFalse(mock_send_email.called)
+        assert not mock_send_email.called
 
     def test_build_mime_message(self):
         mail_from = 'from@example.com'
@@ -110,15 +117,14 @@ class TestEmail(unittest.TestCase):
             custom_headers=custom_headers,
         )
 
-        self.assertIn('From', msg)
-        self.assertIn('To', msg)
-        self.assertIn('Subject', msg)
-        self.assertIn('Reply-To', msg)
-        self.assertListEqual([mail_to], recipients)
-        self.assertEqual(msg['To'], ','.join(recipients))
+        assert 'From' in msg
+        assert 'To' in msg
+        assert 'Subject' in msg
+        assert 'Reply-To' in msg
+        assert [mail_to] == recipients
+        assert msg['To'] == ','.join(recipients)
 
 
-@conf_vars({('smtp', 'SMTP_SSL'): 'False'})
 class TestEmailSmtp(unittest.TestCase):
     @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_smtp(self, mock_send_mime):
@@ -126,27 +132,27 @@ class TestEmailSmtp(unittest.TestCase):
         attachment.write(b'attachment')
         attachment.seek(0)
         utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name])
-        self.assertTrue(mock_send_mime.called)
-        call_args = mock_send_mime.call_args[0]
-        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
-        self.assertEqual(['to'], call_args[1])
-        msg = call_args[2]
-        self.assertEqual('subject', msg['Subject'])
-        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
-        self.assertEqual(2, len(msg.get_payload()))
+        assert mock_send_mime.called
+        _, call_args = mock_send_mime.call_args
+        assert conf.get('smtp', 'SMTP_MAIL_FROM') == call_args['e_from']
+        assert ['to'] == call_args['e_to']
+        msg = call_args['mime_msg']
+        assert 'subject' == msg['Subject']
+        assert conf.get('smtp', 'SMTP_MAIL_FROM') == msg['From']
+        assert 2 == len(msg.get_payload())
         filename = 'attachment; filename="' + os.path.basename(attachment.name) + '"'
-        self.assertEqual(filename, msg.get_payload()[-1].get('Content-Disposition'))
+        assert filename == msg.get_payload()[-1].get('Content-Disposition')
         mimeapp = MIMEApplication('attachment')
-        self.assertEqual(mimeapp.get_payload(), msg.get_payload()[-1].get_payload())
+        assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
 
     @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_smtp_with_multibyte_content(self, mock_send_mime):
         utils.email.send_email_smtp('to', 'subject', '🔥', mime_charset='utf-8')
-        self.assertTrue(mock_send_mime.called)
-        call_args = mock_send_mime.call_args[0]
-        msg = call_args[2]
+        assert mock_send_mime.called
+        _, call_args = mock_send_mime.call_args
+        msg = call_args['mime_msg']
         mimetext = MIMEText('🔥', 'mixed', 'utf-8')
-        self.assertEqual(mimetext.get_payload(), msg.get_payload()[0].get_payload())
+        assert mimetext.get_payload() == msg.get_payload()[0].get_payload()
 
     @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_bcc_smtp(self, mock_send_mime):
@@ -154,58 +160,71 @@ class TestEmailSmtp(unittest.TestCase):
         attachment.write(b'attachment')
         attachment.seek(0)
         utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name], cc='cc', bcc='bcc')
-        self.assertTrue(mock_send_mime.called)
-        call_args = mock_send_mime.call_args[0]
-        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
-        self.assertEqual(['to', 'cc', 'bcc'], call_args[1])
-        msg = call_args[2]
-        self.assertEqual('subject', msg['Subject'])
-        self.assertEqual(conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
-        self.assertEqual(2, len(msg.get_payload()))
-        self.assertEqual(
-            'attachment; filename="' + os.path.basename(attachment.name) + '"',
-            msg.get_payload()[-1].get('Content-Disposition'),
-        )
+        assert mock_send_mime.called
+        _, call_args = mock_send_mime.call_args
+        assert conf.get('smtp', 'SMTP_MAIL_FROM') == call_args['e_from']
+        assert ['to', 'cc', 'bcc'] == call_args['e_to']
+        msg = call_args['mime_msg']
+        assert 'subject' == msg['Subject']
+        assert conf.get('smtp', 'SMTP_MAIL_FROM') == msg['From']
+        assert 2 == len(msg.get_payload())
+        assert 'attachment; filename="' + os.path.basename(attachment.name) + '"' == msg.get_payload()[
+            -1
+        ].get('Content-Disposition')
         mimeapp = MIMEApplication('attachment')
-        self.assertEqual(mimeapp.get_payload(), msg.get_payload()[-1].get_payload())
+        assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
 
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
     def test_send_mime(self, mock_smtp, mock_smtp_ssl):
         mock_smtp.return_value = mock.Mock()
-        mock_smtp_ssl.return_value = mock.Mock()
         msg = MIMEMultipart()
         utils.email.send_mime_email('from', 'to', msg, dryrun=False)
         mock_smtp.assert_called_once_with(
-            conf.get('smtp', 'SMTP_HOST'),
-            conf.getint('smtp', 'SMTP_PORT'),
+            host=conf.get('smtp', 'SMTP_HOST'),
+            port=conf.getint('smtp', 'SMTP_PORT'),
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
         )
-        self.assertTrue(mock_smtp.return_value.starttls.called)
+        assert not mock_smtp_ssl.called
+        assert mock_smtp.return_value.starttls.called
         mock_smtp.return_value.login.assert_called_once_with(
             conf.get('smtp', 'SMTP_USER'),
             conf.get('smtp', 'SMTP_PASSWORD'),
         )
         mock_smtp.return_value.sendmail.assert_called_once_with('from', 'to', msg.as_string())
-        self.assertTrue(mock_smtp.return_value.quit.called)
+        assert mock_smtp.return_value.quit.called
+
+    @mock.patch('smtplib.SMTP')
+    @mock.patch('airflow.hooks.base.BaseHook')
+    def test_send_mime_conn_id(self, mock_hook, mock_smtp):
+        msg = MIMEMultipart()
+        mock_conn = mock.Mock()
+        mock_conn.login = 'user'
+        mock_conn.password = 'password'
+        mock_hook.get_connection.return_value = mock_conn
+        utils.email.send_mime_email('from', 'to', msg, dryrun=False, conn_id='smtp_default')
+        mock_hook.get_connection.assert_called_with('smtp_default')
+        mock_smtp.return_value.login.assert_called_once_with('user', 'password')
+        mock_smtp.return_value.sendmail.assert_called_once_with('from', 'to', msg.as_string())
+        assert mock_smtp.return_value.quit.called
 
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
     def test_send_mime_ssl(self, mock_smtp, mock_smtp_ssl):
-        mock_smtp.return_value = mock.Mock()
         mock_smtp_ssl.return_value = mock.Mock()
         with conf_vars({('smtp', 'smtp_ssl'): 'True'}):
             utils.email.send_mime_email('from', 'to', MIMEMultipart(), dryrun=False)
-        self.assertFalse(mock_smtp.called)
+        assert not mock_smtp.called
         mock_smtp_ssl.assert_called_once_with(
-            conf.get('smtp', 'SMTP_HOST'),
-            conf.getint('smtp', 'SMTP_PORT'),
+            host=conf.get('smtp', 'SMTP_HOST'),
+            port=conf.getint('smtp', 'SMTP_PORT'),
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
         )
 
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
     def test_send_mime_noauth(self, mock_smtp, mock_smtp_ssl):
         mock_smtp.return_value = mock.Mock()
-        mock_smtp_ssl.return_value = mock.Mock()
         with conf_vars(
             {
                 ('smtp', 'smtp_user'): None,
@@ -213,16 +232,103 @@ class TestEmailSmtp(unittest.TestCase):
             }
         ):
             utils.email.send_mime_email('from', 'to', MIMEMultipart(), dryrun=False)
-        self.assertFalse(mock_smtp_ssl.called)
+        assert not mock_smtp_ssl.called
         mock_smtp.assert_called_once_with(
-            conf.get('smtp', 'SMTP_HOST'),
-            conf.getint('smtp', 'SMTP_PORT'),
+            host=conf.get('smtp', 'SMTP_HOST'),
+            port=conf.getint('smtp', 'SMTP_PORT'),
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
         )
-        self.assertFalse(mock_smtp.login.called)
+        assert not mock_smtp.login.called
 
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
     def test_send_mime_dryrun(self, mock_smtp, mock_smtp_ssl):
         utils.email.send_mime_email('from', 'to', MIMEMultipart(), dryrun=True)
-        self.assertFalse(mock_smtp.called)
-        self.assertFalse(mock_smtp_ssl.called)
+        assert not mock_smtp.called
+        assert not mock_smtp_ssl.called
+
+    @mock.patch('smtplib.SMTP_SSL')
+    @mock.patch('smtplib.SMTP')
+    def test_send_mime_complete_failure(self, mock_smtp: mock, mock_smtp_ssl):
+        mock_smtp.side_effect = SMTPServerDisconnected()
+        msg = MIMEMultipart()
+        with pytest.raises(SMTPServerDisconnected):
+            utils.email.send_mime_email('from', 'to', msg, dryrun=False)
+
+        mock_smtp.assert_any_call(
+            host=conf.get('smtp', 'SMTP_HOST'),
+            port=conf.getint('smtp', 'SMTP_PORT'),
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
+        )
+        assert mock_smtp.call_count == conf.getint('smtp', 'SMTP_RETRY_LIMIT')
+        assert not mock_smtp_ssl.called
+        assert not mock_smtp.return_value.starttls.called
+        assert not mock_smtp.return_value.login.called
+        assert not mock_smtp.return_value.sendmail.called
+        assert not mock_smtp.return_value.quit.called
+
+    @mock.patch('smtplib.SMTP_SSL')
+    @mock.patch('smtplib.SMTP')
+    def test_send_mime_ssl_complete_failure(self, mock_smtp, mock_smtp_ssl):
+        mock_smtp_ssl.side_effect = SMTPServerDisconnected()
+        msg = MIMEMultipart()
+        with conf_vars({('smtp', 'smtp_ssl'): 'True'}):
+            with pytest.raises(SMTPServerDisconnected):
+                utils.email.send_mime_email('from', 'to', msg, dryrun=False)
+
+        mock_smtp_ssl.assert_any_call(
+            host=conf.get('smtp', 'SMTP_HOST'),
+            port=conf.getint('smtp', 'SMTP_PORT'),
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
+        )
+        assert mock_smtp_ssl.call_count == conf.getint('smtp', 'SMTP_RETRY_LIMIT')
+        assert not mock_smtp.called
+        assert not mock_smtp_ssl.return_value.starttls.called
+        assert not mock_smtp_ssl.return_value.login.called
+        assert not mock_smtp_ssl.return_value.sendmail.called
+        assert not mock_smtp_ssl.return_value.quit.called
+
+    @mock.patch('smtplib.SMTP_SSL')
+    @mock.patch('smtplib.SMTP')
+    def test_send_mime_custom_timeout_retrylimit(self, mock_smtp, mock_smtp_ssl):
+        mock_smtp.side_effect = SMTPServerDisconnected()
+        msg = MIMEMultipart()
+
+        custom_retry_limit = 10
+        custom_timeout = 60
+
+        with conf_vars(
+            {
+                ('smtp', 'smtp_retry_limit'): str(custom_retry_limit),
+                ('smtp', 'smtp_timeout'): str(custom_timeout),
+            }
+        ):
+            with pytest.raises(SMTPServerDisconnected):
+                utils.email.send_mime_email('from', 'to', msg, dryrun=False)
+
+        mock_smtp.assert_any_call(
+            host=conf.get('smtp', 'SMTP_HOST'), port=conf.getint('smtp', 'SMTP_PORT'), timeout=custom_timeout
+        )
+        assert not mock_smtp_ssl.called
+        assert mock_smtp.call_count == 10
+
+    @mock.patch('smtplib.SMTP_SSL')
+    @mock.patch('smtplib.SMTP')
+    def test_send_mime_partial_failure(self, mock_smtp, mock_smtp_ssl):
+        final_mock = mock.Mock()
+        side_effects = [SMTPServerDisconnected(), SMTPServerDisconnected(), final_mock]
+        mock_smtp.side_effect = side_effects
+        msg = MIMEMultipart()
+
+        utils.email.send_mime_email('from', 'to', msg, dryrun=False)
+
+        mock_smtp.assert_any_call(
+            host=conf.get('smtp', 'SMTP_HOST'),
+            port=conf.getint('smtp', 'SMTP_PORT'),
+            timeout=conf.getint('smtp', 'SMTP_TIMEOUT'),
+        )
+        assert mock_smtp.call_count == side_effects.index(final_mock) + 1
+        assert not mock_smtp_ssl.called
+        assert final_mock.starttls.called
+        final_mock.sendmail.assert_called_once_with('from', 'to', msg.as_string())
+        assert final_mock.quit.called

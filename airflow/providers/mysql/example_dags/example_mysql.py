@@ -20,7 +20,7 @@ Example use of MySql related operators.
 """
 
 from airflow import DAG
-from airflow.operators.mysql_operator import MySqlOperator
+from airflow.providers.mysql.operators.mysql import MySqlOperator
 from airflow.utils.dates import days_ago
 
 default_args = {

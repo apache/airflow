@@ -74,20 +74,18 @@ MOCK_COMMANDS: List[CLICommand] = [
     ),
 ]
 
-EXPECTED_OUTPUT = """\
-LIST OF ALL COMMANDS:
+ALL_COMMANDS = """\
+airflow cmd_b                             | Help text D
+"""
 
-  airflow cmd_b - Help text D
+SECTION_A = """\
+airflow cmd_a cmd_b                       | Help text B
+airflow cmd_a cmd_c                       | Help text C
+"""
 
-Help text A
-
-  airflow cmd_a cmd_b - Help text B
-  airflow cmd_a cmd_c - Help text C
-
-Help text E
-
-  airflow cmd_e cmd_f - Help text F
-  airflow cmd_e cmd_g - Help text G
+SECTION_E = """\
+airflow cmd_e cmd_f                       | Help text F
+airflow cmd_e cmd_g                       | Help text G
 """
 
 
@@ -102,4 +100,6 @@ class TestCheatSheetCommand(unittest.TestCase):
             args = self.parser.parse_args(['cheat-sheet'])
             args.func(args)
         output = temp_stdout.getvalue()
-        self.assertIn(EXPECTED_OUTPUT, output)
+        assert ALL_COMMANDS in output
+        assert SECTION_A in output
+        assert SECTION_E in output

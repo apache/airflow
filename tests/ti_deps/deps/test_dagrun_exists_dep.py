@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# pylint: disable=no-value-for-parameter
 
 import unittest
 from unittest.mock import Mock, patch
@@ -32,7 +33,7 @@ class TestDagrunRunningDep(unittest.TestCase):
         """
         dag = DAG('test_dag', max_active_runs=2)
         ti = Mock(task=Mock(dag=dag), get_dagrun=Mock(return_value=None))
-        self.assertFalse(DagrunRunningDep().is_met(ti=ti))
+        assert not DagrunRunningDep().is_met(ti=ti)
 
     def test_dagrun_exists(self):
         """
@@ -40,4 +41,4 @@ class TestDagrunRunningDep(unittest.TestCase):
         """
         dagrun = DagRun(state=State.RUNNING)
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
-        self.assertTrue(DagrunRunningDep().is_met(ti=ti))
+        assert DagrunRunningDep().is_met(ti=ti)

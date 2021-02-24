@@ -23,51 +23,39 @@ on:  # yamllint disable-line rule:truthy
     - cron: '12 */6 * * *'
 
 env:
-  MOUNT_LOCAL_SOURCES: "false"
-  MOUNT_FILES: "true"
+  MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
   CHECK_IMAGE_FOR_REBUILD: "true"
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
   VERBOSE: "true"
-  UPGRADE_TO_LATEST_CONSTRAINTS: false
+  UPGRADE_TO_NEWER_DEPENDENCIES: false
   PYTHON_MAJOR_MINOR_VERSION: 3.6
   USE_GITHUB_REGISTRY: "true"
-  # Since we run this build on schedule, it might be that the image has never been pushed
-  # Because the master merge was cancelled, so we have to rebuild the image for quarantined build
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
+  # This token is WRITE one - schedule type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # This token should not be empty in schedule type of event.
+  CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
+  # Since we run this build on schedule, it might be that the image has never been pushed
+  # Because the master merge was cancelled, so we have to rebuild the image for quarantined build
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+  GITHUB_REGISTRY: ${{ secrets.OVERRIDE_GITHUB_REGISTRY }}
 
 jobs:
-
-  trigger-tests:
-    timeout-minutes: 5
-    name: "Checks if tests should be run"
-    runs-on: ubuntu-20.04
-    outputs:
-      run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
-    steps:
-      - uses: actions/checkout@v2
-      - name: "Check if tests should be run"
-        run: "./scripts/ci/tools/ci_check_if_tests_should_be_run.sh"
-        id: trigger-tests
 
   tests-quarantined:
     timeout-minutes: 80
     name: "Quarantined tests"
     runs-on: ubuntu-20.04
-    continue-on-error: true
-    needs: [trigger-tests]
     strategy:
       matrix:
         python-version: [3.6]
         postgres-version: [9.6]
-      fail-fast: false
     env:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -76,10 +64,10 @@ jobs:
       TEST_TYPE: Quarantined
       NUM_RUNS: 20
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    if: |
-      needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v2
         with:
           python-version: '3.7'
@@ -99,6 +87,8 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+        env:
+          GITHUB_REGISTRY: ${{ steps.determine-github-registry.outputs.githubRegistry }}
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - uses: actions/upload-artifact@v2
@@ -107,9 +97,11 @@ jobs:
         with:
           name: 'quarantined_tests'
           path: 'files/test_result.xml'
+          retention-days: 7
       - uses: actions/upload-artifact@v2
         name: Upload airflow logs
         if: always()
         with:
           name: airflow-logs-quarantined-${{matrix.python-version}}-${{ matrix.postgres-version }}
           path: './files/airflow_logs*'
+          retention-days: 7

@@ -25,9 +25,8 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.retry import Retry
-from google.cloud.tasks_v2 import enums
-from google.cloud.tasks_v2.types import FieldMask, Queue, Task
-from google.protobuf.json_format import MessageToDict
+from google.cloud.tasks_v2.types import Queue, Task
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
@@ -136,7 +135,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
                 metadata=self.metadata,
             )
 
-        return MessageToDict(queue)
+        return Queue.to_dict(queue)
 
 
 class CloudTasksQueueUpdateOperator(BaseOperator):
@@ -159,7 +158,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
     :param update_mask: A mast used to specify which fields of the queue are being updated.
         If empty, then all fields will be updated.
         If a dict is provided, it must be of the same form as the protobuf message.
-    :type update_mask: dict or google.cloud.tasks_v2.types.FieldMask
+    :type update_mask: dict or google.protobuf.field_mask_pb2.FieldMask
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
     :type retry: google.api_core.retry.Retry
@@ -237,7 +236,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(queue)
+        return Queue.to_dict(queue)
 
 
 class CloudTasksQueueGetOperator(BaseOperator):
@@ -320,7 +319,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(queue)
+        return Queue.to_dict(queue)
 
 
 class CloudTasksQueuesListOperator(BaseOperator):
@@ -408,7 +407,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return [MessageToDict(q) for q in queues]
+        return [Queue.to_dict(q) for q in queues]
 
 
 class CloudTasksQueueDeleteOperator(BaseOperator):
@@ -571,7 +570,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(queue)
+        return Queue.to_dict(queue)
 
 
 class CloudTasksQueuePauseOperator(BaseOperator):
@@ -646,7 +645,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        queues = hook.pause_queue(
+        queue = hook.pause_queue(
             location=self.location,
             queue_name=self.queue_name,
             project_id=self.project_id,
@@ -654,7 +653,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return [MessageToDict(q) for q in queues]
+        return Queue.to_dict(queue)
 
 
 class CloudTasksQueueResumeOperator(BaseOperator):
@@ -737,7 +736,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(queue)
+        return Queue.to_dict(queue)
 
 
 class CloudTasksTaskCreateOperator(BaseOperator):
@@ -803,7 +802,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         task: Union[Dict, Task],
         project_id: Optional[str] = None,
         task_name: Optional[str] = None,
-        response_view: Optional[enums.Task.View] = None,
+        response_view: Optional = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
@@ -840,7 +839,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(task)
+        return Task.to_dict(task)
 
 
 class CloudTasksTaskGetOperator(BaseOperator):
@@ -900,7 +899,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
         queue_name: str,
         task_name: str,
         project_id: Optional[str] = None,
-        response_view: Optional[enums.Task.View] = None,
+        response_view: Optional = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
@@ -935,7 +934,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(task)
+        return Task.to_dict(task)
 
 
 class CloudTasksTasksListOperator(BaseOperator):
@@ -994,7 +993,7 @@ class CloudTasksTasksListOperator(BaseOperator):
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
-        response_view: Optional[enums.Task.View] = None,
+        response_view: Optional = None,
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -1030,7 +1029,7 @@ class CloudTasksTasksListOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return [MessageToDict(t) for t in tasks]
+        return [Task.to_dict(t) for t in tasks]
 
 
 class CloudTasksTaskDeleteOperator(BaseOperator):
@@ -1134,7 +1133,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
     :type project_id: str
     :param response_view: (Optional) This field specifies which subset of the Task will
         be returned.
-    :type response_view: google.cloud.tasks_v2.enums.Task.View
+    :type response_view: google.cloud.tasks_v2.Task.View
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
     :type retry: google.api_core.retry.Retry
@@ -1176,7 +1175,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
         queue_name: str,
         task_name: str,
         project_id: Optional[str] = None,
-        response_view: Optional[enums.Task.View] = None,
+        response_view: Optional = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
@@ -1211,4 +1210,4 @@ class CloudTasksTaskRunOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(task)
+        return Task.to_dict(task)

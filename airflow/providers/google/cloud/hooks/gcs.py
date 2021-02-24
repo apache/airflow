@@ -40,6 +40,9 @@ from airflow.version import version
 RT = TypeVar('RT')  # pylint: disable=invalid-name
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
+# Use default timeout from google-cloud-storage
+DEFAULT_TIMEOUT = 60
+
 
 def _fallback_object_url_to_object_name_and_bucket_name(
     object_url_keyword_arg_name='object_url',
@@ -257,7 +260,12 @@ class GCSHook(GoogleBaseHook):
         )
 
     def download(
-        self, object_name: str, bucket_name: Optional[str], filename: Optional[str] = None
+        self,
+        object_name: str,
+        bucket_name: Optional[str],
+        filename: Optional[str] = None,
+        chunk_size: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT,
     ) -> Union[str, bytes]:
         """
         Downloads a file from Google Cloud Storage.
@@ -273,16 +281,20 @@ class GCSHook(GoogleBaseHook):
         :type object_name: str
         :param filename: If set, a local file path where the file should be written to.
         :type filename: str
+        :param chunk_size: Blob chunk size.
+        :type chunk_size: int
+        :param timeout: Request timeout in seconds.
+        :type timeout: int
         """
         # TODO: future improvement check file size before downloading,
         #  to check for local space availability
 
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
-        blob = bucket.blob(blob_name=object_name)
+        blob = bucket.blob(blob_name=object_name, chunk_size=chunk_size)
 
         if filename:
-            blob.download_to_filename(filename)
+            blob.download_to_filename(filename, timeout=timeout)
             self.log.info('File downloaded to %s', filename)
             return filename
         else:
@@ -359,6 +371,8 @@ class GCSHook(GoogleBaseHook):
         mime_type: Optional[str] = None,
         gzip: bool = False,
         encoding: str = 'utf-8',
+        chunk_size: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT,
     ) -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
@@ -377,10 +391,14 @@ class GCSHook(GoogleBaseHook):
         :type gzip: bool
         :param encoding: bytes encoding for file data if provided as string
         :type encoding: str
+        :param chunk_size: Blob chunk size.
+        :type chunk_size: int
+        :param timeout: Request timeout in seconds.
+        :type timeout: int
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
-        blob = bucket.blob(blob_name=object_name)
+        blob = bucket.blob(blob_name=object_name, chunk_size=chunk_size)
         if filename and data:
             raise ValueError(
                 "'filename' and 'data' parameter provided. Please "
@@ -398,7 +416,7 @@ class GCSHook(GoogleBaseHook):
                         shutil.copyfileobj(f_in, f_out)
                         filename = filename_gz
 
-            blob.upload_from_filename(filename=filename, content_type=mime_type)
+            blob.upload_from_filename(filename=filename, content_type=mime_type, timeout=timeout)
             if gzip:
                 os.remove(filename)
             self.log.info('File %s uploaded to %s in %s bucket', filename, object_name, bucket_name)
@@ -412,7 +430,7 @@ class GCSHook(GoogleBaseHook):
                 with gz.GzipFile(fileobj=out, mode="w") as f:
                     f.write(data)
                 data = out.getvalue()
-            blob.upload_from_string(data, content_type=mime_type)
+            blob.upload_from_string(data, content_type=mime_type, timeout=timeout)
             self.log.info('Data stream uploaded to %s in %s bucket', object_name, bucket_name)
         else:
             raise ValueError("'filename' and 'data' parameter missing. One is required to upload to gcs.")

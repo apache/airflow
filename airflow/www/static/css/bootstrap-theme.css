@@ -783,7 +783,7 @@ pre code {
 }
 .pre-scrollable {
   max-height: 340px;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 .container {
   margin-right: auto;
@@ -4670,8 +4670,8 @@ a.list-group-item-danger.active:focus {
 .panel-heading {
   padding: 10px 15px;
   border-bottom: 1px solid transparent;
-  border-top-right-radius: 4px;
-  border-top-left-radius: 4px;
+  border-top-right-radius: 2px;
+  border-top-left-radius: 2px;
 }
 .panel-heading > .dropdown .dropdown-toggle {
   color: inherit;
@@ -5133,7 +5133,7 @@ button.close {
   top: -9999px;
   width: 50px;
   height: 50px;
-  overflow: scroll;
+  overflow: auto;
 }
 
 @media (min-width: 768px) {

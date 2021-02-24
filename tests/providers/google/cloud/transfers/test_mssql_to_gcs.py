@@ -53,10 +53,10 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
     def test_init(self):
         """Test MySqlToGoogleCloudStorageOperator instance is properly initialized."""
         op = MSSQLToGCSOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME)
-        self.assertEqual(op.task_id, TASK_ID)
-        self.assertEqual(op.sql, SQL)
-        self.assertEqual(op.bucket, BUCKET)
-        self.assertEqual(op.filename, JSON_FILENAME)
+        assert op.task_id == TASK_ID
+        assert op.sql == SQL
+        assert op.bucket == BUCKET
+        assert op.filename == JSON_FILENAME
 
     @mock.patch('airflow.providers.google.cloud.transfers.mssql_to_gcs.MsSqlHook')
     @mock.patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
@@ -73,12 +73,12 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
-            self.assertEqual(BUCKET, bucket)
-            self.assertEqual(JSON_FILENAME.format(0), obj)
-            self.assertEqual('application/json', mime_type)
-            self.assertEqual(GZIP, gzip)
+            assert BUCKET == bucket
+            assert JSON_FILENAME.format(0) == obj
+            assert 'application/json' == mime_type
+            assert GZIP == gzip
             with open(tmp_filename, 'rb') as file:
-                self.assertEqual(b''.join(NDJSON_LINES), file.read())
+                assert b''.join(NDJSON_LINES) == file.read()
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -102,11 +102,11 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
         }
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
-            self.assertEqual(BUCKET, bucket)
-            self.assertEqual('application/json', mime_type)
-            self.assertEqual(GZIP, gzip)
+            assert BUCKET == bucket
+            assert 'application/json' == mime_type
+            assert GZIP == gzip
             with open(tmp_filename, 'rb') as file:
-                self.assertEqual(expected_upload[obj], file.read())
+                assert expected_upload[obj] == file.read()
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -132,7 +132,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):  # pylint: disable=unused-argument
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, 'rb') as file:
-                    self.assertEqual(b''.join(SCHEMA_JSON), file.read())
+                    assert b''.join(SCHEMA_JSON) == file.read()
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -142,4 +142,4 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
         op.execute(None)
 
         # once for the file and once for the schema
-        self.assertEqual(2, gcs_hook_mock.upload.call_count)
+        assert 2 == gcs_hook_mock.upload.call_count

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# pylint: disable=no-value-for-parameter
+
 import unittest
 from unittest.mock import Mock, patch
 
@@ -40,21 +42,21 @@ class TestPoolSlotsAvailableDep(unittest.TestCase):
     # pylint: disable=unused-argument
     def test_pooled_task_reached_concurrency(self, mock_open_slots):
         ti = Mock(pool='test_pool', pool_slots=1)
-        self.assertFalse(PoolSlotsAvailableDep().is_met(ti=ti))
+        assert not PoolSlotsAvailableDep().is_met(ti=ti)
 
     @patch('airflow.models.Pool.open_slots', return_value=1)
     # pylint: disable=unused-argument
     def test_pooled_task_pass(self, mock_open_slots):
         ti = Mock(pool='test_pool', pool_slots=1)
-        self.assertTrue(PoolSlotsAvailableDep().is_met(ti=ti))
+        assert PoolSlotsAvailableDep().is_met(ti=ti)
 
     @patch('airflow.models.Pool.open_slots', return_value=0)
     # pylint: disable=unused-argument
     def test_running_pooled_task_pass(self, mock_open_slots):
         for state in EXECUTION_STATES:
             ti = Mock(pool='test_pool', state=state, pool_slots=1)
-            self.assertTrue(PoolSlotsAvailableDep().is_met(ti=ti))
+            assert PoolSlotsAvailableDep().is_met(ti=ti)
 
     def test_task_with_nonexistent_pool(self):
         ti = Mock(pool='nonexistent_pool', pool_slots=1)
-        self.assertFalse(PoolSlotsAvailableDep().is_met(ti=ti))
+        assert not PoolSlotsAvailableDep().is_met(ti=ti)

@@ -15,28 +15,44 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from typing import Dict, Optional
 
 from docker import APIClient
 from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class DockerHook(BaseHook, LoggingMixin):
     """
-    Interact with a private Docker registry.
+    Interact with a Docker Daemon or Registry.
 
     :param docker_conn_id: ID of the Airflow connection where
         credentials and extra configuration are stored
     :type docker_conn_id: str
     """
 
+    conn_name_attr = 'docker_conn_id'
+    default_conn_name = 'docker_default'
+    conn_type = 'docker'
+    hook_name = 'Docker'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema'],
+            "relabeling": {
+                'host': 'Registry URL',
+                'login': 'Username',
+            },
+        }
+
     def __init__(
         self,
-        docker_conn_id='docker_default',
+        docker_conn_id: str = default_conn_name,
         base_url: Optional[str] = None,
         version: Optional[str] = None,
         tls: Optional[str] = None,
@@ -49,7 +65,7 @@ class DockerHook(BaseHook, LoggingMixin):
 
         conn = self.get_connection(docker_conn_id)
         if not conn.host:
-            raise AirflowException('No Docker registry URL provided')
+            raise AirflowException('No Docker URL provided')
         if not conn.login:
             raise AirflowException('No username provided')
         extra_options = conn.extra_dejson
@@ -72,7 +88,7 @@ class DockerHook(BaseHook, LoggingMixin):
         return client
 
     def __login(self, client) -> int:
-        self.log.debug('Logging into Docker registry')
+        self.log.debug('Logging into Docker')
         try:
             client.login(
                 username=self.__username,
@@ -83,5 +99,5 @@ class DockerHook(BaseHook, LoggingMixin):
             )
             self.log.debug('Login successful')
         except APIError as docker_error:
-            self.log.error('Docker registry login failed: %s', str(docker_error))
-            raise AirflowException(f'Docker registry login failed: {docker_error}')
+            self.log.error('Docker login failed: %s', str(docker_error))
+            raise AirflowException(f'Docker login failed: {docker_error}')

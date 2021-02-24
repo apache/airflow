@@ -24,7 +24,7 @@ of a table in a Cassandra cluster.
 from typing import Any, Dict
 
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -34,7 +34,7 @@ class CassandraTableSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:CassandraTableSensor`
+        :ref:`howto/operator:CassandraTableSensor`
 
 
     For example, if you want to wait for a table called 't' to be created

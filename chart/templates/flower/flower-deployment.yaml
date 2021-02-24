@@ -18,7 +18,11 @@
 ################################
 ## Airflow Flower Deployment
 #################################
+{{- if .Values.flower.enabled }}
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+{{- $nodeSelector := or .Values.flower.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.flower.affinity .Values.affinity }}
+{{- $tolerations := or .Values.flower.tolerations .Values.tolerations }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -52,11 +56,11 @@ spec:
 {{- end }}
     spec:
       nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
+{{ toYaml $nodeSelector | indent 8 }}
       affinity:
-{{ toYaml .Values.affinity | indent 8 }}
+{{ toYaml $affinity | indent 8 }}
       tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
+{{ toYaml $tolerations | indent 8 }}
       restartPolicy: Always
       securityContext:
         runAsUser: {{ .Values.uid }}
@@ -68,7 +72,7 @@ spec:
         - name: flower
           image: {{ template "flower_image" . }}
           imagePullPolicy: {{ .Values.images.flower.pullPolicy }}
-          args: ["bash", "-c", "airflow flower || airflow celery flower"]
+          args: ["bash", "-c", "airflow celery flower || airflow flower"]
           resources:
 {{ toYaml .Values.flower.resources | indent 12 }}
           volumeMounts:
@@ -112,8 +116,10 @@ spec:
                   key: basicAuth
             {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- include "custom_airflow_environment" . | indent 10 }}
       volumes:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+{{- end }}
 {{- end }}

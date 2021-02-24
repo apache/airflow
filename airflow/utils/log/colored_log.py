@@ -25,7 +25,7 @@ from colorlog import TTYColoredFormatter
 from colorlog.escape_codes import esc, escape_codes
 
 DEFAULT_COLORS = {
-    "DEBUG": "red",
+    "DEBUG": "green",
     "INFO": "",
     "WARNING": "yellow",
     "ERROR": "red",

@@ -20,6 +20,8 @@
 from collections import namedtuple
 from datetime import date
 
+import pytest
+
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.sensors.python import PythonSensor
 from airflow.utils.state import State
@@ -43,12 +45,12 @@ class TestPythonSensor(TestPythonBase):
             python_callable=lambda: False,
             dag=self.dag,
         )
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_python_sensor_raise(self):
         op = PythonSensor(task_id='python_sensor_check_raise', python_callable=lambda: 1 / 0, dag=self.dag)
-        with self.assertRaises(ZeroDivisionError):
+        with pytest.raises(ZeroDivisionError):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_python_callable_arguments_are_templatized(self):
@@ -77,12 +79,12 @@ class TestPythonSensor(TestPythonBase):
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ds_templated = DEFAULT_DATE.date().isoformat()
         # 2 calls: first: at start, second: before timeout
-        self.assertEqual(2, len(recorded_calls))
+        assert 2 == len(recorded_calls)
         self._assert_calls_equal(
             recorded_calls[0],
             Call(
@@ -118,11 +120,11 @@ class TestPythonSensor(TestPythonBase):
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         # 2 calls: first: at start, second: before timeout
-        self.assertEqual(2, len(recorded_calls))
+        assert 2 == len(recorded_calls)
         self._assert_calls_equal(
             recorded_calls[0],
             Call(

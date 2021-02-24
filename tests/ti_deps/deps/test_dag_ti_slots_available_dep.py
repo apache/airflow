@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# pylint: disable=no-value-for-parameter
 
 import unittest
 from unittest.mock import Mock
@@ -32,7 +33,7 @@ class TestDagTISlotsAvailableDep(unittest.TestCase):
         task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 
-        self.assertFalse(DagTISlotsAvailableDep().is_met(ti=ti))
+        assert not DagTISlotsAvailableDep().is_met(ti=ti)
 
     def test_all_conditions_met(self):
         """
@@ -42,4 +43,4 @@ class TestDagTISlotsAvailableDep(unittest.TestCase):
         task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 
-        self.assertTrue(DagTISlotsAvailableDep().is_met(ti=ti))
+        assert DagTISlotsAvailableDep().is_met(ti=ti)

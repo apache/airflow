@@ -22,6 +22,8 @@ import unittest
 from unittest import mock
 from unittest.mock import PropertyMock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
@@ -55,7 +57,7 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
     def test_location_path(self):
         path = 'projects/life-science-project-id/locations/test-location'
         path2 = self.hook._location_path(project_id=TEST_PROJECT_ID, location=TEST_LOCATION)
-        self.assertEqual(path, path2)
+        assert path == path2
 
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.build")
@@ -64,8 +66,8 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
         mock_build.assert_called_once_with(
             'lifesciences', 'v2beta', http=mock_authorize.return_value, cache_discovery=False
         )
-        self.assertEqual(mock_build.return_value, result)
-        self.assertEqual(self.hook._conn, result)
+        assert mock_build.return_value == result
+        assert self.hook._conn == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -97,7 +99,7 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
             .assert_called_once_with(body={},
                                      parent=parent)
         # fmt: on
-        self.assertEqual(result, TEST_OPERATION)
+        assert result == TEST_OPERATION
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -126,7 +128,7 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
 
         # fmt: on
         result = self.hook.run_pipeline(body={}, location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
-        self.assertEqual(result, TEST_OPERATION)
+        assert result == TEST_OPERATION
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -151,7 +153,7 @@ class TestLifeSciencesHookWithPassedProjectId(unittest.TestCase):
             .get.return_value \
             .execute = execute_mock
         # fmt: on
-        with self.assertRaisesRegex(AirflowException, "error"):
+        with pytest.raises(AirflowException, match="error"):
             self.hook.run_pipeline(body={}, location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
 
 
@@ -170,8 +172,8 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         mock_build.assert_called_once_with(
             'lifesciences', 'v2beta', http=mock_authorize.return_value, cache_discovery=False
         )
-        self.assertEqual(mock_build.return_value, result)
-        self.assertEqual(self.hook._conn, result)
+        assert mock_build.return_value == result
+        assert self.hook._conn == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -202,7 +204,7 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
             .assert_called_once_with(body={},
                                      parent=parent)
         # fmt: on
-        self.assertEqual(result, TEST_OPERATION)
+        assert result == TEST_OPERATION
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -231,7 +233,7 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
 
         # pylint: disable=no-value-for-parameter
         result = self.hook.run_pipeline(body={}, location=TEST_LOCATION)
-        self.assertEqual(result, TEST_OPERATION)
+        assert result == TEST_OPERATION
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -258,7 +260,7 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection(unittest.TestCase):
             .execute = execute_mock
         # fmt: on
 
-        with self.assertRaisesRegex(AirflowException, "error"):
+        with pytest.raises(AirflowException, match="error"):
             self.hook.run_pipeline(body={}, location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
 
 
@@ -277,8 +279,8 @@ class TestLifeSciencesHookWithoutProjectId(unittest.TestCase):
         mock_build.assert_called_once_with(
             'lifesciences', 'v2beta', http=mock_authorize.return_value, cache_discovery=False
         )
-        self.assertEqual(mock_build.return_value, result)
-        self.assertEqual(self.hook._conn, result)
+        assert mock_build.return_value == result
+        assert self.hook._conn == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -287,11 +289,10 @@ class TestLifeSciencesHookWithoutProjectId(unittest.TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook.get_conn")
     def test_run_pipeline(self, get_conn_mock, mock_project_id):  # pylint: disable=unused-argument
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             self.hook.run_pipeline(body={}, location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
 
-        self.assertEqual(
+        assert (
             "The project id must be passed either as keyword project_id parameter or as project_id extra in "
-            "Google Cloud connection definition. Both are not set!",
-            str(e.exception),
+            "Google Cloud connection definition. Both are not set!" == str(ctx.value)
         )

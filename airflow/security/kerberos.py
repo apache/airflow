@@ -56,7 +56,7 @@ def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
     """
     # The config is specified in seconds. But we ask for that same amount in
     # minutes to give ourselves a large renewal buffer.
-    renewal_lifetime = "%sm" % conf.getint('kerberos', 'reinit_frequency')
+    renewal_lifetime = f"{conf.getint('kerberos', 'reinit_frequency')}m"
 
     cmd_principal = principal or conf.get('kerberos', 'principal').replace("_HOST", socket.getfqdn())
 
@@ -128,7 +128,7 @@ def perform_krb181_workaround(principal: str):
     ret = subprocess.call(cmdv, close_fds=True)
 
     if ret != 0:
-        principal = "{}/{}".format(principal or conf.get('kerberos', 'principal'), socket.getfqdn())
+        principal = f"{principal or conf.get('kerberos', 'principal')}/{socket.getfqdn()}"
         princ = principal
         ccache = conf.get('kerberos', 'principal')
         log.error(

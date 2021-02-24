@@ -19,7 +19,7 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 # Pylint is _very_ unhappy with implicit namespaces, so for this test only, we need to make it not
-trap "rm airflow/providers/__init__.py" EXIT
+trap "rm -f airflow/providers/__init__.py" EXIT
 touch airflow/providers/__init__.py
 
 
@@ -43,7 +43,7 @@ if [[ ${#@} == "0" ]]; then
     -name "*.py" \
     -not -name 'webserver_config.py' | \
         grep  ".*.py$" | \
-        grep -vFf scripts/ci/pylint_todo.txt | xargs pylint --output-format=colorized
+        grep -vFf scripts/ci/pylint_todo.txt | sort | xargs pylint -j 0 --output-format=colorized
 else
     /usr/local/bin/pylint --output-format=colorized "$@"
 fi

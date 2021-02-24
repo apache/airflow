@@ -106,6 +106,7 @@ class AwsBatchProtocol(Protocol):
         arrayProperties: Dict,
         parameters: Dict,
         containerOverrides: Dict,
+        tags: Dict,
     ) -> Dict:
         """
         Submit a batch job
@@ -127,6 +128,9 @@ class AwsBatchProtocol(Protocol):
 
         :param containerOverrides: the same parameter that boto3 will receive
         :type containerOverrides: Dict
+
+        :param tags: the same parameter that boto3 will receive
+        :type tags: Dict
 
         :return: an API response
         :rtype: Dict
@@ -179,7 +183,7 @@ class AwsBatchClientHook(AwsBaseHook):
             AwsBatchClient.DEFAULT_DELAY_MIN = 0
             AwsBatchClient.DEFAULT_DELAY_MAX = 5
 
-        When explict delay values are used, a 1 second random jitter is applied to the
+        When explicit delay values are used, a 1 second random jitter is applied to the
         delay (e.g. a delay of 0 sec will be a ``random.uniform(0, 1)`` delay.  It is
         generally recommended that random jitter is added to API requests.  A
         convenience method is provided for this, e.g. to get a random delay of

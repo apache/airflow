@@ -24,13 +24,13 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 try:
     from airflow.kubernetes import kube_client
-except ImportError:
+except (ImportError, NameError):
     pass
 
 
@@ -103,6 +103,19 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                          Some distros may use spark2-submit.
     :type spark_binary: str
     """
+
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'spark_default'
+    conn_type = 'spark'
+    hook_name = 'Spark'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema', 'login', 'password'],
+            "relabeling": {},
+        }
 
     # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(
@@ -278,7 +291,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         connection_cmd += ["--master", self._connection['master']]
 
         for key in self._conf:
-            connection_cmd += ["--conf", "{}={}".format(key, str(self._conf[key]))]
+            connection_cmd += ["--conf", f"{key}={str(self._conf[key])}"]
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"
@@ -295,7 +308,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._is_kubernetes and self._connection['namespace']:
             connection_cmd += [
                 "--conf",
-                "spark.kubernetes.namespace={}".format(self._connection['namespace']),
+                f"spark.kubernetes.namespace={self._connection['namespace']}",
             ]
         if self._files:
             connection_cmd += ["--files", self._files]
@@ -365,9 +378,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 "/usr/bin/curl",
                 "--max-time",
                 str(curl_max_wait_time),
-                "{host}/v1/submissions/status/{submission_id}".format(
-                    host=spark_host, submission_id=self._driver_id
-                ),
+                f"{spark_host}/v1/submissions/status/{self._driver_id}",
             ]
             self.log.info(connection_cmd)
 

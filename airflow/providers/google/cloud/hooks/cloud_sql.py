@@ -45,7 +45,7 @@ from airflow.exceptions import AirflowException
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -76,10 +76,15 @@ class CloudSQLHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
+    conn_name_attr = 'gcp_conn_id'
+    default_conn_name = 'google_cloud_default'
+    conn_type = 'gcpcloudsql'
+    hook_name = 'Google Cloud SQL'
+
     def __init__(
         self,
         api_version: str,
-        gcp_conn_id: str = "google_cloud_default",
+        gcp_conn_id: str = default_conn_name,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
@@ -662,7 +667,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
     # pylint: disable=too-many-instance-attributes
     """
     Serves DB connection configuration for Google Cloud SQL (Connections
-    of *gcpcloudsql://* type).
+    of *gcpcloudsqldb://* type).
 
     The hook is a "meta" one. It does not perform an actual connection.
     It is there to retrieve all the parameters configured in gcpcloudsql:// connection,
@@ -709,6 +714,11 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
            in the connection URL
     :type default_gcp_project_id: str
     """
+    conn_name_attr = 'gcp_cloudsql_conn_id'
+    default_conn_name = 'google_cloud_sql_default'
+    conn_type = 'gcpcloudsqldb'
+    hook_name = 'Google Cloud SQL Database'
+
     _conn = None  # type: Optional[Any]
 
     def __init__(
@@ -735,7 +745,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
         self.user = self.cloudsql_connection.login  # type: Optional[str]
         self.password = self.cloudsql_connection.password  # type: Optional[str]
         self.public_ip = self.cloudsql_connection.host  # type: Optional[str]
-        self.public_port = self.cloudsql_connection.port  # type: Optional[str]
+        self.public_port = self.cloudsql_connection.port  # type: Optional[int]
         self.sslcert = self.extras.get('sslcert')  # type: Optional[str]
         self.sslkey = self.extras.get('sslkey')  # type: Optional[str]
         self.sslrootcert = self.extras.get('sslrootcert')  # type: Optional[str]

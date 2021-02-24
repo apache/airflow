@@ -83,6 +83,7 @@ RUN mkdir -pv /usr/share/man/man1 \
            graphviz \
            gosu \
            libffi-dev \
+           libldap2-dev \
            libkrb5-dev \
            libpq-dev \
            libsasl2-2 \
@@ -104,8 +105,9 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY scripts/docker scripts/docker
-RUN ./scripts/docker/install_mysql.sh dev
+# Only copy install_mysql.sh to not invalidate cache on other script changes
+COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
+RUN bash /scripts/docker/install_mysql.sh dev
 
 RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
@@ -120,6 +122,7 @@ ARG RUNTIME_APT_DEPS="\
       bash-completion \
       ca-certificates \
       software-properties-common \
+      krb5-user \
       krb5-user \
       ldap-utils \
       less \
@@ -145,13 +148,15 @@ ENV RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND}
 ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ENV ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND}
 
-ARG ADDITIONAL_RUNTIME_ENV_VARS=""
+ARG ADDITIONAL_DEV_APT_ENV=""
+ARG ADDITIONAL_RUNTIME_APT_ENV=""
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && export ${ADDITIONAL_RUNTIME_ENV_VARS?} \
+    && export ${ADDITIONAL_DEV_APT_ENV?} \
+    && export ${ADDITIONAL_RUNTIME_APT_ENV?} \
     && bash -o pipefail -e -u -x -c "${RUNTIME_APT_COMMAND}" \
     && bash -o pipefail -e -u -x -c "${ADDITIONAL_RUNTIME_APT_COMMAND}" \
     && apt-get update \
@@ -168,12 +173,6 @@ ENV DOCKER_CLI_VERSION=${DOCKER_CLI_VERSION}
 RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz \
     |  tar -C /usr/bin --strip-components=1 -xvzf - docker/docker
 
-# Setup PIP
-# By default PIP install run without cache to make image smaller
-ARG PIP_NO_CACHE_DIR="true"
-ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
-RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
-
 ARG HOME=/root
 ENV HOME=${HOME}
 
@@ -188,10 +187,6 @@ WORKDIR ${AIRFLOW_SOURCES}
 RUN mkdir -pv ${AIRFLOW_HOME} && \
     mkdir -pv ${AIRFLOW_HOME}/dags && \
     mkdir -pv ${AIRFLOW_HOME}/logs
-
-# Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="3"
-ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
 # Install BATS and its dependencies for "in container" tests
 ARG BATS_VERSION="0.4.0"
@@ -215,12 +210,10 @@ RUN mkdir -p /opt/bats/lib/bats-file \
     && curl -sSL https://github.com/bats-core/bats-file/archive/v${BATS_FILE_VERSION}.tar.gz -o /tmp/bats-file.tgz \
     && tar -zxf /tmp/bats-file.tgz -C /opt/bats/lib/bats-file --strip 1 && rm -rf /tmp/*
 
-RUN echo "export PATH=/opt/bats/bin:${PATH}" >> /root/.bashrc
+ENV PATH "/opt/bats/bin/:${PATH}"
 
 # Additional scripts for managing BATS addons
 COPY scripts/docker/load.bash /opt/bats/lib/
-RUN chmod a+x /opt/bats/lib/load.bash
-
 
 # Optimizing installation of Cassandra driver
 # Speeds up building the image - cassandra driver without CYTHON saves around 10 minutes
@@ -244,13 +237,18 @@ ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_
 
 RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 
+# Allows to override constraints source
+ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
+ENV CONSTRAINTS_GITHUB_REPOSITORY=${CONSTRAINTS_GITHUB_REPOSITORY}
+
 ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
-ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ARG AIRFLOW_CONSTRAINTS="constraints"
+ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${AIRFLOW_CONSTRAINTS_REFERENCE}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 
 # By changing the CI build epoch we can force reinstalling Airflow from the current master
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="2"
+ARG AIRFLOW_CI_BUILD_EPOCH="3"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
@@ -260,21 +258,56 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
 ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
-ARG AIRFLOW_LOCAL_PIP_WHEELS=""
-ENV AIRFLOW_LOCAL_PIP_WHEELS=${AIRFLOW_LOCAL_PIP_WHEELS}
+ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
+ENV INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES}
 
-ARG INSTALL_AIRFLOW_VIA_PIP="true"
-ENV INSTALL_AIRFLOW_VIA_PIP=${INSTALL_AIRFLOW_VIA_PIP}
+ARG INSTALL_FROM_PYPI="true"
+ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
+
+ARG AIRFLOW_PIP_VERSION=20.2.4
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
+
+# In the CI image we always:
+# * install MySQL
+# * install airflow from current sources, not from PyPI package
+# * install airflow without `--user` flag
+# * install airflow in editable mode
+# * install always current version of airflow
+
+ENV INSTALL_MYSQL_CLIENT="true"
+ENV AIRFLOW_INSTALLATION_METHOD="."
+ENV AIRFLOW_INSTALL_USER_FLAG=""
+ENV AIRFLOW_INSTALL_EDITABLE_FLAG="--editable"
+ENV AIRFLOW_VERSION_SPECIFICATION=""
+
+# Setup PIP
+# By default PIP install run without cache to make image smaller
+ARG PIP_NO_CACHE_DIR="true"
+ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
+RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
+
+# By default PIP has progress bar but you can disable it.
+ARG PIP_PROGRESS_BAR="on"
+ENV PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR}
+
+RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+
+# Only copy install_airflow_from_latest_master.sh to not invalidate cache on other script changes
+COPY scripts/docker/install_airflow_from_latest_master.sh /scripts/docker/install_airflow_from_latest_master.sh
+
+ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
 # In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
-# This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
 # And is automatically reinstalled from the scratch every time patch release of python gets released
-RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
-        pip install \
-            "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
-                && pip uninstall --yes apache-airflow; \
+# The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
+# are uninstalled, only dependencies remain.
+# the cache is only used when "upgrade to newer dependencies" is not set to automatically
+# account for removed dependencies (we do not install them in the first place)
+RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
+          ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
+        bash /scripts/docker/install_airflow_from_latest_master.sh; \
     fi
 
 # Generate random hex dump file so that we can determine whether it's faster to rebuild the image
@@ -301,11 +334,23 @@ RUN yarn --cwd airflow/www install --frozen-lockfile --no-cache
 COPY setup.py ${AIRFLOW_SOURCES}/setup.py
 COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
-COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
-ARG UPGRADE_TO_LATEST_CONSTRAINTS="false"
-ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
+# Those are additional constraints that are needed for some extras but we do not want to
+# force them on the main Airflow package. Those limitations are:
+# * chardet,<4: required by snowflake provider
+# * lazy-object-proxy<1.5.0: required by astroid
+# * pytz<2021.0: required by snowflake provider
+# * pyOpenSSL: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
+# * urllib3<1.26: Required to keep boto3 happy
+# * pyjwt<2.0.0: flask-jwt-extended requires it
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 pytz<2021.0 urllib3<1.26 pyjwt<2.0.0"
+ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+
+ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
+
+# Only copy install_airflow.sh to not invalidate cache on other script changes
+COPY scripts/docker/install_airflow.sh /scripts/docker/install_airflow.sh
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
@@ -313,31 +358,29 @@ ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
 # Usually we will install versions based on the dependencies in setup.py and upgraded only if needed.
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
-RUN if [[ ${INSTALL_AIRFLOW_VIA_PIP} == "true" ]]; then \
-        if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" != "false" ]]; then \
-            pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
-        else \
-            pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy only-if-needed; \
-        fi; \
+RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
+        bash /scripts/docker/install_airflow.sh; \
     fi
+
+# Only copy install_from_docker_context_files.sh to not invalidate cache on other script changes
+COPY scripts/docker/install_from_docker_context_files.sh /scripts/docker/install_from_docker_context_files.sh
 
 # If wheel files are found in /docker-context-files during installation
 # they are also installed additionally to whatever is installed from Airflow.
 COPY docker-context-files/ /docker-context-files/
 
-RUN if [[ ${AIRFLOW_LOCAL_PIP_WHEELS} != "true" ]]; then \
-        if ls /docker-context-files/*.whl 1> /dev/null 2>&1; then \
-            pip install --no-deps /docker-context-files/*.whl; \
-        fi ; \
+RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
+        bash /scripts/docker/install_from_docker_context_files.sh; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY
 # commands so as otherwise it copies the _contents_ of static/ in to www/
 COPY airflow/www/webpack.config.js ${AIRFLOW_SOURCES}/airflow/www/
 COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
+COPY airflow/www/compile_assets.sh ${AIRFLOW_SOURCES}/airflow/www/compile_assets.sh
 
 # Package JS/css for production
-RUN yarn --cwd airflow/www run prod
+RUN bash airflow/www/compile_assets.sh
 
 COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
@@ -375,7 +418,7 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
 
 WORKDIR ${AIRFLOW_SOURCES}
 
-ENV PATH="${HOME}:${PATH}"
+ENV PATH "/files/bin/:/opt/airflow/scripts/in_container/bin/:${HOME}:${PATH}"
 
 # Needed to stop Gunicorn from crashing when /tmp is now mounted from host
 ENV GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm/"
@@ -385,15 +428,32 @@ ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
-LABEL org.apache.airflow.distro="debian"
-LABEL org.apache.airflow.distro.version="buster"
-LABEL org.apache.airflow.module="airflow"
-LABEL org.apache.airflow.component="airflow"
-LABEL org.apache.airflow.image="airflow-ci"
-LABEL org.apache.airflow.uid="0"
-LABEL org.apache.airflow.gid="0"
-LABEL org.apache.airflow.buildId=${BUILD_ID}
-LABEL org.apache.airflow.commitSha=${COMMIT_SHA}
+ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
+ARG AIRFLOW_IMAGE_DATE_CREATED
+
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow-ci" \
+  org.apache.airflow.version="${AIRFLOW_VERSION}" \
+  org.apache.airflow.uid="0" \
+  org.apache.airflow.gid="0" \
+  org.apache.airflow.buildId="${BUILD_ID}" \
+  org.apache.airflow.commitSha="${COMMIT_SHA}" \
+  org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \
+  org.opencontainers.image.created="${AIRFLOW_IMAGE_DATE_CREATED}" \
+  org.opencontainers.image.authors="dev@airflow.apache.org" \
+  org.opencontainers.image.url="https://airflow.apache.org" \
+  org.opencontainers.image.documentation="https://github.com/apache/airflow/IMAGES.rst" \
+  org.opencontainers.image.source="https://github.com/apache/airflow" \
+  org.opencontainers.image.version="${AIRFLOW_VERSION}" \
+  org.opencontainers.image.revision="${COMMIT_SHA}" \
+  org.opencontainers.image.vendor="Apache Software Foundation" \
+  org.opencontainers.image.licenses="Apache-2.0" \
+  org.opencontainers.image.ref.name="airflow-ci-image" \
+  org.opencontainers.image.title="Continuous Integration Airflow Image" \
+  org.opencontainers.image.description="Installed Apache Airflow with Continuous Integration dependencies"
 
 EXPOSE 8080
 
