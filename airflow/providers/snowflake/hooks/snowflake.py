@@ -152,7 +152,8 @@ class SnowflakeHook(DbApiHook):
         """
         conn = self.get_conn()
         self.set_autocommit(conn, autocommit)
+        cur = conn.cursor()
 
         queries = [item[0] for item in split_statements(StringIO(sql))]
         for query in queries:
-            super().run(query, autocommit, parameters)
+            cur.execute(query, parameters)
