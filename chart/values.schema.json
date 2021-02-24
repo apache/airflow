@@ -610,6 +610,9 @@
                         "enabled": {
                             "description": "Enable Kerberos sidecar for the worker.",
                             "type": "boolean"
+                        },
+                        "resources": {
+                            "type": "object"
                         }
                     }
                 },

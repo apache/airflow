@@ -457,7 +457,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         :type execution_date: datetime
         :param mark_success: Whether to mark the task as successful
         :type mark_success: bool
-        :param ignore_all_deps: Ignore all ignoreable dependencies.
+        :param ignore_all_deps: Ignore all ignorable dependencies.
             Overrides the other ignore_* parameters.
         :type ignore_all_deps: bool
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs

@@ -104,7 +104,7 @@ else
     echo
     echo "Building airflow from release tag: ${DOCKER_TAG}"
     echo
-    # This is an imaae built from the "release" tag (either RC or final one).
+    # This is an image built from the "release" tag (either RC or final one).
     # In this case all packages are taken from PyPI rather than from locally built sources
     export INSTALL_FROM_PYPI="true"
     export INSTALL_FROM_DOCKER_CONTEXT_FILES="false"
@@ -115,7 +115,7 @@ else
     export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
     export INSTALL_AIRFLOW_VERSION="${DOCKER_TAG%-python*}"
     export AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${INSTALL_AIRFLOW_VERSION}"
-
+    export AIRFLOW_CONSTRAINTS="constraints"
     # shellcheck source=scripts/ci/libraries/_script_init.sh
     . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
     echo

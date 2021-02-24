@@ -42,7 +42,7 @@
 
 # What the provider packages are
 
-The Prvider Provider packages are separate packages (one package per provider) that implement
+The Provider packages are separate packages (one package per provider) that implement
 integrations with external services for Airflow in the form of installable Python packages.
 
 The Release Manager prepares packages separately from the main Airflow Release, using

@@ -991,7 +991,7 @@ def make_sure_remote_apache_exists_and_fetch(no_git_update: bool):
     This will:
     * check if the remote exists and add if it does not
     * check if the local repo is shallow, markit to be unshallowed in this case
-    * fetch from the remote including all tags and overriding local taags in case they are set differently
+    * fetch from the remote including all tags and overriding local tags in case they are set differently
 
     :param no_git_update: If the git remote already exists, don't try to update it
 
@@ -1362,7 +1362,7 @@ def get_all_changes_for_regular_packages(
     if len(versions) == 1:
         print(f"The provider '{provider_package_id}' has never been released but it is ready to release!\n")
     else:
-        print(f"New versio of the '{provider_package_id}' package is ready to be released!\n")
+        print(f"New version of the '{provider_package_id}' package is ready to be released!\n")
     next_version_tag = HEAD_OF_HTTPS_REMOTE
     changes_table = ''
     print_version = versions[0]
