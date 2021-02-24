@@ -1490,7 +1490,7 @@ class TestTaskInstance(unittest.TestCase):
 
     def test_get_previous_start_date_none(self):
         """
-        Test that get_previous_start_date() can handle TaskInstance no start_date.
+        Test that get_previous_start_date() can handle TaskInstance with no start_date.
         """
         with DAG("test_get_previous_start_date_none", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
             task = DummyOperator(task_id="op")
