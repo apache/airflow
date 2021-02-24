@@ -242,7 +242,7 @@ google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.19.1
 google-cloud-speech==1.3.2
 google-cloud-storage==1.36.1
-google-cloud-tasks==2.1.0
+google-cloud-tasks==2.2.0
 google-cloud-texttospeech==1.0.1
 google-cloud-translate==1.7.0
 google-cloud-videointelligence==1.16.1
