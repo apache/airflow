@@ -17,7 +17,7 @@
 
 import itertools
 from typing import NamedTuple, Optional, List
-
+import os
 from cached_property import cached_property
 from packaging.version import Version
 
@@ -87,7 +87,7 @@ class ImportChangesRule(BaseRule):
     if current_airflow_version < Version("2.0.0"):
 
         def _filter_incompatible_renames(arg):
-            new_path = arg[1]
+            new_path = arg[0]
             return (
                 not new_path.startswith("airflow.operators")
                 and not new_path.startswith("airflow.sensors")
@@ -111,12 +111,16 @@ class ImportChangesRule(BaseRule):
         problems = []
         providers = set()
         with open(file_path, "r") as file:
-            content = file.read()
-            for change in ImportChangesRule.ALL_CHANGES:
-                if change.old_class in content:
-                    problems.append(change.info(file_path))
-                    if change.providers_package:
-                        providers.add(change.providers_package)
+            try:
+                content = file.read()
+
+                for change in ImportChangesRule.ALL_CHANGES:
+                    if change.old_class in content:
+                        problems.append(change.info(file_path))
+                        if change.providers_package:
+                            providers.add(change.providers_package)
+            except UnicodeDecodeError:
+                problems.append("Unable to read python file {}".format(file_path))
         return problems, providers
 
     @staticmethod
@@ -138,6 +142,7 @@ class ImportChangesRule(BaseRule):
     def check(self):
         dag_folder = conf.get("core", "dags_folder")
         files = list_py_file_paths(directory=dag_folder, include_examples=False)
+        files = [file for file in files if os.path.splitext(file)[1] == ".py"]
         problems = []
         providers = set()
         # Split in to two groups - install backports first, then make changes

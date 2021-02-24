@@ -25,8 +25,8 @@ from airflow.upgrade.rules.chain_between_dag_and_operator_not_allowed_rule impor
 
 
 @contextmanager
-def create_temp_file(mock_list_files, lines):
-    with NamedTemporaryFile("w+") as temp_file:
+def create_temp_file(mock_list_files, lines, extension=".py"):
+    with NamedTemporaryFile("w+", suffix=extension) as temp_file:
         mock_list_files.return_value = [temp_file.name]
         temp_file.writelines("\n".join(lines))
         temp_file.flush()
@@ -110,3 +110,26 @@ class TestChainBetweenDAGAndOperatorNotAllowedRule(TestCase):
             msgs = rule.check()
             expected_messages = [self.msg_template.format(rule.title, temp_file.name, 6)]
             assert expected_messages == msgs
+
+    def test_non_py_files_are_ignored(self, mock_list_files):
+        lines = ["dag = \\",
+                 "    DAG('my_dag')",
+                 "dummy = DummyOperator(task_id='dummy')",
+                 "",
+                 "dummy << \\",
+                 "dag"]
+
+        with create_temp_file(mock_list_files, lines, extension=".txt"):
+            rule = ChainBetweenDAGAndOperatorNotAllowedRule()
+            msgs = rule.check()
+            assert msgs == []
+
+    def test_decode_errors_are_handled(self, mock_list_files):
+
+        with NamedTemporaryFile("wb+", suffix=".py") as temp_file:
+            mock_list_files.return_value = [temp_file.name]
+            temp_file.write(b"    DAG('my_dag') \x03\x96")
+            temp_file.flush()
+            rule = ChainBetweenDAGAndOperatorNotAllowedRule()
+            msgs = rule.check()
+            assert msgs[0] == "Unable to read python file {}".format(temp_file.name)
