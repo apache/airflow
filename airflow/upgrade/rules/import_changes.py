@@ -127,7 +127,7 @@ class ImportChangesRule(BaseRule):
     def _check_missing_providers(providers):
 
         current_airflow_version = Version(__import__("airflow").__version__)
-        if current_airflow_version.major >= 2:
+        if current_airflow_version >= Version("2.0.0"):
             prefix = "apache-airflow-providers-"
         else:
             prefix = "apache-airflow-backport-providers-"
