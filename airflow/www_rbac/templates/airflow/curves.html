@@ -44,6 +44,8 @@
                      data-carCode="{{ task.car_code }}"
                      data-date="{{ task.execution_date }}"
                      data-measureresult="{{ task.measure_result }}"
+                     data-dag="{{ task.dag_id }}"
+                     data-task="{{ task.task_id }}"
                      type="checkbox">
               <a type="button" class="btn btn-sm btn-default"
                  href="{{ url_for('Airflow.view_curve_page',dag_id=task.dag_id,execution_date=task.execution_date,task_id=task.task_id) }}"
@@ -152,13 +154,15 @@
     });
     $('.action_check').change((ev) => {
       const {checked, value, dataset} = ev.target;
-      const {carcode: carCode, date, measureresult: measureResult} = dataset;
+      const {carcode: carCode, date, measureresult: measureResult, dag, task} = dataset;
       if (checked) {
         entityIdSelect(value, {
           value, //entity id
           carCode,
           date,
-          measureResult
+          measureResult,
+          dag,
+          task
         });
       } else {
         entityIdUnselect(value);
@@ -364,6 +368,14 @@
     render();
   }
 
+  function findClickedCurve(name) {
+    const [carCode, executionDate] = name.split('@');
+    const eid = Object.keys(extraData).find((e) => {
+      return extraData[e].carCode === carCode && executionDate === extraData[e].date;
+    });
+    return extraData[eid];
+  }
+
   $(document).ready(() => {
     resetCurves();
     chartInit();
@@ -372,6 +384,17 @@
     $('#btn-view-curves').on('click', viewCurves);
     $('#btn-clear-curves').on('click', clearCurves);
     $('#btn-view-spc').on('click', viewSPC);
+    curveChart.on('click', (params) => {
+      if (params.componentType === 'series') {
+        const {date, task, dag} = findClickedCurve(params.seriesName);
+        const url = "{{ url_for('Airflow.view_curve_page',dag_id='DAG_ID',execution_date='EXECUTION_DATE',task_id='TASK_ID') }}"
+          .replace('DAG_ID', dag)
+          .replace('EXECUTION_DATE', date)
+          .replace('TASK_ID', task)
+        console.log(url)
+        window.open(url);
+      }
+    });
   });
 </script>
 {% endblock %}

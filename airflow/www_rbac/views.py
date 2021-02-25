@@ -2267,7 +2267,7 @@ class CurvesView(BaseCRUDView):
             page=page,
             page_size=page_size,
         )
-        
+
         error_tag_vals = ErrorTag.get_all_dict() or {}
         for t in lst:
             ret = []
@@ -2289,6 +2289,9 @@ class CurvesView(BaseCRUDView):
         for ti in tasks:
             selected_tasks[ti.entity_id] = {
                 'carCode': ti.car_code,
+                'value': ti.entity_id,
+                'task': ti.task_id,
+                'dag': ti.dag_id,
                 'date': str(ti.execution_date)
             }
         widgets = self._list()
