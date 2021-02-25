@@ -658,12 +658,30 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
 
     @parameterized.expand(
         [
-            ({"end_date_lte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"end_date_gte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"start_date_lte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"start_date_gte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"execution_date_gte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
-            ({"execution_date_lte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
+            (
+                {"end_date_lte": '2020-11-10T12:42:39.442973'},
+                "'2020-11-10T12:42:39.442973' is not a 'date-time' - 'end_date_lte'",
+            ),
+            (
+                {"end_date_gte": '2020-11-10T12:42:39.442973'},
+                "'2020-11-10T12:42:39.442973' is not a 'date-time' - 'end_date_gte'",
+            ),
+            (
+                {"start_date_lte": '2020-11-10T12:42:39.442973'},
+                "'2020-11-10T12:42:39.442973' is not a 'date-time' - 'start_date_lte'",
+            ),
+            (
+                {"start_date_gte": '2020-11-10T12:42:39.442973'},
+                "'2020-11-10T12:42:39.442973' is not a 'date-time' - 'start_date_gte'",
+            ),
+            (
+                {"execution_date_gte": '2020-11-10T12:42:39.442973'},
+                "'2020-11-10T12:42:39.442973' is not a 'date-time' - 'execution_date_gte'",
+            ),
+            (
+                {"execution_date_lte": '2020-11-10T12:42:39.442973'},
+                "'2020-11-10T12:42:39.442973' is not a 'date-time' - 'execution_date_lte'",
+            ),
         ]
     )
     @provide_session
