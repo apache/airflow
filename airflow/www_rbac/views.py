@@ -40,14 +40,17 @@ from flask import (
     session as flask_session, url_for, g
 )
 from flask._compat import PY2
-from flask_appbuilder import BaseView, expose, has_access,
+from flask_appbuilder import BaseView, expose, has_access, permission_name
+from flask_appbuilder.actions import action
+from flask_appbuilder.models.sqla.filters import BaseFilter
+from flask_babel import lazy_gettext
 import lazy_object_proxy
 from jinja2.utils import htmlsafe_json_dumps  # type: ignore
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
-from wtforms import SelectField
+from wtforms import SelectField, validators
 
 import nvd3
 
@@ -57,7 +60,7 @@ from airflow import settings, configuration
 from airflow.configuration import conf
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import DagModel, DagRun, DagTag, Log, TaskFail, XCom, errors
+from airflow.models import Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.exceptions import AirflowException
 from airflow.models.dagcode import DagCode
 from airflow.settings import STATE_COLORS, STORE_SERIALIZED_DAGS
@@ -69,9 +72,11 @@ from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.state import State
 from airflow.www_rbac import utils as wwwutils
 from airflow.www_rbac.app import app, appbuilder
-from airflow.www_rbac.decorators import action_logging, has_dag_access
+from airflow.www_rbac.decorators import action_logging, gzipped, has_dag_access
 from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
-                                    DateTimeWithNumRunsWithDagRunsForm)
+                                    DateTimeWithNumRunsWithDagRunsForm,
+                                    DagRunForm, ConnectionForm)
+from airflow.www_rbac.widgets import AirflowModelListWidget
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
