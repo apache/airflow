@@ -394,6 +394,10 @@ def _vars_wrapper(args, get=None, set=None, delete=None, export=None, imp=None):
     variables(args)
 
 
+def variables_list(args):
+    _vars_wrapper(args)
+
+
 def variables_get(args):
     _vars_wrapper(args, get=args.key)
 
@@ -3070,6 +3074,12 @@ POOLS_COMMANDS = (
     ),
 )
 VARIABLES_COMMANDS = (
+    ActionCommand(
+        name='list',
+        help='List variables',
+        func=variables_list,
+        args=(NOT_DEPRECATED,),
+    ),
     ActionCommand(
         name='get',
         help='Get variable',
