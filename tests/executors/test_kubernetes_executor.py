@@ -20,6 +20,7 @@ import re
 import string
 import unittest
 from datetime import datetime
+from queue import Queue
 from unittest import mock
 
 from kubernetes.client import models as k8s
@@ -34,6 +35,7 @@ try:
     from airflow.executors.kubernetes_executor import (
         AirflowKubernetesScheduler,
         KubernetesExecutor,
+        KubernetesJobWatcher,
         create_pod_id,
         get_base_pod_from_template,
     )
@@ -115,6 +117,43 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         new_datetime_obj = pod_generator.label_safe_datestring_to_datetime(serialized_datetime)
 
         assert datetime_obj == new_datetime_obj
+
+
+class TestKubernetesJobWatcher(unittest.TestCase):
+    @mock.patch.object(KubernetesJobWatcher, "log")
+    def test_process_status_succeeded(self, log_mock):
+        kubernetes_job_watcher = KubernetesJobWatcher(
+            namespace="test",
+            multi_namespace_mode=False,
+            watcher_queue=Queue(),
+            scheduler_job_id="666",
+            resource_version="0.1",
+            kube_config=dict(),
+        )
+
+        kubernetes_job_watcher.process_status(
+            pod_id="test",
+            namespace="test",
+            status='Succeeded',
+            annotations=dict(test="Test"),
+            resource_version="0.1",
+            event=None,
+        )
+        assert kubernetes_job_watcher.watcher_queue.qsize() == 1
+
+        (
+            pod_id,
+            namespace,
+            state,
+            annotations,
+            resource_version,
+        ) = kubernetes_job_watcher.watcher_queue.get_nowait()
+
+        assert pod_id == "test"
+        assert namespace == "test"
+        assert state == State.SUCCESS
+        assert annotations == dict(test="Test")
+        assert resource_version == "0.1"
 
 
 class TestKubernetesExecutor(unittest.TestCase):
