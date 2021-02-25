@@ -14,3 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+################################
+## Airflow ConfigMap
+#################################
+{{- if .Values.webserver.webserverConfig }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-webserver-config
+  labels:
+    tier: airflow
+    component: config
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+data:
+  webserver_config.py: |
+    {{- .Values.webserver.webserverConfig | nindent 4 }}
+{{- end }}

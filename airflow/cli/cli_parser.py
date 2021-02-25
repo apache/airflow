@@ -1479,7 +1479,7 @@ airflow_commands: List[CLICommand] = [
         help='Rotate encrypted connection credentials and variables',
         description=(
             'Rotate all encrypted connection credentials and variables; see '
-            'https://airflow.apache.org/docs/stable/howto/secure-connections.html'
+            'https://airflow.apache.org/docs/apache-airflow/stable/howto/secure-connections.html'
             '#rotating-encryption-keys'
         ),
         args=(),
@@ -1506,7 +1506,7 @@ airflow_commands: List[CLICommand] = [
         help='Celery components',
         description=(
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
-            'https://airflow.apache.org/docs/stable/executor/celery.html'
+            'https://airflow.apache.org/docs/apache-airflow/stable/executor/celery.html'
         ),
         subcommands=CELERY_COMMANDS,
     ),

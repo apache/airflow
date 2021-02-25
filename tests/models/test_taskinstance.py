@@ -2027,7 +2027,7 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
         db.clear_db_pools()
         db.clear_db_dags()
         db.clear_db_sla_miss()
-        db.clear_db_errors()
+        db.clear_db_import_errors()
 
     def setUp(self) -> None:
         self._clean()

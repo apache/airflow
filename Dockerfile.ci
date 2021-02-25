@@ -237,8 +237,13 @@ ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_
 
 RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 
+# Allows to override constraints source
+ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
+ENV CONSTRAINTS_GITHUB_REPOSITORY=${CONSTRAINTS_GITHUB_REPOSITORY}
+
 ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
-ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ARG AIRFLOW_CONSTRAINTS="constraints"
+ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${AIRFLOW_CONSTRAINTS_REFERENCE}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 
 # By changing the CI build epoch we can force reinstalling Airflow from the current master
@@ -332,12 +337,15 @@ COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
 # Those are additional constraints that are needed for some extras but we do not want to
-# Force them on the main Airflow package. Those limitations are:
+# force them on the main Airflow package. Those limitations are:
 # * chardet,<4: required by snowflake provider
 # * lazy-object-proxy<1.5.0: required by astroid
-# * pyOpenSSL: Imposed by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
+# * pytz<2021.0: required by snowflake provider
+# * pyOpenSSL: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
 # * urllib3<1.26: Required to keep boto3 happy
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 urllib3<1.26"
+# * pyjwt<2.0.0: flask-jwt-extended requires it
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 pytz<2021.0 urllib3<1.26 pyjwt<2.0.0"
+ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
 
 ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
 

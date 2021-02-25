@@ -56,13 +56,15 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
             return AwsLogsHook(aws_conn_id=remote_conn_id, region_name=self.region_name)
-        except Exception:  # pylint: disable=broad-except
+        except Exception as e:  # pylint: disable=broad-except
             self.log.error(
                 'Could not create an AwsLogsHook with connection id "%s". '
                 'Please make sure that airflow[aws] is installed and '
-                'the Cloudwatch logs connection exists.',
+                'the Cloudwatch logs connection exists. Exception: "%s"',
                 remote_conn_id,
+                e,
             )
+            return None
 
     def _render_filename(self, ti, try_number):
         # Replace unsupported log group name characters

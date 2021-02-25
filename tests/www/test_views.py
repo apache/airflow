@@ -62,7 +62,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
-from airflow.www.views import ConnectionModelView, get_safe_url
+from airflow.www.views import ConnectionModelView, get_safe_url, truncate_task_duration
 from tests.test_utils import fab_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
@@ -2764,7 +2764,7 @@ class TestTriggerDag(TestBase):
             ("http://google.com", "/home"),
             (
                 "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
-                "/tree?dag_id=example_bash_operator%27&amp;alert%2833%29%2F%2F=",
+                "/tree?dag_id=example_bash_operator%27%3Balert%2833%29%2F%2F",
             ),
             ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
             ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
@@ -3307,7 +3307,7 @@ class TestHelperFunctions(TestBase):
             (
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag';alert(33)//",
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3F"
-                "dag_id%25test_dag%27&alert%2833%29%2F%2F=",
+                "dag_id%25test_dag%27%3Balert%2833%29%2F%2F",
             ),
             (
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag",
@@ -3320,3 +3320,15 @@ class TestHelperFunctions(TestBase):
         mock_url_for.return_value = "/home"
         with self.app.test_request_context(base_url="http://localhost:8080"):
             assert get_safe_url(test_url) == expected_url
+
+    @parameterized.expand(
+        [
+            (0.12345, 0.123),
+            (0.12355, 0.124),
+            (3.12, 3.12),
+            (9.99999, 10.0),
+            (10.01232, 10),
+        ]
+    )
+    def test_truncate_task_duration(self, test_duration, expected_duration):
+        assert truncate_task_duration(test_duration) == expected_duration
