@@ -860,7 +860,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             'executor_config': {},
             'inlets': [],
             'label': '10',
-            'max_retry_delay': timedelta(0, 600),
+            'max_retry_delay': None,
             'on_execute_callback': None,
             'on_failure_callback': None,
             'on_retry_callback': None,
