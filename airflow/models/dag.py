@@ -1117,12 +1117,18 @@ class DAG(LoggingMixin):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> None:
-        query = session.query(DagRun).filter_by(dag_id=self.dag_id)
+        query = session.query(DagRun).filter_by(dag_id=self.dag_id).filter(DagRun.state != state)
         if start_date:
             query = query.filter(DagRun.execution_date >= start_date)
         if end_date:
             query = query.filter(DagRun.execution_date <= end_date)
-        query.update({DagRun.state: state})
+        values = {DagRun.state: state}
+        if state == State.RUNNING:
+            # Clear the start_date if DagRun's are transitioned back into the running state, but only
+            # if the current state is not "running".
+            values[DagRun.start_date] = timezone.utcnow()
+            values[DagRun.end_date] = None
+        query.update(values)
 
     @provide_session
     def clear(

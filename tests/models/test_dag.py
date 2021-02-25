@@ -1228,6 +1228,43 @@ class TestDag(unittest.TestCase):
         assert len(drs) == 3
         assert all(dr.state == State.NONE for dr in drs)
 
+    def test_set_dag_runs_state_date_clearing(self):
+        clear_db_runs()
+        dag_id = "test_set_dag_runs_state_date_clearing"
+        start_date = timezone.datetime(year=2021, month=1, day=1)
+        end_date = start_date + timedelta(days=1)
+
+        with create_session() as session:
+            dag = DAG(dag_id=dag_id)
+            dag.create_dagrun(
+                run_id="test_running", state=State.RUNNING, start_date=start_date, session=session
+            )
+            failed_run = dag.create_dagrun(
+                run_id="test_failed", state=State.FAILED, start_date=start_date, session=session
+            )
+            # Ensure the failed dag_run has an end_date set.
+            failed_run.end_date = end_date
+            session.flush()
+
+        # Update the state.
+        dag.set_dag_runs_state(state=State.RUNNING)
+
+        # Verify the updated state.
+        dag_runs = DagRun.find(dag_id=dag_id)
+        assert len(dag_runs) == 2
+        # Verify that start_date and end_date was reset for the run identified by "test_failed",
+        # but not for the run identified by "test_running".
+        for dr in dag_runs:
+            assert dr.state == State.RUNNING
+            if dr.run_id == "test_running":
+                assert dr.start_date == start_date
+                assert dr.end_date is None
+            if dr.run_id == "test_failed":
+                # The start_date should have been recent to something more recent.
+                assert dr.start_date != start_date
+                assert dr.start_date is not None
+                assert dr.end_date is None
+
     def test_create_dagrun_run_id_is_generated(self):
         dag = DAG(dag_id="run_id_is_generated")
         dr = dag.create_dagrun(run_type=DagRunType.MANUAL, execution_date=DEFAULT_DATE, state=State.NONE)
