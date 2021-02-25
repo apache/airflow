@@ -459,6 +459,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             self.log.debug("Retry_delay isn't timedelta object, assuming secs")
             self.retry_delay = timedelta(seconds=retry_delay)  # noqa
         self.retry_exponential_backoff = retry_exponential_backoff
+        self.max_retry_delay = max_retry_delay
         if max_retry_delay:
             if isinstance(max_retry_delay, timedelta):
                 self.max_retry_delay = max_retry_delay
