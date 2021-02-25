@@ -3290,7 +3290,7 @@ class DagRunModelView(AirflowModelView):
         'external_trigger',
         'conf',
     ]
-    edit_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'conf']
+    edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
 
     base_order = ('execution_date', 'desc')
 
