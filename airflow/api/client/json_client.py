@@ -59,7 +59,7 @@ class Client(api_client.Client):
         return data['message']
 
     def delete_dag(self, dag_id):
-        endpoint = '/api/experimental/dags/{}/delete_dag'.format(dag_id)
+        endpoint = '/api/experimental/dags/{}'.format(dag_id)
         url = urljoin(self._api_base_url, endpoint)
         data = self._request(url, method='DELETE')
         return data['message']
