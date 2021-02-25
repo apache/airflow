@@ -444,7 +444,7 @@ statsd = [
     'statsd>=3.3.0, <4.0',
 ]
 tableau = [
-    'tableauserverclient~=0.12',
+    'tableauserverclient',
 ]
 telegram = [
     'python-telegram-bot==13.0',
@@ -576,6 +576,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'snowflake': snowflake,
     'sqlite': [],
     'ssh': ssh,
+    'tableau': tableau,
     'telegram': telegram,
     'vertica': vertica,
     'yandex': yandex,
@@ -608,7 +609,6 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'rabbitmq': rabbitmq,
     'sentry': sentry,
     'statsd': statsd,
-    'tableau': tableau,
     'virtualenv': virtualenv,
 }
 

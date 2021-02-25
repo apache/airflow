@@ -67,6 +67,9 @@
   "postgres": [
     "amazon"
   ],
+  "salesforce": [
+    "tableau"
+  ],
   "sftp": [
     "ssh"
   ],

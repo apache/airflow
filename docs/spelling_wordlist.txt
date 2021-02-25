@@ -1280,6 +1280,7 @@ sync'ed
 sys
 syspath
 systemd
+tableau
 tableauserverclient
 tablefmt
 tagKey

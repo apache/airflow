@@ -654,6 +654,7 @@ microsoft.mssql            odbc
 mysql                      amazon,presto,vertica
 opsgenie                   http
 postgres                   amazon
+salesforce                 tableau
 sftp                       ssh
 slack                      http
 snowflake                  slack

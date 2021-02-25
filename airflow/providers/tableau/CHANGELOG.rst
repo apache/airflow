@@ -19,22 +19,6 @@
 Changelog
 ---------
 
-1.0.2
-.....
-
-Tableau provider moved to separate 'tableau' provider
-
-Things done:
-
-    - Tableau classes imports classes from 'tableau' provider with deprecation warning
-
-
-1.0.1
-.....
-
-Updated documentation and readme files.
-
-
 1.0.0
 .....
 

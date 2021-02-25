@@ -21,18 +21,25 @@ from unittest.mock import Mock, patch
 import pytest
 from parameterized import parameterized
 
-from airflow.providers.salesforce.sensors.tableau_job_status import (
+from airflow.providers.tableau.sensors.tableau_job_status import (
     TableauJobFailedException,
     TableauJobStatusSensor,
 )
 
 
 class TestTableauJobStatusSensor(unittest.TestCase):
+    """
+    Test Class for JobStatusSensor
+    """
+
     def setUp(self):
         self.kwargs = {'job_id': 'job_2', 'site_id': 'test_site', 'task_id': 'task', 'dag': None}
 
-    @patch('airflow.providers.salesforce.sensors.tableau_job_status.TableauHook')
+    @patch('airflow.providers.tableau.sensors.tableau_job_status.TableauHook')
     def test_poke(self, mock_tableau_hook):
+        """
+        Test poke
+        """
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         mock_get = mock_tableau_hook.server.jobs.get_by_id
         mock_get.return_value.finish_code = '0'
@@ -44,8 +51,11 @@ class TestTableauJobStatusSensor(unittest.TestCase):
         mock_get.assert_called_once_with(sensor.job_id)
 
     @parameterized.expand([('1',), ('2',)])
-    @patch('airflow.providers.salesforce.sensors.tableau_job_status.TableauHook')
+    @patch('airflow.providers.tableau.sensors.tableau_job_status.TableauHook')
     def test_poke_failed(self, finish_code, mock_tableau_hook):
+        """
+        Test poke failed
+        """
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         mock_get = mock_tableau_hook.server.jobs.get_by_id
         mock_get.return_value.finish_code = finish_code

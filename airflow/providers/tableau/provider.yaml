@@ -15,16 +15,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import warnings
+---
+package-name: apache-airflow-providers-tableau
+name: Tableau
+description: |
+    `Tableau <https://www.tableau.com/>`__
 
-# pylint: disable=unused-import
-from airflow.providers.tableau.sensors.tableau_job_status import (  # noqa
-    TableauJobFailedException,
-    TableauJobStatusSensor,
-)
+versions:
+  - 1.0.0
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau_job_status`.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+integrations:
+  - integration-name: Tableau
+    external-doc-url: https://www.tableau.com/
+    logo: /integration-logos/tableau/tableau.png
+    tags: [service]
+
+operators:
+  - integration-name: Tableau
+    python-modules:
+      - airflow.providers.tableau.operators.tableau_refresh_workbook
+
+sensors:
+  - integration-name: Tableau
+    python-modules:
+      - airflow.providers.tableau.sensors.tableau_job_status
+
+hooks:
+  - integration-name: Tableau
+    python-modules:
+      - airflow.providers.tableau.hooks.tableau
+
+hook-class-names:
+  - airflow.providers.tableau.hooks.tableau.TableauHook

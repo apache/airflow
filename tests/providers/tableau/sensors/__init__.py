@@ -14,17 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import warnings
-
-# pylint: disable=unused-import
-from airflow.providers.tableau.sensors.tableau_job_status import (  # noqa
-    TableauJobFailedException,
-    TableauJobStatusSensor,
-)
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau_job_status`.",
-    DeprecationWarning,
-    stacklevel=2,
-)

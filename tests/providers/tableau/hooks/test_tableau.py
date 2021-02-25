@@ -19,12 +19,19 @@ import unittest
 from unittest.mock import patch
 
 from airflow import configuration, models
-from airflow.providers.salesforce.hooks.tableau import TableauHook
+from airflow.providers.tableau.hooks.tableau import TableauHook
 from airflow.utils import db
 
 
 class TestTableauHook(unittest.TestCase):
+    """
+    Test class for TableauHook
+    """
+
     def setUp(self):
+        """
+        setup
+        """
         configuration.conf.load_test_config()
 
         db.merge_conn(
@@ -46,9 +53,12 @@ class TestTableauHook(unittest.TestCase):
             )
         )
 
-    @patch('airflow.providers.salesforce.hooks.tableau.TableauAuth')
-    @patch('airflow.providers.salesforce.hooks.tableau.Server')
+    @patch('airflow.providers.tableau.hooks.tableau.TableauAuth')
+    @patch('airflow.providers.tableau.hooks.tableau.Server')
     def test_get_conn_auth_via_password_and_site_in_connection(self, mock_server, mock_tableau_auth):
+        """
+        Test get conn auth via password
+        """
         with TableauHook(tableau_conn_id='tableau_test_password') as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host, use_server_version=True)
             mock_tableau_auth.assert_called_once_with(
@@ -59,9 +69,12 @@ class TestTableauHook(unittest.TestCase):
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch('airflow.providers.salesforce.hooks.tableau.PersonalAccessTokenAuth')
-    @patch('airflow.providers.salesforce.hooks.tableau.Server')
+    @patch('airflow.providers.tableau.hooks.tableau.PersonalAccessTokenAuth')
+    @patch('airflow.providers.tableau.hooks.tableau.Server')
     def test_get_conn_auth_via_token_and_site_in_init(self, mock_server, mock_tableau_auth):
+        """
+        Test get conn auth via token
+        """
         with TableauHook(site_id='test', tableau_conn_id='tableau_test_token') as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host, use_server_version=True)
             mock_tableau_auth.assert_called_once_with(
@@ -74,10 +87,13 @@ class TestTableauHook(unittest.TestCase):
             )
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
-    @patch('airflow.providers.salesforce.hooks.tableau.TableauAuth')
-    @patch('airflow.providers.salesforce.hooks.tableau.Server')
-    @patch('airflow.providers.salesforce.hooks.tableau.Pager', return_value=[1, 2, 3])
+    @patch('airflow.providers.tableau.hooks.tableau.TableauAuth')
+    @patch('airflow.providers.tableau.hooks.tableau.Server')
+    @patch('airflow.providers.tableau.hooks.tableau.Pager', return_value=[1, 2, 3])
     def test_get_all(self, mock_pager, mock_server, mock_tableau_auth):  # pylint: disable=unused-argument
+        """
+        Test get all
+        """
         with TableauHook(tableau_conn_id='tableau_test_password') as tableau_hook:
             jobs = tableau_hook.get_all(resource_name='jobs')
             assert jobs == mock_pager.return_value

@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -15,27 +16,29 @@
     specific language governing permissions and limitations
     under the License.
 
+``apache-airflow-providers-tableau``
+=======================================
 
-Changelog
----------
+Content
+-------
 
-1.0.2
-.....
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
 
-Tableau provider moved to separate 'tableau' provider
+    Connection types <connections/tableau>
 
-Things done:
+.. toctree::
+    :maxdepth: 1
+    :caption: References
 
-    - Tableau classes imports classes from 'tableau' provider with deprecation warning
+    Python API <_api/airflow/providers/tableau/index>
 
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
 
-1.0.1
-.....
+    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/tableau/example_dags>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-tableau/>
 
-Updated documentation and readme files.
-
-
-1.0.0
-.....
-
-Initial version of the provider.
+.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
