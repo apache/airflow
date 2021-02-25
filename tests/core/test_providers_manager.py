@@ -95,7 +95,6 @@ CONNECTIONS_LIST = [
     'azure_cosmos',
     'azure_data_explorer',
     'azure_data_lake',
-    'bigquery',
     'cassandra',
     'cloudant',
     'databricks',
