@@ -765,7 +765,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="${DEFAULT_CONSTRAINTS_BRANCH}" \
         --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
         --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
-        --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date --rfc-3339=seconds | sed 's/ /T/')" \
+        --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         "${additional_dev_args[@]}" \
@@ -918,7 +918,7 @@ function build_images::build_prod_images() {
         --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
         --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
-        --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date --rfc-3339=seconds | sed 's/ /T/')" \
+        --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
         -t "${AIRFLOW_PROD_BUILD_IMAGE}" \
         --target "airflow-build-image" \
@@ -957,7 +957,7 @@ function build_images::build_prod_images() {
         --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
         --build-arg AIRFLOW_IMAGE_REPOSITORY="https://github.com/${GITHUB_REPOSITORY}" \
-        --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date --rfc-3339=seconds | sed 's/ /T/')" \
+        --build-arg AIRFLOW_IMAGE_DATE_CREATED="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
         "${additional_dev_args[@]}" \
         "${additional_runtime_args[@]}" \
         "${DOCKER_CACHE_PROD_DIRECTIVE[@]}" \
