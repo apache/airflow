@@ -40,7 +40,7 @@ from flask import (
     session as flask_session, url_for, g
 )
 from flask._compat import PY2
-from flask_appbuilder import BaseView, expose, has_access, permission_name
+from flask_appbuilder import BaseView, ModelView, expose, has_access, permission_name
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
