@@ -81,7 +81,9 @@
       <tbody id="result_detail"></tbody>
     </table>
   </div>
+  <button onclick="downloadCurveAndResult()" class="btn btn-primary  m-2">下载拧紧结果和曲线</button>
   {% endcall %}
+
 </div>
 
 {% call dialog.dialog('dialogModal') %}
@@ -175,7 +177,7 @@
       return null;
     }
     return {
-      name:'',
+      name: '',
       [dataAxis]: value,
       itemStyle: {
         color: color,
@@ -514,6 +516,43 @@
     const tags = getTaskErrorTagLabels();
     const tagsContainer = $('#error-tags');
     tagsContainer.append(tags.join('，'));
+  }
+
+  function formatCurveFileContent() {
+    let content = '';
+    const length = curve.cur_t && curve.cur_t.length;
+    const keys = ['cur_w', 'cur_m', 'cur_t'];
+    content = keys.map(function (k) {
+      return curKeyMap[k];
+    }).join(',') + '\n';
+    for (let i = 0; i < length; i++) {
+      keys.forEach(function (k) {
+        content += curve[k][i];
+        content += ',';
+      });
+      content += '\n';
+    }
+    return content;
+  }
+
+  function doDownLoad(fileContent, fileName, fileType) {
+    var file = new Blob([fileContent], {type: fileType});
+    const url = URL.createObjectURL(file);
+
+    var a = document.createElement('a');
+    a.download = fileName;
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function downloadCurveAndResult() {
+    const curveContent = formatCurveFileContent();
+    doDownLoad(curveContent, '{{task_instance.entity_id}}.csv'.replace('/', '@'), 'text/plain');
+    const resultContent = JSON.stringify(result);
+    doDownLoad(resultContent, '{{task_instance.entity_id}}.json'.replace('/', '@'), 'text/plain');
+
   }
 
   $(document).ready(() => {
