@@ -19,7 +19,7 @@ JPype1==1.2.1
 JayDeBeApi==1.2.3
 Jinja2==2.11.3
 Mako==1.1.4
-Markdown==3.3.3
+Markdown==3.3.4
 MarkupSafe==1.1.1
 PyHive==0.6.3
 PyJWT==1.7.1
@@ -153,7 +153,7 @@ bowler==0.9.0
 cached-property==1.5.2
 cachetools==4.2.1
 cassandra-driver==3.20.2
-cattrs==1.2.0
+cattrs==1.3.0
 celery==4.4.7
 certifi==2020.12.5
 cffi==1.14.5
@@ -330,7 +330,8 @@ ntlm-auth==1.5.0
 numpy==1.20.1
 oauth2client==4.1.3
 oauthlib==3.1.0
-openapi-spec-validator==0.2.9
+openapi-schema-validator==0.1.2
+openapi-spec-validator==0.3.0
 oscrypto==1.2.1
 packaging==20.9
 pandas-gbq==0.14.1
@@ -458,6 +459,7 @@ sshpubkeys==3.3.1
 sshtunnel==0.1.5
 starkbank-ecdsa==1.1.0
 statsd==3.3.0
+strict-rfc3339==0.7
 swagger-ui-bundle==0.0.8
 tableauserverclient==0.15.0
 tabulate==0.8.9

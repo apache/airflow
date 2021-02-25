@@ -14,7 +14,7 @@ Flask==1.1.2
 HeapDict==1.0.1
 Jinja2==2.11.3
 Mako==1.1.4
-Markdown==3.3.3
+Markdown==3.3.4
 MarkupSafe==1.1.1
 PyJWT==1.7.1
 PyYAML==5.4.1
@@ -75,6 +75,7 @@ importlib-metadata==1.7.0
 importlib-resources==1.5.0
 inflection==0.5.1
 iso8601==0.1.14
+isodate==0.6.0
 itsdangerous==1.1.0
 jsonschema==3.2.0
 kombu==4.6.11
@@ -90,7 +91,8 @@ msgpack==1.0.2
 natsort==7.1.1
 numpy==1.19.5
 oauthlib==2.1.0
-openapi-spec-validator==0.2.9
+openapi-schema-validator==0.1.2
+openapi-spec-validator==0.3.0
 pandas==1.1.5
 pendulum==2.1.2
 pep562==1.0
@@ -123,6 +125,7 @@ setproctitle==1.2.2
 six==1.15.0
 sortedcontainers==2.3.0
 statsd==3.3.0
+strict-rfc3339==0.7
 swagger-ui-bundle==0.0.8
 tabulate==0.8.9
 tblib==1.7.0
