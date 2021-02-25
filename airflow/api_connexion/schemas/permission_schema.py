@@ -22,8 +22,8 @@ from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 
-class ViewMenuCollectionItemSchema(SQLAlchemySchema):
-    """ViewMenu Schema"""
+class ResourceCollectionItemSchema(SQLAlchemySchema):
+    """Permission Resources Schema"""
 
     class Meta:
         """Meta"""
@@ -34,17 +34,17 @@ class ViewMenuCollectionItemSchema(SQLAlchemySchema):
     name = auto_field()
 
 
-class ViewMenuCollection(NamedTuple):
-    """ViewMenu list"""
+class ResourceCollection(NamedTuple):
+    """Permission Resources list"""
 
-    view_menus: List[ViewMenu]
+    resources: List[ViewMenu]
     total_entries: int
 
 
-class ViewMenuCollectionSchema(Schema):
+class ResourceCollectionSchema(Schema):
     """ViewMenu list schema"""
 
-    view_menus = fields.List(fields.Nested(ViewMenuCollectionItemSchema))
+    resources = fields.List(fields.Nested(ResourceCollectionItemSchema))
     total_entries = fields.Int()
 
 
@@ -63,14 +63,14 @@ class PermissionCollectionItemSchema(SQLAlchemySchema):
 class PermissionCollection(NamedTuple):
     """Permission Collection"""
 
-    permissions: List[Permission]
+    actions: List[Permission]
     total_entries: int
 
 
 class PermissionCollectionSchema(Schema):
     """Permissions list schema"""
 
-    permissions = fields.List(fields.Nested(PermissionCollectionItemSchema))
+    actions = fields.List(fields.Nested(PermissionCollectionItemSchema))
     total_entries = fields.Int()
 
 
@@ -83,8 +83,8 @@ class PermissionViewSchema(SQLAlchemySchema):
         model = PermissionView
 
     id = auto_field()
-    permission = fields.Nested(PermissionCollectionItemSchema)
-    view_menu = fields.Nested(ViewMenuCollectionItemSchema)
+    permission = fields.Nested(PermissionCollectionItemSchema, data_key="action")
+    view_menu = fields.Nested(ResourceCollectionItemSchema, data_key="resource")
 
 
 class RoleCollectionItemSchema(SQLAlchemySchema):
