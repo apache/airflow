@@ -18,7 +18,7 @@
 Access Control
 ==============
 
-Access Control of Airflow Webserver UI is handled by Flask AppBuilder (FAB).
+Access Control of Airflow's Webserver UI is handled by Flask AppBuilder (FAB).
 Please read its related `security document <http://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
 regarding its security model.
 
@@ -38,7 +38,7 @@ regarding its security model.
 Default Roles
 '''''''''''''
 
-Airflow uses roles to manage all permissions across your environment. Each role has permissions which provide varying levels of access Airflow's key resources (DAGs, Connections, etc).
+Airflow uses roles to manage all permissions across your environment. Each role has permissions which provide varying levels of access to Airflow's key resources (DAGs, Connections, etc).
 
 An environment's roles can be found under the **Security** tab:
 
@@ -70,7 +70,7 @@ Viewer
 
 User
 ^^^^
-``User`` users have all of the ``Viewer`` permissions listed above, plus additional user permissions for modifying DAGs, Task Instances, and DAG Runs:
+``User`` users have all of the ``Viewer`` permissions listed above, plus additional user permissions for modifying DAGs, task instances, and DAG runs:
 
 .. exampleinclude:: /../../airflow/www/security.py
     :language: python
@@ -79,7 +79,7 @@ User
 
 Op
 ^^^
-``Op`` users have all of the permissions that ``Viewers`` and ``Users`` have, plus additional permissions for modifying resources like Connections and Pools:
+``Op`` users have all of the permissions that ``Viewers`` and ``Users`` have, plus additional permissions for modifying resources like connections and pools:
 
 .. exampleinclude:: /../../airflow/www/security.py
     :language: python
@@ -96,18 +96,17 @@ Creating custom roles is the recommended way to customize your environment acces
 
  .. image:: /img/list-roles.png
 
-2. Specify a name and add permissions for the role.
+2. Specify a name and add permissions for the role. Note that the names for permissions will vary slightly between the UI and the source code.
 
  .. image:: /img/add-permissions.png
 
-3. Click save. When you create a new user and assign them a role, this new role should appear as a possible option.
+3. Click Save.
 
-You can also create roles via the CLI
-using the ``airflow roles create`` command, e.g.:
+You can also create roles via the CLI using the following command:
 
 .. code-block:: bash
 
-  airflow roles create Role1 Role2
+  airflow roles create <Role1> <Role2>
 
 You could then assign the given role to a new user using the ``airflow
 users add-role`` CLI command. Note that adding and removing permissions for a role can only be completed in the UI.
@@ -115,37 +114,35 @@ users add-role`` CLI command. Note that adding and removing permissions for a ro
 Resource-Based permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Starting with version 2.0, permissions are based on individual resources and a small subset of actions on those
+Starting with version 2.0, permissions are based on individual resources and a small set of actions with those
 resources. Resources match standard Airflow concepts, such as ``Dag``, ``DagRun``, ``Task``, and
 ``Connection``. Actions include ``can_create``, ``can_read``, ``can_edit``, and ``can_delete``.
 
-Each endpoint in Airflow requires one or more permissions to be accessed. **To access an endpoint, a role needs all permissions required by that endpoint.**
-
-There are five default roles: Public, Viewer, User, Op, and Admin. Each one has the permissions of the preceding role, as well as additional permissions.
+Each endpoint in Airflow requires one or more permissions to be accessed. To access an endpoint, a role needs all permissions required by that endpoint.
 
 DAG-Based Permissions
-^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
 ``Admin`` users can create roles with permission to access only specific DAGs. This is called DAG level access.
 
 While access to all DAGs is controlled with resource-based permissions, DAG level access only has two associated permissions:
 ``can_read`` and ``can_edit`` (``can_dag_read`` and ``can_dag_edit`` were deprecated in 2.0.0).
 
 For instance, the following images show how you would create a role which can only write to
-``example_python_operator``. Once you create the role, the permission shows up in the **List Roles** page.
+``example_python_operator``. Once you create the role, the permission appears in the **List Roles** menu.
 
 .. image:: /img/add-role.png
 .. image:: /img/new-role.png
 
-If an endpoint for a specific DAG requires a permission based on the DAG resource (for example, DAGs.can_create),
-roles will have access if they have either the resource-based permission or or a DAG-based permission.
+If an endpoint for a specific DAG requires a permission based on the DAG resource (for example, ``DAGs.can_create``),
+a role will have access if it has either the resource-based permission or a DAG-based permission.
 
 For example, if an endpoint for the ``example_python_operator`` DAG requires the resource-based ``DAGS.can_read`` permission,
 a role with the DAG-based permission ``DAG:example_python_operator.can_read`` can still access that endpoint even without ``DAGS.can_read``.
 
 Reference: Action and Endpoint Permissions
-'''''''''''
+''''''''''''''''''''''''''''''''''''''''''
 
-The following tables list all of the necessary permissions in order for a role to access various functions on Airflow. Note that the ``Minimum Role`` table only applies
+The following tables list all of the necessary permissions required for access to various Airflow endpoints and actions. Note that the ``Minimum Role`` table only applies
 if you haven't edited your default roles.
 
 ================================================================================== ====== ================================================================= ============
