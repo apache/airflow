@@ -32,11 +32,11 @@ labelPRBasedOnFilePath:
   provider:Azure:
     - airflow/providers/microsoft/azure/**/*
     - tests/providers/microsoft/azure/**/*
-    - docs/howto/connection/azure.rst
+    - docs/apache-airflow-providers-microsoft-azure/**/*
 
   provider:Apache:
     - airflow/providers/apache/**/*
-    - docs/apache-airflow-providers-microsoft-azure/**/*
+    - docs/apache-airflow-providers-apache-*/**/*
     - tests/providers/apache/**/*
 
   provider:Snowflake:
@@ -49,7 +49,9 @@ labelPRBasedOnFilePath:
     - airflow/**/kubernetes_*.py
     - airflow/example_dags/example_kubernetes_executor.py
     - airflow/example_dags/example_kubernetes_executor_config.py
+    - airflow/providers/cncf/kubernetes/**/*
     - airflow/kubernetes/**/*
+    - airflow/kubernetes_executor_templates/**/*
     - docs/apache-airflow/executor/kubernetes.rst
     - docs/apache-airflow/executor/celery_kubernetes.rst
     - docs/apache-airflow-providers-cncf-kubernetes/**/*
@@ -118,7 +120,7 @@ labelPRBasedOnFilePath:
     - airflow/www/package.json
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock
-    - docs/ui.rst
+    - docs/apache-airflow/ui.rst
 
   area:CLI:
     - airflow/bin/cli.py
@@ -135,7 +137,7 @@ labelPRBasedOnFilePath:
   area:Logging:
     - airflow/providers/**/log/*
     - airflow/utils/log/**/*
-    - docs/howto/write-logs.rst
+    - docs/apache-airflow/howto/write-logs.rst
     - tests/providers/**/log/*
     - tests/utils/log/**/*
 
@@ -144,7 +146,7 @@ labelPRBasedOnFilePath:
     - airflow/plugins_manager.py
     - tests/cli/commands/test_plugins_command.py
     - tests/plugins/**/*
-    - docs/plugins.rst
+    - docs/apache-airflow/plugins.rst
 
   area:Scheduler/Executor:
     - airflow/executors/**/*
