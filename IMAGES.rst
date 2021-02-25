@@ -432,7 +432,7 @@ It first pre-installs them from the right GitHub branch and only after that fina
 done from either local sources or remote location (PIP or GitHub repository).
 
 Customizing the image
-.....................
+---------------------
 
 Customizing the image is an alternative way of adding your own dependencies to the image.
 
