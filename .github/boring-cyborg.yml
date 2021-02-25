@@ -20,31 +20,23 @@
 
 labelPRBasedOnFilePath:
   provider:Google:
-    - airflow/providers/google/*
     - airflow/providers/google/**/*
-    - docs/howto/connection/gcp.rst
-    - docs/howto/connection/gcp_sql.rst
-    - docs/howto/operator/google/*
-    - tests/providers/google/*
+    - docs/apache-airflow-providers-google/**/*
     - tests/providers/google/**/*
 
   provider:AWS:
     - airflow/providers/amazon/aws/**/*
     - tests/providers/amazon/aws/**/*
-    - tests/providers/amazon/aws/*
-    - docs/howto/connection/aws.rst
-    - docs/howto/operator/amazon/aws/*
+    - docs/apache-airflow-providers-amazon/**/*
 
   provider:Azure:
     - airflow/providers/microsoft/azure/**/*
     - tests/providers/microsoft/azure/**/*
-    - tests/providers/microsoft/azure/*
     - docs/howto/connection/azure.rst
 
   provider:Apache:
     - airflow/providers/apache/**/*
-    - docs/howto/operator/apache/*
-    - tests/providers/apache/*
+    - docs/apache-airflow-providers-microsoft-azure/**/*
     - tests/providers/apache/**/*
 
   area:kubernetes:
@@ -52,38 +44,25 @@ labelPRBasedOnFilePath:
     - airflow/example_dags/example_kubernetes_executor.py
     - airflow/example_dags/example_kubernetes_executor_config.py
     - airflow/kubernetes/**/*
-    - docs/executor/kubernetes.rst
-    - docs/howto/connection/kubernetes.rst
-    - docs/howto/operator/kubernetes.rst
-    - docs/kubernetes.rst
-    - tests/runtime/kubernetes/*
+    - docs/apache-airflow/executor/kubernetes.rst
+    - docs/apache-airflow/executor/celery_kubernetes.rst
+    - docs/apache-airflow-providers-cncf-kubernetes/**/*
 
   area:API:
-    - airflow/api/*
     - airflow/api/**/*
-    - airflow/api_connexion/*
     - airflow/api_connexion/**/*
-    - airflow/www/api/*
     - airflow/www/api/**/*
-    - clients/*
     - clients/**/*
-    - docs/rest-api-ref.rst
-    - docs/stable-rest-api/*
-    - docs/stable-rest-api/**/*
-    - tests/api_connexion/*
+    - docs/apache-airflow/rest-api-ref.rst
+    - docs/apache-airflow/stable-rest-api-ref.rst
     - tests/api_connexion/**/*
-    - tests/www/api/*
     - tests/www/api/**/*
 
   area:dev-tools:
-    - airflow/mypy/*
     - airflow/mypy/**/*
     - scripts/**/*
-    - scripts/*
     - dev/**/*
-    - dev/*
     - .github/**/*
-    - .github/*
     - breeze
     - Dockerfile.ci
     - BREEZE.rst
@@ -110,11 +89,9 @@ labelPRBasedOnFilePath:
 
   kind:documentation:
     - docs/**/*
-    - docs/*
 
   area:helm-chart:
     - chart/**/*
-    - chart/*
 
   area:Webserver:
     - airflow/cli/commands/webserver_command.py
@@ -122,15 +99,11 @@ labelPRBasedOnFilePath:
     - airflow/www_rbac/**/*
     - tests/cli/commands/test_webserver_command.py
     - tests/www/**/*
-    - tests/www/*
     - tests/www_rbac/**/*
-    - tests/www_rbac/*
 
   area:UI:
     - airflow/www/static/**/*
-    - airflow/www/static/*
     - airflow/www/templates/**/*
-    - airflow/www/templates/*
     - airflow/www/.eslintignore
     - airflow/www/.eslintrc
     - airflow/www/.stylelintignore
@@ -145,53 +118,51 @@ labelPRBasedOnFilePath:
     - airflow/bin/cli.py
     - airflow/cli/**/*.py
     - tests/cli/**/*.py
-    - docs/cli-and-env-variables-ref.rst
-    - docs/usage-cli.rst
+    - docs/apache-airflow/cli-and-env-variables-ref.rst
+    - docs/apache-airflow/usage-cli.rst
 
   area:Lineage:
     - airflow/lineage/**/*
-    - airflow/lineage/*
-    - tests/lineage/*
-    - docs/lineage.rst
+    - tests/lineage/**/*
+    - docs/apache-airflow/lineage.rst
 
   area:Logging:
     - airflow/providers/**/log/*
-    - airflow/utils/log/*
+    - airflow/utils/log/**/*
     - docs/howto/write-logs.rst
     - tests/providers/**/log/*
-    - tests/utils/log/*
     - tests/utils/log/**/*
 
   area:Plugins:
     - airflow/cli/commands/plugins_command.py
     - airflow/plugins_manager.py
     - tests/cli/commands/test_plugins_command.py
-    - tests/plugins/*
+    - tests/plugins/**/*
     - docs/plugins.rst
 
   area:Scheduler/Executor:
-    - airflow/executors/*
-    - airflow/jobs/*
-    - airflow/task/task_runner/*
+    - airflow/executors/**/*
+    - airflow/jobs/**/*
+    - airflow/task/task_runner/**/*
     - airflow/utils/dag_processing.py
-    - docs/executor/*
-    - docs/scheduler.rst
-    - tests/executors/*
-    - tests/jobs/*
+    - docs/apache-airflow/executor/**/*
+    - docs/apache-airflow/scheduler.rst
+    - tests/executors/**/*
+    - tests/jobs/**/*
 
   area:Secrets:
-    - airflow/secrets/*
+    - airflow/secrets/**/*
     - airflow/providers/**/secrets/*
-    - tests/secrets/*
+    - tests/secrets/**/*
     - tests/providers/**/secrets/*
-    - docs/howto/secrets-backend/*
+    - docs/apache-airflow/howto/secrets-backend/*
 
   area:Serialization:
-    - airflow/serialization/*
+    - airflow/serialization/**/*
     - airflow/models/serialized_dag.py
-    - tests/serialization/*
+    - tests/serialization/**/*
     - tests/models/test_serialized_dag.py
-    - docs/dag-serialization.rst
+    - docs/apache-airflow/dag-serialization.rst
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:
