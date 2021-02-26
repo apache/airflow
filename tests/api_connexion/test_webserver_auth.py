@@ -26,11 +26,12 @@ from parameterized import parameterized
 from airflow.www.app import create_app
 from tests.test_utils.api_connexion_utils import assert_401
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_pools
 
 
 class TestWebserverAuth(unittest.TestCase):
     def setUp(self) -> None:
-        with conf_vars({("webserver", "session_lifetime_minutes"): "1"}):
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             self.app = create_app(testing=True)
 
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
@@ -45,6 +46,10 @@ class TestWebserverAuth(unittest.TestCase):
                 role=role_admin,
                 password="test",
             )
+        clear_db_pools()
+
+    def tearDown(self) -> None:
+        clear_db_pools()
 
     def test_successful_login(self):
         token = "Basic " + b64encode(b"test:test").decode()
@@ -106,7 +111,6 @@ class TestWebserverAuth(unittest.TestCase):
             response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert response.status_code == 401
             assert response.headers["Content-Type"] == "application/problem+json"
-            assert response.headers["WWW-Authenticate"] == "Basic"
             assert_401(response)
 
     @parameterized.expand(
@@ -122,5 +126,4 @@ class TestWebserverAuth(unittest.TestCase):
             response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert response.status_code == 401
             assert response.headers["Content-Type"] == "application/problem+json"
-            assert response.headers["WWW-Authenticate"] == "Basic"
             assert_401(response)
