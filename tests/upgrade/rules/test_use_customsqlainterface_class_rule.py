@@ -67,7 +67,7 @@ class TestUseCustomSQLAInterfaceClassRule(TestCase):
             "data models instantiated from the SQLAInterface class.\n"
             "See: "
             "https://github.com/apache/airflow/blob/master/"
-            "UPDATING.md#use-customsqlainterface-instead-of-sqlqinterface-for-custom-data-models"
+            "UPDATING.md#use-customsqlainterface-instead-of-sqlainterface-for-custom-data-models"
         )
 
         assert msg == rule.check()

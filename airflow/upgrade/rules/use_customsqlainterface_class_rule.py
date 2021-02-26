@@ -16,6 +16,7 @@
 # under the License.
 
 from airflow.upgrade.rules.base_rule import BaseRule
+from airflow.www_rbac.utils import CustomSQLAInterface
 
 
 class UseCustomSQLAInterfaceClassRule(BaseRule):
@@ -49,9 +50,8 @@ and in 2.0:
 
         if flask_appbuilder_views:
             for view_obj in flask_appbuilder_views:
-                for attr in dir(view_obj.get("view")):
-                    if type(getattr(view_obj.get("view"), attr)).__name__ == 'SQLAInterface':
-                        plugins_with_sqlainterface_data_model_instance.append(view_obj.get("name"))
+                if not isinstance(view_obj.get("view").datamodel, CustomSQLAInterface):
+                    plugins_with_sqlainterface_data_model_instance.append(view_obj.get("name"))
 
         if plugins_with_sqlainterface_data_model_instance:
             return (
@@ -60,5 +60,5 @@ and in 2.0:
                 "from the SQLAInterface class.\n".format(plugins_with_sqlainterface_data_model_instance) +
                 "See: "
                 "https://github.com/apache/airflow/blob/master/"
-                "UPDATING.md#use-customsqlainterface-instead-of-sqlqinterface-for-custom-data-models"
+                "UPDATING.md#use-customsqlainterface-instead-of-sqlainterface-for-custom-data-models"
             )
