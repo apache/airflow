@@ -108,7 +108,7 @@ You can also create roles via the CLI using the following command:
 
   airflow roles create <Role1> <Role2>
 
-You could then assign the given role to a new user using the ``airflow
+You can then assign the given role to a new user using the ``airflow
 users add-role`` CLI command. Note that adding and removing permissions for a role can only be completed in the UI.
 
 Resource-Based permissions
@@ -122,12 +122,15 @@ Each endpoint in Airflow requires one or more permissions to be accessed. To acc
 
 DAG-Based Permissions
 ^^^^^^^^^^^^^^^^^^^^^
-``Admin`` users can create roles with permission to access only specific DAGs. This is called DAG level access.
 
-While access to all DAGs is controlled with resource-based permissions, DAG level access only has two associated permissions:
-``can_read`` and ``can_edit`` (``can_dag_read`` and ``can_dag_edit`` were deprecated in 2.0.0).
+``Admin`` users can create roles with permission to access only specific DAGs. This is called DAG-level access.
 
-For instance, the following images show how you would create a role which can only write to
+DAG-level permissions differ from resource-level permissions in a few key ways:
+- Resource-based permissions apply to all DAGs, while DAG-based permissions apply only to specific DAGs.
+- DAG-based permissions control only``can_read`` and ``can_edit`` actions (``can_dag_read`` and ``can_dag_edit`` were deprecated in 2.0.0).
+- You have to specify a specific DAG in the name of the DAG-based permission. The specific naming convention is ``DAG:<dag-name>.can_read`` or ``DAG:<dag-name>.can_edit``.
+
+For example, the following images show how you would create a role which can only write to
 ``example_python_operator``. Once you create the role, the permission appears in the **List Roles** menu.
 
 .. image:: /img/add-role.png
