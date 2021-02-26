@@ -418,7 +418,7 @@ def variables_export(args):
     _vars_wrapper(args, export=args.file)
 
 
-@cli_utils.deprecated_action(new_name='variables')
+@cli_utils.deprecated_action(new_name='variables list')
 @cli_utils.action_logging
 def variables(args):
     if args.get:
