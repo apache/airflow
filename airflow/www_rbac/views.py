@@ -2275,6 +2275,7 @@ class CurvesView(BaseCRUDView):
                 error_tags = json.loads(t.error_tag or '[]')
                 if not error_tags:
                      t.view_error_tags = u'无异常标签'
+                     continue
                 for tag in error_tags:
                     v= error_tag_vals.get(str(tag), '')
                     if not v:
