@@ -30,10 +30,9 @@
 // -- Begin moment-strftime
 // Copyright (c) 2012 Benjamin Oakes, MIT Licensed
 
-/* global d3, document, moment, call_modal $ */
+/* global d3, document, moment, call_modal, data $ */
 
 import tiTooltip from './task_instances';
-import getMetaValue from './meta_value';
 
 const replacements = {
   a: 'ddd',
@@ -311,8 +310,6 @@ d3.gantt = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  let data = getMetaValue('data');
-  data = JSON.parse(data.replaceAll('None', 'null').replaceAll(/'/g, '"'));
   const gantt = d3.gantt()
     .taskTypes(data.taskNames)
     .height(data.height)
