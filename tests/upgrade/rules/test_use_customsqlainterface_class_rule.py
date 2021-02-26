@@ -65,9 +65,9 @@ class TestUseCustomSQLAInterfaceClassRule(TestCase):
         msg = (
             "Deprecation Warning: The following views: ['Test View', 'Test View'] have "
             "data models instantiated from the SQLAInterface class.\n"
-            "Use the CustomSQLAInterface class instead:"
-            "`from airflow.www.utils import CustomSQLAInterface`\n"
-            "`datamodel = CustomSQLAInterface(your_data_model)`"
+            "See: "
+            "https://github.com/apache/airflow/blob/master/"
+            "UPDATING.md#use-customsqlainterface-instead-of-sqlqinterface-for-custom-data-models"
         )
 
         assert msg == rule.check()

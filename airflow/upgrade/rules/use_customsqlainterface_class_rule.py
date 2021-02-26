@@ -19,7 +19,6 @@ from airflow.upgrade.rules.base_rule import BaseRule
 
 
 class UseCustomSQLAInterfaceClassRule(BaseRule):
-
     title = "Use CustomSQLAInterface instead of SQLAInterface for custom data models."
 
     description = """\
@@ -55,12 +54,11 @@ and in 2.0:
                         plugins_with_sqlainterface_data_model_instance.append(view_obj.get("name"))
 
         if plugins_with_sqlainterface_data_model_instance:
-            print(plugins_with_sqlainterface_data_model_instance)
             return (
                 "Deprecation Warning: The following views: {} have "
                 "data models instantiated "
                 "from the SQLAInterface class.\n".format(plugins_with_sqlainterface_data_model_instance) +
-                "Use the CustomSQLAInterface class instead:"
-                "`from airflow.www.utils import CustomSQLAInterface`\n"
-                "`datamodel = CustomSQLAInterface(your_data_model)`"
+                "See: "
+                "https://github.com/apache/airflow/blob/master/"
+                "UPDATING.md#use-customsqlainterface-instead-of-sqlqinterface-for-custom-data-models"
             )
