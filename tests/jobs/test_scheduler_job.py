@@ -2713,8 +2713,8 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.processor_agent = mock.MagicMock()
 
         # Create 5 dagruns for each DAG.
-        # To increase the chances the TIs from the "full" pool will get retrieved first, we schedule all TIs from the
-        # first dag first.
+        # To increase the chances the TIs from the "full" pool will get retrieved first, we schedule all
+        # TIs from the first dag first.
         date = DEFAULT_DATE
         for _ in range(5):
             dr = dag_d1.create_dagrun(
@@ -2735,13 +2735,13 @@ class TestSchedulerJob(unittest.TestCase):
             scheduler._schedule_dag_run(dr, {}, session)
             date = dag_d2.following_schedule(date)
 
-        task_instances_list1 = scheduler._executable_task_instances_to_queued(max_tis=2, session=session)
+        scheduler._executable_task_instances_to_queued(max_tis=2, session=session)
         task_instances_list2 = scheduler._executable_task_instances_to_queued(max_tis=2, session=session)
 
         # Make sure we get TIs from a non-full pool in the 2nd list
         assert len(task_instances_list2) > 0
-        assert all(task_instance.pool != 'test_scheduler_keeps_scheduling_when_a_pool_is_full_p1' for task_instance in task_instances_list2)
-
+        assert all(task_instance.pool != 'test_scheduler_keeps_scheduling_when_a_pool_is_full_p1'
+                   for task_instance in task_instances_list2)
 
     def test_scheduler_verify_priority_and_slots(self):
         """
