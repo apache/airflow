@@ -66,6 +66,7 @@ with DAG(
     # [END how_to_sftp_to_wasb]
 
     delete_blob_files = WasbDeleteBlobOperator(
+        task_id="delete_blob_files",
         wasb_conn_id="wasb_default",
         container_name=AZURE_CONTAINER_NAME,
         blob_name=BLOB_PREFIX + SAMPLE_FILE_NAME,
