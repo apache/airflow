@@ -128,7 +128,7 @@ DAG-Based Permissions
 DAG-level permissions differ from resource-level permissions in a few key ways:
 - Resource-based permissions apply to all DAGs, while DAG-based permissions apply only to specific DAGs.
 - DAG-based permissions control only``can_read`` and ``can_edit`` actions (``can_dag_read`` and ``can_dag_edit`` were deprecated in 2.0.0).
-- You have to specify a specific DAG in the name of the DAG-based permission. The specific naming convention is ``DAG:<dag-name>.can_read`` or ``DAG:<dag-name>.can_edit``.
+- You have to specify an existing DAG in the name of the DAG-based permission. The specific naming convention is ``DAG:<dag-name>.can_read`` or ``DAG:<dag-name>.can_edit``.
 
 For example, the following images show how you would create a role which can only write to
 ``example_python_operator``. Once you create the role, the permission appears in the **List Roles** menu.
