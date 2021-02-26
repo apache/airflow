@@ -363,7 +363,7 @@ class CeleryExecutor(BaseExecutor):
             # If the task gets updated to STARTED (which Celery does) or has
             # already finished, then it will be removed from this list -- so
             # the only time it's still in this list is when it a) never made it
-            # to celery in the first place (i.e. race condition somehwere in
+            # to celery in the first place (i.e. race condition somewhere in
             # the dying executor) or b) a really long celery queue and it just
             # hasn't started yet -- better cancel it and let the scheduler
             # re-queue rather than have this task risk stalling for ever

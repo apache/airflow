@@ -256,7 +256,7 @@ ENV AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 ARG AIRFLOW_VERSION_SPECIFICATION=""
 ENV AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION}
 
-# We can seet this value to true in case we want to install .whl .tar.gz packages placed in the
+# We can set this value to true in case we want to install .whl .tar.gz packages placed in the
 # docker-context-files folder. This can be done for both - additional packages you want to install
 # and for airflow as well (you have to set INSTALL_FROM_PYPI to false in this case)
 ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""

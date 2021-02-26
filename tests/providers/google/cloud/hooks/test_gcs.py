@@ -840,22 +840,22 @@ class TestGCSHookUpload(unittest.TestCase):
     def test_upload_exceptions(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
-        both_params_excep = (
+        both_params_except = (
             "'filename' and 'data' parameter provided. Please "
             "specify a single parameter, either 'filename' for "
             "local file uploads or 'data' for file content uploads."
         )
-        no_params_excep = "'filename' and 'data' parameter missing. One is required to upload to gcs."
+        no_params_except = "'filename' and 'data' parameter missing. One is required to upload to gcs."
 
         with pytest.raises(ValueError) as ctx:
             self.gcs_hook.upload(test_bucket, test_object)
-        assert no_params_excep == str(ctx.value)
+        assert no_params_except == str(ctx.value)
 
         with pytest.raises(ValueError) as ctx:
             self.gcs_hook.upload(
                 test_bucket, test_object, filename=self.testfile.name, data=self.testdata_str
             )
-        assert both_params_excep == str(ctx.value)
+        assert both_params_except == str(ctx.value)
 
 
 class TestSyncGcsHook(unittest.TestCase):

@@ -228,7 +228,7 @@ Choosing image registry
 =======================
 
 By default images are pulled and pushed from and to DockerHub registry when you use Breeze's push-image
-or build commands. But as described in `CI Documentaton <CI.rst>`_, you can choose different image
+or build commands. But as described in `CI Documentation <CI.rst>`_, you can choose different image
 registry by setting ``GITHUB_REGISTRY`` to ``docker.pkg.github.com`` for Github Package Registry or
 ``ghcr.io`` for GitHub Container Registry.
 

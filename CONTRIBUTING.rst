@@ -983,7 +983,7 @@ If this function is designed to be called by "end-users" (i.e. DAG authors) then
       ...
       # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
 
-Don't use time() for duration calcuations
+Don't use time() for duration calculations
 -----------------------------------------
 
 If you wish to compute the time difference between two events with in the same process, use

@@ -717,7 +717,7 @@ class TestDag(unittest.TestCase):
 
         model = session.query(DagModel).get((dag.dag_id,))
         assert model.next_dagrun == period_end
-        # We signle "at max active runs" by saying this run is never eligible to be created
+        # We signal "at max active runs" by saying this run is never eligible to be created
         assert model.next_dagrun_create_after is None
 
     def test_sync_to_db(self):
@@ -1042,7 +1042,7 @@ class TestDag(unittest.TestCase):
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=when))
 
         dag_run = dag.create_dagrun(State.RUNNING, when, run_type=DagRunType.MANUAL)
-        # should not rause any exception
+        # should not raise any exception
         dag.handle_callback(dag_run, success=False)
         dag.handle_callback(dag_run, success=True)
 

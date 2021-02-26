@@ -525,7 +525,7 @@ class DagBag(LoggingMixin):
         from airflow.models.dag import DAG
         from airflow.models.serialized_dag import SerializedDagModel
 
-        def _serialze_dag_capturing_errors(dag, session):
+        def _serialize_dag_capturing_errors(dag, session):
             """
             Try to serialize the dag to the DB, but make a note of any errors.
 
@@ -561,7 +561,7 @@ class DagBag(LoggingMixin):
                 try:
                     # Write Serialized DAGs to DB, capturing errors
                     for dag in self.dags.values():
-                        serialize_errors.extend(_serialze_dag_capturing_errors(dag, session))
+                        serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
 
                     DAG.bulk_write_to_db(self.dags.values(), session=session)
                 except OperationalError:

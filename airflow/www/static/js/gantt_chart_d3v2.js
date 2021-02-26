@@ -119,7 +119,7 @@ d3.gantt = function() {
     return "translate(" + (x(d.start_date.valueOf()) + yAxisLeftOffset) + "," + y(d.task_id) + ")";
   };
 
-  function tickFormater(d) {
+  function tickFormatter(d) {
     // We can't use d3.time.format as that uses local time, so instead we use
     // moment as that handles our "global" timezone.
     return moment(d).strftime(tickFormat);
@@ -129,7 +129,7 @@ d3.gantt = function() {
 
   var y = d3.scale.ordinal().domain(taskTypes).rangeRoundBands([ 0, height - margin.top - margin.bottom ], .1);
 
-  var xAxis = d3.svg.axis().scale(x).orient("bottom").tickFormat(tickFormater).tickSubdivide(true)
+  var xAxis = d3.svg.axis().scale(x).orient("bottom").tickFormat(tickFormatter).tickSubdivide(true)
   .tickSize(8).tickPadding(8);
 
   var yAxis = d3.svg.axis().scale(y).orient("left").tickSize(0);
@@ -157,7 +157,7 @@ d3.gantt = function() {
   var initAxis = function() {
     x = d3.time.scale().domain([ timeDomainStart, timeDomainEnd ]).range([ 0, width-yAxisLeftOffset ]).clamp(true);
     y = d3.scale.ordinal().domain(taskTypes).rangeRoundBands([ 0, height - margin.top - margin.bottom ], .1);
-    xAxis = d3.svg.axis().scale(x).orient("bottom").tickFormat(tickFormater).tickSubdivide(true)
+    xAxis = d3.svg.axis().scale(x).orient("bottom").tickFormat(tickFormatter).tickSubdivide(true)
     .tickSize(8).tickPadding(8);
 
     yAxis = d3.svg.axis().scale(y).orient("left").tickSize(0);

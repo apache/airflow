@@ -531,7 +531,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         )
 
     def test_manual_task_id(self):
-        """Test manually seting task_id"""
+        """Test manually setting task_id"""
 
         @task_decorator(task_id='some_name')
         def do_run():

@@ -1400,7 +1400,7 @@ class DAG(LoggingMixin):
         return count
 
     def __deepcopy__(self, memo):
-        # Swiwtcharoo to go around deepcopying objects coming through the
+        # Switcharoo to go around deepcopying objects coming through the
         # backdoor
         cls = self.__class__
         result = cls.__new__(cls)

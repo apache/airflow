@@ -104,7 +104,7 @@ function push_pull_remove_images::pull_image_github_dockerhub() {
     set -e
 }
 
-# Pulls the base Python image. This image is used as base for CI and PROD imaages, depending on the parameters used:
+# Pulls the base Python image. This image is used as base for CI and PROD images, depending on the parameters used:
 #
 # * if UPGRADE_TO_NEWER_DEPENDENCIES is noy false, then it pulls the latest Python image available first and
 #     adds `org.opencontainers.image.source` label to it, so that it is linked to Airflow repository when

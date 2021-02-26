@@ -1024,7 +1024,7 @@ function breeze::parse_arguments() {
             echo "Additional apt dev dependencies: ${ADDITIONAL_DEV_APT_DEPS}"
             shift 2
             ;;
-        --dev-apt-commad)
+        --dev-apt-command)
             export DEV_APT_COMMAND="${2}"
             echo "Apt dev command: ${DEV_APT_COMMAND}"
             shift 2
@@ -1049,7 +1049,7 @@ function breeze::parse_arguments() {
             echo "Additional apt runtime dependencies: ${ADDITIONAL_RUNTIME_APT_DEPS}"
             shift 2
             ;;
-        --runtime-apt-commad)
+        --runtime-apt-command)
             export RUNTIME_APT_COMMAND="${2}"
             echo "Apt runtime command: ${RUNTIME_APT_COMMAND}"
             shift 2

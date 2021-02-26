@@ -440,7 +440,7 @@ class DagRun(Base, LoggingMixin):
                     msg='task_failure',
                 )
 
-        # if all leafs succeeded and no unfinished tasks, the run succeeded
+        # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished_tasks and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
             self.log.info('Marking run %s successful', self)
             self.set_state(State.SUCCESS)
@@ -592,7 +592,7 @@ class DagRun(Base, LoggingMixin):
             dag = self.get_dag()
 
             if not self.dag.schedule_interval or self.dag.schedule_interval == "@once":
-                # We can't emit this metric if there is no following schedule to cacluate from!
+                # We can't emit this metric if there is no following schedule to calculate from!
                 return
 
             ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
