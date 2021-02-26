@@ -1213,6 +1213,12 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
+        --dry-run-docker)
+            export DRY_RUN_DOCKER="true"
+            echo "Dry run mode"
+            echo
+            shift
+            ;;
         --)
             shift
             break
@@ -2482,6 +2488,11 @@ function breeze::flag_verbosity() {
 
         Note that you can further increase verbosity and see all the commands executed by breeze
         by running 'export VERBOSE_COMMANDS=\"true\"' before running breeze.
+
+--dry-run-docker
+        Only show docker commands to execute instead of actually executing them. The docker
+        commands are printed in yellow color.
+
 "
 }
 
@@ -3318,6 +3329,20 @@ function breeze::run_build_command() {
     esac
 }
 
+# executes command
+function breeze::run_command() {
+    "${@}"
+}
+
+
+# print command instead of executing
+function breeze::print_command() {
+    echo
+    echo "${COLOR_YELLOW}" "${@}" "${COLOR_RESET}"
+    echo
+}
+
+
 #######################################################################################################
 #
 # Runs the actual command - depending on the command chosen it will use the right
@@ -3339,6 +3364,10 @@ function breeze::run_build_command() {
 function breeze::run_breeze_command() {
     set +u
     local dc_run_file
+    local run_command="breeze::run_command"
+    if [[ ${DRY_RUN_DOCKER} != "false" ]]; then
+        run_command="breeze::print_command"
+    fi
     if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
         dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}"
     else
@@ -3347,10 +3376,10 @@ function breeze::run_breeze_command() {
     case "${command_to_run}" in
     enter_breeze)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            "${dc_run_file}" run --service-ports --rm airflow "${@}"
-            "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
+            ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
+            ${run_command} "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
         else
-            "${dc_run_file}" run --service-ports --rm airflow "${@}"
+            ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
         fi
         ;;
     run_exec)
@@ -3367,16 +3396,11 @@ function breeze::run_breeze_command() {
     run_tests)
         export RUN_TESTS="true"
         readonly RUN_TESTS
-        "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" run --service-ports --rm airflow "$@"
+        ${run_command} "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" run --service-ports --rm airflow "$@"
         ;;
     run_docker_compose)
         set +u
-        if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}"
-        else
-            dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}"
-        fi
-        "${dc_run_file}" "${docker_compose_command}" "${EXTRA_DC_OPTIONS[@]}" "$@"
+        ${run_command} "${dc_run_file}" "${docker_compose_command}" "${EXTRA_DC_OPTIONS[@]}" "$@"
         set -u
         ;;
     perform_static_checks)

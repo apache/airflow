@@ -175,8 +175,7 @@ dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-comma
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
 install-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure
-test-type:
-preserve-volumes
+test-type: preserve-volumes dry-run-docker
 "
 
 _breeze_commands="
