@@ -30,7 +30,7 @@ from airflow.www.views import lazy_add_provider_discovered_options_to_connection
 
 log = logging.getLogger(__name__)
 
-# airflow/www/extesions/init_views.py => airflow/
+# airflow/www/extensions/init_views.py => airflow/
 ROOT_APP_DIR = path.abspath(path.join(path.dirname(__file__), path.pardir, path.pardir))
 
 
