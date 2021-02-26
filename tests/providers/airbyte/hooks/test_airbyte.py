@@ -18,24 +18,16 @@
 #
 import unittest
 import pytest
-from unittest import mock
-import json
-import unittest
-from unittest import mock
-
-from time import sleep
-
-import pytest
 import requests
 import requests_mock
-import tenacity
+from unittest import mock
+
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.version import version
-# from airflow.providers.airbyte.hooks import AirbyteHook
 
-from plugin.hook import AirbyteHook, AirbyteJobController
+from airflow.providers.airbyte.hooks.airbyte import AirbyteHook, AirbyteJobController
 
 AIRFLOW_VERSION = "v" + version.replace(".", "-").replace("+", "-")
 AIRBYTE_STRING = "airflow.providers.airbyte.hooks.{}"

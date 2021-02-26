@@ -21,10 +21,9 @@ from unittest import mock
 
 from airflow.models import Connection
 from airflow.version import version
-from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 
-from plugin.operator import AirbyteTriggerSyncOperator
-from plugin.hook import AirbyteHook, AirbyteJobController
+from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
+
 
 AIRFLOW_VERSION = "v" + version.replace(".", "-").replace("+", "-")
 AIRBYTE_STRING = "airflow.providers.airbyte.operators.{}"
