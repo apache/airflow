@@ -22,13 +22,16 @@ description: |
   `Airbyte <https://airbyte.io/>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
 
 integrations:
   - integration-name: Airbyte
     external-doc-url: https://www.airbyte.io/
+    how-to-guide:
+      - /docs/apache-airflow-providers-airbyte/airbyte/airbyte_operator_howto_guide.rst
     logo: /integration-logos/airbyte/Airbyte.png
-    tags: [service]
+    tags: [software]
 
 operators:
   - integration-name: Airbyte
