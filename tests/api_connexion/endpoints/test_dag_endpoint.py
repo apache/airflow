@@ -212,7 +212,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owner": 'airflow',
             "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -244,7 +244,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owner": 'airflow',
             "params": {},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -276,7 +276,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owner": 'airflow',
             "params": {},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -313,7 +313,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owner": 'airflow',
             "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -349,7 +349,7 @@ class TestGetDagDetails(TestDagEndpoint):
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',
-            'owners': [],
+            'owner': 'airflow',
             "params": {"foo": 1},
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'microseconds': 0, 'seconds': 0},
             'start_date': '2020-06-15T00:00:00+00:00',

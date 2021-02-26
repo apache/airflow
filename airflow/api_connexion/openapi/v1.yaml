@@ -1940,39 +1940,84 @@ components:
 
         For details see:
         (airflow.models.DAG)[https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG]
-      allOf:
-        - $ref: '#/components/schemas/DAG'
-        - type: object
-          properties:
-            timezone:
-              $ref: '#/components/schemas/Timezone'
-            catchup:
-              type: boolean
-              readOnly: true
-            orientation:
-              type: string
-              readOnly: true
-            concurrency:
-              type: number
-              readOnly: true
-            start_date:
-              type: string
-              format: 'date-time'
-              readOnly: true
-              nullable: true
-            dag_run_timeout:
-              nullable: true
-              $ref: '#/components/schemas/TimeDelta'
-            doc_md:
-              type: string
-              readOnly: true
-              nullable: true
-            default_view:
-              type: string
-              readOnly: true
-            params:
-              type: object
-              readOnly: true
+      properties:
+        dag_id:
+          type: string
+          readOnly: true
+          description: The ID of the DAG.
+        root_dag_id:
+          type: string
+          readOnly: true
+          nullable: true
+          description: If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, nulll.
+        is_paused:
+          type: boolean
+          nullable: true
+          description: Whether the DAG is paused.
+        is_subdag:
+          description: Whether the DAG is SubDAG.
+          type: boolean
+          readOnly: true
+        fileloc:
+          description: The absolute path to the file.
+          type: string
+          readOnly: true
+        file_token:
+          type: string
+          readOnly: true
+          description: >
+            The key containing the encrypted path to the file. Encryption and decryption take place only on
+            the server. This prevents the client from reading an non-DAG file. This also ensures API
+            extensibility, because the format of encrypted data may change.
+        owner:
+          type: string
+          nullable: true
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+          nullable: true
+          description: >
+            User-provided DAG description, which can consist of several sentences or paragraphs that
+            describe DAG contents.
+        schedule_interval:
+          $ref: '#/components/schemas/ScheduleInterval'
+        tags:
+          description: List of tags.
+          type: array
+          items:
+            type: string
+          readOnly: true
+          nullable: true
+        timezone:
+          $ref: '#/components/schemas/Timezone'
+        catchup:
+          type: boolean
+          readOnly: true
+        orientation:
+          type: string
+          readOnly: true
+        concurrency:
+          type: number
+          readOnly: true
+        start_date:
+          type: string
+          format: 'date-time'
+          readOnly: true
+          nullable: true
+        dag_run_timeout:
+          nullable: true
+          $ref: '#/components/schemas/TimeDelta'
+        doc_md:
+          type: string
+          readOnly: true
+          nullable: true
+        default_view:
+          type: string
+          readOnly: true
+        params:
+          type: object
+          readOnly: true
 
     ExtraLink:
       type: object
