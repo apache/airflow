@@ -86,10 +86,11 @@ function build_provider_packages() {
         local res
         set +e
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
+            generate-setup-files \
             "${OPTIONAL_BACKPORT_FLAG[@]}" \
             --no-git-update \
             --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
-            generate-setup-files "${provider_package}"
+            "${provider_package}"
         res=$?
         set -e
         if [[ ${res} == "64" ]]; then
@@ -110,11 +111,11 @@ function build_provider_packages() {
             package_suffix="${VERSION_SUFFIX_FOR_PYPI}"
         fi
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
+            build-provider-packages \
             "${OPTIONAL_BACKPORT_FLAG[@]}" \
             --no-git-update \
             --version-suffix "${package_suffix}" \
             "${package_format_args[@]}" \
-            build-provider-packages \
             "${provider_package}"
         res=$?
         set -e

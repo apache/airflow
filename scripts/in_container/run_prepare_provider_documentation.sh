@@ -26,8 +26,8 @@ function import_all_provider_classes() {
 
 function verify_provider_packages_named_properly() {
     python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-        "${OPTIONAL_BACKPORT_FLAG[@]}" \
-        verify-provider-classes
+        verify-provider-classes \
+        "${OPTIONAL_BACKPORT_FLAG[@]}"
 }
 
 function run_prepare_documentation() {
@@ -45,11 +45,11 @@ function run_prepare_documentation() {
         local res
         # There is a separate group created in logs for each provider package
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
+            update-package-documentation \
             --version-suffix "${TARGET_VERSION_SUFFIX}" \
             --no-git-update \
             "${OPTIONAL_BACKPORT_FLAG[@]}" \
             "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \
-            update-package-documentation \
             "${provider_package}"
         res=$?
         if [[ ${res} == "64" ]]; then

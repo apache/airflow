@@ -333,8 +333,9 @@ pip install -e ".[devel_all]"
 3) Run update documentation (version suffix might be empty):
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py --version-suffix <SUFFIX> \
-    update-package-documentation <PACKAGE>
+./dev/provider_packages/prepare_provider_packages.py update-package-documentation \
+    --version-suffix <SUFFIX> \
+    <PACKAGE>
 ```
 
 This script will fetch the latest version of airflow from Airflow's repo (it will automatically add
@@ -394,8 +395,9 @@ last time it was generated. In the CI we always add 'dev' suffix, and we never c
 TAG for it, so in the CI the setup.py is generated and should never fail.
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py --version-suffix "<SUFFIX>" \
-  generate-setup-files <PACKAGE>
+./dev/provider_packages/prepare_provider_packages.py generate-setup-files \
+    --version-suffix "<SUFFIX>" \
+    <PACKAGE>
 ```
 
 ## Debugging preparing the packages
@@ -424,8 +426,9 @@ pip install -e ".[devel_all]"
 3) Run update documentation (version suffix might be empty):
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py --version-suffix <SUFFIX> \
-    build-provider-packages <PACKAGE>
+./dev/provider_packages/prepare_provider_packages.py build-provider-packages \
+    --version-suffix <SUFFIX> \
+    <PACKAGE>
 ```
 
 In case version being prepared is already tagged in the repo documentation preparation returns immediately

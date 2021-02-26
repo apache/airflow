@@ -18,7 +18,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Setup.py for the Provider packages of Airflow project."""
-import argparse
 import collections
 import glob
 import importlib
@@ -39,8 +38,9 @@ from functools import lru_cache
 from os import listdir
 from os.path import dirname
 from shutil import copyfile
-from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
+import click
 import jsonpath_ng
 import jsonschema
 import yaml
@@ -117,6 +117,41 @@ from setup import PROVIDERS_REQUIREMENTS, PREINSTALLED_PROVIDERS  # noqa # isort
 logger = logging.getLogger(__name__)  # noqa
 
 PY3 = sys.version_info[0] == 3
+
+
+@click.group(context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 500})
+def cli():
+    ...
+
+
+@cli.resultcallback()
+def process_result(result):
+    if not result:
+        raise click.exceptions.Exit(64)
+    return result
+
+
+option_git_update = click.option(
+    '--git-update/--no-git-update',
+    default=True,
+    is_flag=True,
+    help=f"If the git remote {HTTPS_REMOTE} already exists, don't try to update it",
+)
+option_backports = click.option(
+    "--backports",
+    is_flag=True,
+    help="Prepares backport packages rather than regular ones",
+)
+option_version_suffix = click.option(
+    "--version-suffix",
+    metavar="suffix",
+    help=textwrap.dedent(
+        """
+        adds version suffix to version of the packages.
+        only useful when generating rc candidates for pypi."""
+    ),
+)
+argument_package_id = click.argument('package_id')
 
 
 @contextmanager
@@ -981,7 +1016,7 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> List[str]
     return dependent_packages
 
 
-def make_sure_remote_apache_exists_and_fetch(no_git_update: bool):
+def make_sure_remote_apache_exists_and_fetch(git_update: bool):
     """
     Make sure that apache remote exist in git. We need to take a log from the apache
     repository - not locally.
@@ -993,7 +1028,7 @@ def make_sure_remote_apache_exists_and_fetch(no_git_update: bool):
     * check if the local repo is shallow, markit to be unshallowed in this case
     * fetch from the remote including all tags and overriding local tags in case they are set differently
 
-    :param no_git_update: If the git remote already exists, don't try to update it
+    :param git_update: If the git remote already exists, should we try to update it
 
     """
     try:
@@ -1006,7 +1041,7 @@ def make_sure_remote_apache_exists_and_fetch(no_git_update: bool):
         )
 
         # Remote already exists, don't update it again!
-        if no_git_update:
+        if not git_update:
             return
     except subprocess.CalledProcessError as ex:
         if ex.returncode == 128:
@@ -1310,6 +1345,8 @@ def get_backport_current_changes_table(previous_release_commit_ref: str, source_
 
 
 def get_version_tag(version: str, provider_package_id: str, version_suffix: str = ''):
+    if version_suffix is None:
+        version_suffix = ''
     return f"providers-{provider_package_id.replace('.','-')}/{version}{version_suffix}"
 
 
@@ -1437,7 +1474,7 @@ def get_provider_jinja_context(
         "PROVIDER_PATH": provider_details.full_package_name.replace(".", "/"),
         "RELEASE": current_release_version,
         "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
-        "VERSION_SUFFIX": version_suffix,
+        "VERSION_SUFFIX": version_suffix or '',
         "ADDITIONAL_INFO": get_additional_package_info(
             provider_package_path=provider_details.source_provider_package_path
         ),
@@ -1903,34 +1940,47 @@ def copy_readme_and_changelog_for_backports(provider_package_id: str) -> None:
 #######################################################################################################
 
 
-def list_providers_packages(args: Any) -> bool:
+@cli.command()
+@option_backports
+def list_providers_packages(backports) -> bool:
     """List all provider packages."""
-    providers = get_all_backportable_providers() if args.backports else get_all_providers()
+    providers = get_all_backportable_providers() if backports else get_all_providers()
     for provider in providers:
         print(provider)
     return True
 
 
-def update_package_documentation(args: Any):
-    """Updates package documentation."""
-    current_release_version = args.release_version
-    version_suffix = args.version_suffix
-    if not args.package:
-        print("[red]ERROR: You must specify a package as parameter[/]")
-        raise Exception("Bad parameter")
-    if args.release_version and not args.backports:
+@cli.command()
+@click.option(
+    "--release-version",
+    metavar='YYYY.MM.DD',
+    default='',
+    help='Optional release version - only used in case of backport packages',
+)
+@option_backports
+@option_version_suffix
+@option_git_update
+@argument_package_id
+def update_package_documentation(backports, release_version, version_suffix, git_update, package_id):
+    """
+    Updates package documentation.
+
+    See `list-providers-packages` subcommand for the possible PACKAGE_ID values
+    """
+    current_release_version = release_version
+    if release_version and not backports:
         print("[red]ERROR: Release version can only be specified for backports[/]")
         raise Exception("Do not specify release version for regular providers")
-    provider_package_id = args.package
+    provider_package_id = package_id
     verify_provider_package(provider_package_id)
     package_ok = True
     with with_group(f"Update generated files for package '{provider_package_id}' "):
-        if args.release_version:
+        if release_version:
             print(f"Preparing release version: {current_release_version}")
         else:
             print("Updating documentation for the latest release version.")
-        make_sure_remote_apache_exists_and_fetch(args.no_git_update)
-        if args.backports:
+        make_sure_remote_apache_exists_and_fetch(git_update)
+        if backports:
             provider_details = get_provider_details(provider_package_id)
             past_releases = get_all_releases_for_backport_providers(
                 provider_package_path=provider_details.source_provider_package_path
@@ -1972,27 +2022,32 @@ def tag_exists_for_version(provider_package_id, current_tag):
     return False
 
 
-def generate_setup_files(args: Any):
-    """Generates setup files for the package."""
-    if not args.package:
-        print("[red]ERROR: You must specify a package as parameter[/]")
-        raise Exception("Specify package as parameter")
-    provider_package_id = args.package
+@cli.command()
+@option_backports
+@option_version_suffix
+@option_git_update
+@argument_package_id
+def generate_setup_files(backports, version_suffix, git_update, package_id):
+    """
+    Generates setup files for the package.
+
+    See `list-providers-packages` subcommand for the possible PACKAGE_ID values
+    """
+    provider_package_id = package_id
     package_ok = True
     with with_group(f"Generate setup files for '{provider_package_id}'"):
-        suffix = args.version_suffix
-        current_tag = get_current_tag(provider_package_id, suffix, args.no_git_update)
-        if not args.backports and tag_exists_for_version(provider_package_id, current_tag):
+        current_tag = get_current_tag(provider_package_id, version_suffix, git_update)
+        if not backports and tag_exists_for_version(provider_package_id, current_tag):
             print(f"[yellow]The tag {current_tag} exists. Not preparing the package.[/]")
             package_ok = False
-        elif args.backports:
+        elif backports:
             update_generated_files_for_backport_package(
-                provider_package_id, "", suffix, update_release_notes=False, update_setup=True
+                provider_package_id, "", version_suffix, update_release_notes=False, update_setup=True
             )
             print(f"[green]Generated backport package setup files for {provider_package_id}[/]")
         else:
             if update_generated_files_for_regular_package(
-                provider_package_id, suffix, update_release_notes=False, update_setup=True
+                provider_package_id, version_suffix, update_release_notes=False, update_setup=True
             ):
                 print(f"[green]Generated regular package setup files for {provider_package_id}[/]")
             else:
@@ -2000,9 +2055,9 @@ def generate_setup_files(args: Any):
     return package_ok
 
 
-def get_current_tag(provider_package_id, suffix, no_git_update):
+def get_current_tag(provider_package_id, suffix, git_update):
     verify_provider_package(provider_package_id)
-    make_sure_remote_apache_exists_and_fetch(no_git_update)
+    make_sure_remote_apache_exists_and_fetch(git_update)
     provider_info = get_provider_info_from_provider_yaml(provider_package_id)
     versions: List[str] = provider_info['versions']
     current_version = versions[0]
@@ -2034,30 +2089,40 @@ def verify_setup_py_prepared(provider_package):
         raise Exception("Wrong setup!")
 
 
-def build_provider_packages(args: Any) -> bool:
-    """Builds provider package."""
-    if not args.package:
-        print("[red]ERROR: You must specify a package as parameter[/]")
-        raise Exception("Please add package as parameter!")
-    provider_package_id = args.package
+@cli.command()
+@click.option(
+    '--package-format',
+    type=click.Choice(['sdist', 'wheel', 'both']),
+    default='wheel',
+    help='Optional format - only used in case of building packages (default: wheel)',
+)
+@option_backports
+@option_git_update
+@option_version_suffix
+@argument_package_id
+def build_provider_packages(package_format, backports, git_update, version_suffix, package_id) -> bool:
+    """
+    Builds provider package.
+
+    See `list-providers-packages` subcommand for the possible PACKAGE_ID values
+    """
+    provider_package_id = package_id
     with with_group(f"Prepare provider package for '{provider_package_id}'"):
-        suffix = args.version_suffix
-        current_tag = get_current_tag(provider_package_id, suffix, args.no_git_update)
-        if not args.backports and tag_exists_for_version(provider_package_id, current_tag):
+        current_tag = get_current_tag(provider_package_id, version_suffix, git_update)
+        if not backports and tag_exists_for_version(provider_package_id, current_tag):
             print(f"[yellow]The tag {current_tag} exists. Skipping the package.[/]")
             return False
         print(f"Changing directory to ${TARGET_PROVIDER_PACKAGES_PATH}")
         os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
         cleanup_remnants()
-        package_format = args.package_format
-        provider_package = args.package
+        provider_package = package_id
         verify_setup_py_prepared(provider_package)
         print(f"Building provider package: {provider_package} in format {package_format}")
-        if args.backports:
+        if backports:
             copy_readme_and_changelog_for_backports(provider_package)
         command = ["python3", "setup.py"]
-        if args.version_suffix != "":
-            command.extend(['egg_info', '--tag-build', args.version_suffix])
+        if version_suffix is not None:
+            command.extend(['egg_info', '--tag-build', version_suffix])
         if package_format in ['sdist', 'both']:
             command.append("sdist")
         if package_format in ['wheel', 'both']:
@@ -2110,10 +2175,12 @@ def summarise_total_vs_bad(total: int, bad: int):
         raise Exception("Badly names entities")
 
 
-def verify_provider_classes(args: Any) -> bool:
+@cli.command()
+@option_backports
+def verify_provider_classes(backports) -> bool:
     """Verifies if all classes in all providers are correctly named."""
     with with_group("Verifies names for all provider classes"):
-        if args.backports:
+        if backports:
             provider_ids = get_all_backportable_providers()
         else:
             provider_ids = get_all_providers()
@@ -2135,88 +2202,5 @@ def verify_provider_classes(args: Any) -> bool:
     return True
 
 
-FUNCTIONS = [
-    list_providers_packages,
-    verify_provider_classes,
-    update_package_documentation,
-    generate_setup_files,
-    build_provider_packages,
-]
-
-
-def get_command_name(function: Callable) -> str:
-    """Get command name."""
-    return function.__name__.replace('_', '-')
-
-
-def run_cmd(args: Any):
-    """Execute command from function list."""
-    for function in FUNCTIONS:
-        if get_command_name(function) == args.command:
-            return function(args)
-    print(f"[red]Bad command {args.command}[/]")
-    raise Exception("Bad command passed %s", args.command)
-
-
-def get_parser():
-    provider_names = get_provider_packages()
-    help_text = "Prepare provider packages and their documentation\n\n"
-    help_text += "\nAvailable packages:\n   "
-    out = " ".join(provider_names)
-    out_array = textwrap.wrap(out, 80)
-    help_text += "\n   ".join(out_array)
-    cli_parser = argparse.ArgumentParser(description=help_text, formatter_class=argparse.RawTextHelpFormatter)
-    cli_parser.add_argument(
-        "--version-suffix",
-        metavar="SUFFIX",
-        default="",
-        help=textwrap.dedent(
-            """Adds version suffix to version of the packages.
-Only useful when generating RC candidates for PyPI."""
-        ),
-    )
-    cli_parser.add_argument(
-        "--backports",
-        action='store_true',
-        help=textwrap.dedent("Prepares backport packages rather than regular ones"),
-    )
-    cli_parser.add_argument(
-        "--release-version",
-        metavar='YYYY.MM.DD',
-        default='',
-        help='Optional release version - only used in case of backport packages',
-    )
-    cli_parser.add_argument(
-        "--package-format",
-        choices=["both", "wheel", "sdist"],
-        default="both",
-        help='Optional format - only used in case of building packages (default: wheel)',
-    )
-    cli_parser.add_argument(
-        "--no-git-update",
-        action="store_true",
-        help=f"If the git remote {HTTPS_REMOTE} already exists, don't try to update it",
-    )
-    command_help = '\n'
-    for function in FUNCTIONS:
-        command_help += f"{get_command_name(function):30}\t{function.__doc__}\n"
-    command_help += "\n"
-    cli_parser.add_argument(
-        help=command_help, dest="command", choices=[get_command_name(function) for function in FUNCTIONS]
-    )
-    cli_parser.add_argument(help="Optional package to act on", dest="package", nargs="?", metavar="PACKAGE")
-    return cli_parser
-
-
 if __name__ == "__main__":
-    parser = get_parser()
-    _args = parser.parse_args()
-    if _args.command is None:
-        parser.print_help()
-        sys.exit(1)
-    else:
-        if run_cmd(_args):
-            sys.exit(0)
-        else:
-            # Special exit code indicating that we are skipping the package!
-            sys.exit(64)
+    cli()
