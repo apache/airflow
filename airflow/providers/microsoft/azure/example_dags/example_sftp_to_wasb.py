@@ -65,7 +65,7 @@ with DAG(
     )
     # [END how_to_sftp_to_wasb]
 
-    delete_blob_files_step = WasbDeleteBlobOperator(
+    delete_blob_file_step = WasbDeleteBlobOperator(
         task_id="delete_blob_files",
         wasb_conn_id="wasb_default",
         container_name=AZURE_CONTAINER_NAME,
@@ -74,4 +74,4 @@ with DAG(
 
     delete_sftp_step = PythonOperator(task_id="delete_sftp_file", python_callable=delete_sftp_file)
 
-    transfer_files_to_sftp >> transfer_files_to_azure >> delete_blob_files_step >> delete_sftp_step
+    transfer_files_to_sftp >> transfer_files_to_azure >> delete_blob_file_step >> delete_sftp_step
