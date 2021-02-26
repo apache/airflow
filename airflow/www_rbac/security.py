@@ -18,6 +18,20 @@
 # under the License.
 #
 
+from flask_appbuilder.security.views import AuthOAuthView as AV
+from flask_login.mixins import AnonymousUserMixin
+from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
+from flask_login import login_user, logout_user, current_user
+from flask import redirect, url_for
+import logging
+from pprint import pprint, pformat
+from tenacity import retry, wait_exponential, retry_if_exception_type, stop_after_delay, RetryError
+import requests
+from typing import Optional, Dict
+import json
+import os
+from flask import request
+from flask_appbuilder.security.views import expose
 from flask import g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
@@ -44,21 +58,12 @@ EXISTING_ROLES = {
     '运维人员'
 }
 
-from flask_appbuilder.security.views import expose
-
-from flask import request
-import os
-import json
-from typing import Optional, Dict
-import requests
-from tenacity import retry, wait_exponential, retry_if_exception_type, stop_after_delay, RetryError
 
 ENV_SUC_CRCCODE_KEY = os.getenv('ENV_SUC_CRCCODE_KEY', 'crccode')
 ENV_SUC_ROOT_URL = os.getenv('ENV_SUC_ROOT_URL', 'http://localhost:8080')
-ENV_PORTAL_INDEX_URL = os.getenv('ENV_PORTAL_INDEX_URL', 'http://idas-pv.smicmotor.com/ids/index.html')
+ENV_PORTAL_INDEX_URL = os.getenv(
+    'ENV_PORTAL_INDEX_URL', 'http://idas-pv.smicmotor.com/ids/index.html')
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
-
-from pprint import pprint, pformat
 
 
 @retry(wait=wait_exponential(multiplier=1, max=3), stop=stop_after_delay(5), retry=retry_if_exception_type())
@@ -83,12 +88,6 @@ def doGetLoginInfo(crcCode: str) -> Optional[Dict]:
         raise e
 
 
-import logging
-from flask import redirect, url_for
-from flask_login import login_user, logout_user, current_user
-from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
-from flask_login.mixins import AnonymousUserMixin
-
 class CustomAuthDBView(AuthDBView):
     login_template = "airflow/login.html"
 
@@ -102,7 +101,8 @@ class CustomAuthDBView(AuthDBView):
                                            CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '查看登录页面')
         else:
             msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                           current_user,  current_user.last_name,
+                                           current_user,  getattr(
+                                               current_user, 'last_name', ''),
                                            CUSTOM_EVENT_NAME_MAP['LOGIN'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '登录')
         logging.info(msg)
         return ret
@@ -110,20 +110,22 @@ class CustomAuthDBView(AuthDBView):
     @expose("/logout/")
     def logout(self):
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(
+                                           current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['LOGOUT'], CUSTOM_PAGE_NAME_MAP['LOGOUT'], '登出')
         ret = super(CustomAuthDBView, self).logout()
         logging.info(msg)
         return ret
 
 
-from flask_appbuilder.security.views import AuthOAuthView as AV
-
-
 class SUCUser(models.User):
 
     def __init__(self, user):
         self.user = user
+
+    @property
+    def last_name(self):
+        return self.user.last_name
 
     @property
     def is_active(self):
@@ -152,6 +154,11 @@ class SUCUser(models.User):
         """Access all the things"""
         return False
 
+    def __getattribute__(self, name):
+        if name == 'last_name':
+            return getattr(self.user, 'last_name', '') or getattr(self.user, 'username', '')
+        return super(SUCUser, self).__getattribute__(name)
+
 
 class AuthOAuthView(AV):
     login_template = "airflow/login_oauth.html"
@@ -161,7 +168,8 @@ class AuthOAuthView(AV):
     @expose("/login/<provider>/<register>")
     @provide_session
     def login(self, provider=None, register=None, session=None):
-        crc_code = request.args.get('crccode', None) or request.args.get('crcCode', None)
+        crc_code = request.args.get(
+            'crccode', None) or request.args.get('crcCode', None)
         if not crc_code:
             return super(AuthOAuthView, self).login(provider=provider, register=register)
         userinfo = doGetLoginInfo(crc_code)
@@ -175,21 +183,26 @@ class AuthOAuthView(AV):
         login_user(SUCUser(user))
         session.commit()
         msg = ''
-        if not current_user.is_active:
-            msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                           'null', 'null',
-                                           CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '查看登录页面')
-        else:
-            msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                           current_user, current_user.last_name,
-                                           CUSTOM_EVENT_NAME_MAP['LOGIN'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '登录')
+        try:
+            if not current_user.is_active:
+                msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                               'null', 'null',
+                                               CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '查看登录页面')
+            else:
+                msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                               current_user,  getattr(
+                                                   current_user, 'last_name', ''),
+                                               CUSTOM_EVENT_NAME_MAP['LOGIN'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '登录')
+        except AttributeError as err:
+            logging.error(err)
         logging.info(msg)
         return redirect(url_for('Airflow.index'))
 
     @expose("/logout/")
     def logout(self):
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(
+                                           current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['LOGOUT'], CUSTOM_PAGE_NAME_MAP['LOGOUT'], '登出')
         logging.info(msg)
         logout_user()
@@ -445,7 +458,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             role = self.add_role(role_name)
 
         if len(role.permissions) == 0:
-            self.log.info('Initializing permissions for role:%s in the database.', role_name)
+            self.log.info(
+                'Initializing permissions for role:%s in the database.', role_name)
             role_pvms = set()
             for pvm in pvms:
                 if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
@@ -623,7 +637,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :return: None.
         """
         # todo(Tao): should we put this function here or in scheduler loop?
-        self.log.info('Fetching a set of all permission, view_menu from FAB meta-table')
+        self.log.info(
+            'Fetching a set of all permission, view_menu from FAB meta-table')
 
         def merge_pv(perm, view_menu):
             """Create permission view menu only if it doesn't exist"""
@@ -649,7 +664,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         all_roles = self.get_all_roles()
         user_role = self.find_role('User')
 
-        dag_role = [role for role in all_roles if role.name not in EXISTING_ROLES]
+        dag_role = [
+            role for role in all_roles if role.name not in EXISTING_ROLES]
         update_perm_views = []
 
         # need to remove all_dag vm from all the existing view-menus
@@ -664,7 +680,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             .filter(ab_perm_view_role.columns.role_id == user_role.id) \
             .join(view_menu) \
             .filter(perm_view.view_menu_id != dag_vm.id)
-        all_perm_views = set([role.permission_view_id for role in all_perm_view_by_user])
+        all_perm_views = set(
+            [role.permission_view_id for role in all_perm_view_by_user])
 
         for role in dag_role:
             # Get all the perm-view of the role
@@ -680,7 +697,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                                           'role_id': role.id})
 
         if update_perm_views:
-            self.get_session.execute(ab_perm_view_role.insert(), update_perm_views)
+            self.get_session.execute(
+                ab_perm_view_role.insert(), update_perm_views)
         self.get_session.commit()
 
     def update_admin_perm_view(self):
@@ -692,11 +710,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :return: None.
         """
         all_dag_view = self.find_view_menu('all_dags')
-        dag_perm_ids = [self.find_permission('can_dag_edit').id, self.find_permission('can_dag_read').id]
+        dag_perm_ids = [self.find_permission(
+            'can_dag_edit').id, self.find_permission('can_dag_read').id]
         pvms = self.get_session.query(sqla_models.PermissionView).filter(~and_(
             sqla_models.PermissionView.permission_id.in_(dag_perm_ids),
             sqla_models.PermissionView.view_menu_id != all_dag_view.id)
-                                                                         ).all()
+        ).all()
 
         pvms = [p for p in pvms if p.permission and p.view_menu]
 

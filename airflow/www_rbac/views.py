@@ -435,7 +435,7 @@ class Airflow(AirflowBaseView):
                                     default_var={})
 
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE'], '查看单条曲线')
         logging.info(msg)
 
@@ -466,7 +466,7 @@ class Airflow(AirflowBaseView):
             return None
 
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE_TEMPLATE'],
                                        '查看曲线模板页面')
         logging.info(msg)
@@ -492,7 +492,7 @@ class Airflow(AirflowBaseView):
             new_template = do_remove_curve_from_curve_template(bolt_no, craft_type, version, mode, group_center_idx,
                                                                curve_idx)
             msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                           current_user, current_user.last_name, CUSTOM_EVENT_NAME_MAP['DELETE'],
+                                           current_user, getattr(current_user, 'last_name', ''), CUSTOM_EVENT_NAME_MAP['DELETE'],
                                            CUSTOM_PAGE_NAME_MAP['CURVE_TEMPLATE'], '删除曲线模板')
             logging.info(msg)
             return {'data': new_template}
@@ -2298,7 +2298,7 @@ class CurvesView(BaseCRUDView):
         widgets = self._list()
 
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVES'], '查看曲线对比页面')
         logging.info(msg)
 
@@ -2564,21 +2564,21 @@ class ErrorTagModelView(AirflowModelView):
     def post_add(self, item):
         super(ErrorTagModelView, self).post_add(item)
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['ADD'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '增加错误标签')
         logging.info(msg)
 
     def post_update(self, item):
         super(ErrorTagModelView, self).post_update(item)
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['UPDATE'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '修改错误标签')
         logging.info(msg)
 
     def post_delete(self, item):
         super(ErrorTagModelView, self).post_delete(item)
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '删除错误标签')
         logging.info(msg)
 
@@ -2589,7 +2589,7 @@ class ErrorTagModelView(AirflowModelView):
         self.datamodel.delete_all(items)
         self.update_redirect()
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '删除选中错误标签')
         logging.info(msg)
         return redirect(self.get_redirect())
@@ -2599,7 +2599,7 @@ class ErrorTagModelView(AirflowModelView):
     @has_access
     def list(self):
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '查看错误标签')
         logging.info(msg)
         return super(ErrorTagModelView, self).list()
@@ -2633,7 +2633,7 @@ class TighteningControllerView(AirflowModelView):
     def post_add(self, item):
         super(TighteningControllerView, self).post_add(item)
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['ADD'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'],
                                        '增加控制器')
         logging.info(msg)
@@ -2641,7 +2641,7 @@ class TighteningControllerView(AirflowModelView):
     def post_update(self, item):
         super(TighteningControllerView, self).post_update(item)
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['UPDATE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'],
                                        '修改控制器')
         logging.info(msg)
@@ -2649,7 +2649,7 @@ class TighteningControllerView(AirflowModelView):
     def post_delete(self, item):
         super(TighteningControllerView, self).post_delete(item)
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'],
                                        '删除控制器')
         logging.info(msg)
@@ -2661,7 +2661,7 @@ class TighteningControllerView(AirflowModelView):
         self.datamodel.delete_all(items)
         self.update_redirect()
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'],
                                        '删除选中控制器')
         logging.info(msg)
@@ -2671,7 +2671,7 @@ class TighteningControllerView(AirflowModelView):
     @has_access
     def list(self):
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'],
                                        '查看控制器')
         logging.info(msg)
@@ -2770,7 +2770,7 @@ class VariableModelView(AirflowModelView):
     @has_access
     def list(self):
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'],
                                        '曲线模板：查看变量')
         logging.info(msg)
@@ -2792,7 +2792,7 @@ class VariableModelView(AirflowModelView):
     def post_add(self, item):
         super(VariableModelView, self).post_add(item)
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['ADD'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'],
                                        '曲线模板：增加变量')
         logging.info(msg)
@@ -2811,7 +2811,7 @@ class VariableModelView(AirflowModelView):
     def post_update(self, item):
         super(VariableModelView, self).post_update(item)
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['UPDATE'],
                                        CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板：修改变量')
         logging.info(msg)
@@ -2843,7 +2843,7 @@ class VariableModelView(AirflowModelView):
     def post_delete(self, item):
         super(VariableModelView, self).post_delete(item)
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['DELETE'],
                                        CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板：删除变量')
         logging.info(msg)
@@ -2854,7 +2854,7 @@ class VariableModelView(AirflowModelView):
         self.datamodel.delete_all(items)
         self.update_redirect()
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['DELETE'],
                                        CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板：删除选中变量')
         logging.info(msg)

@@ -335,7 +335,7 @@ def task_info(dag_id, task_id):
 def double_confirm_task(dag_id, task_id, execution_date):
     try:
         msg = CUSTOM_LOG_FORMAT.format(datetime.datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, current_user.last_name,
+                                       current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['DOUBLE_CONFIRM'], CUSTOM_PAGE_NAME_MAP['CURVE'], '曲线二次确认')
         logging.info(msg)
         date = timezone.parse(execution_date)
