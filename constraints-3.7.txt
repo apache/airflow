@@ -109,7 +109,7 @@ apipkg==1.5
 apispec==3.3.2
 appdirs==1.4.4
 argcomplete==1.12.2
-arrow==0.17.0
+arrow==1.0.0
 asn1crypto==1.4.0
 astroid==2.5
 async-generator==1.10
@@ -132,6 +132,7 @@ azure-keyvault==4.1.0
 azure-kusto-data==0.0.45
 azure-mgmt-containerinstance==1.5.0
 azure-mgmt-core==1.2.2
+azure-mgmt-datafactory==1.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
@@ -319,7 +320,7 @@ mypy==0.770
 mysql-connector-python==8.0.22
 mysqlclient==1.3.14
 natsort==7.1.1
-nbclient==0.5.2
+nbclient==0.5.3
 nbformat==5.1.2
 neo4j==4.2.1
 nest-asyncio==1.5.1
