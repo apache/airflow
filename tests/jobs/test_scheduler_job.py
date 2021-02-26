@@ -2740,8 +2740,10 @@ class TestSchedulerJob(unittest.TestCase):
 
         # Make sure we get TIs from a non-full pool in the 2nd list
         assert len(task_instances_list2) > 0
-        assert all(task_instance.pool != 'test_scheduler_keeps_scheduling_when_a_pool_is_full_p1'
-                   for task_instance in task_instances_list2)
+        assert all(
+            task_instance.pool != 'test_scheduler_keeps_scheduling_when_a_pool_is_full_p1'
+            for task_instance in task_instances_list2
+        )
 
     def test_scheduler_verify_priority_and_slots(self):
         """
