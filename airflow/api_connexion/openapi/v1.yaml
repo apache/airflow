@@ -265,9 +265,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ConnectionCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/ConnectionCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -383,9 +381,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/DAGCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/DAGCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
@@ -535,9 +531,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/DAGRunCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/DAGRunCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
@@ -591,9 +585,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/DAGRunCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/DAGRunCollection'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -659,9 +651,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/EventLogCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/EventLogCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -705,9 +695,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ImportErrorCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/ImportErrorCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -751,9 +739,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/PoolCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/PoolCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -888,9 +874,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/TaskInstanceCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/TaskInstanceCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -945,9 +929,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/TaskInstanceCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/TaskInstanceCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -971,9 +953,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/VariableCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/VariableCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -1100,9 +1080,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/XComCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/XComCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
