@@ -541,6 +541,7 @@ EXTRAS_REQUIREMENTS = {
     'doc': doc,
     'docker': docker,
     'druid': druid,
+    'dynamodb_lock': dynamodb_lock,
     'elasticsearch': elasticsearch,
     'emr': aws,
     'gcp': gcp,
