@@ -35,7 +35,7 @@ Unidecode==1.2.0
 WTForms==2.3.3
 Werkzeug==1.0.1
 adal==1.2.6
-aiohttp==3.7.3
+aiohttp==3.7.4
 alabaster==0.7.12
 alembic==1.5.5
 amqp==2.6.1
@@ -250,7 +250,7 @@ google-cloud-vision==1.0.0
 google-cloud-workflows==0.2.0
 google-crc32c==1.1.2
 google-resumable-media==1.2.0
-googleapis-common-protos==1.52.0
+googleapis-common-protos==1.53.0
 graphviz==0.16
 greenlet==1.0.0
 grpc-google-iam-v1==0.12.3
@@ -330,7 +330,7 @@ ntlm-auth==1.5.0
 numpy==1.20.1
 oauth2client==4.1.3
 oauthlib==3.1.0
-openapi-schema-validator==0.1.2
+openapi-schema-validator==0.1.3
 openapi-spec-validator==0.3.0
 oscrypto==1.2.1
 packaging==20.9
@@ -357,7 +357,7 @@ prison==0.1.3
 prometheus-client==0.8.0
 prompt-toolkit==3.0.16
 proto-plus==1.13.0
-protobuf==3.15.2
+protobuf==3.15.3
 psutil==5.8.0
 psycopg2-binary==2.8.6
 ptyprocess==0.7.0
@@ -473,7 +473,7 @@ thrift==0.13.0
 toml==0.10.2
 toolz==0.11.1
 tornado==6.1
-tqdm==4.57.0
+tqdm==4.58.0
 traitlets==5.0.5
 typed-ast==1.4.2
 typing-extensions==3.7.4.3
