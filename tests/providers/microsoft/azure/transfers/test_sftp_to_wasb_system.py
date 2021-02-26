@@ -21,15 +21,10 @@ import os
 import pytest
 
 from airflow.providers.microsoft.azure.example_dags.example_sftp_to_wasb import (
-    AZURE_CONTAINER_NAME,
-    BLOB_PREFIX,
     FILE_COMPLETE_PATH,
     LOCAL_FILE_PATH,
     SAMPLE_FILE_NAME,
-    SFTP_FILE_COMPLETE_PATH,
 )
-from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-from airflow.providers.sftp.hooks.sftp import SFTPHook
 from tests.test_utils.azure_system_helpers import (
     AZURE_DAG_FOLDER,
     AzureSystemTest,
@@ -60,7 +55,3 @@ class TestSFTPToWasbSystem(AzureSystemTest):
     @provide_sftp_default_connection(CREDENTIALS_SFTP_PATH)
     def test_run_example_file_to_wasb(self):
         self.run_dag('example_sftp_to_wasb', AZURE_DAG_FOLDER)
-        WasbHook(wasb_conn_id="wasb_default").delete_file(
-            AZURE_CONTAINER_NAME, BLOB_PREFIX + SAMPLE_FILE_NAME
-        )
-        SFTPHook(ssh_conn_id="sftp_default").delete_file(SFTP_FILE_COMPLETE_PATH)
