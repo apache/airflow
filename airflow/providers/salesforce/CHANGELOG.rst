@@ -19,7 +19,7 @@
 Changelog
 ---------
 
-1.0.2
+2.0.0
 .....
 
 Tableau provider moved to separate 'tableau' provider
@@ -27,6 +27,12 @@ Tableau provider moved to separate 'tableau' provider
 Things done:
 
     - Tableau classes imports classes from 'tableau' provider with deprecation warning
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+You need to install ``apache-airflow-providers-tableau`` provider additionally to get
+Tableau integration working.
 
 
 1.0.1

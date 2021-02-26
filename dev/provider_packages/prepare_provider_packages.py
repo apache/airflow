@@ -1423,7 +1423,6 @@ def get_all_changes_for_regular_packages(
     changes_table += convert_git_changes_to_table(
         print_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
     )
-    print_changes_table(changes_table)
     return True, changes_table
 
 

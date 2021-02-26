@@ -67,7 +67,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 
-Release: 2.0.0
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -184,6 +184,28 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Corrects order of argument in docstring in GCSHook.download method (#14497)``
+* ``Refactor SQL/BigQuery/Qubole/Druid Check operators (#12677)``
+* ``Add GoogleDriveToLocalOperator (#14191)``
+* ``Add 'exists_ok' flag to BigQueryCreateEmptyTable(Dataset)Operator (#14026)``
+* ``Add materialized view support for BigQuery (#14201)``
+* ``Add BigQueryUpdateTableOperator (#14149)``
+* ``Add param to CloudDataTransferServiceOperator (#14118)``
+* ``Add gdrive_to_gcs operator, drive sensor, additional functionality to drive hook  (#13982)`
+* ``Improve GCSToSFTPOperator paths handling (#11284)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixes to dataproc operators and hook (#14086)``
+* ``#9803 fix bug in copy operation without wildcard  (#13919)``
 
 2.0.0
 .....
