@@ -19,6 +19,7 @@ import io
 import os
 import re
 import tempfile
+import textwrap
 import unittest
 import warnings
 from collections import OrderedDict
@@ -28,7 +29,6 @@ import pytest
 
 from airflow import configuration
 from airflow.configuration import (
-    DEFAULT_CONFIG,
     AirflowConfigException,
     AirflowConfigParser,
     conf,
@@ -561,8 +561,17 @@ notacommand = OK
             assert test_cmdenv_conf.get('testcmdenv', 'notacommand') == 'OK'
 
     def test_parameterized_config_gen(self):
+        config = textwrap.dedent(
+            """
+            [core]
+            dags_folder = {AIRFLOW_HOME}/dags
+            sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/airflow.db
+            parallelism = 32
+            fernet_key = {FERNET_KEY}
+        """
+        )
 
-        cfg = parameterized_config(DEFAULT_CONFIG)
+        cfg = parameterized_config(config)
 
         # making sure some basic building blocks are present:
         assert "[core]" in cfg
