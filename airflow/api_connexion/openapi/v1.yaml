@@ -1640,7 +1640,7 @@ components:
 
     ImportErrorCollection:
       type: object
-      properties: Collection of import errors.
+      description: Collection of import errors.
       allOf:
         - type: object
           properties:
