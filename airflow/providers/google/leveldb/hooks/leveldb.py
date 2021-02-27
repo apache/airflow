@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Level DB"""
-from typing import Callable, List, Optional
+from typing import List, Optional
 
 import plyvel
 from plyvel import DB
@@ -45,26 +45,7 @@ class LevelDBHook(BaseHook):
         self.connection = self.get_connection(leveldb_conn_id)
         self.db = None
 
-    # pylint: disable=too-many-arguments
-    # Fifteen is reasonable in this case.
-
-    def get_conn(
-        self,
-        name: str = '/tmp/testdb/',
-        create_if_missing: bool = False,
-        error_if_exists: bool = False,
-        paranoid_checks: bool = None,
-        write_buffer_size: bool = None,
-        max_open_files: int = None,
-        lru_cache_size: int = None,
-        block_size: int = None,
-        block_restart_interval: int = None,
-        max_file_size: bool = None,
-        compression: str = 'snappy',
-        bloom_filter_bits: int = 0,
-        comparator: Callable = None,
-        comparator_name: bytes = None,
-    ) -> DB:
+    def get_conn(self, name: str = '/tmp/testdb/', create_if_missing: bool = False, **kwargs) -> DB:
         """
         Creates `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__
 
@@ -72,51 +53,14 @@ class LevelDBHook(BaseHook):
         :type name: str
         :param create_if_missing: whether a new database should be created if needed
         :type create_if_missing: bool
-        :param error_if_exists: whether to raise an exception if the database already exists
-        :type error_if_exists: bool
-        :param paranoid_checks: whether to enable paranoid checks
-        :type paranoid_checks: bool
-        :param write_buffer_size: size of the write buffer (in bytes)
-        :type write_buffer_size: int
-        :param max_open_files: maximum number of files to keep open
-        :type max_open_files: int
-        :param lru_cache_size: size of the LRU cache (in bytes)
-        :type lru_cache_size: int
-        :param block_size: block size (in bytes)
-        :type block_size: int
-        :param block_restart_interval: block restart interval for delta encoding of keys
-        :type block_restart_interval: int
-        :param max_file_size: maximum file size (in bytes)
-        :type max_file_size: bool
-        :param compression: whether to use Snappy compression (enabled by default))
-        :type compression: bool
-        :param bloom_filter_bits: the number of bits to use for a bloom filter; the default of 0
-            means that no bloom filter will be used
-        :type bloom_filter_bits: int
-        :param comparator: a custom comparator callable that takes two byte strings and
-            returns an integer
-        :type comparator: callable
-        :param comparator_name: name for the custom comparator
-        :type comparator_name: bytes
+        :param kwargs: other options of creation plyvel.DB. See more in the link above.
+        :type kwargs: Dict[str, Any]
+        :returns: DB
+        :rtype: plyvel.DB
         """
         if self.db is not None:
             return self.db
-        self.db = plyvel.DB(
-            name=name,
-            create_if_missing=create_if_missing,
-            error_if_exists=error_if_exists,
-            paranoid_checks=paranoid_checks,
-            write_buffer_size=write_buffer_size,
-            max_open_files=max_open_files,
-            lru_cache_size=lru_cache_size,
-            block_size=block_size,
-            block_restart_interval=block_restart_interval,
-            max_file_size=max_file_size,
-            compression=compression,
-            bloom_filter_bits=bloom_filter_bits,
-            comparator=comparator,
-            comparator_name=comparator_name,
-        )
+        self.db = plyvel.DB(name=name, create_if_missing=create_if_missing, **kwargs)
         return self.db
 
     def close_conn(self) -> None:
@@ -147,7 +91,7 @@ class LevelDBHook(BaseHook):
         :param keys: keys for command(write_batch) execution(List[bytes], e.g. ``[b'key', b'another-key'])``
         :type keys: List[bytes]
         :param values: values for command(write_batch) execution e.g. ``[b'value'``, ``b'another-value']``
-        :param values: List[bytes]
+        :type values: List[bytes]
         :returns: value from get or None
         :rtype: Optional[bytes]
         """
@@ -179,8 +123,8 @@ class LevelDBHook(BaseHook):
 
         :param key: key for get execution, e.g. ``b'key'``, ``b'another-key'``
         :type key: bytes
-        :param value: value for get execution e.g. ``b'value'``, ``b'another-value'``
-        :type value: bytes
+        :returns: value of key from db.get
+        :rtype: bytes
         """
         return self.db.get(key)
 
@@ -198,10 +142,9 @@ class LevelDBHook(BaseHook):
         Write batch of values in a leveldb db by keys
 
         :param keys: keys for write_batch execution e.g. ``[b'key', b'another-key']``
-        :param keys: List[bytes]
+        :type keys: List[bytes]
         :param values: values for write_batch execution e.g. ``[b'value', b'another-value']``
-        :param values: List[bytes]
-
+        :type values: List[bytes]
         """
         with self.db.write_batch() as batch:
             for i, key in enumerate(keys):
