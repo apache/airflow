@@ -115,13 +115,13 @@ It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
   you intended to build.
 
 ```shell script
-./breeze --backports prepare-provider-packages --package-format-both --version-suffix-for-svn rc1
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-svn rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages --package-format-both --version-suffix-for-svn rc1 \
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-svn rc1 \
     PACKAGE PACKAGE ....
 ```
 
