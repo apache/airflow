@@ -183,7 +183,8 @@ function set_pythonpath_for_root_user() {
     # the application is not available. because Python then only load system-wide applications.
     # Now also adds applications installed as local user "airflow".
     if [[ $UID == "0" ]]; then
-        local python_major_minor="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
+        local python_major_minor
+        python_major_minor="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
         export PYTHONPATH="${AIRFLOW_USER_HOME_DIR}/.local/lib/python${python_major_minor}/site-packages:${PYTHONPATH:-}"
         >&2 echo "The container is run as root user. For security, consider using a regular user account."
     fi
