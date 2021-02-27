@@ -2589,6 +2589,7 @@ class TestSchedulerJob(unittest.TestCase):
             execution_date=dag.following_schedule(dr.execution_date),
             state=State.RUNNING,
         )
+        SerializedDagModel.write_dag(dag)
         scheduler._schedule_dag_run(dr, {}, session)
 
         task_instances_list = scheduler._executable_task_instances_to_queued(max_tis=32, session=session)
@@ -2638,6 +2639,7 @@ class TestSchedulerJob(unittest.TestCase):
                 execution_date=date,
                 state=State.RUNNING,
             )
+            SerializedDagModel.write_dag(dag)
             scheduler._schedule_dag_run(dr, {}, session)
             date = dag.following_schedule(date)
 
@@ -2700,6 +2702,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.commit()
 
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        SerializedDagModel.write_dag(dag)
 
         scheduler = SchedulerJob(executor=self.null_exec)
         scheduler.processor_agent = mock.MagicMock()
@@ -2858,6 +2861,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.rollback()
         session.close()
 
+    @pytest.mark.quarantined
     def test_retry_still_in_executor(self):
         """
         Checks if the scheduler does not put a task in limbo, when a task is retried

@@ -2364,7 +2364,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --test-type TEST_TYPE
           Type of the test to run. One of:
 
-                 All,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm,Quarantined
 
           Default: All
 
@@ -2785,7 +2785,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --test-type TEST_TYPE
           Type of the test to run. One of:
 
-                 All,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm,Quarantined
 
           Default: All
 
