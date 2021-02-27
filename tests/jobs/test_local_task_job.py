@@ -170,7 +170,7 @@ class TestLocalTaskJob(unittest.TestCase):
                 time2 = heartbeat_records[i]
                 # Assert that difference small enough
                 delta = (time2 - time1).total_seconds()
-                assert abs(delta - job.heartrate) < 0.05
+                assert abs(delta - job.heartrate) < 0.1
 
     @pytest.mark.quarantined
     def test_mark_success_no_kill(self):
