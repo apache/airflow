@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
-
 import time
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -25,6 +24,7 @@ from airflow.providers.http.hooks.http import HttpHook
 
 class AirbyteJobController:
     """Airbyte job status"""
+
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     CANCELLED = "canceled"
@@ -39,9 +39,7 @@ class AirbyteHook(HttpHook, AirbyteJobController):
     def __init__(self, airbyte_conn_id: str) -> None:
         super().__init__(http_conn_id=airbyte_conn_id)
 
-    def wait_for_job(
-        self, job_id: str, wait_time: int = 3, timeout: Optional[int] = None
-    ) -> None:
+    def wait_for_job(self, job_id: str, wait_time: int = 3, timeout: Optional[int] = None) -> None:
         """
         Helper method which polls a job to check if it finishes.
 
@@ -79,7 +77,7 @@ class AirbyteHook(HttpHook, AirbyteJobController):
         return self.run(
             endpoint="api/v1/connections/sync",
             json={"connectionId": connection_id},
-            headers={"accept": "application/json"}
+            headers={"accept": "application/json"},
         )
 
     def get_job(self, job_id: str) -> dict:
@@ -90,7 +88,5 @@ class AirbyteHook(HttpHook, AirbyteJobController):
         :type job_id: str
         """
         return self.run(
-            endpoint="api/v1/jobs/get",
-            json={"id": job_id},
-            headers={"accept": "application/json"}
+            endpoint="api/v1/jobs/get", json={"id": job_id}, headers={"accept": "application/json"}
         )
