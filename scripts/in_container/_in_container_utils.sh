@@ -19,6 +19,7 @@
 # Can be used to add extra parameters when generating providers
 # We will be able to remove it after we drop backport providers
 OPTIONAL_BACKPORT_FLAG=()
+OPTIONAL_VERBOSE_FLAG=()
 PROVIDER_PACKAGES_DIR="${AIRFLOW_SOURCES}/dev/provider_packages"
 
 #######################################################################################################
@@ -400,6 +401,9 @@ function setup_provider_packages() {
         export PACKAGE_PREFIX_UPPERCASE=""
         export PACKAGE_PREFIX_LOWERCASE=""
         export PACKAGE_PREFIX_HYPHEN=""
+    fi
+    if [[ ${VERBOSE} == "true" ]]; then
+        OPTIONAL_VERBOSE_FLAG+=("--verbose")
     fi
     readonly PACKAGE_TYPE
     readonly PACKAGE_PREFIX_UPPERCASE
