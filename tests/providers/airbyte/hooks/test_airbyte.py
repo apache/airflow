@@ -17,25 +17,16 @@
 # under the License.
 #
 import unittest
-import pytest
 from unittest import mock
-import json
-import unittest
-from unittest import mock
-
-from time import sleep
 
 import pytest
 import requests
 import requests_mock
-import tenacity
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.airbyte.hooks.airbyte import AirbyteHook, AirbyteJobController
 from airflow.version import version
-# from airflow.providers.airbyte.hooks import AirbyteHook
-
-from plugin.hook import AirbyteHook, AirbyteJobController
 
 AIRFLOW_VERSION = "v" + version.replace(".", "-").replace("+", "-")
 AIRBYTE_STRING = "airflow.providers.airbyte.hooks.{}"
@@ -61,9 +52,7 @@ class TestAirbyteHook(unittest.TestCase):
         adapter = requests_mock.Adapter()
         session.mount('mock', adapter)
         get_airbyte_connection()
-        self.hook = AirbyteHook(
-            airbyte_conn_id=AIRBYTE_CONN_ID
-        )
+        self.hook = AirbyteHook(airbyte_conn_id=AIRBYTE_CONN_ID)
 
     def return_value_get_job(self, status):
         response = mock.Mock()
@@ -72,23 +61,28 @@ class TestAirbyteHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_submit_job(self, m):
-        m.post('http://test:8001/api/v1/connections/sync', status_code=200, text='{"job":{"id": 1}}', reason='OK')
+        m.post(
+            'http://test:8001/api/v1/connections/sync', status_code=200, text='{"job":{"id": 1}}', reason='OK'
+        )
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airbyte_connection):
             resp = self.hook.submit_job(connection_id=CONNECTION_ID)
             assert resp.text == '{"job":{"id": 1}}'
 
     @requests_mock.mock()
-    def test_submit_job(self, m):
-        m.post('http://test:8001/api/v1/jobs/get', status_code=200, text='{"job":{"status": "succeeded"}}', reason='OK')
+    def test_get_job(self, m):
+        m.post(
+            'http://test:8001/api/v1/jobs/get',
+            status_code=200,
+            text='{"job":{"status": "succeeded"}}',
+            reason='OK',
+        )
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airbyte_connection):
             resp = self.hook.get_job(job_id=JOB_ID)
             assert resp.text == '{"job":{"status": "succeeded"}}'
 
     @mock.patch('plugin.hook.AirbyteHook.get_job')
     def test_wait_for_job(self, mock_get_job):
-        mock_get_job.side_effect = [
-            self.return_value_get_job(AirbyteJobController.SUCCEEDED)
-        ]
+        mock_get_job.side_effect = [self.return_value_get_job(AirbyteJobController.SUCCEEDED)]
         self.hook.wait_for_job(job_id=JOB_ID, wait_time=0)
         mock_get_job.assert_called_once_with(job_id=JOB_ID)
 
@@ -96,7 +90,7 @@ class TestAirbyteHook(unittest.TestCase):
     def test_wait_for_job_error(self, mock_get_job):
         mock_get_job.side_effect = [
             self.return_value_get_job(AirbyteJobController.RUNNING),
-            self.return_value_get_job(AirbyteJobController.ERROR)
+            self.return_value_get_job(AirbyteJobController.ERROR),
         ]
         with pytest.raises(AirflowException):
             self.hook.wait_for_job(job_id=JOB_ID, wait_time=0)
@@ -108,7 +102,7 @@ class TestAirbyteHook(unittest.TestCase):
     def test_wait_for_job_timeout(self, mock_get_job):
         mock_get_job.side_effect = [
             self.return_value_get_job(AirbyteJobController.RUNNING),
-            self.return_value_get_job(AirbyteJobController.RUNNING)
+            self.return_value_get_job(AirbyteJobController.RUNNING),
         ]
         with pytest.raises(AirflowException):
             self.hook.wait_for_job(job_id=JOB_ID, wait_time=2, timeout=1)
