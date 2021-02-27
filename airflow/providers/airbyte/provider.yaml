@@ -28,7 +28,7 @@ integrations:
   - integration-name: Airbyte
     external-doc-url: https://www.airbyte.io/
     logo: /integration-logos/airbyte/Airbyte.png
-    tags: [software]
+    tags: [service]
 
 operators:
   - integration-name: Airbyte
