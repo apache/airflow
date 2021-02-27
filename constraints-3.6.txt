@@ -100,6 +100,7 @@ apache-airflow-providers-slack==2.0.0
 apache-airflow-providers-snowflake==1.1.0
 apache-airflow-providers-sqlite==1.0.1
 apache-airflow-providers-ssh==1.1.0
+apache-airflow-providers-tableau==1.0.0rc1
 apache-airflow-providers-telegram==1.0.1
 apache-airflow-providers-vertica==1.0.1
 apache-airflow-providers-yandex==1.0.1
@@ -109,7 +110,7 @@ apipkg==1.5
 apispec==3.3.2
 appdirs==1.4.4
 argcomplete==1.12.2
-arrow==1.0.0
+arrow==1.0.1
 asn1crypto==1.4.0
 astroid==2.5
 async-generator==1.10
@@ -335,7 +336,7 @@ ntlm-auth==1.5.0
 numpy==1.19.5
 oauth2client==4.1.3
 oauthlib==3.1.0
-openapi-schema-validator==0.1.3
+openapi-schema-validator==0.1.4
 openapi-spec-validator==0.3.0
 oscrypto==1.2.1
 packaging==20.9
@@ -362,7 +363,7 @@ presto-python-client==0.7.0
 prison==0.1.3
 prometheus-client==0.8.0
 prompt-toolkit==3.0.16
-proto-plus==1.13.0
+proto-plus==1.14.2
 protobuf==3.15.3
 psutil==5.8.0
 psycopg2-binary==2.8.6
@@ -465,7 +466,6 @@ sshpubkeys==3.3.1
 sshtunnel==0.1.5
 starkbank-ecdsa==1.1.0
 statsd==3.3.0
-strict-rfc3339==0.7
 swagger-ui-bundle==0.0.8
 tableauserverclient==0.15.0
 tabulate==0.8.9

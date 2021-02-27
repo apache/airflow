@@ -88,7 +88,7 @@ msgpack==1.0.2
 natsort==7.1.1
 numpy==1.20.1
 oauthlib==2.1.0
-openapi-schema-validator==0.1.3
+openapi-schema-validator==0.1.4
 openapi-spec-validator==0.3.0
 pandas==1.2.2
 pendulum==2.1.2
@@ -121,7 +121,6 @@ setproctitle==1.2.2
 six==1.15.0
 sortedcontainers==2.3.0
 statsd==3.3.0
-strict-rfc3339==0.7
 swagger-ui-bundle==0.0.8
 tabulate==0.8.9
 tblib==1.7.0
