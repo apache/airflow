@@ -216,7 +216,8 @@ function verify_image::verify_prod_image_as_root() {
     fi
 
     echo "Checking root container with custom PYTHONPATH"
-    local tmp_dir="$(mktemp -d)"
+    local tmp_dir
+    tmp_dir="$(mktemp -d)"
     touch "${tmp_dir}/__init__.py"
     echo 'print("Awesome")' >> "${tmp_dir}/awesome.py"
     output=$(docker run \
