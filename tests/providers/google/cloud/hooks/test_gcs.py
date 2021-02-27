@@ -772,7 +772,7 @@ class TestGCSHook(unittest.TestCase):
         )
 
         # Then
-        assert len(response) == 2 and all(['in-interval' in b for b in response])
+        assert len(response) == 2 and all('in-interval' in b for b in response)
 
 
 class TestGCSHookUpload(unittest.TestCase):

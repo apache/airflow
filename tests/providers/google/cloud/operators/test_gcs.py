@@ -315,11 +315,15 @@ class TestGCSTimeSpanFileTransformOperator(unittest.TestCase):
                     bucket_name=source_bucket,
                     object_name=f"{source_prefix}/{file1}",
                     filename=f"{source}/{source_prefix}/{file1}",
+                    chunk_size=None,
+                    num_max_attempts=1,
                 ),
                 mock.call(
                     bucket_name=source_bucket,
                     object_name=f"{source_prefix}/{file2}",
                     filename=f"{source}/{source_prefix}/{file2}",
+                    chunk_size=None,
+                    num_max_attempts=1,
                 ),
             ]
         )
@@ -343,11 +347,15 @@ class TestGCSTimeSpanFileTransformOperator(unittest.TestCase):
                     bucket_name=destination_bucket,
                     filename=f"{destination}/{file1}",
                     object_name=f"{destination_prefix}/{file1}",
+                    chunk_size=None,
+                    num_max_attempts=1,
                 ),
                 mock.call(
                     bucket_name=destination_bucket,
                     filename=f"{destination}/{file2}",
                     object_name=f"{destination_prefix}/{file2}",
+                    chunk_size=None,
+                    num_max_attempts=1,
                 ),
             ]
         )

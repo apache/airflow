@@ -25,6 +25,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 from google.api_core.exceptions import Conflict
+from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -719,6 +720,21 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         passed to subprocess ex. `['python', 'script.py', 10]`. (templated)
     :type transform_script: Union[str, List[str]]
 
+
+    :param chunk_size: The size of a chunk of data when downloading or uploading (in bytes).
+        This must be a multiple of 256 KB (per the google clout storage API specification).
+    :type chunk_size: Optional[int]
+    :param download_continue_on_fail: With this set to true, if a download fails the task does not error out
+        but will still continue.
+    :type download_num_attempts: int
+    :param upload_chunk_size: The size of a chunk of data when uploading (in bytes).
+        This must be a multiple of 256 KB (per the google clout storage API specification).
+    :type download_chunk_size: Optional[int]
+    :param upload_continue_on_fail: With this set to true, if an upload fails the task does not error out
+        but will still continue.
+    :type download_chunk_size: Optional[bool]
+    :param upload_num_attempts: Number of attempts to try to upload a single file.
+    :type upload_num_attempts: int
     """
 
     template_fields = (
@@ -732,7 +748,7 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
     )
 
     @staticmethod
-    def interpolate_prefix(prefix, dt):
+    def interpolate_prefix(prefix: str, dt: datetime.datetime) -> Optional[datetime.datetime]:
         """Interpolate prefix with datetime.
 
         :param prefix: The prefix to interpolate
@@ -741,7 +757,7 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         :type dt: datetime
 
         """
-        return None if prefix is None else dt.strftime(prefix)
+        return dt.strftime(prefix) if prefix else None
 
     @apply_defaults
     def __init__(
@@ -756,6 +772,11 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         transform_script: Union[str, List[str]],
         source_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         destination_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        chunk_size: Optional[int] = None,
+        download_continue_on_fail: Optional[bool] = False,
+        download_num_attempts: int = 1,
+        upload_continue_on_fail: Optional[bool] = False,
+        upload_num_attempts: int = 1,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -771,6 +792,12 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
 
         self.transform_script = transform_script
         self.output_encoding = sys.getdefaultencoding()
+
+        self.chunk_size = chunk_size
+        self.download_continue_on_fail = download_continue_on_fail
+        self.download_num_attempts = download_num_attempts
+        self.upload_continue_on_fail = upload_continue_on_fail
+        self.upload_num_attempts = upload_num_attempts
 
     def execute(self, context: dict) -> None:
         # Define intervals and prefixes.
@@ -817,11 +844,18 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
             for blob_to_transform in blobs_to_transform:
                 destination_file = temp_input_dir / blob_to_transform
                 destination_file.parent.mkdir(parents=True, exist_ok=True)
-                source_hook.download(
-                    bucket_name=self.source_bucket,
-                    object_name=blob_to_transform,
-                    filename=str(destination_file),
-                )
+                try:
+                    source_hook.download(
+                        bucket_name=self.source_bucket,
+                        object_name=blob_to_transform,
+                        filename=str(destination_file),
+                        chunk_size=self.chunk_size,
+                        num_max_attempts=self.download_num_attempts,
+                    )
+                except GoogleCloudError:
+                    if self.download_continue_on_fail:
+                        continue
+                    raise
 
             self.log.info("Starting the transformation")
             cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
@@ -859,12 +893,19 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
 
                 self.log.info("Uploading file %s to %s", upload_file, upload_file_name)
 
-                destination_hook.upload(
-                    bucket_name=self.destination_bucket,
-                    object_name=upload_file_name,
-                    filename=str(upload_file),
-                )
-                files_uploaded.append(str(upload_file_name))
+                try:
+                    destination_hook.upload(
+                        bucket_name=self.destination_bucket,
+                        object_name=upload_file_name,
+                        filename=str(upload_file),
+                        chunk_size=self.chunk_size,
+                        num_max_attempts=self.upload_num_attempts,
+                    )
+                    files_uploaded.append(str(upload_file_name))
+                except GoogleCloudError:
+                    if self.upload_continue_on_fail:
+                        continue
+                    raise
 
             return files_uploaded
 
