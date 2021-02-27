@@ -198,7 +198,7 @@ Features
 * ``Add materialized view support for BigQuery (#14201)``
 * ``Add BigQueryUpdateTableOperator (#14149)``
 * ``Add param to CloudDataTransferServiceOperator (#14118)``
-* ``Add gdrive_to_gcs operator, drive sensor, additional functionality to drive hook  (#13982)`
+* ``Add gdrive_to_gcs operator, drive sensor, additional functionality to drive hook  (#13982)``
 * ``Improve GCSToSFTPOperator paths handling (#11284)``
 
 Bug Fixes

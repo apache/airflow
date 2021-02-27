@@ -4,6 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                       |
 |:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------------------------------------------------------------------------------|
+| [50a1504c5](https://github.com/apache/airflow/commit/50a1504c524257e53eff06589b71973cfab5bf54) | 2021-02-27  | `Fix spellings (#14483)`                                                                                                                      |
 | [bfef559cf](https://github.com/apache/airflow/commit/bfef559cf6138eec3ac77c64289fb1d45133d8be) | 2021-02-27  | `Corrects order of argument in docstring in GCSHook.download method (#14497)`                                                                 |
 | [33214d932](https://github.com/apache/airflow/commit/33214d9326bb0bb52f06e230895f4f68fc952664) | 2021-02-26  | `Refactor SQL/BigQuery/Qubole/Druid Check operators (#12677)`                                                                                 |
 | [c28197998](https://github.com/apache/airflow/commit/c281979982c36f16c4c346c996a0c8d6ca7c630d) | 2021-02-23  | `Documentation and example dag for CloudDLPDeidentifyContentOperator, GCSObjectExistenceSensor, GCSObjectsWithPrefixExistenceSensor (#14033)` |
