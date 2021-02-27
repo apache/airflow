@@ -272,7 +272,7 @@ inflection==0.5.1
 iniconfig==1.1.1
 ipdb==0.13.4
 ipython-genutils==0.2.0
-ipython==7.20.0
+ipython==7.21.0
 iso8601==0.1.14
 isodate==0.6.0
 isort==5.7.0
