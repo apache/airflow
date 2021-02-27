@@ -21,8 +21,7 @@ name: Airbyte
 description: |
   `Airbyte <https://airbyte.io/>`__
 
-versions:
-  - 1.0.0
+versions: []
 
 integrations:
   - integration-name: Airbyte

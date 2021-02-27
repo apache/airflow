@@ -25,7 +25,7 @@ import requests_mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.airbyte.hooks.airbyte import AirbyteHook, AirbyteJobController
+from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 
 AIRBYTE_CONN_ID = 'test'
 CONNECTION_ID = {"connectionId": "test"}
@@ -78,18 +78,18 @@ class TestAirbyteHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job(self, mock_get_job):
-        mock_get_job.side_effect = [self.return_value_get_job(AirbyteJobController.SUCCEEDED)]
-        self.hook.wait_for_job(job_id=JOB_ID, wait_time=0)
+        mock_get_job.side_effect = [self.return_value_get_job(self.hook.SUCCEEDED)]
+        self.hook.wait_for_job(job_id=JOB_ID, wait_seconds=0)
         mock_get_job.assert_called_once_with(job_id=JOB_ID)
 
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job_error(self, mock_get_job):
         mock_get_job.side_effect = [
-            self.return_value_get_job(AirbyteJobController.RUNNING),
-            self.return_value_get_job(AirbyteJobController.ERROR),
+            self.return_value_get_job(self.hook.RUNNING),
+            self.return_value_get_job(self.hook.ERROR),
         ]
         with pytest.raises(AirflowException):
-            self.hook.wait_for_job(job_id=JOB_ID, wait_time=0)
+            self.hook.wait_for_job(job_id=JOB_ID, wait_seconds=0)
 
         calls = [mock.call(job_id=JOB_ID), mock.call(job_id=JOB_ID)]
         assert mock_get_job.has_calls(calls)
@@ -97,11 +97,11 @@ class TestAirbyteHook(unittest.TestCase):
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job_timeout(self, mock_get_job):
         mock_get_job.side_effect = [
-            self.return_value_get_job(AirbyteJobController.RUNNING),
-            self.return_value_get_job(AirbyteJobController.RUNNING),
+            self.return_value_get_job(self.hook.RUNNING),
+            self.return_value_get_job(self.hook.RUNNING),
         ]
         with pytest.raises(AirflowException):
-            self.hook.wait_for_job(job_id=JOB_ID, wait_time=2, timeout=1)
+            self.hook.wait_for_job(job_id=JOB_ID, wait_seconds=2, timeout=1)
 
         calls = [mock.call(job_id=JOB_ID), mock.call(job_id=JOB_ID)]
         assert mock_get_job.has_calls(calls)
