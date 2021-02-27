@@ -2670,25 +2670,25 @@ class TestSchedulerJob(unittest.TestCase):
         # As tasks require 2 slots, only 3 can fit into 6 available
         assert len(task_instances_list) == 3
 
-    def test_scheduler_keeps_scheduling_when_a_pool_is_full(self):
+    def test_scheduler_keeps_scheduling_pool_full(self):
         """
         Test task instances in a pool that isn't full keep getting scheduled even when a pool is full.
         """
-        dag_d1 = DAG(dag_id='test_scheduler_keeps_scheduling_when_a_pool_is_full_d1', start_date=DEFAULT_DATE)
+        dag_d1 = DAG(dag_id='test_scheduler_keeps_scheduling_pool_full_d1', start_date=DEFAULT_DATE)
         BashOperator(
-            task_id='test_scheduler_keeps_scheduling_when_a_pool_is_full_t1',
+            task_id='test_scheduler_keeps_scheduling_pool_full_t1',
             dag=dag_d1,
             owner='airflow',
-            pool='test_scheduler_keeps_scheduling_when_a_pool_is_full_p1',
+            pool='test_scheduler_keeps_scheduling_pool_full_p1',
             bash_command='echo hi',
         )
 
-        dag_d2 = DAG(dag_id='test_scheduler_keeps_scheduling_when_a_pool_is_full_d2', start_date=DEFAULT_DATE)
+        dag_d2 = DAG(dag_id='test_scheduler_keeps_scheduling_pool_full_d2', start_date=DEFAULT_DATE)
         BashOperator(
-            task_id='test_scheduler_keeps_scheduling_when_a_pool_is_full_t2',
+            task_id='test_scheduler_keeps_scheduling_pool_full_t2',
             dag=dag_d2,
             owner='airflow',
-            pool='test_scheduler_keeps_scheduling_when_a_pool_is_full_p2',
+            pool='test_scheduler_keeps_scheduling_pool_full_p2',
             bash_command='echo hi',
         )
         dagbag = DagBag(
@@ -2701,8 +2701,8 @@ class TestSchedulerJob(unittest.TestCase):
         dagbag.sync_to_db()
 
         session = settings.Session()
-        pool_p1 = Pool(pool='test_scheduler_keeps_scheduling_when_a_pool_is_full_p1', slots=1)
-        pool_p2 = Pool(pool='test_scheduler_keeps_scheduling_when_a_pool_is_full_p2', slots=10)
+        pool_p1 = Pool(pool='test_scheduler_keeps_scheduling_pool_full_p1', slots=1)
+        pool_p2 = Pool(pool='test_scheduler_keeps_scheduling_pool_full_p2', slots=10)
         session.add(pool_p1)
         session.add(pool_p2)
         session.commit()
@@ -2741,7 +2741,7 @@ class TestSchedulerJob(unittest.TestCase):
         # Make sure we get TIs from a non-full pool in the 2nd list
         assert len(task_instances_list2) > 0
         assert all(
-            task_instance.pool != 'test_scheduler_keeps_scheduling_when_a_pool_is_full_p1'
+            task_instance.pool != 'test_scheduler_keeps_scheduling_pool_full_p1'
             for task_instance in task_instances_list2
         )
 
