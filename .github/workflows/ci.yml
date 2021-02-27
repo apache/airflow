@@ -439,13 +439,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
         run: ./scripts/ci/docs/ci_docs.sh
-      - name: "Upload documentation"
-        uses: actions/upload-artifact@v2
-        if: always() && github.event_name == 'pull_request'
-        with:
-          name: airflow-documentation
-          path: "./files/documentation"
-          retention-days: 7
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >
