@@ -17,10 +17,9 @@
 # under the License.
 from typing import Optional
 
-from airflow.models.baseoperator import BaseOperator
-from airflow.utils.decorators import apply_defaults
-
+from airflow.models import BaseOperator
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
+from airflow.utils.decorators import apply_defaults
 
 
 class AirbyteTriggerSyncOperator(BaseOperator):
@@ -38,11 +37,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        airbyte_conn_id: str,
-        connection_id: str,
-        timeout: Optional[int] = 3600,
-        **kwargs
+        self, airbyte_conn_id: str, connection_id: str, timeout: Optional[int] = 3600, **kwargs
     ) -> None:
         super().__init__(**kwargs)
         self.airbyte_conn_id = airbyte_conn_id
