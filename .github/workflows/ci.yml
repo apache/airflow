@@ -638,8 +638,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
-      RUN_TESTS: true
       TEST_TYPES: "Helm"
       BACKEND: "sqlite"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
@@ -699,12 +699,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         exclude: ${{ fromJson(needs.build-info.outputs.postgresExclude) }}
       fail-fast: false
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
-      RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      TEST_TYPE: ""
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -758,12 +757,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         exclude: ${{ fromJson(needs.build-info.outputs.mysqlExclude) }}
       fail-fast: false
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: mysql
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MYSQL_VERSION: ${{ matrix.mysql-version }}
-      RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      TEST_TYPE: ""
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -815,11 +813,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         exclude: ${{ fromJson(needs.build-info.outputs.sqliteExclude) }}
       fail-fast: false
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      TEST_TYPE: ""
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -872,13 +869,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           - backend: postgres
           - backend: sqlite
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: ${{ matrix.backend }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
       MYSQL_VERSION: ${{needs.build-info.outputs.defaultMySQLVersion}}
       POSTGRES_VERSION: ${{needs.build-info.outputs.defaultPostgresVersion}}
-      RUN_TESTS: true
       TEST_TYPES: "Quarantined"
-      TEST_TYPE: ""
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
@@ -916,7 +912,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: always()
         with:
           name: quarantined_tests
-          path: "files/test_result.xml"
+          path: "files/test_result-*.xml"
           retention-days: 7
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2

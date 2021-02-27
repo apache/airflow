@@ -61,7 +61,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: "true"
-      TEST_TYPE: Quarantined
+      FORCE_TEST_TYPE: Quarantined
       NUM_RUNS: 20
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -96,7 +96,7 @@ jobs:
         if: always()
         with:
           name: 'quarantined_tests'
-          path: 'files/test_result.xml'
+          path: 'files/test_result-*.xml'
           retention-days: 7
       - uses: actions/upload-artifact@v2
         name: Upload airflow logs
