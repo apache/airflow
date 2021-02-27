@@ -63,10 +63,10 @@ COPY supervisord.conf /etc/supervisord.conf
 COPY entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 
-LABEL org.apache.airflow.component="krb5-kdc-server"\
-    org.apache.airflow.krb5-kdc-server.core.version="krb5"\
-    org.apache.airflow.airflow_bats.version="${AIRFLOW_KRB5KDCSERVER_VERSION}"\
-    org.apache.airflow.commit_sha="${COMMIT_SHA}"\
+LABEL org.apache.airflow.component="krb5-kdc-server" \
+    org.apache.airflow.krb5-kdc-server.core.version="krb5" \
+    org.apache.airflow.airflow_bats.version="${AIRFLOW_KRB5KDCSERVER_VERSION}" \
+    org.apache.airflow.commit_sha="${COMMIT_SHA}" \
     maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
 # when container is starting
