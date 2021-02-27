@@ -22,8 +22,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
 
-class AirbyteJobController:
-    """Airbyte job status"""
+class AirbyteHook(HttpHook):
+    """Hook for Airbyte API"""
 
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -32,30 +32,26 @@ class AirbyteJobController:
     FAILED = "failed"
     ERROR = "error"
 
-
-class AirbyteHook(HttpHook, AirbyteJobController):
-    """Hook for Airbyte API"""
-
     def __init__(self, airbyte_conn_id: str) -> None:
         super().__init__(http_conn_id=airbyte_conn_id)
 
-    def wait_for_job(self, job_id: str, wait_time: int = 3, timeout: Optional[int] = None) -> None:
+    def wait_for_job(self, job_id: str, wait_seconds: int = 3, timeout: Optional[float] = None) -> None:
         """
         Helper method which polls a job to check if it finishes.
 
         :param job_id: Id of the Airbyte job
         :type job_id: str
-        :param wait_time: Number of seconds between checks
-        :type wait_time: int
+        :param wait_seconds: Number of seconds between checks
+        :type wait_seconds: int
         :param timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
-        :type timeout: int
+        :type timeout: float
         """
         state = None
         start = time.monotonic()
         while state not in (self.ERROR, self.SUCCEEDED, self.CANCELLED):
             if timeout and start + timeout < time.monotonic():
                 raise AirflowException(f"Timeout: Airbyte job {job_id} is not ready after {timeout}s")
-            time.sleep(wait_time)
+            time.sleep(wait_seconds)
             try:
                 job = self.get_job(job_id=job_id)
                 state = job.json().get("job").get("status")
