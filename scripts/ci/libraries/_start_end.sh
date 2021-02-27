@@ -124,7 +124,7 @@ function start_end::script_end {
 
     END_SCRIPT_TIME=$(date +%s)
     RUN_SCRIPT_TIME=$((END_SCRIPT_TIME-START_SCRIPT_TIME))
-    if [[ ${BREEZE:=} != "true" ]]; then
+    if [[ ${BREEZE:=} != "true" && ${RUN_TESTS=} != "true" ]]; then
         verbosity::print_info
         verbosity::print_info "Finished the script ${COLOR_GREEN}$(basename "$0")${COLOR_RESET}"
         verbosity::print_info "Elapsed time spent in the script: ${COLOR_BLUE}${RUN_SCRIPT_TIME} seconds${COLOR_RESET}"

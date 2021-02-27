@@ -199,7 +199,7 @@ function set_upgrade_to_newer_dependencies() {
 }
 
 
-ALL_TESTS="Always Core Other API CLI Providers WWW Integration"
+ALL_TESTS="Always API Core Other CLI Providers WWW Integration"
 readonly ALL_TESTS
 
 function set_outputs_run_everything_and_exit() {

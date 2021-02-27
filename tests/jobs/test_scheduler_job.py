@@ -3540,13 +3540,13 @@ class TestSchedulerJob(unittest.TestCase):
         DummyOperator(task_id='task1', dag=dag)
 
         with patch.object(settings, "CHECK_SLAS", True):
-            scheduler_job = SchedulerJob(subdir=os.devnull)
+            self.scheduler_job = SchedulerJob(subdir=os.devnull)
             mock_agent = mock.MagicMock()
 
-            scheduler_job.processor_agent = mock_agent
+            self.scheduler_job.processor_agent = mock_agent
 
-            scheduler_job._send_sla_callbacks_to_processor(dag)
-            scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_not_called()
+            self.scheduler_job._send_sla_callbacks_to_processor(dag)
+            self.scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_not_called()
 
     def test_send_sla_callbacks_to_processor_sla_with_task_slas(self):
         """Test SLA Callbacks are sent to the DAG Processor when SLAs are defined on tasks"""
@@ -3558,13 +3558,13 @@ class TestSchedulerJob(unittest.TestCase):
         dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
 
         with patch.object(settings, "CHECK_SLAS", True):
-            scheduler_job = SchedulerJob(subdir=os.devnull)
+            self.scheduler_job = SchedulerJob(subdir=os.devnull)
             mock_agent = mock.MagicMock()
 
-            scheduler_job.processor_agent = mock_agent
+            self.scheduler_job.processor_agent = mock_agent
 
-            scheduler_job._send_sla_callbacks_to_processor(dag)
-            scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_called_once_with(
+            self.scheduler_job._send_sla_callbacks_to_processor(dag)
+            self.scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_called_once_with(
                 full_filepath=dag.fileloc, dag_id=dag_id
             )
 
@@ -4080,6 +4080,8 @@ def test_task_with_upstream_skip_process_task_instances():
         assert tis[dummy3.task_id].state == State.SKIPPED
 
 
+# TODO(potiuk): unquarantine me where we get rid of those pesky 195 -> 196 problem!
+@pytest.mark.quarantined
 class TestSchedulerJobQueriesCount(unittest.TestCase):
     """
     These tests are designed to detect changes in the number of queries for

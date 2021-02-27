@@ -236,6 +236,7 @@ jobs:
     needs: [build-info]
     if: needs.build-info.outputs.image-build == 'true'
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: sqlite
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       WAIT_FOR_IMAGE: ${{ needs.build-info.outputs.waitForImage }}
@@ -283,6 +284,7 @@ jobs:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: sqlite
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true'
@@ -308,6 +310,7 @@ jobs:
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       SKIP: "pylint,identity"
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
@@ -359,6 +362,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       SKIP: "build,mypy,flake8,pylint,bats-in-container-tests,identity"
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
@@ -411,6 +415,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info, ci-images]
     if: needs.build-info.outputs.basic-checks-only == 'false'
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       # We want to make sure we have latest sources as only in_container scripts are added
       # to the image but we want to static-check all of them
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
@@ -460,6 +465,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info, ci-images]
     if: needs.build-info.outputs.docs-build == 'true'
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -492,6 +498,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       INSTALL_AIRFLOW_VERSION: "${{ matrix.package-format }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
@@ -538,6 +545,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       INSTALL_AIRFLOW_VERSION: "2.0.0"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
@@ -575,8 +583,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
-      RUN_TESTS: true
       TEST_TYPES: "Helm"
       BACKEND: "sqlite"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
@@ -635,12 +643,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         exclude: ${{ fromJson(needs.build-info.outputs.postgresExclude) }}
       fail-fast: false
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
-      RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      TEST_TYPE: ""
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -693,12 +700,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         exclude: ${{ fromJson(needs.build-info.outputs.mysqlExclude) }}
       fail-fast: false
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: mysql
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MYSQL_VERSION: ${{ matrix.mysql-version }}
-      RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      TEST_TYPE: ""
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -749,11 +755,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         exclude: ${{ fromJson(needs.build-info.outputs.sqliteExclude) }}
       fail-fast: false
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      RUN_TESTS: true
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      TEST_TYPE: ""
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -805,13 +810,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           - backend: postgres
           - backend: sqlite
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: ${{ matrix.backend }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
       MYSQL_VERSION: ${{needs.build-info.outputs.defaultMySQLVersion}}
       POSTGRES_VERSION: ${{needs.build-info.outputs.defaultPostgresVersion}}
-      RUN_TESTS: true
       TEST_TYPES: "Quarantined"
-      TEST_TYPE: ""
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
@@ -848,7 +852,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: always()
         with:
           name: quarantined_tests
-          path: "files/test_result.xml"
+          path: "files/test_result-*.xml"
           retention-days: 7
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
@@ -883,6 +887,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-sqlite
       - tests-mysql
       - tests-quarantined
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -907,6 +913,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info, ci-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
@@ -952,6 +959,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: sqlite
       GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
     steps:
@@ -982,6 +990,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         exclude: ${{ fromJson(needs.build-info.outputs.kubernetesExclude) }}
       fail-fast: false
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: postgres
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
@@ -1069,6 +1078,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
       GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
@@ -1116,6 +1126,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
@@ -1147,6 +1158,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - build-info
       - ci-images
     env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     # Only run it for direct pushes
@@ -1204,6 +1216,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     if: >
       github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
       github.ref == 'refs/heads/v2-0-test'
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1238,6 +1252,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs:
       - docs
+      - build-info
       - static-checks
       - static-checks-pylint
       - tests-sqlite
@@ -1247,6 +1262,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - constraints-push
       - prepare-provider-packages
     if: github.event_name == 'schedule' &&  github.repository == 'apache/airflow'
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
