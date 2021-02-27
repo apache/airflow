@@ -2569,6 +2569,13 @@ components:
           type: boolean
           default: true
 
+        task_ids:
+          description: A list of task ids to clear.
+          type: array
+          items:
+            type: string
+          minItems: 1
+
         start_date:
           description: The minimum execution date to clear.
           type: string

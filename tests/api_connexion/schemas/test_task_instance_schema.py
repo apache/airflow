@@ -161,6 +161,15 @@ class TestClearTaskInstanceFormSchema(unittest.TestCase):
                     }
                 ]
             ),
+            (
+                [
+                    {
+                        "dry_run": False,
+                        "reset_dag_runs": True,
+                        "task_ids": [],
+                    }
+                ]
+            ),
         ]
     )
     def test_validation_error(self, payload):

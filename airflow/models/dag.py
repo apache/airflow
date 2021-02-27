@@ -1129,6 +1129,7 @@ class DAG(LoggingMixin):
     @provide_session
     def clear(
         self,
+        task_ids=None,
         start_date=None,
         end_date=None,
         only_failed=False,
@@ -1149,6 +1150,8 @@ class DAG(LoggingMixin):
         Clears a set of task instances associated with the current dag for
         a specified date range.
 
+        :param task_ids: List of task ids to clear
+        :type task_ids: List[str]
         :param start_date: The minimum execution_date to clear
         :type start_date: datetime.datetime or None
         :param end_date: The maximum execution_date to clear
@@ -1231,6 +1234,8 @@ class DAG(LoggingMixin):
             tis = tis.filter(or_(TI.state == State.FAILED, TI.state == State.UPSTREAM_FAILED))
         if only_running:
             tis = tis.filter(TI.state == State.RUNNING)
+        if task_ids:
+            tis = tis.filter(TI.task_id.in_(task_ids))
 
         if include_subdags:
             from airflow.sensors.external_task import ExternalTaskMarker

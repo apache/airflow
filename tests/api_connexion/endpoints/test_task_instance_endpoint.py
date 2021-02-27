@@ -765,6 +765,31 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 2,
             ),
             (
+                "clear by task ids",
+                "example_python_operator",
+                [
+                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {
+                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
+                        "state": State.FAILED,
+                    },
+                ],
+                "example_python_operator",
+                {
+                    "dry_run": True,
+                    "task_ids": ["print_the_context", "sleep_for_1"],
+                },
+                2,
+            ),
+            (
                 "include parent dag",
                 "example_subdag_operator",
                 [
