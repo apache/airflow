@@ -178,6 +178,18 @@ function create_system_user_if_missing() {
     fi
 }
 
+function set_pythonpath_for_root_user() {
+    # Airflow is installed as a local user application which means that if the container is running as root
+    # the application is not available. because Python then only load system-wide applications.
+    # Now also adds applications installed as local user "airflow".
+    if [[ $UID == "0" ]]; then
+        local python_major_minor
+        python_major_minor="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
+        export PYTHONPATH="${AIRFLOW_USER_HOME_DIR}/.local/lib/python${python_major_minor}/site-packages:${PYTHONPATH:-}"
+        >&2 echo "The container is run as root user. For security, consider using a regular user account."
+    fi
+}
+
 function wait_for_airflow_db() {
     # Verifies connection to the Airflow DB
     if [[ -n "${AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD=}" ]]; then
@@ -226,6 +238,7 @@ CONNECTION_CHECK_SLEEP_TIME=${CONNECTION_CHECK_SLEEP_TIME:=3}
 readonly CONNECTION_CHECK_SLEEP_TIME
 
 create_system_user_if_missing
+set_pythonpath_for_root_user
 wait_for_airflow_db
 
 if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] ; then

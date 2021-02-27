@@ -197,6 +197,50 @@ function verify_image::verify_production_image_python_modules() {
     start_end::group_end
 }
 
+function verify_image::verify_prod_image_as_root() {
+    start_end::group_start "Checking if the image can be run as root."
+    set +e
+    echo "Checking airflow as root"
+    local output
+    local res
+    output=$(docker run --rm --user 0 "${DOCKER_IMAGE}" "airflow" "info" 2>&1)
+    res=$?
+    if [[ ${res} == "0" ]]; then
+        echo "${COLOR_GREEN}OK${COLOR_RESET}"
+    else
+        echo "${COLOR_RED}NOK${COLOR_RESET}"
+        echo "${COLOR_BLUE}========================= OUTPUT start ============================${COLOR_RESET}"
+        echo "${output}"
+        echo "${COLOR_BLUE}========================= OUTPUT end   ===========================${COLOR_RESET}"
+        IMAGE_VALID="false"
+    fi
+
+    echo "Checking root container with custom PYTHONPATH"
+    local tmp_dir
+    tmp_dir="$(mktemp -d)"
+    touch "${tmp_dir}/__init__.py"
+    echo 'print("Awesome")' >> "${tmp_dir}/awesome.py"
+    output=$(docker run \
+        --rm \
+        -e "PYTHONPATH=${tmp_dir}" \
+        -v "${tmp_dir}:${tmp_dir}" \
+        --user 0 "${DOCKER_IMAGE}" \
+            "python" "-c" "import awesome" \
+        2>&1)
+    res=$?
+    if [[ ${res} == "0" ]]; then
+        echo "${COLOR_GREEN}OK${COLOR_RESET}"
+    else
+        echo "${COLOR_RED}NOK${COLOR_RESET}"
+        echo "${COLOR_BLUE}========================= OUTPUT start ============================${COLOR_RESET}"
+        echo "${output}"
+        echo "${COLOR_BLUE}========================= OUTPUT end   ===========================${COLOR_RESET}"
+        IMAGE_VALID="false"
+    fi
+    rm -rf "${tmp_dir}"
+    set -e
+}
+
 function verify_image::display_result {
     if [[ ${IMAGE_VALID} == "true" ]]; then
         echo
@@ -218,6 +262,8 @@ function verify_image::verify_prod_image {
     verify_image::verify_production_image_python_modules
 
     verify_image::verify_prod_image_dependencies
+
+    verify_image::verify_prod_image_as_root
 
     verify_image::display_result
 }
