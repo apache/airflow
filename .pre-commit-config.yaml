@@ -233,6 +233,7 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh"
         files: Dockerfile.*$
         pass_filenames: true
+        require_serial: true
       - id: setup-order
         name: Check order of dependencies in setup.py and setup.cfg
         language: python

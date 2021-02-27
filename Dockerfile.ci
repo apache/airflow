@@ -290,7 +290,7 @@ RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
 ARG PIP_PROGRESS_BAR="on"
 ENV PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR}
 
-RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # Only copy install_airflow_from_latest_master.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_airflow_from_latest_master.sh /scripts/docker/install_airflow_from_latest_master.sh
@@ -413,7 +413,7 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
 ARG ADDITIONAL_PYTHON_DEPS=""
 
 RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        pip install ${ADDITIONAL_PYTHON_DEPS}; \
+        pip install --no-cache-dir ${ADDITIONAL_PYTHON_DEPS}; \
     fi
 
 WORKDIR ${AIRFLOW_SOURCES}

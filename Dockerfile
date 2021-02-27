@@ -191,7 +191,7 @@ ENV AIRFLOW_INSTALL_USER_FLAG="--user"
 ENV AIRFLOW_INSTALL_EDITABLE_FLAG=""
 
 # Upgrade to specific PIP version
-RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
 # builds in case setup.py/setup.cfg changed. This is pure optimisation of CI/Breeze builds.
@@ -472,7 +472,7 @@ COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoi
 COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 RUN chmod a+x /entrypoint /clean-logs
 
-RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
