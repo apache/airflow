@@ -69,7 +69,7 @@ class TestAirbyteHook(unittest.TestCase):
             assert resp.text == '{"job":{"id": 1}}'
 
     @requests_mock.mock()
-    def test_submit_job(self, m):
+    def test_get_job(self, m):
         m.post(
             'http://test:8001/api/v1/jobs/get',
             status_code=200,
