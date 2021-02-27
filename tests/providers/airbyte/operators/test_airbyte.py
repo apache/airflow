@@ -39,8 +39,8 @@ def get_airbyte_connection(unused_conn_id=None):
 class TestAirbyteTriggerSyncOp(unittest.TestCase):
     """Test get, post and raise_for_status"""
 
-    @mock.patch('plugin.hook.AirbyteHook.submit_job')
-    @mock.patch('plugin.hook.AirbyteHook.wait_for_job', return_value=None)
+    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.submit_job')
+    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.wait_for_job', return_value=None)
     def test_execute(self, mock_wait_for_job, mock_submit_job):
         mock_submit_job.return_value = mock.Mock(**{'json.return_value': {'job': {'id': JOB_ID}}})
         op = AirbyteTriggerSyncOperator(
