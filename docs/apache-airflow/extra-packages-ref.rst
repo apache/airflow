@@ -181,6 +181,8 @@ Those are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | snowflake           | ``pip install 'apache-airflow[snowflake]'``         | Snowflake hooks and operators                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| tableau             | ``pip install 'apache-airflow[tableau]'``           | Tableau hooks and operators                         |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | telegram            | ``pip install 'apache-airflow[telegram]'``          | Telegram hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | vertica             | ``pip install 'apache-airflow[vertica]'``           | Vertica hook support as an Airflow backend          |
@@ -304,8 +306,6 @@ all replaced by new extras, which have naming consistent with the names of provi
 The ``crypto`` extra is not needed any more, because all crypto dependencies are part of airflow package,
 so there is no replacement for ``crypto`` extra.
 
-The ``tableau`` extra dependencies have been included in the ``salesforce`` extra.
-
 +---------------------+-----------------------------+
 | Deprecated extra    | Extra to be used instead    |
 +=====================+=============================+
@@ -340,8 +340,6 @@ The ``tableau`` extra dependencies have been included in the ``salesforce`` extr
 | s3                  | amazon                      |
 +---------------------+-----------------------------+
 | spark               | apache.spark                |
-+---------------------+-----------------------------+
-| tableau             | salesforce                  |
 +---------------------+-----------------------------+
 | webhdfs             | apache.webhdfs              |
 +---------------------+-----------------------------+

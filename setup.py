@@ -658,7 +658,6 @@ EXTRAS_DEPRECATED_ALIASES: Dict[str, str] = {
     'qds': 'qubole',
     's3': 'amazon',
     'spark': 'apache.spark',
-    'tableau': 'salesforce',
     'webhdfs': 'apache.webhdfs',
     'winrm': 'microsoft.winrm',
 }
