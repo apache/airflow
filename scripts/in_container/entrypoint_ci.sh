@@ -69,7 +69,9 @@ if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     echo
     echo "Using already installed airflow version"
     echo
-    "${AIRFLOW_SOURCES}/airflow/www/ask_for_recompile_assets_if_needed.sh"
+    pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
+    ./ask_for_recompile_assets_if_needed.sh
+    popd >/dev/null
     # Cleanup the logs, tmp when entering the environment
     sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
     sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
