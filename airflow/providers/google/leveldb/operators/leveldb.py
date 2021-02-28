@@ -28,6 +28,25 @@ class LevelDBOperator(BaseOperator):
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:LevelDBOperator`
+
+        :param command: command of plyvel(python wrap for leveldb) for DB object e.g.
+            ``"put"``, ``"get"``, ``"delete"``, ``"write_batch"``.
+        :type command: str
+        :param key: key for command(put,get,delete) execution(, e.g. ``b'key'``, ``b'another-key'``)
+        :type key: bytes
+        :param value: value for command(put) execution(bytes, e.g. ``b'value'``, ``b'another-value'``)
+        :type value: bytes
+        :param keys: keys for command(write_batch) execution(List[bytes], e.g. ``[b'key', b'another-key'])``
+        :type keys: List[bytes]
+        :param values: values for command(write_batch) execution e.g. ``[b'value'``, ``b'another-value']``
+        :type values: List[bytes]
+        :param leveldb_conn_id:
+        :type leveldb_conn_id: str
+        :param create_if_missing: whether a new database should be created if needed
+        :type create_if_missing: bool
+        :param create_db_extra_options: extra options of creation LevelDBOperator. See more in the link below
+            `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__
+        :type create_db_extra_options: Optional[Dict[str, Any]]
     """
 
     @apply_defaults
@@ -56,12 +75,13 @@ class LevelDBOperator(BaseOperator):
         self.create_if_missing = create_if_missing
         self.create_db_extra_options = create_db_extra_options or {}
 
-    def execute(self, context) -> Optional[bytes]:
+    def execute(self, context) -> Optional[str]:
         """
         Execute command in LevelDB
 
-        :returns: value from get or None(Optional[bytes])
-        :rtype: Optional[bytes]
+        :returns: value from get(str, not bytes, to prevent error in json.dumps in serialize_value in xcom.py)
+            or None(Optional[str])
+        :rtype: Optional[str]
         """
         leveldb_hook = LevelDBHook(leveldb_conn_id=self.leveldb_conn_id)
         leveldb_hook.get_conn(
@@ -76,4 +96,5 @@ class LevelDBOperator(BaseOperator):
         )
         self.log.info("Done. Returned value was: %s", str(value))
         leveldb_hook.close_conn()
+        value = value if value is None else value.decode()
         return value
