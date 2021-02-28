@@ -120,15 +120,21 @@ class Arg:
         parser.add_argument(*self.flags, **self.kwargs)
 
 
-def positive_int(value):
+def positive_int(*, allow_zero):
     """Define a positive int type for an argument."""
-    try:
-        value = int(value)
-        if value > 0:
-            return value
-    except ValueError:
-        pass
-    raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
+
+    def _check(value):
+        try:
+            value = int(value)
+            if allow_zero and value == 0:
+                return value
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+        raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
+
+    return _check
 
 
 # Shared
@@ -204,7 +210,7 @@ ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
 ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
-    type=positive_int,
+    type=positive_int(allow_zero=False),
     help="The number of next execution datetimes to show",
 )
 
@@ -680,6 +686,34 @@ ARG_NAMESPACE = Arg(
     ("--namespace",),
     default='default',
     help="Kubernetes Namespace",
+)
+
+# jobs check
+ARG_JOB_TYPE_FILTER = Arg(
+    ('--job-type',),
+    choices=('BackfillJob', 'LocalTaskJob', 'SchedulerJob'),
+    action='store',
+    help='The type of job(s) that will be checked.',
+)
+
+ARG_JOB_HOSTNAME_FILTER = Arg(
+    ("--hostname",),
+    default=None,
+    type=str,
+    help="The hostname of job(s) that will be checked.",
+)
+
+ARG_JOB_LIMIT = Arg(
+    ("--limit",),
+    default=1,
+    type=positive_int(allow_zero=True),
+    help="The number of recent jobs that will be checked. To disable limit, set 0. ",
+)
+
+ARG_ALLOW_MULTIPLE = Arg(
+    ("--allow-multiple",),
+    action='store_true',
+    help="If passed, this command will be successful even if multiple matching alive jobs are found.",
 )
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
@@ -1354,6 +1388,25 @@ KUBERNETES_COMMANDS = (
     ),
 )
 
+JOBS_COMMANDS = (
+    ActionCommand(
+        name='check',
+        help="Checks if job(s) are still alive",
+        func=lazy_load_command('airflow.cli.commands.jobs_command.check'),
+        args=(ARG_JOB_TYPE_FILTER, ARG_JOB_HOSTNAME_FILTER, ARG_JOB_LIMIT, ARG_ALLOW_MULTIPLE),
+        epilog=(
+            'examples:\n'
+            'To check if the local scheduler is still working properly, run:\n'
+            '\n'
+            '    $ airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"\n'
+            '\n'
+            'To check if any scheduler is running when you are using high availability, run:\n'
+            '\n'
+            '    $ airflow jobs check --job-type SchedulerJob --allow-multiple --limit 100'
+        ),
+    ),
+)
+
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
@@ -1377,6 +1430,11 @@ airflow_commands: List[CLICommand] = [
         name='variables',
         help="Manage variables",
         subcommands=VARIABLES_COMMANDS,
+    ),
+    GroupCommand(
+        name='jobs',
+        help="Manage jobs",
+        subcommands=JOBS_COMMANDS,
     ),
     GroupCommand(
         name='db',

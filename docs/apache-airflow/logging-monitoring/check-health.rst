@@ -20,6 +20,11 @@
 Checking Airflow Health Status
 ==============================
 
+Airflow has s two methods to check the health of components - HTTP checks and CLI checks. Their choice depends on the role of the component as well as what tools it uses to monitor the deployment.
+
+Health Check Endpoint
+---------------------
+
 To check the health status of your Airflow instance, you can simply access the endpoint
 ``/health``. It will return a JSON object in which a high-level glance is provided.
 
@@ -45,6 +50,42 @@ To check the health status of your Airflow instance, you can simply access the e
       considered unhealthy
     * This threshold value can be specified using the option ``scheduler_health_check_threshold`` within the
       ``[scheduler]`` section in ``airflow.cfg``
+    * If you run more than one scheduler, only the state of one scheduler will be reported, i.e. only one working scheduler is enough
+      for the scheduler state to be considered healthy
 
 Please keep in mind that the HTTP response code of ``/health`` endpoint **should not** be used to determine the health
 status of the application. The return code is only indicative of the state of the rest call (200 for success).
+
+.. note::
+
+  For this check to work, at least one working web server is required. Suppose you use this check for scheduler
+  monitoring, then in case of failure of the web server, you will lose the ability to monitor scheduler, which means
+  that it can be restarted even if it is in good condition. For greater confidence, consider using :ref:`CLI Check for Scheduler <check-health/cli-checks-for-scheduler>`.
+
+.. _check-health/cli-checks-for-scheduler:
+
+CLI Check for Scheduler
+-----------------------
+
+Scheduler creates an entry in the table :class:`airflow.jobs.base_job.BaseJob` with information about the host and
+timestamp (heartbeat) at startup, and then updates it regularly. You can use this to check if the scheduler is
+working correctly. To do this, you can use the ``airflow jobs checks`` command. On failure, the command will exit
+with a non-zero error code.
+
+To check if the local scheduler is still working properly, run:
+
+.. code-block:: bash
+
+    airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"
+
+To check if any scheduler is running when you are using high availability, run:
+
+.. code-block:: bash
+
+    airflow jobs check --job-type SchedulerJob --allow-multiple --limit 100
+
+CLI Check for Database
+----------------------
+
+To verify that the database is working correctly, you can use the ``airflow db check`` command. On failure, the command will exit
+with a non-zero error code.
