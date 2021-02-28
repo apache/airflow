@@ -26,7 +26,6 @@ function run_check_with_retries {
     cmd="${1}"
     local countdown
     countdown="${CONNECTION_CHECK_MAX_COUNT}"
-    echo "cmd=${cmd}"
 
     while true
     do
@@ -70,8 +69,8 @@ function run_nc() {
     # Even if this message might be harmless, it might hide the real reason for the problem
     # Which is the long time needed to start some services, seeing this message might be totally misleading
     # when you try to analyse the problem, that's why it's best to avoid it,
-    local host=${1}
-    local port=${2}
+    local host="${1}"
+    local port="${2}"
     local ip
     ip=$(python -c "import socket; print(socket.gethostbyname('${host}'))")
     nc -zvvn "${ip}" "${port}"
