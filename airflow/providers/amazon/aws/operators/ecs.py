@@ -126,6 +126,8 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     :param reattach: If set to True, will check if a task from the same family is already running.
         If so, the operator will attach to it instead of starting a new task.
     :type reattach: bool
+    :param quota_retry: Config if and how to retry _start_task() for transient errors.
+    :type quota_retry: dict
     """
 
     ui_color = '#f0ede4'

@@ -44,28 +44,23 @@ from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.exceptions import ECSOperatorError
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-ECS_QUOTA_ERROR_REASONS = [
-    'RESOURCE:MEMORY',
-    'RESOURCE:CPU',
-]
 
-
-def is_quota_error(exception: Exception):
+def is_permissible_error(exception: Exception):
     """Check if exception is related to ECS resource quota (CPU, MEM)."""
     if isinstance(exception, ECSOperatorError):
         return any(
             quota_reason in failure['reason']
-            for quota_reason in ECS_QUOTA_ERROR_REASONS
+            for quota_reason in ['RESOURCE:MEMORY', 'RESOURCE:CPU']
             for failure in exception.failures
         )
     return True
 
 
-class retry_if_quota_error(tenacity.retry_if_exception):  # pylint: disable=invalid-name
+class retry_if_permissible_error(tenacity.retry_if_exception):  # pylint: disable=invalid-name
     """Retries if there was an exception for exceeding the temporary quote limit."""
 
     def __init__(self):
-        super().__init__(is_quota_error)
+        super().__init__(is_permissible_error)
 
 
 class _SessionFactory(LoggingMixin):
@@ -527,7 +522,7 @@ class AwsBaseHook(BaseHook):
             tenacity_logger = tenacity.before_log(self.logger, logging.DEBUG) if self.logger else None
             default_kwargs = {
                 'wait': tenacity.wait_exponential(multiplier=multiplier, max=max_limit, min=min_limit),
-                'retry': retry_if_quota_error(),
+                'retry': retry_if_permissible_error(),
                 'stop': tenacity.stop_after_delay(stop_after_delay),
                 'before': tenacity_logger,
                 'after': tenacity_logger,
