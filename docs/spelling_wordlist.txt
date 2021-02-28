@@ -1070,6 +1070,7 @@ postMessage
 postfix
 postgres
 potiuk
+powershell
 pql
 pre
 precheck

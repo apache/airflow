@@ -101,7 +101,7 @@ class WinRMOperator(BaseOperator):
                 self.log.info("Running command as powershell script: '%s'...", self.command)
                 encoded_ps = b64encode(self.command.encode('utf_16_le')).decode('ascii')
                 command_id = self.winrm_hook.winrm_protocol.run_command(  # type: ignore[attr-defined]
-                    winrm_client, '{0} -encodedcommand {1}'.format(self.ps_path, encoded_ps)
+                    winrm_client, f'{self.ps_path} -encodedcommand {encoded_ps}'
                 )
             else:
                 self.log.info("Running command: '%s'...", self.command)
