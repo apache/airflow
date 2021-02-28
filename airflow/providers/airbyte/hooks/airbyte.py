@@ -22,8 +22,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
 
-class AirbyteJobController:
-    """Airbyte job status"""
+class AirbyteHook(HttpHook):
+    """Hook for Airbyte API"""
 
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -32,30 +32,27 @@ class AirbyteJobController:
     FAILED = "failed"
     ERROR = "error"
 
-
-class AirbyteHook(HttpHook, AirbyteJobController):
-    """Hook for Airbyte API"""
-
-    def __init__(self, airbyte_conn_id: str) -> None:
+    def __init__(self, airbyte_conn_id: str, api_version: str = "v1") -> None:
         super().__init__(http_conn_id=airbyte_conn_id)
+        self.api_version: str = api_version
 
-    def wait_for_job(self, job_id: str, wait_time: int = 3, timeout: Optional[int] = None) -> None:
+    def wait_for_job(self, job_id: str, wait_seconds: int = 3, timeout: Optional[float] = None) -> None:
         """
         Helper method which polls a job to check if it finishes.
 
         :param job_id: Id of the Airbyte job
         :type job_id: str
-        :param wait_time: Number of seconds between checks
-        :type wait_time: int
+        :param wait_seconds: Number of seconds between checks
+        :type wait_seconds: int
         :param timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
-        :type timeout: int
+        :type timeout: float
         """
         state = None
         start = time.monotonic()
         while state not in (self.ERROR, self.SUCCEEDED, self.CANCELLED):
             if timeout and start + timeout < time.monotonic():
                 raise AirflowException(f"Timeout: Airbyte job {job_id} is not ready after {timeout}s")
-            time.sleep(wait_time)
+            time.sleep(wait_seconds)
             try:
                 job = self.get_job(job_id=job_id)
                 state = job.json().get("job").get("status")
@@ -67,7 +64,7 @@ class AirbyteHook(HttpHook, AirbyteJobController):
         if state == self.CANCELLED:
             raise AirflowException(f"Job was cancelled:\n{job}")
 
-    def submit_job(self, connection_id: str) -> dict:
+    def submit_sync_connection(self, connection_id: str) -> dict:
         """
         Submits a job to a Airbyte server.
 
@@ -75,7 +72,7 @@ class AirbyteHook(HttpHook, AirbyteJobController):
         :type connectiond_id: str
         """
         return self.run(
-            endpoint="api/v1/connections/sync",
+            endpoint=f"api/{self.api_version}/connections/sync",
             json={"connectionId": connection_id},
             headers={"accept": "application/json"},
         )
@@ -88,5 +85,7 @@ class AirbyteHook(HttpHook, AirbyteJobController):
         :type job_id: str
         """
         return self.run(
-            endpoint="api/v1/jobs/get", json={"id": job_id}, headers={"accept": "application/json"}
+            endpoint=f"api/{self.api_version}/jobs/get",
+            json={"id": job_id},
+            headers={"accept": "application/json"},
         )
