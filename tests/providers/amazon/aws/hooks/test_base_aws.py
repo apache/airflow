@@ -24,8 +24,8 @@ import boto3
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.exceptions import ECSOperatorError
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 try:
     from moto import mock_dynamodb2, mock_emr, mock_iam, mock_sts

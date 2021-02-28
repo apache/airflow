@@ -25,9 +25,9 @@ from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.exceptions import ECSOperatorError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.providers.amazon.aws.exceptions import ECSOperatorError
 from airflow.typing_compat import Protocol, runtime_checkable
 from airflow.utils.decorators import apply_defaults
 
