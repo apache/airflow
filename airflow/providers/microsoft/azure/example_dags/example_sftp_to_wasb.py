@@ -45,7 +45,7 @@ with DAG(
     start_date=days_ago(1),  # Override to match your needs
 ) as dag:
 
-    transfer_files_to_sftp = SFTPOperator(
+    transfer_files_to_sftp_step = SFTPOperator(
         task_id="transfer_files_from_local_to_sftp",
         ssh_conn_id="sftp_default",
         local_filepath=FILE_COMPLETE_PATH,
@@ -74,4 +74,4 @@ with DAG(
 
     delete_sftp_step = PythonOperator(task_id="delete_sftp_file", python_callable=delete_sftp_file)
 
-    transfer_files_to_sftp >> transfer_files_to_azure >> delete_blob_file_step >> delete_sftp_step
+    transfer_files_to_sftp_step >> transfer_files_to_azure >> delete_blob_file_step >> delete_sftp_step
