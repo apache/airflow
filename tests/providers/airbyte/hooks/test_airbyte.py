@@ -65,7 +65,7 @@ class TestAirbyteHook(unittest.TestCase):
             'http://test:8001/api/v1/connections/sync', status_code=200, text='{"job":{"id": 1}}', reason='OK'
         )
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airbyte_connection):
-            resp = self.hook.submit_job(connection_id=CONNECTION_ID)
+            resp = self.hook.submit_sync_connection(connection_id=CONNECTION_ID)
             assert resp.text == '{"job":{"id": 1}}'
 
     @requests_mock.mock()
