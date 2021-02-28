@@ -32,22 +32,18 @@ JOB_ID = 1
 TIMEOUT = 3600
 
 
-def get_airbyte_connection(unused_conn_id=None):
-    return Connection(conn_id=AIRBYTE_CONN_ID, conn_type='http', host='test:8001/')
-
-
 class TestAirbyteTriggerSyncOp(unittest.TestCase):
     """Test get, post and raise_for_status"""
 
-    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.submit_job')
+    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.submit_sync_connection')
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.wait_for_job', return_value=None)
-    def test_execute(self, mock_wait_for_job, mock_submit_job):
-        mock_submit_job.return_value = mock.Mock(**{'json.return_value': {'job': {'id': JOB_ID}}})
+    def test_execute(self, mock_wait_for_job, mock_submit_sync_connection):
+        mock_submit_sync_connection.return_value = mock.Mock(**{'json.return_value': {'job': {'id': JOB_ID}}})
         op = AirbyteTriggerSyncOperator(
             task_id='test_Airbyte_op', airbyte_conn_id=AIRBYTE_CONN_ID, connection_id=AIRBYTE_CONNECTION
         )
         op.execute({})
 
-        mock_submit_job.assert_called_once_with(connection_id=AIRBYTE_CONNECTION)
+        mock_submit_sync_connection.assert_called_once_with(connection_id=AIRBYTE_CONNECTION)
 
         mock_wait_for_job.assert_called_once_with(job_id=JOB_ID, timeout=TIMEOUT)

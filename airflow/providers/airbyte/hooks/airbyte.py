@@ -27,7 +27,7 @@ class AirbyteHook(HttpHook):
 
     RUNNING = "running"
     SUCCEEDED = "succeeded"
-    CANCELLED = "canceled"
+    CANCELLED = "cancelled"
     PENDING = "pending"
     FAILED = "failed"
     ERROR = "error"
