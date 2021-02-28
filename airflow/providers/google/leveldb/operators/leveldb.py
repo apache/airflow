@@ -41,7 +41,7 @@ class LevelDBOperator(BaseOperator):
         values: List[bytes] = None,
         leveldb_conn_id: str = 'leveldb_default',
         name: str = '/tmp/testdb/',
-        create_if_missing: bool = False,
+        create_if_missing: bool = True,
         create_db_extra_options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
