@@ -229,10 +229,10 @@ Choosing image registry
 
 By default images are pulled and pushed from and to DockerHub registry when you use Breeze's push-image
 or build commands. But as described in `CI Documentaton <CI.rst>`_, you can choose different image
-registry by setting ``GITHUB_REGISTRY`` to ``docker.pkg.github.com`` for Github Package Registry or
+registry by setting ``GITHUB_REGISTRY`` to ``docker.pkg.github.com`` for GitHub Package Registry or
 ``ghcr.io`` for GitHub Container Registry.
 
-Default is the Github Package Registry one. The Pull Request forks have no access to the secret but they
+Default is the GitHub Package Registry one. The Pull Request forks have no access to the secret but they
 auto-detect the registry used when they wait for the images.
 
 Our images are named like that:
@@ -271,7 +271,7 @@ image name if DockerHub is not used as registry). Also GitHub has its own struct
 each project has its own registry naming convention that should be followed. The name of
 images for GitHub registry are different as they must follow limitation of the registry used.
 
-We are still using Github Packages as registry, but we are in the process of testing and switching
+We are still using GitHub Packages as registry, but we are in the process of testing and switching
 to GitHub Container Registry, and the naming conventions are slightly different (GitHub Packages
 required all packages to have "organization/repository/" URL prefix ("apache/airflow/",
 where in GitHub Container Registry, all images are in "organization" not in "repository" and they are all
@@ -432,7 +432,7 @@ It first pre-installs them from the right GitHub branch and only after that fina
 done from either local sources or remote location (PIP or GitHub repository).
 
 Customizing the image
-.....................
+---------------------
 
 Customizing the image is an alternative way of adding your own dependencies to the image.
 

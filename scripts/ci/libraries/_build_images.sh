@@ -402,16 +402,16 @@ function build_images::get_docker_image_names() {
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
     # This is 1-1 mapping of image names of Apache Airflow stored in DockerHub vs. the same images stored
-    # in Github Registries (either Github Container Registry or Github Packages)
+    # in GitHub Registries (either GitHub Container Registry or GitHub Packages)
     #
     # We have to apply naming conventions used by the registries and keep multiple RUN_ID tags. We use
     # common suffix ('gcr-v1') to be able to switch to different set of cache images if needed
-    # - for example when some images gets broken (might happen with Github Actions Registries) or when
+    # - for example when some images gets broken (might happen with GitHub Actions Registries) or when
     # the storage capacity per image is reached (though it is apparently unlimited)
     #
     # Some examples:
     #
-    # In case of Github Container Registry:
+    # In case of GitHub Container Registry:
     #
     # * Prod Image: "apache/airflow:master-python3.8" ->  "apache/airflow-master-python3.8-gcr-v1:<RUN_ID>"
     # * Prod build image: "apache/airflow:master-python3.8-build" ->  "apache/airflow-master-python3.8-build-gcr-v1:<RUN_ID>"
@@ -422,7 +422,7 @@ function build_images::get_docker_image_names() {
     #
     # "apache/airflow:python-3.6 ->  "apache/airflow-python-gcr-v1:3.6-slim-buster-<RUN_ID>"
     #
-    # In case of Github Packages image must be part of the repository:
+    # In case of GitHub Packages image must be part of the repository:
     #
     # * Prod Image: "apache/airflow:master-python3.8" ->  "apache/airflow/master-python3.8-gcr-v1:<RUN_ID>"
     # * Prod build image: "apache/airflow:master-python3.8-build" ->  "apache/airflow/master-python3.8-build-gcr-v1:<RUN_ID>"
@@ -462,7 +462,7 @@ function build_images::get_docker_image_names() {
 # Also enable experimental features of docker (we need `docker manifest` command)
 function build_image::configure_github_docker_registry() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        start_end::group_start "Determine Github Registry token used and login if needed"
+        start_end::group_start "Determine GitHub Registry token used and login if needed"
         local token=""
         if [[ "${GITHUB_REGISTRY}" == "ghcr.io" ]]; then
             # For now ghcr.io can only authenticate using Personal Access Token with package access scope.
@@ -484,7 +484,7 @@ function build_image::configure_github_docker_registry() {
         fi
         if [[ -z "${token}" ]] ; then
             verbosity::print_info
-            verbosity::print_info "Skip logging in to Github Registry. No Token available!"
+            verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
             verbosity::print_info
         fi
         if [[ -n "${token}" ]]; then
@@ -653,7 +653,7 @@ function build_images::rebuild_ci_image_if_needed_and_confirmed() {
     fi
 }
 
-# Retrieves Github Container Registry image prefix from repository name
+# Retrieves GitHub Container Registry image prefix from repository name
 # GitHub Container Registry stores all images at the organization level, they are just
 # linked to the repository via docker label - however we assume a convention where we will
 # add repository name to organisation separated by '-' and convert everything to lowercase

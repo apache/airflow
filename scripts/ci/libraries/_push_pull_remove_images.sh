@@ -297,7 +297,7 @@ function push_pull_remove_images::check_for_image_in_github_packages() {
     local image_to_wait_for=${GITHUB_REPOSITORY}/${image_name_in_github_registry}:${image_tag_in_github_registry}
     local github_api_call
     github_api_call="${github_api_endpoint}/${image_name_in_github_registry}/manifests/${image_tag_in_github_registry}"
-    echo "Github Packages: checking for ${image_to_wait_for} via ${github_api_call}!"
+    echo "GitHub Packages: checking for ${image_to_wait_for} via ${github_api_call}!"
     http_status=$(curl --silent --output "${OUTPUT_LOG}" --write-out "%{http_code}" \
         --connect-timeout 60  --max-time 60 \
         -X GET "${github_api_call}" -u "${GITHUB_USERNAME}:${GITHUB_TOKEN}")
@@ -321,7 +321,7 @@ function push_pull_remove_images::check_for_image_in_github_container_registry()
     local image_tag_in_github_registry=${2}
 
     local image_to_wait_for="ghcr.io/${GITHUB_REPOSITORY}-${image_name_in_github_registry}:${image_tag_in_github_registry}"
-    echo "Github Container Registry: checking for ${image_to_wait_for} via docker manifest inspect!"
+    echo "GitHub Container Registry: checking for ${image_to_wait_for} via docker manifest inspect!"
     docker manifest inspect "${image_to_wait_for}"
     local res=$?
     if [[ ${res} == "0" ]]; then

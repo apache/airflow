@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Starts group for Github Actions - makes logs much more readable
+# Starts group for GitHub Actions - makes logs much more readable
 function start_end::group_start {
     if [[ ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
         if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
@@ -29,7 +29,7 @@ function start_end::group_start {
     fi
 }
 
-# Ends group for Github Actions
+# Ends group for GitHub Actions
 function start_end::group_end {
     if [[ ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
         if [[ ${GITHUB_ACTIONS=} == "true" ]]; then

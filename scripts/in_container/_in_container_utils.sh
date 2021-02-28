@@ -671,7 +671,7 @@ function get_providers_to_act_on() {
     group_end
 }
 
-# Starts group for Github Actions - makes logs much more readable
+# Starts group for GitHub Actions - makes logs much more readable
 function group_start {
     if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
         echo "::group::${1}"
@@ -682,7 +682,7 @@ function group_start {
     fi
 }
 
-# Ends group for Github Actions
+# Ends group for GitHub Actions
 function group_end {
     if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
         echo -e "\033[0m"  # Disable any colors set in the group
