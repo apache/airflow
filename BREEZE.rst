@@ -1467,7 +1467,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
   --github-registry GITHUB_REGISTRY
-          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
           Default: docker.pkg.github.com.
@@ -1661,7 +1661,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
   --github-registry GITHUB_REGISTRY
-          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
           Default: docker.pkg.github.com.
@@ -2705,7 +2705,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
   --github-registry GITHUB_REGISTRY
-          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
           Default: docker.pkg.github.com.

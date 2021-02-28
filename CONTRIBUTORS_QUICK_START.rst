@@ -750,7 +750,7 @@ tests are applied when you commit your code.
 
   <div align="center" style="padding-bottom:20px">
     <img src="images/quick_start/ci_tests.png"
-         alt="CI tests Github">
+         alt="CI tests GitHub">
   </div>
 
 
@@ -939,7 +939,7 @@ Contribution guide
 Raising Pull Request
 --------------------
 
-1. Go to your Github account and open your fork project and click on Branches
+1. Go to your GitHub account and open your fork project and click on Branches
 
    .. raw:: html
 
