@@ -29,7 +29,7 @@ import requests
 import tenacity
 
 from airflow import configuration
-from airflow.cli.simple_table import SimpleTable, AirflowConsole
+from airflow.cli.simple_table import AirflowConsole, SimpleTable
 from airflow.providers_manager import ProvidersManager
 from airflow.typing_compat import Protocol
 from airflow.utils.cli import suppress_logs_and_warning

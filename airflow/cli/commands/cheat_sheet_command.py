@@ -17,7 +17,7 @@
 from typing import Iterable, List, Optional, Union
 
 from airflow.cli.cli_parser import ActionCommand, GroupCommand, airflow_commands
-from airflow.cli.simple_table import SimpleTable, AirflowConsole
+from airflow.cli.simple_table import AirflowConsole, SimpleTable
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.helpers import partition
 
