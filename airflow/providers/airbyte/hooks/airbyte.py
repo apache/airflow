@@ -32,8 +32,9 @@ class AirbyteHook(HttpHook):
     FAILED = "failed"
     ERROR = "error"
 
-    def __init__(self, airbyte_conn_id: str) -> None:
+    def __init__(self, airbyte_conn_id: str, api_version: str = "v1") -> None:
         super().__init__(http_conn_id=airbyte_conn_id)
+        self.api_version: str = api_version
 
     def wait_for_job(self, job_id: str, wait_seconds: int = 3, timeout: Optional[float] = None) -> None:
         """
@@ -63,7 +64,7 @@ class AirbyteHook(HttpHook):
         if state == self.CANCELLED:
             raise AirflowException(f"Job was cancelled:\n{job}")
 
-    def submit_job(self, connection_id: str) -> dict:
+    def submit_sync_connection(self, connection_id: str) -> dict:
         """
         Submits a job to a Airbyte server.
 
@@ -71,7 +72,7 @@ class AirbyteHook(HttpHook):
         :type connectiond_id: str
         """
         return self.run(
-            endpoint="api/v1/connections/sync",
+            endpoint=f"api/{self.api_version}/connections/sync",
             json={"connectionId": connection_id},
             headers={"accept": "application/json"},
         )
@@ -84,5 +85,7 @@ class AirbyteHook(HttpHook):
         :type job_id: str
         """
         return self.run(
-            endpoint="api/v1/jobs/get", json={"id": job_id}, headers={"accept": "application/json"}
+            endpoint=f"api/{self.api_version}/jobs/get",
+            json={"id": job_id},
+            headers={"accept": "application/json"},
         )
