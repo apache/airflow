@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,3 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
+# Note: Any AirflowException raised is expected to cause the TaskInstance
+#       to be marked in an ERROR state
+
+
+class ECSOperatorError(Exception):
+    """Raise when ECS cannot handle the request."""
+
+    def __init__(self, failures: list, message: str):
+        self.failures = failures
+        self.message = message
+        super().__init__(message)

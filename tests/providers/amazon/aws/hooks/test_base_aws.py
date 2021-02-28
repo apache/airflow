@@ -25,7 +25,7 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.models.exceptions import ECSOperatorError
+from airflow.providers.amazon.aws.exceptions import ECSOperatorError
 
 try:
     from moto import mock_dynamodb2, mock_emr, mock_iam, mock_sts
@@ -276,8 +276,9 @@ class ECSOperatorErrorUntilCount:
     def __init__(self, count, quota_retry, **kwargs):
         self.counter = 0
         self.count = count
-        self.quota_retry = quota_retry
+        self.retry_args = quota_retry
         self.kwargs = kwargs
+        self.logger = None
 
     def __call__(self):
         """

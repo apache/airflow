@@ -182,7 +182,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.hook: Optional[AwsBaseHook] = None
         self.client: Optional[ECSProtocol] = None
         self.arn: Optional[str] = None
-        self.quota_retry = quota_retry
+        self.retry_args = quota_retry
 
     def execute(self, context):
         self.log.info(
