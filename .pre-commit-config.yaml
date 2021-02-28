@@ -408,6 +408,12 @@ repos:
         language: system
         files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
         require_serial: true
+      - id: sort-spelling-wordlist
+        name: Sort alphabetically and uniquify spelling_wordlist.txt
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_spelling_wordlist.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^docs/spelling_wordlist.txt$
+        require_serial: true
       - id: helm-lint
         name: Lint Helm Chart
         entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.sh

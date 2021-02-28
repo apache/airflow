@@ -162,6 +162,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``sort-in-the-wild``                  Sort INTHEWILD.md alphabetically.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``sort-spelling-wordlist``            Sort alphabetically and uniquify spelling_wordlist.txt.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``stylelint``                         Checks CSS files with stylelint.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``trailing-whitespace``               Removes trailing whitespace at end of line.

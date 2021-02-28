@@ -131,6 +131,7 @@ setup-order
 setup-extra-packages
 shellcheck
 sort-in-the-wild
+sort-spelling-wordlist
 stylelint
 trailing-whitespace
 update-breeze-file
