@@ -115,4 +115,4 @@ To check if the all workers in the cluster running is working correctly, run:
 
     celery --app airflow.executors.celery_executor.app inspect ping
 
-For more information, see: `Management Command-line Utilities (inspect/control) <https://docs.celeryproject.org/en/stable/userguide/monitoring.html#monitoring-control>`__ and `Workers Guide<https://docs.celeryproject.org/en/stable/userguide/workers.html>`__ in the Celery documentation.
+For more information, see: `Management Command-line Utilities (inspect/control) <https://docs.celeryproject.org/en/stable/userguide/monitoring.html#monitoring-control>`__ and `Workers Guide <https://docs.celeryproject.org/en/stable/userguide/workers.html>`__ in the Celery documentation.
