@@ -16,7 +16,7 @@
     under the License.
 
 ``apache-airflow-providers-airbyte``
-========================================
+====================================
 
 Content
 -------
@@ -33,13 +33,19 @@ Content
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-airbyte/>
 
+.. toctree::
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
 
 Package apache-airflow-providers-airbyte
-------------------------------------------------------
+----------------------------------------
+
 `Airbyte <https://www.airbyte.io/>`__
 
 
-Release: 1.0.1
+Release: 1.0.0
 
 Provider package
 ----------------
