@@ -31,23 +31,36 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     :type airbyte_conn_id: str
     :param connection_id: Required. The Airbyte ConnectionId UUID between a source and destination
     :type connection_id: str
+
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
     :type timeout: float
     """
 
     @apply_defaults
     def __init__(
-        self, airbyte_conn_id: str, connection_id: str, timeout: Optional[int] = 3600, **kwargs
+        self,
+        airbyte_conn_id: str,
+        connection_id: str,
+        asynchronous: bool = False,
+        api_version: str = "v1",
+        timeout: Optional[float] = 3600,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.airbyte_conn_id = airbyte_conn_id
         self.connection_id = connection_id
         self.timeout = timeout
+        self.api_version = api_version
+        self.asynchronous = asynchronous
 
     def execute(self, context) -> None:
         """Create Airbyte Job and wait to finish"""
-        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
-        job_object = hook.submit_job(connection_id=self.connection_id)
+        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+        job_object = hook.submit_sync_connection(connection_id=self.connection_id)
         job_id = job_object.json().get('job').get('id')
-        hook.wait_for_job(job_id=job_id, timeout=self.timeout)
-        self.log.info('Job %s completed successfully', job_id)
+        if not self.asynchronous:
+            self.log.info('Waiting for job %s to complete', job_id)
+            hook.wait_for_job(job_id=job_id, timeout=self.timeout)
+            self.log.info('Job %s completed successfully', job_id)
+
+        return job_id
