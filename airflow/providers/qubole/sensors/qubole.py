@@ -20,8 +20,8 @@ from qds_sdk.qubole import Qubole
 from qds_sdk.sensors import FileSensor, PartitionSensor
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.hooks.base import BaseHook
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

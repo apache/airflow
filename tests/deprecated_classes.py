@@ -16,6 +16,14 @@
 # under the License.
 HOOKS = [
     (
+        "airflow.hooks.base.BaseHook",
+        "airflow.hooks.base_hook.BaseHook",
+    ),
+    (
+        "airflow.hooks.dbapi.DbApiHook",
+        "airflow.hooks.dbapi_hook.DbApiHook",
+    ),
+    (
         "airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook",
         "airflow.contrib.hooks.cassandra_hook.CassandraHook",
     ),
@@ -1000,7 +1008,7 @@ OPERATORS = [
         'airflow.contrib.operators.sqoop_operator.SqoopOperator',
     ),
     (
-        'airflow.providers.apache.druid.operators.druid_check.DruidCheckOperator',
+        'airflow.operators.sql.SQLCheckOperator',
         'airflow.operators.druid_check_operator.DruidCheckOperator',
     ),
     (
@@ -1099,6 +1107,10 @@ OPERATORS = [
     (
         'airflow.providers.redis.operators.redis_publish.RedisPublishOperator',
         'airflow.contrib.operators.redis_publish_operator.RedisPublishOperator',
+    ),
+    (
+        'airflow.operators.branch.BaseBranchOperator',
+        'airflow.operators.branch_operator.BaseBranchOperator',
     ),
     (
         'airflow.operators.bash.BashOperator',
@@ -1320,6 +1332,18 @@ OPERATORS = [
         "airflow.operators.latest_only.LatestOnlyOperator",
         "airflow.operators.latest_only_operator.LatestOnlyOperator",
     ),
+    (
+        "airflow.operators.trigger_dagrun.TriggerDagRunOperator",
+        "airflow.operators.dagrun_operator.TriggerDagRunOperator",
+    ),
+    (
+        "airflow.operators.subdag.SubDagOperator",
+        "airflow.operators.subdag_operator.SubDagOperator",
+    ),
+    (
+        "airflow.operators.dummy.DummyOperator",
+        "airflow.operators.dummy_operator.DummyOperator",
+    ),
 ]
 
 SECRETS = [
@@ -1342,6 +1366,18 @@ SECRETS = [
 ]
 
 SENSORS = [
+    (
+        "airflow.sensors.base.BaseSensorOperator",
+        "airflow.sensors.base_sensor_operator.BaseSensorOperator",
+    ),
+    (
+        "airflow.sensors.date_time.DateTimeSensor",
+        "airflow.sensors.date_time_sensor.DateTimeSensor",
+    ),
+    (
+        "airflow.sensors.time_delta.TimeDeltaSensor",
+        "airflow.sensors.time_delta_sensor.TimeDeltaSensor",
+    ),
     (
         "airflow.providers.apache.cassandra.sensors.record.CassandraRecordSensor",
         "airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor",
@@ -1380,7 +1416,7 @@ SENSORS = [
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor",
     ),
     (
-        "airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor",
+        "airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor",
     ),
     (
@@ -1424,7 +1460,7 @@ SENSORS = [
         'airflow.sensors.hdfs_sensor.HdfsSensor',
     ),
     (
-        'airflow.sensors.weekday_sensor.DayOfWeekSensor',
+        'airflow.sensors.weekday.DayOfWeekSensor',
         'airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor',
     ),
     (

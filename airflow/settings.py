@@ -325,7 +325,7 @@ def configure_adapters():
 
 def validate_session():
     """Validate ORM Session"""
-    worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
+    worker_precheck = conf.getboolean('celery', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
     else:
@@ -435,7 +435,7 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
-    # Ensure we close DB connections at scheduler and gunicon worker terminations
+    # Ensure we close DB connections at scheduler and gunicorn worker terminations
     atexit.register(dispose_orm)
 
 
@@ -481,18 +481,16 @@ ALLOW_FUTURE_EXEC_DATES = conf.getboolean('scheduler', 'allow_trigger_in_future'
 # Whether or not to check each dagrun against defined SLAs
 CHECK_SLAS = conf.getboolean('core', 'check_slas', fallback=True)
 
-# Number of times, the code should be retried in case of DB Operational Errors
-# Retries are done using tenacity. Not all transactions should be retried as it can cause
-# undesired state.
-# Currently used in the following places:
-# `DagFileProcessor.process_file` to retry `dagbag.sync_to_db`
-MAX_DB_RETRIES = conf.getint('core', 'max_db_retries', fallback=3)
-
 USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=True)
 
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
 # if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
 LAZY_LOAD_PLUGINS = conf.getboolean('core', 'lazy_load_plugins', fallback=True)
+
+# By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
+# Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
+# loaded from module.
+LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallback=True)
 
 # Determines if the executor utilizes Kubernetes
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {

@@ -28,7 +28,8 @@ from typing import Optional
 
 from azure.datalake.store import core, lib, multithread
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.exceptions import AirflowException
+from airflow.hooks.base import BaseHook
 
 
 class AzureDataLakeHook(BaseHook):
@@ -43,7 +44,12 @@ class AzureDataLakeHook(BaseHook):
     :type azure_data_lake_conn_id: str
     """
 
-    def __init__(self, azure_data_lake_conn_id: str = 'azure_data_lake_default') -> None:
+    conn_name_attr = 'azure_data_lake_conn_id'
+    default_conn_name = 'azure_data_lake_default'
+    conn_type = 'azure_data_lake'
+    hook_name = 'Azure Data Lake'
+
+    def __init__(self, azure_data_lake_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_data_lake_conn_id
         self._conn: Optional[core.AzureDLFileSystem] = None
@@ -184,3 +190,22 @@ class AzureDataLakeHook(BaseHook):
             return self.get_conn().glob(path)
         else:
             return self.get_conn().walk(path)
+
+    def remove(self, path: str, recursive: bool = False, ignore_not_found: bool = True) -> None:
+        """
+        Remove files in Azure Data Lake Storage
+
+        :param path: A directory or file to remove in ADLS
+        :type path: str
+        :param recursive: Whether to loop into directories in the location and remove the files
+        :type recursive: bool
+        :param ignore_not_found: Whether to raise error if file to delete is not found
+        :type ignore_not_found: bool
+        """
+        try:
+            self.get_conn().remove(path=path, recursive=recursive)
+        except FileNotFoundError:
+            if ignore_not_found:
+                self.log.info("File %s not found", path)
+            else:
+                raise AirflowException(f"File {path} not found")

@@ -25,6 +25,8 @@ import shutil
 import tempfile
 import unittest
 
+import pytest
+
 from airflow.utils import compression
 
 
@@ -76,22 +78,16 @@ class TestCompression(unittest.TestCase):
 
     def test_uncompress_file(self):
         # Testing txt file type
-        self.assertRaisesRegex(
-            NotImplementedError,
-            "^Received .txt format. Only gz and bz2.*",
-            compression.uncompress_file,
-            **{'input_file_name': None, 'file_extension': '.txt', 'dest_dir': None},
-        )
+        with pytest.raises(NotImplementedError, match="^Received .txt format. Only gz and bz2.*"):
+            compression.uncompress_file(
+                **{'input_file_name': None, 'file_extension': '.txt', 'dest_dir': None},
+            )
         # Testing gz file type
         fn_txt = self._get_fn('.txt')
         fn_gz = self._get_fn('.gz')
         txt_gz = compression.uncompress_file(fn_gz, '.gz', self.tmp_dir)
-        self.assertTrue(
-            filecmp.cmp(txt_gz, fn_txt, shallow=False), msg="Uncompressed file doest match original"
-        )
+        assert filecmp.cmp(txt_gz, fn_txt, shallow=False), "Uncompressed file doest match original"
         # Testing bz2 file type
         fn_bz2 = self._get_fn('.bz2')
         txt_bz2 = compression.uncompress_file(fn_bz2, '.bz2', self.tmp_dir)
-        self.assertTrue(
-            filecmp.cmp(txt_bz2, fn_txt, shallow=False), msg="Uncompressed file doest match original"
-        )
+        assert filecmp.cmp(txt_bz2, fn_txt, shallow=False), "Uncompressed file doest match original"

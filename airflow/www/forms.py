@@ -18,7 +18,6 @@
 
 import json
 from datetime import datetime as dt
-from operator import itemgetter
 
 import pendulum
 from flask_appbuilder.fieldwidgets import (
@@ -40,13 +39,18 @@ from wtforms.fields import (
     StringField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, NumberRange, Optional
+from wtforms.validators import InputRequired, Optional
 
 from airflow.configuration import conf
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from airflow.www.validators import ValidJson
-from airflow.www.widgets import AirflowDateTimePickerWidget
+from airflow.www.widgets import (
+    AirflowDateTimePickerROWidget,
+    AirflowDateTimePickerWidget,
+    BS3TextAreaROWidget,
+    BS3TextFieldROWidget,
+)
 
 
 class DateTimeWithTimezoneField(Field):
@@ -127,12 +131,12 @@ class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
 
 
 class DagRunForm(DynamicForm):
-    """Form for editing and adding DAG Run"""
+    """Form for adding DAG Run"""
 
-    dag_id = StringField(lazy_gettext('Dag Id'), validators=[DataRequired()], widget=BS3TextFieldWidget())
+    dag_id = StringField(lazy_gettext('Dag Id'), validators=[InputRequired()], widget=BS3TextFieldWidget())
     start_date = DateTimeWithTimezoneField(lazy_gettext('Start Date'), widget=AirflowDateTimePickerWidget())
     end_date = DateTimeWithTimezoneField(lazy_gettext('End Date'), widget=AirflowDateTimePickerWidget())
-    run_id = StringField(lazy_gettext('Run Id'), validators=[DataRequired()], widget=BS3TextFieldWidget())
+    run_id = StringField(lazy_gettext('Run Id'), validators=[InputRequired()], widget=BS3TextFieldWidget())
     state = SelectField(
         lazy_gettext('State'),
         choices=(
@@ -141,9 +145,12 @@ class DagRunForm(DynamicForm):
             ('failed', 'failed'),
         ),
         widget=Select2Widget(),
+        validators=[InputRequired()],
     )
     execution_date = DateTimeWithTimezoneField(
-        lazy_gettext('Execution Date'), widget=AirflowDateTimePickerWidget()
+        lazy_gettext('Execution Date'),
+        widget=AirflowDateTimePickerWidget(),
+        validators=[InputRequired()],
     )
     external_trigger = BooleanField(lazy_gettext('External Trigger'))
     conf = TextAreaField(
@@ -158,74 +165,54 @@ class DagRunForm(DynamicForm):
             item.conf = json.loads(item.conf)
 
 
-_connection_types = [
-    ('docker', 'Docker Registry'),
-    ('elasticsearch', 'Elasticsearch'),
-    ('exasol', 'Exasol'),
-    ('facebook_social', 'Facebook Social'),
-    ('fs', 'File (path)'),
-    ('ftp', 'FTP'),
-    ('google_cloud_platform', 'Google Cloud'),
-    ('hdfs', 'HDFS'),
-    ('http', 'HTTP'),
-    ('pig_cli', 'Pig Client Wrapper'),
-    ('hive_cli', 'Hive Client Wrapper'),
-    ('hive_metastore', 'Hive Metastore Thrift'),
-    ('hiveserver2', 'Hive Server 2 Thrift'),
-    ('jdbc', 'JDBC Connection'),
-    ('odbc', 'ODBC Connection'),
-    ('jenkins', 'Jenkins'),
-    ('mysql', 'MySQL'),
-    ('postgres', 'Postgres'),
-    ('oracle', 'Oracle'),
-    ('vertica', 'Vertica'),
-    ('presto', 'Presto'),
-    ('s3', 'S3'),
-    ('samba', 'Samba'),
-    ('sqlite', 'Sqlite'),
-    ('ssh', 'SSH'),
-    ('cloudant', 'IBM Cloudant'),
-    ('mssql', 'Microsoft SQL Server'),
-    ('mesos_framework-id', 'Mesos Framework ID'),
-    ('jira', 'JIRA'),
-    ('redis', 'Redis'),
-    ('wasb', 'Azure Blob Storage'),
-    ('databricks', 'Databricks'),
-    ('aws', 'Amazon Web Services'),
-    ('emr', 'Elastic MapReduce'),
-    ('snowflake', 'Snowflake'),
-    ('segment', 'Segment'),
-    ('sqoop', 'Sqoop'),
-    ('azure_batch', 'Azure Batch Service'),
-    ('azure_data_lake', 'Azure Data Lake'),
-    ('azure_container_instances', 'Azure Container Instances'),
-    ('azure_cosmos', 'Azure CosmosDB'),
-    ('azure_data_explorer', 'Azure Data Explorer'),
-    ('cassandra', 'Cassandra'),
-    ('qubole', 'Qubole'),
-    ('mongo', 'MongoDB'),
-    ('gcpcloudsql', 'Google Cloud SQL'),
-    ('grpc', 'GRPC Connection'),
-    ('yandexcloud', 'Yandex Cloud'),
-    ('livy', 'Apache Livy'),
-    ('tableau', 'Tableau'),
-    ('kubernetes', 'Kubernetes Cluster Connection'),
-    ('spark', 'Spark'),
-    ('imap', 'IMAP'),
-    ('vault', 'Hashicorp Vault'),
-    ('azure', 'Azure'),
-]
+class DagRunEditForm(DagRunForm):
+    """Form for editing DAG Run"""
+
+    dag_id = StringField(lazy_gettext('Dag Id'), validators=[InputRequired()], widget=BS3TextFieldROWidget())
+    start_date = DateTimeWithTimezoneField(lazy_gettext('Start Date'), widget=AirflowDateTimePickerROWidget())
+    end_date = DateTimeWithTimezoneField(lazy_gettext('End Date'), widget=AirflowDateTimePickerROWidget())
+    run_id = StringField(lazy_gettext('Run Id'), validators=[InputRequired()], widget=BS3TextFieldROWidget())
+    execution_date = DateTimeWithTimezoneField(
+        lazy_gettext('Execution Date'),
+        widget=AirflowDateTimePickerROWidget(),
+        validators=[InputRequired()],
+    )
+    conf = TextAreaField(
+        lazy_gettext('Conf'), validators=[ValidJson(), Optional()], widget=BS3TextAreaROWidget()
+    )
+
+
+class TaskInstanceEditForm(DynamicForm):
+    """Form for editing TaskInstance"""
+
+    dag_id = StringField(lazy_gettext('Dag Id'), validators=[InputRequired()], widget=BS3TextFieldROWidget())
+    task_id = StringField(
+        lazy_gettext('Task Id'), validators=[InputRequired()], widget=BS3TextFieldROWidget()
+    )
+    start_date = DateTimeWithTimezoneField(lazy_gettext('Start Date'), widget=AirflowDateTimePickerROWidget())
+    end_date = DateTimeWithTimezoneField(lazy_gettext('End Date'), widget=AirflowDateTimePickerROWidget())
+    state = SelectField(
+        lazy_gettext('State'),
+        choices=(
+            ('success', 'success'),
+            ('running', 'running'),
+            ('failed', 'failed'),
+            ('up_for_retry', 'up_for_retry'),
+        ),
+        widget=Select2Widget(),
+        validators=[InputRequired()],
+    )
+    execution_date = DateTimeWithTimezoneField(
+        lazy_gettext('Execution Date'),
+        widget=AirflowDateTimePickerROWidget(),
+        validators=[InputRequired()],
+    )
 
 
 class ConnectionForm(DynamicForm):
     """Form for editing and adding Connection"""
 
-    conn_id = StringField(lazy_gettext('Conn Id'), widget=BS3TextFieldWidget())
-    conn_type = SelectField(
-        lazy_gettext('Conn Type'),
-        choices=sorted(_connection_types, key=itemgetter(1)),  # pylint: disable=protected-access
-        widget=Select2Widget(),
-    )
+    conn_id = StringField(lazy_gettext('Conn Id'), validators=[InputRequired()], widget=BS3TextFieldWidget())
     description = StringField(lazy_gettext('Description'), widget=BS3TextAreaFieldWidget())
     host = StringField(lazy_gettext('Host'), widget=BS3TextFieldWidget())
     schema = StringField(lazy_gettext('Schema'), widget=BS3TextFieldWidget())
@@ -233,72 +220,3 @@ class ConnectionForm(DynamicForm):
     password = PasswordField(lazy_gettext('Password'), widget=BS3PasswordFieldWidget())
     port = IntegerField(lazy_gettext('Port'), validators=[Optional()], widget=BS3TextFieldWidget())
     extra = TextAreaField(lazy_gettext('Extra'), widget=BS3TextAreaFieldWidget())
-
-    # Used to customized the form, the forms elements get rendered
-    # and results are stored in the extra field as json. All of these
-    # need to be prefixed with extra__ and then the conn_type ___ as in
-    # extra__{conn_type}__name. You can also hide form elements and rename
-    # others from the connection_form.js file
-    extra__jdbc__drv_path = StringField(lazy_gettext('Driver Path'), widget=BS3TextFieldWidget())
-    extra__jdbc__drv_clsname = StringField(lazy_gettext('Driver Class'), widget=BS3TextFieldWidget())
-    extra__google_cloud_platform__project = StringField(
-        lazy_gettext('Project Id'), widget=BS3TextFieldWidget()
-    )
-    extra__google_cloud_platform__key_path = StringField(
-        lazy_gettext('Keyfile Path'), widget=BS3TextFieldWidget()
-    )
-    extra__google_cloud_platform__keyfile_dict = PasswordField(
-        lazy_gettext('Keyfile JSON'), widget=BS3PasswordFieldWidget()
-    )
-    extra__google_cloud_platform__scope = StringField(
-        lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
-    )
-    extra__google_cloud_platform__num_retries = IntegerField(
-        lazy_gettext('Number of Retries'),
-        validators=[NumberRange(min=0)],
-        widget=BS3TextFieldWidget(),
-        default=5,
-    )
-    extra__grpc__auth_type = StringField(lazy_gettext('Grpc Auth Type'), widget=BS3TextFieldWidget())
-    extra__grpc__credential_pem_file = StringField(
-        lazy_gettext('Credential Keyfile Path'), widget=BS3TextFieldWidget()
-    )
-    extra__grpc__scopes = StringField(lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget())
-    extra__yandexcloud__service_account_json = PasswordField(
-        lazy_gettext('Service account auth JSON'),
-        widget=BS3PasswordFieldWidget(),
-        description='Service account auth JSON. Looks like '
-        '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
-        'Will be used instead of OAuth token and SA JSON file path field if specified.',
-    )
-    extra__yandexcloud__service_account_json_path = StringField(
-        lazy_gettext('Service account auth JSON file path'),
-        widget=BS3TextFieldWidget(),
-        description='Service account auth JSON file path. File content looks like '
-        '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
-        'Will be used instead of OAuth token if specified.',
-    )
-    extra__yandexcloud__oauth = PasswordField(
-        lazy_gettext('OAuth Token'),
-        widget=BS3PasswordFieldWidget(),
-        description='User account OAuth token. Either this or service account JSON must be specified.',
-    )
-    extra__yandexcloud__folder_id = StringField(
-        lazy_gettext('Default folder ID'),
-        widget=BS3TextFieldWidget(),
-        description='Optional. This folder will be used to create all new clusters and nodes by default',
-    )
-    extra__yandexcloud__public_ssh_key = StringField(
-        lazy_gettext('Public SSH key'),
-        widget=BS3TextFieldWidget(),
-        description='Optional. This key will be placed to all created Compute nodes'
-        'to let you have a root shell there',
-    )
-    extra__kubernetes__in_cluster = BooleanField(lazy_gettext('In cluster configuration'))
-    extra__kubernetes__kube_config_path = StringField(
-        lazy_gettext('Kube config path'), widget=BS3TextFieldWidget()
-    )
-    extra__kubernetes__kube_config = StringField(
-        lazy_gettext('Kube config (JSON format)'), widget=BS3TextFieldWidget()
-    )
-    extra__kubernetes__namespace = StringField(lazy_gettext('Namespace'), widget=BS3TextFieldWidget())

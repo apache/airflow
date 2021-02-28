@@ -22,10 +22,14 @@ description: |
     `OpenFaaS <https://www.openfaas.com/>`__
 
 versions:
-  - 1.0.0b2
+  - 1.1.1
+  - 1.1.0
+  - 1.0.0
+
 integrations:
   - integration-name: OpenFaaS
     external-doc-url: https://www.openfaas.com/
+    logo: /integration-logos/openfaas/OpenFaaS.png
     tags: [software]
 
 hooks:

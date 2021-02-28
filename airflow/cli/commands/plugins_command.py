@@ -14,72 +14,43 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import logging
-import shutil
-from pprint import pprint
+import inspect
+from typing import Any, Dict, List, Union
 
 from airflow import plugins_manager
-
-# list to maintain the order of items.
-PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
-    "plugins",
-    "import_errors",
-    "macros_modules",
-    "executors_modules",
-    "flask_blueprints",
-    "flask_appbuilder_views",
-    "flask_appbuilder_menu_links",
-    "global_operator_extra_links",
-    "operator_extra_links",
-    "registered_operator_link_classes",
-]
-# list to maintain the order of items.
-PLUGINS_ATTRIBUTES_TO_DUMP = [
-    "hooks",
-    "executors",
-    "macros",
-    "flask_blueprints",
-    "appbuilder_views",
-    "appbuilder_menu_items",
-    "global_operator_extra_links",
-    "operator_extra_links",
-    "source",
-]
+from airflow.cli.simple_table import AirflowConsole
+from airflow.plugins_manager import PluginsDirectorySource, get_plugin_info
+from airflow.utils.cli import suppress_logs_and_warning
 
 
-def _header(text, fillchar):
-    terminal_size_size = shutil.get_terminal_size((80, 20))
-    print(f" {text} ".center(terminal_size_size.columns, fillchar))
+def _get_name(class_like_object) -> str:
+    if isinstance(class_like_object, (str, PluginsDirectorySource)):
+        return str(class_like_object)
+    if inspect.isclass(class_like_object):
+        return class_like_object.__name__
+    return class_like_object.__class__.__name__
 
 
+def _join_plugins_names(value: Union[List[Any], Any]) -> str:
+    value = value if isinstance(value, list) else [value]
+    return ",".join(_get_name(v) for v in value)
+
+
+@suppress_logs_and_warning
 def dump_plugins(args):
     """Dump plugins information"""
-    plugins_manager.log.setLevel(logging.DEBUG)
-
-    plugins_manager.ensure_plugins_loaded()
-    plugins_manager.integrate_macros_plugins()
-    plugins_manager.integrate_executor_plugins()
-    plugins_manager.initialize_extra_operators_links_plugins()
-    plugins_manager.initialize_web_ui_plugins()
-
-    _header("PLUGINS MANGER:", "#")
-
-    for attr_name in PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP:
-        attr_value = getattr(plugins_manager, attr_name)
-        print(f"{attr_name} = ", end='')
-        pprint(attr_value)
-    print()
-
-    _header("PLUGINS:", "#")
+    plugins_info: List[Dict[str, str]] = get_plugin_info()
     if not plugins_manager.plugins:
         print("No plugins loaded")
-    else:
-        print(f"Loaded {len(plugins_manager.plugins)} plugins")
-        for plugin_no, plugin in enumerate(plugins_manager.plugins, 1):
-            _header(f"{plugin_no}. {plugin.name}", "=")
-            for attr_name in PLUGINS_ATTRIBUTES_TO_DUMP:
-                attr_value = getattr(plugin, attr_name)
-                print(f"{attr_name} = ", end='')
-                pprint(attr_value)
-            print()
+        return
+
+    # Remove empty info
+    if args.output == "table":  # pylint: disable=too-many-nested-blocks
+        # We can do plugins_info[0] as the element it will exist as there's
+        # at least one plugin at this point
+        for col in list(plugins_info[0]):
+            if all(not bool(p[col]) for p in plugins_info):
+                for plugin in plugins_info:
+                    del plugin[col]
+
+    AirflowConsole().print_as(plugins_info, output=args.output)

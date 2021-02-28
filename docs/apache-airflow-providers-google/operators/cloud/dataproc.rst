@@ -32,7 +32,7 @@ For more information about the service visit `Dataproc production documentation 
 Prerequisite Tasks
 ------------------
 
-.. include:: /operators/_partials/prerequisite_tasks.rst
+.. include::/operators/_partials/prerequisite_tasks.rst
 
 
 .. _howto/operator:DataprocCreateClusterOperator:
@@ -179,6 +179,30 @@ Example of the configuration for a SparkR:
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_sparkr_config]
     :end-before: [END how_to_cloud_dataproc_sparkr_config]
+
+Working with workflows templates
+--------------------------------
+
+Dataproc supports creating workflow templates that can be triggered later on.
+
+A workflow template can be created using:
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateWorkflowTemplateOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_workflow_template]
+    :end-before: [END how_to_cloud_dataproc_create_workflow_template]
+
+Once a workflow is created users can trigger it using
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator`:
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_trigger_workflow_template]
+    :end-before: [END how_to_cloud_dataproc_trigger_workflow_template]
+
 
 References
 ^^^^^^^^^^

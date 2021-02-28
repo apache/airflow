@@ -19,7 +19,7 @@
 """RedisHook module"""
 from redis import Redis
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class RedisHook(BaseHook):
@@ -31,7 +31,12 @@ class RedisHook(BaseHook):
     ``{"ssl": true, "ssl_cert_reqs": "require", "ssl_cert_file": "/path/to/cert.pem", etc}``.
     """
 
-    def __init__(self, redis_conn_id: str = 'redis_default') -> None:
+    conn_name_attr = 'redis_conn_id'
+    default_conn_name = 'redis_default'
+    conn_type = 'redis'
+    hook_name = 'Redis'
+
+    def __init__(self, redis_conn_id: str = default_conn_name) -> None:
         """
         Prepares hook to connect to a Redis database.
 

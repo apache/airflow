@@ -21,7 +21,7 @@ from azure.common.client_factory import get_client_from_auth_file, get_client_fr
 from azure.common.credentials import ServicePrincipalCredentials
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureBaseHook(BaseHook):
@@ -32,6 +32,11 @@ class AzureBaseHook(BaseHook):
     :param sdk_client: The SDKClient to use.
     :param conn_id: The azure connection id which refers to the information to connect to the service.
     """
+
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'azure_default'
+    conn_type = 'azure'
+    hook_name = 'Azure'
 
     def __init__(self, sdk_client: Any, conn_id: str = 'azure_default'):
         self.sdk_client = sdk_client

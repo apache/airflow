@@ -353,7 +353,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         retries: Optional[int] = conf.getint('core', 'default_task_retries', fallback=0),
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
-        max_retry_delay: Optional[datetime] = None,
+        max_retry_delay: Optional[timedelta] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         depends_on_past: bool = False,
@@ -460,6 +460,13 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             self.retry_delay = timedelta(seconds=retry_delay)  # noqa
         self.retry_exponential_backoff = retry_exponential_backoff
         self.max_retry_delay = max_retry_delay
+        if max_retry_delay:
+            if isinstance(max_retry_delay, timedelta):
+                self.max_retry_delay = max_retry_delay
+            else:
+                self.log.debug("Max_retry_delay isn't timedelta object, assuming secs")
+                self.max_retry_delay = timedelta(seconds=max_retry_delay)  # noqa
+
         self.params = params or {}  # Available in templates!
         self.priority_weight = priority_weight
         if not WeightRule.is_valid(weight_rule):
@@ -520,8 +527,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             )
 
     def __eq__(self, other):
-        if type(self) is type(other) and self.task_id == other.task_id:
-            return all(self.__dict__.get(c, None) == other.__dict__.get(c, None) for c in self._comps)
+        if type(self) is type(other):
+            # Use getattr() instead of __dict__ as __dict__ doesn't return
+            # correct values for properties.
+            return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
         return False
 
     def __ne__(self, other):
@@ -657,19 +666,19 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         else:
             return 'adhoc_' + self.owner
 
-    @property
-    def deps(self) -> Set[BaseTIDep]:
-        """
-        Returns the set of dependencies for the operator. These differ from execution
-        context dependencies in that they are specific to tasks and can be
-        extended/overridden by subclasses.
-        """
-        return {
+    deps: Iterable[BaseTIDep] = frozenset(
+        {
             NotInRetryPeriodDep(),
             PrevDagrunDep(),
             TriggerRuleDep(),
             NotPreviouslySkippedDep(),
         }
+    )
+    """
+    Returns the set of dependencies for the operator. These differ from execution
+    context dependencies in that they are specific to tasks and can be
+    extended/overridden by subclasses.
+    """
 
     def prepare_for_execution(self) -> "BaseOperator":
         """
@@ -1202,15 +1211,21 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             raise AirflowException(
                 "Tried to create relationships between tasks that don't have "
                 "DAGs yet. Set the DAG for at least one "
-                "task  and try again: {}".format([self] + task_list)
+                "task and try again: {}".format([self] + task_list)
             )
 
         if dag and not self.has_dag():
+            # If this task does not yet have a dag, add it to the same dag as the other task and
+            # put it in the dag's root TaskGroup.
             self.dag = dag
+            self.dag.task_group.add(self)
 
         for task in task_list:
             if dag and not task.has_dag():
+                # If the other task does not yet have a dag, add it to the same dag as this task and
+                # put it in the dag's root TaskGroup.
                 task.dag = dag
+                task.dag.task_group.add(task)
             if upstream:
                 task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id)
                 self.add_only_new(self._upstream_task_ids, task.task_id)
@@ -1370,6 +1385,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     def is_smart_sensor_compatible(self):
         """Return if this operator can use smart service. Default False."""
         return False
+
+    @property
+    def inherits_from_dummy_operator(self):
+        """Used to determine if an Operator is inherited from DummyOperator"""
+        # This looks like `isinstance(self, DummyOperator) would work, but this also
+        # needs to cope when `self` is a Serialized instance of a DummyOperator or one
+        # of its sub-classes (which don't inherit from anything but BaseOperator).
+        return getattr(self, '_is_dummy', False)
 
 
 def chain(*tasks: Union[BaseOperator, Sequence[BaseOperator]]):

@@ -18,6 +18,8 @@
 
 import unittest
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.utils.decorators import apply_defaults
 
@@ -39,34 +41,34 @@ class DummySubClass(DummyClass):
 class TestApplyDefault(unittest.TestCase):
     def test_apply(self):
         dummy = DummyClass(test_param=True)
-        self.assertTrue(dummy.test_param)
+        assert dummy.test_param
 
-        with self.assertRaisesRegex(AirflowException, 'Argument.*test_param.*required'):
+        with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
             DummySubClass(test_sub_param=True)
 
     def test_default_args(self):
         default_args = {'test_param': True}
         dummy_class = DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
-        self.assertTrue(dummy_class.test_param)
+        assert dummy_class.test_param
 
         default_args = {'test_param': True, 'test_sub_param': True}
         dummy_subclass = DummySubClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
-        self.assertTrue(dummy_class.test_param)
-        self.assertTrue(dummy_subclass.test_sub_param)
+        assert dummy_class.test_param
+        assert dummy_subclass.test_sub_param
 
         default_args = {'test_param': True}
         dummy_subclass = DummySubClass(default_args=default_args, test_sub_param=True)
-        self.assertTrue(dummy_class.test_param)
-        self.assertTrue(dummy_subclass.test_sub_param)
+        assert dummy_class.test_param
+        assert dummy_subclass.test_sub_param
 
-        with self.assertRaisesRegex(AirflowException, 'Argument.*test_sub_param.*required'):
+        with pytest.raises(AirflowException, match='Argument.*test_sub_param.*required'):
             DummySubClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
 
     def test_incorrect_default_args(self):
         default_args = {'test_param': True, 'extra_param': True}
         dummy_class = DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
-        self.assertTrue(dummy_class.test_param)
+        assert dummy_class.test_param
 
         default_args = {'random_params': True}
-        with self.assertRaisesRegex(AirflowException, 'Argument.*test_param.*required'):
+        with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
             DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter

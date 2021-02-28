@@ -18,7 +18,7 @@
 
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureContainerVolumeHook(BaseHook):

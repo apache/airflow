@@ -25,14 +25,14 @@ from tests.providers.google.cloud.utils.base_gcp_mock import GCP_CONNECTION_WITH
 
 class TestGoogleDriveHook(unittest.TestCase):
     def setUp(self):
-        self.patcher_get_connections = mock.patch(
-            "airflow.hooks.base_hook.BaseHook.get_connections", return_value=[GCP_CONNECTION_WITH_PROJECT_ID]
+        self.patcher_get_connection = mock.patch(
+            "airflow.hooks.base.BaseHook.get_connection", return_value=GCP_CONNECTION_WITH_PROJECT_ID
         )
-        self.patcher_get_connections.start()
+        self.patcher_get_connection.start()
         self.gdrive_hook = GoogleDriveHook(gcp_conn_id="test")
 
     def tearDown(self) -> None:
-        self.patcher_get_connections.stop()
+        self.patcher_get_connection.stop()
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook._authorize",
@@ -101,7 +101,7 @@ class TestGoogleDriveHook(unittest.TestCase):
             any_order=True,
         )
 
-        self.assertEqual("ID_4", result_value)
+        assert "ID_4" == result_value
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_ensure_folders_exists_when_some_folders_exists(self, mock_get_conn):
@@ -143,7 +143,7 @@ class TestGoogleDriveHook(unittest.TestCase):
             any_order=True,
         )
 
-        self.assertEqual("ID_4", result_value)
+        assert "ID_4" == result_value
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_ensure_folders_exists_when_all_folders_exists(self, mock_get_conn):
@@ -157,7 +157,72 @@ class TestGoogleDriveHook(unittest.TestCase):
         result_value = self.gdrive_hook._ensure_folders_exists("AAA/BBB/CCC/DDD")
 
         mock_get_conn.return_value.files.return_value.create.assert_not_called()
-        self.assertEqual("ID_4", result_value)
+        assert "ID_4" == result_value
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_file_id")
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_exists_when_file_exists(self, mock_get_conn, mock_method):
+        folder_id = "abxy1z"
+        drive_id = "abc123"
+        file_name = "abc123.csv"
+
+        result_value = self.gdrive_hook.exists(folder_id=folder_id, file_name=file_name, drive_id=drive_id)
+        mock_method.assert_called_once_with(folder_id=folder_id, file_name=file_name, drive_id=drive_id)
+        self.assertEqual(True, result_value)
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_file_id")
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_exists_when_file_not_exists(self, mock_get_conn, mock_method):
+        folder_id = "abxy1z"
+        drive_id = "abc123"
+        file_name = "abc123.csv"
+
+        self.gdrive_hook.exists(folder_id=folder_id, file_name=file_name, drive_id=drive_id)
+        mock_method.assert_called_once_with(folder_id=folder_id, file_name=file_name, drive_id=drive_id)
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_get_media_request(self, mock_get_conn):
+        file_id = "1eC-Ahi4t57pHcLbW3C_xHB3-YrTQLQBa"
+
+        self.gdrive_hook.get_media_request(file_id)
+        mock_get_conn.return_value.files.return_value.get_media.assert_called_once_with(fileId=file_id)
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_get_file_id_when_one_file_exists(self, mock_get_conn):
+        folder_id = "abxy1z"
+        drive_id = "abc123"
+        file_name = "abc123.csv"
+
+        mock_get_conn.return_value.files.return_value.list.return_value.execute.side_effect = [
+            {"files": [{"id": "ID_1", "mimeType": "text/plain"}]}
+        ]
+
+        result_value = self.gdrive_hook.get_file_id(folder_id, file_name, drive_id)
+        self.assertEqual({"id": "ID_1", "mime_type": "text/plain"}, result_value)
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_get_file_id_when_multiple_files_exists(self, mock_get_conn):
+        folder_id = "abxy1z"
+        drive_id = "abc123"
+        file_name = "abc123.csv"
+
+        mock_get_conn.return_value.files.return_value.list.return_value.execute.side_effect = [
+            {"files": [{"id": "ID_1", "mimeType": "text/plain"}, {"id": "ID_2", "mimeType": "text/plain"}]}
+        ]
+
+        result_value = self.gdrive_hook.get_file_id(folder_id, file_name, drive_id)
+        self.assertEqual({"id": "ID_1", "mime_type": "text/plain"}, result_value)
+
+    @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
+    def test_get_file_id_when_no_file_exists(self, mock_get_conn):
+        folder_id = "abxy1z"
+        drive_id = "abc123"
+        file_name = "abc123.csv"
+
+        mock_get_conn.return_value.files.return_value.list.return_value.execute.side_effect = [{"files": []}]
+
+        result_value = self.gdrive_hook.get_file_id(folder_id, file_name, drive_id)
+        self.assertEqual({}, result_value)
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.MediaFileUpload")
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
@@ -183,7 +248,7 @@ class TestGoogleDriveHook(unittest.TestCase):
                 )
             ]
         )
-        self.assertEqual(return_value, "FILE_ID")
+        assert return_value == "FILE_ID"
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.MediaFileUpload")
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
@@ -212,4 +277,4 @@ class TestGoogleDriveHook(unittest.TestCase):
                 )
             ]
         )
-        self.assertEqual(return_value, "FILE_ID")
+        assert return_value == "FILE_ID"

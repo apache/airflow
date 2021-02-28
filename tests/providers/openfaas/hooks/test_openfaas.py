@@ -20,10 +20,11 @@
 import unittest
 from unittest import mock
 
+import pytest
 import requests_mock
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.openfaas.hooks.openfaas import OpenFaasHook
 
@@ -33,6 +34,7 @@ FUNCTION_NAME = "function_name"
 class TestOpenFaasHook(unittest.TestCase):
     GET_FUNCTION = "/system/function/"
     INVOKE_ASYNC_FUNCTION = "/async-function/"
+    INVOKE_FUNCTION = "/function/"
     DEPLOY_FUNCTION = "/system/functions"
     UPDATE_FUNCTION = "/system/functions"
 
@@ -52,7 +54,7 @@ class TestOpenFaasHook(unittest.TestCase):
 
         mock_get_connection.return_value = mock_connection
         does_function_exist = self.hook.does_function_exist()
-        self.assertFalse(does_function_exist)
+        assert not does_function_exist
 
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
@@ -66,7 +68,7 @@ class TestOpenFaasHook(unittest.TestCase):
 
         mock_get_connection.return_value = mock_connection
         does_function_exist = self.hook.does_function_exist()
-        self.assertTrue(does_function_exist)
+        assert does_function_exist
 
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
@@ -84,9 +86,36 @@ class TestOpenFaasHook(unittest.TestCase):
         mock_connection = Connection(host="http://open-faas.io")
         mock_get_connection.return_value = mock_connection
 
-        with self.assertRaises(AirflowException) as context:
+        with pytest.raises(AirflowException) as ctx:
             self.hook.update_function({})
-        self.assertIn('failed to update ' + FUNCTION_NAME, str(context.exception))
+        assert 'failed to update ' + FUNCTION_NAME in str(ctx.value)
+
+    @mock.patch.object(BaseHook, 'get_connection')
+    @requests_mock.mock()
+    def test_invoke_function_false(self, mock_get_connection, m):
+        m.post(
+            "http://open-faas.io" + self.INVOKE_FUNCTION + FUNCTION_NAME,
+            json=self.mock_response,
+            status_code=400,
+        )
+        mock_connection = Connection(host="http://open-faas.io")
+        mock_get_connection.return_value = mock_connection
+
+        with pytest.raises(AirflowException) as ctx:
+            self.hook.invoke_function({})
+        assert 'failed to invoke function' in str(ctx.value)
+
+    @mock.patch.object(BaseHook, 'get_connection')
+    @requests_mock.mock()
+    def test_invoke_function_true(self, mock_get_connection, m):
+        m.post(
+            "http://open-faas.io" + self.INVOKE_FUNCTION + FUNCTION_NAME,
+            json=self.mock_response,
+            status_code=200,
+        )
+        mock_connection = Connection(host="http://open-faas.io")
+        mock_get_connection.return_value = mock_connection
+        assert self.hook.invoke_function({}) is None
 
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
@@ -99,9 +128,9 @@ class TestOpenFaasHook(unittest.TestCase):
         mock_connection = Connection(host="http://open-faas.io")
         mock_get_connection.return_value = mock_connection
 
-        with self.assertRaises(AirflowException) as context:
+        with pytest.raises(AirflowException) as ctx:
             self.hook.invoke_async_function({})
-        self.assertIn('failed to invoke function', str(context.exception))
+        assert 'failed to invoke function' in str(ctx.value)
 
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
@@ -113,7 +142,7 @@ class TestOpenFaasHook(unittest.TestCase):
         )
         mock_connection = Connection(host="http://open-faas.io")
         mock_get_connection.return_value = mock_connection
-        self.assertEqual(self.hook.invoke_async_function({}), None)
+        assert self.hook.invoke_async_function({}) is None
 
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
@@ -121,7 +150,7 @@ class TestOpenFaasHook(unittest.TestCase):
         m.put("http://open-faas.io/" + self.UPDATE_FUNCTION, json=self.mock_response, status_code=202)
         mock_connection = Connection(host="http://open-faas.io/")
         mock_get_connection.return_value = mock_connection
-        self.assertEqual(self.hook.deploy_function(True, {}), None)
+        assert self.hook.deploy_function(True, {}) is None
 
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
@@ -129,4 +158,4 @@ class TestOpenFaasHook(unittest.TestCase):
         m.post("http://open-faas.io" + self.DEPLOY_FUNCTION, json={}, status_code=202)
         mock_connection = Connection(host="http://open-faas.io")
         mock_get_connection.return_value = mock_connection
-        self.assertEqual(self.hook.deploy_function(False, {}), None)
+        assert self.hook.deploy_function(False, {}) is None

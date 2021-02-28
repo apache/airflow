@@ -22,11 +22,14 @@ description: |
     `Apache Druid <https://druid.apache.org/>`__.
 
 versions:
-  - 1.0.0b2
+  - 1.1.0
+  - 1.0.1
+  - 1.0.0
 
 integrations:
   - integration-name: Apache Druid
     external-doc-url: https://druid.apache.org/
+    logo: /integration-logos/apache/druid-1.png
     tags: [apache]
 
 operators:
@@ -39,6 +42,9 @@ hooks:
   - integration-name: Apache Druid
     python-modules:
       - airflow.providers.apache.druid.hooks.druid
+
+hook-class-names:
+  - airflow.providers.apache.druid.hooks.druid.DruidDbApiHook
 
 transfers:
   - source-integration-name: Apache Hive

@@ -15,32 +15,39 @@
       "type": "string"
     },
     "versions": {
-      "description": "List of available versions in Pypi",
+      "description": "List of available versions in PyPI. Sorted descending according to release date.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "integrations": {
+      "description": "List of integrations supported by the provider.",
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "integration-name": {
-            "type": "string"
+            "type": "string",
+            "description": "Name of the integration."
           },
           "external-doc-url": {
-            "type": "string"
+            "type": "string",
+            "description": "URL to external documentation for the integration."
           },
           "how-to-guide": {
-            "description": "List of path to how-to-guide. The path must starts with '/docs/'",
+            "description": "List of paths to how-to-guide for the integration. The path must start with '/docs/'",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
+          "logo": {
+            "description": "Path to the logo for the integration. The path must start with '/integration-logos/'",
+            "type": "string"
+          },
           "tags": {
-            "description": "List of tags describing integrations. While we're using RST, only one tag is supported for integration.",
+            "description": "List of tags describing the integration. While we're using RST, only one tag is supported per integration.",
             "type": "array",
             "items": {
               "type": "string",
@@ -79,6 +86,7 @@
             "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
           },
           "python-modules": {
+            "description": "List of python modules containing the operators.",
             "type": "array",
             "items": {
               "type": "string"
@@ -102,6 +110,7 @@
             "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
           },
           "python-modules": {
+            "description": "List of python modules containing the sensors.",
             "type": "array",
             "items": {
               "type": "string"
@@ -112,7 +121,7 @@
           "integration-name",
           "python-modules"
         ],
-        "additionalProperties": false
+        "additionalProperties": true
       }
     },
     "hooks": {
@@ -125,6 +134,7 @@
             "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
           },
           "python-modules": {
+            "description": "List of python modules containing the hooks.",
             "type": "array",
             "items": {
               "type": "string"
@@ -144,7 +154,7 @@
         "type": "object",
         "properties": {
           "how-to-guide": {
-            "description": "Oath to how-to-guide. The path must starts with '/docs/'",
+            "description": "Path to how-to-guide for the transfer. The path must start with '/docs/'",
             "type": "string"
           },
           "source-integration-name": {
@@ -157,7 +167,7 @@
           },
           "python-module": {
             "type": "string",
-            "description": "Source integration name. It must have a matching item in the 'integration' section of any provider."
+            "description": "List of python modules containing the transfers."
           }
         },
         "additionalProperties": false,
@@ -166,6 +176,20 @@
           "target-integration-name",
           "python-module"
         ]
+      }
+    },
+    "hook-class-names": {
+      "type": "array",
+      "description": "Hook class names that provide connection types to core",
+      "items": {
+        "type": "string"
+      }
+    },
+    "extra-links": {
+      "type": "array",
+      "description": "Operator class names that provide extra link functionality",
+      "items": {
+        "type": "string"
       }
     }
   },

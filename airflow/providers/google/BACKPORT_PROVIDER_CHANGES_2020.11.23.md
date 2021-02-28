@@ -4,7 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                         |
 |:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------------|
-| [19b7e4565](https://github.com/apache/airflow/commit/19b7e4565e6372d50ef0fbb5678a484a7afbdbee) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427)              |
+| [4873d9759](https://github.com/apache/airflow/commit/4873d9759dfdec1dd3663074f9e64ad69fa881cc) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427)              |
 | [8d0950646](https://github.com/apache/airflow/commit/8d09506464c8480fa42e8bfe6a36c6f631cd23f6) | 2020-11-18  | Fix download method in GCSToBigQueryOperator (#12442)                           |
 | [2c0920fba](https://github.com/apache/airflow/commit/2c0920fba5d2f05d2e29cead91127686af277ec2) | 2020-11-17  | Adds mechanism for provider package discovery. (#12383)                         |
 | [2cda2f2a0](https://github.com/apache/airflow/commit/2cda2f2a0a94e5aaed87f0998fa57b4f8bff5e43) | 2020-11-17  | Add missing pre-commit definition - provider-yamls (#12393)                     |

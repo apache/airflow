@@ -29,7 +29,9 @@ class TestGoogleOpenID(unittest.TestCase):
     def setUp(self) -> None:
         with conf_vars(
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
-        ), mock.patch.dict('os.environ', SKIP_DAGS_PARSING='True'):
+        ), mock.patch.dict('os.environ', SKIP_DAGS_PARSING='True'), conf_vars(
+            {('api', 'enable_experimental_api'): 'true'}
+        ):
             self.app = create_app(testing=True)
 
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
@@ -50,10 +52,10 @@ class TestGoogleOpenID(unittest.TestCase):
 
         with self.app.test_client() as test_client:
             response = test_client.get("/api/experimental/pools", environ_overrides={'REMOTE_USER': "test"})
-            self.assertEqual("test@fab.org", current_user.email)
+            assert "test@fab.org" == current_user.email
 
-        self.assertEqual(200, response.status_code)
-        self.assertIn("Default pool", str(response.json))
+        assert 200 == response.status_code
+        assert "Default pool" in str(response.json)
 
     def test_success_using_email(self):
         clear_db_pools()
@@ -62,10 +64,10 @@ class TestGoogleOpenID(unittest.TestCase):
             response = test_client.get(
                 "/api/experimental/pools", environ_overrides={'REMOTE_USER': "test@fab.org"}
             )
-            self.assertEqual("test@fab.org", current_user.email)
+            assert "test@fab.org" == current_user.email
 
-        self.assertEqual(200, response.status_code)
-        self.assertIn("Default pool", str(response.json))
+        assert 200 == response.status_code
+        assert "Default pool" in str(response.json)
 
     def test_user_not_exists(self):
         with self.app.test_client() as test_client:
@@ -73,15 +75,15 @@ class TestGoogleOpenID(unittest.TestCase):
                 "/api/experimental/pools", environ_overrides={'REMOTE_USER': "INVALID"}
             )
 
-        self.assertEqual(403, response.status_code)
-        self.assertEqual("Forbidden", response.data.decode())
+        assert 403 == response.status_code
+        assert "Forbidden" == response.data.decode()
 
     def test_missing_remote_user(self):
         with self.app.test_client() as test_client:
             response = test_client.get("/api/experimental/pools")
 
-        self.assertEqual(403, response.status_code)
-        self.assertEqual("Forbidden", response.data.decode())
+        assert 403 == response.status_code
+        assert "Forbidden" == response.data.decode()
 
     def test_user_should_be_logged_temporary(self):
         with self.app.test_client() as test_client:
@@ -89,5 +91,5 @@ class TestGoogleOpenID(unittest.TestCase):
                 "/api/experimental/pools", environ_overrides={'REMOTE_USER': "INVALID"}
             )
 
-        self.assertEqual(403, response.status_code)
-        self.assertEqual("Forbidden", response.data.decode())
+        assert 403 == response.status_code
+        assert "Forbidden" == response.data.decode()

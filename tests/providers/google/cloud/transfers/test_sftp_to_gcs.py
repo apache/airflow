@@ -21,6 +21,8 @@ import os
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
 
@@ -213,8 +215,8 @@ class TestSFTPToGCSOperator(unittest.TestCase):
             sftp_conn_id=SFTP_CONN_ID,
             delegate_to=DELEGATE_TO,
         )
-        with self.assertRaises(AirflowException) as cm:
+        with pytest.raises(AirflowException) as ctx:
             task.execute(None)
 
-        err = cm.exception
-        self.assertIn("Only one wildcard '*' is allowed in source_path parameter", str(err))
+        err = ctx.value
+        assert "Only one wildcard '*' is allowed in source_path parameter" in str(err)

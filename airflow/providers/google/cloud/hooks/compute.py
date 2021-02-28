@@ -99,9 +99,7 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(
-                "Wrong response '{}' returned - it should contain " "'name' field".format(response)
-            )
+            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -130,9 +128,7 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(
-                "Wrong response '{}' returned - it should contain " "'name' field".format(response)
-            )
+            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -159,9 +155,7 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(
-                "Wrong response '{}' returned - it should contain " "'name' field".format(response)
-            )
+            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     def _execute_set_machine_type(self, zone: str, resource_id: str, body: dict, project_id: str) -> dict:
@@ -233,9 +227,7 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(
-                "Wrong response '{}' returned - it should contain " "'name' field".format(response)
-            )
+            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -318,9 +310,7 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(
-                "Wrong response '{}' returned - it should contain " "'name' field".format(response)
-            )
+            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     def _wait_for_operation_to_complete(

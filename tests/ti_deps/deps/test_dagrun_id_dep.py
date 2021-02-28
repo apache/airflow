@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# pylint: disable=no-value-for-parameter
 
 import unittest
 from unittest.mock import Mock
@@ -33,7 +34,7 @@ class TestDagrunRunningDep(unittest.TestCase):
         dagrun.run_id = "anything"
         dagrun.run_type = DagRunType.BACKFILL_JOB
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
-        self.assertFalse(DagrunIdDep().is_met(ti=ti))
+        assert not DagrunIdDep().is_met(ti=ti)
 
     def test_dagrun_id_is_not_backfill(self):
         """
@@ -42,16 +43,16 @@ class TestDagrunRunningDep(unittest.TestCase):
         dagrun = DagRun()
         dagrun.run_type = 'custom_type'
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
-        self.assertTrue(DagrunIdDep().is_met(ti=ti))
+        assert DagrunIdDep().is_met(ti=ti)
 
         dagrun = DagRun()
         dagrun.run_id = None
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
-        self.assertTrue(DagrunIdDep().is_met(ti=ti))
+        assert DagrunIdDep().is_met(ti=ti)
 
     def test_dagrun_is_none(self):
         """
         Task instances which don't yet have an associated dagrun.
         """
         ti = Mock(get_dagrun=Mock(return_value=None))
-        self.assertTrue(DagrunIdDep().is_met(ti=ti))
+        assert DagrunIdDep().is_met(ti=ti)

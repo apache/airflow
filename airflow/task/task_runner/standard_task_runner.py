@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Standard task runner"""
+import logging
 import os
+from typing import Optional
 
 import psutil
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
@@ -87,9 +89,10 @@ class StandardTaskRunner(BaseTaskRunner):
             finally:
                 # Explicitly flush any pending exception to Sentry if enabled
                 Sentry.flush()
+                logging.shutdown()
                 os._exit(return_code)  # pylint: disable=protected-access
 
-    def return_code(self, timeout=0):
+    def return_code(self, timeout: int = 0) -> Optional[int]:
         # We call this multiple times, but we can only wait on the process once
         if self._rc is not None or not self.process:
             return self._rc

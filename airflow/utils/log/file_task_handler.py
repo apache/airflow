@@ -19,13 +19,15 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import requests
 
 from airflow.configuration import AirflowConfigException, conf
-from airflow.models import TaskInstance
 from airflow.utils.helpers import parse_template_string
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
 
 
 class FileTaskHandler(logging.Handler):
@@ -45,7 +47,7 @@ class FileTaskHandler(logging.Handler):
         self.local_base = base_log_folder
         self.filename_template, self.filename_jinja_template = parse_template_string(filename_template)
 
-    def set_context(self, ti: TaskInstance):
+    def set_context(self, ti: "TaskInstance"):
         """
         Provide task_instance context to airflow task handler.
 
@@ -118,7 +120,7 @@ class FileTaskHandler(logging.Handler):
                     log += "".join(file.readlines())
             except Exception as e:  # pylint: disable=broad-except
                 log = f"*** Failed to load local log file: {location}\n"
-                log += "*** {}\n".format(str(e))
+                log += f"*** {str(e)}\n"
         elif conf.get('core', 'executor') == 'KubernetesExecutor':  # pylint: disable=too-many-nested-blocks
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
@@ -156,7 +158,7 @@ class FileTaskHandler(logging.Handler):
                     log += line.decode()
 
             except Exception as f:  # pylint: disable=broad-except
-                log += '*** Unable to fetch logs from worker pod {} ***\n{}\n\n'.format(ti.hostname, str(f))
+                log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
         else:
             url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
                 ti=ti, worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
@@ -178,7 +180,7 @@ class FileTaskHandler(logging.Handler):
 
                 log += '\n' + response.text
             except Exception as e:  # pylint: disable=broad-except
-                log += "*** Failed to fetch log file from worker. {}\n".format(str(e))
+                log += f"*** Failed to fetch log file from worker. {str(e)}\n"
 
         return log, {'end_of_log': True}
 
@@ -205,7 +207,7 @@ class FileTaskHandler(logging.Handler):
             logs = [
                 [('default_host', f'Error fetching the logs. Try number {try_number} is invalid.')],
             ]
-            return logs
+            return logs, [{'end_of_log': True}]
         else:
             try_numbers = [try_number]
 
@@ -253,6 +255,9 @@ class FileTaskHandler(logging.Handler):
         if not os.path.exists(full_path):
             open(full_path, "a").close()
             # TODO: Investigate using 444 instead of 666.
-            os.chmod(full_path, 0o666)
+            try:
+                os.chmod(full_path, 0o666)
+            except OSError:
+                logging.warning("OSError while change ownership of the log file")
 
         return full_path

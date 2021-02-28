@@ -20,7 +20,7 @@ import subprocess
 from typing import Any, List, Optional, Union
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SparkSqlHook(BaseHook):
@@ -56,12 +56,17 @@ class SparkSqlHook(BaseHook):
     :type yarn_queue: str
     """
 
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'spark_sql_default'
+    conn_type = 'spark_sql'
+    hook_name = 'Spark SQL'
+
     # pylint: disable=too-many-arguments
     def __init__(
         self,
         sql: str,
         conf: Optional[str] = None,
-        conn_id: str = 'spark_sql_default',
+        conn_id: str = default_conn_name,
         total_executor_cores: Optional[int] = None,
         executor_cores: Optional[int] = None,
         executor_memory: Optional[str] = None,

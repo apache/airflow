@@ -23,7 +23,7 @@ from typing import Dict, Iterable, Union
 
 import pendulum
 
-from airflow.operators.branch_operator import BaseBranchOperator
+from airflow.operators.branch import BaseBranchOperator
 
 
 class LatestOnlyOperator(BaseBranchOperator):

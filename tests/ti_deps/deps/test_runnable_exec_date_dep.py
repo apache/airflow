@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# pylint: disable=no-value-for-parameter
 
 import unittest
 from unittest.mock import Mock, patch
@@ -24,7 +25,7 @@ from freezegun import freeze_time
 
 from airflow import settings
 from airflow.models import DAG, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.utils.timezone import datetime
 
@@ -84,11 +85,11 @@ class TestRunnableExecDateDep(unittest.TestCase):
             op1 = DummyOperator(task_id='op1')
 
         ti = TaskInstance(task=op1, execution_date=datetime(2016, 11, 2))
-        self.assertFalse(RunnableExecDateDep().is_met(ti=ti))
+        assert not RunnableExecDateDep().is_met(ti=ti)
 
     def test_exec_date_after_task_end_date(self):
         """
-        If the task instance execution date is after the tasks's end date
+        If the task instance execution date is after the tasks end date
         this dep should fail
         """
         ti = self._get_task_instance(
@@ -96,7 +97,7 @@ class TestRunnableExecDateDep(unittest.TestCase):
             task_end_date=datetime(2016, 1, 1),
             execution_date=datetime(2016, 1, 2),
         )
-        self.assertFalse(RunnableExecDateDep().is_met(ti=ti))
+        assert not RunnableExecDateDep().is_met(ti=ti)
 
     def test_exec_date_after_dag_end_date(self):
         """
@@ -108,7 +109,7 @@ class TestRunnableExecDateDep(unittest.TestCase):
             task_end_date=datetime(2016, 1, 3),
             execution_date=datetime(2016, 1, 2),
         )
-        self.assertFalse(RunnableExecDateDep().is_met(ti=ti))
+        assert not RunnableExecDateDep().is_met(ti=ti)
 
     def test_all_deps_met(self):
         """
@@ -119,4 +120,4 @@ class TestRunnableExecDateDep(unittest.TestCase):
             task_end_date=datetime(2016, 1, 2),
             execution_date=datetime(2016, 1, 1),
         )
-        self.assertTrue(RunnableExecDateDep().is_met(ti=ti))
+        assert RunnableExecDateDep().is_met(ti=ti)

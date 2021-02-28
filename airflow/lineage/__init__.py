@@ -25,7 +25,6 @@ import attr
 import jinja2
 from cattr import structure, unstructure
 
-from airflow.models.base import Operator
 from airflow.utils.module_loading import import_string
 
 ENV = jinja2.Environment()
@@ -120,6 +119,8 @@ def prepare_lineage(func: T) -> T:
     # pylint: disable=protected-access
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
+        from airflow.models.base import Operator
+
         self.log.debug("Preparing lineage inlets and outlets")
 
         if isinstance(self._inlets, (str, Operator)) or attr.has(self._inlets):

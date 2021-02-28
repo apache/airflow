@@ -26,12 +26,6 @@ CURRENT_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
 DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
 DOCS_PROVIDER_DIR = os.path.join(ROOT_DIR, 'docs')
-S3_DOC_URL = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com"
-
-# Customize build for readthedocs.io
-# See:
-# https://docs.readthedocs.io/en/stable/faq.html#how-do-i-change-behavior-when-building-with-read-the-docs
-IS_RTD = os.environ.get('READTHEDOCS') == 'True'
 
 
 def _create_init_py(app, config):
@@ -47,65 +41,45 @@ def _create_init_py(app, config):
 
 def _generate_provider_intersphinx_mapping():
     airflow_mapping = {}
+    for_production = os.environ.get('AIRFLOW_FOR_PRODUCTION', 'false') == 'true'
+    current_version = 'stable' if for_production else 'latest'
+
     for provider in load_package_data():
         package_name = provider['package-name']
         if os.environ.get('AIRFLOW_PACKAGE_NAME') == package_name:
             continue
 
-        # For local build and S3, use relative URLS.
-        # For RTD, use absolute URLs
-        if IS_RTD:
-            provider_base_url = f"{S3_DOC_URL}/docs/{package_name}/latest/"
-        else:
-            provider_base_url = f'/docs/{package_name}/latest/'
+        provider_base_url = f'/docs/{package_name}/{current_version}/'
+        doc_inventory = f'{DOCS_DIR}/_build/docs/{package_name}/{current_version}/objects.inv'
+        cache_inventory = f'{DOCS_DIR}/_inventory_cache/{package_name}/objects.inv'
+
+        # Skip adding the mapping if the path does not exist
+        if not os.path.exists(doc_inventory) and not os.path.exists(cache_inventory):
+            continue
 
         airflow_mapping[package_name] = (
             # base URI
             provider_base_url,
-            # Index locations list
-            # If passed None, this will try to fetch the index from `[base_url]/objects.inv`
-            # If we pass a path containing `://` then we will try to index from the given address.
-            # Otherwise, it will try to read the local file
-            #
-            # In this case, the local index will be read. If unsuccessful, the remote index
-            # will be fetched.
-            (
-                f'{DOCS_DIR}/_build/docs/{package_name}/latest/objects.inv',
-                f'{S3_DOC_URL}/docs/{package_name}/latest/objects.inv',
-            ),
+            (doc_inventory if os.path.exists(doc_inventory) else cache_inventory,),
         )
     if os.environ.get('AIRFLOW_PACKAGE_NAME') != 'apache-airflow':
+        doc_inventory = f'{DOCS_DIR}/_build/docs/apache-airflow/{current_version}/objects.inv'
+        cache_inventory = f'{DOCS_DIR}/_inventory_cache/apache-airflow/objects.inv'
+
         airflow_mapping['apache-airflow'] = (
             # base URI
-            '/docs/apache-airflow/latest/',
-            # Index locations list
-            # If passed None, this will try to fetch the index from `[base_url]/objects.inv`
-            # If we pass a path containing `://` then we will try to index from the given address.
-            # Otherwise, it will try to read the local file
-            #
-            # In this case, the local index will be read. If unsuccessful, the remote index
-            # will be fetched.
-            (
-                f'{DOCS_DIR}/_build/docs/apache-airflow/latest/objects.inv',
-                f'{S3_DOC_URL}/docs/apache-airflow/latest/objects.inv',
-            ),
+            f'/docs/apache-airflow/{current_version}/',
+            (doc_inventory if os.path.exists(doc_inventory) else cache_inventory,),
         )
 
     if os.environ.get('AIRFLOW_PACKAGE_NAME') != 'apache-airflow-providers':
+        doc_inventory = f'{DOCS_DIR}/_build/docs/apache-airflow-providers/objects.inv'
+        cache_inventory = f'{DOCS_DIR}/_inventory_cache/apache-airflow-providers/objects.inv'
+
         airflow_mapping['apache-airflow-providers'] = (
             # base URI
             '/docs/apache-airflow-providers/',
-            # Index locations list
-            # If passed None, this will try to fetch the index from `[base_url]/objects.inv`
-            # If we pass a path containing `://` then we will try to index from the given address.
-            # Otherwise, it will try to read the local file
-            #
-            # In this case, the local index will be read. If unsuccessful, the remote index
-            # will be fetched.
-            (
-                f'{DOCS_DIR}/_build/docs/apache-airflow-providers/objects.inv',
-                f'{S3_DOC_URL}/docs/apache-airflow-providers/objects.inv',
-            ),
+            (doc_inventory if os.path.exists(doc_inventory) else cache_inventory,),
         )
 
     return airflow_mapping
@@ -180,7 +154,7 @@ if __name__ == "__main__":
             except ValueError as exc:
                 print(exc.args[0] % exc.args[1:])
             except Exception as exc:  # pylint: disable=broad-except
-                print('Unknown error: %r' % exc)
+                print(f'Unknown error: {exc!r}')
 
         provider_mapping = _generate_provider_intersphinx_mapping()
 

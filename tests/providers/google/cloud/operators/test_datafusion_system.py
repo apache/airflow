@@ -17,7 +17,7 @@
 # under the License.
 import pytest
 
-from airflow.providers.google.cloud.example_dags.example_datafusion import BUCKET1, BUCKET2
+from airflow.providers.google.cloud.example_dags.example_datafusion import BUCKET_1, BUCKET_2
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DATAFUSION_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
@@ -26,12 +26,12 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.credential_file(GCP_DATAFUSION_KEY)
 class CloudDataFusionExampleDagsSystemTest(GoogleSystemTest):
     def setUp(self) -> None:
-        self.create_gcs_bucket(name=BUCKET1)
-        self.create_gcs_bucket(name=BUCKET2)
+        self.create_gcs_bucket(name=BUCKET_1)
+        self.create_gcs_bucket(name=BUCKET_2)
 
     def tearDown(self) -> None:
-        self.delete_gcs_bucket(name=BUCKET1)
-        self.delete_gcs_bucket(name=BUCKET2)
+        self.delete_gcs_bucket(name=BUCKET_1)
+        self.delete_gcs_bucket(name=BUCKET_2)
 
     @provide_gcp_context(GCP_DATAFUSION_KEY)
     def test_run_example_dag_function(self):

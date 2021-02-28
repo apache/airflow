@@ -31,7 +31,7 @@ consists of multiple machines (specifically, Compute Engine instances) grouped t
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: /operators/_partials/prerequisite_tasks.rst
+.. include::/operators/_partials/prerequisite_tasks.rst
 
 Manage GKE cluster
 ^^^^^^^^^^^^^^^^^^

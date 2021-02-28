@@ -46,14 +46,16 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         try:
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
-            return S3Hook(remote_conn_id)
-        except Exception:  # pylint: disable=broad-except
+            return S3Hook(remote_conn_id, transfer_config_args={"use_threads": False})
+        except Exception as e:  # pylint: disable=broad-except
             self.log.exception(
                 'Could not create an S3Hook with connection id "%s". '
                 'Please make sure that airflow[aws] is installed and '
-                'the S3 connection exists.',
+                'the S3 connection exists. Exception : "%s"',
                 remote_conn_id,
+                e,
             )
+            return None
 
     def set_context(self, ti):
         super().set_context(ti)
@@ -116,7 +118,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             log_exists = self.s3_log_exists(remote_loc)
         except Exception as error:  # pylint: disable=broad-except
             self.log.exception(error)
-            log = '*** Failed to verify remote log exists {}.\n{}\n'.format(remote_loc, str(error))
+            log = f'*** Failed to verify remote log exists {remote_loc}.\n{str(error)}\n'
 
         if log_exists:
             # If S3 remote file exists, we do not fetch logs from task instance

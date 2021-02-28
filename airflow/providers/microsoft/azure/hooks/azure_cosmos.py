@@ -30,7 +30,7 @@ from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.errors import HTTPFailure
 
 from airflow.exceptions import AirflowBadRequest
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class AzureCosmosDBHook(BaseHook):
@@ -45,7 +45,12 @@ class AzureCosmosDBHook(BaseHook):
     :type azure_cosmos_conn_id: str
     """
 
-    def __init__(self, azure_cosmos_conn_id: str = 'azure_cosmos_default') -> None:
+    conn_name_attr = 'azure_cosmos_conn_id'
+    default_conn_name = 'azure_cosmos_default'
+    conn_type = 'azure_cosmos'
+    hook_name = 'Azure CosmosDB'
+
+    def __init__(self, azure_cosmos_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_cosmos_conn_id
         self._conn = None

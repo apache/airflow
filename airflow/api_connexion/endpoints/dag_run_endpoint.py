@@ -209,7 +209,7 @@ def get_dag_runs_batch(session):
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
     ]
 )

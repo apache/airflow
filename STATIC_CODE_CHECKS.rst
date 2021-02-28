@@ -72,8 +72,6 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-hooks-apply``                 Checks which hooks are applicable to the repository.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``check-hooks-apply``                 Checks which hooks are applicable to the repository.
------------------------------------ ---------------------------------------------------------------- ------------
 ``check-integrations``                Checks if integration list is synchronized in code.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-merge-conflicts``             Checks that merge conflicts are not being committed.
@@ -104,15 +102,21 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``flake8``                            Runs flake8.                                                         *
 ----------------------------------- ---------------------------------------------------------------- ------------
+``flynt``                             Runs flynt.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``forbid-tabs``                       Fails if tabs are used in the project.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``helm-lint``                         Verifies if helm lint passes for the chart
+----------------------------------- ---------------------------------------------------------------- ------------
+``identity``                          Prints inputs to the static check hooks for troubleshooting
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``incorrect-use-of-LoggingMixin``     Checks if LoggingMixin is properly imported.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``insert-license``                    Adds licenses for most file types.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``isort``                             Sorts imports in python files.
+----------------------------------- ---------------------------------------------------------------- ------------
+``json-schema``                       Checks that the files complies with the JSON Schema spec
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``language-matters``                  Check for language that we do not accept as community
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -131,6 +135,8 @@ require Breeze Docker images to be installed locally:
 ``mypy-helm``                         Runs mypy.                                                           *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pre-commit-descriptions``           Check if all pre-commits are described in docs.
+----------------------------------- ---------------------------------------------------------------- ------------
+``pre-commit-hook-names``             Check that hook names are not overly long.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``provide-create-sessions``           Make sure provide-session and create-session imports are OK.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -171,8 +177,6 @@ require Breeze Docker images to be installed locally:
 ``update-setup-cfg-file``             Update setup.cfg file with all licenses.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-extras``                     Updates extras in the documentation.
------------------------------------ ---------------------------------------------------------------- ------------
-``version-sync``                      Synchronizes versions setup.py <-> airflow/version.py.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks yaml files with yamllint.
 =================================== ================================================================ ============

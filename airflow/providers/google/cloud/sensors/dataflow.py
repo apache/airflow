@@ -24,13 +24,17 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowHook,
     DataflowJobStatus,
 )
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
 class DataflowJobStatusSensor(BaseSensorOperator):
     """
     Checks for the status of a job in Google Cloud Dataflow.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowJobStatusSensor`
 
     :param job_id: ID of the job to be checked.
     :type job_id: str
@@ -122,6 +126,10 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
     """
     Checks the metrics of a job in Google Cloud Dataflow.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowJobMetricsSensor`
+
     :param job_id: ID of the job to be checked.
     :type job_id: str
     :param callback: callback which is called with list of read job metrics
@@ -212,6 +220,10 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
     """
     Checks for the job message in Google Cloud Dataflow.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowJobMessagesSensor`
+
     :param job_id: ID of the job to be checked.
     :type job_id: str
     :param callback: callback which is called with list of read job metrics
@@ -301,6 +313,10 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
 class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
     """
     Checks for the job autoscaling event in Google Cloud Dataflow.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowJobAutoScalingEventsSensor`
 
     :param job_id: ID of the job to be checked.
     :type job_id: str

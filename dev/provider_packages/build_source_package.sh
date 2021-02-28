@@ -35,7 +35,7 @@ function tag_release() {
   echo "Tagging the sources with ${BACKPORT_PREFIX}providers-${VERSION} tag"
   echo
 
-  git tag "${BACKPORT_PREFIX}providers-${VERSION}"
+  git tag "${BACKPORT_PREFIX}providers-${VERSION}" || true
 }
 
 function clean_repo() {
@@ -122,9 +122,9 @@ if (( $# > 0 )); then
     if [[ "$1" == "--backports" ]]; then
         BACKPORTS="true"
     else
-        >&2 echo
-        >&2 echo "You can run the script with '--backports' flag only"
-        >&2 echo
+        echo
+        echo  "${COLOR_RED}ERROR: You can run the script with '--backports' flag only  ${COLOR_RESET}"
+        echo
         exit 1
     fi
 fi

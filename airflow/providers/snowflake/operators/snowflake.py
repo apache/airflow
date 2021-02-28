@@ -28,7 +28,7 @@ class SnowflakeOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`apache-airflow:howto/operator:SnowflakeOperator`
+        :ref:`howto/operator:SnowflakeOperator`
 
     :param snowflake_conn_id: reference to specific snowflake connection id
     :type snowflake_conn_id: str

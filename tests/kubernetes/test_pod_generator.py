@@ -14,13 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import sys
 import unittest
 import uuid
 from unittest import mock
 
+import pytest
 from dateutil import parser
 from kubernetes.client import ApiClient, models as k8s
+from parameterized import parameterized
 
 from airflow import __version__
 from airflow.exceptions import AirflowConfigException
@@ -106,7 +109,7 @@ class TestPodGenerator(unittest.TestCase):
             kind="Pod",
             metadata=k8s.V1ObjectMeta(
                 namespace="default",
-                name='myapp-pod-' + self.static_uuid.hex,
+                name='myapp-pod.' + self.static_uuid.hex,
                 labels={'app': 'myapp'},
             ),
             spec=k8s.V1PodSpec(
@@ -184,7 +187,7 @@ class TestPodGenerator(unittest.TestCase):
         result_dict = self.k8s_client.sanitize_for_serialization(result)
         expected_dict = self.k8s_client.sanitize_for_serialization(self.expected)
 
-        self.assertEqual(result_dict, expected_dict)
+        assert result_dict == expected_dict
 
     def test_from_obj(self):
         result = PodGenerator.from_obj(
@@ -216,28 +219,23 @@ class TestPodGenerator(unittest.TestCase):
         )
         result = self.k8s_client.sanitize_for_serialization(result)
 
-        self.assertEqual(
-            {
-                'apiVersion': 'v1',
-                'kind': 'Pod',
-                'metadata': {
-                    'name': 'foo',
-                    'annotations': {'test': 'annotation'},
-                },
-                'spec': {
-                    'containers': [
-                        {
-                            'name': 'base',
-                            'volumeMounts': [
-                                {'mountPath': '/foo/', 'name': 'example-kubernetes-test-volume'}
-                            ],
-                        }
-                    ],
-                    'volumes': [{'hostPath': {'path': '/tmp/'}, 'name': 'example-kubernetes-test-volume'}],
-                },
+        assert {
+            'apiVersion': 'v1',
+            'kind': 'Pod',
+            'metadata': {
+                'name': 'foo',
+                'annotations': {'test': 'annotation'},
             },
-            result,
-        )
+            'spec': {
+                'containers': [
+                    {
+                        'name': 'base',
+                        'volumeMounts': [{'mountPath': '/foo/', 'name': 'example-kubernetes-test-volume'}],
+                    }
+                ],
+                'volumes': [{'hostPath': {'path': '/tmp/'}, 'name': 'example-kubernetes-test-volume'}],
+            },
+        } == result
         result = PodGenerator.from_obj(
             {
                 "KubernetesExecutor": {
@@ -293,40 +291,33 @@ class TestPodGenerator(unittest.TestCase):
                 'volumes': [{'hostPath': '/tmp/', 'name': 'example-kubernetes-test-volume'}],
             },
         }
-        self.assertEqual(
-            result_from_pod,
-            expected_from_pod,
-            "There was a discrepency between KubernetesExecutor and pod_override",
-        )
+        assert (
+            result_from_pod == expected_from_pod
+        ), "There was a discrepancy between KubernetesExecutor and pod_override"
 
-        self.assertEqual(
-            {
-                'apiVersion': 'v1',
-                'kind': 'Pod',
-                'metadata': {
-                    'annotations': {'test': 'annotation'},
-                },
-                'spec': {
-                    'containers': [
-                        {
-                            'args': [],
-                            'command': [],
-                            'env': [],
-                            'envFrom': [],
-                            'name': 'base',
-                            'ports': [],
-                            'volumeMounts': [
-                                {'mountPath': '/foo/', 'name': 'example-kubernetes-test-volume'}
-                            ],
-                        }
-                    ],
-                    'hostNetwork': False,
-                    'imagePullSecrets': [],
-                    'volumes': [{'hostPath': {'path': '/tmp/'}, 'name': 'example-kubernetes-test-volume'}],
-                },
+        assert {
+            'apiVersion': 'v1',
+            'kind': 'Pod',
+            'metadata': {
+                'annotations': {'test': 'annotation'},
             },
-            result,
-        )
+            'spec': {
+                'containers': [
+                    {
+                        'args': [],
+                        'command': [],
+                        'env': [],
+                        'envFrom': [],
+                        'name': 'base',
+                        'ports': [],
+                        'volumeMounts': [{'mountPath': '/foo/', 'name': 'example-kubernetes-test-volume'}],
+                    }
+                ],
+                'hostNetwork': False,
+                'imagePullSecrets': [],
+                'volumes': [{'hostPath': {'path': '/tmp/'}, 'name': 'example-kubernetes-test-volume'}],
+            },
+        } == result
 
     @mock.patch('uuid.uuid4')
     def test_reconcile_pods_empty_mutator_pod(self, mock_uuid):
@@ -341,11 +332,11 @@ class TestPodGenerator(unittest.TestCase):
         base_pod.metadata.name = name
 
         result = PodGenerator.reconcile_pods(base_pod, mutator_pod)
-        self.assertEqual(base_pod, result)
+        assert base_pod == result
 
         mutator_pod = k8s.V1Pod()
         result = PodGenerator.reconcile_pods(base_pod, mutator_pod)
-        self.assertEqual(base_pod, result)
+        assert base_pod == result
 
     @mock.patch('uuid.uuid4')
     def test_reconcile_pods(self, mock_uuid):
@@ -401,7 +392,7 @@ class TestPodGenerator(unittest.TestCase):
         result_dict = self.k8s_client.sanitize_for_serialization(result)
         expected_dict = self.k8s_client.sanitize_for_serialization(expected)
 
-        self.assertEqual(result_dict, expected_dict)
+        assert result_dict == expected_dict
 
     @mock.patch('uuid.uuid4')
     def test_construct_pod(self, mock_uuid):
@@ -425,7 +416,7 @@ class TestPodGenerator(unittest.TestCase):
             kube_image='airflow_image',
             try_number=self.try_number,
             date=self.execution_date,
-            command=['command'],
+            args=['command'],
             pod_override_object=executor_config,
             base_worker_pod=worker_config,
             namespace='test_namespace',
@@ -435,9 +426,9 @@ class TestPodGenerator(unittest.TestCase):
         expected.metadata.labels = self.labels
         expected.metadata.labels['app'] = 'myapp'
         expected.metadata.annotations = self.annotations
-        expected.metadata.name = 'pod_id-' + self.static_uuid.hex
+        expected.metadata.name = 'pod_id.' + self.static_uuid.hex
         expected.metadata.namespace = 'test_namespace'
-        expected.spec.containers[0].command = ['command']
+        expected.spec.containers[0].args = ['command']
         expected.spec.containers[0].image = 'airflow_image'
         expected.spec.containers[0].resources = {'limits': {'cpu': '1m', 'memory': '1G'}}
         expected.spec.containers[0].env.append(
@@ -449,7 +440,7 @@ class TestPodGenerator(unittest.TestCase):
         result_dict = self.k8s_client.sanitize_for_serialization(result)
         expected_dict = self.k8s_client.sanitize_for_serialization(self.expected)
 
-        self.assertEqual(expected_dict, result_dict)
+        assert expected_dict == result_dict
 
     @mock.patch('uuid.uuid4')
     def test_construct_pod_empty_executor_config(self, mock_uuid):
@@ -465,7 +456,7 @@ class TestPodGenerator(unittest.TestCase):
             kube_image='test-image',
             try_number=3,
             date=self.execution_date,
-            command=['command'],
+            args=['command'],
             pod_override_object=executor_config,
             base_worker_pod=worker_config,
             namespace='namespace',
@@ -473,37 +464,61 @@ class TestPodGenerator(unittest.TestCase):
         )
         sanitized_result = self.k8s_client.sanitize_for_serialization(result)
         worker_config.spec.containers[0].image = "test-image"
-        worker_config.spec.containers[0].command = ["command"]
+        worker_config.spec.containers[0].args = ["command"]
         worker_config.metadata.annotations = self.annotations
         worker_config.metadata.labels = self.labels
         worker_config.metadata.labels['app'] = 'myapp'
-        worker_config.metadata.name = 'pod_id-' + self.static_uuid.hex
+        worker_config.metadata.name = 'pod_id.' + self.static_uuid.hex
         worker_config.metadata.namespace = 'namespace'
         worker_config.spec.containers[0].env.append(
             k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value='True')
         )
         worker_config_result = self.k8s_client.sanitize_for_serialization(worker_config)
-        self.assertEqual(worker_config_result, sanitized_result)
+        assert worker_config_result == sanitized_result
+
+    @mock.patch('uuid.uuid4')
+    def test_ensure_max_label_length(self, mock_uuid):
+        mock_uuid.return_value = self.static_uuid
+        path = os.path.join(os.path.dirname(__file__), 'pod_generator_base_with_secrets.yaml')
+        worker_config = PodGenerator.deserialize_model_file(path)
+
+        result = PodGenerator.construct_pod(
+            dag_id='a' * 512,
+            task_id='a' * 512,
+            pod_id='a' * 512,
+            kube_image='a' * 512,
+            try_number=3,
+            date=self.execution_date,
+            args=['command'],
+            namespace='namespace',
+            scheduler_job_id='a' * 512,
+            pod_override_object=None,
+            base_worker_pod=worker_config,
+        )
+
+        assert result.metadata.name == 'a' * 63 + '.' + self.static_uuid.hex
+        for _, v in result.metadata.labels.items():
+            assert len(v) <= 63
 
     def test_merge_objects_empty(self):
         annotations = {'foo1': 'bar1'}
         base_obj = k8s.V1ObjectMeta(annotations=annotations)
         client_obj = None
         res = merge_objects(base_obj, client_obj)
-        self.assertEqual(base_obj, res)
+        assert base_obj == res
 
         client_obj = k8s.V1ObjectMeta()
         res = merge_objects(base_obj, client_obj)
-        self.assertEqual(base_obj, res)
+        assert base_obj == res
 
         client_obj = k8s.V1ObjectMeta(annotations=annotations)
         base_obj = None
         res = merge_objects(base_obj, client_obj)
-        self.assertEqual(client_obj, res)
+        assert client_obj == res
 
         base_obj = k8s.V1ObjectMeta()
         res = merge_objects(base_obj, client_obj)
-        self.assertEqual(client_obj, res)
+        assert client_obj == res
 
     def test_merge_objects(self):
         base_annotations = {'foo1': 'bar1'}
@@ -513,7 +528,7 @@ class TestPodGenerator(unittest.TestCase):
         client_obj = k8s.V1ObjectMeta(annotations=client_annotations)
         res = merge_objects(base_obj, client_obj)
         client_obj.labels = base_labels
-        self.assertEqual(client_obj, res)
+        assert client_obj == res
 
     def test_extend_object_field_empty(self):
         ports = [k8s.V1ContainerPort(container_port=1, name='port')]
@@ -521,21 +536,21 @@ class TestPodGenerator(unittest.TestCase):
         client_obj = k8s.V1Container(name='client_container')
         res = extend_object_field(base_obj, client_obj, 'ports')
         client_obj.ports = ports
-        self.assertEqual(client_obj, res)
+        assert client_obj == res
 
         base_obj = k8s.V1Container(name='base_container')
         client_obj = k8s.V1Container(name='base_container', ports=ports)
         res = extend_object_field(base_obj, client_obj, 'ports')
-        self.assertEqual(client_obj, res)
+        assert client_obj == res
 
     def test_extend_object_field_not_list(self):
         base_obj = k8s.V1Container(name='base_container', image='image')
         client_obj = k8s.V1Container(name='client_container')
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             extend_object_field(base_obj, client_obj, 'image')
         base_obj = k8s.V1Container(name='base_container')
         client_obj = k8s.V1Container(name='client_container', image='image')
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             extend_object_field(base_obj, client_obj, 'image')
 
     def test_extend_object_field(self):
@@ -545,21 +560,21 @@ class TestPodGenerator(unittest.TestCase):
         client_obj = k8s.V1Container(name='client_container', ports=client_ports)
         res = extend_object_field(base_obj, client_obj, 'ports')
         client_obj.ports = base_ports + client_ports
-        self.assertEqual(client_obj, res)
+        assert client_obj == res
 
     def test_reconcile_containers_empty(self):
         base_objs = [k8s.V1Container(name='base_container')]
         client_objs = []
         res = PodGenerator.reconcile_containers(base_objs, client_objs)
-        self.assertEqual(base_objs, res)
+        assert base_objs == res
 
         client_objs = [k8s.V1Container(name='client_container')]
         base_objs = []
         res = PodGenerator.reconcile_containers(base_objs, client_objs)
-        self.assertEqual(client_objs, res)
+        assert client_objs == res
 
         res = PodGenerator.reconcile_containers([], [])
-        self.assertEqual(res, [])
+        assert res == []
 
     def test_reconcile_containers(self):
         base_ports = [k8s.V1ContainerPort(container_port=1, name='base_port')]
@@ -574,7 +589,7 @@ class TestPodGenerator(unittest.TestCase):
         ]
         res = PodGenerator.reconcile_containers(base_objs, client_objs)
         client_objs[0].ports = base_ports + client_ports
-        self.assertEqual(client_objs, res)
+        assert client_objs == res
 
         base_ports = [k8s.V1ContainerPort(container_port=1, name='base_port')]
         base_objs = [
@@ -589,18 +604,18 @@ class TestPodGenerator(unittest.TestCase):
         res = PodGenerator.reconcile_containers(base_objs, client_objs)
         client_objs[0].ports = base_ports + client_ports
         client_objs[1].image = 'base_image'
-        self.assertEqual(client_objs, res)
+        assert client_objs == res
 
     def test_reconcile_specs_empty(self):
         base_spec = k8s.V1PodSpec(containers=[])
         client_spec = None
         res = PodGenerator.reconcile_specs(base_spec, client_spec)
-        self.assertEqual(base_spec, res)
+        assert base_spec == res
 
         base_spec = None
         client_spec = k8s.V1PodSpec(containers=[])
         res = PodGenerator.reconcile_specs(base_spec, client_spec)
-        self.assertEqual(client_spec, res)
+        assert client_spec == res
 
     def test_reconcile_specs(self):
         base_objs = [k8s.V1Container(name='base_container1', image='base_image')]
@@ -610,13 +625,33 @@ class TestPodGenerator(unittest.TestCase):
         res = PodGenerator.reconcile_specs(base_spec, client_spec)
         client_spec.containers = [k8s.V1Container(name='client_container1', image='base_image')]
         client_spec.active_deadline_seconds = 100
-        self.assertEqual(client_spec, res)
+        assert client_spec == res
 
     def test_deserialize_model_file(self):
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'
         result = PodGenerator.deserialize_model_file(path)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
-        self.assertEqual(sanitized_res, self.deserialize_result)
+        assert sanitized_res == self.deserialize_result
+
+    @parameterized.expand(
+        (
+            ("max_label_length", "a" * 63),
+            ("max_subdomain_length", "a" * 253),
+            (
+                "tiny",
+                "aaa",
+            ),
+        )
+    )
+    def test_pod_name_confirm_to_max_length(self, _, pod_id):
+        name = PodGenerator.make_unique_pod_id(pod_id)
+        assert len(name) <= 253
+        parts = name.split(".")
+        if len(pod_id) <= 63:
+            assert len(parts[0]) == len(pod_id)
+        else:
+            assert len(parts[0]) <= 63
+        assert len(parts[1]) <= 63
 
     def test_deserialize_model_string(self):
         fixture = """
@@ -639,12 +674,12 @@ spec:
         """
         result = PodGenerator.deserialize_model_file(fixture)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
-        self.assertEqual(sanitized_res, self.deserialize_result)
+        assert sanitized_res == self.deserialize_result
 
     def test_validate_pod_generator(self):
-        with self.assertRaises(AirflowConfigException):
+        with pytest.raises(AirflowConfigException):
             PodGenerator(pod=k8s.V1Pod(), pod_template_file='k')
-        with self.assertRaises(AirflowConfigException):
+        with pytest.raises(AirflowConfigException):
             PodGenerator()
         PodGenerator(pod_template_file='tests/kubernetes/pod.yaml')
         PodGenerator(pod=k8s.V1Pod())

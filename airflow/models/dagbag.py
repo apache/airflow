@@ -20,7 +20,6 @@ import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
-import logging
 import os
 import sys
 import textwrap
@@ -30,7 +29,6 @@ import zipfile
 from datetime import datetime, timedelta
 from typing import Dict, List, NamedTuple, Optional
 
-import tenacity
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -44,6 +42,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
 from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
@@ -79,6 +78,10 @@ class DagBag(LoggingMixin):
     :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
         If ``False`` DAGs are read from python files.
     :type read_dags_from_db: bool
+    :param load_op_links: Should the extra operator link be loaded via plugins when
+        de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
+        are not loaded to not run User code in Scheduler.
+    :type load_op_links: bool
     """
 
     DAGBAG_IMPORT_TIMEOUT = conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
@@ -92,6 +95,7 @@ class DagBag(LoggingMixin):
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
         read_dags_from_db: bool = False,
         store_serialized_dags: Optional[bool] = None,
+        load_op_links: bool = True,
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
@@ -128,6 +132,9 @@ class DagBag(LoggingMixin):
             include_smart_sensor=include_smart_sensor,
             safe_mode=safe_mode,
         )
+        # Should the extra operator link be loaded via plugins?
+        # This flag is set to False in Scheduler so that Extra Operator links are not loaded
+        self.load_op_links = load_op_links
 
     def size(self) -> int:
         """:return: the amount of dags contained in this dagbag"""
@@ -184,7 +191,7 @@ class DagBag(LoggingMixin):
                     dag_id=dag_id,
                     session=session,
                 )
-                if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
+                if sd_last_updated_datetime and sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
                     self._add_dag_from_db(dag_id=dag_id, session=session)
 
             return self.dags.get(dag_id)
@@ -226,6 +233,7 @@ class DagBag(LoggingMixin):
         if not row:
             raise SerializedDagNotFound(f"DAG '{dag_id}' not found in serialized_dag table")
 
+        row.load_op_links = self.load_op_links
         dag = row.dag
         for subdag in dag.subdags:
             self.dags[subdag.dag_id] = subdag
@@ -322,7 +330,7 @@ class DagBag(LoggingMixin):
             if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
                 # todo: create ignore list
                 # Don't want to spam user with skip messages
-                if not self.has_logged or True:
+                if not self.has_logged:
                     self.has_logged = True
                     self.log.info(
                         "File %s:%s assumed to contain no DAGs. Skipping.", filepath, zip_info.filename
@@ -438,7 +446,6 @@ class DagBag(LoggingMixin):
             return
 
         self.log.info("Filling up the DagBag from %s", dag_folder)
-        start_dttm = timezone.utcnow()
         dag_folder = dag_folder or self.dag_folder
         # Used to store stats around DagBag processing
         stats = []
@@ -467,39 +474,27 @@ class DagBag(LoggingMixin):
             except Exception as e:  # pylint: disable=broad-except
                 self.log.exception(e)
 
-        end_dttm = timezone.utcnow()
-        durations = (end_dttm - start_dttm).total_seconds()
-        Stats.gauge('collect_dags', durations, 1)
-        Stats.gauge('dagbag_size', len(self.dags), 1)
-        Stats.gauge('dagbag_import_errors', len(self.import_errors), 1)
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
-        for file_stat in self.dagbag_stats:
-            # file_stat.file similar format: /subdir/dag_name.py
-            # TODO: Remove for Airflow 2.0
-            filename = file_stat.file.split('/')[-1].replace('.py', '')
-            Stats.timing(f'dag.loading-duration.{filename}', file_stat.duration)
 
     def collect_dags_from_db(self):
         """Collects DAGs from database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        start_dttm = timezone.utcnow()
-        self.log.info("Filling up the DagBag from database")
+        with Stats.timer('collect_db_dags'):
+            self.log.info("Filling up the DagBag from database")
 
-        # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
-        # from the table by the scheduler job.
-        self.dags = SerializedDagModel.read_all_dags()
+            # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
+            # from the table by the scheduler job.
+            self.dags = SerializedDagModel.read_all_dags()
 
-        # Adds subdags.
-        # DAG post-processing steps such as self.bag_dag and croniter are not needed as
-        # they are done by scheduler before serialization.
-        subdags = {}
-        for dag in self.dags.values():
-            for subdag in dag.subdags:
-                subdags[subdag.dag_id] = subdag
-        self.dags.update(subdags)
-
-        Stats.timing('collect_db_dags', timezone.utcnow() - start_dttm)
+            # Adds subdags.
+            # DAG post-processing steps such as self.bag_dag and croniter are not needed as
+            # they are done by scheduler before serialization.
+            subdags = {}
+            for dag in self.dags.values():
+                for subdag in dag.subdags:
+                    subdags[subdag.dag_id] = subdag
+            self.dags.update(subdags)
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""
@@ -530,29 +525,48 @@ class DagBag(LoggingMixin):
         from airflow.models.dag import DAG
         from airflow.models.serialized_dag import SerializedDagModel
 
+        def _serialize_dag_capturing_errors(dag, session):
+            """
+            Try to serialize the dag to the DB, but make a note of any errors.
+
+            We can't place them directly in import_errors, as this may be retried, and work the next time
+            """
+            if dag.is_subdag:
+                return []
+            try:
+                # We cant use bulk_write_to_db as we want to capture each error individually
+                SerializedDagModel.write_dag(
+                    dag,
+                    min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                    session=session,
+                )
+                return []
+            except OperationalError:
+                raise
+            except Exception:  # pylint: disable=broad-except
+                return [(dag.fileloc, traceback.format_exc(limit=-self.dagbag_import_error_traceback_depth))]
+
         # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
         # of any Operational Errors
         # In case of failures, provide_session handles rollback
-        for attempt in tenacity.Retrying(
-            retry=tenacity.retry_if_exception_type(exception_types=OperationalError),
-            wait=tenacity.wait_random_exponential(multiplier=0.5, max=5),
-            stop=tenacity.stop_after_attempt(settings.MAX_DB_RETRIES),
-            before_sleep=tenacity.before_sleep_log(self.log, logging.DEBUG),
-            reraise=True,
-        ):
+        for attempt in run_with_db_retries(logger=self.log):
             with attempt:
+                serialize_errors = []
                 self.log.debug(
                     "Running dagbag.sync_to_db with retries. Try %d of %d",
                     attempt.retry_state.attempt_number,
-                    settings.MAX_DB_RETRIES,
+                    MAX_DB_RETRIES,
                 )
                 self.log.debug("Calling the DAG.bulk_sync_to_db method")
                 try:
-                    DAG.bulk_write_to_db(self.dags.values(), session=session)
+                    # Write Serialized DAGs to DB, capturing errors
+                    for dag in self.dags.values():
+                        serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
 
-                    # Write Serialized DAGs to DB
-                    self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
-                    SerializedDagModel.bulk_sync_to_db(self.dags.values(), session=session)
+                    DAG.bulk_write_to_db(self.dags.values(), session=session)
                 except OperationalError:
                     session.rollback()
                     raise
+                # Only now we are "complete" do we update import_errors - don't want to record errors from
+                # previous failed attempts
+                self.import_errors.update(dict(serialize_errors))

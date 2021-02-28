@@ -31,7 +31,7 @@ PYMSSQL_CONN = Connection(host='ip', schema='share', login='username', password=
 class TestMsSqlHook(unittest.TestCase):
     @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
     @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn')
-    @mock.patch('airflow.hooks.dbapi_hook.DbApiHook.get_connection')
+    @mock.patch('airflow.hooks.dbapi.DbApiHook.get_connection')
     def test_get_conn_should_return_connection(self, get_connection, mssql_get_conn):
         get_connection.return_value = PYMSSQL_CONN
         mssql_get_conn.return_value = mock.Mock()
@@ -39,12 +39,12 @@ class TestMsSqlHook(unittest.TestCase):
         hook = MsSqlHook()
         conn = hook.get_conn()
 
-        self.assertEqual(mssql_get_conn.return_value, conn)
+        assert mssql_get_conn.return_value == conn
         mssql_get_conn.assert_called_once()
 
     @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
     @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn')
-    @mock.patch('airflow.hooks.dbapi_hook.DbApiHook.get_connection')
+    @mock.patch('airflow.hooks.dbapi.DbApiHook.get_connection')
     def test_set_autocommit_should_invoke_autocommit(self, get_connection, mssql_get_conn):
         get_connection.return_value = PYMSSQL_CONN
         mssql_get_conn.return_value = mock.Mock()
@@ -59,7 +59,7 @@ class TestMsSqlHook(unittest.TestCase):
 
     @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
     @mock.patch('airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn')
-    @mock.patch('airflow.hooks.dbapi_hook.DbApiHook.get_connection')
+    @mock.patch('airflow.hooks.dbapi.DbApiHook.get_connection')
     def test_get_autocommit_should_return_autocommit_state(self, get_connection, mssql_get_conn):
         get_connection.return_value = PYMSSQL_CONN
         mssql_get_conn.return_value = mock.Mock()
@@ -69,4 +69,4 @@ class TestMsSqlHook(unittest.TestCase):
         conn = hook.get_conn()
 
         mssql_get_conn.assert_called_once()
-        self.assertEqual(hook.get_autocommit(conn), 'autocommit_state')
+        assert hook.get_autocommit(conn) == 'autocommit_state'

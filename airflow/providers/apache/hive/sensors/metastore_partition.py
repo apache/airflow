@@ -17,7 +17,7 @@
 # under the License.
 from typing import Any, Dict
 
-from airflow.sensors.sql_sensor import SqlSensor
+from airflow.sensors.sql import SqlSensor
 from airflow.utils.decorators import apply_defaults
 
 

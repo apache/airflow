@@ -23,7 +23,7 @@ from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class SqoopHook(BaseHook):
@@ -52,9 +52,14 @@ class SqoopHook(BaseHook):
     :type properties: dict
     """
 
+    conn_name_attr = 'conn_id'
+    default_conn_name = 'sqoop_default'
+    conn_type = 'sqoop'
+    hook_name = 'Sqoop'
+
     def __init__(
         self,
-        conn_id: str = 'sqoop_default',
+        conn_id: str = default_conn_name,
         verbose: bool = False,
         num_mappers: Optional[int] = None,
         hcatalog_database: Optional[str] = None,

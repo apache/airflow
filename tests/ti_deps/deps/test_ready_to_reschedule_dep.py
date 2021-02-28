@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# pylint: disable=no-value-for-parameter
 
 import unittest
 from datetime import timedelta
@@ -49,17 +50,17 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
     def test_should_pass_if_ignore_in_reschedule_period_is_set(self):
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         dep_context = DepContext(ignore_in_reschedule_period=True)
-        self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti, dep_context=dep_context))
+        assert ReadyToRescheduleDep().is_met(ti=ti, dep_context=dep_context)
 
     def test_should_pass_if_not_in_none_state(self):
         ti = self._get_task_instance(State.UP_FOR_RETRY)
-        self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
+        assert ReadyToRescheduleDep().is_met(ti=ti)
 
     @patch('airflow.models.taskreschedule.TaskReschedule.query_for_task_instance')
     def test_should_pass_if_no_reschedule_record_exists(self, mock_query_for_task_instance):
         mock_query_for_task_instance.return_value.with_entities.return_value.first.return_value = []
         ti = self._get_task_instance(State.NONE)
-        self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
+        assert ReadyToRescheduleDep().is_met(ti=ti)
 
     @patch('airflow.models.taskreschedule.TaskReschedule.query_for_task_instance')
     def test_should_pass_after_reschedule_date_one(self, mock_query_for_task_instance):
@@ -67,7 +68,7 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
             self._get_task_reschedule(utcnow() - timedelta(minutes=1))
         )
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
-        self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
+        assert ReadyToRescheduleDep().is_met(ti=ti)
 
     @patch('airflow.models.taskreschedule.TaskReschedule.query_for_task_instance')
     def test_should_pass_after_reschedule_date_multiple(self, mock_query_for_task_instance):
@@ -77,7 +78,7 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
             self._get_task_reschedule(utcnow() - timedelta(minutes=1)),
         ][-1]
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
-        self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
+        assert ReadyToRescheduleDep().is_met(ti=ti)
 
     @patch('airflow.models.taskreschedule.TaskReschedule.query_for_task_instance')
     def test_should_fail_before_reschedule_date_one(self, mock_query_for_task_instance):
@@ -86,7 +87,7 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
         )
 
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
-        self.assertFalse(ReadyToRescheduleDep().is_met(ti=ti))
+        assert not ReadyToRescheduleDep().is_met(ti=ti)
 
     @patch('airflow.models.taskreschedule.TaskReschedule.query_for_task_instance')
     def test_should_fail_before_reschedule_date_multiple(self, mock_query_for_task_instance):
@@ -96,4 +97,4 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
             self._get_task_reschedule(utcnow() + timedelta(minutes=1)),
         ][-1]
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
-        self.assertFalse(ReadyToRescheduleDep().is_met(ti=ti))
+        assert not ReadyToRescheduleDep().is_met(ti=ti)
