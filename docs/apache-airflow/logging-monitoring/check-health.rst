@@ -89,3 +89,30 @@ CLI Check for Database
 
 To verify that the database is working correctly, you can use the ``airflow db check`` command. On failure, the command will exit
 with a non-zero error code.
+
+HTTP monitoring for Celery Cluster
+----------------------------------
+
+You can use Flower to monitor the health of the Celery cluster. It also provides an HTTP API that you can use to build a health check for your environment.
+
+For details about installation, see: :ref:`executor:CeleryExecutor`. For details about usage, see: `The Flower project documentation <https://flower.readthedocs.io/en/stable/>`__.
+
+CLI Check for Celery Workers
+----------------------------
+
+To verify that the database is working correctly, you can use the ``celery inspect ping`` command. On failure, the command will exit
+with a non-zero error code.
+
+To check if the worker running on the local host is working correctly, run:
+
+.. code-block:: bash
+
+    celery --app airflow.executors.celery_executor.app inspect ping -d celery@${HOSTNAME}
+
+To check if the all workers in the cluster running is working correctly, run:
+
+.. code-block:: bash
+
+    celery --app airflow.executors.celery_executor.app inspect ping
+
+For more information, see: `Management Command-line Utilities (inspect/control) <https://docs.celeryproject.org/en/stable/userguide/monitoring.html#monitoring-control>`__ and `Workers Guide<https://docs.celeryproject.org/en/stable/userguide/workers.html>`__ in the Celery documentation.
