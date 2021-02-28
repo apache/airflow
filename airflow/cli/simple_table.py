@@ -16,6 +16,7 @@
 # under the License.
 import inspect
 import json
+import sys
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import yaml
@@ -29,6 +30,11 @@ from airflow.plugins_manager import PluginsDirectorySource
 
 class AirflowConsole(Console):
     """Airflow rich console"""
+
+    def __init__(self, *args, **kwargs):
+        super(AirflowConsole, self).__init__(*args, **kwargs)
+        # Set the width to constant to pipe whole output from console
+        self._width = 200 if not sys.stdout.isatty() else self._width
 
     def print_as_json(self, data: Dict):
         """Renders dict as json text representation"""
