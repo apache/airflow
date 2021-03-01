@@ -111,7 +111,7 @@ Airflow users occasionally report instances of the scheduler hanging without a t
 * `Scheduler gets stuck without a trace <https://github.com/apache/airflow/issues/7935>`_
 * `Scheduler stopping frequently <https://github.com/apache/airflow/issues/13243>`_
 
-To mitigate these issues, make sure you have a :doc:`health check </logging-monitoring/check-health.rst>` set up that will detect when your scheduler has not heartbeat in a while.
+To mitigate these issues, make sure you have a :doc:`health check </logging-monitoring/check-health>` set up that will detect when your scheduler has not heartbeat in a while.
 
 .. _docker_image:
 
