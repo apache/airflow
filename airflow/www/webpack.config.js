@@ -51,7 +51,7 @@ const config = {
     switch: `${STATIC_DIR}/css/switch.css`,
     taskInstances: `${STATIC_DIR}/js/task_instances.js`,
     taskInstance: `${STATIC_DIR}/js/task_instance.js`,
-    tree: `${STATIC_DIR}/css/tree.css`,
+    tree: [`${STATIC_DIR}/css/tree.css`, `${STATIC_DIR}/js/tree.js`],
     circles: `${STATIC_DIR}/js/circles.js`,
     durationChart: `${STATIC_DIR}/js/duration_chart.js`,
     trigger: `${STATIC_DIR}/js/trigger.js`,
