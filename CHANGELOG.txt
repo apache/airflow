@@ -209,7 +209,7 @@ Bug Fixes
 - Fix Entrypoint and _CMD config variables (#12411)
 - Fix operator field update for SerializedBaseOperator (#10924)
 - Limited cryptography to < 3.2 for python 2.7
-- Install cattr on python .7 - Fix docs build on RTD (#12045)
+- Install cattr on python 3.7 - Fix docs build on RTD (#12045)
 - Limit version of marshmallow-sqlalchemy
 - Pin `kubernetes` to a max version of 11.0.0 (#11974)
 - Use snakebite-py3 for HDFS dependency for Python3 (#12340)
@@ -485,7 +485,7 @@ Improvements
 - Avoid unnecessary sleep to maintain local task job heart rate (#6553)
 - Include some missing RBAC roles on User and Viewer roles (#9133)
 - Show Dag's Markdown docs on Tree View (#9448)
-- Improved compatibility with python .5+ - Convert signal.SIGTERM to int (#9207)
+- Improved compatibility with python 3.5+ - Convert signal.SIGTERM to int (#9207)
 - Add 'main' param to template_fields in DataprocSubmitPySparkJobOperator (#9154)
 - Make it possible to silence warnings from Airflow (#9208)
 - Remove redundant count query in BaseOperator.clear() (#9362)
@@ -1904,7 +1904,7 @@ Bug fixes
 - [AIRFLOW-3885] ~10x speed-up of SchedulerJobTest suite (#4730)
 - [AIRFLOW-3780] Fix some incorrect when base_url is used (#4643)
 - [AIRFLOW-3807] Fix Graph View Highlighting of Tasks (#4653)
-- [AIRFLOW-3009] Import Hashable from collection.abc to fix python .7 deprecation warning (#3849)
+- [AIRFLOW-3009] Import Hashable from collection.abc to fix python 3.7 deprecation warning (#3849)
 - [AIRFLOW-2231] Fix relativedelta DAG schedule_interval (#3174)
 - [AIRFLOW-2641] Fix MySqlToHiveTransfer to handle MySQL DECIMAL correctly
 - [AIRFLOW-3751] Option to allow malformed schemas for LDAP authentication (#4574)
@@ -3410,7 +3410,7 @@ Airflow 1.9.0, 2018-01-02
 - [AIRFLOW-1337] Make log_format key names lowercase
 - [AIRFLOW-1338][AIRFLOW-782] Add GCP dataflow hook runner change to UPDATING.md
 - [AIRFLOW-801] Remove outdated docstring on BaseOperator
-- [AIRFLOW-1344] Fix text encoding bug when reading logs for python .5
+- [AIRFLOW-1344] Fix text encoding bug when reading logs for python 3.5
 - [AIRFLOW-1338] Fix incompatible GCP dataflow hook
 - [AIRFLOW-1333] Enable copy function for Google Cloud Storage Hook
 - [AIRFLOW-1337] Allow log format customization via airflow.cfg
