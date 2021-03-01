@@ -21,6 +21,7 @@ from itsdangerous import URLSafeSerializer
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
+from airflow import DAG
 from airflow.api_connexion.schemas.common_schema import ScheduleIntervalSchema, TimeDeltaSchema, TimezoneField
 from airflow.configuration import conf
 from airflow.models.dag import DagModel, DagTag
@@ -70,17 +71,10 @@ class DAGSchema(SQLAlchemySchema):
         return serializer.dumps(obj.fileloc)
 
 
-class DAGDetailSchema(Schema):
+class DAGDetailSchema(DAGSchema):
     """DAG details"""
 
-    dag_id = fields.String()
-    root_dag_id = fields.String()
-    is_paused = fields.Boolean()
-    is_subdag = fields.Boolean()
-    fileloc = fields.String()
-    file_token = fields.Method("get_token", dump_only=True)
-    description = fields.String()
-    schedule_interval = fields.Nested(ScheduleIntervalSchema)
+    owners = fields.Method("get_owners", dump_only=True)
     timezone = TimezoneField()
     catchup = fields.Boolean()
     orientation = fields.String()
@@ -90,14 +84,22 @@ class DAGDetailSchema(Schema):
     doc_md = fields.String()
     default_view = fields.String()
     params = fields.Dict()
-    owner = fields.String()
-    tags = fields.List(fields.String())
+    tags = fields.Method("get_tags", dump_only=True)
 
     @staticmethod
-    def get_token(obj: DagModel):
-        """Return file token"""
-        serializer = URLSafeSerializer(conf.get('webserver', 'secret_key'))
-        return serializer.dumps(obj.fileloc)
+    def get_tags(obj: DAG):
+        """Dumps tags as objects"""
+        tags = obj.tags
+        if tags:
+            return [DagTagSchema().dump(dict(name=tag)) for tag in tags]
+        return []
+
+    @staticmethod
+    def get_owners(obj: DAG):
+        """Convert owners attribute to DAG representation"""
+        if not getattr(obj, 'owner', None):
+            return []
+        return obj.owner.split(",")
 
 
 class DAGCollection(NamedTuple):

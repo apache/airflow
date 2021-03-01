@@ -107,7 +107,6 @@ class TestDAGDetailSchema:
             orientation="LR",
             default_view="duration",
             params={"foo": 1},
-            tags=["example1", "example2"],
         )
         schema = DAGDetailSchema()
         expected = {
@@ -123,11 +122,11 @@ class TestDAGDetailSchema:
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',
-            'owner': '',
+            'owners': [],
             'params': {'foo': 1},
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'seconds': 0, 'microseconds': 0},
             'start_date': '2020-06-19T00:00:00+00:00',
-            'tags': ["example1", "example2"],
+            'tags': [],
             'timezone': "Timezone('UTC')",
         }
         assert schema.dump(dag) == expected
