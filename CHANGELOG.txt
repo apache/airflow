@@ -435,7 +435,7 @@ Improvements
 - Persistent display/filtering of DAG status (#8106)
 - Set unique logger names (#7330)
 - Update the version of cattrs from 0.9 to 1.0 to support python 3.8 (#7100)
-- Reduce response payload size of /dag_stats and /task_statPython s (#8655)
+- Reduce response payload size of /dag_stats and /task_stats (#8655)
 - Add authenticator parameter to snowflake_hook (#8642)
 - Show "Task Reschedule" table in Airflow Webserver (#9521)
 - Change worker_refresh_interval fallback to default of 30 (#9588)
