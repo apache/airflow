@@ -28,7 +28,8 @@ const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 
 // Input Directory (airflow/www)
 // noinspection JSUnresolvedVariable
-const STATIC_DIR = path.resolve(__dirname, './static');
+const CSS_DIR = path.resolve(__dirname, './static/css');
+const JS_DIR = path.resolve(__dirname, './static/js');
 
 // Output Directory (airflow/www/static/dist)
 // noinspection JSUnresolvedVariable
@@ -36,26 +37,26 @@ const BUILD_DIR = path.resolve(__dirname, './static/dist');
 
 const config = {
   entry: {
-    airflowDefaultTheme: `${STATIC_DIR}/css/bootstrap-theme.css`,
-    connectionForm: `${STATIC_DIR}/js/connection_form.js`,
-    dags: `${STATIC_DIR}/css/dags.css`,
-    flash: `${STATIC_DIR}/css/flash.css`,
-    gantt: [`${STATIC_DIR}/css/gantt.css`, `${STATIC_DIR}/js/gantt.js`],
-    graph: `${STATIC_DIR}/css/graph.css`,
-    ie: `${STATIC_DIR}/js/ie.js`,
-    loadingDots: `${STATIC_DIR}/css/loading-dots.css`,
-    main: [`${STATIC_DIR}/css/main.css`, `${STATIC_DIR}/js/main.js`],
-    materialIcons: `${STATIC_DIR}/css/material-icons.css`,
+    airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
+    connectionForm: `${JS_DIR}/connection_form.js`,
+    dagCode: `${JS_DIR}/dag_code.js`,
+    dags: `${CSS_DIR}/dags.css`,
+    flash: `${CSS_DIR}/flash.css`,
+    gantt: [`${CSS_DIR}/gantt.css`, `${JS_DIR}/gantt.js`],
+    graph: `${CSS_DIR}/graph.css`,
+    ie: `${JS_DIR}/ie.js`,
+    loadingDots: `${CSS_DIR}/loading-dots.css`,
+    main: [`${CSS_DIR}/main.css`, `${JS_DIR}/main.js`],
+    materialIcons: `${CSS_DIR}/material-icons.css`,
     moment: 'moment-timezone',
-    switch: `${STATIC_DIR}/css/switch.css`,
-    taskInstances: `${STATIC_DIR}/js/task_instances.js`,
-    taskInstance: `${STATIC_DIR}/js/task_instance.js`,
-    tree: `${STATIC_DIR}/css/tree.css`,
-    circles: `${STATIC_DIR}/js/circles.js`,
-    durationChart: `${STATIC_DIR}/js/duration_chart.js`,
-    trigger: `${STATIC_DIR}/js/trigger.js`,
-    variableEdit: `${STATIC_DIR}/js/variable_edit.js`,
-    dagCode: `${STATIC_DIR}/js/dag_code.js`,
+    switch: `${CSS_DIR}/switch.css`,
+    taskInstances: `${JS_DIR}/task_instances.js`,
+    taskInstance: `${JS_DIR}/task_instance.js`,
+    tree: `${CSS_DIR}/tree.css`,
+    circles: `${JS_DIR}/circles.js`,
+    durationChart: `${JS_DIR}/duration_chart.js`,
+    trigger: `${JS_DIR}/trigger.js`,
+    variableEdit: `${JS_DIR}/variable_edit.js`,
   },
   output: {
     path: BUILD_DIR,
@@ -85,7 +86,7 @@ const config = {
       // Extract css files
       {
         test: /\.css$/,
-        include: STATIC_DIR,
+        include: CSS_DIR,
         use: [
           {
             loader: MiniCssExtractPlugin.loader,
