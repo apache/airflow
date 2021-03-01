@@ -63,7 +63,7 @@ issues from ``pip`` 20.3.0 release have been fixed in 20.3.3). In order to insta
 either downgrade pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
 ``--use-deprecated legacy-resolver`` to your pip install command.
 
-While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
 `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
 ``pip`` - especially when it comes to constraint vs. requirements management.
 Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install airflow
@@ -81,8 +81,8 @@ environment. For instance, if you don't need connectivity with Postgres,
 you won't have to go through the trouble of installing the ``postgres-devel``
 yum package, or whatever equivalent applies on the distribution you are using.
 
-Most of the extra dependencies are linked to a corresponding providers package. For example "amazon" extra
-has a corresponding ``apache-airflow-providers-amazon`` providers package to be installed. When you install
+Most of the extra dependencies are linked to a corresponding provider package. For example "amazon" extra
+has a corresponding ``apache-airflow-providers-amazon`` provider package to be installed. When you install
 Airflow with such extras, the necessary provider packages are installed automatically (latest versions from
 PyPI for those packages). However you can freely upgrade and install provider packages independently from
 the main Airflow installation.
@@ -96,7 +96,7 @@ Provider packages
 
 Unlike Apache Airflow 1.10, the Airflow 2.0 is delivered in multiple, separate, but connected packages.
 The core of Airflow scheduling system is delivered as ``apache-airflow`` package and there are around
-60 providers packages which can be installed separately as so called ``Airflow Provider packages``.
+60 provider packages which can be installed separately as so called ``Airflow Provider packages``.
 The default Airflow installation doesn't have many integrations and you have to install them yourself.
 
 You can even develop and install your own providers for Airflow. For more information,
@@ -164,9 +164,9 @@ In order to have repeatable installation, starting from **Airflow 1.10.10** and 
 ``constraints-master``, ``constraints-2-0`` and ``constraints-1-10`` orphan branches and then we create tag
 for each released version e.g. ``constraints-2.0.1``. This way, when we keep a tested and working set of dependencies.
 
-Those "known-to-be-working" constraints are per major/minor python version. You can use them as constraint
+Those "known-to-be-working" constraints are per major/minor Python version. You can use them as constraint
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
-and python versions in the URL.
+and Python versions in the URL.
 
 You can create the URL to the file substituting the variables in the template below.
 
