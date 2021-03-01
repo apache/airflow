@@ -35,6 +35,8 @@ test -v AIRFLOW_BRANCH
 test -v AIRFLOW_CONSTRAINTS_LOCATION
 test -v AIRFLOW_PIP_VERSION
 
+set -x
+
 function install_airflow_from_latest_master() {
     echo
     echo Installing airflow from latest master. It is used to cache dependencies

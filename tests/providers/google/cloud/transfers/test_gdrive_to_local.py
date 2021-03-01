@@ -35,13 +35,12 @@ class TestGoogleDriveToLocalOperator(TestCase):
                 file_name=FILE_NAME,
                 output_file=temp_file.name,
             )
+            meta = {"id": "123xyz"}
+            hook_mock.return_value.get_file_id.return_value = meta
+
             op.execute(context=None)
             hook_mock.assert_called_once_with(delegate_to=None, impersonation_chain=None)
 
-            hook_mock.return_value.get_file_id.assert_called_once_with(
-                folder_id=FOLDER_ID, file_name=FILE_NAME, drive_id=None
-            )
-
             hook_mock.return_value.download_file.assert_called_once_with(
-                file_id=mock.ANY, file_handle=mock.ANY
+                file_id=meta["id"], file_handle=mock.ANY
             )

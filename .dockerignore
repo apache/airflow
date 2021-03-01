@@ -52,6 +52,7 @@
 !.flake8
 !.dockerignore
 !pylintrc
+!pylintrc-tests
 !pytest.ini
 !CHANGELOG.txt
 !LICENSE

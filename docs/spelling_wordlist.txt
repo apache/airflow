@@ -9,6 +9,7 @@ AnalyzeEntitiesResponse
 AnalyzeSentimentResponse
 AnalyzeSyntaxResponse
 Anand
+Anierobi
 AnnotateTextResponse
 Ansible
 AppBuilder
@@ -128,6 +129,7 @@ EmrCreateJobFlow
 Enum
 Env
 EnvVar
+Ephraim
 ExaConnection
 Exasol
 Failover
@@ -707,6 +709,7 @@ env
 envFrom
 envvar
 eols
+ephraimbuddy
 errno
 eslint
 etl
@@ -830,7 +833,7 @@ iam
 idempotence
 idempotency
 ie
-ignoreable
+ignorable
 ignoreUnknownValues
 imageORfile
 imagePullPolicy
@@ -1060,6 +1063,7 @@ png
 podName
 podSpec
 podspec
+poller
 polyfill
 postMessage
 postfix
@@ -1280,6 +1284,7 @@ sync'ed
 sys
 syspath
 systemd
+tableau
 tableauserverclient
 tablefmt
 tableId

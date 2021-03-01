@@ -1517,3 +1517,20 @@ class TestBackfillJob(unittest.TestCase):
         job.run()
         dr: DagRun = dag.get_last_dagrun()
         assert dr.creating_job_id == job.id
+
+    def test_backfill_has_job_id(self):
+        """Make sure that backfill jobs are assigned job_ids."""
+        dag = self.dagbag.get_dag("test_start_date_scheduling")
+        dag.clear()
+
+        executor = MockExecutor(parallelism=16)
+
+        job = BackfillJob(
+            executor=executor,
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            run_backwards=True,
+        )
+        job.run()
+        assert executor.job_id is not None

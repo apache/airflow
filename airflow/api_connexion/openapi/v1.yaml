@@ -132,6 +132,7 @@ info:
     | Airflow version | Description |
     |-|-|
     | v2.0 | Initial release |
+    | v2.0.2    | Added /plugins endpoint |
 
     # Trying the API
 
@@ -1380,7 +1381,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
-
+  /plugins:
+    get:
+      summary: Get a list of loaded plugins
+      x-openapi-router-controller: airflow.api_connexion.endpoints.plugin_endpoint
+      operationId: get_plugins
+      tags: [Plugin]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
   # Reusable schemas (data models)
@@ -2064,6 +2086,81 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Task'
+    # Plugin
+    PluginCollectionItem:
+      type: object
+      description: Plugin Item
+      properties:
+        number:
+          type: string
+          description: The plugin number
+        name:
+          type: string
+          description: The name of the plugin
+        hooks:
+          type: array
+          items:
+            type: string
+            nullable: true
+          description: The plugin hooks
+        executors:
+          type: array
+          items:
+            type: string
+            nullable: true
+          description: The plugin executors
+        macros:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The plugin macros
+        flask_blueprints:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The flask blueprints
+        appbuilder_views:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The appuilder views
+        appbuilder_menu_items:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The Flask Appbuilder menu items
+        global_operator_extra_links:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The global operator extra links
+        operator_extra_links:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: Operator extra links
+        source:
+          type: string
+          description: The plugin source
+          nullable: true
+
+    PluginCollection:
+      type: object
+      description: Plugin Collection
+      allOf:
+        - type: object
+          properties:
+            plugins:
+              type: array
+              items:
+                $ref: '#/components/schemas/PluginCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     # Configuration
     ConfigOption:
@@ -2910,6 +3007,7 @@ tags:
   - name: TaskInstance
   - name: Variable
   - name: XCom
+  - name: Plugin
 
 
 externalDocs:

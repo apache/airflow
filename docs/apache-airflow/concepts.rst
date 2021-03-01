@@ -198,6 +198,9 @@ Example DAG built with the TaskFlow API
         html_content=email_info['body']
     )
 
+To retrieve current Task execution context dictionary and use it in the function check:
+:ref:`Accessing context <concepts:accessing_context>`.
+
 DAG decorator
 -------------
 
@@ -357,6 +360,8 @@ This is going to produce ``task__1``, ``task__2``, ``task__3``, ``task__4``. But
 no longer the same ``task__3`` as before. This may create confusion when analyzing history logs / DagRuns of a DAG
 that changed over time.
 
+.. _concepts:accessing_context:
+
 Accessing current context
 -------------------------
 
@@ -375,6 +380,8 @@ using ``@task`` decorator.
 
 Current context is accessible only during the task execution. The context is not accessible during
 ``pre_execute`` or ``post_execute``. Calling this method outside execution context will raise an error.
+
+The context dictionary contains the keys mentioned in the table: :doc:`macros-ref`.
 
 Task Instances
 ==============

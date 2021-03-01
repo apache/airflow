@@ -18,9 +18,19 @@
 # under the License.
 set -euo pipefail
 
+
 AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ ${BREEZE_REDIRECT=} == "" ]]; then
+    mkdir -p "${AIRFLOW_SOURCES}"/logs
+    export BREEZE_REDIRECT="true"
+    "${0}" "${@}" 2>&1 | tee "${AIRFLOW_SOURCES}"/logs/breeze.out
+    exit
+fi
+
 export AIRFLOW_SOURCES
 readonly AIRFLOW_SOURCES
+
 
 # Bash arrays need to be defined outside of functions unfortunately :(
 # Because on Mac OS Bash 3.4 defining arrays inside functions does not work
@@ -242,7 +252,7 @@ function breeze::initialize_virtualenv() {
         set +e
         # We need to export this one to speed up Cassandra driver installation in virtualenv
         CASS_DRIVER_NO_CYTHON="1" pip install -e ".[devel]" \
-            --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+            --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
         res=$?
         set -e
         popd
@@ -865,8 +875,11 @@ function breeze::parse_arguments() {
             # Reference is mutually exclusive with version
             INSTALL_AIRFLOW_REFERENCE=""
             # Skip mounting local sources when airflow is installed from remote
-            INSTALL_PROVIDERS_FROM_SOURCES="false"
-            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION} and skip mounting sources"
+            if [[ ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]*$ ]]; then
+                echo "Install providers from PyPI"
+                INSTALL_PROVIDERS_FROM_SOURCES="false"
+            fi
+            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION}"
             echo
             shift 2
             ;;
@@ -1213,7 +1226,13 @@ function breeze::parse_arguments() {
             ;;
         --installation-method)
             export AIRFLOW_INSTALLATION_METHOD="${2}"
-            echo "Airflow installation method: ${PACKAGE_FORMAT}"
+            echo "Airflow installation method: ${AIRFLOW_INSTALLATION_METHOD}"
+            echo
+            shift 2
+            ;;
+        --generate-constraints-mode)
+            export GENERATE_CONSTRAINTS_MODE="${2}"
+            echo "Generate constraints mode: ${GENERATE_CONSTRAINTS_MODE}"
             echo
             shift 2
             ;;
@@ -1222,6 +1241,12 @@ function breeze::parse_arguments() {
             echo "Selected test type: ${TEST_TYPE}"
             echo
             shift 2
+            ;;
+        --dry-run-docker)
+            export DRY_RUN_DOCKER="true"
+            echo "Dry run mode"
+            echo
+            shift
             ;;
         --)
             shift
@@ -1289,6 +1314,7 @@ function breeze::parse_arguments() {
             command_to_run="perform_generate_constraints"
             export FORCE_ANSWER_TO_QUESTIONS="yes"
             export FORCE_BUILD_IMAGES="true"
+            export SKIP_CHECK_REMOTE_IMAGE="true"
             export UPGRADE_TO_NEWER_DEPENDENCIES="true"
             shift
             ;;
@@ -1526,6 +1552,10 @@ function breeze::prepare_formatted_versions() {
     FORMATTED_INSTALLATION_METHOD=$(echo "${_breeze_allowed_installation_methods=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_INSTALLATION_METHOD
+
+    FORMATTED_GENERATE_CONSTRAINTS_MODE=$(echo "${_breeze_allowed_generate_constraints_modes=""}" |
+        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_GENERATE_CONSTRAINTS_MODE
 
     FORMATTED_GITHUB_REGISTRY=$(echo "${_breeze_allowed_github_registrys=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
@@ -1780,15 +1810,19 @@ $(breeze::flag_verbosity)
     export DETAILED_USAGE_GENERATE_CONSTRAINTS="
 ${CMDNAME} generate-constraints [FLAGS]
 
-      Generates pinned constraint files from setup.py. Those files are generated in files folder
-      - separate files for different python version. Those constraint files when pushed to orphan
-      constraints-master, constraints-2-0 and constraints-1-10 branches are used to generate
-      repeatable CI builds as well as run repeatable production image builds. You can use those
+      Generates pinned constraint files with all extras from setup.py. Those files are generated in
+      files folder - separate files for different python version. Those constraint files when
+      pushed to orphan constraints-master, constraints-2-0 and constraints-1-10 branches are used
+      to generate repeatable CI builds as well as run repeatable production image builds and
+      upgrades when you want to include installing or updating some of the released providers
+      released at the time particular airflow version was released. You can use those
       constraints to predictably install released Airflow versions. This is mainly used to test
-      the constraint generation - constraints are pushed to the orphan branches by a
-      successful scheduled CRON job in CI automatically.
+      the constraint generation or manually fix them - constraints are pushed to the orphan
+      branches by a successful scheduled CRON job in CI automatically, but sometimes manual fix
+      might be needed.
 
 Flags:
+$(breeze::flag_generate_constraints)
 $(breeze::flag_airflow_variants)
 $(breeze::flag_verbosity)
 "
@@ -2351,8 +2385,13 @@ function breeze::flag_local_file_mounting() {
 function breeze::flag_choose_different_airflow_version() {
     echo "
 -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
-        If specified, installs Airflow directly from PIP released version. This happens at
-        image building time in production image and at container entering time for CI image. One of:
+        In CI image, installs Airflow (in entrypoint) from PIP released version or using
+        the installation method specified (sdist, wheel, none).
+
+        In PROD image the installation of selected method or version happens during image building.
+        For PROD image, the 'none' options is not valid.
+
+        One of:
 
 ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
@@ -2367,8 +2406,9 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
         This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
 --installation-method INSTALLATION_METHOD
-        Method of installing airflow - either from the sources ('.') or from package
-        'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+        Method of installing airflow for production image - either from the sources ('.')
+        or from package 'apache-airflow' to install from PyPI.
+        Default in Breeze is to install from sources. One of:
 
 ${FORMATTED_INSTALLATION_METHOD}
 
@@ -2388,6 +2428,31 @@ ${FORMATTED_INSTALLATION_METHOD}
 
 "
 }
+
+#######################################################################################################
+#
+# Prints flags that allow to choose variants of constraint generation
+#
+# Global constants used:
+#       GENERATE_CONSTRAINTS_MODES
+#
+# Outputs:
+#    Flag information.
+#######################################################################################################
+function breeze::flag_generate_constraints() {
+    echo "
+--generate-constraints-mode GENERATE_CONSTRAINTS_MODE
+        Mode of generating constraints - determines whether providers are installed when generating
+        constraints and which version of them (either the ones from sources are used or the ones
+        from pypi.
+
+        One of:
+
+${FORMATTED_GENERATE_CONSTRAINTS_MODE}
+
+"
+}
+
 
 #######################################################################################################
 #
@@ -2467,6 +2532,11 @@ function breeze::flag_verbosity() {
 
         Note that you can further increase verbosity and see all the commands executed by breeze
         by running 'export VERBOSE_COMMANDS=\"true\"' before running breeze.
+
+--dry-run-docker
+        Only show docker commands to execute instead of actually executing them. The docker
+        commands are printed in yellow color.
+
 "
 }
 
@@ -3136,11 +3206,19 @@ function breeze::make_sure_precommit_is_installed() {
 #
 #######################################################################################################
 function breeze::remove_images() {
-    set +e
-    docker rmi "${PYTHON_BASE_IMAGE}"  2>/dev/null >/dev/null
-    docker rmi "${AIRFLOW_CI_IMAGE}"   2>/dev/null >/dev/null
-    docker rmi "${AIRFLOW_PROD_IMAGE}" 2>/dev/null >/dev/null
-    set -e
+    # shellcheck disable=SC2086
+    docker rmi --force ${PYTHON_BASE_IMAGE} \
+                       ${GITHUB_REGISTRY_PYTHON_BASE_IMAGE} \
+                       ${AIRFLOW_PYTHON_BASE_IMAGE} \
+                       ${AIRFLOW_CI_IMAGE} \
+                       ${DEFAULT_CI_IMAGE} \
+                       ${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE} \
+                       ${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE} \
+                       ${AIRFLOW_PROD_IMAGE} \
+                       ${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE} \
+                       ${AIRFLOW_PROD_BUILD_IMAGE} \
+                       ${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE} \
+        2>/dev/null >/dev/null && true
     echo
     echo "###################################################################"
     echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
@@ -3295,6 +3373,20 @@ function breeze::run_build_command() {
     esac
 }
 
+# executes command
+function breeze::run_command() {
+    "${@}"
+}
+
+
+# print command instead of executing
+function breeze::print_command() {
+    echo
+    echo "${COLOR_YELLOW}" "${@}" "${COLOR_RESET}"
+    echo
+}
+
+
 #######################################################################################################
 #
 # Runs the actual command - depending on the command chosen it will use the right
@@ -3316,6 +3408,10 @@ function breeze::run_build_command() {
 function breeze::run_breeze_command() {
     set +u
     local dc_run_file
+    local run_command="breeze::run_command"
+    if [[ ${DRY_RUN_DOCKER} != "false" ]]; then
+        run_command="breeze::print_command"
+    fi
     if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
         dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}"
     else
@@ -3324,10 +3420,10 @@ function breeze::run_breeze_command() {
     case "${command_to_run}" in
     enter_breeze)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            "${dc_run_file}" run --service-ports --rm airflow "${@}"
-            "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
+            ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
+            ${run_command} "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
         else
-            "${dc_run_file}" run --service-ports --rm airflow "${@}"
+            ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
         fi
         ;;
     run_exec)
@@ -3344,16 +3440,11 @@ function breeze::run_breeze_command() {
     run_tests)
         export RUN_TESTS="true"
         readonly RUN_TESTS
-        "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" run --service-ports --rm airflow "$@"
+        ${run_command} "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" run --service-ports --rm airflow "$@"
         ;;
     run_docker_compose)
         set +u
-        if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}"
-        else
-            dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}"
-        fi
-        "${dc_run_file}" "${docker_compose_command}" "${EXTRA_DC_OPTIONS[@]}" "$@"
+        ${run_command} "${dc_run_file}" "${docker_compose_command}" "${EXTRA_DC_OPTIONS[@]}" "$@"
         set -u
         ;;
     perform_static_checks)
@@ -3461,6 +3552,8 @@ function breeze::determine_python_version_to_use_in_breeze() {
 breeze::setup_default_breeze_constants
 
 initialization::initialize_common_environment
+
+initialization::get_environment_for_builds_on_ci
 
 breeze::determine_python_version_to_use_in_breeze
 

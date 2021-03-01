@@ -1372,6 +1372,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
             return redirect(origin)
 
+        executor.job_id = "manual"
         executor.start()
         executor.queue_task_instance(
             ti,
@@ -3302,7 +3303,7 @@ class DagRunModelView(AirflowModelView):
         'external_trigger',
         'conf',
     ]
-    edit_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'conf']
+    edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
 
     base_order = ('execution_date', 'desc')
 
@@ -3648,8 +3649,9 @@ class TaskInstanceModelView(AirflowModelView):
             flash(f"{len(task_instances)} task instances have been cleared")
             self.update_redirect()
             return redirect(self.get_redirect())
-        except Exception:  # noqa pylint: disable=broad-except
-            flash('Failed to clear task instances', 'error')
+        except Exception as e:  # noqa pylint: disable=broad-except
+            flash(f'Failed to clear task instances: "{e}"', 'error')
+            return None
 
     @provide_session
     def set_task_instance_state(self, tis, target_state, session=None):

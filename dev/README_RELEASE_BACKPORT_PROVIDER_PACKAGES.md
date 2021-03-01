@@ -538,7 +538,7 @@ N "+1" binding votes received:
 
 N "+1" non-binding votes received:
 
-- COMMITER (non-binding)
+- COMMITTER (non-binding)
 
 Vote thread:
 https://lists.apache.org/thread.html/<TODO:REPLACE_ME_WITH_THE_VOTING_THREAD>@%3Cdev.airflow.apache.org%3E

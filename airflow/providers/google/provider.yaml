@@ -712,12 +712,12 @@ transfers:
     python-module: airflow.providers.google.ads.transfers.ads_to_gcs
 
 hook-class-names:
+  - airflow.providers.google.common.hooks.base_google.GoogleBaseHook
   - airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
   - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook
   - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook
   - airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook
   - airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
-  - airflow.providers.google.common.hooks.base_google.GoogleBaseHook
 
 extra-links:
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
