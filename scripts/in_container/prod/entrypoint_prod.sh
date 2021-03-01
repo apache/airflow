@@ -239,7 +239,9 @@ readonly CONNECTION_CHECK_SLEEP_TIME
 
 create_system_user_if_missing
 set_pythonpath_for_root_user
-wait_for_airflow_db
+if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
+    wait_for_airflow_db
+fi
 
 if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] ; then
     upgrade_db
@@ -265,7 +267,8 @@ if [[ ${AIRFLOW_COMMAND} == "airflow" ]]; then
 fi
 
 # Note: the broker backend configuration concerns only a subset of Airflow components
-if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery|worker|flower)$ ]]; then
+if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery|worker|flower)$ ]] \
+    && [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
     wait_for_celery_backend "${@}"
 fi
 

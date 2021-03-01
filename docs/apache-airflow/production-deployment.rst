@@ -807,6 +807,7 @@ available. This happens always when you use the default entrypoint.
 The script detects backend type depending on the URL schema and assigns default port numbers if not specified
 in the URL. Then it loops until the connection to the host/port specified can be established
 It tries ``CONNECTION_CHECK_MAX_COUNT`` times and sleeps ``CONNECTION_CHECK_SLEEP_TIME`` between checks
+To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 
 Supported schemes:
 
@@ -891,7 +892,8 @@ commands are used the entrypoint will wait until the celery broker DB connection
 
 The script detects backend type depending on the URL schema and assigns default port numbers if not specified
 in the URL. Then it loops until connection to the host/port specified can be established
-It tries ``CONNECTION_CHECK_MAX_COUNT`` times and sleeps ``CONNECTION_CHECK_SLEEP_TIME`` between checks
+It tries ``CONNECTION_CHECK_MAX_COUNT`` times and sleeps ``CONNECTION_CHECK_SLEEP_TIME`` between checks.
+To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 
 Supported schemes:
 
