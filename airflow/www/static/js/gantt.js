@@ -132,9 +132,9 @@ d3.gantt = () => {
 
   // We can't use d3.time.format as that uses local time, so instead we use
   // moment as that handles our "global" timezone.
-  const tickFormater = (d) => moment(d).strftime(tickFormat);
+  const tickFormatter = (d) => moment(d).strftime(tickFormat);
 
-  let xAxis = d3.svg.axis().scale(x).orient('bottom').tickFormat(tickFormater)
+  let xAxis = d3.svg.axis().scale(x).orient('bottom').tickFormat(tickFormatter)
     .tickSubdivide(true)
     .tickSize(8)
     .tickPadding(8);
@@ -174,7 +174,7 @@ d3.gantt = () => {
       .ordinal()
       .domain(taskTypes)
       .rangeRoundBands([0, height - margin.top - margin.bottom], 0.1);
-    xAxis = d3.svg.axis().scale(x).orient('bottom').tickFormat(tickFormater)
+    xAxis = d3.svg.axis().scale(x).orient('bottom').tickFormat(tickFormatter)
       .tickSubdivide(true)
       .tickSize(8)
       .tickPadding(8);
