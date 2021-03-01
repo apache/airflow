@@ -1399,13 +1399,13 @@ components:
       type: object
       description: Collection of connections.
       allOf:
-       - type: object
-         properties:
-           connections:
-            type: array
-            items:
-              $ref: '#/components/schemas/ConnectionCollectionItem'
-       - $ref: '#/components/schemas/CollectionInfo'
+        - type: object
+          properties:
+            connections:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConnectionCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     Connection:
       description: Full representation of the connection.
