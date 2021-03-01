@@ -1729,4 +1729,11 @@ TRANSFERS = [
     ),
 ]
 
-ALL = OPERATORS + HOOKS + SECRETS + SENSORS + TRANSFERS
+UTILS = [
+    (
+        'airflow.providers.sendgrid.utils.emailer.send_email',
+        'airflow.contrib.utils.sendgrid.send_email'
+    )
+]
+
+ALL = OPERATORS + HOOKS + SECRETS + SENSORS + TRANSFERS + UTILS
