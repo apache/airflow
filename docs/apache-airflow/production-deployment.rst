@@ -111,11 +111,7 @@ Airflow users occasionally report instances of the scheduler hanging without a t
 * `Scheduler gets stuck without a trace <https://github.com/apache/airflow/issues/7935>`_
 * `Scheduler stopping frequently <https://github.com/apache/airflow/issues/13243>`_
 
-Strategies for mitigation:
-
-* When running on kubernetes, use a ``livenessProbe`` on the scheduler deployment to fail if the scheduler
-  has not heartbeat in a while.
-  `Example: <https://github.com/apache/airflow/blob/190066cf201e5b0442bbbd6df74efecae523ee76/chart/templates/scheduler/scheduler-deployment.yaml#L118-L136>`_.
+To mitigate these issues, make sure you have a :doc:`health check </logging-monitoring/check-health>` set up that will detect when your scheduler has not heartbeat in a while.
 
 .. _docker_image:
 
