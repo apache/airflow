@@ -901,7 +901,7 @@ Scheduled build flow
 Adding new Python versions to CI
 --------------------------------
 
-In 2.0 line we currently support Python 3.6, 3.7, 3.8.
+In 2.0 line we currently support python 3.6, 3.7, 3.8.
 
 In order to add a new version the following operations should be done (example uses python 3.9)
 
@@ -927,7 +927,7 @@ In order to add a new version the following operations should be done (example u
   ./breeze push-image --python 3.9 --github-registry docker.pkg.github.com
 
 * Find the 3 new images (main, ci, build) created in
-  `GitHub Container registry<https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_
+  `GitHub Container registry <https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_
   go to Package Settings and turn on ``Public Visibility`` and add ``airflow-committers``
   group as ``Admin Role`` to all of them.
 

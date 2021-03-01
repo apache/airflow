@@ -50,8 +50,8 @@ where:
 
 We also store (to increase speed of local build/pulls) python images that were used to build
 the CI images. Each CI image, when built uses current python version of the base images. Those
-python images are regularly updated (with bugfixes/security fixes), so for example python3.8 from
-last week might be a different image than python3.8 today. Therefore whenever we push CI image
+python images are regularly updated (with bugfixes/security fixes), so for example python 3.8 from
+last week might be a different image than python 3.8 today. Therefore whenever we push CI image
 to airflow repository, we also push the python image that was used to build it this image is stored
 as ``apache/airflow:python<PYTHON_MAJOR_MINOR_VERSION>-<BRANCH_OR_TAG>``.
 

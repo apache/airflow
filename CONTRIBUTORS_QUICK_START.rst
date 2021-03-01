@@ -386,7 +386,8 @@ Using Breeze
              alt="Accessing local airflow">
       </div>
 
-3. Setup mysql database in mysql workbench   with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
+3. Setup mysql database in 
+MySQL Workbench   with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
    blank(leave empty), default schema ``airflow``.
 
    .. raw:: html
@@ -482,10 +483,10 @@ Setting up Debug
 
 1. Configuring Airflow database connection
 
-- Airflow is by default configured to use sqlite database. Configuration can be seen on local machine
+- Airflow is by default configured to use SQLite database. Configuration can be seen on local machine
   ``~/airflow/airflow.cfg`` under ``sql_alchemy_conn``.
 
-- Installing required dependency for MySql connection in ``airflow-env`` on local machine.
+- Installing required dependency for MySQL connection in ``airflow-env`` on local machine.
 
   .. code-block:: bash
 
@@ -641,7 +642,7 @@ All Tests are inside ./tests directory.
       API          Core         Helm         MySQL        Postgres     WWW
 
 
-  - Running specific type of Test
+  - Running specific type of test
 
   .. code-block:: bash
 
@@ -784,16 +785,16 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
     No-tabs checker......................................................Passed
     Add license for all SQL files........................................Passed
     Add license for all other files......................................Passed
-    Add license for all rst files........................................Passed
+    Add license for all RST files........................................Passed
     Add license for all JS/CSS/PUML files................................Passed
     Add license for all JINJA template files.............................Passed
     Add license for all shell files......................................Passed
-    Add license for all python files.....................................Passed
+    Add license for all Python files.....................................Passed
     Add license for all XML files........................................Passed
-    Add license for all yaml files.......................................Passed
-    Add license for all md files.........................................Passed
-    Add license for all mermaid files....................................Passed
-    Add TOC for md files.................................................Passed
+    Add license for all YAML files.......................................Passed
+    Add license for all MD files.........................................Passed
+    Add license for all Mermaid files....................................Passed
+    Add TOC for MD files.................................................Passed
     Add TOC for upgrade documentation....................................Passed
     Check hooks apply to the repository..................................Passed
     black................................................................Passed

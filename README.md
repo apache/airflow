@@ -98,7 +98,7 @@ As of Airflow 2.0 we agreed to certain rules we follow for Python support. They 
 release schedule of Python, nicely summarized in the
 [Python Developer's Guide](https://devguide.python.org/#status-of-python-branches)
 
-1. We finish support for python versions when they reach EOL (For python 3.6 it means that we will remove it
+1. We finish support for Python versions when they reach EOL (For python 3.6 it means that we will remove it
    from being supported on 23.12.2021).
 
 2. The "oldest" supported version of Python is the default one. "Default" is only meaningful in terms of
@@ -110,7 +110,7 @@ release schedule of Python, nicely summarized in the
 
 ### Additional notes on Python version requirements
 
-* Previous version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3
+* Previous version [requires](https://github.com/apache/airflow/issues/8162) at least python 3.5.3
   when using Python 3
 
 ## Getting started
