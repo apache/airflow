@@ -110,7 +110,7 @@ apipkg==1.5
 apispec==3.3.2
 appdirs==1.4.4
 argcomplete==1.12.2
-arrow==1.0.1
+arrow==1.0.2
 asn1crypto==1.4.0
 astroid==2.5
 async-generator==1.10
@@ -137,7 +137,7 @@ azure-mgmt-datafactory==1.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
-azure-mgmt-resource==15.0.0
+azure-mgmt-resource==16.0.0
 azure-nspkg==3.0.2
 azure-storage-blob==12.7.1
 azure-storage-common==2.1.0
@@ -180,7 +180,7 @@ curlify==2.2.1
 cx-Oracle==8.1.0
 dask==2021.2.0
 dataclasses==0.7
-datadog==0.40.0
+datadog==0.40.1
 decorator==4.4.2
 defusedxml==0.6.0
 dill==0.3.3
@@ -357,6 +357,7 @@ pinotdb==0.3.3
 pipdeptree==2.0.0
 pluggy==0.13.1
 ply==3.11
+plyvel==1.3.0
 portalocker==1.7.1
 pre-commit==2.10.1
 presto-python-client==0.7.0
@@ -499,7 +500,7 @@ websocket-client==0.57.0
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.26.0
-yandexcloud==0.74.0
+yandexcloud==0.75.0
 yarl==1.6.3
 zdesk==2.7.1
 zict==2.0.0
