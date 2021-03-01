@@ -122,6 +122,7 @@ Dynamodb
 EDITMSG
 ETag
 Eg
+Elad
 EmrAddSteps
 EmrCreateJobFlow
 Enum
@@ -206,6 +207,7 @@ Json
 Jupyter
 KYLIN
 Kalibrr
+Kalif
 Kamil
 Kaxil
 Kengo
@@ -341,6 +343,7 @@ Sqlite
 Sqoop
 Stackdriver
 Standarization
+Standish
 StatsD
 Statsd
 StoredInfoType
@@ -367,6 +370,7 @@ Terraform
 TextToSpeechClient
 Tez
 Thinknear
+Timmins
 ToC
 Tomasz
 Tooltip
@@ -688,6 +692,7 @@ dropdown
 druidHook
 ds
 dsn
+dstandish
 dttm
 dtypes
 durations
@@ -699,6 +704,7 @@ ec
 ecb
 editorconfig
 eg
+eladkal
 elasticsearch
 emr
 enableAutoScale
@@ -879,6 +885,7 @@ jdbc
 jdk
 jenkins
 jghoman
+jhtimmins
 jinja
 jira
 jitter
