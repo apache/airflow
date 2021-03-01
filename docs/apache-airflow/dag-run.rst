@@ -187,7 +187,7 @@ Note that DAG Runs can also be created manually through the CLI. Just run the
 
 .. code-block:: bash
 
-    airflow dags trigger --exec-date execution_date run_id
+    airflow dags trigger --exec_date execution_date run_id
 
 The DAG Runs created externally to the scheduler get associated with the trigger’s timestamp and are displayed
 in the UI alongside scheduled DAG runs. The execution date passed inside the DAG can be specified using the ``-e`` argument.
