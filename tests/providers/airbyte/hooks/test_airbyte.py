@@ -20,39 +20,34 @@ import unittest
 from unittest import mock
 
 import pytest
-import requests
 import requests_mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.airbyte.hooks.airbyte import AirbyteHook, AirbyteJobController
-from airflow.version import version
-
-AIRFLOW_VERSION = "v" + version.replace(".", "-").replace("+", "-")
-AIRBYTE_STRING = "airflow.providers.airbyte.hooks.{}"
-
-AIRBYTE_CONN_ID = 'test'
-CONNECTION_ID = {"connectionId": "test"}
-JOB_ID = 1
-
-
-def get_airbyte_connection(unused_conn_id=None):
-    return Connection(conn_id='test', conn_type='http', host='test:8001/')
-
-
-def mock_init(*args, **kwargs):
-    pass
+from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
+from airflow.utils import db
 
 
 class TestAirbyteHook(unittest.TestCase):
-    """Test get, post and raise_for_status"""
+    """
+    Test all functions from Airbyte Hook
+    """
+
+    airbyte_conn_id = 'airbyte_conn_id_test'
+    connection_id = 'conn_test_sync'
+    job_id = 1
+    sync_connection_endpoint = 'http://test-airbyte:8001/api/v1/connections/sync'
+    get_job_endpoint = 'http://test-airbyte:8001/api/v1/jobs/get'
+    _mock_sync_conn_success_response_body = {'job': {'id': 1}}
+    _mock_job_status_success_response_body = {'job': {'status': 'succeeded'}}
 
     def setUp(self):
-        session = requests.Session()
-        adapter = requests_mock.Adapter()
-        session.mount('mock', adapter)
-        get_airbyte_connection()
-        self.hook = AirbyteHook(airbyte_conn_id=AIRBYTE_CONN_ID)
+        db.merge_conn(
+            Connection(
+                conn_id='airbyte_conn_id_test', conn_type='http', host='http://test-airbyte', port=8001
+            )
+        )
+        self.hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
 
     def return_value_get_job(self, status):
         response = mock.Mock()
@@ -60,52 +55,47 @@ class TestAirbyteHook(unittest.TestCase):
         return response
 
     @requests_mock.mock()
-    def test_submit_job(self, m):
+    def test_submit_sync_connection(self, m):
         m.post(
-            'http://test:8001/api/v1/connections/sync', status_code=200, text='{"job":{"id": 1}}', reason='OK'
+            self.sync_connection_endpoint, status_code=200, json=self._mock_sync_conn_success_response_body
         )
-        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airbyte_connection):
-            resp = self.hook.submit_sync_connection(connection_id=CONNECTION_ID)
-            assert resp.text == '{"job":{"id": 1}}'
+        resp = self.hook.submit_sync_connection(connection_id=self.connection_id)
+        assert resp.status_code == 200
+        assert resp.json() == self._mock_sync_conn_success_response_body
 
     @requests_mock.mock()
-    def test_get_job(self, m):
-        m.post(
-            'http://test:8001/api/v1/jobs/get',
-            status_code=200,
-            text='{"job":{"status": "succeeded"}}',
-            reason='OK',
-        )
-        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airbyte_connection):
-            resp = self.hook.get_job(job_id=JOB_ID)
-            assert resp.text == '{"job":{"status": "succeeded"}}'
+    def test_get_job_status(self, m):
+        m.post(self.get_job_endpoint, status_code=200, json=self._mock_job_status_success_response_body)
+        resp = self.hook.get_job(job_id=self.job_id)
+        assert resp.status_code == 200
+        assert resp.json() == self._mock_job_status_success_response_body
 
-    @mock.patch('plugin.hook.AirbyteHook.get_job')
+    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job(self, mock_get_job):
-        mock_get_job.side_effect = [self.return_value_get_job(AirbyteJobController.SUCCEEDED)]
-        self.hook.wait_for_job(job_id=JOB_ID, wait_time=0)
-        mock_get_job.assert_called_once_with(job_id=JOB_ID)
+        mock_get_job.side_effect = [self.return_value_get_job(self.hook.SUCCEEDED)]
+        self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
+        mock_get_job.assert_called_once_with(job_id=self.job_id)
 
-    @mock.patch('plugin.hook.AirbyteHook.get_job')
+    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job_error(self, mock_get_job):
         mock_get_job.side_effect = [
-            self.return_value_get_job(AirbyteJobController.RUNNING),
-            self.return_value_get_job(AirbyteJobController.ERROR),
+            self.return_value_get_job(self.hook.RUNNING),
+            self.return_value_get_job(self.hook.ERROR),
         ]
         with pytest.raises(AirflowException):
-            self.hook.wait_for_job(job_id=JOB_ID, wait_time=0)
+            self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
 
-        calls = [mock.call(job_id=JOB_ID), mock.call(job_id=JOB_ID)]
+        calls = [mock.call(job_id=self.job_id), mock.call(job_id=self.job_id)]
         assert mock_get_job.has_calls(calls)
 
-    @mock.patch('plugin.hook.AirbyteHook.get_job')
+    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job_timeout(self, mock_get_job):
         mock_get_job.side_effect = [
-            self.return_value_get_job(AirbyteJobController.RUNNING),
-            self.return_value_get_job(AirbyteJobController.RUNNING),
+            self.return_value_get_job(self.hook.RUNNING),
+            self.return_value_get_job(self.hook.RUNNING),
         ]
         with pytest.raises(AirflowException):
-            self.hook.wait_for_job(job_id=JOB_ID, wait_time=2, timeout=1)
+            self.hook.wait_for_job(job_id=self.job_id, wait_seconds=2, timeout=1)
 
-        calls = [mock.call(job_id=JOB_ID), mock.call(job_id=JOB_ID)]
+        calls = [mock.call(job_id=self.job_id), mock.call(job_id=self.job_id)]
         assert mock_get_job.has_calls(calls)

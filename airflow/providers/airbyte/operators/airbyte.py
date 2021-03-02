@@ -27,11 +27,19 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     This operator allows you to submit a job to an Airbyte server to run a integration
     process between your source and destination.
 
-    :param airbyte_conn_id: Required. The name of the Airbyte connection to use
-    :type airbyte_conn_id: str
-    :param connection_id: Required. The Airbyte ConnectionId UUID between a source and destination
-    :type connection_id: str
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AirbyteTriggerSyncOperator`
 
+    :param airbyte_conn_id: Required. The name of the Airflow connection to get connection
+     information for Airbyte.
+    :type airbyte_conn_id: str
+    :param connection_id: Required. The Airbyte ConnectionId UUID between a source and destination.
+    :type connection_id: str
+    :param asynchronous: Optional. Flag to get job_id after submitting the job to the Airbyte API.
+    :type asynchronous: bool
+    :param api_version: Optional. Airbyte API version.
+    :type api_version: str
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
     :type timeout: float
     """
@@ -39,10 +47,10 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        airbyte_conn_id: str,
         connection_id: str,
-        asynchronous: bool = False,
-        api_version: str = "v1",
+        airbyte_conn_id: str = "default_airbyte_conn",
+        asynchronous: Optional[bool] = False,
+        api_version: Optional[str] = "v1",
         timeout: Optional[float] = 3600,
         **kwargs,
     ) -> None:
@@ -58,6 +66,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job_object = hook.submit_sync_connection(connection_id=self.connection_id)
         job_id = job_object.json().get('job').get('id')
+        self.log.info("Job %s was submitted to Airbyte Server", job_id)
         if not self.asynchronous:
             self.log.info('Waiting for job %s to complete', job_id)
             hook.wait_for_job(job_id=job_id, timeout=self.timeout)

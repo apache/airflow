@@ -25,28 +25,26 @@ from airflow.utils.decorators import apply_defaults
 
 class AirbyteJobSensor(BaseSensorOperator):
     """
-    Check for the state of a previously submitted Dataproc job.
+    Check for the state of a previously submitted Airbyte job.
 
-    :param project_id: The ID of the google cloud project in which
-        to create the cluster. (templated)
-    :type project_id: str
-    :param dataproc_job_id: The Dataproc job ID to poll. (templated)
-    :type dataproc_job_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request. (templated)
-    :type location: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-    :type gcp_conn_id: str
+    :param airbyte_conn_id: Required. The name of the Airflow connection to get
+    connection information for Airbyte.
+    :type airbyte_conn_id: str
+    :param connection_id: Required. The Airbyte ConnectionId UUID between a source and destination.
+    :type connection_id: str
+    :param api_version: Optional. Airbyte API version.
+    :type api_version: str
     """
 
     template_fields = 'airbyte_job_id'
-    ui_color = '#f0eee4'
+    ui_color = '#6C51FD'
 
     @apply_defaults
     def __init__(
         self,
         *,
         airbyte_job_id: str,
-        airbyte_conn_id: str = 'airbyte_conn_id',
+        airbyte_conn_id: str = 'default_airbyte_conn',
         api_version: str = "v1",
         **kwargs,
     ) -> None:
