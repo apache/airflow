@@ -8,6 +8,7 @@ Flask-Caching==1.3.3
 Flask-JWT-Extended==3.25.0
 Flask-Login==0.4.1
 Flask-OpenID==1.2.5
+Flask-OAuthlib==0.9.5
 Flask-SQLAlchemy==2.4.4
 Flask-WTF==0.14.3
 Flask==1.1.2
@@ -95,7 +96,7 @@ colorlog==4.0.2
 configparser==3.5.3
 coverage==5.3
 croniter==0.3.36
-cryptography==3.2.1
+cryptography==3.3.2
 cx-Oracle==8.0.1
 dataclasses==0.8
 datadog==0.39.0
@@ -217,7 +218,7 @@ nodeenv==1.5.0
 nteract-scrapbook==0.4.1
 ntlm-auth==1.5.0
 numpy==1.19.4
-oauthlib==3.1.0
+oauthlib==2.1.0
 oscrypto==1.2.1
 packaging==20.7
 pandas-gbq==0.14.1
@@ -287,7 +288,7 @@ requests-futures==0.9.4
 requests-kerberos==0.12.0
 requests-mock==1.8.0
 requests-ntlm==1.1.0
-requests-oauthlib==1.3.0
+requests-oauthlib==1.1.0
 requests-toolbelt==0.9.1
 requests==2.23.0
 responses==0.12.1
