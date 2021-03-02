@@ -23,6 +23,7 @@ from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
+from tabulate import tabulate
 
 from airflow.plugins_manager import PluginsDirectorySource
 
@@ -56,6 +57,15 @@ class AirflowConsole(Console):
             table.add_row(*[str(d) for d in row.values()])
         self.print(table)
 
+    def print_as_plain_table(self, data: List[Dict]):
+        """Renders list of dictionaries as a simple table than can be easily piped"""
+        if not data:
+            self.print("No data found")
+            return
+        rows = [d.values() for d in data]
+        output = tabulate(rows, tablefmt="plain", headers=data[0].keys())
+        print(output)
+
     # pylint: disable=too-many-return-statements
     def _normalize_data(self, value: Any, output: str) -> Optional[Union[list, str, dict]]:
         if isinstance(value, (tuple, list)):
@@ -76,6 +86,7 @@ class AirflowConsole(Console):
             "json": self.print_as_json,
             "yaml": self.print_as_yaml,
             "table": self.print_as_table,
+            "plain": self.print_as_plain_table,
         }
         renderer = output_to_renderer.get(output)
         if not renderer:

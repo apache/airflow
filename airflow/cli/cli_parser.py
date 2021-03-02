@@ -178,9 +178,9 @@ ARG_OUTPUT = Arg(
         "-o",
         "--output",
     ),
-    help="Output format. Allowed values: json, yaml, table (default: table)",
-    metavar="(table, json, yaml)",
-    choices=("table", "json", "yaml"),
+    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
     default="table",
 )
 ARG_COLOR = Arg(

@@ -928,6 +928,7 @@ licence
 licences
 lifecycle
 lineterminator
+linux
 livy
 localExecutor
 localexecutor
