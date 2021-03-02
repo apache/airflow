@@ -25,10 +25,16 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from airflow.plugins_manager import PluginsDirectorySource
+from airflow.utils.platform import is_tty
 
 
 class AirflowConsole(Console):
     """Airflow rich console"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the width to constant to pipe whole output from console
+        self._width = 200 if not is_tty() else self._width
 
     def print_as_json(self, data: Dict):
         """Renders dict as json text representation"""

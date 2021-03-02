@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Refactor SQL/BigQuery/Qubole/Druid Check operators (#12677)``
+
 1.0.1
 .....
 

@@ -34,7 +34,7 @@ from google.cloud.bigquery import TableReference
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
+from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.utils.decorators import apply_defaults
@@ -87,7 +87,18 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
 
 
-class BigQueryCheckOperator(CheckOperator):
+class _BigQueryDbHookMixin:
+    def get_db_hook(self) -> BigQueryHook:
+        """Get BigQuery DB Hook"""
+        return BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            use_legacy_sql=self.use_legacy_sql,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+
+class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     """
     Performs checks against BigQuery. The ``BigQueryCheckOperator`` expects
     a sql query that will return a single row. Each value on that
@@ -174,16 +185,8 @@ class BigQueryCheckOperator(CheckOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
 
-    def get_db_hook(self) -> BigQueryHook:
-        return BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            use_legacy_sql=self.use_legacy_sql,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
-        )
 
-
-class BigQueryValueCheckOperator(ValueCheckOperator):
+class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
     """
     Performs a simple value check using sql code.
 
@@ -249,16 +252,8 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
         self.use_legacy_sql = use_legacy_sql
         self.impersonation_chain = impersonation_chain
 
-    def get_db_hook(self) -> BigQueryHook:
-        return BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            use_legacy_sql=self.use_legacy_sql,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
-        )
 
-
-class BigQueryIntervalCheckOperator(IntervalCheckOperator):
+class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperator):
     """
     Checks that the values of metrics given as SQL expressions are within
     a certain tolerance of the ones from days_back before.
@@ -343,14 +338,6 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
         self.use_legacy_sql = use_legacy_sql
         self.location = location
         self.impersonation_chain = impersonation_chain
-
-    def get_db_hook(self) -> BigQueryHook:
-        return BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            use_legacy_sql=self.use_legacy_sql,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
-        )
 
 
 class BigQueryGetDataOperator(BaseOperator):

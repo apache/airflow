@@ -22,7 +22,7 @@
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
 [![GitHub Build](https://github.com/apache/airflow/workflows/CI%20Build/badge.svg)](https://github.com/apache/airflow/actions)
 [![Coverage Status](https://img.shields.io/codecov/c/github/apache/airflow/master.svg)](https://codecov.io/github/apache/airflow?branch=master)
-[![License](http://img.shields.io/:license-Apache%202-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
+[![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
 [![Docker Stars](https://img.shields.io/docker/stars/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
@@ -178,14 +178,14 @@ For information on installing backport providers check [backport-providers.rst](
 
 ## Official source code
 
-Apache Airflow is an [Apache Software Foundation](http://www.apache.org) (ASF) project,
+Apache Airflow is an [Apache Software Foundation](https://www.apache.org) (ASF) project,
 and our official source code releases:
 
-- Follow the [ASF Release Policy](http://www.apache.org/legal/release-policy.html)
+- Follow the [ASF Release Policy](https://www.apache.org/legal/release-policy.html)
 - Can be downloaded from [the ASF Distribution Directory](https://downloads.apache.org/airflow)
 - Are cryptographically signed by the release manager
 - Are officially voted on by the PMC members during the
-  [Release Approval Process](http://www.apache.org/legal/release-policy.html#release-approval)
+  [Release Approval Process](https://www.apache.org/legal/release-policy.html#release-approval)
 
 Following the ASF rules, the source packages released must be sufficient for a user to build and test the
 release provided they have access to the appropriate platform and tools.

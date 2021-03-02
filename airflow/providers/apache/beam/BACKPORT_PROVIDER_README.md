@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-apache-beam
 
-Release: 2021.2.5
+Release: 2021.3.3
 
 **Table of contents**
 
@@ -34,6 +34,7 @@ Release: 2021.2.5
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
+    - [Release 2021.3.3](#release-202133)
     - [Release 2021.2.5](#release-202125)
 
 ## Backport package
@@ -46,6 +47,13 @@ are in `airflow.providers.apache.beam` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
+
+## Release 2021.3.3
+
+### Bug fixes
+
+* `Improve Apache Beam operators - refactor operator - common Dataflow logic (#14094)`
+* `Corrections in docs and tools after releasing provider RCs (#14082)`
 
 
 ## Installation
@@ -106,6 +114,14 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 ## Releases
+
+### Release 2021.3.3
+
+| Commit                                                                                         | Committed   | Subject                                                                              |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------|
+| [8a731f536](https://github.com/apache/airflow/commit/8a731f536cc946cc62c20921187354b828df931e) | 2021-02-05  | `Improve Apache Beam operators - refactor operator - common Dataflow logic (#14094)` |
+| [10343ec29](https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda) | 2021-02-05  | `Corrections in docs and tools after releasing provider RCs (#14082)`                |
+
 
 ### Release 2021.2.5
 

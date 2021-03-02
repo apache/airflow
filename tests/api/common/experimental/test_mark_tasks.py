@@ -592,7 +592,7 @@ class TestMarkDAGRun(unittest.TestCase):
 
         will_be_altered = set_dag_run_state_to_failed(self.dag1, date, commit=False)
 
-        # Only the running task shouldbe altered.
+        # Only the running task should be altered.
         expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
         assert len(will_be_altered) == expected
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)

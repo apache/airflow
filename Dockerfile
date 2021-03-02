@@ -190,7 +190,7 @@ ENV AIRFLOW_INSTALL_USER_FLAG="--user"
 ENV AIRFLOW_INSTALL_EDITABLE_FLAG=""
 
 # Upgrade to specific PIP version
-RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
 # builds in case setup.py/setup.cfg changed. This is pure optimisation of CI/Breeze builds.
@@ -256,7 +256,7 @@ ENV AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 ARG AIRFLOW_VERSION_SPECIFICATION=""
 ENV AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION}
 
-# We can seet this value to true in case we want to install .whl .tar.gz packages placed in the
+# We can set this value to true in case we want to install .whl .tar.gz packages placed in the
 # docker-context-files folder. This can be done for both - additional packages you want to install
 # and for airflow as well (you have to set INSTALL_FROM_PYPI to false in this case)
 ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
@@ -471,7 +471,7 @@ COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoi
 COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 RUN chmod a+x /entrypoint /clean-logs
 
-RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248

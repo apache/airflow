@@ -21,11 +21,18 @@ from unittest.mock import Mock, patch
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.salesforce.operators.tableau_refresh_workbook import TableauRefreshWorkbookOperator
+from airflow.providers.tableau.operators.tableau_refresh_workbook import TableauRefreshWorkbookOperator
 
 
 class TestTableauRefreshWorkbookOperator(unittest.TestCase):
+    """
+    Test class for TableauRefreshWorkbookOperator
+    """
+
     def setUp(self):
+        """
+        setup
+        """
         self.mocked_workbooks = []
         for i in range(3):
             mock_workbook = Mock()
@@ -34,8 +41,11 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
             self.mocked_workbooks.append(mock_workbook)
         self.kwargs = {'site_id': 'test_site', 'task_id': 'task', 'dag': None}
 
-    @patch('airflow.providers.salesforce.operators.tableau_refresh_workbook.TableauHook')
+    @patch('airflow.providers.tableau.operators.tableau_refresh_workbook.TableauHook')
     def test_execute(self, mock_tableau_hook):
+        """
+        Test Execute
+        """
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         operator = TableauRefreshWorkbookOperator(blocking=False, workbook_name='wb_2', **self.kwargs)
@@ -45,9 +55,12 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
         mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
 
-    @patch('airflow.providers.salesforce.sensors.tableau_job_status.TableauJobStatusSensor')
-    @patch('airflow.providers.salesforce.operators.tableau_refresh_workbook.TableauHook')
+    @patch('airflow.providers.tableau.sensors.tableau_job_status.TableauJobStatusSensor')
+    @patch('airflow.providers.tableau.operators.tableau_refresh_workbook.TableauHook')
     def test_execute_blocking(self, mock_tableau_hook, mock_tableau_job_status_sensor):
+        """
+        Test execute blocking
+        """
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         operator = TableauRefreshWorkbookOperator(workbook_name='wb_2', **self.kwargs)
@@ -64,8 +77,11 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
             dag=None,
         )
 
-    @patch('airflow.providers.salesforce.operators.tableau_refresh_workbook.TableauHook')
+    @patch('airflow.providers.tableau.operators.tableau_refresh_workbook.TableauHook')
     def test_execute_missing_workbook(self, mock_tableau_hook):
+        """
+        Test execute missing workbook
+        """
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         operator = TableauRefreshWorkbookOperator(workbook_name='test', **self.kwargs)

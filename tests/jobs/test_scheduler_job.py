@@ -2359,7 +2359,7 @@ class TestSchedulerJob(unittest.TestCase):
             dag.run(start_date=dr.execution_date, end_date=dr.execution_date, executor=self.null_exec)
 
         # Mark the successful task as never having run since we want to see if the
-        # dagrun will be in a running state despite haveing an unfinished task.
+        # dagrun will be in a running state despite having an unfinished task.
         with create_session() as session:
             ti = dr.get_task_instance('test_dagrun_unfinished', session=session)
             ti.state = State.NONE

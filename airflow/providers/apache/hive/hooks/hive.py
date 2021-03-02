@@ -457,7 +457,7 @@ class HiveCliHook(BaseHook):
 
     def kill(self) -> None:
         """Kill Hive cli command"""
-        if hasattr(self, 'sp'):
+        if hasattr(self, 'sub_process'):
             if self.sub_process.poll() is None:
                 print("Killing the Hive job")
                 self.sub_process.terminate()

@@ -273,7 +273,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(50), nullable=False)
-    pool_slots = Column(Integer, default=1)
+    pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
@@ -823,7 +823,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         """
         self.log.debug("previous_start_date was called")
         prev_ti = self.get_previous_ti(state=state, session=session)
-        return prev_ti and pendulum.instance(prev_ti.start_date)
+        # prev_ti may not exist and prev_ti.start_date may be None.
+        return prev_ti and prev_ti.start_date and pendulum.instance(prev_ti.start_date)
 
     @property
     def previous_start_date_success(self) -> Optional[pendulum.DateTime]:
@@ -1476,7 +1477,10 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             test_mode = self.test_mode
 
         if error:
-            self.log.exception(error)
+            if isinstance(error, Exception):
+                self.log.exception("Task failed with exception")
+            else:
+                self.log.error("%s", error)
             # external monitoring process provides pickle file so _run_raw_task
             # can send its runtime errors for access by failure callback
             if error_file:

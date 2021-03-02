@@ -150,8 +150,8 @@ class AirflowDocsBuilder:
                 )
                 warning_text = ""
                 for filepath in glob(f"{tmp_dir}/**/*.spelling", recursive=True):
-                    with open(filepath) as speeling_file:
-                        warning_text += speeling_file.read()
+                    with open(filepath) as spelling_file:
+                        warning_text += spelling_file.read()
 
                 spelling_errors.extend(parse_spelling_warnings(warning_text, self._src_dir))
         return spelling_errors

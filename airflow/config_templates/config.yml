@@ -471,14 +471,18 @@
       default: "False"
     - name: logging_level
       description: |
-        Logging level
+        Logging level.
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
       version_added: ~
       type: string
       example: ~
       default: "INFO"
     - name: fab_logging_level
       description: |
-        Logging level for Flask-appbuilder UI
+        Logging level for Flask-appbuilder UI.
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
       version_added: ~
       type: string
       example: ~

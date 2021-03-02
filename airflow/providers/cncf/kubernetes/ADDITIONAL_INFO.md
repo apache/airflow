@@ -17,6 +17,13 @@
  under the License.
  -->
 
+## Release 2021.3.3
+
+### Bug fixes
+
+* Allow pod name override in KubernetesPodOperator if pod_template is used. (#14186)
+* Allow users of the KPO to *actually* template environment variables (#14083)
+
 ## Release 2021.2.5
 
   * `Pass image_pull_policy in KubernetesPodOperator correctly (#13289)`

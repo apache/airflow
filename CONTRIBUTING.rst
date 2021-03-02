@@ -258,7 +258,7 @@ Step 4: Prepare PR
 
    For example, to address this example issue, do the following:
 
-   * Read about `email configuration in Airflow </docs/howto/email-config.rst>`__.
+   * Read about `email configuration in Airflow </docs/apache-airflow/howto/email-config.rst>`__.
 
    * Find the class you should modify. For the example GitHub issue,
      this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
@@ -667,6 +667,7 @@ microsoft.mssql            odbc
 mysql                      amazon,presto,vertica
 opsgenie                   http
 postgres                   amazon
+salesforce                 tableau
 sftp                       ssh
 slack                      http
 snowflake                  slack
@@ -982,7 +983,7 @@ If this function is designed to be called by "end-users" (i.e. DAG authors) then
       ...
       # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
 
-Don't use time() for duration calcuations
+Don't use time() for duration calculations
 -----------------------------------------
 
 If you wish to compute the time difference between two events with in the same process, use

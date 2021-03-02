@@ -101,18 +101,18 @@ We can use either of the two available GitHub Container registries as cache:
 Those two images have different naming schemas. See `Images documentation <IMAGES.rst>`_ for details.
 
 You can choose which registry should be used by the repository by setting ``OVERRIDE_GITHUB_REGISTRY`` secret
-to either ``docker.pkg.github.com`` for Github Package Registry or ``ghcr.io`` for GitHub Container Registry.
-Default is the Github Package Registry one. The Pull Request forks have no access to the secret but they
+to either ``docker.pkg.github.com`` for GitHub Package Registry or ``ghcr.io`` for GitHub Container Registry.
+Default is the GitHub Package Registry one. The Pull Request forks have no access to the secret but they
 auto-detect the registry used when they wait for the images.
 
-You can interact with the Github Registry images (pull/push) via `Breeze <BREEZE.rst>`_  - you can
-pass ``--github-registry`` flag wih  either ``docker.pkg.github.com`` for Github Package Registry or
+You can interact with the GitHub Registry images (pull/push) via `Breeze <BREEZE.rst>`_  - you can
+pass ``--github-registry`` flag wih  either ``docker.pkg.github.com`` for GitHub Package Registry or
 ``ghcr.io`` for GitHub Container Registry and pull/push operations will be performed using the chosen
 registry, using appropriate naming convention. This allows building and pushing the images locally by
 committers who have access to push/pull those images.
 
 
-Github Container Registry Token
+GitHub Container Registry Token
 -------------------------------
 
 Unlike GitHub Packages, GitHub Registry requires a personal access token added as ``PAT_CR`` secret in order
@@ -430,7 +430,7 @@ DockerHub registry or change the GitHub registry to interact with and use your o
 ``GITHUB_REPOSITORY`` and providing your own GitHub Username and Token.
 
 Currently we are using GitHub Packages to cache images for the build. GitHub Packages are "legacy"
-storage of binary artifacts for GitHub and as of September 2020 they introduced Github Container Registry
+storage of binary artifacts for GitHub and as of September 2020 they introduced GitHub Container Registry
 as more stable, easier to manage replacement for container storage. It includes complete self-management
 of the images including permission management, public access, retention management and many more.
 
@@ -438,9 +438,9 @@ More about it here:
 
 https://github.blog/2020-09-01-introducing-github-container-registry/
 
-Recently we started to experience unstable behaviour of the Github Packages ('unknown blob'
+Recently we started to experience unstable behaviour of the GitHub Packages ('unknown blob'
 and manifest v1 vs. v2 when pushing images to it). So together with ASF we proposed to
-enable Github Container Registry and it happened as of January 2020.
+enable GitHub Container Registry and it happened as of January 2020.
 
 More about it in https://issues.apache.org/jira/browse/INFRA-20959
 
@@ -486,10 +486,10 @@ the model of permission management is not the same for Container Registry as it 
 |                                |                           | default, can be commit SHA or RUN_ID.        |
 +--------------------------------+---------------------------+----------------------------------------------+
 
-Authentication in Github Registry
+Authentication in GitHub Registry
 =================================
 
-We are currently in the process of testing using Github Container Registry as cache for our images during
+We are currently in the process of testing using GitHub Container Registry as cache for our images during
 the CI process. The default registry is set to "GitHub Packages", but we are testing the GitHub
 Container Registry. In case of GitHub Packages, authentication uses GITHUB_TOKEN mechanism. Authentication
 is needed for both pushing the images (WRITE) and pulling them (READ) - which means that GitHub token

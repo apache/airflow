@@ -161,8 +161,9 @@ class TestCli(TestCase):
                 parser.parse_args([*cmd_args, '--help'])
 
     def test_positive_int(self):
-        assert 1 == cli_parser.positive_int('1')
+        assert 1 == cli_parser.positive_int(allow_zero=True)('1')
+        assert 0 == cli_parser.positive_int(allow_zero=True)('0')
 
         with pytest.raises(argparse.ArgumentTypeError):
-            cli_parser.positive_int('0')
-            cli_parser.positive_int('-1')
+            cli_parser.positive_int(allow_zero=False)('0')
+            cli_parser.positive_int(allow_zero=True)('-1')

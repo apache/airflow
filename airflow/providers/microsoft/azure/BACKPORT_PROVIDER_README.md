@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-microsoft-azure
 
-Release: 2021.2.5
+Release: 2021.3.3
 
 **Table of contents**
 
@@ -44,6 +44,7 @@ Release: 2021.2.5
     - [Secrets](#secrets)
         - [New secrets](#new-secrets)
 - [Releases](#releases)
+    - [Release 2021.3.3](#release-202133)
     - [Release 2021.2.5](#release-202125)
     - [Release 2020.11.23](#release-20201123)
     - [Release 2020.10.29](#release-20201029)
@@ -60,6 +61,18 @@ are in `airflow.providers.microsoft.azure` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
+
+# Changelog
+
+## Release 2021.3.3
+
+### Features
+
+* `Add Azure Data Factory hook (#11015)`
+
+### Bug fixes
+
+* `BugFix: Fix remote log in azure storage blob displays in one line (#14313)`
 
 
 ## Installation
@@ -78,8 +91,11 @@ You can install this package on top of an existing airflow 1.10.* installation v
 | `azure-keyvault`               | `>=4.1.0`          |
 | `azure-kusto-data`             | `>=0.0.43,<0.1`    |
 | `azure-mgmt-containerinstance` | `>=1.5.0,<2.0`     |
+| `azure-mgmt-datafactory`       | `>=0.13.0`         |
 | `azure-mgmt-datalake-store`    | `>=0.5.0`          |
 | `azure-mgmt-resource`          | `>=2.2.0`          |
+| `azure-storage-blob`           | `>=12.7.0`         |
+| `azure-storage-common`         | `>=2.1.0`          |
 | `azure-storage-file`           | `>=2.1.0`          |
 
 ## Cross provider package dependencies
@@ -169,12 +185,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ### New hooks
 
-| New Airflow 2.0 hooks: `airflow.providers.microsoft.azure` package                                                                                  |
-|:----------------------------------------------------------------------------------------------------------------------------------------------------|
-| [hooks.adx.AzureDataExplorerHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/adx.py)                     |
-| [hooks.azure_batch.AzureBatchHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_batch.py)            |
-| [hooks.azure_data_lake.AzureDataLakeHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_data_lake.py) |
-| [hooks.base_azure.AzureBaseHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/base_azure.py)               |
+| New Airflow 2.0 hooks: `airflow.providers.microsoft.azure` package                                                                                           |
+|:-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [hooks.adx.AzureDataExplorerHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/adx.py)                              |
+| [hooks.azure_batch.AzureBatchHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_batch.py)                     |
+| [hooks.azure_data_factory.AzureDataFactoryHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_data_factory.py) |
+| [hooks.azure_data_lake.AzureDataLakeHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_data_lake.py)          |
+| [hooks.base_azure.AzureBaseHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/base_azure.py)                        |
 
 
 ### Moved hooks
@@ -202,6 +219,16 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 ## Releases
+
+### Release 2021.3.3
+
+| Commit                                                                                         | Committed   | Subject                                                                      |
+|:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------------------|
+| [11d03d2f6](https://github.com/apache/airflow/commit/11d03d2f63d88a284d6aaded5f9ab6642a60561b) | 2021-02-26  | `Add Azure Data Factory hook (#11015)`                                       |
+| [5bfa0f123](https://github.com/apache/airflow/commit/5bfa0f123b39babe1ef66c139e59e452240a6bd7) | 2021-02-25  | `BugFix: Fix remote log in azure storage blob displays in one line (#14313)` |
+| [ca35bd7f7](https://github.com/apache/airflow/commit/ca35bd7f7f6bc2fb4f2afd7762114ce262c61941) | 2021-02-21  | `By default PIP will install all packages in .local folder (#14125)`         |
+| [10343ec29](https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda) | 2021-02-05  | `Corrections in docs and tools after releasing provider RCs (#14082)`        |
+
 
 ### Release 2021.2.5
 

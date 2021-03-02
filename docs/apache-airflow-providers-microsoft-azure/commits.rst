@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.2.0
+.....
+
+Latest change: 2021-02-26
+
+================================================================================================  ===========  ==============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==============================================================================
+`11d03d2f6 <https://github.com/apache/airflow/commit/11d03d2f63d88a284d6aaded5f9ab6642a60561b>`_  2021-02-26   ``Add Azure Data Factory hook (#11015)``
+`5bfa0f123 <https://github.com/apache/airflow/commit/5bfa0f123b39babe1ef66c139e59e452240a6bd7>`_  2021-02-25   ``BugFix: Fix remote log in azure storage blob displays in one line (#14313)``
+`ca35bd7f7 <https://github.com/apache/airflow/commit/ca35bd7f7f6bc2fb4f2afd7762114ce262c61941>`_  2021-02-21   ``By default PIP will install all packages in .local folder (#14125)``
+`10343ec29 <https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda>`_  2021-02-05   ``Corrections in docs and tools after releasing provider RCs (#14082)``
+================================================================================================  ===========  ==============================================================================
+
 1.1.0
 .....
 
-Latest change: 2021-02-01
+Latest change: 2021-02-04
 
 ================================================================================================  ===========  =============================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =============================================================
+`88bdcfa0d <https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43>`_  2021-02-04   ``Prepare to release a new wave of providers. (#14013)``
 `ac2f72c98 <https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b>`_  2021-02-01   ``Implement provider versioning tools (#13767)``
 `94b153123 <https://github.com/apache/airflow/commit/94b1531230231c57610d720e59563ccd98e7ecb2>`_  2021-01-23   ``Upgrade azure blob to v12 (#12188)``
 `a9ac2b040 <https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22>`_  2021-01-23   ``Switch to f-strings using flynt. (#13732)``

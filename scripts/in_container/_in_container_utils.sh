@@ -606,8 +606,8 @@ function get_providers_to_act_on() {
     if [[ -z "$*" ]]; then
         while IFS='' read -r line; do PROVIDER_PACKAGES+=("$line"); done < <(
             python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-                "${OPTIONAL_BACKPORT_FLAG[@]}" \
-                list-providers-packages
+                list-providers-packages \
+                "${OPTIONAL_BACKPORT_FLAG[@]}"
         )
         if [[ "$BACKPORT_PACKAGES" != "true" ]]; then
             # Don't check for missing packages when we are building backports -- we have filtered some out,
@@ -622,8 +622,9 @@ function get_providers_to_act_on() {
             echo "You can provide list of packages to build out of:"
             echo
             python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
+                list-providers-packages \
                 "${OPTIONAL_BACKPORT_FLAG[@]}" \
-                list-providers-packages | tr '\n ' ' ' | fold -w 100 -s
+                | tr '\n ' ' ' | fold -w 100 -s
             echo
             echo
             exit
@@ -632,7 +633,7 @@ function get_providers_to_act_on() {
     group_end
 }
 
-# Starts group for Github Actions - makes logs much more readable
+# Starts group for GitHub Actions - makes logs much more readable
 function group_start {
     if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
         echo "::group::${1}"
@@ -643,7 +644,7 @@ function group_start {
     fi
 }
 
-# Ends group for Github Actions
+# Ends group for GitHub Actions
 function group_end {
     if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
         echo -e "\033[0m"  # Disable any colors set in the group

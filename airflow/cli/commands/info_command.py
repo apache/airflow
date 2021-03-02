@@ -27,10 +27,9 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 import tenacity
-from rich.console import Console
 
 from airflow import configuration
-from airflow.cli.simple_table import SimpleTable
+from airflow.cli.simple_table import AirflowConsole, SimpleTable
 from airflow.providers_manager import ProvidersManager
 from airflow.typing_compat import Protocol
 from airflow.utils.cli import suppress_logs_and_warning
@@ -181,7 +180,7 @@ _MACHINE_TO_ARCHITECTURE = {
 
 
 class _BaseInfo:
-    def info(self, console: Console) -> None:
+    def info(self, console: AirflowConsole) -> None:
         """
         Print required information to provided console.
         You should implement this function in custom classes.
@@ -190,12 +189,12 @@ class _BaseInfo:
 
     def show(self) -> None:
         """Shows info"""
-        console = Console()
+        console = AirflowConsole()
         self.info(console)
 
     def render_text(self) -> str:
         """Exports the info to string"""
-        console = Console(record=True)
+        console = AirflowConsole(record=True)
         with console.capture():
             self.info(console)
         return console.export_text()
@@ -212,7 +211,7 @@ class AirflowInfo(_BaseInfo):
         self.config = ConfigInfo(anonymizer)
         self.provider = ProvidersInfo()
 
-    def info(self, console: Console):
+    def info(self, console: AirflowConsole):
         console.print(
             f"[bold][green]Apache Airflow[/bold][/green]: {self.airflow_version}\n", highlight=False
         )
@@ -234,7 +233,7 @@ class SystemInfo(_BaseInfo):
         self.python_location = anonymizer.process_path(sys.executable)
         self.python_version = sys.version.replace("\n", " ")
 
-    def info(self, console: Console):
+    def info(self, console: AirflowConsole):
         table = SimpleTable(title="System info")
         table.add_column()
         table.add_column(width=100)
@@ -260,7 +259,7 @@ class PathsInfo(_BaseInfo):
             os.path.exists(os.path.join(path_elem, "airflow")) for path_elem in system_path
         )
 
-    def info(self, console: Console):
+    def info(self, console: AirflowConsole):
         table = SimpleTable(title="Paths info")
         table.add_column()
         table.add_column(width=150)
@@ -274,7 +273,7 @@ class PathsInfo(_BaseInfo):
 class ProvidersInfo(_BaseInfo):
     """providers information"""
 
-    def info(self, console: Console):
+    def info(self, console: AirflowConsole):
         table = SimpleTable(title="Providers info")
         table.add_column()
         table.add_column(width=150)
@@ -321,7 +320,7 @@ class ConfigInfo(_BaseInfo):
         except Exception:  # noqa pylint: disable=broad-except
             return "NOT AVAILABLE"
 
-    def info(self, console: Console):
+    def info(self, console: AirflowConsole):
         table = SimpleTable(title="Config info")
         table.add_column()
         table.add_column(width=150)
@@ -363,7 +362,7 @@ class ToolsInfo(_BaseInfo):
         else:
             return data[0].decode()
 
-    def info(self, console: Console):
+    def info(self, console: AirflowConsole):
         table = SimpleTable(title="Tools info")
         table.add_column()
         table.add_column(width=150)

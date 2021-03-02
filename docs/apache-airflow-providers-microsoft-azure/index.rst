@@ -60,7 +60,7 @@ Package apache-airflow-providers-microsoft-azure
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 1.1.0
+Release: 1.2.0
 
 Provider package
 ----------------
@@ -96,8 +96,11 @@ PIP package                       Version required
 ``azure-keyvault``                ``>=4.1.0``
 ``azure-kusto-data``              ``>=0.0.43,<0.1``
 ``azure-mgmt-containerinstance``  ``>=1.5.0,<2.0``
+``azure-mgmt-datafactory``        ``>=0.13.0``
 ``azure-mgmt-datalake-store``     ``>=0.5.0``
 ``azure-mgmt-resource``           ``>=2.2.0``
+``azure-storage-blob``            ``>=12.7.0``
+``azure-storage-common``          ``>=2.1.0``
 ``azure-storage-file``            ``>=2.1.0``
 ================================  ==================
 
@@ -141,6 +144,19 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure Data Factory hook (#11015)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``BugFix: Fix remote log in azure storage blob displays in one line (#14313)``
 
 1.1.0
 .....

@@ -17,6 +17,15 @@
  under the License.
  -->
 
+## Release 2021.3.3
+
+### Features
+
+  * `Adding support to put extra arguments for Glue Job. (#14027)`
+  * `Avoid using threads in S3 remote logging upload (#14414)`
+  * `Allow AWS Operator RedshiftToS3Transfer To Run a Custom Query (#14177)`
+  * `includes the STS token if STS credentials are used (#11227)`
+
 ## Release 2021.2.5
 
 ### Features

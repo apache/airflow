@@ -780,7 +780,7 @@ In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct an
 
 No change is needed if only the default trigger rule `all_success` is being used.
 
-If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
+If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to accommodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
 
 The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
 
@@ -1662,7 +1662,7 @@ ImapHook:
 #### `airflow.providers.http.hooks.http.HttpHook`
 
 The HTTPHook is now secured by default: `verify=True` (before: `verify=False`)
-This can be overwriten by using the extra_options param as `{'verify': False}`.
+This can be overwritten by using the extra_options param as `{'verify': False}`.
 
 #### `airflow.providers.cloudant.hooks.cloudant.CloudantHook`
 

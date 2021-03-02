@@ -233,6 +233,7 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh"
         files: Dockerfile.*$
         pass_filenames: true
+        require_serial: true
       - id: setup-order
         name: Check order of dependencies in setup.py and setup.cfg
         language: python
@@ -407,6 +408,12 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
         language: system
         files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
+        require_serial: true
+      - id: sort-spelling-wordlist
+        name: Sort alphabetically and uniquify spelling_wordlist.txt
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_spelling_wordlist.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^docs/spelling_wordlist.txt$
         require_serial: true
       - id: helm-lint
         name: Lint Helm Chart
@@ -585,7 +592,7 @@ repos:
       - id: pylint
         name: Run pylint for main code
         language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh --rcfile pylintrc"
+        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: \.py$
         exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart|^tests|^kubernetes_tests
         pass_filenames: true
@@ -593,14 +600,14 @@ repos:
       - id: pylint
         name: Run pylint for tests
         language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh --rcfile pylintrc-tests"
+        entry: "env PYLINTRC=pylintrc-tests ./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: ^tests/.*\.py$
         pass_filenames: true
         require_serial: true
       - id: pylint
         name: Run pylint for helm chart tests
         language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh --rcfile pylintrc-tests"
+        entry: "env PYLINTRC=pylintrc-tests ./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: ^chart/.*\.py$
         pass_filenames: true
         require_serial: true

@@ -355,7 +355,7 @@ GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION = [
                     dict(name="onHostMaintenance", optional=True),
                     dict(name="automaticRestart", optional=True),
                     dict(name="preemptible", optional=True),
-                    dict(name="nodeAffinitites", optional=True),  # not validating deeper
+                    dict(name="nodeAffinities", optional=True),  # not validating deeper
                 ],
             ),
             dict(name="labels", optional=True),

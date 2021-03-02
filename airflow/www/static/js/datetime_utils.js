@@ -76,7 +76,7 @@ export function updateAllDateTimes() {
     const dt = moment($el.attr('datetime'));
     $el.text(dt.format(defaultFormat));
     if ($el.attr('title') !== undefined) {
-      // If displayed date is not UTC, have the UTC date in a title attriubte
+      // If displayed date is not UTC, have the UTC date in a title attribute
       $el.attr('title', dt.isUTC() ? '' : `UTC: ${dt.clone().utc().format()}`);
     }
   });

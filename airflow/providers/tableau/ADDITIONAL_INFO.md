@@ -17,8 +17,6 @@
  under the License.
  -->
 
-## Release 2021.2.5
+## Release 2021.3.3
 
-### Features
-
-  * `Add ExasolToS3Operator (#13847)`
+Initial version of the provider

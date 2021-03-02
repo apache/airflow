@@ -17,6 +17,12 @@
  under the License.
  -->
 
+## Release 2021.3.3
+
+### Bug fixes
+
+* `Corrections in docs and tools after releasing provider RCs (#14082)`
+
 ## Release 2021.2.5
 
   * `Deprecate email credentials from environment variables. (#13601)`
