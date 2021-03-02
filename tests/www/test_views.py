@@ -361,6 +361,12 @@ class TestPluginView(TestBase):
         self.check_content_in_response("source", resp)
         self.check_content_in_response("<em>test-entrypoint-testpluginview==1.0.0:</em> <Mock id=", resp)
 
+    def test_endpoint_should_not_be_unauthenticated(self):
+        self.logout()
+        resp = self.client.get('/plugin', follow_redirects=True)
+        self.check_content_not_in_response("test_plugin", resp)
+        self.check_content_in_response("Sign In", resp)
+
 
 class TestPoolModelView(TestBase):
     def setUp(self):

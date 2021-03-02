@@ -2969,6 +2969,11 @@ class PluginView(AirflowBaseView):
     ]
 
     @expose('/plugin')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
+        ]
+    )
     def list(self):
         """List loaded plugins."""
         plugins_manager.ensure_plugins_loaded()
