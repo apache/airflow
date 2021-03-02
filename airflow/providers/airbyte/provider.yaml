@@ -28,6 +28,8 @@ integrations:
   - integration-name: Airbyte
     external-doc-url: https://www.airbyte.io/
     logo: /integration-logos/airbyte/Airbyte.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-airbyte/operators/airbyte.rst
     tags: [service]
 
 operators:
@@ -39,6 +41,11 @@ hooks:
   - integration-name: Airbyte
     python-modules:
       - airflow.providers.airbyte.hooks.airbyte
+
+sensors:
+  - integration-name: Airbyte
+    python-modules:
+      - airflow.providers.airbyte.sensors.airbyte
 
 hook-class-names:
   - airflow.providers.airbyte.hooks.airbyte.AirbyteHook

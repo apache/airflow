@@ -23,7 +23,15 @@ from airflow.providers.http.hooks.http import HttpHook
 
 
 class AirbyteHook(HttpHook):
-    """Hook for Airbyte API"""
+    """
+    Hook for Airbyte API
+
+    :param airbyte_conn_id: Required. The name of the Airflow connection to get
+    connection information for Airbyte.
+    :type airbyte_conn_id: str
+    :param api_version: Required. Airbyte API version.
+    :type api_version: str
+    """
 
     RUNNING = "running"
     SUCCEEDED = "succeeded"
