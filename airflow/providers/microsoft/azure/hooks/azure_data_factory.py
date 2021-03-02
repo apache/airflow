@@ -277,7 +277,7 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
         **config: Any,
     ) -> None:
         """
-        Delete the linked service:
+        Delete the linked service.
 
         :param linked_service_name: The linked service name.
         :param resource_group_name: The linked service name.
@@ -379,7 +379,7 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
         **config: Any,
     ) -> None:
         """
-        Delete the dataset:
+        Delete the dataset.
 
         :param dataset_name: The dataset name.
         :param resource_group_name: The dataset name.
@@ -479,7 +479,7 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
         **config: Any,
     ) -> None:
         """
-        Delete the pipeline:
+        Delete the pipeline.
 
         :param pipeline_name: The pipeline name.
         :param resource_group_name: The pipeline name.
