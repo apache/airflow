@@ -90,7 +90,6 @@ ALL_PROVIDERS = [
 ]
 
 CONNECTIONS_LIST = [
-    'airbyte',
     'aws',
     'azure',
     'azure_batch',
