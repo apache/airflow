@@ -285,7 +285,7 @@ If you have providers as list of provider ids beacuse you just released them you
 
 - Copy the documentation to the ``airflow-site`` repository
 
-**NOTE** In oder to run the publish documentation you need to activate virtualenv where you installed
+**NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
 apache-airflow with doc extra:
 
 * `pip install apache-airflow[doc]`
