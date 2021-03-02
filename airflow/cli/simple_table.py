@@ -68,7 +68,8 @@ class AirflowConsole(Console):
         if not data:
             self.print("No data found")
             return
-        output = tabulate(data, tablefmt="plain")
+        rows = [d.values() for d in data]
+        output = tabulate(rows, tablefmt="plain", headers=data[0].keys())
         print(output)
 
     # pylint: disable=too-many-return-statements
