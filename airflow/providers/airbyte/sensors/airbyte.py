@@ -36,7 +36,7 @@ class AirbyteJobSensor(BaseSensorOperator):
     :type api_version: str
     """
 
-    template_fields = 'airbyte_job_id'
+    template_fields = ('airbyte_job_id',)
     ui_color = '#6C51FD'
 
     @apply_defaults
@@ -63,10 +63,10 @@ class AirbyteJobSensor(BaseSensorOperator):
         elif status == hook.CANCELLED:
             raise AirflowException(f'Job was cancelled: \n{job}')
         elif status == hook.SUCCEEDED:
-            self.log.debug("Job %s completed successfully.", self.airbyte_job_id)
+            self.log.info("Job %s completed successfully.", self.airbyte_job_id)
             return True
         elif status == hook.ERROR:
-            self.log.debug("Job %s attempt has failed.", self.airbyte_job_id)
+            self.log.info("Job %s attempt has failed.", self.airbyte_job_id)
 
         self.log.info("Waiting for job %s to complete.", self.airbyte_job_id)
         return False

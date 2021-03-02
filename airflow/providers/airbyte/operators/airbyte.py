@@ -44,6 +44,8 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     :type timeout: float
     """
 
+    template_fields = ('connection_id',)
+
     @apply_defaults
     def __init__(
         self,
