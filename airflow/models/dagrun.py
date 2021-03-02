@@ -127,6 +127,8 @@ class DagRun(Base, LoggingMixin):
         :type run_id: str
         :param execution_date: the execution date
         :type execution_date: datetime.datetime
+        :param execution_date_gte: the lower bound of the execution date
+        :type execution_date_gte: datetime.datetime
         :param state: the state of the dag run
         :type state: str
         :param external_trigger: whether this dag run is externally triggered

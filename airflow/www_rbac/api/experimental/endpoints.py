@@ -141,10 +141,26 @@ def dag_runs(dag_id):
     :return: List of DAG runs of a DAG with requested state,
     or all runs if the state is not specified
     """
+    state = request.args.get('state')
+    dagrun_id = request.args.get('dagrun_id')
+    execution_date_gte = request.args.get('execution_date_gte')
+
+    if execution_date_gte:
+        # Convert string datetime into actual datetime
+        try:
+            execution_date_gte = timezone.parse(execution_date_gte)
+        except ValueError:
+            error_message = (
+                'Given execution date, {}, could not be identified '
+                'as a date. Example date format: 2015-11-16T14:34:15+00:00'
+                .format(execution_date_gte))
+            log.info(error_message)
+            response = jsonify({'error': error_message})
+            response.status_code = 400
+
+            return response
+
     try:
-        state = request.args.get('state')
-        dagrun_id = request.args.get('dagrun_id')
-        execution_date_gte = request.args.get('execution_date_gte')
         dagruns = get_dag_runs(dag_id, state, dagrun_id=dagrun_id, execution_date_gte=execution_date_gte)
     except AirflowException as err:
         log.info(err)
