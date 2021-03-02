@@ -137,7 +137,7 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
         :raise AirflowException: If the factory does not exist.
         :return: The factory.
         """
-        if not self._factory_exists(resource_group_name, factory):
+        if not self._factory_exists(resource_group_name, factory_name):
             raise AirflowException(f"Factory {factory!r} does not exist.")
 
         return self.get_conn().factories.create_or_update(
@@ -162,7 +162,7 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
         :raise AirflowException: If the factory already exists.
         :return: The factory.
         """
-        if self._factory_exists(resource_group_name, factory):
+        if self._factory_exists(resource_group_name, factory_name):
             raise AirflowException(f"Factory {factory!r} already exists.")
 
         return self.get_conn().factories.create_or_update(
