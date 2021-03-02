@@ -255,6 +255,4 @@ class TestWrappedMarkdown(unittest.TestCase):
             """
         )
 
-        assert (
-            '<div class="None" ><h1>header</h1>\n<p>1st line\n2nd line</p></div>'
-        ) == rendered
+        assert '<div class="None" ><h1>header</h1>\n<p>1st line\n2nd line</p></div>' == rendered
