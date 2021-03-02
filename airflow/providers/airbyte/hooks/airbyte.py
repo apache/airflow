@@ -40,7 +40,7 @@ class AirbyteHook(HttpHook):
     FAILED = "failed"
     ERROR = "error"
 
-    def __init__(self, airbyte_conn_id: str, api_version: str = "v1") -> None:
+    def __init__(self, airbyte_conn_id: str = "default_airbyte_conn", api_version: str = "v1") -> None:
         super().__init__(http_conn_id=airbyte_conn_id)
         self.api_version: str = api_version
 
