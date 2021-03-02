@@ -117,7 +117,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def find(dag_id=None, run_id=None, execution_date=None,
              state=None, external_trigger=None, no_backfills=False,
-             session=None):
+             session=None, execution_date_gte=None):
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -149,6 +149,8 @@ class DagRun(Base, LoggingMixin):
                 qry = qry.filter(DR.execution_date.in_(execution_date))
             else:
                 qry = qry.filter(DR.execution_date == execution_date)
+        if execution_date_gte:
+            qry = qry.filter(DR.execution_date >= execution_date_gte)
         if state:
             qry = qry.filter(DR.state == state)
         if external_trigger is not None:

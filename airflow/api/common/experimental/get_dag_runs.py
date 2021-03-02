@@ -39,7 +39,7 @@ def get_dag_runs(dag_id, state=None, run_url_route='Airflow.graph', **kwargs):
 
     dag_runs = list()
     state = state.lower() if state else None
-    for run in DagRun.find(dag_id=dag_id, state=state, run_id=kwargs.get('dagrun_id')):
+    for run in DagRun.find(dag_id=dag_id, state=state, run_id=kwargs.get('dagrun_id') execution_date_gte=kwargs.get('execution_date_gte')):
         dag_runs.append({
             'id': run.id,
             'run_id': run.run_id,

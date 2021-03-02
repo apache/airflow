@@ -144,7 +144,8 @@ def dag_runs(dag_id):
     try:
         state = request.args.get('state')
         dagrun_id = request.args.get('dagrun_id')
-        dagruns = get_dag_runs(dag_id, state, dagrun_id=dagrun_id)
+        execution_date_gte = request.args.get('execution_date_gte')
+        dagruns = get_dag_runs(dag_id, state, dagrun_id=dagrun_id, execution_date_gte=execution_date_gte)
     except AirflowException as err:
         log.info(err)
         response = jsonify(error="{}".format(err))
