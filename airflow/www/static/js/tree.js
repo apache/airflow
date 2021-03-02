@@ -1,3 +1,4 @@
+/* eslint-disable func-names */
 /* eslint-disable no-underscore-dangle */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -291,8 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .style('stroke-width', (d) => (isDagRun(d) ? '2' : '1'))
       .style('stroke-opacity', (d) => (d.external_trigger ? '0' : '1'))
       .on('mouseover', function (d) {
-        // if there is not a duration, calculate one
-        const tt = tiTooltip({ ...d, duration: d.duration || moment(d.end_date).diff(d.start_date, 'seconds') });
+        const tt = tiTooltip(d);
         taskTip.direction('n');
         taskTip.show(tt, this);
         d3.select(this).transition()
@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         d3.select(this).transition()
           .style('stroke-width', (dd) => (isDagRun(dd) ? '2' : '1'));
       })
-      .attr('x', (d, i) => (i * (squareSize + squareSpacing)))
+      .attr('x', (d, j) => (j * (squareSize + squareSpacing)))
       .attr('y', -squareSize / 2)
       .attr('width', 10)
       .attr('height', 10);
