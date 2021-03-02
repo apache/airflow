@@ -18,6 +18,8 @@ import inspect
 from functools import wraps
 from typing import Any, Callable, Optional
 
+from azure.core.polling import LROPoller
+from azure.identity import ClientSecretCredential
 from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import (
     CreateRunResponse,
@@ -31,10 +33,9 @@ from azure.mgmt.datafactory.models import (
     Trigger,
     TriggerResource,
 )
-from msrestazure.azure_operation import AzureOperationPoller
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+from airflow.hooks.base import BaseHook
 
 
 def provide_targeted_factory(func: Callable) -> Callable:
@@ -69,7 +70,7 @@ def provide_targeted_factory(func: Callable) -> Callable:
     return wrapper
 
 
-class AzureDataFactoryHook(AzureBaseHook):  # pylint: disable=too-many-public-methods
+class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
     """
     A hook to interact with Azure Data Factory.
 
@@ -77,12 +78,22 @@ class AzureDataFactoryHook(AzureBaseHook):  # pylint: disable=too-many-public-me
     """
 
     def __init__(self, conn_id: str = "azure_data_factory_default"):
-        super().__init__(sdk_client=DataFactoryManagementClient, conn_id=conn_id)
         self._conn: DataFactoryManagementClient = None
+        self.conn_id = conn_id
+        super().__init__()
 
     def get_conn(self) -> DataFactoryManagementClient:
-        if not self._conn:
-            self._conn = super().get_conn()
+        if self._conn is not None:
+            return self._conn
+
+        conn = self.get_connection(self.conn_id)
+
+        self._conn = DataFactoryManagementClient(
+            credential=ClientSecretCredential(
+                client_id=conn.login, client_secret=conn.password, tenant_id=conn.extra_dejson.get("tenantId")
+            ),
+            subscription_id=conn.extra_dejson.get("subscriptionId"),
+        )
 
         return self._conn
 
@@ -642,7 +653,7 @@ class AzureDataFactoryHook(AzureBaseHook):  # pylint: disable=too-many-public-me
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
         **config: Any,
-    ) -> AzureOperationPoller:
+    ) -> LROPoller:
         """
         Start the trigger.
 
@@ -652,7 +663,7 @@ class AzureDataFactoryHook(AzureBaseHook):  # pylint: disable=too-many-public-me
         :param config: Extra parameters for the ADF client.
         :return: An Azure operation poller.
         """
-        return self.get_conn().triggers.start(resource_group_name, factory_name, trigger_name, **config)
+        return self.get_conn().triggers.begin_start(resource_group_name, factory_name, trigger_name, **config)
 
     @provide_targeted_factory
     def stop_trigger(
@@ -661,7 +672,7 @@ class AzureDataFactoryHook(AzureBaseHook):  # pylint: disable=too-many-public-me
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
         **config: Any,
-    ) -> AzureOperationPoller:
+    ) -> LROPoller:
         """
         Stop the trigger.
 
@@ -671,7 +682,7 @@ class AzureDataFactoryHook(AzureBaseHook):  # pylint: disable=too-many-public-me
         :param config: Extra parameters for the ADF client.
         :return: An Azure operation poller.
         """
-        return self.get_conn().triggers.stop(resource_group_name, factory_name, trigger_name, **config)
+        return self.get_conn().triggers.begin_stop(resource_group_name, factory_name, trigger_name, **config)
 
     @provide_targeted_factory
     def rerun_trigger(
