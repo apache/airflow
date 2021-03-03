@@ -646,6 +646,10 @@ class TestDag(unittest.TestCase):
                 ('dag-bulk-sync-2', 'test-dag'),
                 ('dag-bulk-sync-3', 'test-dag'),
             } == set(session.query(DagTag.dag_id, DagTag.name).all())
+
+            for row in session.query(DagModel.last_scheduler_run).all():
+                assert row[0] is not None
+
         # Re-sync should do fewer queries
         with assert_queries_count(3):
             DAG.bulk_write_to_db(dags)
