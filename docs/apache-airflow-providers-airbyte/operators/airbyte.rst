@@ -23,10 +23,11 @@ AirbyteTriggerSyncOperator
 Use the :class:`~airflow.providers.airbyte.operators.AirbyteTriggerSyncOperator` to
 trigger an existing ConnectionId sync job in Airbyte.
 
-WARNING: This operator triggers a synchronization job in Airbyte.
-If triggered again, this operator does not guarantee idempotency.
-You must be aware of the source (database, API, etc) you are updating/sync and
-the method applied to perform the operation in Airbyte.
+.. warning::
+  This operator triggers a synchronization job in Airbyte.
+  If triggered again, this operator does not guarantee idempotency.
+  You must be aware of the source (database, API, etc) you are updating/sync and
+  the method applied to perform the operation in Airbyte.
 
 
 Using the Operator
