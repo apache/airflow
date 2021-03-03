@@ -32,7 +32,6 @@ from urllib.parse import quote
 
 import dill
 import jinja2
-import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
@@ -68,6 +67,7 @@ from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.proxy import cached_getter, cached_proxy
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import State
@@ -1706,10 +1706,16 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             'prev_ds': prev_ds,
             'prev_ds_nodash': prev_ds_nodash,
             'prev_execution_date': prev_execution_date,
-            'prev_execution_date_success': lazy_object_proxy.Proxy(
+            'prev_execution_date_success': cached_proxy(
                 lambda: self.get_previous_execution_date(state=State.SUCCESS)
             ),
-            'prev_start_date_success': lazy_object_proxy.Proxy(
+            'prev_start_date_success': cached_proxy(
+                lambda: self.get_previous_start_date(state=State.SUCCESS)
+            ),
+            'get_prev_execution_date_success': cached_getter(
+                lambda: self.get_previous_execution_date(state=State.SUCCESS)
+            ),
+            'get_prev_start_date_success': cached_getter(
                 lambda: self.get_previous_start_date(state=State.SUCCESS)
             ),
             'run_id': run_id,

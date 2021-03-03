@@ -31,7 +31,6 @@ from operator import itemgetter
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
-import lazy_object_proxy
 import nvd3
 import sqlalchemy as sqla
 import yaml
@@ -90,6 +89,7 @@ from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log.log_reader import TaskLogReader
+from airflow.utils.proxy import cached_proxy
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.version import version
@@ -404,7 +404,7 @@ class AirflowBaseView(BaseView):  # noqa: D101
         return super().render_template(
             *args,
             # Cache this at most once per request, not for the lifetime of the view instance
-            scheduler_job=lazy_object_proxy.Proxy(SchedulerJob.most_recent_job),
+            scheduler_job=cached_proxy(SchedulerJob.most_recent_job),
             **kwargs,
         )
 

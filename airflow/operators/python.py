@@ -544,7 +544,7 @@ class PythonVirtualenvOperator(PythonOperator):
             return self.system_site_packages or 'apache-airflow' in self.requirements
 
         def _is_pendulum_env():
-            return 'pendulum' in self.requirements and 'lazy_object_proxy' in self.requirements
+            return 'pendulum' in self.requirements
 
         serializable_context_keys = self.BASE_SERIALIZABLE_CONTEXT_KEYS.copy()
         if _is_airflow_env():

@@ -339,7 +339,6 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Those limitations are:
 # * chardet,<4: required by snowflake provider
-# * lazy-object-proxy<1.5.0: required by astroid
 # * pytz<2021.0: required by snowflake provider
 # * pyOpenSSL: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
 # * urllib3<1.26: Required to keep boto3 happy
