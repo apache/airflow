@@ -17,7 +17,6 @@
 
 from __future__ import absolute_import
 
-import os
 import re
 import logging
 import warnings
@@ -43,10 +42,11 @@ and will cause an exception.
         old_level = logger.level
         try:
             logger.setLevel(logging.ERROR)
-            dagbag = DagBag(dag_folder=conf.get("core", "dags_folder"),
-                            include_examples=False,
-                            store_serialized_dags=False
-                           )
+            dagbag = DagBag(
+                dag_folder=conf.get("core", "dags_folder"),
+                include_examples=False,
+                store_serialized_dags=False
+            )
             dags_folder = correct_maybe_zipped(dags_folder)
 
             # Each file in the DAG folder is parsed individually
