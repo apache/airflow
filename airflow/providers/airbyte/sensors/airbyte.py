@@ -56,11 +56,9 @@ class AirbyteJobSensor(BaseSensorOperator):
     def poke(self, context: dict) -> bool:
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job = hook.get_job(job_id=self.airbyte_job_id)
-        status = job.json().get('job').get('status')
+        status = job.json()['job']['status']
 
-        if not status:
-            raise AirflowException(f"Fail to get status for job {self.airbyte_job_id}")
-        elif status == hook.FAILED:
+        if status == hook.FAILED:
             raise AirflowException(f"Job failed: \n{job}")
         elif status == hook.CANCELLED:
             raise AirflowException(f"Job was cancelled: \n{job}")
