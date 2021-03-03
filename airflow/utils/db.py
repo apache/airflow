@@ -66,7 +66,7 @@ def provide_session(func):
 
         func_params = func.__code__.co_varnames
         session_in_args = arg_session in func_params and \
-                          func_params.index(arg_session) < len(args)
+            func_params.index(arg_session) < len(args)
         session_in_kwargs = arg_session in kwargs
 
         if session_in_kwargs or session_in_args:
@@ -138,6 +138,14 @@ def create_default_error_tags(session=None):
     # todo: error tag init
     for key, value in default_error_tags.items():
         merge_error_tag(err_tag=ErrorTag(lable=value, value=key))
+
+
+@provide_session
+def create_default_lg_line_controller_map_var(session=None):
+    if not session:
+        return
+    #TODO: 增加临港工厂基础数据创建
+    return
 
 
 @provide_session
@@ -416,7 +424,8 @@ def create_default_users():
             role,
             user['password'])
         if user_created:
-            log.info('{} user {} created.'.format(user['role'], user['username']))
+            log.info('{} user {} created.'.format(
+                user['role'], user['username']))
         else:
             raise SystemExit('Failed to create user.')
 
@@ -432,8 +441,12 @@ def initdb(rbac=False):
     if conf.getboolean('core', 'LOAD_DEFAULT_ERROR_TAG', fallback=True):
         create_default_error_tags()
 
-    if os.environ.get('FACTORY_CODE', '') in ['nd', '7200']:
+    if os.environ.get('FACTORY_CODE', '') in ['nd', '7200', 'ND']:
         create_default_nd_line_controller_map_var(session)
+
+    if os.environ.get('FACTORY_CODE', '') in ['lg', '2200', 'LG']:
+        # 临港工厂上汽乘用车
+        create_default_lg_line_controller_map_var(session)
 
     merge_conn(
         Connection(
@@ -447,6 +460,21 @@ def initdb(rbac=False):
                 'exchange': ''
             }),
             host='172.17.0.1', port=5672), session)
+
+    merge_conn(
+        Connection(
+            conn_id='qcos_kafka_consumer', conn_type='http', # FIXME: type作为http，默认不要创建hook
+            login='admin',
+            password='admin',
+            extra=json.dumps({
+                'topic': 'qcos_{}'.format(os.environ.get('FACTORY_CODE', '')), # 为空会创建失败
+                'auth_type': 'PLAIN', # 如果为空代表不需要认证, plain代表用户名/密码认证
+                'group_id': 'qcos_{}'.format(os.environ.get('FACTORY_CODE', '')),
+                'heartbeat': '0',
+                'exchange': '',
+                'bootstrap_servers': 'localhost:9092' # 服务器或者服务器列表(cluster)
+            })
+            ), session)
 
     merge_conn(
         Connection(
@@ -481,10 +509,10 @@ def initdb(rbac=False):
     if not session.query(KET).filter(KET.know_event_type == 'Outage').first():
         session.add(KET(know_event_type='Outage'))
     if not session.query(KET).filter(
-        KET.know_event_type == 'Natural Disaster').first():
+            KET.know_event_type == 'Natural Disaster').first():
         session.add(KET(know_event_type='Natural Disaster'))
     if not session.query(KET).filter(
-        KET.know_event_type == 'Marketing Campaign').first():
+            KET.know_event_type == 'Marketing Campaign').first():
         session.add(KET(know_event_type='Marketing Campaign'))
     session.commit()
 
@@ -531,7 +559,8 @@ def upgradedb():
     directory = os.path.join(package_dir, 'migrations')
     config = Config(os.path.join(package_dir, 'alembic.ini'))
     config.set_main_option('script_location', directory.replace('%', '%%'))
-    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
+    config.set_main_option(
+        'sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()
 
