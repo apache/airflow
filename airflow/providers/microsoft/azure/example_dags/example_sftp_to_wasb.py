@@ -27,9 +27,9 @@ from airflow.utils.dates import days_ago
 
 AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "airflow")
 BLOB_PREFIX = os.environ.get("AZURE_BLOB_PREFIX", "airflow")
-SFTP_SRC_PATH = os.environ.get("AZURE_WASB_SFTP_SRC_PATH", "/sftp")
-LOCAL_FILE_PATH = os.environ.get("FILE_TO_SFTPWASB_LOCAL_SRC_PATH", "/tmp")
-SAMPLE_FILE_NAME = os.environ.get("FILE_TO_SFTPWASB", "sftp_to_wasb_test.txt")
+SFTP_SRC_PATH = os.environ.get("SFTP_SRC_PATH", "/sftp")
+LOCAL_FILE_PATH = os.environ.get("LOCAL_SRC_PATH", "/tmp")
+SAMPLE_FILENAME = os.environ.get("SFTP_SAMPLE_FILENAME", "sftp_to_wasb_test.txt")
 FILE_COMPLETE_PATH = os.path.join(LOCAL_FILE_PATH, SAMPLE_FILE_NAME)
 SFTP_FILE_COMPLETE_PATH = os.path.join(SFTP_SRC_PATH, SAMPLE_FILE_NAME)
 
