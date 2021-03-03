@@ -1492,12 +1492,12 @@ paths:
 
   /login:
     post:
-      summary: User login
+      summary: Auth login
       description: |
-        Verify user and return a user object and JWT token as well
-      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+        Verify user and set jwt token in cookies
+      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
       operationId: login
-      tags: [User]
+      tags: [Auth]
 
       responses:
         '200':
@@ -1505,11 +1505,55 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserLogin'
+                properties:
+                  logged_in:
+                    type: boolean
+                    nullable: false
+                    description: Indicate user is logged in
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+
+  /logout:
+    post:
+      summary: Auth logout
+      description: Logout user by unsetting cookies
+      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
+      operationId: logout
+      tags: [Auth]
+
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  logged_out:
+                    type: boolean
+                    description: Indicate user is logged out
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /refresh:
+    post:
+      summary: Refresh token
+      description: Create fresh token for user
+      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
+      operationId: token_refresh
+      tags: [Auth]
+
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  fresh:
+                    type: boolean
+                    description: Indicate token is fresh
 
 components:
   # Reusable schemas (data models)

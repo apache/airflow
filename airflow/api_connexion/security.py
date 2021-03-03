@@ -28,13 +28,16 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 def check_authentication() -> None:
     """Checks that the request has valid authorization information."""
     response = current_app.api_auth.requires_authentication(Response)()
+    if response.status_code == 200:
+        return
     jwt_response = requires_authentication(Response)()
-    if response.status_code != 200 and jwt_response.status_code != 200:
-        # since this handler only checks authentication, not authorization,
-        # we should always return 401
-        if response.status_code != 200:
-            raise Unauthenticated(headers=response.headers)
+    if jwt_response.status_code == 200:
+        return
+    elif jwt_response.status_code != 200:
         raise Unauthenticated(headers=jwt_response.headers)
+    # since this handler only checks authentication, not authorization,
+    # we should always return 401
+    raise Unauthenticated(headers=response.headers)
 
 
 def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:

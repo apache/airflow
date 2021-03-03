@@ -22,6 +22,7 @@ from typing import Callable, TypeVar, cast
 import jwt
 from flask import Response, current_app, request
 from flask_appbuilder.const import AUTH_LDAP
+from flask_jwt_extended import verify_jwt_in_request
 from flask_login import login_user
 
 from airflow.configuration import conf
@@ -30,55 +31,30 @@ SECRET = conf.get("webserver", "secret_key")
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def encode_auth_token(user_id):
-    """Generate authentication token"""
-    expire_time = conf.getint("webserver", "session_lifetime_minutes")
-    payload = {
-        'exp': datetime.utcnow() + timedelta(minutes=expire_time),
-        'iat': datetime.utcnow(),
-        'sub': user_id,
-    }
-    return jwt.encode(payload, SECRET, algorithm='HS256')
-
-
-def decode_auth_token(auth_token):
-    """Decode authentication token"""
-    try:
-        payload = jwt.decode(auth_token, SECRET, algorithms=['HS256'])
-        return payload['sub']
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
-        # Do not raise exception here due to auth_backend auth
-        return None
-
-
 def auth_current_user():
     """Checks the authentication and return the current user"""
     auth_header = request.headers.get("Authorization", None)
-    ab_security_manager = current_app.appbuilder.sm
-    token = None
-    user = None
     if auth_header:
-        try:
-            token = auth_header.split(" ")[1]
-        except IndexError:
-            # Do not raise exception here due to auth_backend auth
-            return None
-    if auth_header and auth_header.startswith("Basic"):
-        auth = request.authorization
-        if auth is None or not (auth.username and auth.password):
-            return None
-        if ab_security_manager.auth_type == AUTH_LDAP:
-            user = ab_security_manager.auth_user_ldap(auth.username, auth.password)
-        if user is None:
-            user = ab_security_manager.auth_user_db(auth.username, auth.password)
-        if user is not None:
-            login_user(user, remember=False)
-            return user
-    if token:
-        user = decode_auth_token(token)
-        if not isinstance(user, int):
+        if auth_header.startswith("Basic"):
             user = None
-        return user
+            auth = request.authorization
+            if auth is None or not (auth.username and auth.password):
+                return None
+            ab_security_manager = current_app.appbuilder.sm
+            if ab_security_manager.auth_type == AUTH_LDAP:
+                user = ab_security_manager.auth_user_ldap(auth.username, auth.password)
+            if user is None:
+                user = ab_security_manager.auth_user_db(auth.username, auth.password)
+            if user is not None:
+                login_user(user, remember=False)
+                return user
+        if auth_header.startswith('Bearer'):
+            try:
+                verify_jwt_in_request()
+                return 1
+            except Exception:
+                pass
+            return None
     return None
 
 

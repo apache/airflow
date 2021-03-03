@@ -15,7 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import logging
+from datetime import timedelta
 from importlib import import_module
+
+from flask_jwt_extended import JWTManager
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
@@ -55,3 +58,15 @@ def init_api_experimental_auth(app):
     except ImportError as err:
         log.critical("Cannot import %s for API authentication due to: %s", auth_backend, err)
         raise AirflowException(err)
+
+
+def init_jwt_auth(app):
+    """Initialize flask jwt extended""" ""
+    app.config['JWT_TOKEN_LOCATION'] = ['cookies']
+    app.config['JWT_TOKEN_EXPIRES'] = timedelta(minutes=30)
+    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=1)
+    app.config['JWT_ACCESS_COOKIE_PATH'] = '/api/'
+    app.config['JWT_REFRESH_COOKIE_PATH'] = '/token/refresh'
+    app.config['JWT_CSRF_CHECK_FORM'] = True
+    app.config['JWT_COOKIE_CSRF_PROTECT'] = True
+    JWTManager(app)

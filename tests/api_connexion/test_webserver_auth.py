@@ -54,17 +54,21 @@ class TestWebserverAuth(unittest.TestCase):
     def test_successful_login(self):
         token = "Basic " + b64encode(b"test:test").decode()
         with self.app.test_client() as test_client:
-            response = test_client.post("api/v1/login", headers={"Authorization": token})
-        assert isinstance(response.json["token"], str)
-        assert response.json["user"]['email'] == "test@fab.org"
+            test_client.post("api/v1/login", headers={"Authorization": token})
+            cookie = next(
+                (cookie for cookie in test_client.cookie_jar if cookie.name == "access_token_cookie"), None
+            )
+        assert isinstance(cookie.value, str)
 
     def test_can_view_other_endpoints(self):
         token = "Basic " + b64encode(b"test:test").decode()
         with self.app.test_client() as test_client:
-            response = test_client.post("api/v1/login", headers={"Authorization": token})
+            test_client.post("api/v1/login", headers={"Authorization": token})
             assert current_user.email == "test@fab.org"
-            token = response.json["token"]
-            response2 = test_client.get("/api/v1/pools", headers={"Authorization": "Bearer " + token})
+            cookie = next(
+                (cookie for cookie in test_client.cookie_jar if cookie.name == "access_token_cookie"), None
+            )
+            response2 = test_client.get("/api/v1/pools", headers={"Authorization": "Bearer " + cookie.value})
         assert response2.status_code == 200
         assert response2.json == {
             "pools": [
@@ -81,7 +85,6 @@ class TestWebserverAuth(unittest.TestCase):
         }
 
     def test_raises_for_the_none_algorithm(self):
-        token = "Basic " + b64encode(b"test:test").decode()
         payload = {
             'exp': datetime.utcnow() + timedelta(minutes=10),
             'iat': datetime.utcnow(),
@@ -89,8 +92,6 @@ class TestWebserverAuth(unittest.TestCase):
         }
         forgedtoken = jwt.encode(payload, key=None, algorithm=None).decode()
         with self.app.test_client() as test_client:
-            test_client.post("api/v1/login", headers={"Authorization": token})
-            assert current_user.email == "test@fab.org"
             response = test_client.get("/api/v1/pools", headers={"Authorization": "Bearer " + forgedtoken})
         assert response.status_code == 401
 
@@ -115,9 +116,9 @@ class TestWebserverAuth(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("basic " + b64encode(b"test").decode(),),
+            ("bearer " + b64encode(b"test").decode(),),
             ("basic " + b64encode(b"test:").decode(),),
-            ("basic " + b64encode(b"test:123").decode(),),
+            ("bearer " + b64encode(b"test:123").decode(),),
             ("basic " + b64encode(b"test test").decode(),),
         ]
     )
