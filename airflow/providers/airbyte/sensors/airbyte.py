@@ -58,10 +58,12 @@ class AirbyteJobSensor(BaseSensorOperator):
         job = hook.get_job(job_id=self.airbyte_job_id)
         status = job.json().get('job').get('status')
 
-        if status == hook.FAILED:
-            raise AirflowException(f'Job failed: \n{job}')
+        if not status:
+            raise AirflowException(f"Fail to get status for job {self.airbyte_job_id}")
+        elif status == hook.FAILED:
+            raise AirflowException(f"Job failed: \n{job}")
         elif status == hook.CANCELLED:
-            raise AirflowException(f'Job was cancelled: \n{job}')
+            raise AirflowException(f"Job was cancelled: \n{job}")
         elif status == hook.SUCCEEDED:
             self.log.info("Job %s completed successfully.", self.airbyte_job_id)
             return True

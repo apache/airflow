@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import time
-from typing import Optional
+from typing import Any, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -72,7 +72,7 @@ class AirbyteHook(HttpHook):
         if state == self.CANCELLED:
             raise AirflowException(f"Job was cancelled:\n{job}")
 
-    def submit_sync_connection(self, connection_id: str) -> dict:
+    def submit_sync_connection(self, connection_id: str) -> Any:
         """
         Submits a job to a Airbyte server.
 
@@ -85,12 +85,12 @@ class AirbyteHook(HttpHook):
             headers={"accept": "application/json"},
         )
 
-    def get_job(self, job_id: str) -> dict:
+    def get_job(self, job_id: int) -> Any:
         """
         Gets the resource representation for a job in Airbyte.
 
         :param job_id: Id of the Airbyte job
-        :type job_id: str
+        :type job_id: int
         """
         return self.run(
             endpoint=f"api/{self.api_version}/jobs/get",
