@@ -17,7 +17,6 @@
 # under the License.
 from typing import Optional
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.utils.decorators import apply_defaults
@@ -68,11 +67,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         """Create Airbyte Job and wait to finish"""
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job_object = hook.submit_sync_connection(connection_id=self.connection_id)
-        job_id = job_object.json().get('job').get('id')
-        if not job_id:
-            raise AirflowException(
-                f"The synchronization job {self.connection_id} did not return a valid job_id"
-            )
+        job_id = job_object.json()['job']['id']
 
         self.log.info("Job %s was submitted to Airbyte Server", job_id)
         if not self.asynchronous:
