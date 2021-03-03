@@ -25,6 +25,7 @@ NEW_CLASS = "NewOperator"
 PROVIDER = "dummy"
 OLD_PATH = "airflow.contrib." + OLD_CLASS
 NEW_PATH = "airflow.providers." + PROVIDER + "." + NEW_CLASS
+OLD_PATH_WITHOUT_CLASS_NAME = "airflow.contrib"
 
 
 class TestImportChange:
@@ -35,7 +36,7 @@ class TestImportChange:
         assert change.info(
             "file.py"
         ) == "Using `{}` should be replaced by `{}`. Affected file: file.py".format(OLD_PATH, NEW_PATH)
-        assert change.old_class == OLD_CLASS
+        assert change.old_path_without_classname == OLD_PATH_WITHOUT_CLASS_NAME
         assert change.new_class == NEW_CLASS
 
     def test_from_new_old_paths(self):
