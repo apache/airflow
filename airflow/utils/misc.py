@@ -2,6 +2,18 @@
 
 from functools import wraps
 import cProfile
+from typing import List, Any, Optional, Dict
+
+
+def get_first_valid_data(data: List[Any], key: str) -> Optional[Any]:
+    for d in data:
+        v = d
+        if isinstance(d, Dict) and key:
+            v = d.get(key)
+        if not v:
+            continue
+        return v
+    return None
 
 
 class profile(object):
