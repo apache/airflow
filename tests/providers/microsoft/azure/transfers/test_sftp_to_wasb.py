@@ -214,7 +214,9 @@ class TestSFTPToWasbOperator(unittest.TestCase):
             [mock.call("main_dir/test_object.json", mock.ANY)]
         )
 
-        assert mock_hook.return_value.load_file.assert_called_once_with(mock.ANY, CONTAINER_NAME, "test_object.json")
+        assert mock_hook.return_value.load_file.assert_called_once_with(
+            mock.ANY, CONTAINER_NAME, "test_object.json"
+        )
 
         assert sftp_hook.return_value.delete_file.assert_not_called()
 
