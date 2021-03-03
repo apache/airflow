@@ -75,7 +75,13 @@ class TestDagEndpoint(unittest.TestCase):
             access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
         )
 
-        with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details", params={"foo": 1}) as dag:
+        with DAG(
+            cls.dag_id,
+            start_date=datetime(2020, 6, 15),
+            doc_md="details",
+            params={"foo": 1},
+            tags=['example'],
+        ) as dag:
             DummyOperator(task_id=cls.task_id)
 
         with DAG(cls.dag2_id, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
@@ -212,7 +218,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owners": ['airflow'],
             "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -221,7 +227,7 @@ class TestGetDagDetails(TestDagEndpoint):
                 "seconds": 0,
             },
             "start_date": "2020-06-15T00:00:00+00:00",
-            "tags": None,
+            "tags": [{'name': 'example'}],
             "timezone": "Timezone('UTC')",
         }
         assert response.json == expected
@@ -244,7 +250,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owners": ['airflow'],
             "params": {},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -253,7 +259,7 @@ class TestGetDagDetails(TestDagEndpoint):
                 "seconds": 0,
             },
             "start_date": "2020-06-15T00:00:00+00:00",
-            "tags": None,
+            "tags": [],
             "timezone": "Timezone('UTC')",
         }
         assert response.json == expected
@@ -276,7 +282,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owners": ['airflow'],
             "params": {},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -285,7 +291,7 @@ class TestGetDagDetails(TestDagEndpoint):
                 "seconds": 0,
             },
             "start_date": None,
-            "tags": None,
+            "tags": [],
             "timezone": "Timezone('UTC')",
         }
         assert response.json == expected
@@ -313,7 +319,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owners": ['airflow'],
             "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -322,7 +328,7 @@ class TestGetDagDetails(TestDagEndpoint):
                 "seconds": 0,
             },
             "start_date": "2020-06-15T00:00:00+00:00",
-            "tags": None,
+            "tags": [{'name': 'example'}],
             "timezone": "Timezone('UTC')",
         }
         response = client.get(
@@ -349,11 +355,11 @@ class TestGetDagDetails(TestDagEndpoint):
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',
-            'owners': [],
+            'owners': ['airflow'],
             "params": {"foo": 1},
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'microseconds': 0, 'seconds': 0},
             'start_date': '2020-06-15T00:00:00+00:00',
-            'tags': None,
+            'tags': [{'name': 'example'}],
             'timezone': "Timezone('UTC')",
         }
         assert response.json == expected
