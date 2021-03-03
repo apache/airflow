@@ -2201,7 +2201,7 @@ It is no longer required to set one of the environment variables to avoid
 a GPL dependency. Airflow will now always use text-unidecode if unidecode
 was not installed before.
 
-### New `sync_parallelism` config option in Celery section
+### New `sync_parallelism` config option in `[celery]` section
 
 The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
 fetch celery task state in parallel. Default value is max(1, number of cores - 1)
