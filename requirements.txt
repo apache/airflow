@@ -319,3 +319,4 @@ zope.deprecation==4.4.0
 flask_paginate==0.7.0
 redis-py-cluster==2.1.0
 Flask-OAuthlib==0.9.6
+kafka-python==2.0.2

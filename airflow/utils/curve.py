@@ -148,7 +148,9 @@ def get_kafka_consumer_args(connection_key: str ='qcos_kafka_consumer'):
     extra = kafka_conn.extra_dejson if kafka_conn else {}
     return {
         "bootstrap_servers": extra.get('bootstrap_servers', 'localhost:9092'),
-        "user": kafka_conn.user or '',
+        'security_protocol': extra.get('security_protocol'),
+        'auth_type':  extra.get('auth_type'),
+        "user": kafka_conn.login or '',
         "password": kafka_conn.get_password() if kafka_conn else ''
     }
 

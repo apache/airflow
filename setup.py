@@ -198,6 +198,9 @@ azure_data_lake = [
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
 ]
+kafka = [
+    'kafaka-python==2.0.2',
+]
 cassandra = [
     'cassandra-driver>=3.13.0,<3.21.0',
 ]
@@ -448,7 +451,7 @@ devel_all = (all_dbs + atlas + aws +
              elasticsearch + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes + ldap +
              oracle + papermill + password +
              redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
-             virtualenv + webhdfs + zendesk)
+             virtualenv + webhdfs + zendesk + kafka)
 
 # Snakebite is not Python 3 compatible :'(
 if PY3:
@@ -529,7 +532,8 @@ EXTRAS_REQUIREMENTS = {
     'vertica': vertica,
     'virtualenv': virtualenv,
     'webhdfs': webhdfs,
-    'winrm': winrm
+    'winrm': winrm,
+    'kafka': kafka,
 }
 
 #####################################################################################################

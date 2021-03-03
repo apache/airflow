@@ -463,18 +463,18 @@ def initdb(rbac=False):
 
     merge_conn(
         Connection(
-            conn_id='qcos_kafka_consumer', conn_type='http', # FIXME: type作为http，默认不要创建hook
+            conn_id='qcos_kafka_consumer', conn_type='http',  # FIXME: type作为http，默认不要创建hook
             login='admin',
             password='admin',
             extra=json.dumps({
-                'topic': 'qcos_{}'.format(os.environ.get('FACTORY_CODE', '')), # 为空会创建失败
-                'auth_type': 'PLAIN', # 如果为空代表不需要认证, plain代表用户名/密码认证
+                # 为空会创建失败
+                'topic': 'qcos_{}'.format(os.environ.get('FACTORY_CODE', '')),
                 'group_id': 'qcos_{}'.format(os.environ.get('FACTORY_CODE', '')),
-                'heartbeat': '0',
-                'exchange': '',
-                'bootstrap_servers': 'localhost:9092' # 服务器或者服务器列表(cluster)
+                'security_protocol': 'SSL_PLAINTEXT',
+                'auth_type': 'SCRAM-SHA-256',
+                'bootstrap_servers': 'localhost:9092'  # 服务器或者服务器列表(cluster)
             })
-            ), session)
+        ), session)
 
     merge_conn(
         Connection(
