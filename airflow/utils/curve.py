@@ -1,3 +1,4 @@
+from _typeshed import NoneType
 from airflow import models
 from airflow.utils.db import create_session, get_connection
 from airflow.utils.logger import generate_logger
@@ -9,6 +10,8 @@ from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
 from airflow.api.common.experimental import trigger_dag as trigger
 import json
+from typing import Dict, Optional, Union
+from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowConfigException
 from airflow.utils import timezone
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.utils.db import provide_session
@@ -42,6 +45,7 @@ def ensure_int(num):
     try:
         return int(num)
     except Exception as e:
+        _logger.error(e)
         return num
 
 
@@ -65,7 +69,7 @@ def get_cas_training_base_url():
     return url.get_uri() if isinstance(url, connection_model) else url
 
 
-def get_craft_type(nut_no: str) -> int:
+def get_craft_type(nut_no: str) -> Optional[int]:
     template_data = Variable.get_fuzzy_active(nut_no,
                                               deserialize_json=True,
                                               default_var=None
@@ -74,7 +78,7 @@ def get_craft_type(nut_no: str) -> int:
     if ret:
         return ret
     else:
-        raise Exception('没有找到螺栓对应的工艺类型。')
+        raise AirflowNotFoundException(u'没有找到螺栓对应的工艺类型')
 
 
 def get_curve_mode(final_state, error_tag):
@@ -92,9 +96,9 @@ def get_curve_mode(final_state, error_tag):
 
 def generate_bolt_number(controller_name, program, batch_count, pset):
     if not controller_name or program is None \
-        or batch_count is None or batch_count is '' \
-        or pset is None or pset is '':
-        raise BaseException(u'{}参数未正确定义'.format('generateBoltNumber'))
+        or batch_count is None or batch_count == '' \
+        or pset is None or pset == '':
+        raise AirflowConfigException(u'{}参数未正确定义'.format('generateBoltNumber'))
     if not isinstance(program, str):
         program = str(program)
     return '_'.join([controller_name, program, str(batch_count), str(pset)])
@@ -136,6 +140,16 @@ def get_result_args(connection_key='qcos_influxdb'):
         "ou": extra.get('ou', 'desoutter'),
         "token": influxdb.get_password() if influxdb else None,
         'write_options': write_options
+    }
+
+
+def get_kafka_consumer_args(connection_key: str ='qcos_kafka_consumer'):
+    kafka_conn = get_connection(connection_key)
+    extra = kafka_conn.extra_dejson if kafka_conn else {}
+    return {
+        "bootstrap_servers": extra.get('bootstrap_servers', 'localhost:9092'),
+        "user": kafka_conn.user or '',
+        "password": kafka_conn.get_password() if kafka_conn else ''
     }
 
 
@@ -270,7 +284,7 @@ def do_save_curve_error_tag(dag_id, task_id, execution_date, error_tags=None):
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'
                 .format(execution_date))
-        raise Exception(error_message)
+        raise AirflowException(error_message)
     if error_tags is None:
         error_tags = []
     task = get_task_instance(dag_id, task_id, execution_date)

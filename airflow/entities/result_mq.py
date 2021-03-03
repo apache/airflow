@@ -1,3 +1,4 @@
+from airflow.exceptions import AirflowNotFoundException
 import pika
 from .entity import ClsEntity
 import threading
@@ -18,7 +19,7 @@ class ClsResultMQ(ClsEntity):
         return ClsResultMQ._instance
 
     def __init__(self, **kwargs):
-        super(ClsResultMQ, self).__init__()
+        super(ClsResultMQ, self).__init__(**kwargs)
         if not self.is_config_changed(**kwargs):
             return
         self._disconnect()
@@ -32,7 +33,7 @@ class ClsResultMQ(ClsEntity):
                 if self._kwargs.get(key, None) != kwargs.get(key):
                     return True
             return False
-        except Exception as e:
+        except Exception:
             return True
 
     def _connect(self):
@@ -96,7 +97,7 @@ class ClsResultMQ(ClsEntity):
 
     def doSubscribe(self, queue, message_handler, **kwargs):
         if not queue:
-            raise Exception(u'订阅的队列未指定')
+            raise AirflowNotFoundException(u'订阅的队列未指定')
         channel = self.get_channel(queue=queue, **kwargs)
         channel.basic_consume(queue, on_message_callback=message_handler, auto_ack=kwargs.get('auto_ack', True))
 
@@ -106,7 +107,7 @@ class ClsResultMQ(ClsEntity):
 
     def send_message(self, body, queue, **kwargs):
         if queue is None:
-            raise Exception('mq queue 未指定')
+            raise AirflowNotFoundException(u'mq queue 未指定')
         channel = self.get_channel(queue, **kwargs)
         exchange = self._kwargs.get('exchange', None)
         channel.basic_publish(exchange=exchange, routing_key=queue, body=body)
