@@ -785,16 +785,16 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
     No-tabs checker......................................................Passed
     Add license for all SQL files........................................Passed
     Add license for all other files......................................Passed
-    Add license for all RST files........................................Passed
+    Add license for all rst files........................................Passed
     Add license for all JS/CSS/PUML files................................Passed
     Add license for all JINJA template files.............................Passed
     Add license for all shell files......................................Passed
-    Add license for all Python files.....................................Passed
+    Add license for all python files.....................................Passed
     Add license for all XML files........................................Passed
-    Add license for all YAML files.......................................Passed
-    Add license for all MD files.........................................Passed
-    Add license for all Mermaid files....................................Passed
-    Add TOC for MD files.................................................Passed
+    Add license for all yaml files.......................................Passed
+    Add license for all md files.........................................Passed
+    Add license for all mermaid files....................................Passed
+    Add TOC for md files.................................................Passed
     Add TOC for upgrade documentation....................................Passed
     Check hooks apply to the repository..................................Passed
     black................................................................Passed
