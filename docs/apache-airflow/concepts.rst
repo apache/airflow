@@ -811,7 +811,7 @@ UI. As slots free up, queued tasks start running based on the
 
 Note that if tasks are not given a pool, they are assigned to a default
 pool ``default_pool``.  ``default_pool`` is initialized with 128 slots and
-can changed through the UI or CLI (though it cannot be removed).
+can be changed through the UI or CLI (though it cannot be removed).
 
 To combine Pools with SubDAGs see the `SubDAGs`_ section.
 
