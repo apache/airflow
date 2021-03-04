@@ -343,6 +343,8 @@ class MesosExecutor(BaseExecutor):
         while not self.result_queue.empty():
             results = self.result_queue.get()
             key, state = results
+            driver = self.client.get_driver()
+            driver.reconcile(key)
             if state == "success":
                 self.log.info("tasks successfull %s", key)
                 self.task_queue.task_done()
