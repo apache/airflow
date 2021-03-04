@@ -290,8 +290,8 @@
       }
 
 
-      {% if blur %}
-      d3.selectAll("text").attr("class", "blur");
+      {% if is_demo_mode %}
+        svg.attr('class', 'blur-sensitive-info');
       {% endif %}
 
       d3.selectAll('.js-state-legend-item')

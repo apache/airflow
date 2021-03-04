@@ -841,7 +841,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag=dag_orm,
             title=dag_id,
             root=request.args.get('root'),
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             wrapped=conf.getboolean('webserver', 'default_wrap'),
         )
 
@@ -1870,7 +1869,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     def tree(self):
         """Get Dag as tree."""
         dag_id = request.args.get('dag_id')
-        blur = conf.getboolean('webserver', 'demo_mode')
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
@@ -2015,7 +2013,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag=dag,
             doc_md=doc_md,
             data=data,
-            blur=blur,
             num_runs=num_runs,
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
@@ -2035,7 +2032,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     def graph(self, session=None):
         """Get DAG as Graph."""
         dag_id = request.args.get('dag_id')
-        blur = conf.getboolean('webserver', 'demo_mode')
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing.', "error")
@@ -2101,7 +2097,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             doc_md=doc_md,
             arrange=arrange,
             operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
-            blur=blur,
             root=root or '',
             task_instances=task_instances,
             tasks=tasks,
@@ -2234,7 +2229,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         return self.render_template(
             'airflow/duration_chart.html',
             dag=dag,
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -2306,7 +2300,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         return self.render_template(
             'airflow/chart.html',
             dag=dag,
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -2392,7 +2385,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag=dag,
             chart=Markup(chart.htmlcontent),
             height=str(chart_height + 100) + "px",
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
             tab_title='Landing times',
@@ -2467,7 +2459,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Show GANTT chart."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
-        demo_mode = conf.getboolean('webserver', 'demo_mode')
 
         root = request.args.get('root')
         if root:
@@ -2546,7 +2537,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             form=form,
             data=data,
             base_date='',
-            demo_mode=demo_mode,
             root=root,
         )
 

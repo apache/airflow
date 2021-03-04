@@ -23,8 +23,12 @@
 
 {% block head_meta %}
   {{ super() }}
-  <meta name="demo_mode" content="{{ demo_mode }}">
   <meta name="wrapped" content="{{ wrapped }}">
+{% endblock %}
+
+{% block head_css %}
+  {{ super() }}
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('dagCode.css') }}">
 {% endblock %}
 
 {% block content %}

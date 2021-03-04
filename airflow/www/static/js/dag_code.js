@@ -19,16 +19,13 @@
 
 import getMetaValue from './meta_value';
 
-const isDemoMode = getMetaValue('demo_mode');
+const isDemoMode = getMetaValue('is_demo_mode');
 const isWrapped = getMetaValue('wrapped');
 
 document.addEventListener('DOMContentLoaded', () => {
   // We blur task_ids in demo mode
   if (isDemoMode) {
-    $('pre span.s').css({
-      'text-shadow': '0 0 10px red',
-      color: 'transparent',
-    });
+    $('pre .s1, pre .s2').addClass('hide-sensitive-code');
   }
 });
 

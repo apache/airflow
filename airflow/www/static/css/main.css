@@ -255,7 +255,7 @@ body div.panel {
   padding: 0;
 }
 
-.blur {
+.blur-sensitive-info {
   filter: url(#blur-effect-1);
 }
 
@@ -403,17 +403,6 @@ label[for="timezone-other"],
   margin: 16px 0;
   padding: 16px 0;
   background-color: #f0f0f0;
-}
-
-.code-wrap {
-  position: relative;
-  margin-top: 30px;
-}
-
-.code-wrap-toggle {
-  position: absolute;
-  top: 15px;
-  right: 15px;
 }
 
 .search-input {

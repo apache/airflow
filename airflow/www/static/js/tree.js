@@ -259,8 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('dx', barHeight / 2)
       .text((d) => d.name);
 
-    const isBlur = getMetaValue('blur');
-    if (isBlur === 'True') text.attr('class', 'blur');
+    const isDemoMode = getMetaValue('is_demo_mode');
+    if (isDemoMode === 'True') svg.attr('class', 'blur-sensitive-info');
 
     nodeEnter.append('g')
       .attr('class', 'stateboxes')

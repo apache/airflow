@@ -1,0 +1,15 @@
+.code-wrap {
+  position: relative;
+  margin-top: 30px;
+}
+
+.code-wrap-toggle {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+}
+
+.hide-sensitive-code {
+  text-shadow: 0 0 10px red;
+  color: transparent;
+}
