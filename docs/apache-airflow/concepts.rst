@@ -178,7 +178,7 @@ Example DAG built with the TaskFlow API
 
     # Using default connection as it's set to httpbin.org by default
     get_ip = SimpleHttpOperator(
-        task_id='get_ip', endpoint='get', method='GET', xcom_push=True
+        task_id='get_ip', endpoint='get', method='GET', do_xcom_push=True
     )
 
     @dag.task(multiple_outputs=True)
