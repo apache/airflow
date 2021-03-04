@@ -19,18 +19,16 @@
 """rename last_scheduler_run column
 
 Revision ID: 2e42bb497a22
-Revises: 0e2a74e0fc9f
+Revises: 8646922c8a04
 Create Date: 2021-03-04 19:50:38.880942
 
 """
 
-import sqlalchemy as sa
 from alembic import op
-
 
 # revision identifiers, used by Alembic.
 revision = '2e42bb497a22'
-down_revision = '0e2a74e0fc9f'
+down_revision = '8646922c8a04'
 branch_labels = None
 depends_on = None
 
