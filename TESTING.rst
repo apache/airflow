@@ -91,26 +91,26 @@ in the official documentation, but here are a few basic examples:
 
 .. code-block:: bash
 
-    pytest -k "TestCore and not check"
+    pytest tests/core -k "TestCore and not check"
 
 This runs the ``TestCore`` class but skips tests of this class that include 'check' in their names.
 For better performance (due to a test collection), run:
 
 .. code-block:: bash
 
-    pytest tests/tests_core.py -k "TestCore and not bash".
+    pytest tests/core/test_core.py -k "TestCore and not bash"
 
 This flag is useful when used to run a single test like this:
 
 .. code-block:: bash
 
-    pytest tests/tests_core.py -k "test_check_operators"
+    pytest tests/core/test_core.py -k "test_check_operators"
 
 This can also be done by specifying a full path to the test:
 
 .. code-block:: bash
 
-    pytest tests/core/test_core.py::TestCore::test_check_operators
+      pytest tests/core/test_core.py::TestCore::test_check_operators
 
 To run the whole test class, enter:
 
@@ -123,7 +123,7 @@ for debugging purposes, enter:
 
 .. code-block:: bash
 
-    pytest --log-level=DEBUG tests/core/test_core.py::TestCore
+    pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
 
 
 Running Tests for a Specified Target Using Breeze from the Host
@@ -136,7 +136,7 @@ to breeze.
 
 .. code-block:: bash
 
-     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --db-reset -- --logging-level=DEBUG
+     ./breeze tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset -- --log-cli-level=DEBUG
 
 You can run the whole test suite without adding the test target:
 
