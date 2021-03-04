@@ -109,9 +109,6 @@
     <div class="graph-svg-wrap">
       <svg id="graph-svg" width="{{ width }}" height="{{ height }}">
         <g id="dig" transform="translate(20,20)"></g>
-        <filter id="blur-effect-1">
-          <feGaussianBlur stdDeviation="3"></feGaussianBlur>
-        </filter>
       </svg>
     </div>
   </div>
@@ -288,11 +285,6 @@
                   .style("stroke-width", stroke_width) ;
           })
       }
-
-
-      {% if blur %}
-      d3.selectAll("text").attr("class", "blur");
-      {% endif %}
 
       d3.selectAll('.js-state-legend-item')
           .style("cursor", "pointer")
