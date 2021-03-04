@@ -15,11 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime, timedelta
 from functools import wraps
 from typing import Callable, TypeVar, cast
 
-import jwt
 from flask import Response, current_app, request
 from flask_appbuilder.const import AUTH_LDAP
 from flask_jwt_extended import verify_jwt_in_request
@@ -48,13 +46,11 @@ def auth_current_user():
             if user is not None:
                 login_user(user, remember=False)
                 return user
-        if auth_header.startswith('Bearer'):
-            try:
-                verify_jwt_in_request()
-                return 1
-            except Exception:
-                pass
-            return None
+    try:
+        verify_jwt_in_request()
+        return 1
+    except Exception:
+        pass
     return None
 
 

@@ -15,13 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from importlib import import_module
 
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    get_jwt_identity,
+    get_raw_jwt,
+    set_access_cookies,
+)
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.utils import timezone
 
 log = logging.getLogger(__name__)
 
@@ -62,11 +69,30 @@ def init_api_experimental_auth(app):
 
 def init_jwt_auth(app):
     """Initialize flask jwt extended""" ""
+    exp_mins = conf.getint("api", "jwt_access_token_expires", fallback=60)
     app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-    app.config['JWT_TOKEN_EXPIRES'] = timedelta(minutes=30)
-    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=1)
-    app.config['JWT_ACCESS_COOKIE_PATH'] = '/api/'
-    app.config['JWT_REFRESH_COOKIE_PATH'] = '/token/refresh'
-    app.config['JWT_CSRF_CHECK_FORM'] = True
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=exp_mins)
+    app.config['JWT_CSRF_IN_COOKIES'] = True
     app.config['JWT_COOKIE_CSRF_PROTECT'] = True
+    app.config['JWT_COOKIE_SECURE'] = conf.get("api", "jwt_cookie_secure", fallback=True)
     JWTManager(app)
+
+    # In flask_jwt_extension 4.0, this is the recommended way to refresh token
+    # https://flask-jwt-extended.readthedocs.io/en/stable/refreshing_tokens/#implicit-refreshing-with-cookies
+    # It's warned not to store refresh token in cookies unlike in 3.0 where they suggested storing refresh
+    # token in cookies
+    def refresh_token(response):
+        try:
+            exp_timestamp = get_raw_jwt()["exp"]
+            now = datetime.now(timezone.utc)
+            half_exp_time = exp_mins / 2
+            target_timestamp = datetime.timestamp(now + timedelta(minutes=half_exp_time))
+            if target_timestamp > exp_timestamp:
+                access_token = create_access_token(identity=get_jwt_identity())
+                set_access_cookies(response, access_token)
+            return response
+        except (RuntimeError, KeyError):
+            # Case where there is not a valid JWT. Just return the original respone
+            return response
+
+    app.after_request(refresh_token)

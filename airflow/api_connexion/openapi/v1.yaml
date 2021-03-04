@@ -1492,12 +1492,12 @@ paths:
 
   /login:
     post:
-      summary: Auth login
+      summary: Webserver login
       description: |
         Verify user and set jwt token in cookies
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
       operationId: login
-      tags: [Auth]
+      tags: [WebserverAuth]
 
       responses:
         '200':
@@ -1505,11 +1505,7 @@ paths:
           content:
             application/json:
               schema:
-                properties:
-                  logged_in:
-                    type: boolean
-                    nullable: false
-                    description: Indicate user is logged in
+                $ref: '#/components/schemas/User'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1517,11 +1513,11 @@ paths:
 
   /logout:
     post:
-      summary: Auth logout
+      summary: Webserver logout
       description: Logout user by unsetting cookies
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
       operationId: logout
-      tags: [Auth]
+      tags: [WebserverAuth]
 
       responses:
         '200':
@@ -1535,25 +1531,6 @@ paths:
                     description: Indicate user is logged out
         '400':
           $ref: '#/components/responses/BadRequest'
-
-  /refresh:
-    post:
-      summary: Refresh token
-      description: Create fresh token for user
-      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
-      operationId: token_refresh
-      tags: [Auth]
-
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                properties:
-                  fresh:
-                    type: boolean
-                    description: Indicate token is fresh
 
 components:
   # Reusable schemas (data models)
@@ -3340,6 +3317,10 @@ components:
     Kerberos:
       type: http
       scheme: negotiate
+    WebserverAuth:
+      type: apiKey
+      in: cookie
+      name: access_token_cookie
 
 # The API will provide support for plugins to support various authorization mechanisms.
 # Detailed information will be available in the plugin specification.
@@ -3361,7 +3342,7 @@ tags:
   - name: Role
   - name: Permission
   - name: User
-  - name: Auth
+  - name: WebserverAuth
 
 externalDocs:
   url: https://airflow.apache.org/docs/apache-airflow/stable/

@@ -16,17 +16,10 @@
 # under the License.
 
 from flask import current_app, jsonify
-from flask_jwt_extended import (
-    create_access_token,
-    create_refresh_token,
-    get_jwt_identity,
-    jwt_refresh_token_required,
-    set_access_cookies,
-    set_refresh_cookies,
-    unset_jwt_cookies,
-)
+from flask_jwt_extended import create_access_token, set_access_cookies, unset_jwt_cookies
 
 from airflow.api_connexion import security
+from airflow.api_connexion.schemas.user_schema import user_collection_item_schema
 
 
 def login():
@@ -35,27 +28,13 @@ def login():
     user = ab_security_manager.current_user
     if user:
         access_token = create_access_token(user.id)
-        refresh_token = create_refresh_token(user.id)
-        resp = jsonify({"logged_in": True})
+        resp = jsonify(user_collection_item_schema.dump(user))
         set_access_cookies(resp, access_token)
-        set_refresh_cookies(resp, refresh_token)
         return resp
     security.check_authentication()
     user = current_app.appbuilder.sm.current_user
     access_token = create_access_token(user.id)
-    refresh_token = create_refresh_token(user.id)
-    resp = jsonify({"logged_in": True})
-    set_access_cookies(resp, access_token)
-    set_refresh_cookies(resp, refresh_token)
-    return resp
-
-
-@jwt_refresh_token_required
-def token_refresh():
-    """Refresh token"""
-    current_user = get_jwt_identity()
-    access_token = create_access_token(identity=current_user)
-    resp = jsonify({"fresh": True})
+    resp = jsonify(user_collection_item_schema.dump(user))
     set_access_cookies(resp, access_token)
     return resp
 

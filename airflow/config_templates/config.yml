@@ -728,6 +728,21 @@
       type: string
       example: ~
       default: "airflow.api.auth.backend.deny_all"
+    - name: jwt_access_token_expires
+      description: How long an access token should live before it expires(in minutes).
+      version_added: 2.0.2
+      type: integer
+      example: ~
+      default: "60"
+    - name: jwt_cookie_secure
+      description: |
+        If the secure flag should be set on your JWT cookies. This will only
+        allow the cookies to be sent over https. Defaults to False,
+        but in production this should likely be set to True.
+      version_added: 2.0.2
+      type: boolean
+      example: ~
+      default: "False"
     - name: maximum_page_limit
       description: |
         Used to set the maximum page limit for API requests

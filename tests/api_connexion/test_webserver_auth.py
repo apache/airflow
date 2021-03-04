@@ -20,36 +20,36 @@ from base64 import b64encode
 from datetime import datetime, timedelta
 
 import jwt
-from flask_login import current_user
+from flask_jwt_extended import create_access_token
 from parameterized import parameterized
 
+from airflow.security import permissions
 from airflow.www.app import create_app
-from tests.test_utils.api_connexion_utils import assert_401
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_pools
 
 
 class TestWebserverAuth(unittest.TestCase):
-    def setUp(self) -> None:
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
-            self.app = create_app(testing=True)
+            cls.app = create_app(testing=True)
+        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Admin",
+            permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)],
+        )
+        cls.tester = cls.appbuilder.sm.find_user(username="test")
 
-        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
-        role_admin = self.appbuilder.sm.find_role("Admin")
-        self.tester = self.appbuilder.sm.find_user(username="test")
-        if not self.tester:
-            self.appbuilder.sm.add_user(
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
-        clear_db_pools()
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
 
-    def tearDown(self) -> None:
-        clear_db_pools()
+    def setUp(self) -> None:
+        self.client = self.app.test_client()
 
     def test_successful_login(self):
         token = "Basic " + b64encode(b"test:test").decode()
@@ -61,16 +61,12 @@ class TestWebserverAuth(unittest.TestCase):
         assert isinstance(cookie.value, str)
 
     def test_can_view_other_endpoints(self):
-        token = "Basic " + b64encode(b"test:test").decode()
-        with self.app.test_client() as test_client:
-            test_client.post("api/v1/login", headers={"Authorization": token})
-            assert current_user.email == "test@fab.org"
-            cookie = next(
-                (cookie for cookie in test_client.cookie_jar if cookie.name == "access_token_cookie"), None
-            )
-            response2 = test_client.get("/api/v1/pools", headers={"Authorization": "Bearer " + cookie.value})
-        assert response2.status_code == 200
-        assert response2.json == {
+        with self.app.app_context():
+            token = create_access_token(self.tester.id)
+            self.client.set_cookie("localhost", 'access_token_cookie', token)
+            response = self.client.get("/api/v1/pools")
+        assert response.status_code == 200
+        assert response.json == {
             "pools": [
                 {
                     "name": "default_pool",
@@ -91,8 +87,9 @@ class TestWebserverAuth(unittest.TestCase):
             'sub': self.tester.id,
         }
         forgedtoken = jwt.encode(payload, key=None, algorithm=None).decode()
+        self.client.set_cookie("localhost", 'access_token_cookie', forgedtoken)
         with self.app.test_client() as test_client:
-            response = test_client.get("/api/v1/pools", headers={"Authorization": "Bearer " + forgedtoken})
+            response = test_client.get("/api/v1/pools")
         assert response.status_code == 401
 
     @parameterized.expand(
