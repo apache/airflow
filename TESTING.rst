@@ -110,7 +110,7 @@ This can also be done by specifying a full path to the test:
 
 .. code-block:: bash
 
-      pytest tests/core/test_core.py::TestCore::test_check_operators
+    pytest tests/core/test_core.py::TestCore::test_check_operators
 
 To run the whole test class, enter:
 
