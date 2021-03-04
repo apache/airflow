@@ -33,10 +33,10 @@ def check_authentication() -> None:
     jwt_response = requires_authentication(Response)()
     if jwt_response.status_code == 200:
         return
-    elif jwt_response.status_code != 200:
-        raise Unauthenticated(headers=jwt_response.headers)
     # since this handler only checks authentication, not authorization,
     # we should always return 401
+    if jwt_response.status_code != 200:
+        raise Unauthenticated(headers=jwt_response.headers)
     raise Unauthenticated(headers=response.headers)
 
 

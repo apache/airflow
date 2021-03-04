@@ -30,7 +30,7 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
 def auth_current_user():
-    """Checks the authentication and return the current user"""
+    """Checks the authentication and return a value"""
     auth_header = request.headers.get("Authorization", None)
     if auth_header:
         if auth_header.startswith("Basic"):

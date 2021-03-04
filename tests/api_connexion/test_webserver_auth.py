@@ -51,7 +51,9 @@ class TestWebserverAuth(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()
 
-    def test_successful_login(self):
+    def test_basic_auth_can_get_token(self):
+        # For most users that would use username and password especially in local
+        # deployment, we check that on a successful login, a token is generated
         token = "Basic " + b64encode(b"test:test").decode()
         with self.app.test_client() as test_client:
             test_client.post("api/v1/login", headers={"Authorization": token})
@@ -60,7 +62,7 @@ class TestWebserverAuth(unittest.TestCase):
             )
         assert isinstance(cookie.value, str)
 
-    def test_can_view_other_endpoints(self):
+    def test_token_in_cookie_can_view_endpoints(self):
         with self.app.app_context():
             token = create_access_token(self.tester.id)
             self.client.set_cookie("localhost", 'access_token_cookie', token)
@@ -125,3 +127,15 @@ class TestWebserverAuth(unittest.TestCase):
             assert response.status_code == 401
             assert response.headers["Content-Type"] == "application/problem+json"
             assert_401(response)
+
+    @parameterized.expand(
+        [("access_token_cookies"), ("access_token_cook"), ("access_token"), ("csrf_access_token")]
+    )
+    def test_invalid_cookie_name_fails(self, name):
+        with self.app.app_context():
+            token = create_access_token(self.tester.id)
+            self.client.set_cookie("localhost", name, token)
+            response = self.client.get("/api/v1/pools")
+        assert response.status_code == 401
+        assert response.headers["Content-Type"] == "application/problem+json"
+        assert_401(response)
