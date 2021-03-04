@@ -27,8 +27,8 @@ class AirbyteJobSensor(BaseSensorOperator):
     """
     Check for the state of a previously submitted Airbyte job.
 
-    :param job_id: Id of the Airbyte job
-    :type job_id: str
+    :param airbyte_job_id: Id of the Airbyte job
+    :type airbyte_job_id: str
     :param airbyte_conn_id: Required. The name of the Airflow connection to get
         connection information for Airbyte.
     :type airbyte_conn_id: str
