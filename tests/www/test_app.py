@@ -27,6 +27,7 @@ from werkzeug.wrappers import Response
 
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
+from tests.test_utils.decorators import dont_initialize
 
 
 class TestApp(unittest.TestCase):
@@ -46,6 +47,7 @@ class TestApp(unittest.TestCase):
             ('webserver', 'proxy_fix_x_prefix'): '1',
         }
     )
+    @dont_initialize
     @mock.patch("airflow.www.app.app", None)
     def test_should_respect_proxy_fix(self):
         app = application.cached_app(testing=True)
@@ -86,7 +88,7 @@ class TestApp(unittest.TestCase):
             ('webserver', 'base_url'): 'http://localhost:8080/internal-client',
         }
     )
-    @mock.patch("airflow.www.app.app", None)
+    @dont_initialize
     def test_should_respect_base_url_ignore_proxy_headers(self):
         app = application.cached_app(testing=True)
         app.url_map.add(Rule("/debug", endpoint="debug"))
@@ -132,6 +134,7 @@ class TestApp(unittest.TestCase):
             ('webserver', 'proxy_fix_x_prefix'): '1',
         }
     )
+    @dont_initialize
     @mock.patch("airflow.www.app.app", None)
     def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(self):
         app = application.cached_app(testing=True)
@@ -172,6 +175,7 @@ class TestApp(unittest.TestCase):
             ('webserver', 'proxy_fix_x_prefix'): '1',
         }
     )
+    @dont_initialize
     @mock.patch("airflow.www.app.app", None)
     def test_should_respect_base_url_and_proxy_when_proxy_fix_and_base_url_is_set_up(self):
         app = application.cached_app(testing=True)
@@ -216,6 +220,7 @@ class TestApp(unittest.TestCase):
             ('core', 'sql_alchemy_pool_pre_ping'): 'True',
         }
     )
+    @dont_initialize
     @mock.patch("airflow.www.app.app", None)
     @pytest.mark.backend("mysql", "postgres")
     def test_should_set_sqlalchemy_engine_options(self):
@@ -228,19 +233,23 @@ class TestApp(unittest.TestCase):
             ('webserver', 'session_lifetime_minutes'): '3600',
         }
     )
+    @dont_initialize
     @mock.patch("airflow.www.app.app", None)
     def test_should_set_permanent_session_timeout(self):
         app = application.cached_app(testing=True)
         assert app.config['PERMANENT_SESSION_LIFETIME'] == timedelta(minutes=3600)
 
     @conf_vars({('webserver', 'cookie_samesite'): ''})
+    @dont_initialize
     @mock.patch("airflow.www.app.app", None)
     def test_correct_default_is_set_for_cookie_samesite(self):
+        # breakpoint()
         app = application.cached_app(testing=True)
         assert app.config['SESSION_COOKIE_SAMESITE'] == 'Lax'
 
 
 class TestFlaskCli(unittest.TestCase):
+    @dont_initialize
     def test_flask_cli_should_display_routes(self):
         with mock.patch.dict("os.environ", FLASK_APP="airflow.www.app:create_app"):
             output = subprocess.check_output(["flask", "routes"])
