@@ -69,7 +69,7 @@ with DAG(
         task_id="delete_blob_files",
         wasb_conn_id="wasb_default",
         container_name=AZURE_CONTAINER_NAME,
-        blob_name=BLOB_PREFIX + SAMPLE_FILE_NAME,
+        blob_name=BLOB_PREFIX + SAMPLE_FILENAME,
     )
 
     delete_sftp_step = PythonOperator(task_id="delete_sftp_file", python_callable=delete_sftp_file)
