@@ -19,7 +19,7 @@
 """rename last_scheduler_run column
 
 Revision ID: 2e42bb497a22
-Revises: 8646922c8a04
+Revises: 849da589634d
 Create Date: 2021-03-04 19:50:38.880942
 
 """
@@ -28,7 +28,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '2e42bb497a22'
-down_revision = '8646922c8a04'
+down_revision = '849da589634d'
 branch_labels = None
 depends_on = None
 
