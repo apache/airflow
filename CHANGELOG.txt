@@ -143,6 +143,12 @@ Doc only changes
 - Add deprecated config options to docs (#13883)
 - Added a FAQ section to the Upgrading to 2 doc (#13979)
 
+Airflow 2.0.0, 2020-12-18
+----------------------------
+
+The full changelog is about 3,000 lines long (already excluding everything backported to 1.10)
+so please check `Airflow 2.0.0 Highligths Blog Post <https://airflow.apache.org/blog/airflow-two-point-oh-is-here/>`_
+instead.
 
 Airflow 1.10.14, 2020-12-10
 ----------------------------
