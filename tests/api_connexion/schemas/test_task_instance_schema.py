@@ -199,6 +199,7 @@ class TestSetTaskInstanceStateFormSchema(unittest.TestCase):
     @parameterized.expand(
         [
             ({"task_id": None},),
+            ({"include_future": "foo"},),
             ({"execution_date": "NOW"},),
             ({"new_state": "INVALID_STATE"},),
         ]
