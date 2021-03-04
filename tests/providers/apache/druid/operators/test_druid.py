@@ -17,6 +17,7 @@
 # under the License.
 #
 
+import os
 import unittest
 from tempfile import NamedTemporaryFile
 
@@ -24,7 +25,6 @@ from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.druid.operators.druid import DruidOperator
 from airflow.utils import timezone
-from airflow.utils.state import State
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -33,9 +33,7 @@ class TestDruidOperator(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': timezone.datetime(2017, 1, 1)}
         self.dag = DAG('test_dag_id', default_args=args)
-
-    def test_render_template(self):
-        json_str = '''
+        self.json_index_str = '''
             {
                 "type": "{{ params.index_type }}",
                 "datasource": "{{ params.datasource }}",
@@ -48,15 +46,7 @@ class TestDruidOperator(unittest.TestCase):
                 }
             }
         '''
-        operator = DruidOperator(
-            task_id='spark_submit_job',
-            json_index_file=json_str,
-            params={'index_type': 'index_hadoop', 'datasource': 'datasource_prd'},
-            dag=self.dag,
-        )
-        ti = TaskInstance(operator, DEFAULT_DATE)
-        ti.render_templates()
-        expected = '''
+        self.rendered_index_str = '''
             {
                 "type": "index_hadoop",
                 "datasource": "datasource_prd",
@@ -69,35 +59,33 @@ class TestDruidOperator(unittest.TestCase):
                 }
             }
         '''
-        assert expected == getattr(operator, 'json_index_file')
+
+    def test_render_template(self):
+        operator = DruidOperator(
+            task_id='spark_submit_job',
+            json_index_file=self.json_index_str,
+            params={'index_type': 'index_hadoop', 'datasource': 'datasource_prd'},
+            dag=self.dag,
+        )
+        ti = TaskInstance(operator, DEFAULT_DATE)
+        ti.render_templates()
+
+        assert self.rendered_index_str == operator.json_index_file
 
     def test_render_template_from_file(self):
-        with NamedTemporaryFile("w") as f:
-            index_json_str = '''
-            {
-                "type": "{{ params.index_type }}",
-                "datasource": "{{ params.datasource }}",
-                "spec": {
-                    "dataSchema": {
-                        "granularitySpec": {
-                            "intervals": ["{{ ds }}/{{ macros.ds_add(ds, 1) }}"]
-                        }
-                    }
-                }
-            }
-            '''
-            f.write(index_json_str)
+        with NamedTemporaryFile("w", suffix='.json') as f:
+            f.write(self.json_index_str)
             f.flush()
+
+            self.dag.template_searchpath = os.path.dirname(f.name)
+
             operator = DruidOperator(
                 task_id='spark_submit_job',
                 json_index_file=f.name,
-                params={
-                    'index_type': 'index_hadoop',
-                    'datasource': 'datasource_prd'
-                },
-                dag=self.dag
+                params={'index_type': 'index_hadoop', 'datasource': 'datasource_prd'},
+                dag=self.dag,
             )
             ti = TaskInstance(operator, DEFAULT_DATE)
             ti.render_templates()
 
-            assert ti.state == State.SUCCESS
+            assert self.rendered_index_str == operator.json_index_file
