@@ -37,3 +37,22 @@ The AirbyteTriggerSyncOperator requires the ``connection_id`` this is the uuid i
 create in Airbyte between a source and destination synchronization job.
 Use the ``airbyte_conn_id`` parameter to specify the Airbyte connection to use to
 connect to your account.
+
+You can trigger a synchronization job in Airflow in two ways with the Operator. The first one
+is a synchronous process. This will trigger the Airbyte job and the Operator manage the status
+of the job. Another way is use the flag ``async = True`` so the Operator only trigger the job and
+return the ``job_id`` that should be pass to the AirbyteSensor.
+
+An example using the synchronous way:
+
+.. exampleinclude:: /../../airflow/providers/airbyte/example_dags/example_airbyte_trigger_job.py
+    :language: python
+    :start-after: [START howto_operator_airbyte_synchronous]
+    :end-before: [END howto_operator_airbyte_synchronous]
+
+An example using the async way:
+
+.. exampleinclude:: /../../airflow/providers/airbyte/example_dags/example_airbyte_trigger_job.py
+    :language: python
+    :start-after: [START howto_operator_airbyte_asynchronous]
+    :end-before: [END howto_operator_airbyte_asynchronous]
