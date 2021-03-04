@@ -20,7 +20,7 @@
 
 from datetime import timedelta
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
 from airflow.utils.dates import days_ago
