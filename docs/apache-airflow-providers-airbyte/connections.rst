@@ -24,10 +24,10 @@ The Airbyte connection type use the HTTP protocol.
 Configuring the Connection
 --------------------------
 Host(required)
-    The host to connect to.
+    The host to connect to Airbyte web application.
 
 Port (required)
-    The port for the Airbyte server.
+    The port for the Airbyte web application.
 
 Login (optional)
     Specify the user name to connect.
