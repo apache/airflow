@@ -1837,7 +1837,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 )
             )
 
-            jinja_env = jinja2.Environment(
+            jinja_env = jinja2.nativetypes.NativeEnvironment(
                 loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
             )
             subject = jinja_env.from_string(default_subject).render(**jinja_context)

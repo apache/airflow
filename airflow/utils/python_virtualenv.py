@@ -111,6 +111,8 @@ def write_python_script(jinja_context: dict, filename: str):
     :type filename: str
     """
     template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
-    template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
+    template_env = jinja2.nativetypes.NativeEnvironment(
+        loader=template_loader, undefined=jinja2.StrictUndefined
+    )
     template = template_env.get_template('python_virtualenv_script.jinja2')
     template.stream(**jinja_context).dump(filename)

@@ -29,7 +29,7 @@ from airflow.configuration import conf
 from airflow.lineage.backend import LineageBackend
 from airflow.utils.module_loading import import_string
 
-ENV = jinja2.Environment()
+ENV = jinja2.nativetypes.NativeEnvironment()
 
 PIPELINE_OUTLETS = "pipeline_outlets"
 PIPELINE_INLETS = "pipeline_inlets"

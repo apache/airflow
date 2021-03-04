@@ -219,7 +219,7 @@ class TestBaseOperator(unittest.TestCase):
         with pytest.raises(jinja2.exceptions.TemplateSyntaxError):
             task.render_template("{{ invalid expression }}", {})
 
-    @mock.patch("jinja2.Environment", autospec=True)
+    @mock.patch("jinja2.nativetypes.NativeEnvironment", autospec=True)
     def test_jinja_env_creation(self, mock_jinja_env):
         """Verify if a Jinja environment is created only once when templating."""
         with DAG("test-dag", start_date=DEFAULT_DATE):
