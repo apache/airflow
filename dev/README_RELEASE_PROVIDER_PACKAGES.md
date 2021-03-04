@@ -226,15 +226,7 @@ Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
 ```shell script
-for file in ${AIRFLOW_REPO_ROOT}/dist/*.whl
-do
-   if [[ ${file} =~ .*airflow_providers_(.*)-(.*)-py3.* ]]; then
-        provider="providers-${BASH_REMATCH[1]}"
-        tag="${provider//_/-}/${BASH_REMATCH[2]}"
-        git tag "${tag}"
-        git push apache "${tag}"
-   fi
-done
+./dev/provider_packages/tag_providers.sh
 ```
 
 ## Publish documentation
@@ -262,9 +254,9 @@ export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 ./breeze build-docs -- \
-  --package-filter apache-airflow-providers \
-  --package-filter 'apache-airflow-providers-*' \
   --for-production
+  --package-filter apache-airflow-providers \
+  --package-filter 'apache-airflow-providers-*'
 ```
 
 for all providers, or if you have just few providers:
@@ -272,11 +264,17 @@ for all providers, or if you have just few providers:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 ./breeze build-docs -- \
+  --for-production
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
   ...
-  --for-production
+```
+
+If you have providers as list of provider ids beacuse you just released them you can build them with
+
+```shell script
+./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
 ```
 
 - Now you can preview the documentation.
@@ -287,7 +285,10 @@ cd "${AIRFLOW_REPO_ROOT}"
 
 - Copy the documentation to the ``airflow-site`` repository
 
-**NOTE** In oder to run the publish_doc
+**NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
+apache-airflow with doc extra:
+
+* `pip install apache-airflow[doc]`
 
 All providers:
 
@@ -299,15 +300,10 @@ All providers:
 cd "${AIRFLOW_SITE_DIRECTORY}"
 ```
 
-If you have released just a few providers:
+If you have providers as list of provider ids beacuse you just released them you can build them with
 
 ```shell script
-./docs/publish_docs.py \
-    --package-filter apache-airflow-providers \
-    --package-filter 'apache-airflow-providers-PACKAGE1' \
-    --package-filter 'apache-airflow-providers-PACKAGE2' \
-
-cd "${AIRFLOW_SITE_DIRECTORY}"
+./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
 ```
 
 
@@ -317,8 +313,11 @@ cd "${AIRFLOW_SITE_DIRECTORY}"
 - Create the commit and push changes.
 
 ```shell script
+branch="add-documentation-$(date "+%Y-%m-%d%n")"
+git checkout -b "${branch}"
+git add .
 git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
-git push
+git push --set-upstream origin "${branch}"
 ```
 
 ## Prepare voting email for Providers release candidate
@@ -797,15 +796,7 @@ Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
 ```shell script
-for file in ${AIRFLOW_REPO_ROOT}/dist/*.whl
-do
-   if [[ ${file} =~ .*airflow_providers_(.*)-(.*)-py3.* ]]; then
-        provider="providers-${BASH_REMATCH[1]}"
-        tag="${provider//_/-}/${BASH_REMATCH[2]}"
-        git tag "${tag}"
-        git push apache "${tag}"
-   fi
-done
+./dev/provider_packages/tag_providers.sh
 ```
 
 

@@ -20,7 +20,13 @@
 Checking Airflow Health Status
 ==============================
 
-Airflow has s two methods to check the health of components - HTTP checks and CLI checks. Their choice depends on the role of the component as well as what tools it uses to monitor the deployment.
+Airflow has two methods to check the health of components - HTTP checks and CLI checks. Their choice depends on the role of the component as well as what tools it uses to monitor the deployment.
+
+For example, when running on Kubernetes, use `a Liveness probes <https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/>`__ (``livenessProbe`` property) with :ref:`CLI checks <check-health/cli-checks-for-scheduler>` on the scheduler deployment to restart it when it fail. For the webserver, you can configure the readiness probe (``readinessProbe`` property) using :ref:`check-health/http-endpoint`.
+
+For an example for a Docker Compose environment, see the ``docker-compose.yaml`` file available in the :doc:`/start/docker`.
+
+.. _check-health/http-endpoint:
 
 Health Check Endpoint
 ---------------------

@@ -111,11 +111,7 @@ Airflow users occasionally report instances of the scheduler hanging without a t
 * `Scheduler gets stuck without a trace <https://github.com/apache/airflow/issues/7935>`_
 * `Scheduler stopping frequently <https://github.com/apache/airflow/issues/13243>`_
 
-Strategies for mitigation:
-
-* When running on kubernetes, use a ``livenessProbe`` on the scheduler deployment to fail if the scheduler
-  has not heartbeat in a while.
-  `Example: <https://github.com/apache/airflow/blob/190066cf201e5b0442bbbd6df74efecae523ee76/chart/templates/scheduler/scheduler-deployment.yaml#L118-L136>`_.
+To mitigate these issues, make sure you have a :doc:`health check </logging-monitoring/check-health>` set up that will detect when your scheduler has not heartbeat in a while.
 
 .. _docker_image:
 
@@ -810,6 +806,7 @@ available. This happens always when you use the default entrypoint.
 The script detects backend type depending on the URL schema and assigns default port numbers if not specified
 in the URL. Then it loops until the connection to the host/port specified can be established
 It tries ``CONNECTION_CHECK_MAX_COUNT`` times and sleeps ``CONNECTION_CHECK_SLEEP_TIME`` between checks
+To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 
 Supported schemes:
 
@@ -894,7 +891,8 @@ commands are used the entrypoint will wait until the celery broker DB connection
 
 The script detects backend type depending on the URL schema and assigns default port numbers if not specified
 in the URL. Then it loops until connection to the host/port specified can be established
-It tries ``CONNECTION_CHECK_MAX_COUNT`` times and sleeps ``CONNECTION_CHECK_SLEEP_TIME`` between checks
+It tries ``CONNECTION_CHECK_MAX_COUNT`` times and sleeps ``CONNECTION_CHECK_SLEEP_TIME`` between checks.
+To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 
 Supported schemes:
 

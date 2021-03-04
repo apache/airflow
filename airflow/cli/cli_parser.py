@@ -184,9 +184,9 @@ ARG_OUTPUT = Arg(
         "-o",
         "--output",
     ),
-    help="Output format. Allowed values: json, yaml, table (default: table)",
-    metavar="(table, json, yaml)",
-    choices=("table", "json", "yaml"),
+    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
     default="table",
 )
 ARG_COLOR = Arg(
@@ -930,7 +930,7 @@ TASKS_COMMANDS = (
         name='list',
         help="List the tasks within a DAG",
         func=lazy_load_command('airflow.cli.commands.task_command.task_list'),
-        args=(ARG_DAG_ID, ARG_TREE, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_TREE, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name='clear',
@@ -956,7 +956,7 @@ TASKS_COMMANDS = (
         name='state',
         help="Get the status of a task instance",
         func=lazy_load_command('airflow.cli.commands.task_command.task_state'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name='failed-deps',
@@ -973,7 +973,7 @@ TASKS_COMMANDS = (
         name='render',
         help="Render a task instance's template(s)",
         func=lazy_load_command('airflow.cli.commands.task_command.task_render'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name='run',

@@ -406,7 +406,7 @@ def test_delete_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
 def test_start_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
     hook.start_trigger(*user_args)
 
-    hook._conn.triggers.start.assert_called_with(*sdk_args)
+    hook._conn.triggers.begin_start.assert_called_with(*sdk_args)
 
 
 @parametrize(
@@ -416,7 +416,7 @@ def test_start_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
 def test_stop_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
     hook.stop_trigger(*user_args)
 
-    hook._conn.triggers.stop.assert_called_with(*sdk_args)
+    hook._conn.triggers.begin_stop.assert_called_with(*sdk_args)
 
 
 @parametrize(

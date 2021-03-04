@@ -15,14 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-#
-# Run airflow command in container
-#
-
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 set -euo pipefail
 
-export COMPOSE_FILE="${PROJECT_DIR}/docker-compose.yaml"
-exec docker-compose run --rm -e CONNECTION_CHECK_MAX_COUNT=0 airflow-worker "${@}"
+if [[ $# == "0" ]]; then
+    echo "ERROR: Pass provider ids as list"
+    exit 1
+fi
+
+provider_filters=()
+for provider in "${@}"
+do
+    provider_filters+=("--package-filter" "apache-airflow-providers-${provider//./-}")
+done
+
+./docs/publish_docs.py \
+    --package-filter apache-airflow-providers \
+    "${provider_filters[@]}"
+cd "${AIRFLOW_SITE_DIRECTORY}"

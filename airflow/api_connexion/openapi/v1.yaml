@@ -266,9 +266,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ConnectionCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/ConnectionCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -384,9 +382,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/DAGCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/DAGCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
@@ -536,9 +532,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/DAGRunCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/DAGRunCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
@@ -592,9 +586,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/DAGRunCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/DAGRunCollection'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -660,9 +652,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/EventLogCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/EventLogCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -706,9 +696,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ImportErrorCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/ImportErrorCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -752,9 +740,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/PoolCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/PoolCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -889,9 +875,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/TaskInstanceCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/TaskInstanceCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -946,9 +930,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/TaskInstanceCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/TaskInstanceCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -972,9 +954,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/VariableCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/VariableCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -1101,9 +1081,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/XComCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/XComCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -1441,12 +1419,15 @@ components:
 
     ConnectionCollection:
       type: object
-      description: Connections
-      properties:
-        connections:
-          type: array
-          items:
-            $ref: '#/components/schemas/ConnectionCollectionItem'
+      description: Collection of connections.
+      allOf:
+        - type: object
+          properties:
+            connections:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConnectionCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     Connection:
       description: Full representation of the connection.
@@ -1519,13 +1500,16 @@ components:
           readOnly: true
 
     DAGCollection:
-      description: Collection of DAGs
+      description: Collection of DAGs.
       type: object
-      properties:
-        dags:
-          type: array
-          items:
-            $ref: '#/components/schemas/DAG'
+      allOf:
+        - type: object
+          properties:
+            dags:
+              type: array
+              items:
+                $ref: '#/components/schemas/DAG'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     DAGRun:
       type: object
@@ -1588,12 +1572,15 @@ components:
 
     DAGRunCollection:
       type: object
-      description: Collection of DAG runs
-      properties:
-        dag_runs:
-          type: array
-          items:
-            $ref: '#/components/schemas/DAGRun'
+      description: Collection of DAG runs.
+      allOf:
+        - type: object
+          properties:
+            dag_runs:
+              type: array
+              items:
+                $ref: '#/components/schemas/DAGRun'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     EventLog:
       type: object
@@ -1642,12 +1629,15 @@ components:
 
     EventLogCollection:
       type: object
-      description: Collection of event log
-      properties:
-        event_logs:
-          type: array
-          items:
-            $ref: '#/components/schemas/EventLog'
+      description: Collection of event logs.
+      allOf:
+        - type: object
+          properties:
+            event_logs:
+              type: array
+              items:
+                $ref: '#/components/schemas/EventLog'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     ImportError:
       type: object
@@ -1672,11 +1662,15 @@ components:
 
     ImportErrorCollection:
       type: object
-      properties:
-        import_errors:
-          type: array
-          items:
-            $ref: '#/components/schemas/ImportError'
+      description: Collection of import errors.
+      allOf:
+        - type: object
+          properties:
+            import_errors:
+              type: array
+              items:
+                $ref: '#/components/schemas/ImportError'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     HealthInfo:
       type: object
@@ -1738,12 +1732,15 @@ components:
 
     PoolCollection:
       type: object
-      description: Collection of pool.
-      properties:
-        pools:
-          type: array
-          items:
-            $ref: '#/components/schemas/Pool'
+      description: Collection of pools.
+      allOf:
+        - type: object
+          properties:
+            pools:
+              type: array
+              items:
+                $ref: '#/components/schemas/Pool'
+        - $ref: '#/components/schemas/CollectionInfo'
 
 
     SLAMiss:
@@ -1826,11 +1823,15 @@ components:
 
     TaskInstanceCollection:
       type: object
-      properties:
-        task_instances:
-          type: array
-          items:
-            $ref: '#/components/schemas/TaskInstance'
+      description: Collection of task instances.
+      allOf:
+        - type: object
+          properties:
+            task_instances:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaskInstance'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     TaskInstanceReference:
       type: object
@@ -1874,12 +1875,15 @@ components:
 
     VariableCollection:
       type: object
-      description: Collection of XCom entries
-      properties:
-        variables:
-          type: array
-          items:
-            $ref: '#/components/schemas/VariableCollectionItem'
+      description: Collection of variables.
+      allOf:
+        - type: object
+          properties:
+            variables:
+              type: array
+              items:
+                $ref: '#/components/schemas/VariableCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     Variable:
       description: Full representation of Variable
@@ -1914,11 +1918,14 @@ components:
     XComCollection:
       type: object
       description: Collection of XCom entries.
-      properties:
-        xcom_entries:
-          type: array
-          items:
-            $ref: '#/components/schemas/XComCollectionItem'
+      allOf:
+        - type: object
+          properties:
+            xcom_entries:
+              type: array
+              items:
+                $ref: '#/components/schemas/XComCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     XCom:
       description: Full representations of XCom entry.

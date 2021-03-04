@@ -15,14 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-#
-# Run airflow command in container
-#
-
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 set -euo pipefail
+AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
 
-export COMPOSE_FILE="${PROJECT_DIR}/docker-compose.yaml"
-exec docker-compose run --rm -e CONNECTION_CHECK_MAX_COUNT=0 airflow-worker "${@}"
+for file in "${AIRFLOW_SOURCES}/dist/"*.whl
+do
+   if [[ ${file} =~ .*airflow_providers_(.*)-(.*)-py3.* ]]; then
+        provider="providers-${BASH_REMATCH[1]}"
+        tag="${provider//_/-}/${BASH_REMATCH[2]}"
+        git tag "${tag}"
+        git push apache "${tag}"
+   fi
+done

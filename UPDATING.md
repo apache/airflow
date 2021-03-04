@@ -417,6 +417,35 @@ executor = my_acme_company.executors.MyCustomExecutor
 
 The old configuration is still works but can be abandoned at any time.
 
+#### Use `CustomSQLAInterface` instead of `SQLAInterface` for custom data models.
+
+From Airflow 2.0, if you want to define your own Flask App Builder data models you need to use CustomSQLAInterface
+instead of SQLAInterface.
+
+For Non-RBAC replace:
+
+```python
+from flask_appbuilder.models.sqla.interface import SQLAInterface
+
+datamodel = SQLAInterface(your_data_model)
+```
+
+with RBAC (in 1.10):
+
+```python
+from airflow.www_rbac.utils import CustomSQLAInterface
+
+datamodel = CustomSQLAInterface(your_data_model)
+```
+
+and in 2.0:
+
+```python
+from airflow.www.utils import CustomSQLAInterface
+
+datamodel = CustomSQLAInterface(your_data_model)
+```
+
 #### Drop plugin support for stat_name_handler
 
 In previous version, you could use plugins mechanism to configure ``stat_name_handler``. You should now use the `stat_name_handler`

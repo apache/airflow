@@ -277,8 +277,8 @@ class ProvidersInfo(_BaseInfo):
         table = SimpleTable(title="Providers info")
         table.add_column()
         table.add_column(width=150)
-        for _, provider in ProvidersManager().providers.values():
-            table.add_row(provider['package-name'], provider['versions'][0])
+        for provider_value in ProvidersManager().providers.values():
+            table.add_row(provider_value.provider_info['package-name'], provider_value.version)
         console.print(table)
 
 

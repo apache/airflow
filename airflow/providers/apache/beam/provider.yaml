@@ -41,6 +41,3 @@ hooks:
   - integration-name: Apache Beam
     python-modules:
       - airflow.providers.apache.beam.hooks.beam
-
-hook-class-names:
-  - airflow.providers.apache.beam.hooks.beam.BeamHook
