@@ -43,7 +43,7 @@ and will cause an exception.
         try:
             logger.setLevel(logging.ERROR)
             dagbag = DagBag(
-                dag_folder=conf.get("core", "dags_folder"),
+                dag_folder=dags_folder,
                 include_examples=False,
                 store_serialized_dags=False
             )
