@@ -239,6 +239,7 @@ def load_plugins_from_plugin_directory():
                 plugins.append(plugin_instance)
 
         except Exception as e:  # pylint: disable=broad-except
+            print("exception", e)
             log.exception(e)
             log.error('Failed to import plugin %s', file_path)
             import_errors[file_path] = str(e)

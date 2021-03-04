@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import inspect
+import logging
 from typing import Any, Dict, List, Union
 
 from airflow import plugins_manager
@@ -36,7 +37,7 @@ def _join_plugins_names(value: Union[List[Any], Any]) -> str:
     return ",".join(_get_name(v) for v in value)
 
 
-@suppress_logs_and_warning
+@suppress_logs_and_warning(level=logging.WARNING)
 def dump_plugins(args):
     """Dump plugins information"""
     plugins_info: List[Dict[str, str]] = get_plugin_info()

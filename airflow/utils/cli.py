@@ -293,26 +293,34 @@ def should_use_colors(args) -> bool:
     return is_terminal_support_colors()
 
 
-def suppress_logs_and_warning(f: T) -> T:
+def suppress_logs_and_warning(level=logging.CRITICAL):
     """
-    Decorator to suppress logging and warning messages
+    Configurable decorator to suppress logging and warning messages
     in cli functions.
     """
 
-    @functools.wraps(f)
-    def _wrapper(*args, **kwargs):
-        _check_cli_args(args)
-        if args[0].verbose:
-            f(*args, **kwargs)
-        else:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                logging.disable(logging.CRITICAL)
-                try:
-                    f(*args, **kwargs)
-                finally:
-                    # logging output again depends on the effective
-                    # levels of individual loggers
-                    logging.disable(logging.NOTSET)
+    def decorator(f: T) -> T:
+        """
+        Decorator to suppress logging and warning messages
+        in cli functions.
+        """
 
-    return cast(T, _wrapper)
+        @functools.wraps(f)
+        def _wrapper(*args, **kwargs):
+            _check_cli_args(args)
+            if args[0].verbose:
+                f(*args, **kwargs)
+            else:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    logging.disable(level)
+                    try:
+                        f(*args, **kwargs)
+                    finally:
+                        # logging output again depends on the effective
+                        # levels of individual loggers
+                        logging.disable(logging.NOTSET)
+
+        return cast(T, _wrapper)
+
+    return decorator
