@@ -20,7 +20,7 @@
 
 from datetime import timedelta
 
-from airflow import DAG
+from airflow.models import DAG
 from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
 from airflow.utils.dates import days_ago
@@ -32,8 +32,8 @@ args = {
 with DAG(
     dag_id='example_airbyte_operator',
     default_args=args,
-    schedule_interval='0 0 * * *',
-    start_date=days_ago(2),
+    schedule_interval=None,
+    start_date=days_ago(1),
     dagrun_timeout=timedelta(minutes=60),
     tags=['example'],
 ) as dag:
@@ -52,7 +52,6 @@ with DAG(
         airbyte_conn_id='airbyte_default',
         connection_id='15bc3800-82e4-48c3-a32d-620661273f28',
         asynchronous=True,
-        do_xcom_push=True,
     )
 
     airbyte_sensor = AirbyteJobSensor(
