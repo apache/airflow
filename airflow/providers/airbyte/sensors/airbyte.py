@@ -44,7 +44,7 @@ class AirbyteJobSensor(BaseSensorOperator):
         self,
         *,
         airbyte_job_id: str,
-        airbyte_conn_id: str = 'default_airbyte_conn',
+        airbyte_conn_id: str = 'airbyte_default',
         api_version: str = "v1",
         **kwargs,
     ) -> None:
