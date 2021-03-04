@@ -18,8 +18,8 @@
 
 
 Airbyte Connection
-=================
-The Airbyte connection type use the default HTTP protocol.
+==================
+The Airbyte connection type use the HTTP protocol.
 
 Configuring the Connection
 --------------------------
