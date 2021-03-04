@@ -258,6 +258,7 @@ class DAG(LoggingMixin):
         access_control: Optional[Dict] = None,
         is_paused_upon_creation: Optional[bool] = None,
         jinja_environment_kwargs: Optional[Dict] = None,
+        render_template_as_native_obj: bool = False,
         tags: Optional[List[str]] = None,
     ):
         from airflow.utils.task_group import TaskGroup
@@ -360,6 +361,7 @@ class DAG(LoggingMixin):
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
+        self.render_template_as_native_obj = render_template_as_native_obj
         self.tags = tags
         self._task_group = TaskGroup.create_root(self)
 
@@ -976,7 +978,7 @@ class DAG(LoggingMixin):
         for t in self.tasks:
             t.resolve_template_files()
 
-    def get_template_env(self) -> NativeEnvironment:
+    def get_template_env(self) -> jinja2.Environment:
         """Build a Jinja2 environment."""
         # Collect directories to search for template files
         searchpath = [self.folder]
@@ -992,8 +994,10 @@ class DAG(LoggingMixin):
         }
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
-
-        env = NativeEnvironment(**jinja_env_options)
+        if self.render_template_as_native_obj:
+            env = NativeEnvironment(**jinja_env_options)
+        else:
+            env = jinja2.Environment(**jinja_env_options)  # type: ignore
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals

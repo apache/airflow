@@ -98,6 +98,7 @@
         "is_paused_upon_creation":  { "type": "boolean" },
         "has_on_success_callback":  { "type": "boolean" },
         "has_on_failure_callback":  { "type": "boolean" },
+        "render_template_as_native_obj":  { "type": "boolean" },
         "tags": { "type": "array" },
         "_task_group": {"anyOf": [
           { "type": "null" },

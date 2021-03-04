@@ -42,6 +42,7 @@ from typing import (
 )
 
 import attr
+import jinja2
 
 try:
     from functools import cached_property
@@ -49,7 +50,6 @@ except ImportError:
     from cached_property import cached_property
 from cached_property import cached_property
 from dateutil.relativedelta import relativedelta
-from jinja2.nativetypes import NativeEnvironment
 from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
@@ -883,14 +883,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.__dict__ = state  # pylint: disable=attribute-defined-outside-init
         self._log = logging.getLogger("airflow.task.operators")
 
-    def render_template_fields(self, context: Dict, jinja_env: Optional[NativeEnvironment] = None) -> None:
+    def render_template_fields(self, context: Dict, jinja_env: Optional[jinja2.Environment] = None) -> None:
         """
         Template all attributes listed in template_fields. Note this operation is irreversible.
 
         :param context: Dict with values to apply on content
         :type context: dict
         :param jinja_env: Jinja environment
-        :type jinja_env: NativeEnvironment
+        :type jinja_env: jinja2.Environment
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
@@ -902,7 +902,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         parent: Any,
         template_fields: Iterable[str],
         context: Dict,
-        jinja_env: NativeEnvironment,
+        jinja_env: jinja2.Environment,
         seen_oids: Set,
     ) -> None:
         for attr_name in template_fields:
@@ -915,7 +915,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self,
         content: Any,
         context: Dict,
-        jinja_env: Optional[NativeEnvironment] = None,
+        jinja_env: Optional[jinja2.Environment] = None,
         seen_oids: Optional[Set] = None,
     ) -> Any:
         """
@@ -928,7 +928,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         :type context: dict
         :param jinja_env: Jinja environment. Can be provided to avoid re-creating Jinja environments during
             recursion.
-        :type jinja_env: NativeEnvironment
+        :type jinja_env: jinja2.Environment
         :param seen_oids: template fields already rendered (to avoid RecursionError on circular dependencies)
         :type seen_oids: set
         :return: Templated content
@@ -974,7 +974,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             return content
 
     def _render_nested_template_fields(
-        self, content: Any, context: Dict, jinja_env: NativeEnvironment, seen_oids: Set
+        self, content: Any, context: Dict, jinja_env: jinja2.Environment, seen_oids: Set
     ) -> None:
         if id(content) not in seen_oids:
             seen_oids.add(id(content))
@@ -986,9 +986,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
             self._do_render_template_fields(content, nested_template_fields, context, jinja_env, seen_oids)
 
-    def get_template_env(self) -> NativeEnvironment:
+    def get_template_env(self) -> jinja2.Environment:
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
-        return self.dag.get_template_env() if self.has_dag() else NativeEnvironment(cache_size=0)  # noqa
+        return self.dag.get_template_env() if self.has_dag() else jinja2.Environment(cache_size=0)  # noqa
 
     def prepare_template(self) -> None:
         """

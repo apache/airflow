@@ -135,6 +135,34 @@ class TestBaseOperator(unittest.TestCase):
         result = task.render_template(content, context)
         assert result == expected_output
 
+    @parameterized.expand(
+        [
+            ("{{ foo }}", {"foo": "bar"}, "bar"),
+            ("{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"]),
+            (["{{ foo }}", "{{ foo | length}}"], {"foo": ["bar1", "bar2"]}, [['bar1', 'bar2'], 2]),
+            (("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, ("bar_1", "bar_2")),
+            ("{{ ds }}", {"ds": date(2018, 12, 6)}, date(2018, 12, 6)),
+            (datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime(2018, 12, 6, 10, 55)),
+            ("{{ ds }}", {"ds": datetime(2018, 12, 6, 10, 55)}, datetime(2018, 12, 6, 10, 55)),
+            (MockNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, MockNamedTuple("bar_1", "bar_2")),
+            (
+                ("{{ foo }}", "{{ foo.isoformat() }}"),
+                {"foo": datetime(2018, 12, 6, 10, 55)},
+                (datetime(2018, 12, 6, 10, 55), '2018-12-06T10:55:00'),
+            ),
+            (None, {}, None),
+            ([], {}, []),
+            ({}, {}, {}),
+        ]
+    )
+    def test_render_template_with_native_envs(self, content, context, expected_output):
+        """Test render_template given various input types with Native Python types"""
+        with DAG("test-dag", start_date=DEFAULT_DATE, render_template_as_native_obj=True):
+            task = DummyOperator(task_id="op1")
+
+        result = task.render_template(content, context)
+        assert result == expected_output
+
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""
         with DAG("test-dag", start_date=DEFAULT_DATE):
@@ -148,6 +176,20 @@ class TestBaseOperator(unittest.TestCase):
         task.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
         assert task.arg1 == "footemplated"
         assert task.arg2 == "bartemplated"
+
+    def test_render_template_fields_native_envs(self):
+        """Verify if operator attributes are correctly templated to Native Python objects."""
+        with DAG("test-dag", start_date=DEFAULT_DATE, render_template_as_native_obj=True):
+            task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
+
+        # Assert nothing is templated yet
+        assert task.arg1 == "{{ foo }}"
+        assert task.arg2 == "{{ bar }}"
+
+        # Trigger templating and verify if attributes are templated correctly
+        task.render_template_fields(context={"foo": ["item1", "item2"], "bar": 3})
+        assert task.arg1 == ["item1", "item2"]
+        assert task.arg2 == 3
 
     @parameterized.expand(
         [
@@ -219,10 +261,19 @@ class TestBaseOperator(unittest.TestCase):
         with pytest.raises(jinja2.exceptions.TemplateSyntaxError):
             task.render_template("{{ invalid expression }}", {})
 
-    @mock.patch("jinja2.nativetypes.NativeEnvironment", autospec=True)
+    @mock.patch("jinja2.Environment", autospec=True)
     def test_jinja_env_creation(self, mock_jinja_env):
         """Verify if a Jinja environment is created only once when templating."""
         with DAG("test-dag", start_date=DEFAULT_DATE):
+            task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
+
+        task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
+        assert mock_jinja_env.call_count == 1
+
+    @mock.patch("airflow.models.dag.NativeEnvironment", autospec=True)
+    def test_jinja_env_creation_native_environment(self, mock_jinja_env):
+        """Verify if a Jinja environment is created only once when templating."""
+        with DAG("test-dag", start_date=DEFAULT_DATE, render_template_as_native_obj=True):
             task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
 
         task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
