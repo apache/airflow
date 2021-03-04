@@ -38,6 +38,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/airbyte/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-airbyte/>
 
 .. toctree::
