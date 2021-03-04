@@ -26,6 +26,7 @@ Content
     :caption: Guides
 
     Operators <operators/airbyte>
+    Connection types <connections>
 
 .. toctree::
     :maxdepth: 1
