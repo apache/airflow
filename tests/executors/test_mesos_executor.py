@@ -43,7 +43,7 @@ class MesosExecutorTest(unittest.TestCase):
     task_memory = 4
     master_urls = "http://" + master
 
-    @unittest.skipIf(mock_mesos is None, "mesos python eggs are not present")
+    @unittest.skipIf(mock_mesos is None, "mesos python modules are not installed")
     def test_mesos_executor(self):
         # create task queue, empty result queue, task_cpu and task_memory
         mesos_executor = MesosExecutor()
