@@ -17,7 +17,7 @@
 
 from __future__ import absolute_import
 
-from airflow import conf
+from airflow.configuration import conf
 from airflow.models.dagbag import DagBag
 from airflow.upgrade.rules.base_rule import BaseRule
 from airflow.utils.db import provide_session
