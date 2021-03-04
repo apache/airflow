@@ -23,7 +23,7 @@ import pytest
 from airflow.providers.microsoft.azure.example_dags.example_sftp_to_wasb import (
     FILE_COMPLETE_PATH,
     LOCAL_FILE_PATH,
-    SAMPLE_FILE_NAME,
+    SAMPLE_FILENAME,
 )
 from tests.test_utils.azure_system_helpers import (
     AZURE_DAG_FOLDER,
@@ -45,7 +45,7 @@ CREDENTIALS_WASB_PATH = os.path.join(CREDENTIALS_DIR, WASB_DEFAULT_KEY)
 class TestSFTPToWasbSystem(AzureSystemTest):
     def setUp(self):
         super().setUp()
-        self.create_dummy_file(SAMPLE_FILE_NAME, LOCAL_FILE_PATH)
+        self.create_dummy_file(SAMPLE_FILENAME, LOCAL_FILE_PATH)
 
     def tearDown(self):
         os.remove(FILE_COMPLETE_PATH)
