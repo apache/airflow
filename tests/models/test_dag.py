@@ -647,7 +647,7 @@ class TestDag(unittest.TestCase):
                 ('dag-bulk-sync-3', 'test-dag'),
             } == set(session.query(DagTag.dag_id, DagTag.name).all())
 
-            for row in session.query(DagModel.last_scheduler_run).all():
+            for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
@@ -690,7 +690,7 @@ class TestDag(unittest.TestCase):
                 ('dag-bulk-sync-3', 'test-dag2'),
             } == set(session.query(DagTag.dag_id, DagTag.name).all())
 
-            for row in session.query(DagModel.last_scheduler_run).all():
+            for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
 
     def test_bulk_write_to_db_max_active_runs(self):
