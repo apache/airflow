@@ -743,6 +743,12 @@
       type: boolean
       example: ~
       default: "False"
+    - name: disable_db_login
+      description: Disable use of username and password to login to the REST API
+      version_added: 2.0.2
+      type: boolean
+      example: ~
+      default: "False"
     - name: maximum_page_limit
       description: |
         Used to set the maximum page limit for API requests

@@ -31,8 +31,9 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 def auth_current_user():
     """Checks the authentication and return a value"""
+    db_login_disabled = conf.getboolean("api", "disable_db_login")
     auth_header = request.headers.get("Authorization", None)
-    if auth_header:
+    if auth_header and not db_login_disabled:
         if auth_header.startswith("Basic"):
             user = None
             auth = request.authorization

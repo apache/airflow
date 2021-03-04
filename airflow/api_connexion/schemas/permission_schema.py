@@ -15,10 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import List, NamedTuple
-
 from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role, ViewMenu
-from marshmallow import Schema, fields
+from marshmallow import fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 
