@@ -18,7 +18,11 @@ import tempfile
 from typing import Any, Dict, Generator, Optional, Tuple, Union
 
 import yaml
-from cached_property import cached_property
+
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 from kubernetes import client, config, watch
 
 from airflow.exceptions import AirflowException

@@ -18,7 +18,10 @@
 from distutils.util import strtobool
 from typing import Any, Dict, Iterable, List, Mapping, Optional, SupportsAbs, Union
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
