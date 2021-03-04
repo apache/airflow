@@ -50,7 +50,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     def __init__(
         self,
         connection_id: str,
-        airbyte_conn_id: str = "default_airbyte_conn",
+        airbyte_conn_id: str = "airbyte_default",
         asynchronous: Optional[bool] = False,
         api_version: Optional[str] = "v1",
         timeout: Optional[float] = 3600,
