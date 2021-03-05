@@ -19,8 +19,12 @@ import re
 import warnings
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-import yaml
 from kubernetes.client import CoreV1Api, models as k8s
+
+try:
+    import airflow.utils.yaml as yaml
+except ImportError:
+    import yaml
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher

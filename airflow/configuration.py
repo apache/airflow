@@ -97,7 +97,7 @@ def default_config_yaml() -> dict:
 
     :return: Python dictionary containing configs & their info
     """
-    import yaml
+    import airflow.utils.yaml as yaml
 
     with open(_default_config_file_path('config.yml')) as config_file:
         return yaml.safe_load(config_file)

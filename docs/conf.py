@@ -39,6 +39,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
+try:
+    from yaml import CSafeLoader as SafeLoader
+except ImportError:
+    from yaml import SafeLoader  # type: ignore[misc]
+
 import airflow
 from airflow.configuration import AirflowConfigParser, default_config_yaml
 from docs.exts.docs_build.third_party_inventories import (  # pylint: disable=no-name-in-module,wrong-import-order
@@ -334,7 +339,7 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
             return {}
 
         with open(file_path) as config_file:
-            return yaml.safe_load(config_file)
+            return yaml.load(config_file, SafeLoader)
 
     config = _load_config()
     if config:

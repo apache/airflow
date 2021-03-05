@@ -18,13 +18,13 @@ import inspect
 import json
 from typing import Any, Callable, Dict, List, Optional, Union
 
-import yaml
 from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
 from tabulate import tabulate
 
+import airflow.utils.yaml as yaml
 from airflow.plugins_manager import PluginsDirectorySource
 
 

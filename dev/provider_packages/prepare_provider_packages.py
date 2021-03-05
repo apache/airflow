@@ -48,6 +48,11 @@ from rich import print
 from rich.console import Console
 from rich.syntax import Syntax
 
+try:
+    from yaml import CSafeLoader as SafeLoader
+except ImportError:
+    from yaml import SafeLoader  # type: ignore[no-redef]
+
 INITIAL_CHANGELOG_CONTENT = """
 
 
@@ -1264,7 +1269,7 @@ def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, 
     if not os.path.exists(provider_yaml_file_name):
         raise Exception(f"The provider.yaml file is missing: {provider_yaml_file_name}")
     with open(provider_yaml_file_name) as provider_file:
-        provider_yaml_dict = yaml.safe_load(provider_file.read())
+        provider_yaml_dict = yaml.load(provider_file, SafeLoader)
     provider_info = convert_to_provider_info(provider_yaml_dict)
     validate_provider_info_with_2_0_0_schema(provider_info)
     validate_provider_info_with_runtime_schema(provider_info)

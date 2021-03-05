@@ -17,9 +17,13 @@
 import tempfile
 from typing import Any, Dict, Generator, Optional, Tuple, Union
 
-import yaml
 from cached_property import cached_property
 from kubernetes import client, config, watch
+
+try:
+    import airflow.utils.yaml as yaml
+except ImportError:
+    import yaml
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook

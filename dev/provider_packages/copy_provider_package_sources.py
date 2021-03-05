@@ -167,6 +167,7 @@ class RefactorBackportPackages:
             ("airflow.sensors.time_delta", "airflow.sensors.time_delta_sensor"),
             ("airflow.sensors.weekday", "airflow.contrib.sensors.weekday_sensor"),
             ("airflow.utils.session", "airflow.utils.db"),
+            ("airflow.utils.yaml", "yaml"),
         ]
         for new, old in changes:
             self.qry.select_module(new).rename(old)
