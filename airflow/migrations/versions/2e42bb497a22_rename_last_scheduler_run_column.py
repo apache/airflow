@@ -24,7 +24,9 @@ Create Date: 2021-03-04 19:50:38.880942
 
 """
 
+import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = '2e42bb497a22'
@@ -35,11 +37,29 @@ depends_on = None
 
 def upgrade():
     """Apply rename last_scheduler_run column"""
-    with op.batch_alter_table('dag') as batch_op:
-        batch_op.alter_column('last_scheduler_run', new_column_name='last_parsed_time')
+    conn = op.get_bind()
+    if conn.dialect.name == "mssql":
+        with op.batch_alter_table('dag') as batch_op:
+            batch_op.alter_column(
+                'last_scheduler_run', new_column_name='last_parsed_time', type_=mssql.DATETIME2(precision=6)
+            )
+    else:
+        with op.batch_alter_table('dag') as batch_op:
+            batch_op.alter_column(
+                'last_scheduler_run', new_column_name='last_parsed_time', type_=sa.TIMESTAMP(timezone=True)
+            )
 
 
 def downgrade():
     """Unapply rename last_scheduler_run column"""
-    with op.batch_alter_table('dag') as batch_op:
-        batch_op.alter_column('last_parsed_time', new_column_name='last_scheduler_run')
+    conn = op.get_bind()
+    if conn.dialect.name == "mssql":
+        with op.batch_alter_table('dag') as batch_op:
+            batch_op.alter_column(
+                'last_parsed_time', new_column_name='last_scheduler_run', type_=mssql.DATETIME2(precision=6)
+            )
+    else:
+        with op.batch_alter_table('dag') as batch_op:
+            batch_op.alter_column(
+                'last_parsed_time', new_column_name='last_scheduler_run', type_=sa.TIMESTAMP(timezone=True)
+            )
