@@ -29,7 +29,7 @@ class AirbyteHook(HttpHook):
     :param airbyte_conn_id: Required. The name of the Airflow connection to get
         connection information for Airbyte.
     :type airbyte_conn_id: str
-    :param api_version: Required. Airbyte API version.
+    :param api_version: Optional. Airbyte API version.
     :type api_version: str
     """
 
@@ -40,19 +40,22 @@ class AirbyteHook(HttpHook):
     FAILED = "failed"
     ERROR = "error"
 
-    def __init__(self, airbyte_conn_id: str = "airbyte_default", api_version: str = "v1") -> None:
+    def __init__(self, airbyte_conn_id: str = "airbyte_default", api_version: Optional[str] = "v1") -> None:
         super().__init__(http_conn_id=airbyte_conn_id)
         self.api_version: str = api_version
 
-    def wait_for_job(self, job_id: str, wait_seconds: int = 3, timeout: Optional[float] = None) -> None:
+    def wait_for_job(
+        self, job_id: str, wait_seconds: Optional[float] = 3, timeout: Optional[float] = 3600
+    ) -> None:
         """
         Helper method which polls a job to check if it finishes.
 
-        :param job_id: Id of the Airbyte job
+        :param job_id: Required. Id of the Airbyte job
         :type job_id: str
-        :param wait_seconds: Number of seconds between checks
-        :type wait_seconds: int
-        :param timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
+        :param wait_seconds: Optional. Number of seconds between checks.
+        :type wait_seconds: float
+        :param timeout: Optional. How many seconds wait for job to be ready.
+            Used only if ``asynchronous`` is False.
         :type timeout: float
         """
         state = None
@@ -96,7 +99,7 @@ class AirbyteHook(HttpHook):
         """
         Gets the resource representation for a job in Airbyte.
 
-        :param job_id: Id of the Airbyte job
+        :param job_id: Required. Id of the Airbyte job
         :type job_id: int
         """
         return self.run(
