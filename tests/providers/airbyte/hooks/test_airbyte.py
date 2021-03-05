@@ -91,13 +91,14 @@ class TestAirbyteHook(unittest.TestCase):
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job_timeout(self, mock_get_job):
         mock_get_job.side_effect = [
+            self.return_value_get_job(self.hook.PENDING),
             self.return_value_get_job(self.hook.RUNNING),
             self.return_value_get_job(self.hook.RUNNING),
         ]
         with pytest.raises(AirflowException, match="Timeout"):
             self.hook.wait_for_job(job_id=self.job_id, wait_seconds=2, timeout=1)
 
-        calls = [mock.call(job_id=self.job_id), mock.call(job_id=self.job_id)]
+        calls = [mock.call(job_id=self.job_id), mock.call(job_id=self.job_id), mock.call(job_id=self.job_id)]
         assert mock_get_job.has_calls(calls)
 
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')

@@ -68,7 +68,7 @@ class AirbyteHook(HttpHook):
                 self.log.info("Retrying. Airbyte API returned server error when waiting for job: %s", err)
                 continue
 
-            if state == self.RUNNING:
+            if state in (self.RUNNING, self.PENDING):
                 continue
             if state == self.SUCCEEDED:
                 break
