@@ -19,7 +19,7 @@
 """Resource based permissions.
 
 Revision ID: 2c6edca13270
-Revises: 2e42bb497a22
+Revises: 849da589634d
 Create Date: 2020-10-21 00:18:52.529438
 
 """
@@ -30,7 +30,7 @@ from airflow.www.app import create_app
 
 # revision identifiers, used by Alembic.
 revision = '2c6edca13270'
-down_revision = '2e42bb497a22'
+down_revision = '849da589634d'
 branch_labels = None
 depends_on = None
 

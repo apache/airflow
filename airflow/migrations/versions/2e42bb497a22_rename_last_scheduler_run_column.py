@@ -19,7 +19,7 @@
 """rename last_scheduler_run column
 
 Revision ID: 2e42bb497a22
-Revises: 849da589634d
+Revises: 8646922c8a04
 Create Date: 2021-03-04 19:50:38.880942
 
 """
@@ -30,7 +30,7 @@ from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = '2e42bb497a22'
-down_revision = '849da589634d'
+down_revision = '8646922c8a04'
 branch_labels = None
 depends_on = None
 
