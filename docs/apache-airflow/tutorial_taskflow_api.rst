@@ -187,19 +187,19 @@ establishing a database connection, or any other number of other environment set
 In the basic example below, we create a wrapper that adds one to the output of the task.
 
 .. code-block:: python
-        def add_one_wrapper(f):
-            @functools.wraps(f)
-            def add_one(*args, **kwargs):
-                initial_result = f(*args, **kwargs)
-                print(f"Adding one to result {initial_result}")
-                return  initial_result + 1
-            return add_one
+    def add_one_wrapper(f):
+        @functools.wraps(f)
+        def add_one(*args, **kwargs):
+            initial_result = f(*args, **kwargs)
+            print(f"Adding one to result {initial_result}")
+            return  initial_result + 1
+        return add_one
 
-        @task(wrapper_func=add_one_wrapper)
-        def return_one():
-            return 1
+    @task(wrapper_func=add_one_wrapper)
+    def return_one():
+        return 1
 
-        should_be_two = return_one()
+    should_be_two = return_one()
 
 Adding dependencies to decorated tasks from regular tasks
 ---------------------------------------------------------

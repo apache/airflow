@@ -271,7 +271,7 @@ def task(
         Defaults to False.
     :type multiple_outputs: bool
     :param wrapper_func: Allows users to add a wrapper around the python function. This will make the
-    @task wrapper easier to extend
+        task wrapper easier to extend
     :type wrapper_func: Optional[Callable]
 
     """
