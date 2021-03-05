@@ -33,6 +33,7 @@ from airflow.version import version
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
+from tests.test_utils.decorators import dont_initialize
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir, os.pardir)
@@ -41,6 +42,7 @@ ROOT_FOLDER = os.path.realpath(
 
 class TestBase(unittest.TestCase):
     @conf_vars({('api', 'enable_experimental_api'): 'true'})
+    @dont_initialize(to_initialize=["init_api_experimental_auth", "init_api_experimental", "init_appbuilder"])
     def setUp(self):
         self.app = application.create_app(testing=True)
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member

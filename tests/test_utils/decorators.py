@@ -16,29 +16,55 @@
 # under the License.
 
 import functools
-from unittest import mock
+from unittest.mock import patch
+
+from airflow.www.app import purge_cached_app
 
 
-def dont_initialize(f):
-    def no_op(*args, **kwargs):
-        pass
+def dont_initialize(_func=None, *, to_initialize=None):
 
-    @mock.patch("airflow.www.app.init_api_experimental_auth", no_op)
-    @mock.patch("airflow.www.app.init_flash_views", no_op)
-    @mock.patch("airflow.www.app.init_appbuilder_links", no_op)
-    @mock.patch("airflow.www.app.init_appbuilder_views", no_op)
-    @mock.patch("airflow.www.app.init_plugins", no_op)
-    @mock.patch("airflow.www.app.init_connection_form", no_op)
-    @mock.patch("airflow.www.app.init_error_handlers", no_op)
-    @mock.patch("airflow.www.app.init_api_connexion", no_op)
-    @mock.patch("airflow.www.app.init_api_experimental", no_op)
-    @mock.patch("airflow.www.app.sync_appbuilder_roles", no_op)
-    @mock.patch("airflow.www.app.init_jinja_globals", no_op)
-    @mock.patch("airflow.www.app.init_xframe_protection", no_op)
-    @mock.patch("airflow.www.app.init_permanent_session", no_op)
-    @mock.patch("airflow.www.app.init_appbuilder", no_op)
-    @functools.wraps(f)
-    def func(*args, **kwargs):
-        return f(*args, **kwargs)
+    if not to_initialize:
+        to_initialize = []
 
-    return func
+    def decorator_dont_initialize(f):
+        def no_op(*args, **kwargs):
+            pass
+
+        # ["init_api_experimental_auth", "init_api_experimental", "init_appbuilder"]
+        methods = [
+            "init_api_experimental_auth",
+            "init_flash_views",
+            "init_appbuilder_links",
+            "init_appbuilder_views",
+            "init_plugins",
+            "init_connection_form",
+            "init_error_handlers",
+            "init_api_connexion",
+            "init_api_experimental",
+            "sync_appbuilder_roles",
+            "init_jinja_globals",
+            "init_xframe_protection",
+            "init_permanent_session",
+            "init_appbuilder",
+        ]
+
+        @functools.wraps(f)
+        def func(*args, **kwargs):
+
+            for method in methods:
+                if method not in to_initialize:
+                    patcher = patch(f"airflow.www.app.{method}", no_op)
+                    patcher.start()
+            purge_cached_app()
+            result = f(*args, **kwargs)
+            patch.stopall()
+            purge_cached_app()
+
+            return result
+
+        return func
+
+    if _func is None:
+        return decorator_dont_initialize
+    else:
+        return decorator_dont_initialize(_func)

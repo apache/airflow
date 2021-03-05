@@ -48,7 +48,6 @@ class TestApp(unittest.TestCase):
         }
     )
     @dont_initialize
-    @mock.patch("airflow.www.app.app", None)
     def test_should_respect_proxy_fix(self):
         app = application.cached_app(testing=True)
         app.url_map.add(Rule("/debug", endpoint="debug"))
@@ -135,7 +134,6 @@ class TestApp(unittest.TestCase):
         }
     )
     @dont_initialize
-    @mock.patch("airflow.www.app.app", None)
     def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(self):
         app = application.cached_app(testing=True)
         app.url_map.add(Rule("/debug", endpoint="debug"))
@@ -176,7 +174,6 @@ class TestApp(unittest.TestCase):
         }
     )
     @dont_initialize
-    @mock.patch("airflow.www.app.app", None)
     def test_should_respect_base_url_and_proxy_when_proxy_fix_and_base_url_is_set_up(self):
         app = application.cached_app(testing=True)
         app.url_map.add(Rule("/debug", endpoint="debug"))
@@ -221,7 +218,6 @@ class TestApp(unittest.TestCase):
         }
     )
     @dont_initialize
-    @mock.patch("airflow.www.app.app", None)
     @pytest.mark.backend("mysql", "postgres")
     def test_should_set_sqlalchemy_engine_options(self):
         app = application.cached_app(testing=True)
@@ -234,16 +230,13 @@ class TestApp(unittest.TestCase):
         }
     )
     @dont_initialize
-    @mock.patch("airflow.www.app.app", None)
     def test_should_set_permanent_session_timeout(self):
         app = application.cached_app(testing=True)
         assert app.config['PERMANENT_SESSION_LIFETIME'] == timedelta(minutes=3600)
 
     @conf_vars({('webserver', 'cookie_samesite'): ''})
     @dont_initialize
-    @mock.patch("airflow.www.app.app", None)
     def test_correct_default_is_set_for_cookie_samesite(self):
-        # breakpoint()
         app = application.cached_app(testing=True)
         assert app.config['SESSION_COOKIE_SAMESITE'] == 'Lax'
 
