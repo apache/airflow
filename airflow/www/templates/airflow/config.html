@@ -31,17 +31,11 @@
         <pre>{{ pre_subtitle }}</pre>
     {% endif %}
 
-    {% if subtitle %}
-        <h5>{{ subtitle }}</h5>
-    {% endif %}
-
-    {% if code_html %}
-        {{ code_html }}
-    {% endif %}
-
-    <hr>
-
-    {% if table %}
+    {% if not expose_config %}
+        <div class="alert alert-info">
+            <p>Your Airflow administrator chose not to expose the configuration, most likely for security reasons.</p>
+        </div>
+    {% elif expose_config and table %}
         <br>
         <h3>Running Configuration</h3>
         <br>

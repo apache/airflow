@@ -2653,42 +2653,29 @@ class ConfigurationView(AirflowBaseView):
     )
     def conf(self):
         """Shows configuration."""
-        raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
-        subtitle = AIRFLOW_CONFIG
         # Don't show config when expose_config variable is False in airflow config
-        if conf.getboolean("webserver", "expose_config"):
-            with open(AIRFLOW_CONFIG) as file:
-                config = file.read()
+        expose_config = conf.getboolean("webserver", "expose_config")
+        if expose_config:
             table = [
                 (section, key, value, source)
                 for section, parameters in conf.as_dict(True, True).items()
                 for key, (value, source) in parameters.items()
             ]
         else:
-            config = (
-                "# Your Airflow administrator chose not to expose the "
-                "configuration, most likely for security reasons."
-            )
             table = None
 
-        if raw:
+        if request.args.get('raw') == "true" and expose_config:
+            with open(AIRFLOW_CONFIG) as file:
+                config = file.read()
             return Response(response=config, status=200, mimetype="application/text")
         else:
-            code_html = Markup(
-                highlight(
-                    config,
-                    lexers.IniLexer(),  # Lexer call pylint: disable=no-member
-                    HtmlFormatter(noclasses=True),
-                )
-            )
             return self.render_template(
                 'airflow/config.html',
                 pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
-                code_html=code_html,
                 title=title,
-                subtitle=subtitle,
                 table=table,
+                expose_config=expose_config,
             )
 
 
