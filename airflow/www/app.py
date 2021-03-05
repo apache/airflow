@@ -147,6 +147,6 @@ def cached_app(config=None, testing=False):
 
 
 def purge_cached_app():
-    """Purges the cached app in global state."""
+    """Removes the cached version of the app in global state."""
     global app  # pylint: disable=global-statement
     app = None

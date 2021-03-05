@@ -22,7 +22,6 @@ from airflow.www.app import purge_cached_app
 
 
 def dont_initialize(_func=None, *, to_initialize=None):
-
     if not to_initialize:
         to_initialize = []
 

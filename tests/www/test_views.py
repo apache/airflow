@@ -62,11 +62,13 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
+from airflow.www.extensions import init_views
 from airflow.www.views import ConnectionModelView, get_safe_url, truncate_task_duration
 from tests.test_utils import fab_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
+from tests.test_utils.decorators import dont_initialize
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
 
@@ -121,6 +123,17 @@ class TemplateWithContext(NamedTuple):
 
 class TestBase(unittest.TestCase):
     @classmethod
+    @dont_initialize(
+        to_initialize=[
+            "init_api_connexion",
+            "init_appbuilder",
+            "init_appbuilder_links",
+            "init_appbuilder_views",
+            "init_flash_views",
+            "init_jinja_globals",
+            "init_plugins",
+        ]
+    )
     def setUpClass(cls):
         settings.configure_orm()
         cls.session = settings.Session
@@ -228,6 +241,7 @@ class TestBase(unittest.TestCase):
 class TestConnectionModelView(TestBase):
     def setUp(self):
         super().setUp()
+
         self.connection = {
             'conn_id': 'test_conn',
             'conn_type': 'http',
@@ -243,6 +257,7 @@ class TestConnectionModelView(TestBase):
         super().tearDown()
 
     def test_create_connection(self):
+        init_views.init_connection_form()
         resp = self.client.post('/connection/add', data=self.connection, follow_redirects=True)
         self.check_content_in_response('Added Row', resp)
 
@@ -1771,8 +1786,6 @@ class TestDagACLView(TestBase):
         clear_db_runs()
         self.prepare_dagruns()
         self.logout()
-        self.appbuilder.sm.sync_roles()
-        self.add_permission_for_role()
 
     def login(self, username='dag_tester', password='dag_test'):
         dag_tester_role = self.appbuilder.sm.add_role('dag_acl_tester')
@@ -1984,6 +1997,7 @@ class TestDagACLView(TestBase):
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_dag_stats_success_when_selecting_dags(self):
+        self.add_permission_for_role()
         resp = self.client.post(
             'dag_stats', data={'dag_ids': ['example_subdag_operator']}, follow_redirects=True
         )
@@ -2349,6 +2363,7 @@ class TestDagACLView(TestBase):
         self.check_content_in_response('example_subdag_operator', resp)
 
     def test_blocked_success_when_selecting_dags(self):
+        self.add_permission_for_role()
         resp = self.client.post(
             'blocked', data={'dag_ids': ['example_subdag_operator']}, follow_redirects=True
         )
