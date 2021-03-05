@@ -42,7 +42,6 @@ labelPRBasedOnFilePath:
   provider:Snowflake:
     - airflow/providers/snowflake/**/*
     - docs/howto/operator/snowflake/*
-    - tests/providers/snowflake/*
     - tests/providers/snowflake/**/*
 
   area:kubernetes:
@@ -52,9 +51,12 @@ labelPRBasedOnFilePath:
     - airflow/providers/cncf/kubernetes/**/*
     - airflow/kubernetes/**/*
     - airflow/kubernetes_executor_templates/**/*
+    - airflow/executors/kubernetes_executor.py
+    - airflow/executors/celery_kubernetes_executor.py
     - docs/apache-airflow/executor/kubernetes.rst
     - docs/apache-airflow/executor/celery_kubernetes.rst
     - docs/apache-airflow-providers-cncf-kubernetes/**/*
+    - kubernetes_tests/**/*
 
   area:API:
     - airflow/api/**/*
@@ -89,7 +91,6 @@ labelPRBasedOnFilePath:
     - .pre-commit-config.yaml
     - .rat-excludes
     - .readthedocs.yml
-    - .travis.yml
     - airflow/www/.eslintignore
     - airflow/www/.eslintrc
     - airflow/www/.stylelintignore
