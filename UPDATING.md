@@ -329,7 +329,7 @@ The `conn_type` column in the `connection` table must contain content. Previousl
 by application logic, but was not enforced by the database schema.
 
 If you made any modifications to the table directly, make sure you don't have
-null in the conn_type column.
+null in the `conn_type` column.
 
 ### Configuration changes
 
@@ -624,7 +624,7 @@ User can preserve/achieve the original behaviour by setting the trigger_rule of 
 
 #### Remove SQL support in BaseHook
 
-Remove ``get_records`` and ``get_pandas_df`` and ``run`` from BaseHook, which only apply for sql like hook,
+Remove ``get_records`` and ``get_pandas_df`` and ``run`` from BaseHook, which only apply for SQL-like hook,
 If want to use them, or your custom hook inherit them, please use ``airflow.hooks.dbapi.DbApiHook``
 
 #### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
@@ -685,7 +685,7 @@ implicit dependency to BaseOperator. That can often lead to cyclic dependencies.
 
 More information in [AIRFLOW-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
 
-In Airflow <2.0 you imported those two methods like this:
+In Airflow < 2.0 you imported those two methods like this:
 
 ```python
 from airflow.utils.helpers import chain
@@ -2230,7 +2230,7 @@ It is no longer required to set one of the environment variables to avoid
 a GPL dependency. Airflow will now always use text-unidecode if unidecode
 was not installed before.
 
-### new `sync_parallelism` config option in celery section
+### New `sync_parallelism` config option in `[celery]` section
 
 The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
 fetch celery task state in parallel. Default value is max(1, number of cores - 1)
@@ -2430,7 +2430,7 @@ next_ds/prev_ds now map to execution_date instead of the next/previous schedule-
 
 ### User model changes
 
-This patch changes the `User.superuser` field from a hardcoded boolean to a `Boolean()` database column. `User.superuser` will default to `False`, which means that this privilege will have to be granted manually to any users that may require it.
+This patch changes the `User.superuser` field from a hard-coded boolean to a `Boolean()` database column. `User.superuser` will default to `False`, which means that this privilege will have to be granted manually to any users that may require it.
 
 For example, open a Python shell and
 

@@ -386,7 +386,8 @@ Using Breeze
              alt="Accessing local airflow">
       </div>
 
-3. Setup mysql database in mysql workbench   with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
+3. Setup mysql database in
+MySQL Workbench with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
    blank(leave empty), default schema ``airflow``.
 
    .. raw:: html
@@ -482,10 +483,10 @@ Setting up Debug
 
 1. Configuring Airflow database connection
 
-- Airflow is by default configured to use sqlite database. Configuration can be seen on local machine
+- Airflow is by default configured to use SQLite database. Configuration can be seen on local machine
   ``~/airflow/airflow.cfg`` under ``sql_alchemy_conn``.
 
-- Installing required dependency for MySql connection in ``airflow-env`` on local machine.
+- Installing required dependency for MySQL connection in ``airflow-env`` on local machine.
 
   .. code-block:: bash
 
@@ -641,7 +642,7 @@ All Tests are inside ./tests directory.
       API          Core         Helm         MySQL        Postgres     WWW
 
 
-  - Running specific type of Test
+  - Running specific type of test
 
   .. code-block:: bash
 

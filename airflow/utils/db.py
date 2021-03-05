@@ -586,8 +586,9 @@ def _get_alembic_config():
 def check_migrations(timeout):
     """
     Function to wait for all airflow migrations to complete.
-    @param timeout:
-    @return:
+
+    :param timeout: Timeout for the migration in seconds
+    :return: None
     """
     from alembic.runtime.migration import MigrationContext
     from alembic.script import ScriptDirectory
@@ -708,8 +709,9 @@ def resetdb():
 def drop_airflow_models(connection):
     """
     Drops all airflow models.
-    @param connection:
-    @return: None
+
+    :param connection: SQLAlchemy Connection
+    :return: None
     """
     from airflow.models.base import Base
 
@@ -742,8 +744,9 @@ def drop_airflow_models(connection):
 def drop_flask_models(connection):
     """
     Drops all Flask models.
-    @param connection:
-    @return:
+
+    :param connection: SQLAlchemy Connection
+    :return: None
     """
     from flask_appbuilder.models.sqla import Base
 
@@ -754,6 +757,7 @@ def drop_flask_models(connection):
 def check(session=None):
     """
     Checks if the database works.
+
     :param session: session of the sqlalchemy
     """
     session.execute('select 1 as is_alive;')

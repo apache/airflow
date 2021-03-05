@@ -34,7 +34,6 @@ from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 import lazy_object_proxy
 import nvd3
 import sqlalchemy as sqla
-import yaml
 from flask import (
     Markup,
     Response,
@@ -66,6 +65,7 @@ from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
 
 import airflow
+import airflow.utils.yaml as yaml
 from airflow import models, plugins_manager, settings
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed,

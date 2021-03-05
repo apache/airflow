@@ -160,7 +160,7 @@ You can use those variables when you try to reproduce the build locally.
 +=========================================+=============+=============+============+=================================================+
 |                                                           Basic variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``PYTHON_MAJOR_MINOR_VERSION``          |             |             |            | Major/Minor version of python used.             |
+| ``PYTHON_MAJOR_MINOR_VERSION``          |             |             |            | Major/Minor version of Python used.             |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``DB_RESET``                            |    false    |     true    |    true    | Determines whether database should be reset     |
 |                                         |             |             |            | at the container entry. By default locally      |
@@ -196,18 +196,18 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | ``MOUNT_SELECTED_LOCAL_SOURCES`` is true.       |
 |                                         |             |             |            | You might need to manually delete egg-info      |
 |                                         |             |             |            | folder when you enter breeze and the folder was |
-|                                         |             |             |            | generated using different python versions.      |
+|                                         |             |             |            | generated using different Python versions.      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                           Force variables                                                          |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``FORCE_PULL_IMAGES``                   |    true     |    true     |    true    | Determines if images are force-pulled,          |
 |                                         |             |             |            | no matter if they are already present           |
 |                                         |             |             |            | locally. This includes not only the             |
-|                                         |             |             |            | CI/PROD images but also the python base         |
-|                                         |             |             |            | images. Note that if python base images         |
+|                                         |             |             |            | CI/PROD images but also the Python base         |
+|                                         |             |             |            | images. Note that if Python base images         |
 |                                         |             |             |            | change, also the CI and PROD images             |
 |                                         |             |             |            | need to be fully rebuild unless they were       |
-|                                         |             |             |            | already built with that base python             |
+|                                         |             |             |            | already built with that base Python             |
 |                                         |             |             |            | image. This is false for local development      |
 |                                         |             |             |            | to avoid often pulling and rebuilding           |
 |                                         |             |             |            | the image. It is true for CI workflow in        |
@@ -308,7 +308,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                                        Image build variables                                                       |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false    |   false\*  | Determines whether the build should             |
-|                                         |             |             |            | attempt to upgrade python base image and all    |
+|                                         |             |             |            | attempt to upgrade Python base image and all    |
 |                                         |             |             |            | PIP dependencies to latest ones matching        |
 |                                         |             |             |            | ``setup.py`` limits. This tries to replicate    |
 |                                         |             |             |            | the situation of "fresh" user who just installs |
@@ -586,8 +586,8 @@ committers so they can be used to do some housekeeping:
 The housekeeping is important - Python base images are refreshed with varying frequency (once every few months
 usually but sometimes several times per week) with the latest security and bug fixes.
 Those patch level images releases can occasionally break Airflow builds (specifically Docker image builds
-based on those images) therefore in PRs we only use latest "good" python image that we store in the
-private GitHub cache. The direct push/master builds are not using registry cache to pull the python images
+based on those images) therefore in PRs we only use latest "good" Python image that we store in the
+private GitHub cache. The direct push/master builds are not using registry cache to pull the Python images
 - they are directly pulling the images from DockerHub, therefore they will try the latest images
 after they are released and in case they are fine, CI Docker image is build and tests are passing -
 those jobs will push the base images to the private GitHub Registry so that they be used by subsequent
@@ -790,7 +790,7 @@ CodeQL scan
 -----------
 
 The `CodeQL <https://securitylab.github.com/tools/codeql>`_ security scan uses GitHub security scan framework to scan our code for security violations.
-It is run for JavaScript and python code.
+It is run for JavaScript and Python code.
 
 Publishing documentation
 ------------------------
@@ -818,7 +818,7 @@ The image names follow the patterns:
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 | Image        | Name pattern               | Tag for format                 | Comment                                                                                    |
 +==============+============================+================================+============================================================================================+
-| Python image | python                     | <X.Y>-slim-buster-<RUN_ID>     | Base python image used by both production and CI image.                                    |
+| Python image | Python                     | <X.Y>-slim-buster-<RUN_ID>     | Base Python image used by both production and CI image.                                    |
 |              |                            | <X.Y>-slim-buster-<COMMIT_SHA> | Python maintainer release new versions of those image with security fixes every few weeks. |
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 | CI image     | <BRANCH>-python<X.Y>-ci    | <RUN_ID>                       | CI image - this is the image used for most of the tests.                                   |
@@ -903,12 +903,12 @@ Adding new Python versions to CI
 
 In 2.0 line we currently support Python 3.6, 3.7, 3.8.
 
-In order to add a new version the following operations should be done (example uses python 3.9)
+In order to add a new version the following operations should be done (example uses Python 3.9)
 
 * copy the latest constraints in ``constraints-master`` branch from previous versions and name it
   using the new Python version (``constraints-3.9.txt``). Commit and push
 
-* add the new python version to `breeze-complete <breeze-complete>`_ and
+* add the new Python version to `breeze-complete <breeze-complete>`_ and
   `_initialization.sh <scripts/ci/libraries/_initialization.sh>`_ - tests will fail if they are not
   in sync.
 
@@ -927,7 +927,7 @@ In order to add a new version the following operations should be done (example u
   ./breeze push-image --python 3.9 --github-registry docker.pkg.github.com
 
 * Find the 3 new images (main, ci, build) created in
-  `GitHub Container registry<https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_
+  `GitHub Container registry <https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_
   go to Package Settings and turn on ``Public Visibility`` and add ``airflow-committers``
   group as ``Admin Role`` to all of them.
 
