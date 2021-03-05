@@ -50,7 +50,7 @@ def auth_current_user():
     try:
         verify_jwt_in_request()
         return 1
-    except Exception:
+    except Exception:  # pylint: disable=too-broad-except
         pass
     return None
 
