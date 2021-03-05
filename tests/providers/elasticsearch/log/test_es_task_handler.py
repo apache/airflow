@@ -38,7 +38,7 @@ from airflow.utils.timezone import datetime
 from .elasticmock import elasticmock
 
 
-class TestElasticsearchTaskHandler(unittest.TestCase):
+class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-many-instance-attributes
     DAG_ID = 'dag_for_testing_file_task_handler'
     TASK_ID = 'task_for_testing_file_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
@@ -54,6 +54,8 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.write_stdout = False
         self.json_format = False
         self.json_fields = 'asctime,filename,lineno,levelname,message,exc_text'
+        self.host_field = 'host'
+        self.offset_field = 'offset'
         self.es_task_handler = ElasticsearchTaskHandler(
             self.local_log_location,
             self.filename_template,
@@ -62,6 +64,8 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.write_stdout,
             self.json_format,
             self.json_fields,
+            self.host_field,
+            self.offset_field,
         )
 
         self.es = elasticsearch.Elasticsearch(  # pylint: disable=invalid-name
@@ -103,6 +107,8 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.write_stdout,
             self.json_format,
             self.json_fields,
+            self.host_field,
+            self.offset_field,
             es_kwargs=es_conf,
         )
 
@@ -357,6 +363,8 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.write_stdout,
             self.json_format,
             self.json_fields,
+            self.host_field,
+            self.offset_field,
         )
         log_id = self.es_task_handler._render_log_id(self.ti, 1)
         assert expected_log_id == log_id
@@ -382,6 +390,8 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.write_stdout,
             self.json_format,
             self.json_fields,
+            self.host_field,
+            self.offset_field,
             frontend=es_frontend,
         )
         url = es_task_handler.get_external_log_url(self.ti, self.ti.try_number)
