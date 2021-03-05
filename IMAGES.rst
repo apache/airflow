@@ -250,7 +250,7 @@ For example:
 
   apache/airflow:master-python3.6                - production "latest" image from current master
   apache/airflow:master-python3.6-ci             - CI "latest" image from current master
-  apache/airflow:v2-0-test-python2.7-ci          - CI "latest" image from current v2-0-test branch
+  apache/airflow:v2-0-test-python3.6-ci          - CI "latest" image from current v2-0-test branch
   apache/airflow:2.0.0-python3.6                 - production image for 2.0.0 release
   apache/airflow:python3.6-master                - base Python image for the master branch
 
