@@ -36,6 +36,6 @@ class TestGetHealthTest(unittest.TestCase):
     def test_should_respond_200(self, mock_get_airflow_get_commit):
         response = self.client.get("/api/v1/version")
 
-        self.assertEqual(200, response.status_code)
-        self.assertEqual({'git_version': 'GIT_COMMIT', 'version': 'MOCK_VERSION'}, response.json)
+        assert 200 == response.status_code
+        assert {'git_version': 'GIT_COMMIT', 'version': 'MOCK_VERSION'} == response.json
         mock_get_airflow_get_commit.assert_called_once_with()

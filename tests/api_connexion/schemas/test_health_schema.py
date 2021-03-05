@@ -32,4 +32,4 @@ class TestHeathSchema(unittest.TestCase):
             },
         }
         serialized_data = health_schema.dump(payload)
-        self.assertDictEqual(serialized_data, payload)
+        assert serialized_data == payload

@@ -18,9 +18,22 @@
 # under the License.
 set -euo pipefail
 
+
 AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ ${BREEZE_REDIRECT=} == "" ]]; then
+    mkdir -p "${AIRFLOW_SOURCES}"/logs
+    export BREEZE_REDIRECT="true"
+    if [[ "$(uname)" == "Darwin" ]]; then
+      exec script -q "${AIRFLOW_SOURCES}"/logs/breeze.out "$BASH" -c "$(printf "%q " "${0}" "${@}")"
+    else
+      exec script --return --quiet --log-out "${AIRFLOW_SOURCES}"/logs/breeze.out -c "$(printf "%q " "${0}" "${@}")"
+    fi
+fi
+
 export AIRFLOW_SOURCES
 readonly AIRFLOW_SOURCES
+
 
 # Bash arrays need to be defined outside of functions unfortunately :(
 # Because on Mac OS Bash 3.4 defining arrays inside functions does not work
@@ -56,7 +69,7 @@ export EXTRA_STATIC_CHECK_OPTIONS
 #    SUPPRESS_ASCIIART_FILE
 #    MAX_SCREEN_WIDTH
 #    SCREEN_WIDTH
-#    MOUNT_LOCAL_SOURCES
+#    MOUNT_SELECTED_LOCAL_SOURCES
 #    FORCE_PULL_IMAGES
 #    FORWARD_CREDENTIALS
 #    DB_RESET
@@ -93,8 +106,11 @@ function breeze::setup_default_breeze_constants() {
     export MAX_SCREEN_WIDTH=100
     readonly MAX_SCREEN_WIDTH
 
-    # By default we mount local Airflow sources
-    export MOUNT_LOCAL_SOURCES="true"
+    # By default we mount selected local Airflow sources
+    export MOUNT_SELECTED_LOCAL_SOURCES="true"
+
+    # By default we do not mount all local Airflow sources
+    export MOUNT_ALL_LOCAL_SOURCES="false"
 
     # By default we only pull images if we do not have them locally.
     # This can be overridden by '--force-pull-images' flag
@@ -239,7 +255,7 @@ function breeze::initialize_virtualenv() {
         set +e
         # We need to export this one to speed up Cassandra driver installation in virtualenv
         CASS_DRIVER_NO_CYTHON="1" pip install -e ".[devel]" \
-            --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+            --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
         res=$?
         set -e
         popd
@@ -466,6 +482,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_PROD_IMAGE}
+                               GitHub cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
                                Airflow source version: $(build_images::get_airflow_version_from_production_image)
 EOF
         else
@@ -475,6 +492,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_CI_IMAGE}
+                               GitHub cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
                                Airflow source version: ${AIRFLOW_VERSION}
 EOF
         fi
@@ -499,6 +517,7 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_PROD_IMAGE}
+   GitHub cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
 EOF
         else
             cat <<EOF
@@ -507,6 +526,8 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_CI_IMAGE}
+   GitHub cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
+
 EOF
         fi
         cat <<EOF
@@ -548,7 +569,6 @@ EOF
 #   PYTHON_MAJOR_MINOR_VERSION
 #   DOCKERHUB_USER
 #   DOCKERHUB_REPO
-#   HOST_AIRFLOW_SOURCES
 #   BACKEND
 #   AIRFLOW_VERSION
 #   INSTALL_AIRFLOW_VERSION
@@ -595,7 +615,6 @@ export DOCKERHUB_USER=${DOCKERHUB_USER}
 export DOCKERHUB_REPO=${DOCKERHUB_REPO}
 export HOST_USER_ID=${HOST_USER_ID}
 export HOST_GROUP_ID=${HOST_GROUP_ID}
-export HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}"
 export COMPOSE_FILE="${compose_file}"
 export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
 export BACKEND="${BACKEND}"
@@ -644,6 +663,7 @@ function breeze::prepare_command_files() {
     local main_prod_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
     local local_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local.yml
+    local local_all_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local-all-sources.yml
     local files_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/files.yml
     local local_prod_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local-prod.yml
     local remove_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
@@ -652,9 +672,14 @@ function breeze::prepare_command_files() {
     local compose_ci_file=${main_ci_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
     local compose_prod_file=${main_prod_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
 
-    if [[ "${MOUNT_LOCAL_SOURCES}" != "false" ]]; then
+    if [[ "${MOUNT_SELECTED_LOCAL_SOURCES}" != "false" ]]; then
         compose_ci_file=${compose_ci_file}:${local_docker_compose_file}
         compose_prod_file=${compose_prod_file}:${local_prod_docker_compose_file}
+    fi
+
+    if [[ "${MOUNT_ALL_LOCAL_SOURCES}" != "false" ]]; then
+        compose_ci_file=${compose_ci_file}:${local_all_sources_docker_compose_file}
+        compose_prod_file=${compose_prod_file}:${local_all_sources_docker_compose_file}
     fi
 
     if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
@@ -833,8 +858,18 @@ function breeze::parse_arguments() {
             shift 2
             ;;
         -l | --skip-mounting-local-sources)
-            MOUNT_LOCAL_SOURCES="false"
-            echo "Mount local sources: ${MOUNT_LOCAL_SOURCES}"
+            MOUNT_SELECTED_LOCAL_SOURCES="false"
+            MOUNT_ALL_LOCAL_SOURCES="false"
+            echo "Mount selected local sources: ${MOUNT_SELECTED_LOCAL_SOURCES}"
+            echo "Mount all local sources: ${MOUNT_ALL_LOCAL_SOURCES}"
+            echo
+            shift
+            ;;
+        --mount-all-local-sources)
+            MOUNT_ALL_LOCAL_SOURCES="true"
+            MOUNT_SELECTED_LOCAL_SOURCES="false"
+            echo "Mount selected local sources: ${MOUNT_SELECTED_LOCAL_SOURCES}"
+            echo "Mount all local sources: ${MOUNT_ALL_LOCAL_SOURCES}"
             echo
             shift
             ;;
@@ -843,8 +878,11 @@ function breeze::parse_arguments() {
             # Reference is mutually exclusive with version
             INSTALL_AIRFLOW_REFERENCE=""
             # Skip mounting local sources when airflow is installed from remote
-            INSTALL_PROVIDERS_FROM_SOURCES="false"
-            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION} and skip mounting sources"
+            if [[ ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]*$ ]]; then
+                echo "Install providers from PyPI"
+                INSTALL_PROVIDERS_FROM_SOURCES="false"
+            fi
+            echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION}"
             echo
             shift 2
             ;;
@@ -989,7 +1027,7 @@ function breeze::parse_arguments() {
             echo "Additional apt dev dependencies: ${ADDITIONAL_DEV_APT_DEPS}"
             shift 2
             ;;
-        --dev-apt-commad)
+        --dev-apt-command)
             export DEV_APT_COMMAND="${2}"
             echo "Apt dev command: ${DEV_APT_COMMAND}"
             shift 2
@@ -1014,7 +1052,7 @@ function breeze::parse_arguments() {
             echo "Additional apt runtime dependencies: ${ADDITIONAL_RUNTIME_APT_DEPS}"
             shift 2
             ;;
-        --runtime-apt-commad)
+        --runtime-apt-command)
             export RUNTIME_APT_COMMAND="${2}"
             echo "Apt runtime command: ${RUNTIME_APT_COMMAND}"
             shift 2
@@ -1073,18 +1111,26 @@ function breeze::parse_arguments() {
             export FORWARD_CREDENTIALS="true"
             shift
             ;;
-        -c | --github-registry)
+        -c | --use-github-registry)
             echo
             echo "Use GitHub registry"
             echo
             export USE_GITHUB_REGISTRY="true"
             shift
             ;;
-        -g | --github-repository)
-            echo
-            echo "GitHub repository: ${2}"
+        --github-registry)
             echo
             echo "Using GitHub registry."
+            echo "GitHub registry used: ${2}"
+            echo
+            export GITHUB_REGISTRY="${2}"
+            export USE_GITHUB_REGISTRY="true"
+            shift 2
+            ;;
+        -g | --github-repository)
+            echo
+            echo "Using GitHub registry."
+            echo "GitHub repository: ${2}"
             echo
             export GITHUB_REPOSITORY="${2}"
             export USE_GITHUB_REGISTRY="true"
@@ -1183,7 +1229,13 @@ function breeze::parse_arguments() {
             ;;
         --installation-method)
             export AIRFLOW_INSTALLATION_METHOD="${2}"
-            echo "Airflow installation method: ${PACKAGE_FORMAT}"
+            echo "Airflow installation method: ${AIRFLOW_INSTALLATION_METHOD}"
+            echo
+            shift 2
+            ;;
+        --generate-constraints-mode)
+            export GENERATE_CONSTRAINTS_MODE="${2}"
+            echo "Generate constraints mode: ${GENERATE_CONSTRAINTS_MODE}"
             echo
             shift 2
             ;;
@@ -1192,6 +1244,12 @@ function breeze::parse_arguments() {
             echo "Selected test type: ${TEST_TYPE}"
             echo
             shift 2
+            ;;
+        --dry-run-docker)
+            export DRY_RUN_DOCKER="true"
+            echo "Dry run mode"
+            echo
+            shift
             ;;
         --)
             shift
@@ -1259,6 +1317,7 @@ function breeze::parse_arguments() {
             command_to_run="perform_generate_constraints"
             export FORCE_ANSWER_TO_QUESTIONS="yes"
             export FORCE_BUILD_IMAGES="true"
+            export SKIP_CHECK_REMOTE_IMAGE="true"
             export UPGRADE_TO_NEWER_DEPENDENCIES="true"
             shift
             ;;
@@ -1273,9 +1332,9 @@ function breeze::parse_arguments() {
             command_to_run="perform_prepare_provider_packages"
             shift
             ;;
-        prepare-provider-readme)
+        prepare-provider-documentation)
             last_subcommand="${1}"
-            command_to_run="perform_prepare_provider_readme"
+            command_to_run="perform_prepare_provider_documentation"
             shift
             ;;
         push-image)
@@ -1289,6 +1348,7 @@ function breeze::parse_arguments() {
             echo "Initializing local virtualenv"
             echo
             command_to_run="perform_initialize_local_virtualenv"
+            export INSTALL_PROVIDERS_FROM_SOURCES="true"
             shift
             ;;
         kind-cluster)
@@ -1496,6 +1556,14 @@ function breeze::prepare_formatted_versions() {
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_INSTALLATION_METHOD
 
+    FORMATTED_GENERATE_CONSTRAINTS_MODE=$(echo "${_breeze_allowed_generate_constraints_modes=""}" |
+        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_GENERATE_CONSTRAINTS_MODE
+
+    FORMATTED_GITHUB_REGISTRY=$(echo "${_breeze_allowed_github_registrys=""}" |
+        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_GITHUB_REGISTRY
+
     FORMATTED_POSTGRES_VERSIONS=$(echo "${_breeze_allowed_postgres_versions=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_POSTGRES_VERSIONS
@@ -1555,8 +1623,8 @@ function breeze::prepare_usage() {
     readonly USAGE_GENERATE_CONSTRAINTS
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
     readonly USAGE_INITIALIZE_LOCAL_VIRTUALENV
-    export USAGE_PREPARE_PROVIDER_README="Prepares provider packages readme files"
-    readonly USAGE_PREPARE_PROVIDER_README
+    export USAGE_PREPARE_PROVIDER_DOCUMENTATION="Prepares provider packages documentation"
+    readonly USAGE_PREPARE_PROVIDER_DOCUMENTATION
     export USAGE_PREPARE_AIRFLOW_PACKAGES="Prepares airflow packages"
     readonly USAGE_PREPARE_AIRFLOW_PACKAGES
     export USAGE_PREPARE_PROVIDER_PACKAGES="Prepares provider packages"
@@ -1704,24 +1772,29 @@ $(breeze::flag_verbosity)
       Explains in detail all the flags that can be used with breeze.
 "
     readonly DETAILED_USAGE_FLAGS
-    export DETAILED_USAGE_PREPARE_PROVIDER_README="
-${CMDNAME} prepare-provider-readme [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
+    export DETAILED_USAGE_PREPARE_PROVIDER_DOCUMENTATION="
+${CMDNAME} prepare-provider-documentation [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
 
-      Prepares README.md files for backport packages. You can provide (after --) optional version
-      in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
+      Prepares documentation files for provider packages.
+
+      The command is optionally followed by the list of packages to generate readme for.
       If the first parameter is not formatted as a date, then today is regenerated.
       If no packages are specified, readme for all packages are generated.
       If no date is specified, current date + 3 days is used (allowing for PMC votes to pass).
 
+      You can also specify --backport flag to prepare backport providers documentation and in this
+      case you can also optionally specify CALVER version as first parameter.
+
       Examples:
 
-      '${CMDNAME} prepare-provider-readme' or
-      '${CMDNAME} prepare-provider-readme 2020.05.10' or
-      '${CMDNAME} prepare-provider-readme 2020.05.10 https google amazon'
+      '${CMDNAME} prepare-provider-documentation' or
+      '${CMDNAME} prepare-provider-documentation --version-suffix-for-pypi rc1' or
+      '${CMDNAME} prepare-provider-documentation --backports 2020.05.10' or
+      '${CMDNAME} prepare-provider-documentation --backports 2020.05.10 https google amazon'
 
       General form:
 
-      '${CMDNAME} prepare-provider-readme YYYY.MM.DD <PACKAGE_ID> ...'
+      '${CMDNAME} prepare-provider-documentation YYYY.MM.DD <PACKAGE_ID> ...'
 
       * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
         cannot be earlier than the already released version (the script will fail if it
@@ -1732,21 +1805,27 @@ ${CMDNAME} prepare-provider-readme [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
         '.' for example 'apache.hive'
 
 Flags:
+$(breeze::flag_version_suffix)
+$(breeze::flag_packages)
 $(breeze::flag_verbosity)
 "
-    readonly DETAILED_USAGE_PREPARE_PROVIDER_README
+    readonly DETAILED_USAGE_PREPARE_PROVIDER_DOCUMENTATION
     export DETAILED_USAGE_GENERATE_CONSTRAINTS="
 ${CMDNAME} generate-constraints [FLAGS]
 
-      Generates pinned constraint files from setup.py. Those files are generated in files folder
-      - separate files for different python version. Those constraint files when pushed to orphan
-      constraints-master, constraints-2-0 and constraints-1-10 branches are used to generate
-      repeatable CI builds as well as run repeatable production image builds. You can use those
+      Generates pinned constraint files with all extras from setup.py. Those files are generated in
+      files folder - separate files for different python version. Those constraint files when
+      pushed to orphan constraints-master, constraints-2-0 and constraints-1-10 branches are used
+      to generate repeatable CI builds as well as run repeatable production image builds and
+      upgrades when you want to include installing or updating some of the released providers
+      released at the time particular airflow version was released. You can use those
       constraints to predictably install released Airflow versions. This is mainly used to test
-      the constraint generation - constraints are pushed to the orphan branches by a
-      successful scheduled CRON job in CI automatically.
+      the constraint generation or manually fix them - constraints are pushed to the orphan
+      branches by a successful scheduled CRON job in CI automatically, but sometimes manual fix
+      might be needed.
 
 Flags:
+$(breeze::flag_generate_constraints)
 $(breeze::flag_airflow_variants)
 $(breeze::flag_verbosity)
 "
@@ -1794,11 +1873,14 @@ ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
       prepared there so make sure you run prepare-provider-packages first,
       and prepare-airflow-packages second.
 
+      You can also specify --backport flag to prepare backport providers or --package-format to
+      prepare one or both types of supported formats.
+
       Examples:
 
       '${CMDNAME} prepare-provider-packages' or
       '${CMDNAME} prepare-provider-packages google' or
-      '${CMDNAME} prepare-provider-packages --package-format both google' or
+      '${CMDNAME} prepare-provider-packages --package-format wheel google' or
       '${CMDNAME} prepare-provider-packages --version-suffix-for-svn rc1 http google amazon' or
       '${CMDNAME} prepare-provider-packages --version-suffix-for-pypi rc1 http google amazon'
       '${CMDNAME} prepare-provider-packages --version-suffix-for-pypi a1
@@ -1806,7 +1888,7 @@ ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
 
       General form:
 
-      '${CMDNAME} prepare-provider-packages [--package-format PACKAGE_FORMAT] \\
+      '${CMDNAME} prepare-provider-packages [--backports] [--package-format PACKAGE_FORMAT] \\
             [--version-suffix-for-svn|--version-suffix-for-pypi] <PACKAGE_ID> ...'
 
       * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
@@ -1823,14 +1905,14 @@ $(breeze::flag_verbosity)
 ${CMDNAME} push_image [FLAGS]
 
       Pushes images to docker registry. You can push the images to DockerHub registry (default)
-      or to the GitHub registry (if --github-registry flag is used).
+      or to the GitHub registry (if --use-github-registry flag is used).
 
       For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
       the repository to push to. For GitHub repository, the --github-repository
       flag can be used for the same purpose. You can also add
       --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to push image with specific
       SHA tag or run id. In case you specify --github-repository or --github-image-id, you
-      do not need to specify --github-registry flag.
+      do not need to specify --use-github-registry flag.
 
       You can also add --production-image flag to switch to production image (default is CI one)
 
@@ -1839,7 +1921,7 @@ ${CMDNAME} push_image [FLAGS]
       '${CMDNAME} push-image' or
       '${CMDNAME} push-image --dockerhub-user user' to push to your private registry or
       '${CMDNAME} push-image --production-image' - to push production image or
-      '${CMDNAME} push-image --github-registry' - to push to GitHub image registry or
+      '${CMDNAME} push-image --use-github-registry' - to push to GitHub image registry or
       '${CMDNAME} push-image \\
             --github-repository user/airflow' - to push to your user's fork
       '${CMDNAME} push-image \\
@@ -2069,7 +2151,7 @@ Commands with arguments:
 "
     # shellcheck disable=SC2154
     for subcommand in ${_breeze_extra_arg_commands}; do
-        printf "  %-30s%-10s %s\n" "${subcommand}" "<ARG>" "$(breeze::get_usage "${subcommand}")"
+        printf "  %-35s%-10s %s\n" "${subcommand}" "<ARG>" "$(breeze::get_usage "${subcommand}")"
     done
     echo "
 Help commands:
@@ -2306,8 +2388,13 @@ function breeze::flag_local_file_mounting() {
 function breeze::flag_choose_different_airflow_version() {
     echo "
 -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
-        If specified, installs Airflow directly from PIP released version. This happens at
-        image building time in production image and at container entering time for CI image. One of:
+        In CI image, installs Airflow (in entrypoint) from PIP released version or using
+        the installation method specified (sdist, wheel, none).
+
+        In PROD image the installation of selected method or version happens during image building.
+        For PROD image, the 'none' options is not valid.
+
+        One of:
 
 ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
@@ -2322,8 +2409,9 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
         This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
 --installation-method INSTALLATION_METHOD
-        Method of installing airflow - either from the sources ('.') or from package
-        'apache-airflow' to install from PyPI. Default in Breeze is to install from sources. One of:
+        Method of installing airflow for production image - either from the sources ('.')
+        or from package 'apache-airflow' to install from PyPI.
+        Default in Breeze is to install from sources. One of:
 
 ${FORMATTED_INSTALLATION_METHOD}
 
@@ -2343,6 +2431,31 @@ ${FORMATTED_INSTALLATION_METHOD}
 
 "
 }
+
+#######################################################################################################
+#
+# Prints flags that allow to choose variants of constraint generation
+#
+# Global constants used:
+#       GENERATE_CONSTRAINTS_MODES
+#
+# Outputs:
+#    Flag information.
+#######################################################################################################
+function breeze::flag_generate_constraints() {
+    echo "
+--generate-constraints-mode GENERATE_CONSTRAINTS_MODE
+        Mode of generating constraints - determines whether providers are installed when generating
+        constraints and which version of them (either the ones from sources are used or the ones
+        from pypi.
+
+        One of:
+
+${FORMATTED_GENERATE_CONSTRAINTS_MODE}
+
+"
+}
+
 
 #######################################################################################################
 #
@@ -2396,7 +2509,11 @@ function breeze::flag_packages() {
 
 ${FORMATTED_PACKAGE_FORMATS}
 
-        Default: ${_breeze_default_package_formats:=}
+        Default: ${_breeze_default_package_format:=}
+
+--backports
+
+        Prepares backport providers rather than regular ones.
 
 "
 }
@@ -2418,6 +2535,11 @@ function breeze::flag_verbosity() {
 
         Note that you can further increase verbosity and see all the commands executed by breeze
         by running 'export VERBOSE_COMMANDS=\"true\"' before running breeze.
+
+--dry-run-docker
+        Only show docker commands to execute instead of actually executing them. The docker
+        commands are printed in yellow color.
+
 "
 }
 
@@ -2560,7 +2682,7 @@ Build options:
 
 -U, --build-cache-pulled
         Uses images pulled from registry (either DockerHub or GitHub depending on
-        --github-registry flag) to build images. The pulled images will be used as cache.
+        --use-github-registry flag) to build images. The pulled images will be used as cache.
         Those builds are usually faster than when ''--build-cache-local'' with the exception if
         the registry images are not yet updated. The DockerHub images are updated nightly and the
         GitHub images are updated after merges to master so it might be that the images are still
@@ -2601,16 +2723,26 @@ function breeze::flag_pull_push_docker_images() {
 -H, --dockerhub-repo DOCKERHUB_REPO
         DockerHub repository used to pull, push, build images. Default: ${_breeze_default_dockerhub_repo:=}.
 
--c, --github-registry GITHUB_REGISTRY
+-c, --use-github-registry
         If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
         DockerHub. You need to be logged in to the registry in order to be able to pull/push from
         and you need to be committer to push to Apache Airflow' GitHub registry.
+
+--github-registry GITHUB_REGISTRY
+        GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
+        registry.
+
+        Default: ${_breeze_default_github_registry:=}.
+
+        If you use this flag, automatically --use-github-registry flag is enabled.
+
+${FORMATTED_GITHUB_REGISTRY}
 
 -g, --github-repository GITHUB_REPOSITORY
         GitHub repository used to pull, push images when cache is used.
         Default: ${_breeze_default_github_repository:=}.
 
-        If you use this flag, automatically --github-registry flag is enabled.
+        If you use this flag, automatically --use-github-registry flag is enabled.
 
 -s, --github-image-id COMMIT_SHA|RUN_ID
         <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
@@ -2619,7 +2751,7 @@ function breeze::flag_pull_push_docker_images() {
         automatically pull and use that image so that you can easily reproduce a problem
         that occurred in CI.
 
-        If you use this flag, automatically --github-registry is enabled.
+        If you use this flag, automatically --use-github-registry is enabled.
 
 
         Default: ${_breeze_default_github_image_id:=}.
@@ -2941,6 +3073,7 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "HELM_VERSION" "Helm version" "--helm-version"
     parameters::check_and_save_allowed_param "POSTGRES_VERSION" "Postgres version" "--postgres-version"
     parameters::check_and_save_allowed_param "MYSQL_VERSION" "Mysql version" "--mysql-version"
+    parameters::check_and_save_allowed_param "GITHUB_REGISTRY" "GitHub Registry" "--github-registry"
 
     parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
     parameters::check_allowed_param PACKAGE_FORMAT "Format of packages to build" "--package-format"
@@ -3076,11 +3209,19 @@ function breeze::make_sure_precommit_is_installed() {
 #
 #######################################################################################################
 function breeze::remove_images() {
-    set +e
-    docker rmi "${PYTHON_BASE_IMAGE}"  2>/dev/null >/dev/null
-    docker rmi "${AIRFLOW_CI_IMAGE}"   2>/dev/null >/dev/null
-    docker rmi "${AIRFLOW_PROD_IMAGE}" 2>/dev/null >/dev/null
-    set -e
+    # shellcheck disable=SC2086
+    docker rmi --force ${PYTHON_BASE_IMAGE} \
+                       ${GITHUB_REGISTRY_PYTHON_BASE_IMAGE} \
+                       ${AIRFLOW_PYTHON_BASE_IMAGE} \
+                       ${AIRFLOW_CI_IMAGE} \
+                       ${DEFAULT_CI_IMAGE} \
+                       ${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE} \
+                       ${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE} \
+                       ${AIRFLOW_PROD_IMAGE} \
+                       ${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE} \
+                       ${AIRFLOW_PROD_BUILD_IMAGE} \
+                       ${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE} \
+        2>/dev/null >/dev/null && true
     echo
     echo "###################################################################"
     echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
@@ -3154,7 +3295,7 @@ function breeze::run_build_command() {
         fi
         ;;
     build_docs | perform_static_checks | perform_generate_constraints | \
-        perform_prepare_provider_readme | perform_prepare_provider_packages | \
+        perform_prepare_provider_documentation | perform_prepare_provider_packages | \
         perform_prepare_airflow_packages)
         build_images::prepare_ci_build
         build_images::rebuild_ci_image_if_needed
@@ -3235,6 +3376,20 @@ function breeze::run_build_command() {
     esac
 }
 
+# executes command
+function breeze::run_command() {
+    "${@}"
+}
+
+
+# print command instead of executing
+function breeze::print_command() {
+    echo
+    echo "${COLOR_YELLOW}" "${@}" "${COLOR_RESET}"
+    echo
+}
+
+
 #######################################################################################################
 #
 # Runs the actual command - depending on the command chosen it will use the right
@@ -3256,6 +3411,10 @@ function breeze::run_build_command() {
 function breeze::run_breeze_command() {
     set +u
     local dc_run_file
+    local run_command="breeze::run_command"
+    if [[ ${DRY_RUN_DOCKER} != "false" ]]; then
+        run_command="breeze::print_command"
+    fi
     if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
         dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}"
     else
@@ -3263,15 +3422,11 @@ function breeze::run_breeze_command() {
     fi
     case "${command_to_run}" in
     enter_breeze)
-        if [[ " ${INTEGRATIONS[*]} " =~ " kerberos " ]]; then
-            kerberos::create_kerberos_network
-        fi
-
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            "${dc_run_file}" run --service-ports --rm airflow "${@}"
-            "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
+            ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
+            ${run_command} "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
         else
-            "${dc_run_file}" run --service-ports --rm airflow "${@}"
+            ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
         fi
         ;;
     run_exec)
@@ -3286,26 +3441,14 @@ function breeze::run_breeze_command() {
             "/opt/airflow/scripts/in_container/entrypoint_exec.sh" "${@}"
         ;;
     run_tests)
-        if [[ " ${INTEGRATIONS[*]} " =~ " kerberos " ]]; then
-            kerberos::create_kerberos_network
-        fi
-
         export RUN_TESTS="true"
         readonly RUN_TESTS
-        "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" run --service-ports --rm airflow "$@"
+        ${run_command} "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" run --service-ports --rm airflow "$@"
         ;;
     run_docker_compose)
         set +u
-        if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}"
-        else
-            dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}"
-        fi
-        "${dc_run_file}" "${docker_compose_command}" "${EXTRA_DC_OPTIONS[@]}" "$@"
+        ${run_command} "${dc_run_file}" "${docker_compose_command}" "${EXTRA_DC_OPTIONS[@]}" "$@"
         set -u
-        if [[ "${docker_compose_command}" = "down" ]]; then
-            kerberos::delete_kerberos_network
-        fi
         ;;
     perform_static_checks)
         breeze::make_sure_precommit_is_installed
@@ -3325,8 +3468,8 @@ function breeze::run_breeze_command() {
     perform_prepare_provider_packages)
         runs::run_prepare_provider_packages "${@}"
         ;;
-    perform_prepare_provider_readme)
-        runs::run_prepare_provider_readme "${@}"
+    perform_prepare_provider_documentation)
+        runs::run_prepare_provider_documentation "${@}"
         ;;
     perform_push_image)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
@@ -3412,6 +3555,8 @@ function breeze::determine_python_version_to_use_in_breeze() {
 breeze::setup_default_breeze_constants
 
 initialization::initialize_common_environment
+
+initialization::get_environment_for_builds_on_ci
 
 breeze::determine_python_version_to_use_in_breeze
 

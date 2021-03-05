@@ -32,6 +32,7 @@ test -v CONTINUE_ON_PIP_CHECK_FAILURE
 test -v EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS
 test -v UPGRADE_TO_NEWER_DEPENDENCIES
 
+set -x
 
 function install_airflow_and_providers_from_docker_context_files(){
     # Find Apache Airflow packages in docker-context files
@@ -39,7 +40,7 @@ function install_airflow_and_providers_from_docker_context_files(){
     reinstalling_apache_airflow_package=$(ls \
         /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true)
     # Add extras when installing airflow
-    if [[ "${reinstalling_apache_airflow_package}" != "" ]]; then
+    if [[ -n "${reinstalling_apache_airflow_package}" ]]; then
         reinstalling_apache_airflow_package="${reinstalling_apache_airflow_package}[${AIRFLOW_EXTRAS}]"
     fi
 
@@ -47,8 +48,8 @@ function install_airflow_and_providers_from_docker_context_files(){
     local reinstalling_apache_airflow_providers_packages
     reinstalling_apache_airflow_providers_packages=$(ls \
         /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true)
-    if [[ ${reinstalling_apache_airflow_package} == "" && \
-          ${reinstalling_apache_airflow_providers_packages} == "" ]]; then
+    if [[ -z "${reinstalling_apache_airflow_package}" && \
+          -z "${reinstalling_apache_airflow_providers_packages}" ]]; then
         return
     fi
 
@@ -67,10 +68,13 @@ function install_airflow_and_providers_from_docker_context_files(){
         echo
         echo Force re-installing airflow and providers from local files with constraints and upgrade if needed
         echo
+        # Remove provider packages from constraint files because they are locally prepared
+        curl -L "${AIRFLOW_CONSTRAINTS_LOCATION}" | grep -ve '^apache-airflow' > /tmp/constraints.txt
         # force reinstall airflow + provider package local files with constraints + upgrade if needed
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --force-reinstall \
             ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
-            --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
+            --constraint /tmp/constraints.txt
+        rm /tmp/constraints.txt
         # make sure correct PIP version is used \
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
         # then upgrade if needed without using constraints to account for new limits in setup.py
@@ -95,7 +99,7 @@ install_all_other_packages_from_docker_context_files() {
     # shellcheck disable=SC2010
     reinstalling_other_packages=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
         grep -v apache_airflow | grep -v apache-airflow || true)
-    if [[ "${reinstalling_other_packages}" != "" ]]; then \
+    if [[ -n "${reinstalling_other_packages}" ]]; then \
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"

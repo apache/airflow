@@ -145,7 +145,7 @@ class PagerdutyHook(BaseHook):
 
         actions = ('trigger', 'acknowledge', 'resolve')
         if action not in actions:
-            raise ValueError("Event action must be one of: %s" % ', '.join(actions))
+            raise ValueError(f"Event action must be one of: {', '.join(actions)}")
         data = {
             "event_action": action,
             "payload": payload,

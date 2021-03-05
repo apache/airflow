@@ -87,7 +87,7 @@ class TestSnowflakeHook(unittest.TestCase):
         uri_shouldbe = (
             'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role&authenticator=snowflake'
         )
-        self.assertEqual(uri_shouldbe, self.db_hook.get_uri())
+        assert uri_shouldbe == self.db_hook.get_uri()
 
     def test_get_conn_params(self):
         conn_params_shouldbe = {
@@ -102,11 +102,11 @@ class TestSnowflakeHook(unittest.TestCase):
             'authenticator': 'snowflake',
             'session_parameters': {"QUERY_TAG": "This is a test hook"},
         }
-        self.assertEqual(self.db_hook.snowflake_conn_id, 'snowflake_default')  # pylint: disable=no-member
-        self.assertEqual(conn_params_shouldbe, self.db_hook._get_conn_params())
+        assert self.db_hook.snowflake_conn_id == 'snowflake_default'  # pylint: disable=no-member
+        assert conn_params_shouldbe == self.db_hook._get_conn_params()
 
     def test_get_conn(self):
-        self.assertEqual(self.db_hook.get_conn(), self.conn)
+        assert self.db_hook.get_conn() == self.conn
 
     def test_key_pair_auth_encrypted(self):
         self.conn.extra_dejson = {
@@ -119,7 +119,7 @@ class TestSnowflakeHook(unittest.TestCase):
         }
 
         params = self.db_hook._get_conn_params()
-        self.assertTrue('private_key' in params)
+        assert 'private_key' in params
 
     def test_key_pair_auth_not_encrypted(self):
         self.conn.extra_dejson = {
@@ -133,8 +133,8 @@ class TestSnowflakeHook(unittest.TestCase):
 
         self.conn.password = ''
         params = self.db_hook._get_conn_params()
-        self.assertTrue('private_key' in params)
+        assert 'private_key' in params
 
         self.conn.password = None
         params = self.db_hook._get_conn_params()
-        self.assertTrue('private_key' in params)
+        assert 'private_key' in params

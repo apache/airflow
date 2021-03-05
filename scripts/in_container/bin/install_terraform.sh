@@ -19,8 +19,16 @@
 
 set -euo pipefail
 
+BIN_PATH="/files/bin/terraform"
+
+if [[ $# != "0" && ${1} == "--reinstall" ]]; then
+    rm -f "${BIN_PATH}"
+fi
+
+hash -r
+
 if command -v terraform; then
-    echo 'The "terraform" command found. Installation not needed.'
+    echo 'The "terraform" command found. Installation not needed. Run with --reinstall to reinstall'
     exit 1
 fi
 

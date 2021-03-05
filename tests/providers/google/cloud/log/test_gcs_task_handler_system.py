@@ -72,8 +72,8 @@ class TestGCSTaskHandlerSystemTest(GoogleSystemTest):
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
             GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_GCS_KEY),
         ):
-            self.assertEqual(0, subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait())
-            self.assertEqual(0, subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait())
+            assert 0 == subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait()
+            assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
 
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
         dag = DagBag(dag_folder=example_complex.__file__).dags['example_complex']
@@ -96,4 +96,4 @@ class TestGCSTaskHandlerSystemTest(GoogleSystemTest):
 
             task_log_reader = TaskLogReader()
             logs = "\n".join(task_log_reader.read_log_stream(ti, try_number=None, metadata={}))
-            self.assertIn(expected_message, logs)
+            assert expected_message in logs

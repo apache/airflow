@@ -29,6 +29,11 @@ import jsonschema
 import yaml
 from tabulate import tabulate
 
+try:
+    from yaml import CSafeLoader as SafeLoader
+except ImportError:
+    from yaml import SafeLoader  # type: ignore[no-redef]
+
 if __name__ != "__main__":
     raise Exception(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
@@ -60,7 +65,7 @@ def _load_package_data(package_paths: Iterable[str]):
     result = {}
     for provider_yaml_path in package_paths:
         with open(provider_yaml_path) as yaml_file:
-            provider = yaml.safe_load(yaml_file)
+            provider = yaml.load(yaml_file, SafeLoader)
         rel_path = os.path.relpath(provider_yaml_path, ROOT_DIR)
         try:
             jsonschema.validate(provider, schema=schema)
@@ -98,16 +103,16 @@ def assert_sets_equal(set1, set2):
     try:
         difference1 = set1.difference(set2)
     except TypeError as e:
-        raise AssertionError('invalid type when attempting set difference: %s' % e)
+        raise AssertionError(f'invalid type when attempting set difference: {e}')
     except AttributeError as e:
-        raise AssertionError('first argument does not support set difference: %s' % e)
+        raise AssertionError(f'first argument does not support set difference: {e}')
 
     try:
         difference2 = set2.difference(set1)
     except TypeError as e:
-        raise AssertionError('invalid type when attempting set difference: %s' % e)
+        raise AssertionError(f'invalid type when attempting set difference: {e}')
     except AttributeError as e:
-        raise AssertionError('second argument does not support set difference: %s' % e)
+        raise AssertionError(f'second argument does not support set difference: {e}')
 
     if not (difference1 or difference2):
         return

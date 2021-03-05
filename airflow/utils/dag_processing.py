@@ -714,7 +714,12 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._callback_to_execute[request.full_filepath].append(request)
         # Callback has a higher priority over DAG Run scheduling
         if request.full_filepath in self._file_path_queue:
-            self._file_path_queue.remove(request.full_filepath)
+            # Remove file paths matching request.full_filepath from self._file_path_queue
+            # Since we are already going to use that filepath to run callback,
+            # there is no need to have same file path again in the queue
+            self._file_path_queue = [
+                file_path for file_path in self._file_path_queue if file_path != request.full_filepath
+            ]
         self._file_path_queue.insert(0, request.full_filepath)
 
     def _refresh_dag_dir(self):
@@ -988,6 +993,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """Start more processors if we have enough slots and files to process"""
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
+            # Stop creating duplicate processor i.e. processor with the same filepath
+            if file_path in self._processors.keys():
+                continue
+
             callback_to_execute_for_file = self._callback_to_execute[file_path]
             processor = self._processor_factory(
                 file_path, callback_to_execute_for_file, self._dag_ids, self._pickle_dags

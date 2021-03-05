@@ -65,7 +65,7 @@ class TestGCSTaskHandler(unittest.TestCase):
         mock_client.assert_called_once_with(
             client_info=mock.ANY, credentials="TEST_CREDENTIALS", project="TEST_PROJECT_ID"
         )
-        self.assertEqual(mock_client.return_value, return_value)
+        assert mock_client.return_value == return_value
 
     @conf_vars({("logging", "remote_log_conn_id"): "gcs_default"})
     @mock.patch(
@@ -82,10 +82,8 @@ class TestGCSTaskHandler(unittest.TestCase):
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
 
-        self.assertEqual(
-            "*** Reading remote log from gs://bucket/remote/log/location/1.log.\nCONTENT\n", logs
-        )
-        self.assertEqual({"end_of_log": True}, metadata)
+        assert "*** Reading remote log from gs://bucket/remote/log/location/1.log.\nCONTENT\n" == logs
+        assert {"end_of_log": True} == metadata
 
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -99,12 +97,11 @@ class TestGCSTaskHandler(unittest.TestCase):
         self.gcs_task_handler.set_context(self.ti)
         log, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
 
-        self.assertEqual(
-            log,
-            "*** Unable to read remote log from gs://bucket/remote/log/location/1.log\n*** "
-            f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n",
+        assert (
+            log == "*** Unable to read remote log from gs://bucket/remote/log/location/1.log\n*** "
+            f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n"
         )
-        self.assertDictEqual(metadata, {"end_of_log": True})
+        assert metadata == {"end_of_log": True}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
@@ -142,7 +139,7 @@ class TestGCSTaskHandler(unittest.TestCase):
             any_order=False,
         )
         mock_blob.from_string.return_value.upload_from_string(data="CONTENT\nMESSAGE\n")
-        self.assertEqual(self.gcs_task_handler.closed, True)
+        assert self.gcs_task_handler.closed is True
 
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -169,13 +166,10 @@ class TestGCSTaskHandler(unittest.TestCase):
         with self.assertLogs(self.gcs_task_handler.log) as cm:
             self.gcs_task_handler.close()
 
-        self.assertEqual(
-            cm.output,
-            [
-                'ERROR:airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler:Could '
-                'not write logs to gs://bucket/remote/log/location/1.log: Failed to connect',
-            ],
-        )
+        assert cm.output == [
+            'ERROR:airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler:Could '
+            'not write logs to gs://bucket/remote/log/location/1.log: Failed to connect',
+        ]
         mock_blob.assert_has_calls(
             [
                 mock.call.from_string("gs://bucket/remote/log/location/1.log", mock_client.return_value),

@@ -188,7 +188,7 @@ class GunicornMonitor(LoggingMixin):
 
     def _reload_gunicorn(self) -> None:
         """
-        Send signal to reload the gunciron configuration. When gunciorn receive signals, it reload the
+        Send signal to reload the gunicorn configuration. When gunicorn receive signals, it reload the
         configuration, start the new worker processes with a new configuration and gracefully
         shutdown older workers.
         """
@@ -258,15 +258,16 @@ class GunicornMonitor(LoggingMixin):
             num_workers_running = self._get_num_workers_running()
             if num_workers_running < self.num_workers_expected:
                 new_worker_count = min(
-                    num_workers_running - self.worker_refresh_batch_size, self.worker_refresh_batch_size
+                    self.num_workers_expected - num_workers_running, self.worker_refresh_batch_size
                 )
-                self.log.debug(
+                # log at info since we are trying fix an error logged just above
+                self.log.info(
                     '[%d / %d] Spawning %d workers',
                     num_ready_workers_running,
                     num_workers_running,
                     new_worker_count,
                 )
-                self._spawn_new_workers(num_workers_running)
+                self._spawn_new_workers(new_worker_count)
             return
 
         # Now the number of running and expected worker should be equal

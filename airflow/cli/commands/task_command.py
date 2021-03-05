@@ -47,7 +47,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
 
-def _run_task_by_selected_method(args, dag, ti):
+def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
     """
     Runs the task in one of 3 modes
 
@@ -132,7 +132,7 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 ]
 
 
-def _run_raw_task(args, ti):
+def _run_raw_task(args, ti: TaskInstance) -> None:
     """Runs the main task handling code"""
     unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
 
@@ -149,6 +149,7 @@ def _run_raw_task(args, ti):
         mark_success=args.mark_success,
         job_id=args.job_id,
         pool=args.pool,
+        error_file=args.error_file,
     )
 
 
@@ -262,6 +263,7 @@ def task_failed_deps(args):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def task_state(args):
     """
     Returns the state of a TaskInstance at the command line.
@@ -275,6 +277,7 @@ def task_state(args):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def task_list(args, dag=None):
     """Lists the tasks within a DAG at the command line"""
     dag = dag or get_dag(args.subdir, args.dag_id)
@@ -396,6 +399,7 @@ def task_test(args, dag=None):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
@@ -405,14 +409,11 @@ def task_render(args):
     for attr in task.__class__.template_fields:
         print(
             textwrap.dedent(
-                """\
+                f"""        # ----------------------------------------------------------
+        # property: {attr}
         # ----------------------------------------------------------
-        # property: {}
-        # ----------------------------------------------------------
-        {}
-        """.format(
-                    attr, getattr(task, attr)
-                )
+        {getattr(task, attr)}
+        """
             )
         )
 

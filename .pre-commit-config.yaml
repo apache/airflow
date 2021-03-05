@@ -146,7 +146,7 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*.md$|^dev/.*.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*.md$|^dev/.*.md$|^dev/.*.rst
         args:
           - "--maxlevel"
           - "2"
@@ -233,6 +233,7 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh"
         files: Dockerfile.*$
         pass_filenames: true
+        require_serial: true
       - id: setup-order
         name: Check order of dependencies in setup.py and setup.cfg
         language: python
@@ -320,6 +321,7 @@ repos:
           ^airflow/providers/apache/hive/.*README.md$|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
+          ^docs/apache-airflow-providers-apache-hive/commits.rst$|git|
           ^CHANGELOG.txt$
       - id: consistent-pylint
         language: pygrep
@@ -406,6 +408,12 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_sort_in_the_wild.sh
         language: system
         files: ^.pre-commit-config.yaml$|^INTHEWILD.md$
+        require_serial: true
+      - id: sort-spelling-wordlist
+        name: Sort alphabetically and uniquify spelling_wordlist.txt
+        entry: ./scripts/ci/pre_commit/pre_commit_sort_spelling_wordlist.sh
+        language: system
+        files: ^.pre-commit-config.yaml$|^docs/spelling_wordlist.txt$
         require_serial: true
       - id: helm-lint
         name: Lint Helm Chart
@@ -522,7 +530,7 @@ repos:
           - https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
         language: python
         pass_filenames: true
-        files: scripts/ci/docker-compose/.+.yml
+        files: ^scripts/ci/docker-compose/.+\.ya?ml$|docker-compose.ya?ml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
@@ -547,6 +555,13 @@ repos:
         files: airflow/config_templates/config.yml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: flynt
+        name: Convert to f-strings with flynt
+        entry: flynt
+        language: python
+        language_version: python3
+        additional_dependencies: ['flynt']
+        files: \.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: build
@@ -566,26 +581,33 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: ^chart/.*\.py$
-        require_serial: true
+        require_serial: false
       - id: mypy
         name: Run mypy for /docs/ folder
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: ^docs/.*\.py$
         exclude: rtd-deprecation
-        require_serial: true
+        require_serial: false
       - id: pylint
-        name: Run pylint
+        name: Run pylint for main code
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: \.py$
-        exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart
+        exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart|^tests|^kubernetes_tests
+        pass_filenames: true
+        require_serial: true
+      - id: pylint
+        name: Run pylint for tests
+        language: system
+        entry: "env PYLINTRC=pylintrc-tests ./scripts/ci/pre_commit/pre_commit_pylint.sh"
+        files: ^tests/.*\.py$
         pass_filenames: true
         require_serial: true
       - id: pylint
         name: Run pylint for helm chart tests
         language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
+        entry: "env PYLINTRC=pylintrc-tests ./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: ^chart/.*\.py$
         pass_filenames: true
         require_serial: true

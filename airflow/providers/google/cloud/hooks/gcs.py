@@ -275,10 +275,10 @@ class GCSHook(GoogleBaseHook):
         returns the location. For file sizes that exceed the available memory it is recommended
         to write to a file.
 
-        :param bucket_name: The bucket to fetch from.
-        :type bucket_name: str
         :param object_name: The object to fetch.
         :type object_name: str
+        :param bucket_name: The bucket to fetch from.
+        :type bucket_name: str
         :param filename: If set, a local file path where the file should be written to.
         :type filename: str
         :param chunk_size: Blob chunk size.

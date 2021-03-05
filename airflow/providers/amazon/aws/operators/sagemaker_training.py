@@ -117,6 +117,6 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             max_ingestion_time=self.max_ingestion_time,
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException('Sagemaker Training Job creation failed: %s' % response)
+            raise AirflowException(f'Sagemaker Training Job creation failed: {response}')
         else:
             return {'Training': self.hook.describe_training_job(self.config['TrainingJobName'])}

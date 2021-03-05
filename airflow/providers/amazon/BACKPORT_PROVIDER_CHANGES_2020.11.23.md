@@ -4,7 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                        |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
-| [19b7e4565](https://github.com/apache/airflow/commit/19b7e4565e6372d50ef0fbb5678a484a7afbdbee) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427)             |
+| [4873d9759](https://github.com/apache/airflow/commit/4873d9759dfdec1dd3663074f9e64ad69fa881cc) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427)             |
 | [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                 |
 | [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                         |
 | [c94b1241a](https://github.com/apache/airflow/commit/c94b1241a144294f5f1c5f461d5e3b92e4a8fc38) | 2020-11-13  | Add extra error handling to S3 remote logging (#9908)                          |

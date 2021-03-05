@@ -14,11 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import re
 import unittest
 from base64 import b64decode
 from subprocess import CalledProcessError
 from typing import Optional
 
+import pytest
 from parameterized import parameterized
 
 from tests.helm_template_generator import prepare_k8s_lookup_dict, render_chart
@@ -67,16 +69,16 @@ class RedisTest(unittest.TestCase):
     ):
         if expected_password_match is not None:
             redis_password_in_password_secret = self.get_redis_password_in_password_secret(k8s_obj_by_key)
-            self.assertRegex(redis_password_in_password_secret, expected_password_match)
+            assert re.search(expected_password_match, redis_password_in_password_secret)
         else:
-            self.assertNotIn(REDIS_OBJECTS["SECRET_PASSWORD"], k8s_obj_by_key.keys())
+            assert REDIS_OBJECTS["SECRET_PASSWORD"] not in k8s_obj_by_key.keys()
 
         if expected_broker_url_match is not None:
             # assert redis broker url in secret
             broker_url_in_broker_url_secret = self.get_broker_url_in_broker_url_secret(k8s_obj_by_key)
-            self.assertRegex(broker_url_in_broker_url_secret, expected_broker_url_match)
+            assert re.search(expected_broker_url_match, broker_url_in_broker_url_secret)
         else:
-            self.assertNotIn(REDIS_OBJECTS["SECRET_BROKER_URL"], k8s_obj_by_key.keys())
+            assert REDIS_OBJECTS["SECRET_BROKER_URL"] not in k8s_obj_by_key.keys()
 
     def assert_broker_url_env(
         self, k8s_obj_by_key, expected_broker_url_secret_name=REDIS_OBJECTS["SECRET_BROKER_URL"][1]
@@ -84,11 +86,11 @@ class RedisTest(unittest.TestCase):
         broker_url_secret_in_scheduler = self.get_broker_url_secret_in_deployment(
             k8s_obj_by_key, "StatefulSet", "worker"
         )
-        self.assertEqual(broker_url_secret_in_scheduler, expected_broker_url_secret_name)
+        assert broker_url_secret_in_scheduler == expected_broker_url_secret_name
         broker_url_secret_in_worker = self.get_broker_url_secret_in_deployment(
             k8s_obj_by_key, "Deployment", "scheduler"
         )
-        self.assertEqual(broker_url_secret_in_worker, expected_broker_url_secret_name)
+        assert broker_url_secret_in_worker == expected_broker_url_secret_name
 
     @parameterized.expand(CELERY_EXECUTORS_PARAMS)
     def test_redis_by_chart_default(self, executor):
@@ -103,7 +105,7 @@ class RedisTest(unittest.TestCase):
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
         created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
-        self.assertEqual(created_redis_objects, SET_POSSIBLE_REDIS_OBJECT_KEYS)
+        assert created_redis_objects == SET_POSSIBLE_REDIS_OBJECT_KEYS
 
         self.assert_password_and_broker_url_secrets(
             k8s_obj_by_key,
@@ -126,7 +128,7 @@ class RedisTest(unittest.TestCase):
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
         created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
-        self.assertEqual(created_redis_objects, SET_POSSIBLE_REDIS_OBJECT_KEYS)
+        assert created_redis_objects == SET_POSSIBLE_REDIS_OBJECT_KEYS
 
         self.assert_password_and_broker_url_secrets(
             k8s_obj_by_key,
@@ -138,7 +140,7 @@ class RedisTest(unittest.TestCase):
 
     @parameterized.expand(CELERY_EXECUTORS_PARAMS)
     def test_redis_by_chart_password_secret_name_missing_broker_url_secret_name(self, executor):
-        with self.assertRaises(CalledProcessError):
+        with pytest.raises(CalledProcessError):
             render_chart(
                 RELEASE_NAME_REDIS,
                 {
@@ -168,11 +170,10 @@ class RedisTest(unittest.TestCase):
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
         created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
-        self.assertEqual(
-            created_redis_objects,
-            SET_POSSIBLE_REDIS_OBJECT_KEYS
-            - {REDIS_OBJECTS["SECRET_PASSWORD"], REDIS_OBJECTS["SECRET_BROKER_URL"]},
-        )
+        assert created_redis_objects == SET_POSSIBLE_REDIS_OBJECT_KEYS - {
+            REDIS_OBJECTS["SECRET_PASSWORD"],
+            REDIS_OBJECTS["SECRET_BROKER_URL"],
+        }
 
         self.assert_password_and_broker_url_secrets(
             k8s_obj_by_key, expected_password_match=None, expected_broker_url_match=None
@@ -196,7 +197,7 @@ class RedisTest(unittest.TestCase):
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
         created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
-        self.assertEqual(created_redis_objects, {REDIS_OBJECTS["SECRET_BROKER_URL"]})
+        assert created_redis_objects == {REDIS_OBJECTS["SECRET_BROKER_URL"]}
 
         self.assert_password_and_broker_url_secrets(
             k8s_obj_by_key,
@@ -221,7 +222,7 @@ class RedisTest(unittest.TestCase):
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
         created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
-        self.assertEqual(created_redis_objects, set())
+        assert created_redis_objects == set()
 
         self.assert_password_and_broker_url_secrets(
             k8s_obj_by_key, expected_password_match=None, expected_broker_url_match=None

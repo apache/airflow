@@ -120,15 +120,21 @@ class Arg:
         parser.add_argument(*self.flags, **self.kwargs)
 
 
-def positive_int(value):
+def positive_int(*, allow_zero):
     """Define a positive int type for an argument."""
-    try:
-        value = int(value)
-        if value > 0:
-            return value
-    except ValueError:
-        pass
-    raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
+
+    def _check(value):
+        try:
+            value = int(value)
+            if allow_zero and value == 0:
+                return value
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+        raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
+
+    return _check
 
 
 # Shared
@@ -178,9 +184,9 @@ ARG_OUTPUT = Arg(
         "-o",
         "--output",
     ),
-    help="Output format. Allowed values: json, yaml, table (default: table)",
-    metavar="(table, json, yaml)",
-    choices=("table", "json", "yaml"),
+    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
     default="table",
 )
 ARG_COLOR = Arg(
@@ -204,7 +210,7 @@ ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
 ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
-    type=positive_int,
+    type=positive_int(allow_zero=False),
     help="The number of next execution datetimes to show",
 )
 
@@ -405,6 +411,7 @@ ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
 )
 ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entire dag (used internally)")
+ARG_ERROR_FILE = Arg(("--error-file",), help="File to store task failure error")
 ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
 ARG_MIGRATION_TIMEOUT = Arg(
@@ -681,6 +688,34 @@ ARG_NAMESPACE = Arg(
     help="Kubernetes Namespace",
 )
 
+# jobs check
+ARG_JOB_TYPE_FILTER = Arg(
+    ('--job-type',),
+    choices=('BackfillJob', 'LocalTaskJob', 'SchedulerJob'),
+    action='store',
+    help='The type of job(s) that will be checked.',
+)
+
+ARG_JOB_HOSTNAME_FILTER = Arg(
+    ("--hostname",),
+    default=None,
+    type=str,
+    help="The hostname of job(s) that will be checked.",
+)
+
+ARG_JOB_LIMIT = Arg(
+    ("--limit",),
+    default=1,
+    type=positive_int(allow_zero=True),
+    help="The number of recent jobs that will be checked. To disable limit, set 0. ",
+)
+
+ARG_ALLOW_MULTIPLE = Arg(
+    ("--allow-multiple",),
+    action='store_true',
+    help="If passed, this command will be successful even if multiple matching alive jobs are found.",
+)
+
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
     ARG_CONN_DESCRIPTION,
@@ -895,7 +930,7 @@ TASKS_COMMANDS = (
         name='list',
         help="List the tasks within a DAG",
         func=lazy_load_command('airflow.cli.commands.task_command.task_list'),
-        args=(ARG_DAG_ID, ARG_TREE, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_TREE, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name='clear',
@@ -921,7 +956,7 @@ TASKS_COMMANDS = (
         name='state',
         help="Get the status of a task instance",
         func=lazy_load_command('airflow.cli.commands.task_command.task_state'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name='failed-deps',
@@ -938,7 +973,7 @@ TASKS_COMMANDS = (
         name='render',
         help="Render a task instance's template(s)",
         func=lazy_load_command('airflow.cli.commands.task_command.task_render'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name='run',
@@ -962,6 +997,7 @@ TASKS_COMMANDS = (
             ARG_PICKLE,
             ARG_JOB_ID,
             ARG_INTERACTIVE,
+            ARG_ERROR_FILE,
             ARG_SHUT_DOWN_LOGGING,
         ),
     ),
@@ -1352,6 +1388,25 @@ KUBERNETES_COMMANDS = (
     ),
 )
 
+JOBS_COMMANDS = (
+    ActionCommand(
+        name='check',
+        help="Checks if job(s) are still alive",
+        func=lazy_load_command('airflow.cli.commands.jobs_command.check'),
+        args=(ARG_JOB_TYPE_FILTER, ARG_JOB_HOSTNAME_FILTER, ARG_JOB_LIMIT, ARG_ALLOW_MULTIPLE),
+        epilog=(
+            'examples:\n'
+            'To check if the local scheduler is still working properly, run:\n'
+            '\n'
+            '    $ airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"\n'
+            '\n'
+            'To check if any scheduler is running when you are using high availability, run:\n'
+            '\n'
+            '    $ airflow jobs check --job-type SchedulerJob --allow-multiple --limit 100'
+        ),
+    ),
+)
+
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
@@ -1375,6 +1430,11 @@ airflow_commands: List[CLICommand] = [
         name='variables',
         help="Manage variables",
         subcommands=VARIABLES_COMMANDS,
+    ),
+    GroupCommand(
+        name='jobs',
+        help="Manage jobs",
+        subcommands=JOBS_COMMANDS,
     ),
     GroupCommand(
         name='db',
@@ -1477,7 +1537,7 @@ airflow_commands: List[CLICommand] = [
         help='Rotate encrypted connection credentials and variables',
         description=(
             'Rotate all encrypted connection credentials and variables; see '
-            'https://airflow.apache.org/docs/stable/howto/secure-connections.html'
+            'https://airflow.apache.org/docs/apache-airflow/stable/howto/secure-connections.html'
             '#rotating-encryption-keys'
         ),
         args=(),
@@ -1504,7 +1564,7 @@ airflow_commands: List[CLICommand] = [
         help='Celery components',
         description=(
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
-            'https://airflow.apache.org/docs/stable/executor/celery.html'
+            'https://airflow.apache.org/docs/apache-airflow/stable/executor/celery.html'
         ),
         subcommands=CELERY_COMMANDS,
     ),

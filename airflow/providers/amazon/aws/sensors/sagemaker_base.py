@@ -63,7 +63,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
         if state in self.failed_states():
             failed_reason = self.get_failed_reason_from_response(response)
-            raise AirflowException('Sagemaker job failed for the following reason: %s' % failed_reason)
+            raise AirflowException(f'Sagemaker job failed for the following reason: {failed_reason}')
         return True
 
     def non_terminal_states(self) -> Set[str]:

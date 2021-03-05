@@ -22,7 +22,9 @@ description: |
     `Apache Pig <https://pig.apache.org/>`__
 
 versions:
+  - 1.0.1
   - 1.0.0
+
 integrations:
   - integration-name: Apache Pig
     external-doc-url: https://pig.apache.org/

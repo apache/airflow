@@ -226,7 +226,11 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `workers.keda.pollingInverval`                        | How often KEDA should poll the backend database for metrics in seconds                                       | `5`                                               |
 | `workers.keda.cooldownPeriod`                         | How often KEDA should wait before scaling down in seconds                                                    | `30`                                              |
 | `workers.keda.maxReplicaCount`                        | Maximum number of Celery workers KEDA can scale to                                                           | `10`                                              |
-| `workers.kerberosSideCar.enabled`                     | Enable Kerberos sidecar for the worker                                                                       | `false`                                           |
+| `workers.kerberosSidecar.enabled`                     | Enable Kerberos sidecar for the worker                                                                       | `false`                                           |
+| `workers.kerberosSidecar.resources.limits.cpu`        | CPU Limit of Kerberos sidecar for the worker                                                                 | `~`                                               |
+| `workers.kerberosSidecar.resources.limits.memory`     | Memory Limit of Kerberos sidecar for the worker                                                              | `~`                                               |
+| `workers.kerberosSidecar.resources.requests.cpu`      | CPU Request of Kerberos sidecar for the worker                                                               | `~`                                               |
+| `workers.kerberosSidecar.resources.requests.memory`   | Memory Request of Kerberos sidecar for the worker                                                            | `~`                                               |
 | `workers.persistence.enabled`                         | Enable log persistence in workers via StatefulSet                                                            | `false`                                           |
 | `workers.persistence.size`                            | Size of worker volumes if enabled                                                                            | `100Gi`                                           |
 | `workers.persistence.storageClassName`                | StorageClass worker volumes should use if enabled                                                            | `default`                                         |
@@ -275,12 +279,14 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `webserver.nodeSelector`                              | Node labels for pod assignment                                                                               | `{}`                                              |
 | `webserver.affinity`                                  | Affinity labels for pod assignment                                                                           | `{}`                                              |
 | `webserver.tolerations`                               | Toleration labels for pod assignment                                                                         | `[]`                                              |
+| `flower.enabled`                                      | Enable flower                                                                                                | `true`                                            |
 | `flower.nodeSelector`                                 | Node labels for pod assignment                                                                               | `{}`                                              |
 | `flower.affinity`                                     | Affinity labels for pod assignment                                                                           | `{}`                                              |
 | `flower.tolerations`                                  | Toleration labels for pod assignment                                                                         | `[]`                                              |
 | `statsd.nodeSelector`                                 | Node labels for pod assignment                                                                               | `{}`                                              |
 | `statsd.affinity`                                     | Affinity labels for pod assignment                                                                           | `{}`                                              |
 | `statsd.tolerations`                                  | Toleration labels for pod assignment                                                                         | `[]`                                              |
+| `statsd.extraMappings`                                | Additional mappings for statsd exporter                                                                      | `[]`                                              |
 | `pgbouncer.nodeSelector`                              | Node labels for pod assignment                                                                               | `{}`                                              |
 | `pgbouncer.affinity`                                  | Affinity labels for pod assignment                                                                           | `{}`                                              |
 | `pgbouncer.tolerations`                               | Toleration labels for pod assignment                                                                         | `[]`                                              |
@@ -318,10 +324,11 @@ helm install --name my-release \
 
 ## Autoscaling with KEDA
 
+*This feature is still experimental.*
+
 KEDA stands for Kubernetes Event Driven Autoscaling. [KEDA](https://github.com/kedacore/keda) is a custom controller that allows users to create custom bindings
 to the Kubernetes [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/).
-We've built an experimental scaler that allows users to create scalers based on postgreSQL queries. For the moment this exists
-on a separate branch, but will be merged upstream soon. To install our custom version of KEDA on your cluster, please run
+We've built a scaler that allows users to create scalers based on postgreSQL queries and shared it with the community. This enables us to scale the number of airflow workers deployed on Kubernetes by this chart depending on the number of task that are `queued` or `running`.
 
 ```bash
 helm repo add kedacore https://kedacore.github.io/charts
@@ -347,6 +354,17 @@ helm install airflow . \
     --set workers.keda.enabled=true \
     --set workers.persistence.enabled=false
 ```
+
+KEDA will derive the desired number of celery workers by querying Airflow metadata database:
+
+```sql
+SELECT
+    ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
+FROM task_instance
+WHERE state='running' OR state='queued'
+```
+
+You should set celery worker concurrency through the helm value `config.celery.worker_concurrency` (i.e. instead of airflow.cfg or environment variables) so that the KEDA trigger will be consistent with the worker concurrency setting.
 
 ## Using an external redis instance
 

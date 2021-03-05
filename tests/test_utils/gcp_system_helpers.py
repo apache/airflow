@@ -43,6 +43,9 @@ GSUITE_DAG_FOLDER = os.path.join(
 FIREBASE_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "firebase", "example_dags"
 )
+LEVELDB_DAG_FOLDER = os.path.join(
+    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "leveldb", "example_dags"
+)
 POSTGRES_LOCAL_EXECUTOR = os.path.join(
     AIRFLOW_MAIN_FOLDER, "tests", "test_utils", "postgres_local_executor.cfg"
 )
@@ -165,6 +168,9 @@ class GoogleSystemTest(SystemTest):
         bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
         with TemporaryDirectory(prefix="airflow-gcp") as tmp_dir:
             tmp_path = os.path.join(tmp_dir, filename)
+            tmp_dir_path = os.path.dirname(tmp_path)
+            if tmp_dir_path:
+                os.makedirs(tmp_dir_path, exist_ok=True)
             with open(tmp_path, "w") as file:
                 file.writelines(lines)
                 file.flush()
@@ -184,7 +190,7 @@ class GoogleSystemTest(SystemTest):
                 "gsutil",
                 "iam",
                 "ch",
-                "serviceAccount:%s:admin" % account_email,
+                f"serviceAccount:{account_email}:admin",
                 bucket_name,
             ]
         )

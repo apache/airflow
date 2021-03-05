@@ -124,7 +124,8 @@ Displaying package information in CLI/API:
 * ``description`` - Additional description of the provider.
 
 * ``version`` - List of versions of the package (in reverse-chronological order). The first version in the
-  list is the current package version.
+  list is the current package version. It is taken from the version of package installed, not from the
+  provider_info information.
 
 Exposing customized functionality to the Airflow's core:
 
@@ -217,9 +218,12 @@ You need to do the following to turn an existing Python package into a provider 
 * Create the function that you refer to in the first step as part of your package: this functions returns a
   dictionary that contains all meta-data about your provider package
 * note that the dictionary should be compliant with ``airflow/provider_info.schema.json`` JSON-schema
-  specification and the community-managed providers have more fields there that are used to build
-  documentation, but the requirement for runtime information only contains several fields from the
-  runtime schema. See below for examples.
+  specification. The community-managed providers have more fields there that are used to build
+  documentation, but the requirement for runtime information only contains several fields which are defined
+  in the schema:
+
+.. exampleinclude:: /../../airflow/provider_info.schema.json
+    :language: json
 
 Example ``setup.cfg``:
 
@@ -242,7 +246,6 @@ Example ``myproviderpackage/somemodule.py``:
           "hook-class-names": [
               "myproviderpackage.hooks.source.SourceHook",
           ],
-          'versions': ["1.0.0"],
       }
 
 **How do provider packages work under the hood?**

@@ -107,9 +107,7 @@ RUN mkdir -pv /usr/share/man/man1 \
 
 # Only copy install_mysql.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
-# fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/install_mysql.sh
-RUN /scripts/docker/install_mysql.sh dev
+RUN bash /scripts/docker/install_mysql.sh dev
 
 RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
@@ -216,7 +214,6 @@ ENV PATH "/opt/bats/bin/:${PATH}"
 
 # Additional scripts for managing BATS addons
 COPY scripts/docker/load.bash /opt/bats/lib/
-RUN chmod a+x /opt/bats/lib/load.bash
 
 # Optimizing installation of Cassandra driver
 # Speeds up building the image - cassandra driver without CYTHON saves around 10 minutes
@@ -240,8 +237,13 @@ ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_
 
 RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 
+# Allows to override constraints source
+ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
+ENV CONSTRAINTS_GITHUB_REPOSITORY=${CONSTRAINTS_GITHUB_REPOSITORY}
+
 ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
-ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ARG AIRFLOW_CONSTRAINTS="constraints"
+ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${AIRFLOW_CONSTRAINTS_REFERENCE}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 
 # By changing the CI build epoch we can force reinstalling Airflow from the current master
@@ -276,7 +278,7 @@ ENV INSTALL_MYSQL_CLIENT="true"
 ENV AIRFLOW_INSTALLATION_METHOD="."
 ENV AIRFLOW_INSTALL_USER_FLAG=""
 ENV AIRFLOW_INSTALL_EDITABLE_FLAG="--editable"
-ENV AIRFLOW_INSTALL_VERSION=""
+ENV AIRFLOW_VERSION_SPECIFICATION=""
 
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -284,25 +286,28 @@ ARG PIP_NO_CACHE_DIR="true"
 ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
 RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
 
-RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+# By default PIP has progress bar but you can disable it.
+ARG PIP_PROGRESS_BAR="on"
+ENV PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR}
 
-# Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="5"
-ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
+RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # Only copy install_airflow_from_latest_master.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_airflow_from_latest_master.sh /scripts/docker/install_airflow_from_latest_master.sh
-# fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/install_airflow_from_latest_master.sh
+
+ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
 # In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
-# This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
 # And is automatically reinstalled from the scratch every time patch release of python gets released
 # The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
-# are uninstalled, only dependencies remain
-RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
-        /scripts/docker/install_airflow_from_latest_master.sh; \
+# are uninstalled, only dependencies remain.
+# the cache is only used when "upgrade to newer dependencies" is not set to automatically
+# account for removed dependencies (we do not install them in the first place)
+RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
+          ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
+        bash /scripts/docker/install_airflow_from_latest_master.sh; \
     fi
 
 # Generate random hex dump file so that we can determine whether it's faster to rebuild the image
@@ -331,25 +336,21 @@ COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
-ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
-ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
-
 # Those are additional constraints that are needed for some extras but we do not want to
-# Force them on the main Airflow package. Those limitations are:
-# * chardet,<4: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
+# force them on the main Airflow package. Those limitations are:
+# * chardet,<4: required by snowflake provider
 # * lazy-object-proxy<1.5.0: required by astroid
-# * pyOpenSSL: Imposed by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
-# * requests>=2.20.0,<2.24.0: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
-# * urllib3<1.26: Required to keep boto3 and snowflake happy
-
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 requests>=2.20.0,<2.24.0 urllib3<1.26"
+# * pytz<2021.0: required by snowflake provider
+# * pyOpenSSL: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
+# * urllib3<1.26: Required to keep boto3 happy
+# * pyjwt<2.0.0: flask-jwt-extended requires it
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 pytz<2021.0 urllib3<1.26 pyjwt<2.0.0"
+ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
 
 ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
 
 # Only copy install_airflow.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_airflow.sh /scripts/docker/install_airflow.sh
-# fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/install_airflow.sh
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
@@ -358,20 +359,18 @@ RUN chmod a+x /scripts/docker/install_airflow.sh
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
 # and push the constraints if everything is successful
 RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        /scripts/docker/install_airflow.sh; \
+        bash /scripts/docker/install_airflow.sh; \
     fi
 
 # Only copy install_from_docker_context_files.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_from_docker_context_files.sh /scripts/docker/install_from_docker_context_files.sh
-# fix permission issue in Azure DevOps when running the script
-RUN chmod a+x /scripts/docker/install_from_docker_context_files.sh
 
 # If wheel files are found in /docker-context-files during installation
 # they are also installed additionally to whatever is installed from Airflow.
 COPY docker-context-files/ /docker-context-files/
 
 RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        /scripts/docker/install_from_docker_context_files.sh; \
+        bash /scripts/docker/install_from_docker_context_files.sh; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY
@@ -379,8 +378,9 @@ RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
 COPY airflow/www/webpack.config.js ${AIRFLOW_SOURCES}/airflow/www/
 COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
 COPY airflow/www/compile_assets.sh ${AIRFLOW_SOURCES}/airflow/www/compile_assets.sh
+
 # Package JS/css for production
-RUN airflow/www/compile_assets.sh
+RUN bash airflow/www/compile_assets.sh
 
 COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
@@ -413,7 +413,7 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
 ARG ADDITIONAL_PYTHON_DEPS=""
 
 RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        pip install ${ADDITIONAL_PYTHON_DEPS}; \
+        pip install --no-cache-dir ${ADDITIONAL_PYTHON_DEPS}; \
     fi
 
 WORKDIR ${AIRFLOW_SOURCES}
@@ -428,6 +428,9 @@ ENV BUILD_ID=${BUILD_ID}
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
+ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
+ARG AIRFLOW_IMAGE_DATE_CREATED
+
 LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.distro.version="buster" \
   org.apache.airflow.module="airflow" \
@@ -436,8 +439,21 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.uid="0" \
   org.apache.airflow.gid="0" \
-  org.apache.airflow.buildId=${BUILD_ID} \
-  org.apache.airflow.commitSha=${COMMIT_SHA}
+  org.apache.airflow.buildId="${BUILD_ID}" \
+  org.apache.airflow.commitSha="${COMMIT_SHA}" \
+  org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \
+  org.opencontainers.image.created="${AIRFLOW_IMAGE_DATE_CREATED}" \
+  org.opencontainers.image.authors="dev@airflow.apache.org" \
+  org.opencontainers.image.url="https://airflow.apache.org" \
+  org.opencontainers.image.documentation="https://github.com/apache/airflow/IMAGES.rst" \
+  org.opencontainers.image.source="https://github.com/apache/airflow" \
+  org.opencontainers.image.version="${AIRFLOW_VERSION}" \
+  org.opencontainers.image.revision="${COMMIT_SHA}" \
+  org.opencontainers.image.vendor="Apache Software Foundation" \
+  org.opencontainers.image.licenses="Apache-2.0" \
+  org.opencontainers.image.ref.name="airflow-ci-image" \
+  org.opencontainers.image.title="Continuous Integration Airflow Image" \
+  org.opencontainers.image.description="Installed Apache Airflow with Continuous Integration dependencies"
 
 EXPOSE 8080
 

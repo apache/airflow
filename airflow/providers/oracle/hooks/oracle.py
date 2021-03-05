@@ -178,7 +178,7 @@ class OracleHook(DbApiHook):
                 else:
                     lst.append(str(cell))
             values = tuple(lst)
-            sql = 'INSERT /*+ APPEND */ INTO {} {} VALUES ({})'.format(table, target_fields, ','.join(values))
+            sql = f"INSERT /*+ APPEND */ INTO {table} {target_fields} VALUES ({','.join(values)})"
             cur.execute(sql)
             if i % commit_every == 0:
                 conn.commit()  # type: ignore[attr-defined]

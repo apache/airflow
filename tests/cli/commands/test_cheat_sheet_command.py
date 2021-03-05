@@ -100,6 +100,6 @@ class TestCheatSheetCommand(unittest.TestCase):
             args = self.parser.parse_args(['cheat-sheet'])
             args.func(args)
         output = temp_stdout.getvalue()
-        self.assertIn(ALL_COMMANDS, output)
-        self.assertIn(SECTION_A, output)
-        self.assertIn(SECTION_E, output)
+        assert ALL_COMMANDS in output
+        assert SECTION_A in output
+        assert SECTION_E in output

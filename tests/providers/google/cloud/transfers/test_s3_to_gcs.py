@@ -46,13 +46,13 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
             google_impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        self.assertEqual(operator.task_id, TASK_ID)
-        self.assertEqual(operator.bucket, S3_BUCKET)
-        self.assertEqual(operator.prefix, S3_PREFIX)
-        self.assertEqual(operator.delimiter, S3_DELIMITER)
-        self.assertEqual(operator.gcp_conn_id, GCS_CONN_ID)
-        self.assertEqual(operator.dest_gcs, GCS_PATH_PREFIX)
-        self.assertEqual(operator.google_impersonation_chain, IMPERSONATION_CHAIN)
+        assert operator.task_id == TASK_ID
+        assert operator.bucket == S3_BUCKET
+        assert operator.prefix == S3_PREFIX
+        assert operator.delimiter == S3_DELIMITER
+        assert operator.gcp_conn_id == GCS_CONN_ID
+        assert operator.dest_gcs == GCS_PATH_PREFIX
+        assert operator.google_impersonation_chain == IMPERSONATION_CHAIN
 
     @mock.patch('airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook')
     @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
@@ -86,13 +86,13 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         s3_one_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
         s3_two_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
         gcs_mock_hook.assert_called_once_with(
-            google_cloud_storage_conn_id=GCS_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
             delegate_to=None,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         # we expect MOCK_FILES to be uploaded
-        self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
+        assert sorted(MOCK_FILES) == sorted(uploaded_files)
 
     @mock.patch('airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook')
     @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
@@ -115,7 +115,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
 
         operator.execute(None)
         gcs_mock_hook.assert_called_once_with(
-            google_cloud_storage_conn_id=GCS_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
             delegate_to=None,
             impersonation_chain=None,
         )

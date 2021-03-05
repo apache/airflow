@@ -22,10 +22,14 @@ description: |
     `Elasticsearch <https://https//www.elastic.co/elasticsearch>`__
 
 versions:
+  - 1.0.2
+  - 1.0.1
   - 1.0.0
+
 integrations:
   - integration-name: Elasticsearch
     external-doc-url: https://www.elastic.co/elasticsearch
+    logo: /integration-logos/elasticsearch/Elasticsearch.png
     tags: [software]
 
 hooks:

@@ -19,6 +19,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators.sagemaker_model import SageMakerModelOperator
@@ -59,4 +61,5 @@ class TestSageMakerModelOperator(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'create_model')
     def test_execute_with_failure(self, mock_model, mock_client):
         mock_model.return_value = {'ModelArn': 'testarn', 'ResponseMetadata': {'HTTPStatusCode': 404}}
-        self.assertRaises(AirflowException, self.sagemaker.execute, None)
+        with pytest.raises(AirflowException):
+            self.sagemaker.execute(None)

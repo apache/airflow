@@ -47,6 +47,7 @@ services:
       - ../../../hooks:/opt/airflow/hooks:cached
       - ../../../logs:/root/airflow/logs:cached
       - ../../../pylintrc:/opt/airflow/pylintrc:cached
+      - ../../../pylintrc-tests:/opt/airflow/pylintrc-tests:cached
       - ../../../pyproject.toml:/opt/airflow/pyproject.toml:cached
       - ../../../pytest.ini:/opt/airflow/pytest.ini:cached
       - ../../../scripts:/opt/airflow/scripts:cached
@@ -56,7 +57,6 @@ services:
       - ../../../tests:/opt/airflow/tests:cached
       - ../../../kubernetes_tests:/opt/airflow/kubernetes_tests:cached
       - ../../../chart:/opt/airflow/chart:cached
-      - ../../../tmp:/tmp:cached
       - ../../../metastore_browser:/opt/airflow/metastore_browser:cached
       # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
     ports:

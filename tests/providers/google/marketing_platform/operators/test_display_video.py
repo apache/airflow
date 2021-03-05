@@ -117,7 +117,7 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
         mock_gcs_hook,
         mock_xcom,
         mock_temp,
-        mock_reuqest,
+        mock_request,
         mock_shutil,
     ):
         report_id = "REPORT_ID"
@@ -148,7 +148,7 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
         mock_hook.return_value.get_query.assert_called_once_with(query_id=report_id)
 
         mock_gcs_hook.assert_called_once_with(
-            google_cloud_storage_conn_id=GCP_CONN_ID,
+            gcp_conn_id=GCP_CONN_ID,
             delegate_to=None,
             impersonation_chain=None,
         )

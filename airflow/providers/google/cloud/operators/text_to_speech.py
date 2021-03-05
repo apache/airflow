@@ -143,7 +143,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         with NamedTemporaryFile() as temp_file:
             temp_file.write(result.audio_content)
             cloud_storage_hook = GCSHook(
-                google_cloud_storage_conn_id=self.gcp_conn_id,
+                gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
             )
             cloud_storage_hook.upload(

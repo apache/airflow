@@ -52,8 +52,9 @@ GCP_MEMORYSTORE = 'gcp_memorystore.json'
 GCP_PUBSUB_KEY = "gcp_pubsub.json"
 GCP_SECRET_MANAGER_KEY = 'gcp_secret_manager.json'
 GCP_SPANNER_KEY = 'gcp_spanner.json'
-GCP_STACKDDRIVER = 'gcp_stackdriver.json'
+GCP_STACKDRIVER = 'gcp_stackdriver.json'
 GCP_TASKS_KEY = 'gcp_tasks.json'
+GCP_WORKFLOWS_KEY = "gcp_workflows.json"
 GMP_KEY = 'gmp.json'
 G_FIREBASE_KEY = 'g_firebase.json'
 GCP_AWS_KEY = 'gcp_aws.json'
@@ -213,7 +214,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
 
     def gcp_restore_authentication(self):
         """
-        Restore authentication to the original one one.
+        Restore authentication to the original one.
         """
         self._validate_key_set()
         if GcpAuthenticator.original_account:

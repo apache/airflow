@@ -18,8 +18,8 @@
 import unittest
 from datetime import datetime
 from unittest import mock
+from unittest.mock import ANY
 
-import pytest
 from azure.common import AzureHttpError
 
 from airflow.models import DAG, TaskInstance
@@ -55,9 +55,9 @@ class TestWasbTaskHandler(unittest.TestCase):
         self.addCleanup(self.dag.clear)
 
     @conf_vars({('logging', 'remote_log_conn_id'): 'wasb_default'})
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlockBlobService")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
     def test_hook(self, mock_service):
-        self.assertIsInstance(self.wasb_task_handler.hook, WasbHook)
+        assert isinstance(self.wasb_task_handler.hook, WasbHook)
 
     @conf_vars({('logging', 'remote_log_conn_id'): 'wasb_default'})
     def test_hook_raises(self):
@@ -73,27 +73,20 @@ class TestWasbTaskHandler(unittest.TestCase):
             mock_error.assert_called_once_with(
                 'Could not create an WasbHook with connection id "%s". '
                 'Please make sure that airflow[azure] is installed and '
-                'the Wasb connection exists.',
+                'the Wasb connection exists. Exception "%s"',
                 "wasb_default",
+                ANY,
             )
 
     def test_set_context_raw(self):
         self.ti.raw = True
         self.wasb_task_handler.set_context(self.ti)
-        self.assertFalse(self.wasb_task_handler.upload_on_close)
+        assert not self.wasb_task_handler.upload_on_close
 
     def test_set_context_not_raw(self):
         self.wasb_task_handler.set_context(self.ti)
-        self.assertTrue(self.wasb_task_handler.upload_on_close)
+        assert self.wasb_task_handler.upload_on_close
 
-    # The `azure` provider uses legacy `azure-storage` library, where `snowflake` uses the
-    # newer and more stable versions of those libraries. Most of `azure` operators and hooks work
-    # fine together with `snowflake` because the deprecated library does not overlap with the
-    # new libraries except the `blob` classes. So while `azure` works fine for most cases
-    # blob is the only exception
-    # Solution to that is being worked on in https://github.com/apache/airflow/pull/12188
-    # Once this is merged, we can remove the xfail
-    @pytest.mark.xfail
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_log_exists(self, mock_hook):
         instance = mock_hook.return_value
@@ -103,32 +96,21 @@ class TestWasbTaskHandler(unittest.TestCase):
             self.container_name, self.remote_log_location
         )
 
-    # The `azure` provider uses legacy `azure-storage` library, where `snowflake` uses the
-    # newer and more stable versions of those libraries. Most of `azure` operators and hooks work
-    # fine together with `snowflake` because the deprecated library does not overlap with the
-    # new libraries except the `blob` classes. So while `azure` works fine for most cases
-    # blob is the only exception
-    # Solution to that is being worked on in https://github.com/apache/airflow/pull/12188
-    # Once this is merged, we can remove the xfail
-    @pytest.mark.xfail
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_read(self, mock_hook):
         mock_hook.return_value.read_file.return_value = 'Log line'
-        self.assertEqual(self.wasb_task_handler.wasb_read(self.remote_log_location), "Log line")
-        self.assertEqual(
-            self.wasb_task_handler.read(self.ti),
-            (
+        assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
+        assert self.wasb_task_handler.read(self.ti) == (
+            [
                 [
-                    [
-                        (
-                            '',
-                            '*** Reading remote log from wasb://container/remote/log/location/1.log.\n'
-                            'Log line\n',
-                        )
-                    ]
-                ],
-                [{'end_of_log': True}],
-            ),
+                    (
+                        '',
+                        '*** Reading remote log from wasb://container/remote/log/location/1.log.\n'
+                        'Log line\n',
+                    )
+                ]
+            ],
+            [{'end_of_log': True}],
         )
 
     def test_wasb_read_raises(self):
@@ -140,9 +122,11 @@ class TestWasbTaskHandler(unittest.TestCase):
                 mock_hook.return_value.read_file.side_effect = AzureHttpError("failed to connect", 404)
 
                 handler.wasb_read(self.remote_log_location, return_error=True)
-
             mock_error.assert_called_once_with(
-                'Could not read logs from remote/log/location/1.log', exc_info=True
+                "Message: '%s', exception '%s'",
+                'Could not read logs from remote/log/location/1.log',
+                ANY,
+                exc_info=True,
             )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")

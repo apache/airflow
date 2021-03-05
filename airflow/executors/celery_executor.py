@@ -363,7 +363,7 @@ class CeleryExecutor(BaseExecutor):
             # If the task gets updated to STARTED (which Celery does) or has
             # already finished, then it will be removed from this list -- so
             # the only time it's still in this list is when it a) never made it
-            # to celery in the first place (i.e. race condition somehwere in
+            # to celery in the first place (i.e. race condition somewhere in
             # the dying executor) or b) a really long celery queue and it just
             # hasn't started yet -- better cancel it and let the scheduler
             # re-queue rather than have this task risk stalling for ever
@@ -539,9 +539,9 @@ class BulkStateFetcher(LoggingMixin):
     Otherwise, multiprocessing.Pool will be used. Each task status will be downloaded individually.
     """
 
-    def __init__(self, sync_parralelism=None):
+    def __init__(self, sync_parallelism=None):
         super().__init__()
-        self._sync_parallelism = sync_parralelism
+        self._sync_parallelism = sync_parallelism
 
     def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
         """Gets status for many Celery tasks using the best method available."""

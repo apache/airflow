@@ -178,7 +178,7 @@ class DatabricksHook(BaseHook):  # noqa
             auth = (self.databricks_conn.login, self.databricks_conn.password)
             host = self.databricks_conn.host
 
-        url = 'https://{host}/{endpoint}'.format(host=self._parse_host(host), endpoint=endpoint)
+        url = f'https://{self._parse_host(host)}/{endpoint}'
 
         if method == 'GET':
             request_func = requests.get

@@ -35,7 +35,7 @@ function tag_release() {
   echo "Tagging the sources with ${BACKPORT_PREFIX}providers-${VERSION} tag"
   echo
 
-  git tag "${BACKPORT_PREFIX}providers-${VERSION}"
+  git tag "${BACKPORT_PREFIX}providers-${VERSION}" || true
 }
 
 function clean_repo() {

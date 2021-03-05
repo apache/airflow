@@ -63,12 +63,16 @@ TEST_PKEY = paramiko.RSAKey.generate(4096)
 TEST_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY)
 TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
 
+TEST_PKEY_ECDSA = paramiko.ECDSAKey.generate()
+TEST_PRIVATE_KEY_ECDSA = generate_key_string(pkey=TEST_PKEY_ECDSA)
+
 PASSPHRASE = ''.join(random.choice(string.ascii_letters) for i in range(10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
 
 
 class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_PRIVATE_KEY_EXTRA = 'ssh_with_private_key_extra'
+    CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA = 'ssh_with_private_key_ecdsa_extra'
     CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA = 'ssh_with_private_key_passphrase_extra'
     CONN_SSH_WITH_EXTRA = 'ssh_with_extra'
     CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS = 'ssh_with_extra_false_look_for_keys'
@@ -83,6 +87,7 @@ class TestSSHHook(unittest.TestCase):
             conns_to_reset = [
                 cls.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
                 cls.CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA,
+                cls.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
                 cls.CONN_SSH_WITH_EXTRA,
                 cls.CONN_SSH_WITH_HOST_KEY_EXTRA,
                 cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
@@ -132,6 +137,14 @@ class TestSSHHook(unittest.TestCase):
                 extra=json.dumps(
                     {"private_key": TEST_ENCRYPTED_PRIVATE_KEY, "private_key_passphrase": PASSPHRASE}
                 ),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
+                host='localhost',
+                conn_type='ssh',
+                extra=json.dumps({"private_key": TEST_PRIVATE_KEY_ECDSA}),
             )
         )
         db.merge_conn(
@@ -258,14 +271,14 @@ class TestSSHHook(unittest.TestCase):
 
     def test_conn_with_extra_parameters(self):
         ssh_hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_EXTRA)
-        self.assertEqual(ssh_hook.compress, True)
-        self.assertEqual(ssh_hook.no_host_key_check, True)
-        self.assertEqual(ssh_hook.allow_host_key_change, False)
-        self.assertEqual(ssh_hook.look_for_keys, True)
+        assert ssh_hook.compress is True
+        assert ssh_hook.no_host_key_check is True
+        assert ssh_hook.allow_host_key_change is False
+        assert ssh_hook.look_for_keys is True
 
     def test_conn_with_extra_parameters_false_look_for_keys(self):
         ssh_hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS)
-        self.assertEqual(ssh_hook.look_for_keys, False)
+        assert ssh_hook.look_for_keys is False
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
     def test_tunnel_with_private_key(self, ssh_mock):
@@ -313,26 +326,49 @@ class TestSSHHook(unittest.TestCase):
                 logger=hook.log,
             )
 
+    @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
+    def test_tunnel_with_private_key_ecdsa(self, ssh_mock):
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
+            remote_host='remote_host',
+            port='port',
+            username='username',
+            timeout=10,
+        )
+
+        with hook.get_tunnel(1234):
+            ssh_mock.assert_called_once_with(
+                'remote_host',
+                ssh_port='port',
+                ssh_username='username',
+                ssh_pkey=TEST_PKEY_ECDSA,
+                ssh_proxy=None,
+                local_bind_address=('localhost',),
+                remote_bind_address=('localhost', 1234),
+                host_pkey_directories=[],
+                logger=hook.log,
+            )
+
     def test_ssh_connection(self):
         hook = SSHHook(ssh_conn_id='ssh_default')
         with hook.get_conn() as client:
             # Note - Pylint will fail with no-member here due to https://github.com/PyCQA/pylint/issues/1437
             (_, stdout, _) = client.exec_command('ls')  # pylint: disable=no-member
-            self.assertIsNotNone(stdout.read())
+            assert stdout.read() is not None
 
     def test_ssh_connection_no_connection_id(self):
         hook = SSHHook(remote_host='localhost')
-        self.assertIsNone(hook.ssh_conn_id)
+        assert hook.ssh_conn_id is None
         with hook.get_conn() as client:
             # Note - Pylint will fail with no-member here due to https://github.com/PyCQA/pylint/issues/1437
             (_, stdout, _) = client.exec_command('ls')  # pylint: disable=no-member
-            self.assertIsNotNone(stdout.read())
+            assert stdout.read() is not None
 
     def test_ssh_connection_old_cm(self):
         with SSHHook(ssh_conn_id='ssh_default') as hook:
             client = hook.get_conn()
             (_, stdout, _) = client.exec_command('ls')
-            self.assertIsNotNone(stdout.read())
+            assert stdout.read() is not None
 
     def test_tunnel(self):
         hook = SSHHook(ssh_conn_id='ssh_default')
@@ -346,14 +382,14 @@ class TestSSHHook(unittest.TestCase):
         )
         with subprocess.Popen(**subprocess_kwargs) as server_handle, hook.create_tunnel(2135, 2134):
             server_output = server_handle.stdout.read(5)
-            self.assertEqual(b"ready", server_output)
+            assert b"ready" == server_output
             socket = socket.socket()
             socket.connect(("localhost", 2135))
             response = socket.recv(5)
-            self.assertEqual(response, b"hello")
+            assert response == b"hello"
             socket.close()
             server_handle.communicate()
-            self.assertEqual(server_handle.returncode, 0)
+            assert server_handle.returncode == 0
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_private_key_extra(self, ssh_mock):

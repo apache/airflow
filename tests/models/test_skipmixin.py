@@ -85,8 +85,8 @@ class TestSkipMixin(unittest.TestCase):
     def test_skip_none_tasks(self):
         session = Mock()
         SkipMixin().skip(dag_run=None, execution_date=None, tasks=[], session=session)
-        self.assertFalse(session.query.called)
-        self.assertFalse(session.commit.called)
+        assert not session.query.called
+        assert not session.commit.called
 
     def test_skip_all_except(self):
         dag = DAG(

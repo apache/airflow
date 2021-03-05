@@ -19,6 +19,7 @@ import unittest
 from unittest import mock
 
 import pendulum
+import pytest
 from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowException
@@ -71,6 +72,28 @@ class TestKubernetesPodOperator(unittest.TestCase):
             config_file=file_path,
         )
 
+    def test_env_vars(self):
+        # WHEN
+        env_vars = [k8s.V1EnvVar(name="{{ bar }}", value='{{ foo }}')]
+        from tests.models import DEFAULT_DATE
+
+        with DAG("test-dag", start_date=DEFAULT_DATE):
+            k = KubernetesPodOperator(
+                namespace='default',
+                image="ubuntu:16.04",
+                cmds=["bash", "-cx"],
+                arguments=["echo 10"],
+                env_vars=env_vars,
+                labels={"foo": "bar"},
+                name="test",
+                task_id="task",
+                in_cluster=False,
+                do_xcom_push=False,
+            )
+        k.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
+        assert k.env_vars[0].value == "footemplated"
+        assert k.env_vars[0].name == "bartemplated"
+
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
@@ -94,10 +117,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
         monitor_mock.return_value = (State.SUCCESS, None)
         context = self.create_context(k)
         k.execute(context=context)
-        self.assertEqual(
-            start_mock.call_args[0][0].spec.image_pull_secrets,
-            [k8s.V1LocalObjectReference(name=fake_pull_secrets)],
-        )
+        assert start_mock.call_args[0][0].spec.image_pull_secrets == [
+            k8s.V1LocalObjectReference(name=fake_pull_secrets)
+        ]
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
@@ -120,10 +142,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
         monitor_mock.return_value = (State.SUCCESS, None)
         context = self.create_context(k)
         k.execute(context=context)
-        self.assertEqual(
-            start_mock.call_args[0][0].spec.containers[0].image_pull_policy,
-            'IfNotPresent',
-        )
+        assert start_mock.call_args[0][0].spec.containers[0].image_pull_policy == 'IfNotPresent'
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
@@ -147,10 +166,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
         monitor_mock.return_value = (State.SUCCESS, None)
         context = self.create_context(k)
         k.execute(context=context)
-        self.assertEqual(
-            start_mock.call_args[0][0].spec.containers[0].image_pull_policy,
-            'Always',
-        )
+        assert start_mock.call_args[0][0].spec.containers[0].image_pull_policy == 'Always'
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
@@ -173,7 +189,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             is_delete_operator_pod=True,
         )
         monitor_pod_mock.side_effect = AirflowException('fake failure')
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             context = self.create_context(k)
             k.execute(context=context)
         assert delete_pod_mock.called
@@ -187,9 +203,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             task_id="task",
         )
 
-        self.assertEqual(task.image, "{{ image_jinja }}:16.04")
+        assert task.image == "{{ image_jinja }}:16.04"
         task.render_template_fields(context={"image_jinja": "ubuntu"})
-        self.assertEqual(task.image, "ubuntu:16.04")
+        assert task.image == "ubuntu:16.04"
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
@@ -243,16 +259,16 @@ class TestKubernetesPodOperator(unittest.TestCase):
         read_namespaced_pod_mock = mock_client.return_value.read_namespaced_pod
         read_namespaced_pod_mock.return_value = failed_pod_status
 
-        with self.assertRaises(AirflowException) as cm:
+        with pytest.raises(AirflowException) as ctx:
             context = self.create_context(k)
             k.execute(context=context)
 
-        self.assertEqual(
-            str(cm.exception),
-            f"Pod Launching failed: Pod {k.pod.metadata.name} returned a failure: {failed_pod_status}",
+        assert (
+            str(ctx.value)
+            == f"Pod Launching failed: Pod {k.pod.metadata.name} returned a failure: {failed_pod_status}"
         )
         assert mock_client.return_value.read_namespaced_pod.called
-        self.assertEqual(read_namespaced_pod_mock.call_args[0][0], k.pod.metadata.name)
+        assert read_namespaced_pod_mock.call_args[0][0] == k.pod.metadata.name
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
@@ -313,8 +329,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
         result = k.create_pod_request_obj()
         client = ApiClient()
-        self.assertEqual(type(result.spec.affinity), k8s.V1Affinity)
-        self.assertEqual(client.sanitize_for_serialization(result)['spec']['affinity'], affinity)
+        assert isinstance(result.spec.affinity, k8s.V1Affinity)
+        assert client.sanitize_for_serialization(result)['spec']['affinity'] == affinity
 
         k8s_api_affinity = k8s.V1Affinity(
             node_affinity=k8s.V1NodeAffinity(
@@ -346,8 +362,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
         )
 
         result = k.create_pod_request_obj()
-        self.assertEqual(type(result.spec.affinity), k8s.V1Affinity)
-        self.assertEqual(client.sanitize_for_serialization(result)['spec']['affinity'], affinity)
+        assert isinstance(result.spec.affinity, k8s.V1Affinity)
+        assert client.sanitize_for_serialization(result)['spec']['affinity'] == affinity
 
     def test_tolerations(self):
         k8s_api_tolerations = [k8s.V1Toleration(key="key", operator="Equal", value="value")]
@@ -370,8 +386,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
         result = k.create_pod_request_obj()
         client = ApiClient()
-        self.assertEqual(type(result.spec.tolerations[0]), k8s.V1Toleration)
-        self.assertEqual(client.sanitize_for_serialization(result)['spec']['tolerations'], tolerations)
+        assert isinstance(result.spec.tolerations[0], k8s.V1Toleration)
+        assert client.sanitize_for_serialization(result)['spec']['tolerations'] == tolerations
 
         k = KubernetesPodOperator(
             namespace='default',
@@ -388,8 +404,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
         )
 
         result = k.create_pod_request_obj()
-        self.assertEqual(type(result.spec.tolerations[0]), k8s.V1Toleration)
-        self.assertEqual(client.sanitize_for_serialization(result)['spec']['tolerations'], tolerations)
+        assert isinstance(result.spec.tolerations[0], k8s.V1Toleration)
+        assert client.sanitize_for_serialization(result)['spec']['tolerations'] == tolerations
 
     def test_node_selector(self):
         node_selector = {'beta.kubernetes.io/os': 'linux'}
@@ -410,8 +426,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
         result = k.create_pod_request_obj()
         client = ApiClient()
-        self.assertEqual(type(result.spec.node_selector), dict)
-        self.assertEqual(client.sanitize_for_serialization(result)['spec']['nodeSelector'], node_selector)
+        assert isinstance(result.spec.node_selector, dict)
+        assert client.sanitize_for_serialization(result)['spec']['nodeSelector'] == node_selector
 
         # repeat tests using deprecated parameter
         k = KubernetesPodOperator(
@@ -430,5 +446,5 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
         result = k.create_pod_request_obj()
         client = ApiClient()
-        self.assertEqual(type(result.spec.node_selector), dict)
-        self.assertEqual(client.sanitize_for_serialization(result)['spec']['nodeSelector'], node_selector)
+        assert isinstance(result.spec.node_selector, dict)
+        assert client.sanitize_for_serialization(result)['spec']['nodeSelector'] == node_selector

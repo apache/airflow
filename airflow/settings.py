@@ -435,7 +435,7 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
-    # Ensure we close DB connections at scheduler and gunicon worker terminations
+    # Ensure we close DB connections at scheduler and gunicorn worker terminations
     atexit.register(dispose_orm)
 
 
@@ -480,13 +480,6 @@ ALLOW_FUTURE_EXEC_DATES = conf.getboolean('scheduler', 'allow_trigger_in_future'
 
 # Whether or not to check each dagrun against defined SLAs
 CHECK_SLAS = conf.getboolean('core', 'check_slas', fallback=True)
-
-# Number of times, the code should be retried in case of DB Operational Errors
-# Retries are done using tenacity. Not all transactions should be retried as it can cause
-# undesired state.
-# Currently used in the following places:
-# `DagFileProcessor.process_file` to retry `dagbag.sync_to_db`
-MAX_DB_RETRIES = conf.getint('core', 'max_db_retries', fallback=3)
 
 USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=True)
 

@@ -30,7 +30,7 @@ class KedaTest(unittest.TestCase):
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
             validate_schema=False,
         )
-        self.assertListEqual(docs, [])
+        assert docs == []
 
     @parameterized.expand(
         [
@@ -52,6 +52,33 @@ class KedaTest(unittest.TestCase):
             validate_schema=False,
         )
         if is_created:
-            self.assertEqual("RELEASE-NAME-worker", jmespath.search("metadata.name", docs[0]))
+            assert "RELEASE-NAME-worker" == jmespath.search("metadata.name", docs[0])
         else:
-            self.assertListEqual(docs, [])
+            assert docs == []
+
+    @parameterized.expand(
+        [
+            ("CeleryExecutor", 8),
+            ("CeleryExecutor", 16),
+            ("CeleryKubernetesExecutor", 8),
+            ("CeleryKubernetesExecutor", 16),
+        ]
+    )
+    def test_keda_concurrency(self, executor, concurrency):
+        """
+        ScaledObject should only be created when set to enabled and executor is Celery or CeleryKubernetes
+        """
+        docs = render_chart(
+            values={
+                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+                "executor": executor,
+                "config": {"celery": {"worker_concurrency": concurrency}},
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+            validate_schema=False,
+        )
+        expected_query = (
+            f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
+            "FROM task_instance WHERE state='running' OR state='queued'"
+        )
+        self.assertEqual(expected_query, jmespath.search("spec.triggers[0].metadata.query", docs[0]))

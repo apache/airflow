@@ -24,20 +24,25 @@ description: |
       - `Google Ads <https://ads.google.com/>`__
       - `Google Cloud (GCP) <https://cloud.google.com/>`__
       - `Google Firebase <https://firebase.google.com/>`__
+      - `Google LevelDB <https://github.com/google/leveldb/>`__
       - `Google Marketing Platform <https://marketingplatform.google.com/>`__
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
+  - 2.1.0
+  - 2.0.0
   - 1.0.0
 
 integrations:
   - integration-name: Google Analytics360
     external-doc-url: https://analytics.google.com/
+    logo: /integration-logos/gcp/Google-Analytics.png
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/marketing_platform/analytics.rst
     tags: [gmp]
   - integration-name: Google Ads
     external-doc-url: https://ads.google.com/
+    logo: /integration-logos/gcp/Google-Ads.png
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/ads.rst
     tags: [gmp]
@@ -49,6 +54,7 @@ integrations:
     tags: [gcp]
   - integration-name: Google BigQuery Data Transfer Service
     external-doc-url: https://cloud.google.com/bigquery/transfer/
+    logo: /integration-logos/gcp/BigQuery.png
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/bigquery_dts.rst
     tags: [gcp]
@@ -74,11 +80,13 @@ integrations:
     external-doc-url: https://cloud.google.com/dlp/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/data_loss_prevention.rst
+    logo: /integration-logos/gcp/google-data-loss-prevention.png
     tags: [gcp]
   - integration-name: Google Cloud Firestore
     external-doc-url: https://firebase.google.com/docs/firestore
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/firebase/firestore.rst
+    logo: /integration-logos/gcp/Google-Firestore.png
     tags: [gcp]
   - integration-name: Google Cloud Functions
     external-doc-url: https://cloud.google.com/functions/
@@ -94,6 +102,7 @@ integrations:
     external-doc-url: https://cloud.google.com/life-sciences/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/life_sciences.rst
+    logo: /integration-logos/gcp/Google-Cloud-Life-Sciences.png
     tags: [gcp]
   - integration-name: Google Cloud Memorystore
     external-doc-url: https://cloud.google.com/memorystore/
@@ -104,6 +113,7 @@ integrations:
     tags: [gcp]
   - integration-name: Google Cloud OS Login
     external-doc-url: https://cloud.google.com/compute/docs/oslogin/
+    logo: /integration-logos/gcp/Google-Cloud-Generic.png
     tags: [gcp]
   - integration-name: Google Cloud Pub/Sub
     external-doc-url: https://cloud.google.com/pubsub/
@@ -113,6 +123,7 @@ integrations:
     tags: [gcp]
   - integration-name: Google Cloud Secret Manager
     external-doc-url: https://cloud.google.com/secret-manager/
+    logo: /integration-logos/gcp/Google-Cloud-Secret-Manager.png
     tags: [gcp]
   - integration-name: Google Cloud Spanner
     external-doc-url: https://cloud.google.com/spanner/
@@ -137,6 +148,7 @@ integrations:
     external-doc-url: https://cloud.google.com/stackdriver
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/stackdriver.rst
+    logo: /integration-logos/gcp/Google-Cloud-Stackdriver.png
     tags: [gcp]
   - integration-name: Google Cloud Storage (GCS)
     external-doc-url: https://cloud.google.com/gcs/
@@ -182,25 +194,31 @@ integrations:
     tags: [gcp]
   - integration-name: Google Data Proc
     external-doc-url: https://cloud.yandex.com/services/data-proc
+    logo: /integration-logos/gcp/Google-Data-Proc.png
     tags: [gcp]
   - integration-name: Google Data Catalog
     external-doc-url: https://cloud.google.com/data-catalog
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/datacatalog.rst
+    logo: /integration-logos/gcp/Google-Data-Catalog.png
     tags: [gcp]
   - integration-name: Google Dataflow
     external-doc-url: https://cloud.google.com/dataflow/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/dataflow.rst
     logo: /integration-logos/gcp/Cloud-Dataflow.png
     tags: [gcp]
   - integration-name: Google Data Fusion
     external-doc-url: https://cloud.google.com/data-fusion/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/datafusion.rst
+    logo: /integration-logos/gcp/Google-Data-Fusion.png
     tags: [gcp]
   - integration-name: Google Dataprep
     external-doc-url: https://cloud.google.com/dataprep/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/dataprep.rst
+    logo: /integration-logos/gcp/Google-Dataprep.png
     tags: [gcp]
   - integration-name: Google Dataproc
     external-doc-url: https://cloud.google.com/dataproc/
@@ -216,41 +234,51 @@ integrations:
     tags: [gcp]
   - integration-name: Google Deployment Manager
     external-doc-url: https://cloud.google.com/deployment-manager/
+    logo: /integration-logos/gcp/Google-Deployment-Manager.png
     tags: [gcp]
   - integration-name: Google API Python Client
     external-doc-url: https://github.com/googleapis/google-api-python-client
+    logo: /integration-logos/gcp/Google-API-Python-Client.png
     tags: [google]
   - integration-name: Google Campaign Manager
     external-doc-url: https://developers.google.com/doubleclick-advertisers
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/marketing_platform/campaign_manager.rst
+    logo: /integration-logos/gcp/Google-Campaign-Manager.png
     tags: [gcp]
   - integration-name: Google Cloud
     external-doc-url: https://cloud.google.com/
+    logo: /integration-logos/gcp/Google-Cloud.png
     tags: [gcp]
   - integration-name: Google Discovery API
     external-doc-url: https://developers.google.com/discovery
+    logo: /integration-logos/gcp/Google-Cloud-Generic.png
     tags: [google]
   - integration-name: Google Display&Video 360
     external-doc-url: https://marketingplatform.google.com/about/display-video-360/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/marketing_platform/display_video.rst
+    logo: /integration-logos/gcp/Google-Display-And-Video-360.png
     tags: [gmp]
   - integration-name: Google Drive
     external-doc-url: https://www.google.com/drive/
+    logo: /integration-logos/gcp/Google-Drive.png
     tags: [google]
   - integration-name: Google Search Ads 360
     external-doc-url: https://marketingplatform.google.com/about/search-ads-360/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/marketing_platform/search_ads.rst
+    logo: /integration-logos/gcp/Google-Search-Ads360.png
     tags: [gmp]
   - integration-name: Google
     external-doc-url: https://developer.google.com/
+    logo: /integration-logos/gcp/Google.png
     tags: [google]
   - integration-name: Google Spreadsheet
     external-doc-url: https://www.google.com/intl/en/sheets/about/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/suite/sheets.rst
+    logo: /integration-logos/gcp/Google-Spreadsheet.png
     tags: [google]
   - integration-name: Google Cloud Storage Transfer Service
     external-doc-url: https://cloud.google.com/storage/transfer/
@@ -276,6 +304,16 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/natural_language.rst
     logo: /integration-logos/gcp/Cloud-NLP.png
     tags: [gcp]
+  - integration-name: Google Cloud Workflows
+    external-doc-url: https://cloud.google.com/workflows/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/workflows.rst
+    tags: [gcp]
+  - integration-name: Google LevelDB
+    external-doc-url: https://github.com/google/leveldb/blob/master/doc/index.md
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/leveldb/leveldb.rst
+    tags: [google]
 
 operators:
   - integration-name: Google Ads
@@ -376,6 +414,9 @@ operators:
   - integration-name: Google Cloud Vision
     python-modules:
       - airflow.providers.google.cloud.operators.vision
+  - integration-name: Google Cloud Workflows
+    python-modules:
+      - airflow.providers.google.cloud.operators.workflows
   - integration-name: Google Cloud Firestore
     python-modules:
       - airflow.providers.google.firebase.operators.firestore
@@ -394,6 +435,9 @@ operators:
   - integration-name: Google Spreadsheet
     python-modules:
       - airflow.providers.google.suite.operators.sheets
+  - integration-name: Google LevelDB
+    python-modules:
+      - airflow.providers.google.leveldb.operators.leveldb
 
 sensors:
   - integration-name: Google BigQuery
@@ -420,6 +464,12 @@ sensors:
   - integration-name: Google Cloud Pub/Sub
     python-modules:
       - airflow.providers.google.cloud.sensors.pubsub
+  - integration-name: Google Cloud Workflows
+    python-modules:
+      - airflow.providers.google.cloud.sensors.workflows
+  - integration-name: Google Drive
+    python-modules:
+      - airflow.providers.google.suite.sensors.drive
   - integration-name: Google Campaign Manager
     python-modules:
       - airflow.providers.google.marketing_platform.sensors.campaign_manager
@@ -540,6 +590,9 @@ hooks:
   - integration-name: Google Cloud Vision
     python-modules:
       - airflow.providers.google.cloud.hooks.vision
+  - integration-name: Google Cloud Workflows
+    python-modules:
+      - airflow.providers.google.cloud.hooks.workflows
   - integration-name: Google
     python-modules:
       - airflow.providers.google.common.hooks.base_google
@@ -567,6 +620,9 @@ hooks:
   - integration-name: Google Spreadsheet
     python-modules:
       - airflow.providers.google.suite.hooks.sheets
+  - integration-name: Google LevelDB
+    python-modules:
+      - airflow.providers.google.leveldb.hooks.leveldb
 
 transfers:
   - source-integration-name: Presto
@@ -580,6 +636,10 @@ transfers:
     target-integration-name: Google Drive
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_gdrive.rst
     python-module: airflow.providers.google.suite.transfers.gcs_to_gdrive
+  - source-integration-name: Google Drive
+    target-integration-name: Google Cloud Storage (GCS)
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gdrive_to_gcs.rst
+    python-module: airflow.providers.google.cloud.transfers.gdrive_to_gcs
   - source-integration-name: Microsoft SQL Server (MSSQL)
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.mssql_to_gcs
@@ -652,6 +712,10 @@ transfers:
     target-integration-name: Local
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_local.rst
     python-module: airflow.providers.google.cloud.transfers.gcs_to_local
+  - source-integration-name: Google Drive
+    target-integration-name: Local
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gdrive_to_local.rst
+    python-module: airflow.providers.google.cloud.transfers.gdrive_to_local
   - source-integration-name: Salesforce
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/salesforce_to_gcs.rst
@@ -661,12 +725,13 @@ transfers:
     python-module: airflow.providers.google.ads.transfers.ads_to_gcs
 
 hook-class-names:
+  - airflow.providers.google.common.hooks.base_google.GoogleBaseHook
   - airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
   - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook
   - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook
   - airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook
   - airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
-  - airflow.providers.google.common.hooks.base_google.GoogleBaseHook
+  - airflow.providers.google.common.hooks.leveldb.LevelDBHook
 
 extra-links:
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink

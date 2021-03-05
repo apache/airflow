@@ -35,8 +35,8 @@ from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
-TOPIC_FOR_SENSOR_DAG = "PubSubSensorTestTopic"
-TOPIC_FOR_OPERATOR_DAG = "PubSubOperatorTestTopic"
+TOPIC_FOR_SENSOR_DAG = os.environ.get("GCP_PUBSUB_SENSOR_TOPIC", "PubSubSensorTestTopic")
+TOPIC_FOR_OPERATOR_DAG = os.environ.get("GCP_PUBSUB_OPERATOR_TOPIC", "PubSubOperatorTestTopic")
 MESSAGE = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"}}
 
 # [START howto_operator_gcp_pubsub_pull_messages_result_cmd]

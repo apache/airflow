@@ -274,6 +274,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         cluster_fields: Optional[List[str]] = None,
         labels: Optional[Dict] = None,
         view: Optional[Dict] = None,
+        materialized_view: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
         retry: Optional[Retry] = DEFAULT_RETRY,
         num_retries: Optional[int] = None,
@@ -330,6 +331,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "useLegacySql": False
             }
 
+        :param materialized_view: [Optional] The materialized view definition.
+        :type materialized_view: dict
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
             **Example**: ::
 
@@ -365,6 +368,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         if view:
             _table_resource['view'] = view
+
+        if materialized_view:
+            _table_resource['materializedView'] = materialized_view
 
         if encryption_configuration:
             _table_resource["encryptionConfiguration"] = encryption_configuration
@@ -405,7 +411,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param dataset_reference: Dataset reference that could be provided with request body. More info:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :type dataset_reference: dict
-        :param exists_ok: If ``True``, ignore "already exists" errors when creating the DATASET.
+        :param exists_ok: If ``True``, ignore "already exists" errors when creating the dataset.
         :type exists_ok: bool
         """
         dataset_reference = dataset_reference or {"datasetReference": {}}
@@ -2843,7 +2849,7 @@ def _split_tablename(
     cmpt = rest.split('.')
     if len(cmpt) == 3:
         if project_id:
-            raise ValueError("{var}Use either : or . to specify project".format(var=var_print(var_name)))
+            raise ValueError(f"{var_print(var_name)}Use either : or . to specify project")
         project_id = cmpt[0]
         dataset_id = cmpt[1]
         table_id = cmpt[2]
@@ -2887,7 +2893,7 @@ def _cleanse_time_partitioning(
 def _validate_value(key: Any, value: Any, expected_type: Type) -> None:
     """Function to check expected type and raise error if type is not correct"""
     if not isinstance(value, expected_type):
-        raise TypeError("{} argument must have a type {} not {}".format(key, expected_type, type(value)))
+        raise TypeError(f"{key} argument must have a type {expected_type} not {type(value)}")
 
 
 def _api_resource_configs_duplication_check(

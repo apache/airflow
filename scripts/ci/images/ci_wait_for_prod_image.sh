@@ -20,12 +20,12 @@
 
 push_pull_remove_images::check_if_github_registry_wait_for_image_enabled
 
-build_image::login_to_github_registry_if_needed
+build_image::configure_github_docker_registry
 
 export AIRFLOW_PROD_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
 start_end::group_start "Waiting for ${AIRFLOW_PROD_IMAGE_NAME} image to appear"
 
 push_pull_remove_images::wait_for_github_registry_image \
-    "${AIRFLOW_PROD_IMAGE_NAME}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+    "${AIRFLOW_PROD_IMAGE_NAME}${GITHUB_REGISTRY_IMAGE_SUFFIX}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
 
 start_end::group_end

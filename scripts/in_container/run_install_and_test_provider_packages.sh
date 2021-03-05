@@ -24,7 +24,7 @@ function verify_parameters(){
     echo "Testing if all classes in import packages can be imported"
     echo
 
-    if [[ ${INSTALL_AIRFLOW_VERSION=""} == "" ]]; then
+    if [[ -z "${INSTALL_AIRFLOW_VERSION=""}" ]]; then
         echo
         echo "${COLOR_RED}ERROR: You have to specify airflow version to install.${COLOR_RESET}"
         echo
@@ -67,17 +67,11 @@ function install_airflow_as_specified() {
         uninstall_providers
     else
         echo
-        echo "Install airflow from PyPI including [${AIRFLOW_EXTRAS}] extras"
+        echo "Install airflow from PyPI without extras"
         echo
-        install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
+        install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
         uninstall_providers
     fi
-    group_end
-}
-
-function install_deps() {
-    group_start "Installs all remaining dependencies that are not installed by '${AIRFLOW_EXTRAS}' "
-    install_remaining_dependencies
     group_end
 }
 
@@ -101,7 +95,7 @@ function discover_all_provider_packages() {
     # Columns is to force it wider, so it doesn't wrap at 80 characters
     COLUMNS=180 airflow providers list
 
-    local expected_number_of_providers=61
+    local expected_number_of_providers=64
     local actual_number_of_providers
     actual_providers=$(airflow providers list --output yaml | grep package_name)
     actual_number_of_providers=$(wc -l <<<"$actual_providers")
@@ -124,7 +118,7 @@ function discover_all_hooks() {
     group_start "Listing available hooks via 'airflow providers hooks'"
     COLUMNS=180 airflow providers hooks
 
-    local expected_number_of_hooks=59
+    local expected_number_of_hooks=61
     local actual_number_of_hooks
     actual_number_of_hooks=$(airflow providers hooks --output table | grep -c "| apache" | xargs)
     if [[ ${actual_number_of_hooks} != "${expected_number_of_hooks}" ]]; then
@@ -202,7 +196,7 @@ function discover_all_field_behaviours() {
 setup_provider_packages
 verify_parameters
 install_airflow_as_specified
-install_deps
+install_remaining_dependencies
 install_provider_packages
 import_all_provider_classes
 

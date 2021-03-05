@@ -471,14 +471,18 @@
       default: "False"
     - name: logging_level
       description: |
-        Logging level
+        Logging level.
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
       version_added: ~
       type: string
       example: ~
       default: "INFO"
     - name: fab_logging_level
       description: |
-        Logging level for Flask-appbuilder UI
+        Logging level for Flask-appbuilder UI.
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
       version_added: ~
       type: string
       example: ~
@@ -758,6 +762,30 @@
       type: string
       version_added: ~
       example: /files/service-account-json
+      default: ""
+    - name: access_control_allow_headers
+      description: |
+        Used in response to a preflight request to indicate which HTTP
+        headers can be used when making the actual request. This header is
+        the server side response to the browser's
+        Access-Control-Request-Headers header.
+      type: string
+      version_added: ~
+      example: ~
+      default: ""
+    - name: access_control_allow_methods
+      description: |
+        Specifies the method or methods allowed when accessing the resource.
+      type: string
+      version_added: ~
+      example: ~
+      default: ""
+    - name: access_control_allow_origin
+      description: |
+        Indicates whether the response can be shared with requesting code from the given origin.
+      type: string
+      version_added: ~
+      example: ~
       default: ""
 - name: lineage
   description: ~
@@ -1212,6 +1240,13 @@
       type: integer
       example: ~
       default: "43200"
+    - name: instance_name
+      description: |
+        Sets a custom page title for the DAGs overview page and site title for all pages
+      version_added: 2.1.0
+      type: string
+      example: ~
+      default:
 
 - name: email
   description: |
@@ -1224,6 +1259,12 @@
       type: string
       example: ~
       default: "airflow.utils.email.send_email_smtp"
+    - name: email_conn_id
+      description: Email connection to use
+      version_added: ~
+      type: string
+      example: ~
+      default: "smtp_default"
     - name: default_email_on_retry
       description: |
         Whether email alerts should be sent when a task is retried
@@ -1238,6 +1279,24 @@
       type: boolean
       example: ~
       default: "True"
+    - name: subject_template
+      description: |
+        File that will be used as the template for Email subject (which will be rendered using Jinja2).
+        If not set, Airflow uses a base template.
+      version_added: ~
+      type: string
+      example: "/path/to/my_subject_template_file"
+      default: ~
+      see_also: ":doc:`Email Configuration </howto/email-config>`"
+    - name: html_content_template
+      description: |
+        File that will be used as the template for Email content (which will be rendered using Jinja2).
+        If not set, Airflow uses a base template.
+      version_added: ~
+      type: string
+      example: "/path/to/my_html_content_template_file"
+      default: ~
+      see_also: ":doc:`Email Configuration </howto/email-config>`"
 
 - name: smtp
   description: |
@@ -1648,11 +1707,13 @@
       default: "1"
     - name: min_file_process_interval
       description: |
-        after how much time (seconds) a new DAGs should be picked up from the filesystem
+        Number of seconds after which a DAG file is parsed. The DAG file is parsed every
+        ``min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
+        this interval. Keeping this number low will increase CPU usage.
       version_added: ~
       type: string
       example: ~
-      default: "0"
+      default: "30"
     - name: dag_dir_list_interval
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
@@ -2069,6 +2130,13 @@
       type: integer
       example: ~
       default: "6"
+    - name: verify_ssl
+      description: |
+        Set this to false to skip verifying SSL certificate of Kubernetes python client.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
 - name: smart_sensor
   description: ~
   options:

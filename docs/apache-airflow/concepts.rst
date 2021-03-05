@@ -23,6 +23,38 @@ Concepts
 The Airflow platform is a tool for describing, executing, and monitoring
 workflows.
 
+.. _architecture:
+
+Basic Airflow architecture
+''''''''''''''''''''''''''
+
+Primarily intended for development use, the basic Airflow architecture with the Local and Sequential executors is an
+excellent starting point for understanding the architecture of Apache Airflow.
+
+.. image:: img/arch-diag-basic.png
+
+
+There are a few components to note:
+
+* **Metadata Database**: Airflow uses a SQL database to store metadata about the data pipelines being run. In the
+  diagram above, this is represented as Postgres which is extremely popular with Airflow.
+  Alternate databases supported with Airflow include MySQL.
+
+* **Web Server** and **Scheduler**: The Airflow web server and Scheduler are separate processes run (in this case)
+  on the local machine and interact with the database mentioned above.
+
+* The **Executor** is shown separately above, since it is commonly discussed within Airflow and in the documentation, but
+  in reality it is NOT a separate process, but run within the Scheduler.
+
+* The **Worker(s)** are separate processes which also interact with the other components of the Airflow architecture and
+  the metadata repository.
+
+* ``airflow.cfg`` is the Airflow configuration file which is accessed by the Web Server, Scheduler, and Workers.
+
+* **DAGs** refers to the DAG files containing Python code, representing the data pipelines to be run by Airflow. The
+  location of these files is specified in the Airflow configuration file, but they need to be accessible by the
+  Web Server, Scheduler, and Workers.
+
 Core Ideas
 ''''''''''
 
@@ -146,7 +178,7 @@ Example DAG built with the TaskFlow API
 
     # Using default connection as it's set to httpbin.org by default
     get_ip = SimpleHttpOperator(
-        task_id='get_ip', endpoint='get', method='GET', xcom_push=True
+        task_id='get_ip', endpoint='get', method='GET', do_xcom_push=True
     )
 
     @dag.task(multiple_outputs=True)
@@ -165,6 +197,9 @@ Example DAG built with the TaskFlow API
         subject=email_info['subject'],
         html_content=email_info['body']
     )
+
+To retrieve current Task execution context dictionary and use it in the function check:
+:ref:`Accessing context <concepts:accessing_context>`.
 
 DAG decorator
 -------------
@@ -194,10 +229,10 @@ Example DAG with decorator:
 
 .. _concepts:executor_config:
 
-executor_config
-===============
+``executor_config``
+===================
 
-The executor_config is an argument placed into operators that allow airflow users to override tasks
+The ``executor_config`` is an argument placed into operators that allow airflow users to override tasks
 before launch. Currently this is primarily used by the :class:`KubernetesExecutor`, but will soon be available
 for other overrides.
 
@@ -325,6 +360,8 @@ This is going to produce ``task__1``, ``task__2``, ``task__3``, ``task__4``. But
 no longer the same ``task__3`` as before. This may create confusion when analyzing history logs / DagRuns of a DAG
 that changed over time.
 
+.. _concepts:accessing_context:
+
 Accessing current context
 -------------------------
 
@@ -343,6 +380,8 @@ using ``@task`` decorator.
 
 Current context is accessible only during the task execution. The context is not accessible during
 ``pre_execute`` or ``post_execute``. Calling this method outside execution context will raise an error.
+
+The context dictionary contains the keys mentioned in the table: :doc:`macros-ref`.
 
 Task Instances
 ==============
@@ -432,7 +471,7 @@ Airflow provides many built-in operators for many common tasks, including:
 
 There are also other, commonly used operators that are installed together with airflow automatically,
 by pre-installing some :doc:`apache-airflow-providers:index` packages (they are always available no
-matter which extras you chose when installing Apache Airflow:
+matter which extras you chose when installing Apache Airflow):
 
 - :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
 - :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator` - SQLite DB operator
@@ -452,7 +491,7 @@ Some examples of popular operators are:
 - :class:`~airflow.providers.docker.operators.docker.DockerOperator`
 - :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`
 - :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`
-- :class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`,
+- :class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`
 - :class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`
 
 But there are many, many more - you can see the list of those by following the providers documentation
@@ -772,7 +811,7 @@ UI. As slots free up, queued tasks start running based on the
 
 Note that if tasks are not given a pool, they are assigned to a default
 pool ``default_pool``.  ``default_pool`` is initialized with 128 slots and
-can changed through the UI or CLI (though it cannot be removed).
+can be changed through the UI or CLI (though it cannot be removed).
 
 To combine Pools with SubDAGs see the `SubDAGs`_ section.
 
@@ -1289,8 +1328,8 @@ In case of DAG and task policies users may raise :class:`~airflow.exceptions.Air
 to prevent a DAG from being imported or prevent a task from being executed if the task is not compliant with
 users' check.
 
-Please note, cluster policy will have precedence over task attributes defined in DAG meaning
-if ``task.sla`` is defined in dag and also mutated via cluster policy then later will have precedence.
+Please note, cluster policy will have precedence over task attributes defined in DAG meaning that
+if ``task.sla`` is defined in dag and also mutated via cluster policy then the latter will have precedence.
 
 In next sections we show examples of each type of cluster policy.
 
@@ -1545,7 +1584,8 @@ This example illustrates some possibilities
 
 
 Packaged DAGs
-'''''''''''''
+=============
+
 While often you will specify DAGs in a single ``.py`` file it might sometimes
 be required to combine a DAG and its dependencies. For example, you might want
 to combine several DAGs together to version them together or you might want
@@ -1594,8 +1634,8 @@ do the same, but then it is more suitable to use a virtualenv and pip.
    pure Python modules can be packaged.
 
 
-.airflowignore
-''''''''''''''
+``.airflowignore``
+==================
 
 A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
 or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore.

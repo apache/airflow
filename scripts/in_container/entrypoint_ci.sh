@@ -58,12 +58,6 @@ RUN_TESTS=${RUN_TESTS:="false"}
 CI=${CI:="false"}
 INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
-if [[ ${GITHUB_ACTIONS:="false"} == "false" ]]; then
-    # Create links for useful CLI tools
-    # shellcheck source=scripts/in_container/run_cli_tool.sh
-    source <(bash scripts/in_container/run_cli_tool.sh)
-fi
-
 if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
     export RUN_AIRFLOW_1_10="true"
 else
@@ -75,7 +69,9 @@ if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
     echo
     echo "Using already installed airflow version"
     echo
-    "${AIRFLOW_SOURCES}/airflow/www/ask_for_recompile_assets_if_needed.sh"
+    pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
+    ./ask_for_recompile_assets_if_needed.sh
+    popd >/dev/null
     # Cleanup the logs, tmp when entering the environment
     sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
     sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
@@ -102,9 +98,9 @@ elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
     uninstall_providers
 else
     echo
-    echo "Install airflow from PyPI including [${AIRFLOW_EXTRAS}] extras"
+    echo "Install airflow from PyPI without extras"
     echo
-    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
+    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
     echo

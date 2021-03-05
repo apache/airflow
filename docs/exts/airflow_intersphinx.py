@@ -53,6 +53,10 @@ def _generate_provider_intersphinx_mapping():
         doc_inventory = f'{DOCS_DIR}/_build/docs/{package_name}/{current_version}/objects.inv'
         cache_inventory = f'{DOCS_DIR}/_inventory_cache/{package_name}/objects.inv'
 
+        # Skip adding the mapping if the path does not exist
+        if not os.path.exists(doc_inventory) and not os.path.exists(cache_inventory):
+            continue
+
         airflow_mapping[package_name] = (
             # base URI
             provider_base_url,
@@ -150,7 +154,7 @@ if __name__ == "__main__":
             except ValueError as exc:
                 print(exc.args[0] % exc.args[1:])
             except Exception as exc:  # pylint: disable=broad-except
-                print('Unknown error: %r' % exc)
+                print(f'Unknown error: {exc!r}')
 
         provider_mapping = _generate_provider_intersphinx_mapping()
 

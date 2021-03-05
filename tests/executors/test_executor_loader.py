@@ -56,19 +56,19 @@ class TestExecutorLoader(unittest.TestCase):
     def test_should_support_executor_from_core(self, executor_name):
         with conf_vars({("core", "executor"): executor_name}):
             executor = ExecutorLoader.get_default_executor()
-            self.assertIsNotNone(executor)
-            self.assertEqual(executor_name, executor.__class__.__name__)
+            assert executor is not None
+            assert executor_name == executor.__class__.__name__
 
     @mock.patch("airflow.plugins_manager.plugins", [FakePlugin()])
     @mock.patch("airflow.plugins_manager.executors_modules", None)
     def test_should_support_plugins(self):
         with conf_vars({("core", "executor"): f"{TEST_PLUGIN_NAME}.FakeExecutor"}):
             executor = ExecutorLoader.get_default_executor()
-            self.assertIsNotNone(executor)
-            self.assertEqual("FakeExecutor", executor.__class__.__name__)
+            assert executor is not None
+            assert "FakeExecutor" == executor.__class__.__name__
 
     def test_should_support_custom_path(self):
         with conf_vars({("core", "executor"): "tests.executors.test_executor_loader.FakeExecutor"}):
             executor = ExecutorLoader.get_default_executor()
-            self.assertIsNotNone(executor)
-            self.assertEqual("FakeExecutor", executor.__class__.__name__)
+            assert executor is not None
+            assert "FakeExecutor" == executor.__class__.__name__

@@ -99,7 +99,7 @@ class GKEHook(GoogleBaseHook):
             if operation.status == Operation.Status.RUNNING or operation.status == Operation.Status.PENDING:
                 time.sleep(OPERATIONAL_POLL_INTERVAL)
             else:
-                raise exceptions.GoogleCloudError("Operation has failed with status: %s" % operation.status)
+                raise exceptions.GoogleCloudError(f"Operation has failed with status: {operation.status}")
             # To update status of operation
             operation = self.get_operation(operation.name, project_id=project_id or self.project_id)
         return operation

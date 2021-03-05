@@ -17,10 +17,14 @@
 """Executes task in a Kubernetes POD"""
 import re
 import warnings
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
 
-import yaml
 from kubernetes.client import CoreV1Api, models as k8s
+
+try:
+    import airflow.utils.yaml as yaml
+except ImportError:
+    import yaml
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
@@ -44,6 +48,9 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
+
+if TYPE_CHECKING:
+    import jinja2
 
 
 class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -271,6 +278,25 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.client: CoreV1Api = None
         self.pod: k8s.V1Pod = None
 
+    def _render_nested_template_fields(
+        self,
+        content: Any,
+        context: Dict,
+        jinja_env: "jinja2.Environment",
+        seen_oids: set,
+    ) -> None:
+        if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
+            seen_oids.add(id(content))
+            self._do_render_template_fields(content, ('value', 'name'), context, jinja_env, seen_oids)
+            return
+
+        super()._render_nested_template_fields(
+            content,
+            context,
+            jinja_env,
+            seen_oids
+        )
+
     @staticmethod
     def create_labels_for_pod(context) -> dict:
         """
@@ -324,8 +350,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
             if len(pod_list.items) > 1 and self.reattach_on_restart:
                 raise AirflowException(
-                    'More than one pod running with labels: '
-                    '{label_selector}'.format(label_selector=label_selector)
+                    f'More than one pod running with labels: {label_selector}'
                 )
 
             launcher = pod_launcher.PodLauncher(kube_client=client, extract_xcom=self.do_xcom_push)
@@ -389,7 +414,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         return pod.metadata.labels['try_number'] == context['ti'].try_number
 
     def _set_name(self, name):
-        if self.pod_template_file or self.full_pod_spec:
+        if name is None:
             return None
         validate_key(name, max_length=220)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())

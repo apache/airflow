@@ -29,10 +29,10 @@ You can find sample upstart job files in the ``scripts/upstart`` directory.
 The following assumptions have been used while creating these unit files:
 
 1. Airflow will run as the following ``user:group`` ``airflow:airflow``.
-    Change ``setuid`` and ``setgid`` appropriately in ``*.conf`` if airflow runs as a different user or group
+   Change ``setuid`` and ``setgid`` appropriately in ``*.conf`` if airflow runs as a different user or group
 2. These files have been tested on **Ubuntu 14.04 LTS**
-    You may have to adjust ``start on`` and ``stop on`` stanzas to make it work on other upstart systems.
-    Some of the possible options are listed in ``scripts/upstart/README``
+   You may have to adjust ``start on`` and ``stop on`` stanzas to make it work on other upstart systems.
+   Some of the possible options are listed in ``scripts/upstart/README``
 
 Modify ``*.conf`` files as needed and copy to ``/etc/init`` directory.
 

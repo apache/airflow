@@ -71,30 +71,30 @@ class TestSFTPHook(unittest.TestCase):
 
     def test_get_conn(self):
         output = self.hook.get_conn()
-        self.assertEqual(type(output), pysftp.Connection)
+        assert isinstance(output, pysftp.Connection)
 
     def test_close_conn(self):
         self.hook.conn = self.hook.get_conn()
-        self.assertTrue(self.hook.conn is not None)
+        assert self.hook.conn is not None
         self.hook.close_conn()
-        self.assertTrue(self.hook.conn is None)
+        assert self.hook.conn is None
 
     def test_describe_directory(self):
         output = self.hook.describe_directory(TMP_PATH)
-        self.assertTrue(TMP_DIR_FOR_TESTS in output)
+        assert TMP_DIR_FOR_TESTS in output
 
     def test_list_directory(self):
         output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        self.assertEqual(output, [SUB_DIR])
+        assert output == [SUB_DIR]
 
     def test_create_and_delete_directory(self):
         new_dir_name = 'new_dir'
         self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
         output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        self.assertTrue(new_dir_name in output)
+        assert new_dir_name in output
         self.hook.delete_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
         output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        self.assertTrue(new_dir_name not in output)
+        assert new_dir_name not in output
 
     def test_create_and_delete_directories(self):
         base_dir = "base_dir"
@@ -102,14 +102,14 @@ class TestSFTPHook(unittest.TestCase):
         new_dir_path = os.path.join(base_dir, sub_dir)
         self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
         output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        self.assertTrue(base_dir in output)
+        assert base_dir in output
         output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
-        self.assertTrue(sub_dir in output)
+        assert sub_dir in output
         self.hook.delete_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_path))
         self.hook.delete_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, base_dir))
         output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        self.assertTrue(new_dir_path not in output)
-        self.assertTrue(base_dir not in output)
+        assert new_dir_path not in output
+        assert base_dir not in output
 
     def test_store_retrieve_and_delete_file(self):
         self.hook.store_file(
@@ -117,17 +117,17 @@ class TestSFTPHook(unittest.TestCase):
             local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS),
         )
         output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        self.assertEqual(output, [SUB_DIR, TMP_FILE_FOR_TESTS])
+        assert output == [SUB_DIR, TMP_FILE_FOR_TESTS]
         retrieved_file_name = 'retrieved.txt'
         self.hook.retrieve_file(
             remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
             local_full_path=os.path.join(TMP_PATH, retrieved_file_name),
         )
-        self.assertTrue(retrieved_file_name in os.listdir(TMP_PATH))
+        assert retrieved_file_name in os.listdir(TMP_PATH)
         os.remove(os.path.join(TMP_PATH, retrieved_file_name))
         self.hook.delete_file(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
         output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        self.assertEqual(output, [SUB_DIR])
+        assert output == [SUB_DIR]
 
     def test_get_mod_time(self):
         self.hook.store_file(
@@ -135,14 +135,14 @@ class TestSFTPHook(unittest.TestCase):
             local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS),
         )
         output = self.hook.get_mod_time(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
-        self.assertEqual(len(output), 14)
+        assert len(output) == 14
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_default(self, get_connection):
         connection = Connection(login='login', host='host')
         get_connection.return_value = connection
         hook = SFTPHook()
-        self.assertEqual(hook.no_host_key_check, False)
+        assert hook.no_host_key_check is False
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_enabled(self, get_connection):
@@ -150,7 +150,7 @@ class TestSFTPHook(unittest.TestCase):
 
         get_connection.return_value = connection
         hook = SFTPHook()
-        self.assertEqual(hook.no_host_key_check, True)
+        assert hook.no_host_key_check is True
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_disabled(self, get_connection):
@@ -158,7 +158,7 @@ class TestSFTPHook(unittest.TestCase):
 
         get_connection.return_value = connection
         hook = SFTPHook()
-        self.assertEqual(hook.no_host_key_check, False)
+        assert hook.no_host_key_check is False
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_ciphers(self, get_connection):
@@ -166,7 +166,7 @@ class TestSFTPHook(unittest.TestCase):
 
         get_connection.return_value = connection
         hook = SFTPHook()
-        self.assertEqual(hook.ciphers, ["A", "B", "C"])
+        assert hook.ciphers == ["A", "B", "C"]
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_disabled_for_all_but_true(self, get_connection):
@@ -174,7 +174,7 @@ class TestSFTPHook(unittest.TestCase):
 
         get_connection.return_value = connection
         hook = SFTPHook()
-        self.assertEqual(hook.no_host_key_check, False)
+        assert hook.no_host_key_check is False
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_ignore(self, get_connection):
@@ -182,7 +182,7 @@ class TestSFTPHook(unittest.TestCase):
 
         get_connection.return_value = connection
         hook = SFTPHook()
-        self.assertEqual(hook.no_host_key_check, True)
+        assert hook.no_host_key_check is True
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_no_ignore(self, get_connection):
@@ -190,14 +190,14 @@ class TestSFTPHook(unittest.TestCase):
 
         get_connection.return_value = connection
         hook = SFTPHook()
-        self.assertEqual(hook.no_host_key_check, False)
+        assert hook.no_host_key_check is False
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_host_key_default(self, get_connection):
         connection = Connection(login='login', host='host')
         get_connection.return_value = connection
         hook = SFTPHook()
-        self.assertEqual(hook.host_key, None)
+        assert hook.host_key is None
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_host_key(self, get_connection):
@@ -208,14 +208,14 @@ class TestSFTPHook(unittest.TestCase):
         )
         get_connection.return_value = connection
         hook = SFTPHook()
-        self.assertEqual(hook.host_key.get_base64(), TEST_HOST_KEY)
+        assert hook.host_key.get_base64() == TEST_HOST_KEY
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_host_key_with_no_host_key_check(self, get_connection):
         connection = Connection(login='login', host='host', extra=json.dumps({"host_key": TEST_HOST_KEY}))
         get_connection.return_value = connection
         hook = SFTPHook()
-        self.assertEqual(hook.host_key, None)
+        assert hook.host_key is None
 
     @parameterized.expand(
         [
@@ -227,7 +227,7 @@ class TestSFTPHook(unittest.TestCase):
     )
     def test_path_exists(self, path, exists):
         result = self.hook.path_exists(path)
-        self.assertEqual(result, exists)
+        assert result == exists
 
     @parameterized.expand(
         [
@@ -246,15 +246,15 @@ class TestSFTPHook(unittest.TestCase):
     )
     def test_path_match(self, path, prefix, delimiter, match):
         result = self.hook._is_path_match(path=path, prefix=prefix, delimiter=delimiter)
-        self.assertEqual(result, match)
+        assert result == match
 
     def test_get_tree_map(self):
         tree_map = self.hook.get_tree_map(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         files, dirs, unknowns = tree_map
 
-        self.assertEqual(files, [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)])
-        self.assertEqual(dirs, [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR)])
-        self.assertEqual(unknowns, [])
+        assert files == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)]
+        assert dirs == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR)]
+        assert unknowns == []
 
     def tearDown(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))

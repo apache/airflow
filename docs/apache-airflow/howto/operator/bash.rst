@@ -27,6 +27,7 @@ commands in a `Bash <https://www.gnu.org/software/bash/>`__ shell.
 
 .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_bash]
     :end-before: [END howto_operator_bash]
 
@@ -38,6 +39,7 @@ You can use :ref:`Jinja templates <jinja-templating>` to parameterize the
 
 .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_bash_template]
     :end-before: [END howto_operator_bash_template]
 
@@ -71,6 +73,18 @@ inside the bash_command, as below:
         bash_command='echo "here is the message: \'$message\'"',
         env={'message': '{{ dag_run.conf["message"] if dag_run else "" }}'},
     )
+
+Skipping
+--------
+
+In general a non-zero exit code produces an AirflowException and thus a task failure.  In cases where it is desirable
+to instead have the task end in a ``skipped`` state, you can exit with code ``127``.
+
+.. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
+    :language: python
+    :start-after: [START howto_operator_bash_skip]
+    :end-before: [END howto_operator_bash_skip]
+
 
 Troubleshooting
 ---------------

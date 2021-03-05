@@ -146,7 +146,7 @@ class SalesforceHook(BaseHook):
         :return: all instances of the object from Salesforce.
         :rtype: dict
         """
-        query = "SELECT {} FROM {}".format(",".join(fields), obj)
+        query = f"SELECT {','.join(fields)} FROM {obj}"
 
         self.log.info(
             "Making query to Salesforce: %s",

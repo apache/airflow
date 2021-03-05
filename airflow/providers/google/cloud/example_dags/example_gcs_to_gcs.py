@@ -95,6 +95,16 @@ with models.DAG(
     )
     # [END howto_operator_gcs_to_gcs_wildcard]
 
+    # [START howto_operator_gcs_to_gcs_without_wildcard]
+    copy_files_without_wildcard = GCSToGCSOperator(
+        task_id="copy_files_without_wildcard",
+        source_bucket=BUCKET_1_SRC,
+        source_object="subdir/",
+        destination_bucket=BUCKET_1_DST,
+        destination_object="backup/",
+    )
+    # [END howto_operator_gcs_to_gcs_without_wildcard]
+
     # [START howto_operator_gcs_to_gcs_delimiter]
     copy_files_with_delimiter = GCSToGCSOperator(
         task_id="copy_files_with_delimiter",

@@ -95,7 +95,7 @@ Now that you are set up in Airflow 1.10.14 with Python a 3.6+ environment, you a
 
 The most important step in this transition is also the easiest step to do in pieces. All Airflow 2.0 operators are backwards compatible with Airflow 1.10
 using the backport provider packages. In your own time, you can transition to using these backport-providers
-by pip installing the provider via ``pypi`` and changing the import path.
+by pip installing the provider via PyPI and changing the import path.
 
 For example: While historically you might have imported the DockerOperator in this fashion:
 
@@ -286,10 +286,18 @@ When DAGs are initialized with the ``access_control`` variable set, any usage of
 .. warning::
     Breaking change
 
-    Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
-    in both versions. With this release we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
-    RBAC UI explicitly in the configuration now as this is the only default UI. We did it to avoid
-    the huge maintenance burden of two independent user interfaces
+    Previously we were using two versions of the UI:
+        - non-RBAC UI
+        - Flask App Builder RBAC UI
+
+    This was difficult to maintain, because it meant we
+    had to implement/update features in two places. With this release, we have removed the older UI in
+    favor of the Flask App Builder RBAC UI, reducing a huge maintenance burden.
+    There is no longer a need to set the RBAC UI explicitly in the configuration,
+    as it is the only default UI.
+
+    If you previously used non-RBAC UI, you have to switch to the new RBAC-UI and create users to be able
+    to access Airflow's webserver. For more details on CLI to create users see :doc:`cli-and-env-variables-ref`
 
 Please note that that custom auth backends will need re-writing to target new FAB based UI.
 
@@ -523,6 +531,11 @@ At this point, just follow the standard Airflow version upgrade process:
 
 * Restart Airflow Scheduler, Webserver, and Workers
 
+
+Frequently Asked Questions on Upgrade
+'''''''''''''''''''''''''''''''''''''
+* Q. Why doesn't the list of connection types show up in the Airflow UI after I upgrade to 2.0?
+  * A. It is because Airflow 2.0 does not ship with the provider packages. The connection type list in the Airflow UI is based on the providers you have installed with Airflow 2.0. Please note that these will only show up once you install the provider and restart Airflow. You can read more about providers at :doc:`apache-airflow-providers:index`.
 
 
 Appendix
@@ -946,7 +959,7 @@ Old command                   New command                       Group
 ``airflow trigger_dag``       ``airflow dags trigger``          ``dags``
 ``airflow delete_dag``        ``airflow dags delete``           ``dags``
 ``airflow show_dag``          ``airflow dags show``             ``dags``
-``airflow list_dag``          ``airflow dags list``             ``dags``
+``airflow list_dags``         ``airflow dags list``             ``dags``
 ``airflow dag_status``        ``airflow dags status``           ``dags``
 ``airflow backfill``          ``airflow dags backfill``         ``dags``
 ``airflow list_dag_runs``     ``airflow dags list-runs``        ``dags``
@@ -1153,7 +1166,7 @@ non-RBAC UI (``flask-admin`` based UI), update it to use ``flask_appbuilder_view
 
         @expose("/")
         def test(self):
-            return self.render("test_plugin/test.html", content="Hello galaxy!")
+            return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
     v_appbuilder_view = TestAppBuilderBaseView()
     v_appbuilder_package = {"name": "Test View",
@@ -1186,24 +1199,16 @@ depending on the development packages then you should use ``devel_all``.
 Support for Airflow 1.10.x releases
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As mentioned earlier in Step 2, the 1.10.14 release is intended to be a "bridge release"
-which would be a step in the migration to Airflow 2.0.
+The Airflow 1.10.x release tree will be supported for **six months** from Airflow 2.0 release date.
+Specifically, only "critical fixes" defined as fixes
+to bugs that take down Production systems, will be backported to 1.10.x core for
+**six months** after Airflow 2.0.0 is released.
 
-After the Airflow 2.0 GA (General Availability) release, it expected that all
-future Airflow development would be based on Airflow 2.0, including a series of
-patch releases such as 2.0.1, 2.0.2 and then feature releases such as 2.1.
+In addition, Backport providers within
+1.10.x, will be supported for critical fixes for **three months** from Airflow 2.0.0
+release date.
 
 We plan to take a strict Semantic Versioning approach to our versioning and release process. This
 means that we do not plan to make any backwards-incompatible changes in the 2.* releases. Any
 breaking changes, including the removal of features deprecated in Airflow 2.0 will happen as part
 of the Airflow 3.0 release.
-
-The Airflow 1.10.x release tree will be supported for a limited time after the
-GA release of Airflow 2.0 to give users time to upgrade from one of the Airflow 1.10.x releases.
-Specifically, only "critical fixes" defined as fixes
-to bugs that take down Production systems, will be backported to 1.10.x core for
-six months after Airflow 2.0.0 is released.
-
-In addition, Backport providers within
-1.10.x, will be supported for critical fixes for three months after Airflow 2.0.0
-is released.

@@ -151,7 +151,7 @@ class GCSCreateBucketOperator(BaseOperator):
 
     def execute(self, context) -> None:
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
@@ -259,7 +259,7 @@ class GCSListObjectsOperator(BaseOperator):
     def execute(self, context) -> list:
 
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
@@ -351,7 +351,7 @@ class GCSDeleteObjectsOperator(BaseOperator):
 
     def execute(self, context):
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
@@ -445,7 +445,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
 
     def execute(self, context) -> None:
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
         hook.insert_bucket_acl(
@@ -544,7 +544,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
 
     def execute(self, context) -> None:
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
         hook.insert_object_acl(
@@ -805,7 +805,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
 
     def execute(self, context) -> None:
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )

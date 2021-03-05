@@ -20,6 +20,8 @@ set -euo pipefail
 
 test -v PYTHON_MAJOR_MINOR_VERSION
 
+set -x
+
 # Installs additional dependencies passed as Argument to the Docker build command
 function compile_www_assets() {
     echo
@@ -36,7 +38,7 @@ function compile_www_assets() {
     elif [[ -f "${airflow_site_package}/www/package.json" ]]; then
         www_dir="${airflow_site_package}/www"
     fi
-    if [[ ${www_dir} != "" ]]; then
+    if [[ -n "${www_dir}" ]]; then
         pushd ${www_dir} || exit 1
         yarn install --frozen-lockfile --no-cache
         yarn run prod

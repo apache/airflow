@@ -37,7 +37,7 @@ default_args = {
 
 
 # [START instantiate_dag]
-@dag(default_args=default_args, schedule_interval=None, start_date=days_ago(2))
+@dag(default_args=default_args, schedule_interval=None, start_date=days_ago(2), tags=['example'])
 def tutorial_taskflow_api_etl():
     """
     ### TaskFlow API Tutorial Documentation
@@ -45,7 +45,7 @@ def tutorial_taskflow_api_etl():
     the TaskFlow API using three simple tasks for Extract, Transform, and Load.
     Documentation that goes along with the Airflow TaskFlow API tutorial is
     located
-    [here](https://airflow.apache.org/docs/stable/tutorial_taskflow_api.html)
+    [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial_taskflow_api.html)
     """
     # [END instantiate_dag]
 
@@ -91,7 +91,7 @@ def tutorial_taskflow_api_etl():
         instead of saving it to end user review, just prints it out.
         """
 
-        print("Total order value is: %.2f" % total_order_value)
+        print(f"Total order value is: {total_order_value:.2f}")
 
     # [END load]
 
