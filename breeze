@@ -27,7 +27,7 @@ if [[ ${BREEZE_REDIRECT=} == "" ]]; then
     if [[ "$(uname)" == "Darwin" ]]; then
       exec script -q "${AIRFLOW_SOURCES}"/logs/breeze.out "$BASH" -c "$(printf "%q " "${0}" "${@}")"
     else
-      exec script --return --quiet --log-out "${AIRFLOW_SOURCES}"/logs/breeze.out -c "$(printf "%q " "${0}" "${@}")"
+      exec script --return --quiet "${AIRFLOW_SOURCES}"/logs/breeze.out -c "$(printf "%q " "${0}" "${@}")"
     fi
 fi
 
