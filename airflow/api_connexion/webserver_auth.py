@@ -16,10 +16,9 @@
 # under the License.
 
 import logging
-from functools import wraps
-from typing import Callable, TypeVar, cast
+from typing import Callable, TypeVar
 
-from flask import Response, current_app, request
+from flask import current_app, request
 from flask_appbuilder.const import AUTH_LDAP
 from flask_jwt_extended import verify_jwt_in_request
 from flask_login import login_user
@@ -52,20 +51,7 @@ def auth_current_user():
                 return user
     try:
         verify_jwt_in_request()
-        return 1
+        return True
     except Exception as err:  # pylint: disable=broad-except
         log.debug("Can't verify jwt: %s", str(err))
     return None
-
-
-def requires_authentication(function: T):
-    """Decorator for functions that require authentication"""
-
-    @wraps(function)
-    def decorated(*args, **kwargs):
-        if auth_current_user() is not None:
-            return function(*args, **kwargs)
-        else:
-            return Response("Unauthorized", 401, {"WWW-Authenticate": "Bearer"})
-
-    return cast(T, decorated)

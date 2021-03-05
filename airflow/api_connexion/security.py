@@ -20,7 +20,7 @@ from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 from flask import Response, current_app
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
-from airflow.api_connexion.webserver_auth import requires_authentication
+from airflow.api_connexion.webserver_auth import auth_current_user
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
@@ -30,13 +30,10 @@ def check_authentication() -> None:
     response = current_app.api_auth.requires_authentication(Response)()
     if response.status_code == 200:
         return
-    jwt_response = requires_authentication(Response)()
-    if jwt_response.status_code == 200:
+    if auth_current_user():
         return
     # since this handler only checks authentication, not authorization,
     # we should always return 401
-    if jwt_response.status_code != 200:
-        raise Unauthenticated(headers=jwt_response.headers)
     raise Unauthenticated(headers=response.headers)
 
 
