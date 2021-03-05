@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Airbyte Job sensor."""
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
@@ -27,7 +28,7 @@ class AirbyteJobSensor(BaseSensorOperator):
     """
     Check for the state of a previously submitted Airbyte job.
 
-    :param airbyte_job_id: Id of the Airbyte job
+    :param airbyte_job_id: Required. Id of the Airbyte job
     :type airbyte_job_id: str
     :param airbyte_conn_id: Required. The name of the Airflow connection to get
         connection information for Airbyte.
@@ -45,7 +46,7 @@ class AirbyteJobSensor(BaseSensorOperator):
         *,
         airbyte_job_id: str,
         airbyte_conn_id: str = 'airbyte_default',
-        api_version: str = "v1",
+        api_version: Optional[str] = "v1",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

@@ -37,10 +37,15 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     :param connection_id: Required. The Airbyte ConnectionId UUID between a source and destination.
     :type connection_id: str
     :param asynchronous: Optional. Flag to get job_id after submitting the job to the Airbyte API.
+        This is useful for submitting long running jobs and
+        waiting on them asynchronously using the AirbyteJobSensor.
     :type asynchronous: bool
     :param api_version: Optional. Airbyte API version.
     :type api_version: str
+    :param wait_seconds: Optional. Number of seconds between checks. Only used when ``asynchronous`` is False.
+    :type wait_seconds: float
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Only used when ``asynchronous`` is False.
     :type timeout: float
     """
 
@@ -53,6 +58,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         airbyte_conn_id: str = "airbyte_default",
         asynchronous: Optional[bool] = False,
         api_version: Optional[str] = "v1",
+        wait_seconds: Optional[float] = 3,
         timeout: Optional[float] = 3600,
         **kwargs,
     ) -> None:
@@ -61,6 +67,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self.connection_id = connection_id
         self.timeout = timeout
         self.api_version = api_version
+        self.wait_seconds = wait_seconds
         self.asynchronous = asynchronous
 
     def execute(self, context) -> None:
@@ -72,7 +79,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self.log.info("Job %s was submitted to Airbyte Server", job_id)
         if not self.asynchronous:
             self.log.info('Waiting for job %s to complete', job_id)
-            hook.wait_for_job(job_id=job_id, timeout=self.timeout)
+            hook.wait_for_job(job_id=job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
             self.log.info('Job %s completed successfully', job_id)
 
         return job_id
