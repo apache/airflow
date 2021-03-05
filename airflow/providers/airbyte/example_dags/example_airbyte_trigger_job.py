@@ -56,7 +56,7 @@ with DAG(
 
     airbyte_sensor = AirbyteJobSensor(
         task_id='airbyte_sensor_source_dest_example',
-        airbyte_job_id=async_source_destination.output,
+        airbyte_job_id="{{task_instance.xcom_pull(task_ids='airbyte_async_source_dest_example')}}",
         airbyte_conn_id='airbyte_default',
     )
     # [END howto_operator_airbyte_asynchronous]
