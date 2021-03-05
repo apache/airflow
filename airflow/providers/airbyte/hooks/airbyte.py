@@ -66,7 +66,6 @@ class AirbyteHook(HttpHook):
                 state = job.json()["job"]["status"]
             except AirflowException as err:
                 self.log.info("Retrying. Airbyte API returned server error when waiting for job: %s", err)
-                continue
 
         if state == self.ERROR:
             raise AirflowException(f"Job failed:\n{job}")
