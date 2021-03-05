@@ -1717,10 +1717,18 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             and dag.dagrun_timeout
             and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
         ):
-            dag_run.state = State.FAILED
-            dag_run.end_date = timezone.utcnow()
-            self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
+            dag_run.set_state(State.FAILED)
+            unfinished_task_instances = (
+                session.query(TI)
+                .filter(TI.dag_id == dag_run.dag_id)
+                .filter(TI.execution_date == dag_run.execution_date)
+                .filter(TI.state.in_(State.unfinished))
+            )
+            for task_instance in unfinished_task_instances:
+                task_instance.state = State.SKIPPED
+                session.merge(task_instance)
             session.flush()
+            self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
             # Work out if we should allow creating a new DagRun now?
             self._update_dag_next_dagruns([session.query(DagModel).get(dag_run.dag_id)], session)
