@@ -46,4 +46,4 @@ class TestNoAdditionalArgsInOperatorsRule(TestCase):
                 '''))
             dag_file.flush()
             msgs = list(rule.check(dags_folder=dag_file.name))
-            assert len(msgs) == 1
+            assert len(msgs) == 0
