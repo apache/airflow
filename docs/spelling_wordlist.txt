@@ -161,6 +161,7 @@ Github
 Gitter
 Glassdoor
 Gmail
+Grafana
 Groupalia
 Groupon
 Grpc
@@ -800,7 +801,6 @@ gpu
 gpus
 greenlet
 groupId
-Grafana
 grpc
 gz
 hadoop
