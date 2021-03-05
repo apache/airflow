@@ -24,10 +24,11 @@ AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ ${BREEZE_REDIRECT=} == "" ]]; then
     mkdir -p "${AIRFLOW_SOURCES}"/logs
     export BREEZE_REDIRECT="true"
-    set +u
-    "${0}" "${@}" 2>&1 | tee "${AIRFLOW_SOURCES}"/logs/breeze.out
-    set -u
-    exit
+    if [[ "$(uname)" == "Darwin" ]]; then
+      exec script -q "${AIRFLOW_SOURCES}"/logs/breeze.out "$BASH" -c "$(printf "%q " "${0}" "${@}")"
+    else
+      exec script --return --quiet --log-out "${AIRFLOW_SOURCES}"/logs/breeze.out -c "$(printf "%q " "${0}" "${@}")"
+    fi
 fi
 
 export AIRFLOW_SOURCES

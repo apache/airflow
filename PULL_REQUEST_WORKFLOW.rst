@@ -174,7 +174,7 @@ The logic implemented for the changes works as follows:
 
 11) There is a special case of static checks. In case the above logic determines that the CI image
     needs to be build, we run long and more comprehensive version of static checks - including Pylint,
-    MyPy, Flake8. And those tests are run on all files, no matter how many files changed.
+    Mypy, Flake8. And those tests are run on all files, no matter how many files changed.
     In case the image is not built, we run only simpler set of changes - the longer static checks
     that require CI image are skipped, and we only run the tests on the files that changed in the incoming
     commit - unlike pylint/flake8/mypy, those static checks are per-file based and they should not miss any

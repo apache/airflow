@@ -310,7 +310,7 @@ Step 4: Prepare PR
    and send it through the right path:
 
    * In case of a "no-code" change, approval will generate a comment that the PR can be merged and no
-     tests are needed. This is usually when the change modifies some non-documentation related rst
+     tests are needed. This is usually when the change modifies some non-documentation related RST
      files (such as this file). No python tests are run and no CI images are built for such PR. Usually
      it can be approved and merged few minutes after it is submitted (unless there is a big queue of jobs).
 

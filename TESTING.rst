@@ -49,7 +49,7 @@ Follow the guidelines when writing unit tests:
 * For standard unit tests that do not require integrations with external systems, make sure to simulate all communications.
 * All Airflow tests are run with ``pytest``. Make sure to set your IDE/runners (see below) to use ``pytest`` by default.
 * For new tests, use standard "asserts" of Python and ``pytest`` decorators/context managers for testing
-  rather than ``unittest`` ones. See `Pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
+  rather than ``unittest`` ones. See `pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
 * Use a parameterized framework for tests that have variations in parameters.
 
 **NOTE:** We plan to convert all unit tests to standard "asserts" semi-automatically, but this will be done later
@@ -91,20 +91,20 @@ in the official documentation, but here are a few basic examples:
 
 .. code-block:: bash
 
-    pytest -k "TestCore and not check"
+    pytest tests/core -k "TestCore and not check"
 
 This runs the ``TestCore`` class but skips tests of this class that include 'check' in their names.
 For better performance (due to a test collection), run:
 
 .. code-block:: bash
 
-    pytest tests/tests_core.py -k "TestCore and not bash".
+    pytest tests/core/test_core.py -k "TestCore and not bash"
 
 This flag is useful when used to run a single test like this:
 
 .. code-block:: bash
 
-    pytest tests/tests_core.py -k "test_check_operators"
+    pytest tests/core/test_core.py -k "test_check_operators"
 
 This can also be done by specifying a full path to the test:
 
@@ -123,7 +123,7 @@ for debugging purposes, enter:
 
 .. code-block:: bash
 
-    pytest --log-level=DEBUG tests/core/test_core.py::TestCore
+    pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
 
 
 Running Tests for a Specified Target Using Breeze from the Host
@@ -136,7 +136,7 @@ to breeze.
 
 .. code-block:: bash
 
-     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --db-reset -- --logging-level=DEBUG
+     ./breeze tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset -- --log-cli-level=DEBUG
 
 You can run the whole test suite without adding the test target:
 
@@ -198,7 +198,7 @@ kinds of test types:
 Helm Unit Tests
 ===============
 
-On the Airflow Project, we have decided to stick with Pythonic testing for our Helm chart. This makes our chart
+On the Airflow Project, we have decided to stick with pythonic testing for our Helm chart. This makes our chart
 easier to test, easier to modify, and able to run with the same testing infrastructure. To add Helm unit tests
 go to the ``chart/tests`` directory and add your unit test by creating a class that extends ``unittest.TestCase``
 
@@ -950,7 +950,7 @@ Preparing provider packages for System Tests for Airflow 1.10.* series
 
 To run system tests with the older Airflow version, you need to prepare provider packages. This
 can be done by running ``./breeze prepare-provider-packages <PACKAGES TO BUILD>``. For
-example, the below command will build google postgres and mysql wheel packages:
+example, the below command will build google, postgres and mysql wheel packages:
 
 .. code-block:: bash
 

@@ -313,8 +313,6 @@ class TestKubernetesExecutor(unittest.TestCase):
         """
         We should not adopt any tasks that were not assigned by the scheduler.
         This ensures that there is no contention over pod management.
-        @param mock_kube_client:
-        @return:
         """
 
         executor = self.kubernetes_executor

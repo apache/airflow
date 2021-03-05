@@ -25,9 +25,9 @@ from collections import OrderedDict
 from typing import Any, Dict, NamedTuple, Set
 
 import jsonschema
-import yaml
 from wtforms import Field
 
+import airflow.utils.yaml as yaml
 from airflow.utils.entry_points import entry_points_with_dist
 
 try:

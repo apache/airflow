@@ -98,7 +98,7 @@ As of Airflow 2.0 we agreed to certain rules we follow for Python support. They 
 release schedule of Python, nicely summarized in the
 [Python Developer's Guide](https://devguide.python.org/#status-of-python-branches)
 
-1. We finish support for python versions when they reach EOL (For python 3.6 it means that we will remove it
+1. We finish support for Python versions when they reach EOL (For Python 3.6 it means that we will remove it
    from being supported on 23.12.2021).
 
 2. The "oldest" supported version of Python is the default one. "Default" is only meaningful in terms of
@@ -135,9 +135,9 @@ produce unusable Airflow installation.
 In order to have repeatable installation, however, introduced in **Airflow 1.10.10** and updated in
 **Airflow 1.10.12** we also keep a set of "known-to-be-working" constraint files in the
 orphan `constraints-master`, `constraints-2-0` and `constraints-1-10` branches. We keep those "known-to-be-working"
-constraints files separately per major/minor python version.
+constraints files separately per major/minor Python version.
 You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
-correct Airflow tag/version/branch and python versions in the URL.
+correct Airflow tag/version/branch and Python versions in the URL.
 
 
 1. Installing just Airflow:

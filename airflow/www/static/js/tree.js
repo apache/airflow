@@ -47,14 +47,25 @@ function nodeClass(d) {
 document.addEventListener('DOMContentLoaded', () => {
   $('span.status_square').tooltip({ html: true });
 
-  const now = Date.now() / 1000;
-  const devicePixelRatio = window.devicePixelRatio || 1;
   // JSON.parse is faster for large payloads than an object literal
   const data = JSON.parse(treeData);
+  const tree = d3.layout.tree().nodeSize([0, 25]);
+  const nodes = tree.nodes(data);
+  const nodeobj = {};
+
+  const now = Date.now() / 1000;
+  const devicePixelRatio = window.devicePixelRatio || 1;
   const barHeight = 20;
   const axisHeight = 50;
-  const squareX = parseInt(500 * devicePixelRatio, 10);
   const squareSize = 10;
+  // calculate the white space between the tree and instances based on # of instances and tree depth
+  let treeDepth = 0;
+  nodes.forEach((node) => {
+    if (node.depth > treeDepth) treeDepth = node.depth;
+  });
+  treeDepth += 1;
+  const squareX = window.innerWidth - (data.instances.length * squareSize) - (treeDepth * 50);
+
   const squareSpacing = 2;
   const margin = {
     top: barHeight / 2 + axisHeight, right: 0, bottom: 0, left: barHeight / 2,
@@ -65,10 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let i = 0;
   const duration = 400;
   let root;
-
-  const tree = d3.layout.tree().nodeSize([0, 25]);
-  const nodes = tree.nodes(data);
-  const nodeobj = {};
 
   function populateTaskInstanceProperties(node) {
   // populate task instance properties for display purpose
@@ -239,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .on('mouseout', function (d) {
         taskTip.hide(d);
         d3.select(this).transition()
-          .style('stroke-width', (d) => (isDagRun(d) ? '2' : '1'));
+          .style('stroke-width', (dd) => (isDagRun(dd) ? '2' : '1'));
       })
       .attr('height', barHeight)
       .attr('width', (d) => barWidth - d.y)
@@ -292,7 +299,8 @@ document.addEventListener('DOMContentLoaded', () => {
       .style('stroke-width', (d) => (isDagRun(d) ? '2' : '1'))
       .style('stroke-opacity', (d) => (d.external_trigger ? '0' : '1'))
       .on('mouseover', function (d) {
-        const tt = tiTooltip(d);
+        // Calculate duration if it doesn't exist
+        const tt = tiTooltip({ ...d, duration: d.duration || moment(d.end_date).diff(d.start_date, 'seconds') });
         taskTip.direction('n');
         taskTip.show(tt, this);
         d3.select(this).transition()
