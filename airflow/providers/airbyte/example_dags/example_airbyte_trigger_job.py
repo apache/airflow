@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Example DAG demonstrating the usage of the BashOperator."""
+"""Example DAG demonstrating the usage of the AirbyteTriggerSyncOperator."""
 
 from datetime import timedelta
 
@@ -60,7 +60,5 @@ with DAG(
         airbyte_conn_id='airbyte_default',
     )
     # [END howto_operator_airbyte_asynchronous]
-
-    sync_source_destination
 
     async_source_destination >> airbyte_sensor
