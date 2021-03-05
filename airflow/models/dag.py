@@ -1882,6 +1882,7 @@ class DAG(LoggingMixin):
                 orm_dag.fileloc = dag.fileloc
                 orm_dag.owners = dag.owner
             orm_dag.is_active = True
+            orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view
             orm_dag.description = dag.description
             orm_dag.schedule_interval = dag.schedule_interval
@@ -1966,13 +1967,13 @@ class DAG(LoggingMixin):
         """
         for dag in (
             session.query(DagModel)
-            .filter(DagModel.last_scheduler_run < expiration_date, DagModel.is_active)
+            .filter(DagModel.last_parsed_time < expiration_date, DagModel.is_active)
             .all()
         ):
             log.info(
                 "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
                 dag.dag_id,
-                dag.last_scheduler_run.isoformat(),
+                dag.last_parsed_time.isoformat(),
             )
             dag.is_active = False
             session.merge(dag)
@@ -2075,7 +2076,7 @@ class DagModel(Base):
     # Whether that DAG was seen on the last DagBag load
     is_active = Column(Boolean, default=False)
     # Last time the scheduler started
-    last_scheduler_run = Column(UtcDateTime)
+    last_parsed_time = Column(UtcDateTime)
     # Last time this DAG was pickled
     last_pickled = Column(UtcDateTime)
     # Time when the DAG last received a refresh signal
