@@ -177,6 +177,30 @@ is automatically set to true.
 Note, If you manually set the ``multiple_outputs`` parameter the inference is disabled and
 the parameter value is used.
 
+Adding function wrappers around the @task decorator
+---------------------------------------------------
+
+For those who want to extend the functionality of a TaskFlow task decorator, we offer the ability to provide a wrapper
+function to perform setup and teardown before and after each function. This could be setting up a spark cluster,
+establishing a database connection, or any other number of other environment setup steps.
+
+In the basic example below, we create a wrapper that adds one to the output of the task.
+
+.. code-block:: python
+        def add_one_wrapper(f):
+            @functools.wraps(f)
+            def add_one(*args, **kwargs):
+                initial_result = f(*args, **kwargs)
+                print(f"Adding one to result {initial_result}")
+                return  initial_result + 1
+            return add_one
+
+        @task(wrapper_func=add_one_wrapper)
+        def return_one():
+            return 1
+
+        should_be_two = return_one()
+
 Adding dependencies to decorated tasks from regular tasks
 ---------------------------------------------------------
 The above tutorial shows how to create dependencies between python-based tasks. However, it is

@@ -254,7 +254,10 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
 def task(
-    python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+    python_callable: Optional[Callable] = None,
+    multiple_outputs: Optional[bool] = None,
+    wrapper_func: Optional[Callable] = None,
+    **kwargs,
 ) -> Callable[[T], T]:
     """
     Python operator decorator. Wraps a function into an Airflow operator.
@@ -267,6 +270,9 @@ def task(
         with index as key. Dict will unroll to xcom values with keys as XCom keys.
         Defaults to False.
     :type multiple_outputs: bool
+    :param wrapper_func: Allows users to add a wrapper around the python function. This will make the
+    @task wrapper easier to extend
+    :type wrapper_func: Optional[Callable]
 
     """
     # try to infer from  type annotation
@@ -286,8 +292,11 @@ def task(
 
         @functools.wraps(f)
         def factory(*args, **f_kwargs):
+            func = f
+            if callable(wrapper_func):
+                func = wrapper_func(func)
             op = _PythonDecoratedOperator(
-                python_callable=f,
+                python_callable=func,
                 op_args=args,
                 op_kwargs=f_kwargs,
                 multiple_outputs=multiple_outputs,

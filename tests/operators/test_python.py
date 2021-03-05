@@ -399,6 +399,37 @@ class TestAirflowTaskDecorator(TestPythonBase):
         assert ti.xcom_pull(key="return_value_0") is None
         assert ti.xcom_pull(key="return_value_1") is None
 
+    def test_wrapper_function(self):
+        import functools
+
+        def add_one_wrapper(f):
+            @functools.wraps(f)
+            def add_one(*args, **kwargs):
+                return f(*args, **kwargs) + 1
+
+            return add_one
+
+        @task_decorator(wrapper_func=add_one_wrapper)
+        def return_one():
+            return 1
+
+        with self.dag:
+            should_be_two = return_one()
+
+        dr = self.dag.create_dagrun(
+            run_id=DagRunType.MANUAL.value,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+
+        should_be_two.operator.run(  # pylint: disable=no-member
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE
+        )  # pylint: disable=maybe-no-member
+
+        ti = dr.get_task_instances()[0]
+        assert ti.xcom_pull() == 2
+
     def test_fails_bad_signature(self):
         """Tests that @task will fail if signature is not binding."""
 
