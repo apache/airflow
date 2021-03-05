@@ -396,7 +396,12 @@ plexus = [
 postgres = [
     'psycopg2-binary>=2.7.4',
 ]
-presto = ['presto-python-client>=0.7.0,<0.8']
+trino = [
+    'trino>=0.305'
+]
+presto = [
+    'presto-python-client>=0.7.0,<0.8'
+]
 qubole = [
     'qds-sdk>=1.10.4',
 ]
@@ -512,7 +517,7 @@ devel = [
 ]
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
-devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
+devel_hadoop = devel_minreq + hdfs + hive + kerberos + trino + presto + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
@@ -563,6 +568,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'papermill': papermill,
     'plexus': plexus,
     'postgres': postgres,
+    'trino': trino,
     'presto': presto,
     'qubole': qubole,
     'redis': redis,
@@ -592,7 +598,6 @@ ADDITIONAL_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'apache.webhdfs': webhdfs,
 }
 
-
 # Those are extras that are extensions of the 'core' Airflow. They provide additional features
 # To airflow core. They do not have separate providers because they do not have any operators/hooks etc.
 CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
@@ -611,7 +616,6 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'statsd': statsd,
     'virtualenv': virtualenv,
 }
-
 
 EXTRAS_REQUIREMENTS: Dict[str, List[str]] = deepcopy(CORE_EXTRAS_REQUIREMENTS)
 
@@ -711,6 +715,7 @@ ALL_DB_PROVIDERS = [
     'mysql',
     'neo4j',
     'postgres',
+    'trino',
     'presto',
     'vertica',
 ]
@@ -776,7 +781,6 @@ devel_ci = [
         package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_CI + PACKAGES_EXCLUDED_FOR_ALL
     )
 ]
-
 
 # Those are extras that we have to add for development purposes
 # They can be use to install some predefined set of dependencies.
@@ -924,7 +928,7 @@ def add_all_provider_packages() -> None:
     add_provider_packages_to_extra_requirements("devel_ci", ALL_PROVIDERS)
     add_provider_packages_to_extra_requirements("devel_all", ALL_PROVIDERS)
     add_provider_packages_to_extra_requirements("all_dbs", ALL_DB_PROVIDERS)
-    add_provider_packages_to_extra_requirements("devel_hadoop", ["apache.hdfs", "apache.hive", "presto"])
+    add_provider_packages_to_extra_requirements("devel_hadoop", ["apache.hdfs", "apache.hive", "trino", "presto"])
 
 
 class Develop(develop_orig):
