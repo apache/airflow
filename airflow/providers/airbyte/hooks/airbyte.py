@@ -57,7 +57,7 @@ class AirbyteHook(HttpHook):
         """
         state = None
         start = time.monotonic()
-        while state not in (self.ERROR, self.SUCCEEDED, self.CANCELLED):
+        while True:
             if timeout and start + timeout < time.monotonic():
                 raise AirflowException(f"Timeout: Airbyte job {job_id} is not ready after {timeout}s")
             time.sleep(wait_seconds)
@@ -66,11 +66,18 @@ class AirbyteHook(HttpHook):
                 state = job.json()["job"]["status"]
             except AirflowException as err:
                 self.log.info("Retrying. Airbyte API returned server error when waiting for job: %s", err)
+                continue
 
-        if state == self.ERROR:
-            raise AirflowException(f"Job failed:\n{job}")
-        if state == self.CANCELLED:
-            raise AirflowException(f"Job was cancelled:\n{job}")
+            if state == self.RUNNING:
+                continue
+            if state == self.SUCCEEDED:
+                break
+            if state == self.ERROR:
+                raise AirflowException(f"Job failed:\n{job}")
+            elif state == self.CANCELLED:
+                raise AirflowException(f"Job was cancelled:\n{job}")
+            else:
+                raise Exception(f"Encountered unexpected state `{state}` for job_id `{job_id}`")
 
     def submit_sync_connection(self, connection_id: str) -> Any:
         """
