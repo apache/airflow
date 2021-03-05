@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 from functools import wraps
 from typing import Callable, TypeVar, cast
 
@@ -27,6 +28,8 @@ from airflow.configuration import conf
 
 SECRET = conf.get("webserver", "secret_key")
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+
+log = logging.getLogger(__name__)
 
 
 def auth_current_user():
@@ -50,8 +53,8 @@ def auth_current_user():
     try:
         verify_jwt_in_request()
         return 1
-    except Exception:  # pylint: disable=too-broad-except
-        pass
+    except Exception as err:  # pylint: disable=broad-except
+        log.debug("Can't verify jwt: %s", str(err))
     return None
 
 
