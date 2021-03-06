@@ -114,7 +114,7 @@ The command removes all the Kubernetes components associated with the chart and 
 
 ## Loading example DAGs
 
-The recommended way to load example DAGs using the official Docker image and chart is to config `AIRFLOW__CORE__LOAD_EXAMPLES` environment variable in `extraEnv`. The official Docker image has `AIRFLOW__CORE__LOAD_EXAMPLES=False` set within the image, so you need to override it when deploying the chart.
+The recommended way to load example DAGs using the official Docker image and chart is to configure `AIRFLOW__CORE__LOAD_EXAMPLES` environment variable in `extraEnv`. The official Docker image has `AIRFLOW__CORE__LOAD_EXAMPLES=False` set within the image, so you need to override it when deploying the chart.
 
 ## Updating DAGs
 
