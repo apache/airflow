@@ -1168,7 +1168,7 @@ class TestConfigurationView(TestBase):
         self.check_content_in_response(
             [
                 'Airflow Configuration',
-                '# Your Airflow administrator chose not to expose the configuration, '
+                'Your Airflow administrator chose not to expose the configuration, '
                 'most likely for security reasons.',
             ],
             resp,
@@ -1179,7 +1179,7 @@ class TestConfigurationView(TestBase):
         self.login()
         with conf_vars({('webserver', 'expose_config'): 'True'}):
             resp = self.client.get('configuration', follow_redirects=True)
-        self.check_content_in_response(['Airflow Configuration', 'Running Configuration'], resp)
+        self.check_content_in_response(['Airflow Configuration', 'Section', 'Key', 'Value', 'Source'], resp)
 
 
 class TestRedocView(TestBase):

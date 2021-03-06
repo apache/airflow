@@ -31,7 +31,7 @@
         <pre>{{ pre_subtitle }}</pre>
     {% endif %}
 
-    {% if hide_config_msg %}
+    {% if hide_config_msg is defined %}
         <div class="alert alert-info">
             <p>{{ hide_config_msg }}</p>
         </div>
