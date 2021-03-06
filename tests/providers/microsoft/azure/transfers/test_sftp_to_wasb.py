@@ -184,7 +184,7 @@ class TestSFTPToWasbOperator(unittest.TestCase):
         sftp_file_paths = EXPECTED_FILES
         operator.delete_files(sftp_file_paths)
 
-        assert sftp_mock.delete_file.assert_has_calls([mock.call(EXPECTED_FILES[0])])
+        sftp_mock.delete_file.assert_has_calls([mock.call(EXPECTED_FILES[0])])
 
     @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook')
     @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook')
@@ -214,11 +214,11 @@ class TestSFTPToWasbOperator(unittest.TestCase):
             [mock.call("main_dir/test_object.json", mock.ANY)]
         )
 
-        assert mock_hook.return_value.load_file.assert_called_once_with(
+        mock_hook.return_value.load_file.assert_called_once_with(
             mock.ANY, CONTAINER_NAME, "test_object.json"
         )
 
-        assert sftp_hook.return_value.delete_file.assert_not_called()
+        sftp_hook.return_value.delete_file.assert_not_called()
 
     @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook')
     @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook')
