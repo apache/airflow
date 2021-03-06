@@ -1,4 +1,7 @@
 {
+  "airbyte": [
+    "http"
+  ],
   "amazon": [
     "apache.hive",
     "google",

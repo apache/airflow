@@ -523,6 +523,7 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
+    'airbyte': [],
     'amazon': amazon,
     'apache.beam': apache_beam,
     'apache.cassandra': cassandra,

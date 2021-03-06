@@ -1,6 +1,7 @@
 Ack
 Acyclic
 Airbnb
+Airbyte
 AirflowException
 Aizhamal
 Alphasort
@@ -420,6 +421,7 @@ acyclic
 adhoc
 aijamalnk
 airbnb
+airbyte
 airfl
 airflowignore
 ajax
