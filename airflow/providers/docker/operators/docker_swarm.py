@@ -118,7 +118,7 @@ class DockerSwarmOperator(DockerOperator):
             types.TaskTemplate(
                 container_spec=types.ContainerSpec(
                     image=self.image,
-                    command=self.get_command(),
+                    command=self.get_command(self.command),
                     env=self.environment,
                     user=self.user,
                     tty=self.tty,
