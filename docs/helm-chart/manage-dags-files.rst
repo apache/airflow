@@ -18,12 +18,33 @@
 Manage DAGs files
 =================
 
-When you create new or modify existing DAG files, it is necessary to implement them into the environment. This section will describe some basic techniques you can use.
+When you create new or modify existing DAG files, it is necessary to deploy them into the environment. This section will describe some basic techniques you can use.
 
 Bake DAGs in Docker image
 -------------------------
 
-The recommended way to update your DAGs with this chart is to build a new docker image with the latest DAG code (``docker build -t my-company/airflow:8a0da78 . ``), push it to an accessible registry ```docker push my-company/airflow:8a0da78``), then update the Airflow pods with that image:
+The recommended way to update your DAGs with this chart is to build a new docker image with the latest DAG code:
+
+.. code-block:: bash
+
+    docker build --tag "my-company/airflow:8a0da78" . -f - <<EOF
+    FROM apache/airflow:2.0.1
+
+    USER root
+
+    COPY --chown=airflow:root ./dags/ \${AIRFLOW_HOME}/dags/
+
+    USER airflow
+
+    EOF
+
+Then publish it in the accessible registry:
+
+.. code-block:: bash
+
+    docker push my-company/airflow:8a0da78
+
+Finally, update the Airflow pods with that image:
 
 .. code-block:: bash
 
@@ -31,7 +52,14 @@ The recommended way to update your DAGs with this chart is to build a new docker
       --set images.airflow.repository=my-company/airflow \
       --set images.airflow.tag=8a0da78
 
-For local development purpose you can also build the image locally and use it via deployment method described by Breeze.
+If you are deploying an image with a constant tag, you need to make sure that the image is pulled every time.
+
+.. code-block:: bash
+
+    helm upgrade airflow . \
+      --set images.airflow.repository=my-company/airflow \
+      --set images.airflow.tag=8a0da78 \
+      --set images.airflow.pullPolicy=Always
 
 Mounting DAGs using Git-Sync sidecar with Persistence enabled
 -------------------------------------------------------------
