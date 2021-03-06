@@ -18,7 +18,7 @@
 
 import datetime
 import os
-from typing import Any, Callable, FrozenSet, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, FrozenSet, Iterable, Optional, Union
 
 from sqlalchemy import func
 
@@ -29,6 +29,11 @@ from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Query
+
+    from airflow.utils.task_group import TaskGroup
 
 
 class ExternalTaskSensorLink(BaseOperatorLink):
@@ -46,14 +51,20 @@ class ExternalTaskSensorLink(BaseOperatorLink):
 
 class ExternalTaskSensor(BaseSensorOperator):
     """
-    Waits for a different DAG or a task in a different DAG to complete for a
+    Waits for a different DAG, a task group, or a task in a different DAG to complete for a
     specific execution_date
 
-    :param external_dag_id: The dag_id that contains the task you want to
-        wait for
+    If both `external_task_group_id` and `external_task_id` are ``None`` (default), the sensor
+        waits for the DAG.
+    Values for `external_task_group_id` and `external_task_id` can't be set at the same time.
+
+    :param external_dag_id: The dag_id that contains the task you want to wait for
     :type external_dag_id: str
+    :param external_task_group_id The task group_id that contains the tasks you want to
+        wait for.
+    :type external_task_group_id: str or None
     :param external_task_id: The task_id that contains the task you want to
-        wait for. If ``None`` (default value) the sensor waits for the DAG
+        wait for.
     :type external_task_id: str or None
     :param external_task_ids: The list of task_ids that you want to wait for.
         If ``None`` (default value) the sensor waits for the DAG. Either
@@ -95,6 +106,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self,
         *,
         external_dag_id: str,
+        external_task_group_id: Optional[str] = None,
         external_task_id: Optional[str] = None,
         external_task_ids: Optional[Iterable[str]] = None,
         allowed_states: Optional[Iterable[str]] = None,
@@ -125,6 +137,13 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if external_task_id is not None:
             external_task_ids = [external_task_id]
+        
+
+        if external_task_group_id and external_task_ids:
+            raise ValueError(
+                "Values for `external_task_group_id` and `external_task_id` or `external_task_ids` "
+                "can't be set at the same time"
+            )
 
         if external_task_ids:
             if not total_states <= set(State.task_states):
@@ -149,21 +168,24 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.execution_delta = execution_delta
         self.execution_date_fn = execution_date_fn
         self.external_dag_id = external_dag_id
+        self.external_task_group_id = external_task_group_id
         self.external_task_id = external_task_id
         self.external_task_ids = external_task_ids
         self.check_existence = check_existence
         self._has_checked_existence = False
 
-    @provide_session
-    def poke(self, context, session=None):
+    def _get_dttm_filter(self, context):
         if self.execution_delta:
             dttm = context['execution_date'] - self.execution_delta
         elif self.execution_date_fn:
             dttm = self._handle_execution_date_fn(context=context)
         else:
             dttm = context['execution_date']
+        return dttm if isinstance(dttm, list) else [dttm]
 
-        dttm_filter = dttm if isinstance(dttm, list) else [dttm]
+    @provide_session
+    def poke(self, context, session=None):
+        dttm_filter = self._get_dttm_filter(context)
         serialized_dttm_filter = ','.join(dt.isoformat() for dt in dttm_filter)
 
         self.log.info(
@@ -189,13 +211,18 @@ class ExternalTaskSensor(BaseSensorOperator):
                     f'Some of the external tasks {self.external_task_ids} '
                     f'in DAG {self.external_dag_id} failed.'
                 )
+            elif self.external_task_group_id:
+                raise AirflowException(
+                    f"f'The external task group {self.external_task_group_id} "
+                    "in DAG {self.external_dag_id} failed.'"
+                )
             else:
                 raise AirflowException(f'The external DAG {self.external_dag_id} failed.')
 
         return count_allowed == len(dttm_filter)
 
     def _check_for_existence(self, session) -> None:
-        dag_to_wait = session.query(DagModel).filter(DagModel.dag_id == self.external_dag_id).first()
+        dag_to_wait = DagModel.get_current(self.external_dag_id, session)
 
         if not dag_to_wait:
             raise AirflowException(f'The external DAG {self.external_dag_id} does not exist.')
@@ -227,29 +254,49 @@ class ExternalTaskSensor(BaseSensorOperator):
         """
         TI = TaskInstance
         DR = DagRun
+
         if self.external_task_ids:
             count = (
-                session.query(func.count())  # .count() is inefficient
-                .filter(
-                    TI.dag_id == self.external_dag_id,
-                    TI.task_id.in_(self.external_task_ids),
-                    TI.state.in_(states),
-                    TI.execution_date.in_(dttm_filter),
-                )
+                self._count_query(TI, session, states, dttm_filter)
+                .filter(TI.task_id.in_(self.external_task_ids))
                 .scalar()
-            )
-            count = count / len(self.external_task_ids)
-        else:
+            ) / len(self.external_task_ids)
+            count /= len(self.external_task_ids)
+        elif self.external_task_group_id:
+            external_task_group_task_ids = self.get_external_task_group_task_ids(session)
             count = (
-                session.query(func.count())
-                .filter(
-                    DR.dag_id == self.external_dag_id,
-                    DR.state.in_(states),
-                    DR.execution_date.in_(dttm_filter),
-                )
+                self._count_query(TI, session, states, dttm_filter)
+                .filter(TI.task_id.in_(external_task_group_task_ids))
                 .scalar()
             )
+            count /= len(external_task_group_task_ids)
+        else:
+            count = self._count_query(DR, session, states, dttm_filter).scalar()
+
         return count
+
+    def _count_query(self, model, session, states, dttm_filter) -> "Query":
+        query = session.query(func.count()).filter(  # .count() is inefficient
+            model.dag_id == self.external_dag_id,
+            model.state.in_(states),  # pylint: disable=no-member
+            model.execution_date.in_(dttm_filter),
+        )
+
+        return query
+
+    def get_external_task_group_task_ids(self, session):
+        """Return task ids for the external TaskGroup"""
+        refreshed_dag_info = DagBag().get_dag(self.external_dag_id, session)
+        task_group: Optional["TaskGroup"] = refreshed_dag_info.task_group_dict.get(
+            self.external_task_group_id
+        )
+        if task_group is None:
+            raise AirflowException(
+                f'The external task group {self.external_task_group_id} in '
+                f'DAG {self.external_dag_id} does not exist.'
+            )
+        task_ids = [task.task_id for task in task_group]
+        return task_ids
 
     def _handle_execution_date_fn(self, context) -> Any:
         """

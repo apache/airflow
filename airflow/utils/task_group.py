@@ -160,7 +160,7 @@ class TaskGroup(TaskMixin):
         """Returns True if this TaskGroup is the root TaskGroup. Otherwise False"""
         return not self.group_id
 
-    def __iter__(self):
+    def __iter__(self) -> "BaseOperator":
         for child in self.children.values():
             if isinstance(child, TaskGroup):
                 yield from child
@@ -342,6 +342,9 @@ class TaskGroup(TaskMixin):
     def get_child_by_label(self, label: str) -> Union["BaseOperator", "TaskGroup"]:
         """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
         return self.children[self.child_id(label)]
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}: {self.group_id}>"
 
 
 class TaskGroupContext:

@@ -830,8 +830,16 @@ class DAG(LoggingMixin):
         return list(self.task_dict.keys())
 
     @property
+    def task_group_dict(self) -> Dict[str, "TaskGroup"]:
+        return {k: v for k, v in self._task_group.get_task_group_dict().items() if k is not None}
+
+    @property
     def task_group(self) -> "TaskGroup":
         return self._task_group
+
+    @property
+    def task_groups(self) -> List["TaskGroup"]:
+        return list(self.task_group_dict.values())
 
     @property
     def filepath(self) -> str:
@@ -1883,8 +1891,11 @@ class DAG(LoggingMixin):
 
         return dag
 
+    def has_task_group(self, group_id: str):
+        return group_id in self.task_group_dict
+
     def has_task(self, task_id: str):
-        return task_id in (t.task_id for t in self.tasks)
+        return task_id in self.task_dict
 
     def get_task(self, task_id: str, include_subdags: bool = False) -> BaseOperator:
         if task_id in self.task_dict:
