@@ -87,7 +87,7 @@ class TrinoHook(DbApiHook):
             schema=db.schema,
             auth=auth,
             isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
-            verify=_boolify(extra['verify']) if extra.get('verify') is not None else None
+            verify=_boolify(extra.get('verify', True))
         )
 
         return trino_conn
