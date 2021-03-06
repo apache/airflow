@@ -201,8 +201,8 @@ extraConfigMaps: {}
 extraEnv: ~
 # eg:
 # extraEnv: |
-#   - name: PLATFORM
-#     value: FR
+#   - name: AIRFLOW__CORE__LOAD_EXAMPLES
+#     value: 'True'
 
 # Extra envFrom 'items' that will be added to the definition of airflow containers
 # A string is expected (can be templated).
@@ -699,6 +699,7 @@ postgresql:
 config:
   core:
     dags_folder: '{{ include "airflow_dags" . }}'
+    # This is ignored when used with the official Docker image
     load_examples: 'False'
     executor: '{{ .Values.executor }}'
     # For Airflow 1.10, backward compatibility
