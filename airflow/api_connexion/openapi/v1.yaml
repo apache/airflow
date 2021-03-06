@@ -1382,6 +1382,54 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /roles:
+    get:
+      summary: List roles
+      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      operationId: get_roles
+      tags: [Role]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/FilterByUsername'
+        - $ref: '#/components/parameters/FilterByEmail'
+        - $ref: '#/components/parameters/FilterByPermissions'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /roles/{role_name}:
+    parameters:
+      - $ref: '#/components/parameters/RoleName'
+
+    get:
+      summary: Get a connection
+      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      operationId: get_role
+      tags: [Role]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleCollectionItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
 components:
   # Reusable schemas (data models)
   schemas:
@@ -2169,6 +2217,97 @@ components:
                 $ref: '#/components/schemas/PluginCollectionItem'
         - $ref: '#/components/schemas/CollectionInfo'
 
+    RoleCollectionItem:
+      description: Role collection item
+      type: object
+      properties:
+        role_id:
+          type: integer
+          description: The role ID
+        name:
+          type: string
+          description: The name of the role
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionResource'
+
+    RoleCollection:
+      description: Role Collections
+      type: object
+      allOf:
+        - type: object
+          properties:
+            roles:
+              type: array
+              items:
+                $ref: '#/components/schemas/RoleCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
+
+    ActionCollectionItem:
+      description: Permission Action Collection Item
+      type: object
+      properties:
+        action_id:
+          type: integer
+          description: The permission action ID
+        name:
+          type: string
+          description: The name of the permission
+          nullable: false
+
+    ActionCollection:
+      description: Permission Collection
+      type: object
+      allOf:
+        - type: object
+          properties:
+            actions:
+              type: array
+              items:
+                $ref: '#/components/schemas/ActionCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
+
+    ActionResource:
+      description: The Action-Resource permission item
+      type: object
+      properties:
+        action_resource_id:
+          type: integer
+          description: The PermissionView ID
+        action:
+          type: object
+          description: The permission actions
+          $ref: '#/components/schemas/ActionCollection'
+        resource:
+          type: object
+          description: The permission resource
+          $ref: '#/components/schemas/ResourceCollection'
+
+    ResourceCollectionItem:
+      description: Resource Collection Item
+      type: object
+      properties:
+        resource_id:
+          type: integer
+          description: The Resource ID
+        name:
+          type: string
+          description: The name of the Resource
+          nullable: false
+
+    ResourceCollection:
+      description: Resource Collection
+      type: object
+      allOf:
+        - type: object
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/ResourceCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
+
     # Configuration
     ConfigOption:
       type: object
@@ -2672,6 +2811,14 @@ components:
       description: The numbers of items to return.
 
     # Database entity fields
+    RoleName:
+      in: path
+      name: role_name
+      schema:
+        type: string
+      required: true
+      description: The role name
+
     ConnectionID:
       in: path
       name: connection_id
@@ -2773,6 +2920,32 @@ components:
       required: true
       description: The XCom key.
     # Filter
+    FilterByUsername:
+      in: query
+      name: username
+      schema:
+        type: string
+      required: false
+      description: Filters object by the given username
+
+    FilterByEmail:
+      in: query
+      name: email
+      schema:
+        type: string
+      required: false
+      description: Filters object by the given email
+
+    FilterByPermissions:
+      in: query
+      name: permissions
+      schema:
+        type: array
+        items:
+          type: string
+      required: false
+      description: Filter Roles by the given permission
+
     FilterExecutionDateGTE:
       in: query
       name: execution_date_gte
