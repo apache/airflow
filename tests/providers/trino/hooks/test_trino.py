@@ -47,7 +47,7 @@ class TestTrinoHookConn(unittest.TestCase):
             host='host',
             port=None,
             http_scheme='http',
-            schema='hive',
+            schema=None,
             source='airflow',
             user='login',
             isolation_level=0,
@@ -95,11 +95,11 @@ class TestTrinoHookConn(unittest.TestCase):
 
         conn = TrinoHook().get_conn()
         mock_connect.assert_called_once_with(
-            catalog='hive',
+            http_scheme='http',
             host='host',
             port=None,
-            http_scheme='http',
-            schema='hive',
+            catalog='hive',
+            schema=None,
             source='airflow',
             user='login',
             isolation_level=0,

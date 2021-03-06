@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from typing import Any, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional
 
 import trino
 from trino.transaction import IsolationLevel
@@ -53,6 +53,16 @@ class TrinoHook(DbApiHook):
     conn_type = 'trino'
     hook_name = 'Trino'
 
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict[str, Any]:
+        """Returns custom field behaviour"""
+        return {
+            "relabeling": {
+                'schema': 'Catalog',
+                'login': 'Username',
+            },
+        }
+
     def get_conn(self) -> Connection:
         """Returns a connection object"""
         db = self.get_connection(getattr(self, self.conn_name_attr))
@@ -78,15 +88,15 @@ class TrinoHook(DbApiHook):
             )
 
         trino_conn = trino.dbapi.connect(
+            http_scheme=db.extra_dejson.get('protocol', 'http'),
             host=db.host,
             port=db.port,
             user=db.login,
-            source=db.extra_dejson.get('source', 'airflow'),
-            http_scheme=db.extra_dejson.get('protocol', 'http'),
-            catalog=db.extra_dejson.get('catalog', 'hive'),
-            schema=db.schema,
+            catalog=db.schema,
+            schema=db.extra_dejson.get('schema'),
             auth=auth,
-            isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
+            source=db.extra_dejson.get('source', 'airflow'),
+            isolation_level=self.get_isolation_level(),
             verify=_boolify(extra.get('verify', True))
         )
 

@@ -81,10 +81,10 @@ class SqlSensor(BaseSensorOperator):
             'odbc',
             'oracle',
             'postgres',
-            'trino',
             'presto',
             'snowflake',
             'sqlite',
+            'trino',
             'vertica',
         }
         if conn.conn_type not in allowed_conn_type:
