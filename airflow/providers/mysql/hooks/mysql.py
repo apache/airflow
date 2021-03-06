@@ -20,7 +20,7 @@
 import json
 from typing import Dict, Optional, Tuple
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
 
 
@@ -41,6 +41,8 @@ class MySqlHook(DbApiHook):
 
     conn_name_attr = 'mysql_conn_id'
     default_conn_name = 'mysql_default'
+    conn_type = 'mysql'
+    hook_name = 'MySQL'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
@@ -131,7 +133,9 @@ class MySqlHook(DbApiHook):
 
         :return: a mysql connection object
         """
-        conn = self.connection or self.get_connection(self.mysql_conn_id)  # pylint: disable=no-member
+        conn = self.connection or self.get_connection(
+            getattr(self, self.conn_name_attr)
+        )  # pylint: disable=no-member
 
         client_name = conn.extra_dejson.get('client', 'mysqlclient')
 
@@ -162,12 +166,10 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
-            """
+            f"""
             LOAD DATA LOCAL INFILE '{tmp_file}'
             INTO TABLE {table}
-            """.format(
-                tmp_file=tmp_file, table=table
-            )
+            """
         )
         conn.commit()
 
@@ -176,12 +178,10 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
-            """
+            f"""
             SELECT * INTO OUTFILE '{tmp_file}'
             FROM {table}
-            """.format(
-                tmp_file=tmp_file, table=table
-            )
+            """
         )
         conn.commit()
 
@@ -249,17 +249,12 @@ class MySqlHook(DbApiHook):
         cursor = conn.cursor()
 
         cursor.execute(
-            """
+            f"""
             LOAD DATA LOCAL INFILE '{tmp_file}'
             {duplicate_key_handling}
             INTO TABLE {table}
             {extra_options}
-            """.format(
-                tmp_file=tmp_file,
-                table=table,
-                duplicate_key_handling=duplicate_key_handling,
-                extra_options=extra_options,
-            )
+            """
         )
 
         cursor.close()

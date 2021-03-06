@@ -23,8 +23,8 @@ import requests
 from pydruid.db import connect
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.base import BaseHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class DruidHook(BaseHook):
@@ -68,9 +68,7 @@ class DruidHook(BaseHook):
         port = conn.port
         conn_type = 'http' if not conn.conn_type else conn.conn_type
         endpoint = conn.extra_dejson.get('endpoint', '')
-        return "{conn_type}://{host}:{port}/{endpoint}".format(
-            conn_type=conn_type, host=host, port=port, endpoint=endpoint
-        )
+        return f"{conn_type}://{host}:{port}/{endpoint}"
 
     def get_auth(self) -> Optional[requests.auth.HTTPBasicAuth]:
         """
@@ -93,7 +91,7 @@ class DruidHook(BaseHook):
         self.log.info("Druid ingestion spec: %s", json_index_spec)
         req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
         if req_index.status_code != 200:
-            raise AirflowException('Did not get 200 when ' 'submitting the Druid job to {}'.format(url))
+            raise AirflowException(f'Did not get 200 when submitting the Druid job to {url}')
 
         req_json = req_index.json()
         # Wait until the job is completed
@@ -123,7 +121,7 @@ class DruidHook(BaseHook):
             elif status == 'SUCCESS':
                 running = False  # Great success!
             elif status == 'FAILED':
-                raise AirflowException('Druid indexing job failed, ' 'check console for more info')
+                raise AirflowException('Druid indexing job failed, check console for more info')
             else:
                 raise AirflowException(f'Could not get status of the job, got {status}')
 
@@ -140,6 +138,8 @@ class DruidDbApiHook(DbApiHook):
 
     conn_name_attr = 'druid_broker_conn_id'
     default_conn_name = 'druid_broker_default'
+    conn_type = 'druid'
+    hook_name = 'Druid'
     supports_autocommit = False
 
     def get_conn(self) -> connect:

@@ -272,7 +272,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
 
             self.log.info('... Done creating a test %s instance "%s"!\n', db_version, instance_name)
         except Exception as ex:
-            self.log.error('Exception occurred. ' 'Aborting creating a test instance.\n\n%s', ex)
+            self.log.error('Exception occurred. Aborting creating a test instance.\n\n%s', ex)
             raise ex
 
     def __delete_service_accounts_acls(self):
@@ -350,7 +350,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
             self.__create_db(instance_name, db_name)
             self.log.info('... Done setting up a test %s instance "%s"!\n', db_version, instance_name)
         except Exception as ex:
-            self.log.error('Exception occurred. ' 'Aborting setting up test instance and certs.\n\n%s', ex)
+            self.log.error('Exception occurred. Aborting setting up test instance and certs.\n\n%s', ex)
             raise ex
 
     def __delete_instance(self, instance_name: str, master_instance_name: Optional[str]) -> None:
@@ -586,7 +586,7 @@ if __name__ == '__main__':
 
     helper = CloudSqlQueryTestHelper()
     gcp_authenticator = GcpAuthenticator(GCP_CLOUDSQL_KEY)
-    helper.log.info(f'Starting action: {action}')
+    helper.log.info("Starting action: %s", action)
 
     gcp_authenticator.gcp_store_authentication()
     try:
@@ -631,4 +631,4 @@ if __name__ == '__main__':
             raise Exception(f"Unknown action: {action}")
     finally:
         gcp_authenticator.gcp_restore_authentication()
-    helper.log.info(f'Finishing action: {action}')
+    helper.log.info("Finishing action: %s", action)

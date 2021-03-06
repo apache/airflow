@@ -75,11 +75,11 @@ class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
                 rownum = 0
                 for row in temp_file:
                     if rownum == 0:
-                        self.assertEqual(row[0], 'id')
-                        self.assertEqual(row[1], 'description')
+                        assert row[0] == 'id'
+                        assert row[1] == 'description'
                     else:
-                        self.assertEqual(row[0], str(cursor_rows[rownum - 1][0]))
-                        self.assertEqual(row[1], cursor_rows[rownum - 1][1])
+                        assert row[0] == str(cursor_rows[rownum - 1][0])
+                        assert row[1] == cursor_rows[rownum - 1][1]
                     rownum = rownum + 1
 
     @mock.patch(mock_module_path + '.OracleHook', autospec=True)

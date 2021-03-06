@@ -111,7 +111,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        respones = hook.recognize_speech(
+        response = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout
         )
-        return MessageToDict(respones)
+        return MessageToDict(response)

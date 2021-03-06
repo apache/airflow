@@ -27,6 +27,7 @@ function gen_client {
     lang=$1
     shift
     docker run --rm \
+        -u "$(id -u):$(id -g)" \
         -v "${SPEC_PATH}:/spec" \
         -v "${OUTPUT_DIR}:/output" \
         openapitools/openapi-generator-cli:v${OPENAPI_GENERATOR_CLI_VER} \

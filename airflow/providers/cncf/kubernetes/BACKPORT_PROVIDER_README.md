@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-cncf-kubernetes
 
-Release: 2020.10.29
+Release: 2021.3.3
 
 **Table of contents**
 
@@ -36,6 +36,9 @@ Release: 2020.10.29
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
+    - [Release 2021.3.3](#release-202133)
+    - [Release 2021.2.5](#release-202125)
+    - [Release 2020.11.23](#release-20201123)
     - [Release 2020.10.29](#release-20201029)
     - [Release 2020.10.5](#release-2020105)
 
@@ -49,6 +52,20 @@ are in `airflow.providers.cncf.kubernetes` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
+
+## Release 2021.3.3
+
+### Bug fixes
+
+* Allow pod name override in KubernetesPodOperator if pod_template is used. (#14186)
+* Allow users of the KPO to *actually* template environment variables (#14083)
+
+## Release 2021.2.5
+
+  * `Pass image_pull_policy in KubernetesPodOperator correctly (#13289)`
+
+
+### Bug fixes
 
 ## Additional limitations
 
@@ -64,10 +81,10 @@ You can install this package on top of an existing airflow 1.10.* installation v
 
 ## PIP requirements
 
-| PIP package   | Version required   |
-|:--------------|:-------------------|
-| cryptography  | &gt;=2.0.0            |
-| kubernetes    | &gt;=3.0.0            |
+| PIP package    | Version required   |
+|:---------------|:-------------------|
+| `cryptography` | `>=2.0.0`          |
+| `kubernetes`   | `>=3.0.0, <12.0.0` |
 
 # Provider classes summary
 
@@ -118,11 +135,73 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
+### Release 2021.3.3
+
+| Commit                                                                                         | Committed   | Subject                                                                    |
+|:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------|
+| [809b4f9b1](https://github.com/apache/airflow/commit/809b4f9b18c7040682e17879248d714f2664273d) | 2021-02-23  | `Unique pod name (#14186)`                                                 |
+| [649335c04](https://github.com/apache/airflow/commit/649335c043a9312ef272fa77f2bb830d52cde056) | 2021-02-07  | `Template k8s.V1EnvVar without adding custom attributes to dict. (#14123)` |
+| [d4c4db8a1](https://github.com/apache/airflow/commit/d4c4db8a1833d07b1c03e4c062acea49c79bf5d6) | 2021-02-05  | `Allow users of the KPO to template environment variables (#14083)`        |
+| [10343ec29](https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda) | 2021-02-05  | `Corrections in docs and tools after releasing provider RCs (#14082)`      |
+
+
+### Release 2021.2.5
+
+| Commit                                                                                         | Committed   | Subject                                                                                  |
+|:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------------------------------|
+| [88bdcfa0d](https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43) | 2021-02-04  | `Prepare to release a new wave of providers. (#14013)`                                   |
+| [ac2f72c98](https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b) | 2021-02-01  | `Implement provider versioning tools (#13767)`                                           |
+| [a9ac2b040](https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22) | 2021-01-23  | `Switch to f-strings using flynt. (#13732)`                                              |
+| [1b9e3d1c2](https://github.com/apache/airflow/commit/1b9e3d1c285cb381f2f964c0c923711cd5e1e3d0) | 2021-01-22  | `Revert &#34;Fix error with quick-failing tasks in KubernetesPodOperator (#13621)&#34; (#13835)` |
+| [94d3ed61d](https://github.com/apache/airflow/commit/94d3ed61d60b134d649a4e9785b2d9c2a88cff05) | 2021-01-21  | `Fix error with quick-failing tasks in KubernetesPodOperator (#13621)`                   |
+| [3fd5ef355](https://github.com/apache/airflow/commit/3fd5ef355556cf0ad7896bb570bbe4b2eabbf46e) | 2021-01-21  | `Add missing logos for integrations (#13717)`                                            |
+| [295d66f91](https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a) | 2020-12-30  | `Fix Grammar in PIP warning (#13380)`                                                    |
+| [7a560ab6d](https://github.com/apache/airflow/commit/7a560ab6de7243e736b66599842b241ae60d1cda) | 2020-12-24  | `Pass image_pull_policy in KubernetesPodOperator correctly (#13289)`                     |
+| [6cf76d7ac](https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e) | 2020-12-18  | `Fix typo in pip upgrade command :( (#13148)`                                            |
+| [32971a1a2](https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f) | 2020-12-09  | `Updates providers versions to 1.0.0 (#12955)`                                           |
+| [b40dffa08](https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364) | 2020-12-08  | `Rename remaing modules to match AIP-21 (#12917)`                                        |
+| [9b39f2478](https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36) | 2020-12-08  | `Add support for dynamic connection form fields per provider (#12558)`                   |
+| [bd90136aa](https://github.com/apache/airflow/commit/bd90136aaf5035e3234fe545b79a3e4aad21efe2) | 2020-11-30  | `Move operator guides to provider documentation packages (#12681)`                       |
+| [2037303ee](https://github.com/apache/airflow/commit/2037303eef93fd36ab13746b045d1c1fee6aa143) | 2020-11-29  | `Adds support for Connection/Hook discovery from providers (#12466)`                     |
+| [de3b1e687](https://github.com/apache/airflow/commit/de3b1e687b26c524c6909b7b4dfbb60d25019751) | 2020-11-28  | `Move connection guides to provider documentation packages (#12653)`                     |
+| [c02a3f59e](https://github.com/apache/airflow/commit/c02a3f59e45d3cdd0e4c1c3bda2c62b951bcbea3) | 2020-11-23  | `Spark-on-k8s sensor logs - properly pass defined namespace to pod log call (#11199)`    |
+| [c34ef853c](https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2) | 2020-11-20  | `Separate out documentation building per provider  (#12444)`                             |
+| [9e089ab89](https://github.com/apache/airflow/commit/9e089ab89567b0a52b232f22ed3e708a05137924) | 2020-11-19  | `Fix Kube tests (#12479)`                                                                |
+| [d32fe78c0](https://github.com/apache/airflow/commit/d32fe78c0d9d14f016df70a462dc3972f28abe9d) | 2020-11-18  | `Update readmes for cncf.kube provider fixes (#12457)`                                   |
+| [d84a52dc8](https://github.com/apache/airflow/commit/d84a52dc8fc597d89c5bb4941df67f5f35b70a29) | 2020-11-18  | `Fix broken example_kubernetes DAG (#12455)`                                             |
+| [7c8b71d20](https://github.com/apache/airflow/commit/7c8b71d2012d56888f21b24c4844a6838dc3e4b1) | 2020-11-18  | `Fix backwards compatibility further (#12451)`                                           |
+| [008035450](https://github.com/apache/airflow/commit/00803545023b096b8db4fbd6eb473843096d7ce4) | 2020-11-18  | `Update provider READMEs for 1.0.0b2 batch release (#12449)`                             |
+| [7ca0b6f12](https://github.com/apache/airflow/commit/7ca0b6f121c9cec6e25de130f86a56d7c7fbe38c) | 2020-11-18  | `Enable Markdownlint rule MD003/heading-style/header-style (#12427) (#12438)`            |
+
+
+### Release 2020.11.23
+
+| Commit                                                                                         | Committed   | Subject                                                                        |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
+| [4873d9759](https://github.com/apache/airflow/commit/4873d9759dfdec1dd3663074f9e64ad69fa881cc) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427)             |
+| [763b40d22](https://github.com/apache/airflow/commit/763b40d223e5e5512494a97f8335e16960e6adc3) | 2020-11-18  | Raise correct Warning in kubernetes/backcompat/volume_mount.py (#12432)        |
+| [bc4bb3058](https://github.com/apache/airflow/commit/bc4bb30588607b10b069ab63ddf2ba7b7ee673ed) | 2020-11-18  | Fix docstrings for Kubernetes Backcompat module (#12422)                       |
+| [cab86d80d](https://github.com/apache/airflow/commit/cab86d80d48227849906319917126f6d558b2e00) | 2020-11-17  | Make K8sPodOperator backwards compatible (#12384)                              |
+| [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                 |
+| [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                         |
+| [221f809c1](https://github.com/apache/airflow/commit/221f809c1b4e4b78d5a437d012aa7daffd8410a4) | 2020-11-14  | Fix full_pod_spec for k8spodoperator (#12354)                                  |
+| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304)                                        |
+| [85a18e13d](https://github.com/apache/airflow/commit/85a18e13d9dec84275283ff69e34704b60d54a75) | 2020-11-09  | Point at pypi project pages for cross-dependency of provider packages (#12212) |
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)             |
+| [3f59e75cd](https://github.com/apache/airflow/commit/3f59e75cdf4a95829ac60b151135e03267e63a12) | 2020-11-09  | KubernetesPodOperator: use randomized name to get the failure status (#12171)  |
+| [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                                |
+| [7825be50d](https://github.com/apache/airflow/commit/7825be50d80d04da0db8fcee55df5e1339864c88) | 2020-11-05  | Randomize pod name (#12117)                                                    |
+| [91a64db50](https://github.com/apache/airflow/commit/91a64db505e50712cd53928b4f2b84aece3cc1c0) | 2020-11-04  | Format all files (without excepions) by black (#12091)                         |
+| [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                                  |
+| [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                              |
+| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                     |
+
+
 ### Release 2020.10.29
 
 | Commit                                                                                         | Committed   | Subject                                                                |
 |:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------------|
-| [b680bbc0b](https://github.com/apache/airflow/commit/b680bbc0b05ad71d403a5d58bc7023a2453b9a48) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29              |
+| [b680bbc0b](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29              |
 | [53e606210](https://github.com/apache/airflow/commit/53e6062105be0ae1761a354e2055eb0779d12e73) | 2020-10-21  | Enforce strict rules for yamllint (#11709)                             |
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                     |
 | [eee4e30f2](https://github.com/apache/airflow/commit/eee4e30f2caf02e16088ff5d1af1ea380a73e982) | 2020-10-15  | Add better debug logging to K8sexec and K8sPodOp (#11502)              |

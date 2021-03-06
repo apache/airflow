@@ -41,9 +41,9 @@ class TestBaseExecutor(unittest.TestCase):
         executor.event_buffer[key2] = state, None
         executor.event_buffer[key3] = state, None
 
-        self.assertEqual(len(executor.get_event_buffer(("my_dag1",))), 1)
-        self.assertEqual(len(executor.get_event_buffer()), 2)
-        self.assertEqual(len(executor.event_buffer), 0)
+        assert len(executor.get_event_buffer(("my_dag1",))) == 1
+        assert len(executor.get_event_buffer()) == 2
+        assert len(executor.event_buffer) == 0
 
     @mock.patch('airflow.executors.base_executor.BaseExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
@@ -71,4 +71,4 @@ class TestBaseExecutor(unittest.TestCase):
         key2 = TaskInstance(task=task_2, execution_date=date)
         key3 = TaskInstance(task=task_3, execution_date=date)
         tis = [key1, key2, key3]
-        self.assertEqual(BaseExecutor().try_adopt_task_instances(tis), tis)
+        assert BaseExecutor().try_adopt_task_instances(tis) == tis

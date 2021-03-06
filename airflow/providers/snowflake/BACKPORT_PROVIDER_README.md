@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-snowflake
 
-Release: 2020.10.29
+Release: 2021.3.3
 
 **Table of contents**
 
@@ -36,6 +36,9 @@ Release: 2020.10.29
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
+    - [Release 2021.3.3](#release-202133)
+    - [Release 2021.2.5](#release-202125)
+    - [Release 2020.11.23](#release-20201123)
     - [Release 2020.10.29](#release-20201029)
     - [Release 2020.10.5](#release-2020105)
     - [Release 2020.6.24](#release-2020624)
@@ -51,6 +54,19 @@ While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade pyth
 want to use this backport package.
 
 
+## Release 2021.3.3
+
+### Bug fixes
+
+* `Corrections in docs and tools after releasing provider RCs (#14082)`
+
+## Release 2021.2.5
+
+### Features
+
+  * `Fix S3ToSnowflakeOperator to support uploading all files in the specified stage (#12505)`
+  * `Add connection arguments in S3ToSnowflakeOperator (#12564)`
+
 
 ## Installation
 
@@ -59,10 +75,10 @@ You can install this package on top of an existing airflow 1.10.* installation v
 
 ## PIP requirements
 
-| PIP package                | Version required   |
-|:---------------------------|:-------------------|
-| snowflake-connector-python | &gt;=1.5.2            |
-| snowflake-sqlalchemy       | &gt;=1.1.0            |
+| PIP package                  | Version required   |
+|:-----------------------------|:-------------------|
+| `snowflake-connector-python` | `>=2.3.8`          |
+| `snowflake-sqlalchemy`       | `>=1.1.0`          |
 
 ## Cross provider package dependencies
 
@@ -77,7 +93,7 @@ pip install apache-airflow-backport-providers-snowflake[slack]
 
 | Dependent package                                                                                                | Extra   |
 |:-----------------------------------------------------------------------------------------------------------------|:--------|
-| [apache-airflow-backport-providers-slack](https://github.com/apache/airflow/tree/master/airflow/providers/slack) | slack   |
+| [apache-airflow-backport-providers-slack](https://github.com/apache/airflow/tree/master/airflow/providers/slack) | `slack` |
 
 # Provider classes summary
 
@@ -123,11 +139,61 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
+### Release 2021.3.3
+
+| Commit                                                                                         | Committed   | Subject                                                               |
+|:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------|
+| [10343ec29](https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda) | 2021-02-05  | `Corrections in docs and tools after releasing provider RCs (#14082)` |
+
+
+### Release 2021.2.5
+
+| Commit                                                                                         | Committed   | Subject                                                                                          |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------|
+| [88bdcfa0d](https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43) | 2021-02-04  | `Prepare to release a new wave of providers. (#14013)`                                           |
+| [ac2f72c98](https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b) | 2021-02-01  | `Implement provider versioning tools (#13767)`                                                   |
+| [a9ac2b040](https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22) | 2021-01-23  | `Switch to f-strings using flynt. (#13732)`                                                      |
+| [3fd5ef355](https://github.com/apache/airflow/commit/3fd5ef355556cf0ad7896bb570bbe4b2eabbf46e) | 2021-01-21  | `Add missing logos for integrations (#13717)`                                                    |
+| [85a3ce1a4](https://github.com/apache/airflow/commit/85a3ce1a47e0b84bac518e87481e92d266edea31) | 2021-01-18  | `Fix S3ToSnowflakeOperator to support uploading all files in the specified stage (#12505)`       |
+| [dbf751112](https://github.com/apache/airflow/commit/dbf751112f3f978b1e21ffb91d696035c5e0109c) | 2021-01-16  | `Add connection arguments in S3ToSnowflakeOperator (#12564)`                                     |
+| [295d66f91](https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a) | 2020-12-30  | `Fix Grammar in PIP warning (#13380)`                                                            |
+| [6cf76d7ac](https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e) | 2020-12-18  | `Fix typo in pip upgrade command :( (#13148)`                                                    |
+| [32971a1a2](https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f) | 2020-12-09  | `Updates providers versions to 1.0.0 (#12955)`                                                   |
+| [b40dffa08](https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364) | 2020-12-08  | `Rename remaing modules to match AIP-21 (#12917)`                                                |
+| [9b39f2478](https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36) | 2020-12-08  | `Add support for dynamic connection form fields per provider (#12558)`                           |
+| [bd90136aa](https://github.com/apache/airflow/commit/bd90136aaf5035e3234fe545b79a3e4aad21efe2) | 2020-11-30  | `Move operator guides to provider documentation packages (#12681)`                               |
+| [2037303ee](https://github.com/apache/airflow/commit/2037303eef93fd36ab13746b045d1c1fee6aa143) | 2020-11-29  | `Adds support for Connection/Hook discovery from providers (#12466)`                             |
+| [ef4af2135](https://github.com/apache/airflow/commit/ef4af2135171c6e451f1407ea1a280ea875f2175) | 2020-11-22  | `Move providers docs to separate package + Spell-check in a common job with docs-build (#12527)` |
+| [234d68938](https://github.com/apache/airflow/commit/234d689387ef89222bfdee481987c37d1e79b5af) | 2020-11-21  | `Fix S3ToSnowflakeOperator docstring (#12504)`                                                   |
+| [c34ef853c](https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2) | 2020-11-20  | `Separate out documentation building per provider  (#12444)`                                     |
+| [008035450](https://github.com/apache/airflow/commit/00803545023b096b8db4fbd6eb473843096d7ce4) | 2020-11-18  | `Update provider READMEs for 1.0.0b2 batch release (#12449)`                                     |
+| [7ca0b6f12](https://github.com/apache/airflow/commit/7ca0b6f121c9cec6e25de130f86a56d7c7fbe38c) | 2020-11-18  | `Enable Markdownlint rule MD003/heading-style/header-style (#12427) (#12438)`                    |
+
+
+### Release 2020.11.23
+
+| Commit                                                                                         | Committed   | Subject                                                                        |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
+| [4873d9759](https://github.com/apache/airflow/commit/4873d9759dfdec1dd3663074f9e64ad69fa881cc) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427)             |
+| [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                 |
+| [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                         |
+| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304)                                        |
+| [9276607b5](https://github.com/apache/airflow/commit/9276607b58bedfb2128c63fabec85d77e7dba07f) | 2020-11-12  | Add session_parameters option to snowflake_hook (#12071)                       |
+| [85a18e13d](https://github.com/apache/airflow/commit/85a18e13d9dec84275283ff69e34704b60d54a75) | 2020-11-09  | Point at pypi project pages for cross-dependency of provider packages (#12212) |
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)             |
+| [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                                |
+| [41bf172c1](https://github.com/apache/airflow/commit/41bf172c1dc75099f4f9d8b3f3350b4b1f523ef9) | 2020-11-04  | Simplify string expressions (#12093)                                           |
+| [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                                  |
+| [d363adb61](https://github.com/apache/airflow/commit/d363adb6187e9cba1d965f424c95058fa933df1f) | 2020-10-31  | Adding SnowflakeOperator howto-documentation and example DAG (#11975)          |
+| [ecc3a4df0](https://github.com/apache/airflow/commit/ecc3a4df0da67f258c3ad04733d6e561d8266c93) | 2020-10-30  | Add autocommit property for snowflake connection (#10838)                      |
+| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                     |
+
+
 ### Release 2020.10.29
 
 | Commit                                                                                         | Committed   | Subject                                                          |
 |:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------|
-| [b680bbc0b](https://github.com/apache/airflow/commit/b680bbc0b05ad71d403a5d58bc7023a2453b9a48) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29        |
+| [b680bbc0b](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29        |
 | [483068745](https://github.com/apache/airflow/commit/48306874538eea7cfd42358d5ebb59705204bfc4) | 2020-10-24  | Use Python 3 style super classes (#11806)                        |
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                               |
 | [16e712971](https://github.com/apache/airflow/commit/16e7129719f1c0940aef2a93bed81368e997a746) | 2020-10-13  | Added support for provider packages for Airflow 2.0 (#11487)     |

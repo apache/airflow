@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import tempfile
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from subprocess import check_output
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypeVar, Union, cast
 
@@ -34,13 +34,14 @@ import tenacity
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk
-from google.auth.environment_vars import CREDENTIALS
+from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
+from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
@@ -155,6 +156,48 @@ class GoogleBaseHook(BaseHook):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
+    conn_name_attr = 'gcp_conn_id'
+    default_conn_name = 'google_cloud_default'
+    conn_type = 'google_cloud_platform'
+    hook_name = 'Google Cloud'
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import IntegerField, PasswordField, StringField
+        from wtforms.validators import NumberRange
+
+        return {
+            "extra__google_cloud_platform__project": StringField(
+                lazy_gettext('Project Id'), widget=BS3TextFieldWidget()
+            ),
+            "extra__google_cloud_platform__key_path": StringField(
+                lazy_gettext('Keyfile Path'), widget=BS3TextFieldWidget()
+            ),
+            "extra__google_cloud_platform__keyfile_dict": PasswordField(
+                lazy_gettext('Keyfile JSON'), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__google_cloud_platform__scope": StringField(
+                lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
+            ),
+            "extra__google_cloud_platform__num_retries": IntegerField(
+                lazy_gettext('Number of Retries'),
+                validators=[NumberRange(min=0)],
+                widget=BS3TextFieldWidget(),
+                default=5,
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "relabeling": {},
+        }
+
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
@@ -211,6 +254,23 @@ class GoogleBaseHook(BaseHook):
     def _get_access_token(self) -> str:
         """Returns a valid access token from Google API Credentials"""
         return self._get_credentials().token
+
+    @functools.lru_cache(maxsize=None)
+    def _get_credentials_email(self) -> str:
+        """
+        Returns the email address associated with the currently logged in account
+
+        If a service account is used, it returns the service account.
+        If user authentication (e.g. gcloud auth) is used, it returns the e-mail account of that user.
+        """
+        credentials = self._get_credentials()
+        service_account_email = getattr(credentials, 'service_account_email', None)
+        if service_account_email:
+            return service_account_email
+
+        http_authorized = self._authorize()
+        oauth2_client = discovery.build('oauth2', "v1", http=http_authorized, cache_discovery=False)
+        return oauth2_client.tokeninfo().execute()['email']  # pylint: disable=no-member
 
     def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
         """
@@ -350,7 +410,7 @@ class GoogleBaseHook(BaseHook):
         def inner_wrapper(self: GoogleBaseHook, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
-                    "You must use keyword arguments in this methods rather than" " positional"
+                    "You must use keyword arguments in this methods rather than positional"
                 )
             if 'project_id' in kwargs:
                 kwargs['project_id'] = kwargs['project_id'] or self.project_id
@@ -432,12 +492,11 @@ class GoogleBaseHook(BaseHook):
         credentials_path = _cloud_sdk.get_application_default_credentials_path()
         project_id = self.project_id
 
-        # fmt: off
-        with self.provide_gcp_credential_file_as_context(), \
-                tempfile.TemporaryDirectory() as gcloud_config_tmp, \
-                patch_environ({'CLOUDSDK_CONFIG': gcloud_config_tmp}):
+        with ExitStack() as exit_stack:
+            exit_stack.enter_context(self.provide_gcp_credential_file_as_context())
+            gcloud_config_tmp = exit_stack.enter_context(tempfile.TemporaryDirectory())
+            exit_stack.enter_context(patch_environ({CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}))
 
-            # fmt: on
             if project_id:
                 # Don't display stdout/stderr for security reason
                 check_output(["gcloud", "config", "set", "core/project", project_id])
@@ -445,7 +504,12 @@ class GoogleBaseHook(BaseHook):
                 # This solves most cases when we are logged in using the service key in Airflow.
                 # Don't display stdout/stderr for security reason
                 check_output(
-                    ["gcloud", "auth", "activate-service-account", f"--key-file={os.environ[CREDENTIALS]}",]
+                    [
+                        "gcloud",
+                        "auth",
+                        "activate-service-account",
+                        f"--key-file={os.environ[CREDENTIALS]}",
+                    ]
                 )
             elif os.path.exists(credentials_path):
                 # If we are logged in by `gcloud auth application-default` then we need to log in manually.

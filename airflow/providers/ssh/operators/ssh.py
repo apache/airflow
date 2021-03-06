@@ -87,7 +87,7 @@ class SSHOperator(BaseOperator):
                     self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
                 else:
                     self.log.info(
-                        "ssh_hook is not provided or invalid. " "Trying ssh_conn_id to create SSHHook."
+                        "ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook."
                     )
                     self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, timeout=self.timeout)
 
@@ -138,11 +138,11 @@ class SSHOperator(BaseOperator):
                         if recv.recv_ready():
                             line = stdout.channel.recv(len(recv.in_buffer))
                             agg_stdout += line
-                            self.log.info(line.decode('utf-8').strip('\n'))
+                            self.log.info(line.decode('utf-8', 'replace').strip('\n'))
                         if recv.recv_stderr_ready():
                             line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
                             agg_stderr += line
-                            self.log.warning(line.decode('utf-8').strip('\n'))
+                            self.log.warning(line.decode('utf-8', 'replace').strip('\n'))
                     if (
                         stdout.channel.exit_status_ready()
                         and not stderr.channel.recv_stderr_ready()
@@ -168,7 +168,7 @@ class SSHOperator(BaseOperator):
                     raise AirflowException(f"error running cmd: {self.command}, error: {error_msg}")
 
         except Exception as e:
-            raise AirflowException("SSH operator error: {}".format(str(e)))
+            raise AirflowException(f"SSH operator error: {str(e)}")
 
         return True
 

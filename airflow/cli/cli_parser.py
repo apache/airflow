@@ -26,13 +26,11 @@ from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Union
 
-from tabulate import tabulate_formats
-
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
 from airflow.utils.cli import ColorMode
 from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
@@ -60,7 +58,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
     def _check_value(self, action, value):
         """Override _check_value and check conditionally added command"""
         executor = conf.get('core', 'EXECUTOR')
-        if value == 'celery' and executor != ExecutorLoader.CELERY_EXECUTOR:
+        if value == 'celery' and executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
             message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
             raise ArgumentError(action, message)
         if value == 'kubernetes':
@@ -91,7 +89,7 @@ _UNSET = object()
 class Arg:
     """Class to keep information about command line argument"""
 
-    # pylint: disable=redefined-builtin,unused-argument
+    # pylint: disable=redefined-builtin,unused-argument,too-many-arguments
     def __init__(
         self,
         flags=_UNSET,
@@ -103,6 +101,7 @@ class Arg:
         choices=_UNSET,
         required=_UNSET,
         metavar=_UNSET,
+        dest=_UNSET,
     ):
         self.flags = flags
         self.kwargs = {}
@@ -114,22 +113,28 @@ class Arg:
 
             self.kwargs[k] = v
 
-    # pylint: enable=redefined-builtin,unused-argument
+    # pylint: enable=redefined-builtin,unused-argument,too-many-arguments
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
         """Add this argument to an ArgumentParser"""
         parser.add_argument(*self.flags, **self.kwargs)
 
 
-def positive_int(value):
+def positive_int(*, allow_zero):
     """Define a positive int type for an argument."""
-    try:
-        value = int(value)
-        if value > 0:
-            return value
-    except ValueError:
-        pass
-    raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
+
+    def _check(value):
+        try:
+            value = int(value)
+            if allow_zero and value == 0:
+                return value
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+        raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
+
+    return _check
 
 
 # Shared
@@ -175,14 +180,14 @@ ARG_YES = Arg(
     ("-y", "--yes"), help="Do not prompt to confirm reset. Use with care!", action="store_true", default=False
 )
 ARG_OUTPUT = Arg(
-    ("--output",),
-    help=(
-        "Output table format. The specified value is passed to "
-        "the tabulate module (https://pypi.org/project/tabulate/). "
+    (
+        "-o",
+        "--output",
     ),
-    metavar="FORMAT",
-    choices=tabulate_formats,
-    default="plain",
+    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
+    default="table",
 )
 ARG_COLOR = Arg(
     ('--color',),
@@ -205,7 +210,7 @@ ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
 ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
-    type=positive_int,
+    type=positive_int(allow_zero=False),
     help="The number of next execution datetimes to show",
 )
 
@@ -304,13 +309,21 @@ ARG_IMGCAT_DAGRUN = Arg(
 )
 ARG_SAVE_DAGRUN = Arg(
     ("--save-dagrun",),
-    help=(
-        "After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n" "\n"
-    ),
+    help="After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n",
 )
 
 # list_tasks
 ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
+
+# tasks_run
+# This is a hidden option -- not meant for users to set or know about
+ARG_SHUT_DOWN_LOGGING = Arg(
+    ("--no-shut-down-logging",),
+    help=argparse.SUPPRESS,
+    dest="shut_down_logging",
+    action="store_false",
+    default=True,
+)
 
 # clear
 ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="store_true")
@@ -330,7 +343,7 @@ ARG_DAG_REGEX = Arg(
 # show_dag
 ARG_SAVE = Arg(("-s", "--save"), help="Saves the result to the indicated file.")
 
-ARG_IMGCAT = Arg(("--imgcat",), help=("Displays graph using the imgcat tool."), action='store_true')
+ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", action='store_true')
 
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
@@ -365,7 +378,7 @@ ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs='?', default=conf.get(
 # instead.
 ARG_INTERACTIVE = Arg(
     ('-N', '--interactive'),
-    help='Do not capture standard output and error streams ' '(useful for interactive debugging)',
+    help='Do not capture standard output and error streams (useful for interactive debugging)',
     action='store_true',
 )
 ARG_FORCE = Arg(
@@ -398,6 +411,7 @@ ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
 )
 ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entire dag (used internally)")
+ARG_ERROR_FILE = Arg(("--error-file",), help="File to store task failure error")
 ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
 ARG_MIGRATION_TIMEOUT = Arg(
@@ -453,12 +467,17 @@ ARG_DEBUG = Arg(
 ARG_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
     default=conf.get('webserver', 'ACCESS_LOGFILE'),
-    help="The logfile to store the webserver access log. Use '-' to print to " "stderr",
+    help="The logfile to store the webserver access log. Use '-' to print to stderr",
 )
 ARG_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
     default=conf.get('webserver', 'ERROR_LOGFILE'),
-    help="The logfile to store the webserver error log. Use '-' to print to " "stderr",
+    help="The logfile to store the webserver error log. Use '-' to print to stderr",
+)
+ARG_ACCESS_LOGFORMAT = Arg(
+    ("-L", "--access-logformat"),
+    default=conf.get('webserver', 'ACCESS_LOGFORMAT'),
+    help="The access log format for gunicorn logs",
 )
 
 # scheduler
@@ -493,7 +512,7 @@ ARG_CONCURRENCY = Arg(
 )
 ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
-    help=("Set the hostname of celery worker " "if you have multiple workers on a single machine"),
+    help="Set the hostname of celery worker if you have multiple workers on a single machine",
 )
 ARG_UMASK = Arg(
     ("-u", "--umask"),
@@ -548,6 +567,9 @@ ARG_CONN_URI = Arg(
 ARG_CONN_TYPE = Arg(
     ('--conn-type',), help='Connection type, required to add a connection without conn_uri', type=str
 )
+ARG_CONN_DESCRIPTION = Arg(
+    ('--conn-description',), help='Connection description, optional when adding a connection', type=str
+)
 ARG_CONN_HOST = Arg(('--conn-host',), help='Connection host, optional when adding a connection', type=str)
 ARG_CONN_LOGIN = Arg(('--conn-login',), help='Connection login, optional when adding a connection', type=str)
 ARG_CONN_PASSWORD = Arg(
@@ -568,6 +590,18 @@ ARG_CONN_EXPORT = Arg(
 ARG_CONN_EXPORT_FORMAT = Arg(
     ('--format',), help='Format of the connections data in file', type=str, choices=['json', 'yaml', 'env']
 )
+
+# providers
+ARG_PROVIDER_NAME = Arg(
+    ('provider_name',), help='Provider name, required to get provider information', type=str
+)
+ARG_FULL = Arg(
+    ('-f', '--full'),
+    help='Full information about the provider, including documentation information.',
+    required=False,
+    action="store_true",
+)
+
 # users
 ARG_USERNAME = Arg(('-u', '--username'), help='Username of the user', required=True, type=str)
 ARG_USERNAME_OPTIONAL = Arg(('-u', '--username'), help='Username of the user', type=str)
@@ -575,7 +609,7 @@ ARG_FIRSTNAME = Arg(('-f', '--firstname'), help='First name of the user', requir
 ARG_LASTNAME = Arg(('-l', '--lastname'), help='Last name of the user', required=True, type=str)
 ARG_ROLE = Arg(
     ('-r', '--role'),
-    help='Role of the user. Existing roles include Admin, ' 'User, Op, Viewer, and Public',
+    help='Role of the user. Existing roles include Admin, User, Op, Viewer, and Public',
     required=True,
     type=str,
 )
@@ -583,7 +617,7 @@ ARG_EMAIL = Arg(('-e', '--email'), help='Email of the user', required=True, type
 ARG_EMAIL_OPTIONAL = Arg(('-e', '--email'), help='Email of the user', type=str)
 ARG_PASSWORD = Arg(
     ('-p', '--password'),
-    help='Password of the user, required to create a user ' 'without --use-random-password',
+    help='Password of the user, required to create a user without --use-random-password',
     type=str,
 )
 ARG_USE_RANDOM_PASSWORD = Arg(
@@ -630,11 +664,11 @@ ARG_SKIP_SERVE_LOGS = Arg(
 # info
 ARG_ANONYMIZE = Arg(
     ('--anonymize',),
-    help=('Minimize any personal identifiable information. ' 'Use it when sharing output with others.'),
+    help='Minimize any personal identifiable information. Use it when sharing output with others.',
     action='store_true',
 )
 ARG_FILE_IO = Arg(
-    ('--file-io',), help=('Send output to file.io service and returns link.'), action='store_true'
+    ('--file-io',), help='Send output to file.io service and returns link.', action='store_true'
 )
 
 # config
@@ -654,8 +688,37 @@ ARG_NAMESPACE = Arg(
     help="Kubernetes Namespace",
 )
 
+# jobs check
+ARG_JOB_TYPE_FILTER = Arg(
+    ('--job-type',),
+    choices=('BackfillJob', 'LocalTaskJob', 'SchedulerJob'),
+    action='store',
+    help='The type of job(s) that will be checked.',
+)
+
+ARG_JOB_HOSTNAME_FILTER = Arg(
+    ("--hostname",),
+    default=None,
+    type=str,
+    help="The hostname of job(s) that will be checked.",
+)
+
+ARG_JOB_LIMIT = Arg(
+    ("--limit",),
+    default=1,
+    type=positive_int(allow_zero=True),
+    help="The number of recent jobs that will be checked. To disable limit, set 0. ",
+)
+
+ARG_ALLOW_MULTIPLE = Arg(
+    ("--allow-multiple",),
+    action='store_true',
+    help="If passed, this command will be successful even if multiple matching alive jobs are found.",
+)
+
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
+    ARG_CONN_DESCRIPTION,
     ARG_CONN_HOST,
     ARG_CONN_LOGIN,
     ARG_CONN_PASSWORD,
@@ -693,13 +756,13 @@ DAGS_COMMANDS = (
         name='list',
         help="List all the DAGs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dags'),
-        args=(ARG_SUBDIR, ARG_OUTPUT),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='report',
         help='Show DagBag loading report',
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_report'),
-        args=(ARG_SUBDIR, ARG_OUTPUT),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='list-runs',
@@ -712,13 +775,21 @@ DAGS_COMMANDS = (
             "all the dagruns that were executed after this date. "
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_dag_runs'),
-        args=(ARG_DAG_ID_OPT, ARG_NO_BACKFILL, ARG_STATE, ARG_OUTPUT, ARG_START_DATE, ARG_END_DATE),
+        args=(
+            ARG_DAG_ID_OPT,
+            ARG_NO_BACKFILL,
+            ARG_STATE,
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+            ARG_START_DATE,
+            ARG_END_DATE,
+        ),
     ),
     ActionCommand(
         name='list-jobs',
         help="List the jobs",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
-        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT),
+        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='state',
@@ -859,7 +930,7 @@ TASKS_COMMANDS = (
         name='list',
         help="List the tasks within a DAG",
         func=lazy_load_command('airflow.cli.commands.task_command.task_list'),
-        args=(ARG_DAG_ID, ARG_TREE, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_TREE, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name='clear',
@@ -885,7 +956,7 @@ TASKS_COMMANDS = (
         name='state',
         help="Get the status of a task instance",
         func=lazy_load_command('airflow.cli.commands.task_command.task_state'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name='failed-deps',
@@ -902,7 +973,7 @@ TASKS_COMMANDS = (
         name='render',
         help="Render a task instance's template(s)",
         func=lazy_load_command('airflow.cli.commands.task_command.task_render'),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name='run',
@@ -926,6 +997,8 @@ TASKS_COMMANDS = (
             ARG_PICKLE,
             ARG_JOB_ID,
             ARG_INTERACTIVE,
+            ARG_ERROR_FILE,
+            ARG_SHUT_DOWN_LOGGING,
         ),
     ),
     ActionCommand(
@@ -951,7 +1024,7 @@ TASKS_COMMANDS = (
         name='states-for-dag-run',
         help="Get the status of all task instances in a dag run",
         func=lazy_load_command('airflow.cli.commands.task_command.task_states_for_dag_run'),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_OUTPUT),
+        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 POOLS_COMMANDS = (
@@ -959,54 +1032,37 @@ POOLS_COMMANDS = (
         name='list',
         help='List pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='get',
         help='Get pool size',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_get'),
-        args=(
-            ARG_POOL_NAME,
-            ARG_OUTPUT,
-        ),
+        args=(ARG_POOL_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='set',
         help='Configure pool',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_set'),
-        args=(
-            ARG_POOL_NAME,
-            ARG_POOL_SLOTS,
-            ARG_POOL_DESCRIPTION,
-            ARG_OUTPUT,
-        ),
+        args=(ARG_POOL_NAME, ARG_POOL_SLOTS, ARG_POOL_DESCRIPTION, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='delete',
         help='Delete pool',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_delete'),
-        args=(
-            ARG_POOL_NAME,
-            ARG_OUTPUT,
-        ),
+        args=(ARG_POOL_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='import',
         help='Import pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
-        args=(
-            ARG_POOL_IMPORT,
-            ARG_OUTPUT,
-        ),
+        args=(ARG_POOL_IMPORT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='export',
         help='Export all pools',
         func=lazy_load_command('airflow.cli.commands.pool_command.pool_export'),
-        args=(
-            ARG_POOL_EXPORT,
-            ARG_OUTPUT,
-        ),
+        args=(ARG_POOL_EXPORT,),
     ),
 )
 VARIABLES_COMMANDS = (
@@ -1014,13 +1070,13 @@ VARIABLES_COMMANDS = (
         name='list',
         help='List variables',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_list'),
-        args=(),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='get',
         help='Get variable',
         func=lazy_load_command('airflow.cli.commands.variable_command.variables_get'),
-        args=(ARG_VAR, ARG_JSON, ARG_DEFAULT),
+        args=(ARG_VAR, ARG_JSON, ARG_DEFAULT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='set',
@@ -1057,7 +1113,7 @@ DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
         help="Check if migration have finished",
-        description=("Check if migration have finished (or continually check until timeout)"),
+        description="Check if migration have finished (or continually check until timeout)",
         func=lazy_load_command('airflow.cli.commands.db_command.check_migrations'),
         args=(ARG_MIGRATION_TIMEOUT,),
     ),
@@ -1091,13 +1147,13 @@ CONNECTIONS_COMMANDS = (
         name='get',
         help='Get a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_get'),
-        args=(ARG_CONN_ID, ARG_COLOR),
+        args=(ARG_CONN_ID, ARG_COLOR, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='list',
         help='List connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
-        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_CONN_ID_FILTER),
     ),
     ActionCommand(
         name='add',
@@ -1109,7 +1165,7 @@ CONNECTIONS_COMMANDS = (
         name='delete',
         help='Delete a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
-        args=(ARG_CONN_ID,),
+        args=(ARG_CONN_ID, ARG_COLOR),
     ),
     ActionCommand(
         name='export',
@@ -1133,12 +1189,54 @@ CONNECTIONS_COMMANDS = (
         ),
     ),
 )
+PROVIDERS_COMMANDS = (
+    ActionCommand(
+        name='list',
+        help='List installed providers',
+        func=lazy_load_command('airflow.cli.commands.provider_command.providers_list'),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='get',
+        help='Get detailed information about a provider',
+        func=lazy_load_command('airflow.cli.commands.provider_command.provider_get'),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_FULL, ARG_COLOR, ARG_PROVIDER_NAME),
+    ),
+    ActionCommand(
+        name='links',
+        help='List extra links registered by the providers',
+        func=lazy_load_command('airflow.cli.commands.provider_command.extra_links_list'),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='widgets',
+        help='Get information about registered connection form widgets',
+        func=lazy_load_command('airflow.cli.commands.provider_command.connection_form_widget_list'),
+        args=(
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name='hooks',
+        help='List registered provider hooks',
+        func=lazy_load_command('airflow.cli.commands.provider_command.hooks_list'),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='behaviours',
+        help='Get information about registered connection types with custom behaviours',
+        func=lazy_load_command('airflow.cli.commands.provider_command.connection_field_behaviours'),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+)
+
 USERS_COMMANDS = (
     ActionCommand(
         name='list',
         help='List users',
         func=lazy_load_command('airflow.cli.commands.user_command.users_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='create',
@@ -1201,13 +1299,13 @@ ROLES_COMMANDS = (
         name='list',
         help='List roles',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_list'),
-        args=(ARG_OUTPUT,),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name='create',
         help='Create role',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_create'),
-        args=(ARG_ROLES,),
+        args=(ARG_ROLES, ARG_VERBOSE),
     ),
 )
 
@@ -1290,6 +1388,25 @@ KUBERNETES_COMMANDS = (
     ),
 )
 
+JOBS_COMMANDS = (
+    ActionCommand(
+        name='check',
+        help="Checks if job(s) are still alive",
+        func=lazy_load_command('airflow.cli.commands.jobs_command.check'),
+        args=(ARG_JOB_TYPE_FILTER, ARG_JOB_HOSTNAME_FILTER, ARG_JOB_LIMIT, ARG_ALLOW_MULTIPLE),
+        epilog=(
+            'examples:\n'
+            'To check if the local scheduler is still working properly, run:\n'
+            '\n'
+            '    $ airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"\n'
+            '\n'
+            'To check if any scheduler is running when you are using high availability, run:\n'
+            '\n'
+            '    $ airflow jobs check --job-type SchedulerJob --allow-multiple --limit 100'
+        ),
+    ),
+)
+
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
@@ -1313,6 +1430,11 @@ airflow_commands: List[CLICommand] = [
         name='variables',
         help="Manage variables",
         subcommands=VARIABLES_COMMANDS,
+    ),
+    GroupCommand(
+        name='jobs',
+        help="Manage jobs",
+        subcommands=JOBS_COMMANDS,
     ),
     GroupCommand(
         name='db',
@@ -1341,6 +1463,7 @@ airflow_commands: List[CLICommand] = [
             ARG_STDERR,
             ARG_ACCESS_LOGFILE,
             ARG_ERROR_LOGFILE,
+            ARG_ACCESS_LOGFORMAT,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
@@ -1361,6 +1484,14 @@ airflow_commands: List[CLICommand] = [
             ARG_STDERR,
             ARG_LOG_FILE,
         ),
+        epilog=(
+            'Signals:\n'
+            '\n'
+            '  - SIGUSR2: Dump a snapshot of task state being tracked by the executor.\n'
+            '\n'
+            '    Example:\n'
+            '        pkill -f -USR2 "airflow scheduler"'
+        ),
     ),
     ActionCommand(
         name='version',
@@ -1372,12 +1503,17 @@ airflow_commands: List[CLICommand] = [
         name='cheat-sheet',
         help="Display cheat sheet",
         func=lazy_load_command('airflow.cli.commands.cheat_sheet_command.cheat_sheet'),
-        args=(),
+        args=(ARG_VERBOSE,),
     ),
     GroupCommand(
         name='connections',
         help="Manage connections",
         subcommands=CONNECTIONS_COMMANDS,
+    ),
+    GroupCommand(
+        name='providers',
+        help="Display providers",
+        subcommands=PROVIDERS_COMMANDS,
     ),
     GroupCommand(
         name='users',
@@ -1401,7 +1537,7 @@ airflow_commands: List[CLICommand] = [
         help='Rotate encrypted connection credentials and variables',
         description=(
             'Rotate all encrypted connection credentials and variables; see '
-            'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
+            'https://airflow.apache.org/docs/apache-airflow/stable/howto/secure-connections.html'
             '#rotating-encryption-keys'
         ),
         args=(),
@@ -1414,20 +1550,21 @@ airflow_commands: List[CLICommand] = [
         args=(
             ARG_ANONYMIZE,
             ARG_FILE_IO,
+            ARG_VERBOSE,
         ),
     ),
     ActionCommand(
         name='plugins',
         help='Dump information about loaded plugins',
         func=lazy_load_command('airflow.cli.commands.plugins_command.dump_plugins'),
-        args=(),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     GroupCommand(
         name="celery",
         help='Celery components',
         description=(
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
-            'https://airflow.readthedocs.io/en/stable/executor/celery.html'
+            'https://airflow.apache.org/docs/apache-airflow/stable/executor/celery.html'
         ),
         subcommands=CELERY_COMMANDS,
     ),

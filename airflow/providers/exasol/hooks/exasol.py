@@ -17,12 +17,12 @@
 # under the License.
 
 from contextlib import closing
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pyexasol
 from pyexasol import ExaConnection
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class ExasolHook(DbApiHook):
@@ -38,6 +38,8 @@ class ExasolHook(DbApiHook):
 
     conn_name_attr = 'exasol_conn_id'
     default_conn_name = 'exasol_default'
+    conn_type = 'exasol'
+    hook_name = 'Exasol'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
@@ -105,6 +107,37 @@ class ExasolHook(DbApiHook):
         with closing(self.get_conn()) as conn:
             with closing(conn.execute(sql, parameters)) as cur:
                 return cur.fetchone()
+
+    def export_to_file(
+        self,
+        filename: str,
+        query_or_table: str,
+        query_params: Optional[Dict] = None,
+        export_params: Optional[Dict] = None,
+    ) -> None:
+        """
+        Exports data to a file.
+
+        :param filename: Path to the file to which the data has to be exported
+        :type filename: str
+        :param query_or_table: the sql statement to be executed or table name to export
+        :type query_or_table: str
+        :param query_params: Query parameters passed to underlying ``export_to_file``
+            method of :class:`~pyexasol.connection.ExaConnection`.
+        :type query_params: dict
+        :param export_params: Extra parameters passed to underlying ``export_to_file``
+            method of :class:`~pyexasol.connection.ExaConnection`.
+        :type export_params: dict
+        """
+        self.log.info("Getting data from exasol")
+        with closing(self.get_conn()) as conn:
+            conn.export_to_file(
+                dst=filename,
+                query_or_table=query_or_table,
+                query_params=query_params,
+                export_params=export_params,
+            )
+        self.log.info("Data saved to %s", filename)
 
     def run(self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None) -> None:
         """

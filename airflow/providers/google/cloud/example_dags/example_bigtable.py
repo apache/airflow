@@ -60,22 +60,22 @@ from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplica
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = getenv('GCP_PROJECT_ID', 'example-project')
-CBT_INSTANCE_ID = getenv('CBT_INSTANCE_ID', 'some-instance-id')
-CBT_INSTANCE_DISPLAY_NAME = getenv('CBT_INSTANCE_DISPLAY_NAME', 'Human-readable name')
+CBT_INSTANCE_ID = getenv('GCP_BIG_TABLE_INSTANCE_ID', 'some-instance-id')
+CBT_INSTANCE_DISPLAY_NAME = getenv('GCP_BIG_TABLE_INSTANCE_DISPLAY_NAME', 'Human-readable name')
 CBT_INSTANCE_DISPLAY_NAME_UPDATED = getenv(
-    "CBT_INSTANCE_DISPLAY_NAME_UPDATED", "Human-readable name - updated"
+    "GCP_BIG_TABLE_INSTANCE_DISPLAY_NAME_UPDATED", f"{CBT_INSTANCE_DISPLAY_NAME} - updated"
 )
-CBT_INSTANCE_TYPE = getenv('CBT_INSTANCE_TYPE', '2')
-CBT_INSTANCE_TYPE_PROD = getenv('CBT_INSTANCE_TYPE_PROD', '1')
-CBT_INSTANCE_LABELS = getenv('CBT_INSTANCE_LABELS', '{}')
-CBT_INSTANCE_LABELS_UPDATED = getenv('CBT_INSTANCE_LABELS', '{"env": "prod"}')
-CBT_CLUSTER_ID = getenv('CBT_CLUSTER_ID', 'some-cluster-id')
-CBT_CLUSTER_ZONE = getenv('CBT_CLUSTER_ZONE', 'europe-west1-b')
-CBT_CLUSTER_NODES = getenv('CBT_CLUSTER_NODES', '3')
-CBT_CLUSTER_NODES_UPDATED = getenv('CBT_CLUSTER_NODES_UPDATED', '5')
-CBT_CLUSTER_STORAGE_TYPE = getenv('CBT_CLUSTER_STORAGE_TYPE', '2')
-CBT_TABLE_ID = getenv('CBT_TABLE_ID', 'some-table-id')
-CBT_POKE_INTERVAL = getenv('CBT_POKE_INTERVAL', '60')
+CBT_INSTANCE_TYPE = getenv('GCP_BIG_TABLE_INSTANCE_TYPE', '2')
+CBT_INSTANCE_TYPE_PROD = getenv('GCP_BIG_TABLE_INSTANCE_TYPE_PROD', '1')
+CBT_INSTANCE_LABELS = getenv('GCP_BIG_TABLE_INSTANCE_LABELS', '{}')
+CBT_INSTANCE_LABELS_UPDATED = getenv('GCP_BIG_TABLE_INSTANCE_LABELS_UPDATED', '{"env": "prod"}')
+CBT_CLUSTER_ID = getenv('GCP_BIG_TABLE_CLUSTER_ID', 'some-cluster-id')
+CBT_CLUSTER_ZONE = getenv('GCP_BIG_TABLE_CLUSTER_ZONE', 'europe-west1-b')
+CBT_CLUSTER_NODES = getenv('GCP_BIG_TABLE_CLUSTER_NODES', '3')
+CBT_CLUSTER_NODES_UPDATED = getenv('GCP_BIG_TABLE_CLUSTER_NODES_UPDATED', '5')
+CBT_CLUSTER_STORAGE_TYPE = getenv('GCP_BIG_TABLE_CLUSTER_STORAGE_TYPE', '2')
+CBT_TABLE_ID = getenv('GCP_BIG_TABLE_TABLE_ID', 'some-table-id')
+CBT_POKE_INTERVAL = getenv('GCP_BIG_TABLE_POKE_INTERVAL', '60')
 
 
 with models.DAG(
@@ -93,8 +93,8 @@ with models.DAG(
         instance_display_name=CBT_INSTANCE_DISPLAY_NAME,
         instance_type=int(CBT_INSTANCE_TYPE),
         instance_labels=json.loads(CBT_INSTANCE_LABELS),
-        cluster_nodes=int(CBT_CLUSTER_NODES),
-        cluster_storage_type=CBT_CLUSTER_STORAGE_TYPE,
+        cluster_nodes=None,
+        cluster_storage_type=int(CBT_CLUSTER_STORAGE_TYPE),
         task_id='create_instance_task',
     )
     create_instance_task2 = BigtableCreateInstanceOperator(

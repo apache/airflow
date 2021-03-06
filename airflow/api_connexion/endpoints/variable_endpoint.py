@@ -85,7 +85,7 @@ def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -
             raise BadRequest("No field to update")
 
     Variable.set(data["key"], data["val"])
-    return Response(status=204)
+    return variable_schema.dump(data)
 
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])

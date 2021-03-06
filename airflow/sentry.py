@@ -97,7 +97,7 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                 sentry_config_opts.pop("sentry_on")
                 old_way_dsn = sentry_config_opts.pop("sentry_dsn", None)
                 new_way_dsn = sentry_config_opts.pop("dsn", None)
-                # supported backward compability with old way dsn option
+                # supported backward compatibility with old way dsn option
                 dsn = old_way_dsn or new_way_dsn
 
                 unsupported_options = self.UNSUPPORTED_SENTRY_OPTIONS.intersection(sentry_config_opts.keys())

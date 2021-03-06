@@ -29,8 +29,8 @@ GCP_CONN_ID = "google_cloud_default"
 
 
 class TestGoogleSearchAdsInsertReportOperator(TestCase):
-    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.GoogleSearchAdsHook")
-    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.BaseOperator")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
     @mock.patch(
         "airflow.providers.google.marketing_platform."
         "operators.search_ads.GoogleSearchAdsInsertReportOperator.xcom_push"
@@ -65,10 +65,10 @@ class TestGoogleSearchAdsInsertReportOperator(TestCase):
 
 
 class TestGoogleSearchAdsDownloadReportOperator(TestCase):
-    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.NamedTemporaryFile")
-    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.GCSHook")
-    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.GoogleSearchAdsHook")
-    @mock.patch("airflow.providers.google.marketing_platform." "operators.search_ads.BaseOperator")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.NamedTemporaryFile")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GCSHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
     @mock.patch(
         "airflow.providers.google.marketing_platform."
         "operators.search_ads.GoogleSearchAdsDownloadReportOperator.xcom_push"

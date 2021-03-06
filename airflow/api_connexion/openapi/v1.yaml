@@ -22,7 +22,7 @@ info:
   description: |
     # Overview
 
-    To facilitate management, the Apache Airflow supports a range of REST API endpoints across its
+    To facilitate management, Apache Airflow supports a range of REST API endpoints across its
     objects.
     This section provides an overview of the API design, methods, and supported use cases.
 
@@ -57,7 +57,7 @@ info:
 
     ### Read
 
-    An HTTP `GET` request can be used to read a resource or to list a number of resources.
+    The HTTP `GET` request can be used to read a resource or to list a number of resources.
 
     A resource's `id` can be submitted in the request parameters to read a specific resource.
     The response usually returns a `200 OK` response code upon success, with the resource's metadata in
@@ -90,6 +90,7 @@ info:
     The response usually returns a `204 No Content` response code upon success.
 
     ## Conventions
+
     - Resource names are plural and expressed in camelCase.
     - Names are consistent between URL parameter name and field name.
 
@@ -104,7 +105,9 @@ info:
         "open_slots": 0
     }
     ```
+
     ### Update Mask
+
     Update mask is available as a query parameter in patch endpoints. It is used to notify the
     API which fields you want to update. Using `update_mask` makes it easier to update objects
     by helping the server know which fields to update in an object instead of updating all fields.
@@ -128,14 +131,16 @@ info:
 
     | Airflow version | Description |
     |-|-|
-    | v2.0 | Initial releaase |
+    | v2.0 | Initial release |
+    | v2.0.2    | Added /plugins endpoint |
 
     # Trying the API
+
     You can use a third party client, such as [curl](https://curl.haxx.se/), [HTTPie](https://httpie.org/),
-    [Postman](https://www.postman.com/) or the [Insomnia rest client](https://insomnia.rest/) to test
+    [Postman](https://www.postman.com/) or [the Insomnia rest client](https://insomnia.rest/) to test
     the Apache Airflow API.
 
-    Note that you will need to passcredentials data.
+    Note that you will need to pass credentials data.
 
     For e.g., here is how to pause a DAG with [curl](https://curl.haxx.se/), when basic authorization is used:
     ```bash
@@ -149,6 +154,7 @@ info:
 
     Using a graphical tool such as [Postman](https://www.postman.com/) or [Insomnia](https://insomnia.rest/),
     it is possible to import the API specifications directly:
+
     1. Download the API specification by clicking the **Download** button at top of this document
     2. Import the JSON specification in the graphical tool of your choice.
       - In *Postman*, you can click the **import** button at the top
@@ -157,12 +163,21 @@ info:
     Note that with *Postman*, you can also generate code snippets by selecting a request and clicking on
     the **Code** button.
 
+    ## Enabling CORS
+
+    [Cross-origin resource sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
+    is a browser security feature that restricts HTTP requests that are
+    initiated from scripts running in the browser.
+
+    For details on enabling/configuring CORS, see
+    [Enabling CORS](https://airflow.apache.org/docs/apache-airflow/stable/security/api.html).
+
     # Authentication
 
     To be able to meet the requirements of many organizations, Airflow supports many authentication methods,
     and it is even possible to add your own method.
 
-    If you want to check which executor is currently set, you can use
+    If you want to check which auth backend is currently set, you can use
     `airflow config get-value api auth_backend` command as in the example below.
     ```bash
     $ airflow config get-value api auth_backend
@@ -171,35 +186,53 @@ info:
     The default is to deny all requests.
 
     For details on configuring the authentication, see
-    [API Authorization](https://airflow.readthedocs.io/en/latest/security/api.html).
+    [API Authorization](https://airflow.apache.org/docs/apache-airflow/stable/security/api.html).
 
     # Errors
 
     We follow the error response format proposed in [RFC 7807](https://tools.ietf.org/html/rfc7807)
-    also known as Problem Details for HTTP APIs.  As with our normal API responses,
+    also known as Problem Details for HTTP APIs. As with our normal API responses,
     your client must be prepared to gracefully handle additional members of the response.
+
     ## Unauthenticated
+
     This indicates that the request has not been applied because it lacks valid authentication
     credentials for the target resource. Please check that you have valid credentials.
+
     ## PermissionDenied
+
     This response means that the server understood the request but refuses to authorize
     it because it lacks sufficient rights to the resource. It happens when you do not have the
     necessary permission to execute the action you performed. You need to get the appropriate
     permissions in other to resolve this error.
+
     ## BadRequest
+
     This response means that the server cannot or will not process the request due to something
     that is perceived to be a client error (e.g., malformed request syntax, invalid request message
     framing, or deceptive request routing). To resolve this, please ensure that your syntax is correct.
+
     ## NotFound
+
     This client error response indicates that the server cannot find the requested resource.
+
+    ## MethodNotAllowed
+
+    Indicates that the request method is known by the server but is not supported by the target resource.
+
     ## NotAcceptable
+
     The target resource does not have a current representation that would be acceptable to the user
     agent, according to the proactive negotiation header fields received in the request, and the
     server is unwilling to supply a default representation.
+
     ## AlreadyExists
+
     The request could not be completed due to a conflict with the current state of the target
     resource, meaning that the resource already exists
+
     ## Unknown
+
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
@@ -233,9 +266,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ConnectionCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/ConnectionCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -333,6 +364,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /dags:
     get:
@@ -349,9 +382,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/DAGCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/DAGCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
@@ -364,7 +395,7 @@ paths:
       description: >
         Presents only information available in database (DAGModel).
 
-        If you need detailed information, consider using GET /dags/{dag_id}/detail.
+        If you need detailed information, consider using GET /dags/{dag_id}/details.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dag
       tags: [DAG]
@@ -501,9 +532,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/DAGRunCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/DAGRunCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
@@ -557,9 +586,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/DAGRunCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/DAGRunCollection'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -605,6 +632,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /eventLogs:
     get:
@@ -623,9 +652,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/EventLogCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/EventLogCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -669,9 +696,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ImportErrorCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/ImportErrorCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -715,9 +740,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/PoolCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/PoolCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -852,9 +875,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/TaskInstanceCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/TaskInstanceCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -909,9 +930,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/TaskInstanceCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/TaskInstanceCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -935,9 +954,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/VariableCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/VariableCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -1037,6 +1054,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
     parameters:
@@ -1048,7 +1067,8 @@ paths:
       summary: List XCom entries
       description:
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCOM entries for
-        for all DAGs, DAG runs and task instances.
+        for all DAGs, DAG runs and task instances. XCom values won't be returned as they can be large.
+        Use this endpoint to get a list of XCom entries and then fetch individual entry to get value.
       x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
       operationId: get_xcom_entries
       tags: [XCom]
@@ -1061,9 +1081,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/XComCollection'
-                  - $ref: '#/components/schemas/CollectionInfo'
+                $ref: '#/components/schemas/XComCollection'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -1313,9 +1331,9 @@ paths:
 
   /health:
     get:
-      summary: Get a instance status
+      summary: Get instance status
       description: |
-        Get the status of Airflow's metadatabase and scheduler. It incluse info about
+        Get the status of Airflow's metadatabase and scheduler. It includes info about
         metadatabase and last heartbeat of scheduler.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
@@ -1341,7 +1359,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
-
+  /plugins:
+    get:
+      summary: Get a list of loaded plugins
+      x-openapi-router-controller: airflow.api_connexion.endpoints.plugin_endpoint
+      operationId: get_plugins
+      tags: [Plugin]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
   # Reusable schemas (data models)
@@ -1380,12 +1419,15 @@ components:
 
     ConnectionCollection:
       type: object
-      description: Connections
-      properties:
-        connections:
-          type: array
-          items:
-            $ref: '#/components/schemas/ConnectionCollectionItem'
+      description: Collection of connections.
+      allOf:
+        - type: object
+          properties:
+            connections:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConnectionCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     Connection:
       description: Full representation of the connection.
@@ -1458,13 +1500,16 @@ components:
           readOnly: true
 
     DAGCollection:
-      description: Collection of DAGs
+      description: Collection of DAGs.
       type: object
-      properties:
-        dags:
-          type: array
-          items:
-            $ref: '#/components/schemas/DAG'
+      allOf:
+        - type: object
+          properties:
+            dags:
+              type: array
+              items:
+                $ref: '#/components/schemas/DAG'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     DAGRun:
       type: object
@@ -1527,12 +1572,15 @@ components:
 
     DAGRunCollection:
       type: object
-      description: Collection of DAG runs
-      properties:
-        dag_runs:
-          type: array
-          items:
-            $ref: '#/components/schemas/DAGRun'
+      description: Collection of DAG runs.
+      allOf:
+        - type: object
+          properties:
+            dag_runs:
+              type: array
+              items:
+                $ref: '#/components/schemas/DAGRun'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     EventLog:
       type: object
@@ -1551,10 +1599,12 @@ components:
           description: The DAG ID
           type: string
           readOnly: true
+          nullable: true
         task_id:
           description: The DAG ID
           type: string
           readOnly: true
+          nullable: true
         event:
           description: A key describing the type of event.
           type: string
@@ -1565,6 +1615,7 @@ components:
           format: date-time
           type: string
           readOnly: true
+          nullable: true
         owner:
           description: Name of the user who triggered these events a.
           type: string
@@ -1578,12 +1629,15 @@ components:
 
     EventLogCollection:
       type: object
-      description: Collection of event log
-      properties:
-        event_logs:
-          type: array
-          items:
-            $ref: '#/components/schemas/EventLog'
+      description: Collection of event logs.
+      allOf:
+        - type: object
+          properties:
+            event_logs:
+              type: array
+              items:
+                $ref: '#/components/schemas/EventLog'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     ImportError:
       type: object
@@ -1608,11 +1662,15 @@ components:
 
     ImportErrorCollection:
       type: object
-      properties:
-        import_errors:
-          type: array
-          items:
-            $ref: '#/components/schemas/ImportError'
+      description: Collection of import errors.
+      allOf:
+        - type: object
+          properties:
+            import_errors:
+              type: array
+              items:
+                $ref: '#/components/schemas/ImportError'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     HealthInfo:
       type: object
@@ -1674,12 +1732,15 @@ components:
 
     PoolCollection:
       type: object
-      description: Collection of pool.
-      properties:
-        pools:
-          type: array
-          items:
-            $ref: '#/components/schemas/Pool'
+      description: Collection of pools.
+      allOf:
+        - type: object
+          properties:
+            pools:
+              type: array
+              items:
+                $ref: '#/components/schemas/Pool'
+        - $ref: '#/components/schemas/CollectionInfo'
 
 
     SLAMiss:
@@ -1719,14 +1780,17 @@ components:
         start_date:
           type: string
           format: datetime
+          nullable: true
         end_date:
           type: string
           format: datetime
+          nullable: true
         duration:
           type: number
           nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
+          nullable: true
         try_number:
           type: integer
         max_tries:
@@ -1759,11 +1823,15 @@ components:
 
     TaskInstanceCollection:
       type: object
-      properties:
-        task_instances:
-          type: array
-          items:
-            $ref: '#/components/schemas/TaskInstance'
+      description: Collection of task instances.
+      allOf:
+        - type: object
+          properties:
+            task_instances:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaskInstance'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     TaskInstanceReference:
       type: object
@@ -1807,12 +1875,15 @@ components:
 
     VariableCollection:
       type: object
-      description: Collection of XCom entries
-      properties:
-        variables:
-          type: array
-          items:
-            $ref: '#/components/schemas/VariableCollectionItem'
+      description: Collection of variables.
+      allOf:
+        - type: object
+          properties:
+            variables:
+              type: array
+              items:
+                $ref: '#/components/schemas/VariableCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     Variable:
       description: Full representation of Variable
@@ -1847,14 +1918,17 @@ components:
     XComCollection:
       type: object
       description: Collection of XCom entries.
-      properties:
-        xcom_entries:
-          type: array
-          items:
-            $ref: '#/components/schemas/XComCollectionItem'
+      allOf:
+        - type: object
+          properties:
+            xcom_entries:
+              type: array
+              items:
+                $ref: '#/components/schemas/XComCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     XCom:
-      description: Full representaiton of XCom entry.
+      description: Full representations of XCom entry.
       allOf:
         - $ref: '#/components/schemas/XComCollectionItem'
         - type: object
@@ -1872,7 +1946,7 @@ components:
         DAG details.
 
         For details see:
-        (airflow.models.DAG)[https://airflow.readthedocs.io/en/stable/_api/airflow/models/index.html#airflow.models.DAG]
+        (airflow.models.DAG)[https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG]
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -1892,14 +1966,19 @@ components:
               type: string
               format: 'date-time'
               readOnly: true
+              nullable: true
             dag_run_timeout:
               nullable: true
               $ref: '#/components/schemas/TimeDelta'
             doc_md:
               type: string
               readOnly: true
+              nullable: true
             default_view:
               type: string
+              readOnly: true
+            params:
+              type: object
               readOnly: true
 
     ExtraLink:
@@ -1928,7 +2007,7 @@ components:
       type: object
       description: |
         For details see:
-        (airflow.models.BaseOperator)[https://airflow.readthedocs.io/en/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
+        (airflow.models.BaseOperator)[https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -2014,6 +2093,81 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Task'
+    # Plugin
+    PluginCollectionItem:
+      type: object
+      description: Plugin Item
+      properties:
+        number:
+          type: string
+          description: The plugin number
+        name:
+          type: string
+          description: The name of the plugin
+        hooks:
+          type: array
+          items:
+            type: string
+            nullable: true
+          description: The plugin hooks
+        executors:
+          type: array
+          items:
+            type: string
+            nullable: true
+          description: The plugin executors
+        macros:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The plugin macros
+        flask_blueprints:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The flask blueprints
+        appbuilder_views:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The appuilder views
+        appbuilder_menu_items:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The Flask Appbuilder menu items
+        global_operator_extra_links:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The global operator extra links
+        operator_extra_links:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: Operator extra links
+        source:
+          type: string
+          description: The plugin source
+          nullable: true
+
+    PluginCollection:
+      type: object
+      description: Plugin Collection
+      allOf:
+        - type: object
+          properties:
+            plugins:
+              type: array
+              items:
+                $ref: '#/components/schemas/PluginCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
 
     # Configuration
     ConfigOption:
@@ -2440,7 +2594,7 @@ components:
       properties:
         total_entries:
           type: integer
-          description: Total count for all collection items.
+          description: Count of objects in the current result set.
 
     # Enums
     TaskState:
@@ -2754,8 +2908,8 @@ components:
         items:
           type: string
       description: |
-        The fields to update on the connection (connection, pool etc). If absent or empty, all
-        modifiable fields are updated. A comma-separated list of fully qualified names of fields.
+        The fields to update on the resource. If absent or empty, all modifiable fields are updated.
+        A comma-separated list of fully qualified names of fields.
       style: form
       explode: false
 
@@ -2788,6 +2942,13 @@ components:
     # 404
     'NotFound':
       description: A specified resource is not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 405
+    'MethodNotAllowed':
+      description: Request method is known by the server but is not supported by the target resource.
       content:
         application/json:
           schema:
@@ -2853,7 +3014,8 @@ tags:
   - name: TaskInstance
   - name: Variable
   - name: XCom
+  - name: Plugin
 
 
 externalDocs:
-  url: http://airflow.apache.org/docs/stable/
+  url: https://airflow.apache.org/docs/apache-airflow/stable/

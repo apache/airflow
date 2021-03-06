@@ -24,6 +24,7 @@ Documentation that goes along with the Airflow tutorial located
 # [START tutorial]
 # [START import_module]
 from datetime import timedelta
+from textwrap import dedent
 
 # The DAG object; we'll need this to instantiate a DAG
 from airflow import DAG
@@ -62,62 +63,63 @@ default_args = {
 # [END default_args]
 
 # [START instantiate_dag]
-dag = DAG(
+with DAG(
     'tutorial',
     default_args=default_args,
     description='A simple tutorial DAG',
     schedule_interval=timedelta(days=1),
     start_date=days_ago(2),
     tags=['example'],
-)
-# [END instantiate_dag]
+) as dag:
+    # [END instantiate_dag]
 
-# t1, t2 and t3 are examples of tasks created by instantiating operators
-# [START basic_task]
-t1 = BashOperator(
-    task_id='print_date',
-    bash_command='date',
-    dag=dag,
-)
+    # t1, t2 and t3 are examples of tasks created by instantiating operators
+    # [START basic_task]
+    t1 = BashOperator(
+        task_id='print_date',
+        bash_command='date',
+    )
 
-t2 = BashOperator(
-    task_id='sleep',
-    depends_on_past=False,
-    bash_command='sleep 5',
-    retries=3,
-    dag=dag,
-)
-# [END basic_task]
+    t2 = BashOperator(
+        task_id='sleep',
+        depends_on_past=False,
+        bash_command='sleep 5',
+        retries=3,
+    )
+    # [END basic_task]
 
-# [START documentation]
-dag.doc_md = __doc__
+    # [START documentation]
+    dag.doc_md = __doc__
 
-t1.doc_md = """\
-#### Task Documentation
-You can document your task using the attributes `doc_md` (markdown),
-`doc` (plain text), `doc_rst`, `doc_json`, `doc_yaml` which gets
-rendered in the UI's Task Instance Details page.
-![img](http://montcs.bloomu.edu/~bobmon/Semesters/2012-01/491/import%20soul.png)
-"""
-# [END documentation]
+    t1.doc_md = dedent(
+        """\
+    #### Task Documentation
+    You can document your task using the attributes `doc_md` (markdown),
+    `doc` (plain text), `doc_rst`, `doc_json`, `doc_yaml` which gets
+    rendered in the UI's Task Instance Details page.
+    ![img](http://montcs.bloomu.edu/~bobmon/Semesters/2012-01/491/import%20soul.png)
+    """
+    )
+    # [END documentation]
 
-# [START jinja_template]
-templated_command = """
-{% for i in range(5) %}
-    echo "{{ ds }}"
-    echo "{{ macros.ds_add(ds, 7)}}"
-    echo "{{ params.my_param }}"
-{% endfor %}
-"""
+    # [START jinja_template]
+    templated_command = dedent(
+        """
+    {% for i in range(5) %}
+        echo "{{ ds }}"
+        echo "{{ macros.ds_add(ds, 7)}}"
+        echo "{{ params.my_param }}"
+    {% endfor %}
+    """
+    )
 
-t3 = BashOperator(
-    task_id='templated',
-    depends_on_past=False,
-    bash_command=templated_command,
-    params={'my_param': 'Parameter I passed in'},
-    dag=dag,
-)
-# [END jinja_template]
+    t3 = BashOperator(
+        task_id='templated',
+        depends_on_past=False,
+        bash_command=templated_command,
+        params={'my_param': 'Parameter I passed in'},
+    )
+    # [END jinja_template]
 
-t1 >> [t2, t3]
+    t1 >> [t2, t3]
 # [END tutorial]

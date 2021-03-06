@@ -90,4 +90,4 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
             bucket_name=GCS_BUCKET, object_name=GCS_OBJECT_PATH, filename=mock.ANY, gzip=False
         )
 
-        self.assertEqual(EXPECTED_GCS_URI, result)
+        assert EXPECTED_GCS_URI == result

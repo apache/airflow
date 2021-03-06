@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Union
 from datadog import api, initialize
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -51,7 +51,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         self.host = conn.host
 
         if self.api_key is None:
-            raise AirflowException("api_key must be specified in the " "Datadog connection details")
+            raise AirflowException("api_key must be specified in the Datadog connection details")
 
         self.log.info("Setting up api keys for Datadog")
         initialize(api_key=self.api_key, app_key=self.app_key)

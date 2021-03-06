@@ -17,7 +17,11 @@
 # under the License.
 
 import watchtower
-from cached_property import cached_property
+
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -56,13 +60,15 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
             return AwsLogsHook(aws_conn_id=remote_conn_id, region_name=self.region_name)
-        except Exception:  # pylint: disable=broad-except
+        except Exception as e:  # pylint: disable=broad-except
             self.log.error(
                 'Could not create an AwsLogsHook with connection id "%s". '
                 'Please make sure that airflow[aws] is installed and '
-                'the Cloudwatch logs connection exists.',
+                'the Cloudwatch logs connection exists. Exception: "%s"',
                 remote_conn_id,
+                e,
             )
+            return None
 
     def _render_filename(self, ti, try_number):
         # Replace unsupported log group name characters
@@ -107,8 +113,12 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         :return: string of all logs from the given log stream
         """
         try:
-            events = list(self.hook.get_log_events(log_group=self.log_group, log_stream_name=stream_name))
-            return '\n'.join(reversed([event['message'] for event in events]))
+            events = list(
+                self.hook.get_log_events(
+                    log_group=self.log_group, log_stream_name=stream_name, start_from_head=True
+                )
+            )
+            return '\n'.join([event['message'] for event in events])
         except Exception:  # pylint: disable=broad-except
             msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
                 self.log_group, stream_name

@@ -24,7 +24,7 @@ from cryptography.hazmat.primitives import serialization
 from snowflake import connector
 from snowflake.connector import SnowflakeConnection
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class SnowflakeHook(DbApiHook):
@@ -35,6 +35,8 @@ class SnowflakeHook(DbApiHook):
 
     conn_name_attr = 'snowflake_conn_id'
     default_conn_name = 'snowflake_default'
+    conn_type = 'snowflake'
+    hook_name = 'Snowflake'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
@@ -46,6 +48,7 @@ class SnowflakeHook(DbApiHook):
         self.role = kwargs.pop("role", None)
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
+        self.session_parameters = kwargs.pop("session_parameters", None)
 
     def _get_conn_params(self) -> Dict[str, Optional[str]]:
         """
@@ -62,6 +65,7 @@ class SnowflakeHook(DbApiHook):
         role = conn.extra_dejson.get('role', '')
         schema = conn.schema or ''
         authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
+        session_parameters = conn.extra_dejson.get('session_parameters')
 
         conn_config = {
             "user": conn.login,
@@ -73,6 +77,7 @@ class SnowflakeHook(DbApiHook):
             "region": self.region or region,
             "role": self.role or role,
             "authenticator": self.authenticator or authenticator,
+            "session_parameters": self.session_parameters or session_parameters,
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private

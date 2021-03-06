@@ -40,6 +40,9 @@ from airflow.version import version
 RT = TypeVar('RT')  # pylint: disable=invalid-name
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
+# Use default timeout from google-cloud-storage
+DEFAULT_TIMEOUT = 60
+
 
 def _fallback_object_url_to_object_name_and_bucket_name(
     object_url_keyword_arg_name='object_url',
@@ -257,7 +260,12 @@ class GCSHook(GoogleBaseHook):
         )
 
     def download(
-        self, object_name: str, bucket_name: Optional[str], filename: Optional[str] = None
+        self,
+        object_name: str,
+        bucket_name: Optional[str],
+        filename: Optional[str] = None,
+        chunk_size: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT,
     ) -> Union[str, bytes]:
         """
         Downloads a file from Google Cloud Storage.
@@ -267,22 +275,26 @@ class GCSHook(GoogleBaseHook):
         returns the location. For file sizes that exceed the available memory it is recommended
         to write to a file.
 
-        :param bucket_name: The bucket to fetch from.
-        :type bucket_name: str
         :param object_name: The object to fetch.
         :type object_name: str
+        :param bucket_name: The bucket to fetch from.
+        :type bucket_name: str
         :param filename: If set, a local file path where the file should be written to.
         :type filename: str
+        :param chunk_size: Blob chunk size.
+        :type chunk_size: int
+        :param timeout: Request timeout in seconds.
+        :type timeout: int
         """
         # TODO: future improvement check file size before downloading,
         #  to check for local space availability
 
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
-        blob = bucket.blob(blob_name=object_name)
+        blob = bucket.blob(blob_name=object_name, chunk_size=chunk_size)
 
         if filename:
-            blob.download_to_filename(filename)
+            blob.download_to_filename(filename, timeout=timeout)
             self.log.info('File downloaded to %s', filename)
             return filename
         else:
@@ -318,6 +330,38 @@ class GCSHook(GoogleBaseHook):
             tmp_file.flush()
             yield tmp_file
 
+    @_fallback_object_url_to_object_name_and_bucket_name()
+    @contextmanager
+    def provide_file_and_upload(
+        self,
+        bucket_name: Optional[str] = None,
+        object_name: Optional[str] = None,
+        object_url: Optional[str] = None,  # pylint: disable=unused-argument
+    ):
+        """
+        Creates temporary file, returns a file handle and uploads the files content
+        on close.
+
+        You can use this method by passing the bucket_name and object_name parameters
+        or just object_url parameter.
+
+        :param bucket_name: The bucket to fetch from.
+        :type bucket_name: str
+        :param object_name: The object to fetch.
+        :type object_name: str
+        :param object_url: File reference url. Must start with "gs: //"
+        :type object_url: str
+        :return: File handler
+        """
+        if object_name is None:
+            raise ValueError("Object name can not be empty")
+
+        _, _, file_name = object_name.rpartition("/")
+        with NamedTemporaryFile(suffix=file_name) as tmp_file:
+            yield tmp_file
+            tmp_file.flush()
+            self.upload(bucket_name=bucket_name, object_name=object_name, filename=tmp_file.name)
+
     def upload(
         self,
         bucket_name: str,
@@ -327,6 +371,8 @@ class GCSHook(GoogleBaseHook):
         mime_type: Optional[str] = None,
         gzip: bool = False,
         encoding: str = 'utf-8',
+        chunk_size: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT,
     ) -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
@@ -345,10 +391,14 @@ class GCSHook(GoogleBaseHook):
         :type gzip: bool
         :param encoding: bytes encoding for file data if provided as string
         :type encoding: str
+        :param chunk_size: Blob chunk size.
+        :type chunk_size: int
+        :param timeout: Request timeout in seconds.
+        :type timeout: int
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
-        blob = bucket.blob(blob_name=object_name)
+        blob = bucket.blob(blob_name=object_name, chunk_size=chunk_size)
         if filename and data:
             raise ValueError(
                 "'filename' and 'data' parameter provided. Please "
@@ -366,7 +416,7 @@ class GCSHook(GoogleBaseHook):
                         shutil.copyfileobj(f_in, f_out)
                         filename = filename_gz
 
-            blob.upload_from_filename(filename=filename, content_type=mime_type)
+            blob.upload_from_filename(filename=filename, content_type=mime_type, timeout=timeout)
             if gzip:
                 os.remove(filename)
             self.log.info('File %s uploaded to %s in %s bucket', filename, object_name, bucket_name)
@@ -380,10 +430,10 @@ class GCSHook(GoogleBaseHook):
                 with gz.GzipFile(fileobj=out, mode="w") as f:
                     f.write(data)
                 data = out.getvalue()
-            blob.upload_from_string(data, content_type=mime_type)
+            blob.upload_from_string(data, content_type=mime_type, timeout=timeout)
             self.log.info('Data stream uploaded to %s in %s bucket', object_name, bucket_name)
         else:
-            raise ValueError("'filename' and 'data' parameter missing. " "One is required to upload to gcs.")
+            raise ValueError("'filename' and 'data' parameter missing. One is required to upload to gcs.")
 
     def exists(self, bucket_name: str, object_name: str) -> bool:
         """
@@ -630,7 +680,7 @@ class GCSHook(GoogleBaseHook):
         :type object_name: str
         """
         self.log.info(
-            'Retrieving the crc32c checksum of ' 'object_name: %s in bucket_name: %s',
+            'Retrieving the crc32c checksum of object_name: %s in bucket_name: %s',
             object_name,
             bucket_name,
         )
@@ -651,7 +701,7 @@ class GCSHook(GoogleBaseHook):
             storage bucket_name.
         :type object_name: str
         """
-        self.log.info('Retrieving the MD5 hash of ' 'object: %s in bucket: %s', object_name, bucket_name)
+        self.log.info('Retrieving the MD5 hash of object: %s in bucket: %s', object_name, bucket_name)
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)

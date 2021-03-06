@@ -23,7 +23,7 @@ import warnings
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. " "Please use `airflow.providers.google.suite.transfers.gcs_to_gdrive.",
+    "This module is deprecated. Please use `airflow.providers.google.suite.transfers.gcs_to_gdrive.",
     DeprecationWarning,
     stacklevel=2,
 )

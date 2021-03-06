@@ -142,32 +142,29 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
             environ_overrides={"REMOTE_USER": "test"},
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertDictEqual(
-            response.json,
-            {
-                "dag_id": "example_python_operator",
-                "duration": 10000.0,
-                "end_date": "2020-01-03T00:00:00+00:00",
-                "execution_date": "2020-01-01T00:00:00+00:00",
-                "executor_config": "{}",
-                "hostname": "",
-                "max_tries": 0,
-                "operator": "PythonOperator",
-                "pid": 100,
-                "pool": "default_pool",
-                "pool_slots": 1,
-                "priority_weight": 6,
-                "queue": "default_queue",
-                "queued_when": None,
-                "sla_miss": None,
-                "start_date": "2020-01-02T00:00:00+00:00",
-                "state": "running",
-                "task_id": "print_the_context",
-                "try_number": 0,
-                "unixname": getpass.getuser(),
-            },
-        )
+        assert response.status_code == 200
+        assert response.json == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00+00:00",
+            "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor_config": "{}",
+            "hostname": "",
+            "max_tries": 0,
+            "operator": "PythonOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 6,
+            "queue": "default_queue",
+            "queued_when": None,
+            "sla_miss": None,
+            "start_date": "2020-01-02T00:00:00+00:00",
+            "state": "running",
+            "task_id": "print_the_context",
+            "try_number": 0,
+            "unixname": getpass.getuser(),
+        }
 
     @provide_session
     def test_should_respond_200_task_instance_with_sla(self, session):
@@ -185,41 +182,38 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
             environ_overrides={"REMOTE_USER": "test"},
         )
-        self.assertEqual(response.status_code, 200)
+        assert response.status_code == 200
 
-        self.assertDictEqual(
-            response.json,
-            {
+        assert response.json == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00+00:00",
+            "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor_config": "{}",
+            "hostname": "",
+            "max_tries": 0,
+            "operator": "PythonOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 6,
+            "queue": "default_queue",
+            "queued_when": None,
+            "sla_miss": {
                 "dag_id": "example_python_operator",
-                "duration": 10000.0,
-                "end_date": "2020-01-03T00:00:00+00:00",
+                "description": None,
+                "email_sent": False,
                 "execution_date": "2020-01-01T00:00:00+00:00",
-                "executor_config": "{}",
-                "hostname": "",
-                "max_tries": 0,
-                "operator": "PythonOperator",
-                "pid": 100,
-                "pool": "default_pool",
-                "pool_slots": 1,
-                "priority_weight": 6,
-                "queue": "default_queue",
-                "queued_when": None,
-                "sla_miss": {
-                    "dag_id": "example_python_operator",
-                    "description": None,
-                    "email_sent": False,
-                    "execution_date": "2020-01-01T00:00:00+00:00",
-                    "notification_sent": False,
-                    "task_id": "print_the_context",
-                    "timestamp": "2020-01-01T00:00:00+00:00",
-                },
-                "start_date": "2020-01-02T00:00:00+00:00",
-                "state": "running",
+                "notification_sent": False,
                 "task_id": "print_the_context",
-                "try_number": 0,
-                "unixname": getpass.getuser(),
+                "timestamp": "2020-01-01T00:00:00+00:00",
             },
-        )
+            "start_date": "2020-01-02T00:00:00+00:00",
+            "state": "running",
+            "task_id": "print_the_context",
+            "try_number": 0,
+            "unixname": getpass.getuser(),
+        }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(
@@ -407,9 +401,9 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
         )
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json["total_entries"], expected_ti)
-        self.assertEqual(len(response.json["task_instances"]), expected_ti)
+        assert response.status_code == 200
+        assert response.json["total_entries"] == expected_ti
+        assert len(response.json["task_instances"]) == expected_ti
 
     @provide_session
     def test_should_respond_200_for_dag_id_filter(self, session):
@@ -420,10 +414,10 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        self.assertEqual(response.status_code, 200)
+        assert response.status_code == 200
         count = session.query(TaskInstance).filter(TaskInstance.dag_id == "example_python_operator").count()
-        self.assertEqual(count, response.json["total_entries"])
-        self.assertEqual(count, len(response.json["task_instances"]))
+        assert count == response.json["total_entries"]
+        assert count == len(response.json["task_instances"])
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(
@@ -555,9 +549,49 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
             json=payload,
         )
-        self.assertEqual(response.status_code, 200, response.json)
-        self.assertEqual(expected_ti_count, response.json["total_entries"])
-        self.assertEqual(expected_ti_count, len(response.json["task_instances"]))
+        assert response.status_code == 200, response.json
+        assert expected_ti_count == response.json["total_entries"]
+        assert expected_ti_count == len(response.json["task_instances"])
+
+    @parameterized.expand(
+        [
+            (
+                "task_instance properties",
+                [
+                    {"task": "test_1"},
+                    {"task": "test_2"},
+                ],
+                True,
+                {"dag_ids": ["latest_only"]},
+                2,
+            ),
+        ],
+    )
+    @provide_session
+    def test_should_respond_200_when_task_instance_properties_are_none(
+        self, _, task_instances, single_dag_run, payload, expected_ti_count, session
+    ):
+        self.ti_extras.update(
+            {
+                "start_date": None,
+                "end_date": None,
+                "state": None,
+            }
+        )
+        self.create_task_instances(
+            session,
+            dag_id="latest_only",
+            task_instances=task_instances,
+            single_dag_run=single_dag_run,
+        )
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json=payload,
+        )
+        assert response.status_code == 200, response.json
+        assert expected_ti_count == response.json["total_entries"]
+        assert expected_ti_count == len(response.json["task_instances"])
 
     @parameterized.expand(
         [
@@ -578,9 +612,9 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
             json=payload,
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json["task_instances"]), expected_ti)
-        self.assertEqual(response.json["total_entries"], total_ti)
+        assert response.status_code == 200
+        assert len(response.json["task_instances"]) == expected_ti
+        assert response.json["total_entries"] == total_ti
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
@@ -596,6 +630,27 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             json={"dag_ids": ["example_python_operator", "example_skip_dag"]},
         )
         assert response.status_code == 403
+
+    @parameterized.expand(
+        [
+            ({"end_date_lte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
+            ({"end_date_gte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
+            ({"start_date_lte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
+            ({"start_date_gte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
+            ({"execution_date_gte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
+            ({"execution_date_lte": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
+        ]
+    )
+    @provide_session
+    def test_should_raise_400_for_naive_and_bad_datetime(self, payload, expected, session):
+        self.create_task_instances(session)
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={'REMOTE_USER': "test"},
+            json=payload,
+        )
+        assert response.status_code == 400
+        assert response.json['detail'] == expected
 
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
@@ -754,8 +809,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
             json=payload,
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json["task_instances"]), expected_ti)
+        assert response.status_code == 200
+        assert len(response.json["task_instances"]) == expected_ti
 
     @provide_session
     def test_should_respond_200_with_reset_dag_run(self, session):
@@ -804,7 +859,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         failed_dag_runs = (
             session.query(DagRun).filter(DagRun.state == "failed").count()  # pylint: disable=W0143
         )
-        self.assertEqual(200, response.status_code)
+        assert 200 == response.status_code
         expected_response = [
             {
                 'dag_id': 'example_python_operator',
@@ -838,9 +893,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         ]
         for task_instance in expected_response:
-            self.assertIn(task_instance, response.json["task_instances"])
-        self.assertEqual(5, len(response.json["task_instances"]))
-        self.assertEqual(0, failed_dag_runs, 0)
+            assert task_instance in response.json["task_instances"]
+        assert 5 == len(response.json["task_instances"])
+        assert 0 == failed_dag_runs, 0
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
@@ -868,6 +923,39 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 403
+
+    @parameterized.expand(
+        [
+            ({"end_date": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
+            ({"end_date": '2020-11-10T12:4po'}, "{'end_date': ['Not a valid datetime.']}"),
+            ({"start_date": '2020-11-10T12:42:39.442973'}, "Naive datetime is disallowed"),
+            ({"start_date": '2020-11-10T12:4po'}, "{'start_date': ['Not a valid datetime.']}"),
+        ]
+    )
+    @provide_session
+    def test_should_raise_400_for_naive_and_bad_datetime(self, payload, expected, session):
+        task_instances = [
+            {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
+            {
+                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                "state": State.RUNNING,
+            },
+        ]
+        self.create_task_instances(
+            session,
+            dag_id="example_python_operator",
+            task_instances=task_instances,
+            update_extras=False,
+            single_dag_run=False,
+        )
+        self.app.dag_bag.sync_to_db()  # pylint: disable=no-member
+        response = self.client.post(
+            "/api/v1/dags/example_python_operator/clearTaskInstances",
+            environ_overrides={"REMOTE_USER": "test"},
+            json=payload,
+        )
+        assert response.status_code == 400
+        assert response.json['detail'] == expected
 
 
 class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
@@ -983,3 +1071,44 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
+
+    @parameterized.expand(
+        [
+            (
+                {
+                    "dry_run": True,
+                    "task_id": "print_the_context",
+                    "execution_date": '2020-11-10T12:42:39.442973',
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "include_future": True,
+                    "include_past": True,
+                    "new_state": "failed",
+                },
+                "Naive datetime is disallowed",
+            ),
+            (
+                {
+                    "dry_run": True,
+                    "task_id": "print_the_context",
+                    "execution_date": '2020-11-10T12:4opfo',
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "include_future": True,
+                    "include_past": True,
+                    "new_state": "failed",
+                },
+                "{'execution_date': ['Not a valid datetime.']}",
+            ),
+        ]
+    )
+    @provide_session
+    def test_should_raise_400_for_naive_and_bad_datetime(self, payload, expected, session):
+        self.create_task_instances(session)
+        response = self.client.post(
+            "/api/v1/dags/example_python_operator/updateTaskInstancesState",
+            environ_overrides={'REMOTE_USER': "test"},
+            json=payload,
+        )
+        assert response.status_code == 400
+        assert response.json['detail'] == expected

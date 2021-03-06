@@ -19,7 +19,10 @@
 from tempfile import NamedTemporaryFile
 from typing import IO, Any, Dict, Generator, List
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 from google.ads.google_ads.client import GoogleAdsClient
 from google.ads.google_ads.errors import GoogleAdsException
 from google.ads.google_ads.v2.types import GoogleAdsRow
@@ -28,7 +31,7 @@ from google.auth.exceptions import GoogleAuthError
 from googleapiclient.discovery import Resource
 
 from airflow import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class GoogleAdsHook(BaseHook):

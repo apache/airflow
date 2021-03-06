@@ -19,6 +19,8 @@
 import json
 import unittest
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.dingding.hooks.dingding import DingdingHook
 from airflow.utils import db
@@ -40,7 +42,7 @@ class TestDingdingHook(unittest.TestCase):
     def test_get_endpoint_conn_id(self):
         hook = DingdingHook(dingding_conn_id=self.conn_id)
         endpoint = hook._get_endpoint()
-        self.assertEqual('robot/send?access_token=you_token_here', endpoint)
+        assert 'robot/send?access_token=you_token_here' == endpoint
 
     def test_build_text_message_not_remind(self):
         config = {
@@ -57,7 +59,7 @@ class TestDingdingHook(unittest.TestCase):
         }
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_text_message_remind_specific(self):
         config = {
@@ -74,7 +76,7 @@ class TestDingdingHook(unittest.TestCase):
         }
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_text_message_remind_all(self):
         config = {
@@ -90,13 +92,13 @@ class TestDingdingHook(unittest.TestCase):
         }
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_markdown_message_remind_specific(self):
         msg = {
             'title': 'Airflow dingding markdown message',
             'text': '# Markdown message title\ncontent content .. \n### sub-title\n'
-            '![logo](http://airflow.apache.org/_images/pin_large.png)',
+            '![logo](https://airflow.apache.org/_images/pin_large.png)',
         }
         config = {
             'dingding_conn_id': self.conn_id,
@@ -112,13 +114,13 @@ class TestDingdingHook(unittest.TestCase):
         }
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_markdown_message_remind_all(self):
         msg = {
             'title': 'Airflow dingding markdown message',
             'text': '# Markdown message title\ncontent content .. \n### sub-title\n'
-            '![logo](http://airflow.apache.org/_images/pin_large.png)',
+            '![logo](https://airflow.apache.org/_images/pin_large.png)',
         }
         config = {
             'dingding_conn_id': self.conn_id,
@@ -129,48 +131,48 @@ class TestDingdingHook(unittest.TestCase):
         expect = {'msgtype': 'markdown', 'markdown': msg, 'at': {'atMobiles': None, 'isAtAll': True}}
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_link_message(self):
         msg = {
             'title': 'Airflow dingding link message',
             'text': 'Airflow official documentation link',
-            'messageUrl': 'http://airflow.apache.org',
-            'picURL': 'http://airflow.apache.org/_images/pin_large.png',
+            'messageUrl': 'https://airflow.apache.org',
+            'picURL': 'https://airflow.apache.org/_images/pin_large.png',
         }
         config = {'dingding_conn_id': self.conn_id, 'message_type': 'link', 'message': msg}
         expect = {'msgtype': 'link', 'link': msg}
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_single_action_card_message(self):
         msg = {
             'title': 'Airflow dingding single actionCard message',
             'text': 'Airflow dingding single actionCard message\n'
-            '![logo](http://airflow.apache.org/_images/pin_large.png)\n'
+            '![logo](https://airflow.apache.org/_images/pin_large.png)\n'
             'This is a official logo in Airflow website.',
             'hideAvatar': '0',
             'btnOrientation': '0',
             'singleTitle': 'read more',
-            'singleURL': 'http://airflow.apache.org',
+            'singleURL': 'https://airflow.apache.org',
         }
         config = {'dingding_conn_id': self.conn_id, 'message_type': 'actionCard', 'message': msg}
         expect = {'msgtype': 'actionCard', 'actionCard': msg}
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_multi_action_card_message(self):
         msg = {
             'title': 'Airflow dingding multi actionCard message',
             'text': 'Airflow dingding multi actionCard message\n'
-            '![logo](http://airflow.apache.org/_images/pin_large.png)\n'
+            '![logo](https://airflow.apache.org/_images/pin_large.png)\n'
             'Airflow documentation and GitHub',
             'hideAvatar': '0',
             'btnOrientation': '0',
             'btns': [
-                {'title': 'Airflow Documentation', 'actionURL': 'http://airflow.apache.org'},
+                {'title': 'Airflow Documentation', 'actionURL': 'https://airflow.apache.org'},
                 {'title': 'Airflow GitHub', 'actionURL': 'https://github.com/apache/airflow'},
             ],
         }
@@ -178,25 +180,25 @@ class TestDingdingHook(unittest.TestCase):
         expect = {'msgtype': 'actionCard', 'actionCard': msg}
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_build_feed_card_message(self):
         msg = {
             "links": [
                 {
                     "title": "Airflow DAG feed card",
-                    "messageURL": "https://airflow.readthedocs.io/en/latest/ui.html",
-                    "picURL": "http://airflow.apache.org/_images/dags.png",
+                    "messageURL": "https://airflow.apache.org/docs/apache-airflow/stable/ui.html",
+                    "picURL": "https://airflow.apache.org/_images/dags.png",
                 },
                 {
                     "title": "Airflow tree feed card",
-                    "messageURL": "https://airflow.readthedocs.io/en/latest/ui.html",
-                    "picURL": "http://airflow.apache.org/_images/tree.png",
+                    "messageURL": "https://airflow.apache.org/docs/apache-airflow/stable/ui.html",
+                    "picURL": "https://airflow.apache.org/_images/tree.png",
                 },
                 {
                     "title": "Airflow graph feed card",
-                    "messageURL": "https://airflow.readthedocs.io/en/latest/ui.html",
-                    "picURL": "http://airflow.apache.org/_images/graph.png",
+                    "messageURL": "https://airflow.apache.org/docs/apache-airflow/stable/ui.html",
+                    "picURL": "https://airflow.apache.org/_images/graph.png",
                 },
             ]
         }
@@ -204,7 +206,7 @@ class TestDingdingHook(unittest.TestCase):
         expect = {'msgtype': 'feedCard', 'feedCard': msg}
         hook = DingdingHook(**config)
         message = hook._build_message()
-        self.assertEqual(json.dumps(expect), message)
+        assert json.dumps(expect) == message
 
     def test_send_not_support_type(self):
         config = {
@@ -213,4 +215,5 @@ class TestDingdingHook(unittest.TestCase):
             'message': 'Airflow dingding text message remind no one',
         }
         hook = DingdingHook(**config)
-        self.assertRaises(ValueError, hook.send)
+        with pytest.raises(ValueError):
+            hook.send()

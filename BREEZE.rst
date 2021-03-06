@@ -36,6 +36,8 @@ We called it *Airflow Breeze* as **It's a Breeze to contribute to Airflow**.
 The advantages and disadvantages of using the Breeze environment vs. other ways of testing Airflow
 are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-development-environment>`_.
 
+All the output from the last ./breeze command is automatically logged to the ``logs/breeze.out`` file.
+
 Watch the video below about Airflow Breeze. It explains the motivation for Breeze
 and screencasts all its uses.
 
@@ -328,18 +330,22 @@ Managing CI environment:
     * Stop running interactive environment with ``breeze stop`` command
     * Restart running interactive environment with ``breeze restart`` command
     * Run test specified with ``breeze tests`` command
-    * Generate constraints with ``breeze generate-constraints`` command
+    * Generate constraints with ``breeze generate-constraints``
     * Execute arbitrary command in the test environment with ``breeze shell`` command
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
-    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
+    * Push docker images with ``breeze push-image`` command (require committers rights to push images)
 
-You can optionally reset database if specified as extra ``--db-reset`` flag and for CI image you can also
-start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
+You can optionally reset the Airflow metada database if specified as extra ``--db-reset`` flag and for CI image
+you can also start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
-tmux session with three panes (one to monitor the scheduler, one for the webserver and one with a shell
-for additional commands.
+tmux session with four panes:
+
+   - one to monitor the scheduler,
+   - one for the webserver,
+   - one monitors and compiles Javascript files,
+   - one with a shell for additional commands.
 
 Managing Prod environment (with ``--production-image`` flag):
 
@@ -350,7 +356,7 @@ Managing Prod environment (with ``--production-image`` flag):
     * Restart running interactive environment with ``breeze restart`` command
     * Execute arbitrary command in the test environment with ``breeze shell`` command
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
-    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
+    * Push docker images with ``breeze push-image`` command (require committers rights to push images)
 
 You can optionally reset database if specified as extra ``--db-reset`` flag. You can also
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
@@ -424,53 +430,33 @@ way as when you enter the environment. You can do it multiple times and open as 
     </div>
 
 
-CLIs for cloud providers
-------------------------
+Additional tools
+----------------
 
-For development convenience we installed simple wrappers for the most common cloud providers CLIs. Those
-CLIs are not installed when you build or pull the image - they will be downloaded as docker images
-the first time you attempt to use them. It is downloaded and executed in your host's docker engine so once
-it is downloaded, it will stay until you remove the downloaded images from your host container.
+To shrink the Docker image, not all tools are pre-installed in the Docker image. But we have made sure that there
+is an easy process to install additional tools.
 
-For each of those CLI credentials are taken (automatically) from the credentials you have defined in
-your ${HOME} directory on host.
+Additional tools are installed in ``/files/bin``. This path is added to ``$PATH``, so your shell will
+automatically autocomplete files that are in that directory. You can also keep the binaries for your tools
+in this directory if you need to.
 
-Those tools also have host Airflow source directory mounted in /opt/airflow path
-so you can directly transfer files to/from your airflow host sources.
+**Installation scripts**
 
-Those are currently installed CLIs (they are available as aliases to the docker commands):
+For the development convenience, we have also provided installation scripts for commonly used tools. They are
+installed to ``/files/opt/``, so they are preserved after restarting the Breeze environment. Each script
+is also available in ``$PATH``, so just type ``install_<TAB>`` to get a list of tools.
 
-+-----------------------+----------+-------------------------------------------------+-------------------+
-| Cloud Provider        | CLI tool | Docker image                                    | Configuration dir |
-+=======================+==========+=================================================+===================+
-| Amazon Web Services   | aws      | amazon/aws-cli:latest                           | .aws              |
-+-----------------------+----------+-------------------------------------------------+-------------------+
-| Microsoft Azure       | az       | mcr.microsoft.com/azure-cli:latest              | .azure            |
-+-----------------------+----------+-------------------------------------------------+-------------------+
-| Google Cloud          | bq       | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
-|                       +----------+-------------------------------------------------+-------------------+
-|                       | gcloud   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
-|                       +----------+-------------------------------------------------+-------------------+
-|                       | gsutil   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
-+-----------------------+----------+-------------------------------------------------+-------------------+
+Currently available scripts:
 
-For each of the CLIs we have also an accompanying ``*-update`` alias (for example ``aws-update``) which
-will pull the latest image for the tool. Note that all Google Cloud tools are served by one
-image and they are updated together.
-
-Also - in case you run several different Breeze containers in parallel (from different directories,
-with different versions) - they docker images for CLI Cloud Providers tools are shared so if you update it
-for one Breeze container, they will also get updated for all the other containers.
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1072">
-        <img src="images/breeze/overlayed_breeze_cloud_tools.png" width="640"
-             alt="Airflow Breeze - Cloud tools">
-      </a>
-    </div>
-
+* ``install_aws.sh`` - installs `the AWS CLI <https://aws.amazon.com/cli/>`__ including
+* ``install_az.sh`` - installs `the Azure CLI <https://github.com/Azure/azure-cli>`__ including
+* ``install_gcloud.sh`` - installs `the Google Cloud SDK <https://cloud.google.com/sdk>`__ including
+  ``gcloud``, ``gsutil``.
+* ``install_imgcat.sh`` - installs `imgcat - Inline Images Protocol <https://iterm2.com/documentation-images.html>`__
+  for iTerm2 (Mac OS only)
+* ``install_java.sh`` - installs `the OpenJDK 8u41 <https://openjdk.java.net/>`__
+* ``install_kubectl.sh`` - installs `the Kubernetes command-line tool, kubectl <https://kubernetes.io/docs/reference/kubectl/kubectl/>`__
+* ``install_terraform.sh`` - installs `Terraform <https://www.terraform.io/docs/index.html>`__
 
 Launching Breeze integrations
 -----------------------------
@@ -541,11 +527,79 @@ dependencies). If you work offline and do not want to rebuild the images when ne
 ``FORCE_ANSWER_TO_QUESTIONS`` variable to ``no`` as described in the
 `Setting default behaviour for user interaction <#setting-default-behaviour-for-user-interaction>`_ section.
 
+Preparing packages
+------------------
+
+Breeze can also be used to prepare airflow packages - both "apache-airflow" main package and
+provider packages.
+
+You can read more about testing provider packages in
+`TESTING.rst <TESTING.rst#running-tests-with-packages>`_
+
+There are several commands that you can run in Breeze to manage and build packages:
+
+* preparing Provider Readme files
+* preparing Airflow packages
+* preparing Provider packages
+
+Preparing provider readme files is part of the release procedure by the release managers
+and it is described in detail in `dev <dev/README.md>`_ .
+
+You can prepare provider packages - by default regular provider packages are prepared, but with
+``--backport`` flag you can prepare backport packages.
+
+The packages are prepared in ``dist`` folder. Note, that this command cleans up the ``dist`` folder
+before running, so you should run it before generating airflow package below as it will be removed.
+
+The below example builds provider packages in the wheel format.
+
+.. code-block:: bash
+
+     ./breeze prepare-provider-packages
+
+If you run this command without packages, you will prepare all packages, you can however specify
+providers that you would like to build. By default ``both`` types of packages are prepared (
+``wheel`` and ``sdist``, but you can change it providing optional --package-format flag.
+
+.. code-block:: bash
+
+     ./breeze prepare-provider-packages google amazon
+
+You can also prepare backport provider packages, if you specify ``--backport`` flag. You can read more
+about backport packages in `dev <dev/README.md>`_
+
+.. code-block:: bash
+
+     ./breeze prepare-provider-packages --backports google amazon
+
+You can see all providers available by running this command:
+
+.. code-block:: bash
+
+     ./breeze prepare-provider-packages -- --help
+
+
+You can also prepare airflow packages using breeze:
+
+.. code-block:: bash
+
+     ./breeze prepare-airflow-packages
+
+This prepares airflow .whl package in the dist folder.
+
+Again, you can specify optional ``--package-format`` flag to build selected formats of airflow packages,
+default is to build ``both`` type of packages ``sdist`` and ``wheel``.
+
+.. code-block:: bash
+
+     ./breeze prepare-airflow-packages --package-format=wheel
+
+
 Building Production images
 --------------------------
 
 The **Production image** is also maintained on the DockerHub in the
-```apache/airflow`` repository. This Docker image (and Dockerfile) contains size-optimised Airflow
+``apache/airflow`` repository. This Docker image (and Dockerfile) contains size-optimised Airflow
 installation with selected extras and dependencies. Its tag follows the pattern of
 ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>`` (for example, ``apache/airflow:master-python3.6``
 or ``apache/airflow:v1-10-test-python3.6``).
@@ -683,6 +737,14 @@ The above will run mypy check for all files.
       </a>
     </div>
 
+If you want ever need to get a list of the files that will be checked (for troubleshooting when playing with the
+``--from-ref`` and ``--to-ref``
+
+.. code-block:: bash
+
+     breeze static-check identity --verbose # currently staged files
+     breeze static-check identity --verbose -- --from-ref $(git merge-base master HEAD) --to-ref HEAD #  branch updates
+
 Building the Documentation
 --------------------------
 
@@ -725,9 +787,24 @@ Generating constraints
 ----------------------
 
 Whenever setup.py gets modified, the CI master job will re-generate constraint files. Those constraint
-files are stored in separated orphan branches: ``constraints-master`` and ``constraint-1-10``.
-They are stored separately for each python version. Those are
-constraint files as described in detail in the
+files are stored in separated orphan branches: ``constraints-master``, ``constraints-2-0``
+and ``constraints-1-10``. They are stored separately for each python version and there are separate
+constraints for:
+
+* 'constraints' - those are constraints generated by matching the current airflow version from sources
+   and providers that are installed from PyPI. Those are constraints used by the users who want to
+   install airflow with pip
+
+* "constraints-source-providers" - those are constraints generated by using providers installed from
+  current sources. While adding new providers their dependencies might change, so this set of providers
+  is the current set of the constraints for airflow and providers from the current master sources.
+  Those providers are used by CI system to keep "stable" set of constraints.
+
+* "constraints-no-providers" - those are constraints generated from only Apache Airflow, without any
+  providers. If you want to manage airflow separately and then add providers individually, you can
+  use those.
+
+Those are constraint files as described in detail in the
 `<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
 
 In case someone modifies setup.py, the ``CRON`` scheduled CI build automatically upgrades and
@@ -736,19 +813,18 @@ pushes changed to the constraint files, however you can also perform test run of
 
 .. code-block:: bash
 
-  ./breeze generate-constraints --python 3.6
+  for python_version in 3.6 3.7 3.8
+  do
+    ./breeze generate-constraints --generate-constraints-mode source-providers --python ${python_version}
+    ./breeze generate-constraints --generate-constraints-mode pypi-providers --python ${python_version}
+    ./breeze generate-constraints --generate-constraints-mode no-providers --python ${python_version}
+  done
 
-.. code-block:: bash
-
-  ./breeze generate-constraints --python 3.7
-
-.. code-block:: bash
-
-  ./breeze generate-constraints --python 3.8
 
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
 of changes vs the previous constraint files is printed.
+
 
 Using local virtualenv environment in Your Host IDE
 ---------------------------------------------------
@@ -1081,6 +1157,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
     generate-constraints                     Generates pinned constraint files
     push-image                               Pushes images to registry
     initialize-local-virtualenv              Initializes local virtualenv
+    prepare-airflow-packages                 Prepares airflow packages
     setup-autocomplete                       Sets up autocomplete for breeze
     start-airflow                            Starts Scheduler and Webserver and enters the shell
     stop                                     Stops the docker-compose environment
@@ -1090,12 +1167,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Commands with arguments:
 
-    docker-compose                <ARG>      Executes specified docker-compose command
-    kind-cluster                  <ARG>      Manages KinD cluster on the host
-    prepare-provider-readme       <ARG>      Prepares provider packages readme files
-    prepare-provider-packages     <ARG>      Prepares provider packages
-    static-check                  <ARG>      Performs selected static check for changed files
-    tests                         <ARG>      Runs selected tests in the container
+    docker-compose                     <ARG>      Executes specified docker-compose command
+    kind-cluster                       <ARG>      Manages KinD cluster on the host
+    prepare-provider-documentation     <ARG>      Prepares provider packages documentation
+    prepare-provider-packages          <ARG>      Prepares provider packages
+    static-check                       <ARG>      Performs selected static check for changed files
+    tests                              <ARG>      Runs selected tests in the container
 
   Help commands:
 
@@ -1166,7 +1243,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         is generated ('docs/_build') are also mounted to the container - this way results of
         the documentation build is available in the host.
 
-        The possible extra args are: --docs-only, --spellcheck-only, --help
+        The possible extra args are: --docs-only, --spellcheck-only, --package-filter, --help
 
 
   ####################################################################################################
@@ -1203,23 +1280,46 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  2.7 3.5 3.6 3.7 3.8
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
-          If specified, installs Airflow directly from PIP released version. This happens at
-          image building time in production image and at container entering time for CI image. One of:
+          In CI image, installs Airflow (in entrypoint) from PIP released version or using
+          the installation method specified (sdist, wheel, none).
 
-                 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
+          In PROD image the installation of selected method or version happens during image building.
+          For PROD image, the 'none' options is not valid.
+
+          One of:
+
+                 2.0.0 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
+
+          When 'none' is used, you can install airflow from local packages. When building image,
+          airflow package should be added to 'docker-context-files' and
+          --install-from-docker-context-files flag should be used. When running an image, airflow
+          package should be added to dist folder and --install-packages-from-dist flag should be used.
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
           This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
+  --installation-method INSTALLATION_METHOD
+          Method of installing airflow for production image - either from the sources ('.')
+          or from package 'apache-airflow' to install from PyPI.
+          Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
-  --install-wheels
-          If specified it will look for wheel packages placed in dist folder and it will install the
-          wheels from there after installing Airflow. This is useful for testing backport
-          packages as well as in the future for testing provider packages for 2.0.
+  --install-packages-from-dist
+          If specified it will look for packages placed in dist folder and it will install the
+          packages after installing Airflow. This is useful for testing provider
+          packages.
+
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  --continue-on-pip-check-failure
+          Continue even if 'pip check' fails.
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1243,21 +1343,24 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  devel_ci
 
           Production image:
-                 async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,
-                 ssh,statsd,virtualenv
+                 async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 virtualenv
 
   --image-tag TAG
           Additional tag in the image.
 
-  --skip-installing-airflow-providers
+  --skip-installing-airflow-providers-from-sources
           By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras but in Breeze (which is development environment) providers are
-          installed by default. You can disable it by adding this flag.
+          are needed by the extras. When you build image during the development (which is
+          default in Breeze) all providers are installed by default from sources.
+          You can disable it by adding this flag but then you have to install providers from
+          wheel packages via --install-packages-from-dist flag.
 
-  --skip-installing-airflow-via-pip
-          Skips installing Airflow via PIP. If you use this flag and want to install
-          Airflow, you have to install Airflow from packages placed in
-          'docker-context-files' and use --add-local-pip-files flag.
+  --disable-pypi-when-building
+          Disable installing Airflow from pypi when building. If you use this flag and want
+          to install Airflow, you have to install it from packages placed in
+          'docker-context-files' and use --install-from-local-files-when-building flag.
 
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
@@ -1312,11 +1415,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --disable-pip-cache
           Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
 
-  --add-local-pip-wheels
+  --install-from-local-files-when-building
           This flag is used during image building. If it is used additionally to installing
-          Airflow from PyPI, the packages are installed from the .whl packages placed
+          Airflow from PyPI, the packages are installed from the .whl and .tar.gz packages placed
           in the 'docker-context-files' folder. The same flag can be used during entering the image in
-          the CI image - in this case also the .whl files
+          the CI image - in this case also the .whl and .tar.gz files will be installed automatically
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
@@ -1335,7 +1438,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -U, --build-cache-pulled
           Uses images pulled from registry (either DockerHub or GitHub depending on
-          --github-registry flag) to build images. The pulled images will be used as cache.
+          --use-github-registry flag) to build images. The pulled images will be used as cache.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
           the registry images are not yet updated. The DockerHub images are updated nightly and the
           GitHub images are updated after merges to master so it might be that the images are still
@@ -1358,16 +1461,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry GITHUB_REGISTRY
+  -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
+
+  --github-registry GITHUB_REGISTRY
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
+          registry.
+
+          Default: docker.pkg.github.com.
+
+          If you use this flag, automatically --use-github-registry flag is enabled.
+
+                 docker.pkg.github.com ghcr.io
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
-          If you use this flag, automatically --github-registry flag is enabled.
+          If you use this flag, automatically --use-github-registry flag is enabled.
 
   -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
@@ -1376,7 +1489,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically pull and use that image so that you can easily reproduce a problem
           that occurred in CI.
 
-          If you use this flag, automatically --github-registry is enabled.
+          If you use this flag, automatically --use-github-registry is enabled.
+
 
           Default: latest.
 
@@ -1387,6 +1501,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
 
 
   ####################################################################################################
@@ -1424,6 +1542,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
 
   ####################################################################################################
 
@@ -1447,15 +1569,27 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   breeze generate-constraints [FLAGS]
 
-        Generates pinned constraint files from setup.py. Those files are generated in files folder
-        - separate files for different python version. Those constraint files when pushed to orphan
-        constraint-master and constraint-1-10 branches are used to generate repeatable
-        CI builds as well as run repeatable production image builds. You can use those constraints
-        to predictably install released Airflow versions. This is mainly used to test the constraint
-        generation - constraints are pushed to the orphan branches by a successful scheduled
-        CRON job in CI automatically.
+        Generates pinned constraint files with all extras from setup.py. Those files are generated in
+        files folder - separate files for different python version. Those constraint files when
+        pushed to orphan constraints-master, constraints-2-0 and constraints-1-10 branches are used
+        to generate repeatable CI builds as well as run repeatable production image builds and
+        upgrades when you want to include installing or updating some of the released providers
+        released at the time particular airflow version was released. You can use those
+        constraints to predictably install released Airflow versions. This is mainly used to test
+        the constraint generation or manually fix them - constraints are pushed to the orphan
+        branches by a successful scheduled CRON job in CI automatically, but sometimes manual fix
+        might be needed.
 
   Flags:
+
+  --generate-constraints-mode GENERATE_CONSTRAINTS_MODE
+          Mode of generating constraints - determines whether providers are installed when generating
+          constraints and which version of them (either the ones from sources are used or the ones
+          from pypi.
+
+          One of:
+
+                 source-providers pypi-providers no-providers
 
   -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
@@ -1475,6 +1609,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
 
   ####################################################################################################
 
@@ -1485,14 +1623,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze push_image [FLAGS]
 
         Pushes images to docker registry. You can push the images to DockerHub registry (default)
-        or to the GitHub registry (if --github-registry flag is used).
+        or to the GitHub registry (if --use-github-registry flag is used).
 
         For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
         the repository to push to. For GitHub repository, the --github-repository
         flag can be used for the same purpose. You can also add
         --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to push image with specific
         SHA tag or run id. In case you specify --github-repository or --github-image-id, you
-        do not need to specify --github-registry flag.
+        do not need to specify --use-github-registry flag.
 
         You can also add --production-image flag to switch to production image (default is CI one)
 
@@ -1501,7 +1639,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         'breeze push-image' or
         'breeze push-image --dockerhub-user user' to push to your private registry or
         'breeze push-image --production-image' - to push production image or
-        'breeze push-image --github-registry' - to push to GitHub image registry or
+        'breeze push-image --use-github-registry' - to push to GitHub image registry or
         'breeze push-image \
               --github-repository user/airflow' - to push to your user's fork
         'breeze push-image \
@@ -1517,16 +1655,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry GITHUB_REGISTRY
+  -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
+
+  --github-registry GITHUB_REGISTRY
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
+          registry.
+
+          Default: docker.pkg.github.com.
+
+          If you use this flag, automatically --use-github-registry flag is enabled.
+
+                 docker.pkg.github.com ghcr.io
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
-          If you use this flag, automatically --github-registry flag is enabled.
+          If you use this flag, automatically --use-github-registry flag is enabled.
 
   -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
@@ -1535,7 +1683,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically pull and use that image so that you can easily reproduce a problem
           that occurred in CI.
 
-          If you use this flag, automatically --github-registry is enabled.
+          If you use this flag, automatically --use-github-registry is enabled.
+
 
           Default: latest.
 
@@ -1546,6 +1695,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
 
 
   ####################################################################################################
@@ -1573,6 +1726,52 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  2.7 3.5 3.6 3.7 3.8
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: prepare-airflow-packages
+
+
+  breeze prepare-airflow-packages [FLAGS]
+
+        Prepares airflow packages (sdist and wheel) in dist folder. Note that
+        prepare-provider-packages command cleans up the dist folder, so if you want also
+        to generate provider packages, make sure you run prepare-provider-packages first,
+        and prepare-airflow-packages second.
+
+        General form:
+
+        'breeze prepare-airflow-packages
+
+  Flags:
+
+  --package-format PACKAGE_FORMAT
+
+          Chooses format of packages to prepare.
+
+          One of:
+
+                 both,sdist,wheel
+
+          Default: both
+
+  --backports
+
+          Prepares backport providers rather than regular ones.
+
+  -v, --verbose
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
 
 
   ####################################################################################################
@@ -1732,6 +1931,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
 
   ####################################################################################################
 
@@ -1748,7 +1951,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
         to the cluster so you can also pass appropriate build image flags that will influence
         rebuilding the production image. Operation is one of:
 
-                 start stop restart status deploy test shell
+                 start stop restart status deploy test shell k9s
+
+        The last two operations - shell and k9s allow you to perform interactive testing with
+        kubernetes tests. You can enter the shell from which you can run kubernetes tests and in
+        another terminal you can start the k9s CLI to debug kubernetes instance. It is an easy
+        way to debug the kubernetes deployments.
+
+        You can read more about k9s at https://k9scli.io/
 
   Flags:
 
@@ -1781,21 +1991,24 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  devel_ci
 
           Production image:
-                 async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,
-                 ssh,statsd,virtualenv
+                 async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 virtualenv
 
   --image-tag TAG
           Additional tag in the image.
 
-  --skip-installing-airflow-providers
+  --skip-installing-airflow-providers-from-sources
           By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras but in Breeze (which is development environment) providers are
-          installed by default. You can disable it by adding this flag.
+          are needed by the extras. When you build image during the development (which is
+          default in Breeze) all providers are installed by default from sources.
+          You can disable it by adding this flag but then you have to install providers from
+          wheel packages via --install-packages-from-dist flag.
 
-  --skip-installing-airflow-via-pip
-          Skips installing Airflow via PIP. If you use this flag and want to install
-          Airflow, you have to install Airflow from packages placed in
-          'docker-context-files' and use --add-local-pip-files flag.
+  --disable-pypi-when-building
+          Disable installing Airflow from pypi when building. If you use this flag and want
+          to install Airflow, you have to install it from packages placed in
+          'docker-context-files' and use --install-from-local-files-when-building flag.
 
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
@@ -1850,11 +2063,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --disable-pip-cache
           Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
 
-  --add-local-pip-wheels
+  --install-from-local-files-when-building
           This flag is used during image building. If it is used additionally to installing
-          Airflow from PyPI, the packages are installed from the .whl packages placed
+          Airflow from PyPI, the packages are installed from the .whl and .tar.gz packages placed
           in the 'docker-context-files' folder. The same flag can be used during entering the image in
-          the CI image - in this case also the .whl files
+          the CI image - in this case also the .whl and .tar.gz files will be installed automatically
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
@@ -1873,7 +2086,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -U, --build-cache-pulled
           Uses images pulled from registry (either DockerHub or GitHub depending on
-          --github-registry flag) to build images. The pulled images will be used as cache.
+          --use-github-registry flag) to build images. The pulled images will be used as cache.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
           the registry images are not yet updated. The DockerHub images are updated nightly and the
           GitHub images are updated after merges to master so it might be that the images are still
@@ -1894,26 +2107,31 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ####################################################################################################
 
 
-  Detailed usage for command: prepare-provider-readme
+  Detailed usage for command: prepare-provider-documentation
 
 
-  breeze prepare-provider-packages [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
+  breeze prepare-provider-documentation [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
 
-        Prepares README.md files for backport packages. You can provide (after --) optional version
-        in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
+        Prepares documentation files for provider packages.
+
+        The command is optionally followed by the list of packages to generate readme for.
         If the first parameter is not formatted as a date, then today is regenerated.
         If no packages are specified, readme for all packages are generated.
         If no date is specified, current date + 3 days is used (allowing for PMC votes to pass).
 
+        You can also specify --backport flag to prepare backport providers documentation and in this
+        case you can also optionally specify CALVER version as first parameter.
+
         Examples:
 
-        'breeze prepare-provider-readme' or
-        'breeze prepare-provider-readme 2020.05.10' or
-        'breeze prepare-provider-readme 2020.05.10 https google amazon'
+        'breeze prepare-provider-documentation' or
+        'breeze prepare-provider-documentation --version-suffix-for-pypi rc1' or
+        'breeze prepare-provider-documentation --backports 2020.05.10' or
+        'breeze prepare-provider-documentation --backports 2020.05.10 https google amazon'
 
         General form:
 
-        'breeze prepare-provider-readme YYYY.MM.DD <PACKAGE_ID> ...'
+        'breeze prepare-provider-documentation YYYY.MM.DD <PACKAGE_ID> ...'
 
         * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
           cannot be earlier than the already released version (the script will fail if it
@@ -1925,6 +2143,28 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
+  -S, --version-suffix-for-pypi SUFFIX
+          Adds optional suffix to the version in the generated backport package. It can be used
+          to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+  -N, --version-suffix-for-svn SUFFIX
+          Adds optional suffix to the generated names of package. It can be used to generate
+          rc1/rc2 ... versions of the packages to be uploaded to SVN.
+
+  --package-format PACKAGE_FORMAT
+
+          Chooses format of packages to prepare.
+
+          One of:
+
+                 both,sdist,wheel
+
+          Default: both
+
+  --backports
+
+          Prepares backport providers rather than regular ones.
+
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
           debugging - when you run breeze with --verbose flags you will be able to see the commands
@@ -1932,6 +2172,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
 
 
   ####################################################################################################
@@ -1946,12 +2190,20 @@ This is the current syntax for  `./breeze <./breeze>`_:
         If no packages are specified, readme for all packages are generated. You can specify optional
         --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
         --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
-        provide both suffixes in case you prepare alpha/beta versions.
+        provide both suffixes in case you prepare alpha/beta versions. The packages are prepared in
+        dist folder. Note that this command also cleans up dist folder before generating the packages
+        so that you do not have accidental files there. This will delete airflow package if it is
+        prepared there so make sure you run prepare-provider-packages first,
+        and prepare-airflow-packages second.
+
+        You can also specify --backport flag to prepare backport providers or --package-format to
+        prepare one or both types of supported formats.
 
         Examples:
 
         'breeze prepare-provider-packages' or
         'breeze prepare-provider-packages google' or
+        'breeze prepare-provider-packages --package-format wheel google' or
         'breeze prepare-provider-packages --version-suffix-for-svn rc1 http google amazon' or
         'breeze prepare-provider-packages --version-suffix-for-pypi rc1 http google amazon'
         'breeze prepare-provider-packages --version-suffix-for-pypi a1
@@ -1959,7 +2211,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         General form:
 
-        'breeze prepare-provider-packages \
+        'breeze prepare-provider-packages [--backports] [--package-format PACKAGE_FORMAT] \
               [--version-suffix-for-svn|--version-suffix-for-pypi] <PACKAGE_ID> ...'
 
         * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
@@ -1967,6 +2219,20 @@ This is the current syntax for  `./breeze <./breeze>`_:
           for example 'apache.hive'
 
   Flags:
+
+  --package-format PACKAGE_FORMAT
+
+          Chooses format of packages to prepare.
+
+          One of:
+
+                 both,sdist,wheel
+
+          Default: both
+
+  --backports
+
+          Prepares backport providers rather than regular ones.
 
   -S, --version-suffix-for-pypi SUFFIX
           Adds optional suffix to the version in the generated backport package. It can be used
@@ -1984,6 +2250,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
 
   ####################################################################################################
 
@@ -1996,19 +2266,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all all-but-pylint airflow-config-yaml base-operator bats-tests
-                 bats-in-container-tests black build build-providers-dependencies
-                 check-apache-license check-builtin-literals check-executables-have-shebangs
-                 check-hooks-apply check-integrations check-merge-conflict check-xml
-                 consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
-                 dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
-                 helm-lint incorrect-use-of-LoggingMixin insert-license isort language-matters
-                 lint-dockerfile lint-openapi mermaid mixed-line-ending mypy mypy-helm
-                 no-relative-imports pre-commit-descriptions provide-create-sessions pydevd
-                 pydocstyle pylint pylint-tests python-no-log-warn pyupgrade restrict-start_date
-                 rst-backticks setup-order setup-installation shellcheck sort-in-the-wild stylelint
-                 trailing-whitespace update-breeze-file update-extras update-local-yml-file
-                 update-setup-cfg-file yamllint
+                 all all-but-pylint airflow-config-yaml airflow-providers-available
+                 airflow-provider-yaml-files-ok base-operator bats-tests bats-in-container-tests
+                 black build build-providers-dependencies check-apache-license check-builtin-literals
+                 check-executables-have-shebangs check-hooks-apply check-integrations
+                 check-merge-conflict check-xml consistent-pylint daysago-import-check
+                 debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
+                 fix-encoding-pragma flake8 flynt forbid-tabs helm-lint identity
+                 incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
+                 lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
+                 no-providers-in-core-examples no-relative-imports pre-commit-descriptions
+                 pre-commit-hook-names provide-create-sessions providers-init-file provider-yamls
+                 pydevd pydocstyle pylint pylint-tests python-no-log-warn pyupgrade
+                 restrict-start_date rst-backticks setup-order setup-extra-packages shellcheck
+                 sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
+                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 version-sync yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -2016,6 +2289,15 @@ This is the current syntax for  `./breeze <./breeze>`_:
         'breeze static-check mypy' or
         'breeze static-check mypy -- --files tests/core.py'
         'breeze static-check mypy -- --all-files'
+
+        To check all files that differ between you current branch and master run:
+
+        'breeze static-check all -- --from-ref $(git merge-base master HEAD) --to-ref HEAD'
+
+        To check all files that are in the HEAD commit run:
+
+        'breeze static-check mypy -- --from-ref HEAD^ --to-ref HEAD'
+
 
         You can see all the options by adding --help EXTRA_ARG:
 
@@ -2035,7 +2317,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         as additional options passed to pytest. You can pass 'tests' as target to
         run all tests. For example:
 
-        'breeze tests tests/test_core.py -- --logging-level=DEBUG'
+        'breeze tests tests/core/test_core.py -- --logging-level=DEBUG'
         'breeze tests tests
 
   Flags:
@@ -2142,7 +2424,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           start all integrations. Selected integrations are not saved for future execution.
           One of:
 
-                 cassandra kerberos mongo openldap presto rabbitmq redis all
+                 cassandra kerberos mongo openldap pinot presto rabbitmq redis statsd all
 
   --init-script INIT_SCRIPT_FILE
           Initialization script name - Sourced from files/airflow-breeze-config. Default value
@@ -2227,23 +2509,46 @@ This is the current syntax for  `./breeze <./breeze>`_:
    Choose different Airflow version to install or run
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
-          If specified, installs Airflow directly from PIP released version. This happens at
-          image building time in production image and at container entering time for CI image. One of:
+          In CI image, installs Airflow (in entrypoint) from PIP released version or using
+          the installation method specified (sdist, wheel, none).
 
-                 1.10.12 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2
+          In PROD image the installation of selected method or version happens during image building.
+          For PROD image, the 'none' options is not valid.
+
+          One of:
+
+                 2.0.0 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
+
+          When 'none' is used, you can install airflow from local packages. When building image,
+          airflow package should be added to 'docker-context-files' and
+          --install-from-docker-context-files flag should be used. When running an image, airflow
+          package should be added to dist folder and --install-packages-from-dist flag should be used.
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           If specified, installs Airflow directly from reference in GitHub. This happens at
           image building time in production image and at container entering time for CI image.
           This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
 
+  --installation-method INSTALLATION_METHOD
+          Method of installing airflow for production image - either from the sources ('.')
+          or from package 'apache-airflow' to install from PyPI.
+          Default in Breeze is to install from sources. One of:
+
+                 . apache-airflow
+
   --no-rbac-ui
           Disables RBAC UI when Airflow 1.10.* is installed.
 
-  --install-wheels
-          If specified it will look for wheel packages placed in dist folder and it will install the
-          wheels from there after installing Airflow. This is useful for testing backport
-          packages as well as in the future for testing provider packages for 2.0.
+  --install-packages-from-dist
+          If specified it will look for packages placed in dist folder and it will install the
+          packages after installing Airflow. This is useful for testing provider
+          packages.
+
+  --upgrade-to-newer-dependencies
+          Upgrades PIP packages to latest versions available without looking at the constraints.
+
+  --continue-on-pip-check-failure
+          Continue even if 'pip check' fails.
 
   ****************************************************************************************************
    Credentials
@@ -2274,21 +2579,24 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  devel_ci
 
           Production image:
-                 async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,
-                 ssh,statsd,virtualenv
+                 async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
+                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
+                 virtualenv
 
   --image-tag TAG
           Additional tag in the image.
 
-  --skip-installing-airflow-providers
+  --skip-installing-airflow-providers-from-sources
           By default 'pip install' in Airflow 2.0 installs only the provider packages that
-          are needed by the extras but in Breeze (which is development environment) providers are
-          installed by default. You can disable it by adding this flag.
+          are needed by the extras. When you build image during the development (which is
+          default in Breeze) all providers are installed by default from sources.
+          You can disable it by adding this flag but then you have to install providers from
+          wheel packages via --install-packages-from-dist flag.
 
-  --skip-installing-airflow-via-pip
-          Skips installing Airflow via PIP. If you use this flag and want to install
-          Airflow, you have to install Airflow from packages placed in
-          'docker-context-files' and use --add-local-pip-files flag.
+  --disable-pypi-when-building
+          Disable installing Airflow from pypi when building. If you use this flag and want
+          to install Airflow, you have to install it from packages placed in
+          'docker-context-files' and use --install-from-local-files-when-building flag.
 
   --additional-extras ADDITIONAL_EXTRAS
           Additional extras to pass to build images The default is no additional extras.
@@ -2343,11 +2651,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --disable-pip-cache
           Disables GitHub PIP cache during the build. Useful if GitHub is not reachable during build.
 
-  --add-local-pip-wheels
+  --install-from-local-files-when-building
           This flag is used during image building. If it is used additionally to installing
-          Airflow from PyPI, the packages are installed from the .whl packages placed
+          Airflow from PyPI, the packages are installed from the .whl and .tar.gz packages placed
           in the 'docker-context-files' folder. The same flag can be used during entering the image in
-          the CI image - in this case also the .whl files
+          the CI image - in this case also the .whl and .tar.gz files will be installed automatically
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
@@ -2366,7 +2674,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -U, --build-cache-pulled
           Uses images pulled from registry (either DockerHub or GitHub depending on
-          --github-registry flag) to build images. The pulled images will be used as cache.
+          --use-github-registry flag) to build images. The pulled images will be used as cache.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
           the registry images are not yet updated. The DockerHub images are updated nightly and the
           GitHub images are updated after merges to master so it might be that the images are still
@@ -2392,16 +2700,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo DOCKERHUB_REPO
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --github-registry GITHUB_REGISTRY
+  -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
+
+  --github-registry GITHUB_REGISTRY
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
+          registry.
+
+          Default: docker.pkg.github.com.
+
+          If you use this flag, automatically --use-github-registry flag is enabled.
+
+                 docker.pkg.github.com ghcr.io
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
 
-          If you use this flag, automatically --github-registry flag is enabled.
+          If you use this flag, automatically --use-github-registry flag is enabled.
 
   -s, --github-image-id COMMIT_SHA|RUN_ID
           <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
@@ -2410,7 +2728,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically pull and use that image so that you can easily reproduce a problem
           that occurred in CI.
 
-          If you use this flag, automatically --github-registry is enabled.
+          If you use this flag, automatically --use-github-registry is enabled.
+
 
           Default: latest.
 
@@ -2445,6 +2764,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
 
   ****************************************************************************************************
    Print detailed help message

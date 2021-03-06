@@ -82,10 +82,10 @@ class TestCassandraHook(unittest.TestCase):
             mock_connect.assert_called_once_with('test_keyspace')
 
             cluster = hook.get_cluster()
-            self.assertEqual(cluster.contact_points, ['host-1', 'host-2'])
-            self.assertEqual(cluster.port, 9042)
-            self.assertEqual(cluster.protocol_version, 4)
-            self.assertTrue(isinstance(cluster.load_balancing_policy, TokenAwarePolicy))
+            assert cluster.contact_points == ['host-1', 'host-2']
+            assert cluster.port == 9042
+            assert cluster.protocol_version == 4
+            assert isinstance(cluster.load_balancing_policy, TokenAwarePolicy)
 
     def test_get_lb_policy_with_no_args(self):
         # test LB policies with no args
@@ -163,12 +163,12 @@ class TestCassandraHook(unittest.TestCase):
         thrown = False
         try:
             policy = CassandraHook.get_lb_policy(policy_name, policy_args)
-            self.assertTrue(isinstance(policy, expected_policy_type))
+            assert isinstance(policy, expected_policy_type)
             if expected_child_policy_type:
-                self.assertTrue(isinstance(policy._child_policy, expected_child_policy_type))
+                assert isinstance(policy._child_policy, expected_child_policy_type)
         except Exception:  # pylint: disable=broad-except
             thrown = True
-        self.assertEqual(should_throw, thrown)
+        assert should_throw == thrown
 
     def test_record_exists_with_keyspace_from_cql(self):
         hook = CassandraHook("cassandra_default")
@@ -181,8 +181,8 @@ class TestCassandraHook(unittest.TestCase):
         for cql in cqls:
             session.execute(cql)
 
-        self.assertTrue(hook.record_exists("s.t", {"pk1": "foo", "pk2": "bar"}))
-        self.assertFalse(hook.record_exists("s.t", {"pk1": "foo", "pk2": "baz"}))
+        assert hook.record_exists("s.t", {"pk1": "foo", "pk2": "bar"})
+        assert not hook.record_exists("s.t", {"pk1": "foo", "pk2": "baz"})
 
         session.shutdown()
         hook.shutdown_cluster()
@@ -198,8 +198,8 @@ class TestCassandraHook(unittest.TestCase):
         for cql in cqls:
             session.execute(cql)
 
-        self.assertTrue(hook.record_exists("t", {"pk1": "foo", "pk2": "bar"}))
-        self.assertFalse(hook.record_exists("t", {"pk1": "foo", "pk2": "baz"}))
+        assert hook.record_exists("t", {"pk1": "foo", "pk2": "bar"})
+        assert not hook.record_exists("t", {"pk1": "foo", "pk2": "baz"})
 
         session.shutdown()
         hook.shutdown_cluster()
@@ -214,8 +214,8 @@ class TestCassandraHook(unittest.TestCase):
         for cql in cqls:
             session.execute(cql)
 
-        self.assertTrue(hook.table_exists("s.t"))
-        self.assertFalse(hook.table_exists("s.u"))
+        assert hook.table_exists("s.t")
+        assert not hook.table_exists("s.u")
 
         session.shutdown()
         hook.shutdown_cluster()
@@ -230,8 +230,8 @@ class TestCassandraHook(unittest.TestCase):
         for cql in cqls:
             session.execute(cql)
 
-        self.assertTrue(hook.table_exists("t"))
-        self.assertFalse(hook.table_exists("u"))
+        assert hook.table_exists("t")
+        assert not hook.table_exists("u")
 
         session.shutdown()
         hook.shutdown_cluster()

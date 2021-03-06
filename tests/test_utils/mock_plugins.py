@@ -20,7 +20,7 @@ from unittest import mock
 
 PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
     "plugins",
-    "hooks_modules",
+    "registered_hooks",
     "macros_modules",
     "executors_modules",
     "admin_views",
@@ -35,7 +35,7 @@ PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
 
 
 @contextmanager
-def mock_plugin_manager(**kwargs):
+def mock_plugin_manager(plugins=None, **kwargs):
     """
     Protects the initial state and sets the default state for the airflow.plugins module.
 
@@ -57,12 +57,24 @@ def mock_plugin_manager(**kwargs):
         raise TypeError(
             f"TypeError: mock_plugin_manager got an unexpected keyword arguments: {illegal_arguments}"
         )
+    # Handle plugins specially
     with ExitStack() as exit_stack:
-        for attr in PLUGINS_MANAGER_NULLABLE_ATTRIBUTES:
-            exit_stack.enter_context(  # pylint: disable=no-member
-                mock.patch(f"airflow.plugins_manager.{attr}", kwargs.get(attr))
+
+        def mock_loaded_plugins():
+            exit_stack.enter_context(mock.patch("airflow.plugins_manager.plugins", plugins or []))
+
+        exit_stack.enter_context(
+            mock.patch(
+                "airflow.plugins_manager.load_plugins_from_plugin_directory", side_effect=mock_loaded_plugins
             )
-        exit_stack.enter_context(  # pylint: disable=no-member
+        )
+
+        for attr in PLUGINS_MANAGER_NULLABLE_ATTRIBUTES:
+            exit_stack.enter_context(mock.patch(f"airflow.plugins_manager.{attr}", kwargs.get(attr)))
+
+        # Always start the block with an empty plugins, so ensure_plugins_loaded runs.
+        exit_stack.enter_context(mock.patch("airflow.plugins_manager.plugins", None))
+        exit_stack.enter_context(
             mock.patch("airflow.plugins_manager.import_errors", kwargs.get("import_errors", {}))
         )
 

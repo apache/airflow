@@ -22,7 +22,7 @@ from jira import JIRA
 from jira.exceptions import JIRAError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class JiraHook(BaseHook):
@@ -33,7 +33,12 @@ class JiraHook(BaseHook):
     :type jira_conn_id: str
     """
 
-    def __init__(self, jira_conn_id: str = 'jira_default', proxies: Optional[Any] = None) -> None:
+    default_conn_name = 'jira_default'
+    conn_type = "jira"
+    conn_name_attr = "jira_conn_id"
+    hook_name = "JIRA"
+
+    def __init__(self, jira_conn_id: str = default_conn_name, proxies: Optional[Any] = None) -> None:
         super().__init__()
         self.jira_conn_id = jira_conn_id
         self.proxies = proxies
@@ -77,8 +82,8 @@ class JiraHook(BaseHook):
                     proxies=self.proxies,
                 )
             except JIRAError as jira_error:
-                raise AirflowException('Failed to create jira client, jira error: %s' % str(jira_error))
+                raise AirflowException(f'Failed to create jira client, jira error: {str(jira_error)}')
             except Exception as e:
-                raise AirflowException('Failed to create jira client, error: %s' % str(e))
+                raise AirflowException(f'Failed to create jira client, error: {str(e)}')
 
         return self.client

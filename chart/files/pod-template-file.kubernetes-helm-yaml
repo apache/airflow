@@ -22,17 +22,18 @@ metadata:
 spec:
 {{- if .Values.dags.gitSync.enabled }}
   initContainers:
-{{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | indent 8 }}
+{{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | indent 4 }}
 {{- end }}
   containers:
     - args: []
       command: []
+      envFrom:
+      {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
       env:
-      - name: AIRFLOW__CORE__EXECUTOR
-        value: LocalExecutor
-{{- include "standard_airflow_environment" . | indent 4 }}
-{{- include "custom_airflow_environment" . | indent 4 }}
-      envFrom: []
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: LocalExecutor
+{{- include "standard_airflow_environment" . | indent 6}}
+{{- include "custom_airflow_environment" . | indent 6 }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
       name: base
@@ -40,9 +41,19 @@ spec:
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: airflow-logs
+        - name: config
+          mountPath: {{ template "airflow_config_path" . }}
+          subPath: airflow.cfg
+          readOnly: true
+{{- if .Values.scheduler.airflowLocalSettings }}
+        - name: config
+          mountPath: {{ template "airflow_local_setting_path" . }}
+          subPath: airflow_local_settings.py
+          readOnly: true
+{{- end }}
 {{- if .Values.dags.gitSync.knownHosts }}
         - mountPath: /etc/git-secret/known_hosts
-          name: {{ .Values.dags.gitSync.knownHosts }}
+          name: git-sync-known-hosts
           subPath: known_hosts
 {{- end }}
 {{- if .Values.dags.gitSync.sshKeySecret }}
@@ -50,13 +61,16 @@ spec:
           name: git-sync-ssh-key
           subPath: ssh
 {{- end }}
-{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
+{{- if .Values.dags.persistence.enabled }}
         - mountPath: {{ include "airflow_dags_mount_path" . }}
           name: dags
           readOnly: true
-{{- if .Values.dags.persistence.enabled }}
-          subPath: {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
 {{- end }}
+{{- if .Values.dags.gitSync.enabled }}
+        - mountPath: {{ include "airflow_dags" . }}
+          name: dags
+          readOnly: true
+          subPath: {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
 {{- end }}
   hostNetwork: false
   {{- if or .Values.registry.secretName .Values.registry.connection }}
@@ -66,12 +80,10 @@ spec:
   restartPolicy: Never
   securityContext:
     runAsUser: {{ .Values.uid }}
-  nodeSelector:
-    {{ toYaml .Values.nodeSelector | indent 8 }}
-  affinity:
-    {{ toYaml .Values.affinity | indent 8 }}
-  tolerations:
-    {{ toYaml .Values.tolerations | indent 8 }}
+    fsGroup: {{ .Values.gid }}
+  nodeSelector: {{ toYaml .Values.nodeSelector | nindent 4 }}
+  affinity: {{ toYaml .Values.affinity | nindent 4 }}
+  tolerations: {{ toYaml .Values.tolerations | nindent 4 }}
   serviceAccountName: '{{ .Release.Name }}-worker'
   volumes:
   {{- if .Values.dags.persistence.enabled }}
@@ -95,7 +107,4 @@ spec:
 {{- end }}
   - configMap:
       name: {{ include "airflow_config" . }}
-    name: airflow-config
-  - configMap:
-      name: {{ include "airflow_config" . }}
-    name: airflow-local-settings
+    name: config

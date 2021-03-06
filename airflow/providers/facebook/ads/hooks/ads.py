@@ -20,14 +20,17 @@ import time
 from enum import Enum
 from typing import Any, Dict, List
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adreportrun import AdReportRun
 from facebook_business.adobjects.adsinsights import AdsInsights
 from facebook_business.api import FacebookAdsApi
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 class JobStatus(Enum):
@@ -55,9 +58,14 @@ class FacebookAdsReportingHook(BaseHook):
 
     """
 
+    conn_name_attr = 'facebook_conn_id'
+    default_conn_name = 'facebook_default'
+    conn_type = 'facebook_social'
+    hook_name = 'Facebook Ads'
+
     def __init__(
         self,
-        facebook_conn_id: str = "facebook_default",
+        facebook_conn_id: str = default_conn_name,
         api_version: str = "v6.0",
     ) -> None:
         super().__init__()

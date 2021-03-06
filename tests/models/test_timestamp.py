@@ -20,7 +20,7 @@ import pytest
 from freezegun import freeze_time
 
 from airflow.models import DAG, Log, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import State

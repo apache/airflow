@@ -35,9 +35,10 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 DEV_NULL = '/dev/null'
-TEST_DAG_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dags')
-TEST_DAG_CORRUPTED_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dags_corrupted')
-TEST_UTILS_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_utils')
+TEST_ROOT_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+TEST_DAG_FOLDER = os.path.join(TEST_ROOT_FOLDER, 'dags')
+TEST_DAG_CORRUPTED_FOLDER = os.path.join(TEST_ROOT_FOLDER, 'dags_corrupted')
+TEST_UTILS_FOLDER = os.path.join(TEST_ROOT_FOLDER, 'test_utils')
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_USER = 'airflow_test_user'
 
@@ -139,7 +140,7 @@ class TestImpersonation(unittest.TestCase):
         ti = models.TaskInstance(task=dag.get_task(task_id), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
     def test_impersonation(self):
         """
@@ -202,7 +203,7 @@ class TestImpersonationWithCustomPythonPath(unittest.TestCase):
         ti = models.TaskInstance(task=dag.get_task(task_id), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
     @mock_custom_module_path(TEST_UTILS_FOLDER)
     def test_impersonation_custom(self):

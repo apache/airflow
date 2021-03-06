@@ -304,7 +304,7 @@ class AzureBatchOperator(BaseOperator):
             ]
         ):
             raise AirflowException(
-                "Some required parameters are missing.Please you must set " "all the required parameters. "
+                "Some required parameters are missing.Please you must set all the required parameters. "
             )
 
     def execute(self, context: dict) -> None:

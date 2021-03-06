@@ -18,8 +18,9 @@
 #}
 
 {% extends base_template %}
+{% from 'appbuilder/dag_docs.html' import dag_docs %}
 
-{% block page_title %}{{ dag.dag_id }} - Airflow{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - {{ appbuilder.app_name }}{% endblock %}
 
 {% block head_css %}
   {{ super() }}
@@ -39,13 +40,22 @@
       <span class="material-icons" aria-hidden="true">keyboard_arrow_up</span>
       DAG: {{ dag.parent_dag.dag_id }}</a>
   {% endif %}
+
   <div>
     <h3 class="pull-left">
       {% if dag.parent_dag is defined and dag.parent_dag %}
         <span class="text-muted">SUBDAG:</span> {{ dag.dag_id }}
       {% else %}
-        <label class="switch-label js-tooltip" title="Pause/Unpause DAG">
-          <input class="switch-input" id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} method="post">
+        {% set can_edit = appbuilder.sm.can_edit_dag(dag.dag_id) %}
+        {% if appbuilder.sm.can_edit_dag(dag.dag_id) %}
+          {% set switch_tooltip = 'Pause/Unpause DAG' %}
+        {% else %}
+          {% set switch_tooltip = 'DAG is Paused' if dag.is_paused else 'DAG is Active' %}
+        {% endif %}
+        <label class="switch-label{{' disabled' if not can_edit else ''  }} js-tooltip" title="{{ switch_tooltip }}">
+          <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
+                 type="checkbox"{{ " checked" if not dag.is_paused else "" }}
+                 {{ " disabled" if not can_edit else "" }}>
           <span class="switch" aria-hidden="true"></span>
         </label>
         <span class="text-muted">DAG:</span> {{ dag.dag_id }}
@@ -113,6 +123,7 @@
       </div>
     </div>
   </div>
+  {{ dag_docs(doc_md) }}
   <!-- Modal -->
   <div class="modal fade" id="taskInstanceModal" tabindex="-1" role="dialog" aria-labelledby="taskInstanceModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -132,16 +143,21 @@
             <hr>
           </div>
           <a id="btn_task" class="btn btn-sm" data-base-url="{{ url_for('Airflow.task') }}">
-            Task Instance Details
+            Instance Details
           </a>
-          <a id="btn_rendered" class="btn btn-sm" data-base-url="{{ url_for('Airflow.rendered') }}">
+          <a id="btn_rendered" class="btn btn-sm" data-base-url="{{ url_for('Airflow.rendered_templates') }}">
             Rendered
           </a>
-          <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
-            Task Instances
-          </a>
+          {% if k8s_or_k8scelery_executor %}
+            <a id="btn_rendered_k8s" class="btn btn-sm" data-base-url="{{ url_for('Airflow.rendered_k8s') }}">
+              K8s Pod Spec
+            </a>
+          {% endif %}
           <a id="btn_log" class="btn btn-sm" data-base-url="{{ url_for('Airflow.log') }}">
-            View Log
+            Log
+          </a>
+          <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
+            All Instances
           </a>
           <button id="btn_filter" type="button" class="btn btn-sm" title="Filter on this task and upstream ">
             Filter Upstream
@@ -170,7 +186,7 @@
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
-              <span class="btn-group col-md-9" data-toggle="buttons">
+              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label
                   class="btn btn-default"
                   title="Ignores all non-critical dependencies, including task state and task_deps">
@@ -187,14 +203,14 @@
                   Ignore Task Deps
                 </label>
               </span>
-              <span class="col-md-3">
+              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
                 <button type="submit" id="btn_run" class="btn btn-primary btn-block" title="Runs a single task instance">
                   Run
                 </button>
               </span>
             </div>
           </form>
-          <hr>
+          <hr style="margin-bottom: 8px;">
           <form method="POST" data-action="{{ url_for('Airflow.clear') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
@@ -202,7 +218,7 @@
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
-              <span class="btn-group col-md-9" data-toggle="buttons">
+              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label class="btn btn-default btn-sm" title="Also include past task instances when clearing this one">
                   <input type="checkbox" value="true" name="past" autocomplete="off">
                   Past
@@ -228,7 +244,7 @@
                   Failed
                 </label>
               </span>
-              <span class="col-md-3">
+              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
                 <button type="submit" id="btn_clear" class="btn btn-primary btn-block"
                     title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command">
                   Clear
@@ -236,7 +252,7 @@
               </span>
             </div>
           </form>
-          <hr>
+          <hr style="margin-bottom: 8px;">
           <form method="POST" data-action="{{ url_for('Airflow.failed') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
@@ -244,7 +260,7 @@
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
-              <span class="btn-group col-md-9" data-toggle="buttons">
+              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label class="btn btn-default">
                   <input type="checkbox" value="true" name="failed_past" autocomplete="off">
                   Past
@@ -262,14 +278,14 @@
                   Downstream
                 </label>
               </span>
-              <span class="col-md-3">
+              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
                 <button type="submit" id="btn_failed" class="btn btn-primary btn-block">
                   Mark Failed
                 </button>
               </span>
             </div>
           </form>
-          <hr>
+          <hr style="margin-bottom: 8px;">
           <form method="POST" data-action="{{ url_for('Airflow.success') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
@@ -277,7 +293,7 @@
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <div class="row">
-              <span class="btn-group col-md-9" data-toggle="buttons">
+              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label class="btn btn-default">
                   <input type="checkbox" value="true" name="success_past" autocomplete="off">
                   Past
@@ -295,7 +311,7 @@
                   Downstream
                 </label>
               </span>
-              <span class="col-md-3">
+              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
                 <button type="submit" id="btn_success" class="btn btn-primary btn-block">
                   Mark Success
                 </button>
@@ -359,13 +375,13 @@
   {{ super() }}
   <script>
     function updateQueryStringParameter(uri, key, value) {
-      var re = new RegExp('([?&])' + key + '=.*?(&|$)', 'i');
+      var re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
       var separator = uri.indexOf('?') !== -1 ? '&' : '?';
       if (uri.match(re)) {
-        return uri.replace(re, '$1' + key + "=" + value + '$2');
+        return uri.replace(re, `$1${key}=${value}$2`);
       }
       else {
-        return uri + separator + key + '=' + value;
+        return `${uri}${separator}${key}=${value}`;
       }
     }
 
@@ -377,7 +393,7 @@
 
     var id = '';
     var dag_id = '{{ dag.dag_id }}';
-    var dagTZ = '{{ dag.timezone.name }}'; // Being used in datetime-utils.js
+    var dagTZ = '{{ dag.timezone.name }}'; // Being used in datetime_utils.js
     var task_id = '';
     var execution_date = '';
     var subdag_id = '';
@@ -399,7 +415,7 @@
     });
 
     function updateButtonUrl(elm, params) {
-      elm.setAttribute('href', elm.dataset.baseUrl + '?' + $.param(params));
+      elm.setAttribute('href',  `${elm.dataset.baseUrl}?${$.param(params)}`);
     }
 
     function updateModalUrls() {
@@ -419,6 +435,14 @@
         task_id: task_id,
         execution_date: execution_date,
       });
+
+      if (buttons.rendered_k8s) {
+        updateButtonUrl(buttons.rendered_k8s, {
+          dag_id: dag_id,
+          task_id: task_id,
+          execution_date: execution_date,
+        });
+      }
 
       updateButtonUrl(buttons.ti, {
         flt1_dag_id_equals: dag_id,
@@ -451,7 +475,7 @@
           $('#div_btn_subdag').hide();
       else {
           $('#div_btn_subdag').show();
-          subdag_id = '{{ dag.dag_id }}.' + t;
+          subdag_id = `{{ dag.dag_id }}.${t}`;
       }
 
       $('#dag_dl_logs').hide();
@@ -478,7 +502,7 @@
 
         var showLabel = index;
         if (index != 0) {
-          url += '&try_number=' + index;
+          url += `&try_number=${index}`;
         } else {
           showLabel = 'All';
         }
@@ -576,7 +600,7 @@
     })
 
     // DAG Modal actions
-    $('form button[data-action]').click(function (e) {
+    $('form button[data-action]').click(function () {
       var form = $(this).closest('form').get(0);
       form.execution_date.value = execution_date;
       form.origin.value = window.location;
@@ -588,23 +612,16 @@
     });
 
     $('#pause_resume').change(function() {
-      var dag_id = $(this).attr('dag_id');
       var $input = $(this);
-      var $buttons = $input.parent('.toggle').find('.btn');
-      $buttons.removeClass('btn-danger');
-      if ($input.prop('checked')) {
-        is_paused = 'true'
-      } else {
-        is_paused = 'false'
-      }
-      var url = '{{ url_for('Airflow.paused') }}' + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
+      var dagId = $input.data('dag-id');
+      var isPaused = $input.is(':checked');
+      var url = `{{ url_for('Airflow.paused') }}?is_paused=${isPaused}&dag_id=${encodeURIComponent(dagId)}`;
+      $input.removeClass('switch-input--error');
       $.post(url).fail(function() {
-        if (is_paused === 'true') {
-          $input.data('bs.toggle').off(true);
-        } else {
-          $input.data('bs.toggle').on(true);
-        }
-        $buttons.addClass('btn-danger');
+        setTimeout(() => {
+          $input.prop('checked', !isPaused);
+          $input.addClass('switch-input--error');
+        }, 500 );
       });
     });
   </script>

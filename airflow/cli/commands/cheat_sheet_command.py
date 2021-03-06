@@ -14,55 +14,45 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import contextlib
-from typing import Iterable, List, Union
-
-from termcolor import cprint
+from typing import Iterable, List, Optional, Union
 
 from airflow.cli.cli_parser import ActionCommand, GroupCommand, airflow_commands
+from airflow.cli.simple_table import AirflowConsole, SimpleTable
+from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.helpers import partition
-from airflow.utils.platform import is_terminal_support_colors
-from airflow.utils.process_utils import patch_environ
-
-ANSI_COLORS_DISABLED = "ANSI_COLORS_DISABLED"
-"""Environment variable disable using rich output. It is supported by termcolor library"""
 
 
+@suppress_logs_and_warning
 def cheat_sheet(args):
     """Display cheat-sheet."""
-    with contextlib.ExitStack() as exit_stack:
-        if not is_terminal_support_colors():
-            exit_stack.enter_context(patch_environ({ANSI_COLORS_DISABLED: "1"}))
-        cprint("List of all commands:".upper(), attrs=["bold", "underline"])
-        print()
-        display_commands_index()
+    display_commands_index()
 
 
 def display_commands_index():
     """Display list of all commands."""
 
-    def display_recursive(prefix: List[str], commands: Iterable[Union[GroupCommand, ActionCommand]]):
+    def display_recursive(
+        prefix: List[str],
+        commands: Iterable[Union[GroupCommand, ActionCommand]],
+        help_msg: Optional[str] = None,
+    ):
         actions: List[ActionCommand]
         groups: List[GroupCommand]
-        actions_tter, groups_iter = partition(lambda x: isinstance(x, GroupCommand), commands)
-        actions, groups = list(actions_tter), list(groups_iter)
+        actions_iter, groups_iter = partition(lambda x: isinstance(x, GroupCommand), commands)
+        actions, groups = list(actions_iter), list(groups_iter)
 
+        console = AirflowConsole()
         if actions:
+            table = SimpleTable(title=help_msg or "Miscellaneous commands")
+            table.add_column(width=40)
+            table.add_column()
             for action_command in sorted(actions, key=lambda d: d.name):
-                print("  ", end="")
-                cprint(" ".join([*prefix, action_command.name]), attrs=["bold"], end="")
-                print(f" - {action_command.help}")
-            print()
+                table.add_row(" ".join([*prefix, action_command.name]), action_command.help)
+            console.print(table)
 
         if groups:
             for group_command in sorted(groups, key=lambda d: d.name):
                 group_prefix = [*prefix, group_command.name]
-                # print(bold(" ".join(group_prefix)), end="")
-                cprint(group_command.help, attrs=["bold", "underline"])
-                print()
-                display_recursive(group_prefix, group_command.subcommands)
-
-            print()
+                display_recursive(group_prefix, group_command.subcommands, group_command.help)
 
     display_recursive(["airflow"], airflow_commands)

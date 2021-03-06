@@ -18,11 +18,11 @@
 import os
 import sys
 
-import yaml
 from kubernetes import client
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
+import airflow.utils.yaml as yaml
 from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
@@ -49,7 +49,7 @@ def generate_pod_yaml(args):
             try_number=ti.try_number,
             kube_image=kube_config.kube_image,
             date=ti.execution_date,
-            command=ti.command_as_list(),
+            args=ti.command_as_list(),
             pod_override_object=PodGenerator.from_obj(ti.executor_config),
             scheduler_job_id="worker-config",
             namespace=kube_config.executor_namespace,
@@ -90,9 +90,9 @@ def cleanup_pods(args):
     print('Loading Kubernetes configuration')
     kube_client = get_kube_client()
     print(f'Listing pods in namespace {namespace}')
-    continue_token = None
+    list_kwargs = {"namespace": namespace, "limit": 500}
     while True:  # pylint: disable=too-many-nested-blocks
-        pod_list = kube_client.list_namespaced_pod(namespace=namespace, limit=500, _continue=continue_token)
+        pod_list = kube_client.list_namespaced_pod(**list_kwargs)
         for pod in pod_list.items:
             pod_name = pod.metadata.name
             print(f'Inspecting pod {pod_name}')
@@ -112,12 +112,13 @@ def cleanup_pods(args):
                 try:
                     _delete_pod(pod.metadata.name, namespace)
                 except ApiException as e:
-                    print(f"can't remove POD: {e}", file=sys.stderr)
+                    print(f"Can't remove POD: {e}", file=sys.stderr)
                 continue
             print(f'No action taken on pod {pod_name}')
         continue_token = pod_list.metadata._continue  # pylint: disable=protected-access
         if not continue_token:
             break
+        list_kwargs["_continue"] = continue_token
 
 
 def _delete_pod(name, namespace):

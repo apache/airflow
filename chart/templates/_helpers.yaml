@@ -47,7 +47,7 @@
   - name: AIRFLOW__CELERY__BROKER_URL
     valueFrom:
       secretKeyRef:
-        name: {{ .Release.Name }}-broker-url
+        name: {{ default (printf "%s-broker-url" .Release.Name) .Values.data.brokerUrlSecretName }}
         key: connection
   {{- end }}
   {{- if .Values.elasticsearch.enabled }}
@@ -85,12 +85,25 @@
         name: {{ $config.secretName }}
         key: {{ default "value" $config.secretKey }}
   {{- end }}
-    {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+  {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
     {{- range $i, $config := .Values.secret }}
   - name: AIRFLOW__KUBERNETES_SECRETS__{{ $config.envName }}
     value: {{ printf "%s=%s" $config.secretName $config.secretKey }}
     {{- end }}
   {{ end }}
+  # Extra env
+  {{- $Global := . }}
+  {{- with .Values.extraEnv }}
+  {{- tpl . $Global | nindent 2 }}
+  {{- end }}
+{{- end }}
+
+{{/* User defined Airflow environment from */}}
+{{- define "custom_airflow_environment_from" }}
+  {{- $Global := . }}
+  {{- with .Values.extraEnvFrom }}
+  {{- tpl . $Global | nindent 2 }}
+  {{- end }}
 {{- end }}
 
 {{/*  Git ssh key volume */}}
@@ -354,6 +367,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - -c
   - |
         import airflow
+        import logging
         import os
         import time
 
@@ -367,7 +381,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
         directory = os.path.join(package_dir, 'migrations')
         config = Config(os.path.join(package_dir, 'alembic.ini'))
         config.set_main_option('script_location', directory)
-        config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN)
+        config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
         script_ = ScriptDirectory.from_config(config)
 
         timeout=60
@@ -386,7 +400,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
                     raise TimeoutError("There are still unapplied migrations after {} seconds.".format(ticker))
                 ticker += 1
                 time.sleep(1)
-                log.info('Waiting for migrations... %s second(s)', ticker)
+                logging.info('Waiting for migrations... %s second(s)', ticker)
 {{- end }}
 
 {{ define "registry_docker_config" -}}

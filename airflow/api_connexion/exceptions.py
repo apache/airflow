@@ -19,15 +19,14 @@ from typing import Dict, Optional
 import werkzeug
 from connexion import FlaskApi, ProblemException, problem
 
-from airflow import version
+from airflow.utils.docs import get_docs_url
 
-doc_link = f'https://airflow.apache.org/docs/{version.version}/stable-rest-api-ref.html'
-if 'dev' in version.version:
-    doc_link = "https://airflow.readthedocs.io/en/latest/stable-rest-api-ref.html"
+doc_link = get_docs_url("stable-rest-api-ref.html")
 
 EXCEPTIONS_LINK_MAP = {
     400: f"{doc_link}#section/Errors/BadRequest",
     404: f"{doc_link}#section/Errors/NotFound",
+    405: f"{doc_link}#section/Errors/MethodNotAllowed",
     401: f"{doc_link}#section/Errors/Unauthenticated",
     409: f"{doc_link}#section/Errors/AlreadyExists",
     403: f"{doc_link}#section/Errors/PermissionDenied",
@@ -38,6 +37,7 @@ EXCEPTIONS_LINK_MAP = {
 def common_error_handler(exception):
     """
     Used to capture connexion exceptions and add link to the type field
+
     :type exception: Exception
     """
     if isinstance(exception, ProblemException):

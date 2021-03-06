@@ -21,7 +21,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Union
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
@@ -354,7 +354,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         if not self._check_if_instance_exists(self.instance, hook):
             hook.create_instance(project_id=self.project_id, body=self.body)
         else:
-            self.log.info("Cloud SQL instance with ID %s already exists. " "Aborting create.", self.instance)
+            self.log.info("Cloud SQL instance with ID %s already exists. Aborting create.", self.instance)
 
         instance_resource = hook.get_instance(project_id=self.project_id, instance=self.instance)
         service_account_email = instance_resource["serviceAccountEmailAddress"]
@@ -620,7 +620,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         )
         if self._check_if_db_exists(database, hook):
             self.log.info(
-                "Cloud SQL instance with ID %s already contains database" " '%s'. Aborting database insert.",
+                "Cloud SQL instance with ID %s already contains database '%s'. Aborting database insert.",
                 self.instance,
                 database,
             )
@@ -1047,7 +1047,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     :param gcp_cloudsql_conn_id: The connection ID used to connect to Google Cloud SQL
        its schema should be gcpcloudsql://.
        See :class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook` for
-       details on how to define gcpcloudsql:// connection.
+       details on how to define ``gcpcloudsql://`` connection.
     :type gcp_cloudsql_conn_id: str
     """
 

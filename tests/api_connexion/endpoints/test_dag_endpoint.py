@@ -18,13 +18,15 @@ import os
 import unittest
 from datetime import datetime
 
+from itsdangerous import URLSafeSerializer
 from parameterized import parameterized
 
 from airflow import DAG
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.configuration import conf
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.www import app
@@ -32,10 +34,15 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
+SERIALIZER = URLSafeSerializer(conf.get('webserver', 'secret_key'))
+FILE_TOKEN = SERIALIZER.dumps(__file__)
+
 
 class TestDagEndpoint(unittest.TestCase):
     dag_id = "test_dag"
     task_id = "op1"
+    dag2_id = "test_dag2"
+    dag3_id = "test_dag3"
 
     @staticmethod
     def clean_db():
@@ -68,12 +75,28 @@ class TestDagEndpoint(unittest.TestCase):
             access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
         )
 
-        with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
+        with DAG(
+            cls.dag_id,
+            start_date=datetime(2020, 6, 15),
+            doc_md="details",
+            params={"foo": 1},
+            tags=['example'],
+        ) as dag:
             DummyOperator(task_id=cls.task_id)
 
+        with DAG(cls.dag2_id, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
+            DummyOperator(task_id=cls.task_id)
+
+        with DAG(cls.dag3_id) as dag3:  # DAG start_date set to None
+            DummyOperator(task_id=cls.task_id, start_date=datetime(2019, 6, 12))
+
         cls.dag = dag  # type:ignore
+        cls.dag2 = dag2  # type: ignore
+        cls.dag3 = dag3  # tupe: ignore
+
         dag_bag = DagBag(os.devnull, include_examples=False)
-        dag_bag.dags = {dag.dag_id: dag}
+        dag_bag.dags = {dag.dag_id: dag, dag2.dag_id: dag2, dag3.dag_id: dag3}
+
         cls.app.dag_bag = dag_bag  # type:ignore
 
     @classmethod
@@ -101,28 +124,25 @@ class TestDagEndpoint(unittest.TestCase):
 
 
 class TestGetDag(TestDagEndpoint):
+    @conf_vars({("webserver", "secret_key"): "mysecret"})
     def test_should_respond_200(self):
         self._create_dag_models(1)
         response = self.client.get("/api/v1/dags/TEST_DAG_1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
+        assert {
+            "dag_id": "TEST_DAG_1",
+            "description": None,
+            "fileloc": "/tmp/dag_1.py",
+            "file_token": 'Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk',
+            "is_paused": False,
+            "is_subdag": False,
+            "owners": [],
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "tags": [],
+        } == response.json
 
-        current_response = response.json
-        current_response["fileloc"] = "/tmp/test-dag.py"
-        self.assertEqual(
-            {
-                "dag_id": "TEST_DAG_1",
-                "description": None,
-                "fileloc": "/tmp/test-dag.py",
-                "is_paused": False,
-                "is_subdag": False,
-                "owners": [],
-                "root_dag_id": None,
-                "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
-                "tags": [],
-            },
-            current_response,
-        )
-
+    @conf_vars({("webserver", "secret_key"): "mysecret"})
     @provide_session
     def test_should_respond_200_with_schedule_interval_none(self, session=None):
         dag_model = DagModel(
@@ -134,23 +154,18 @@ class TestGetDag(TestDagEndpoint):
         session.commit()
         response = self.client.get("/api/v1/dags/TEST_DAG_1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-
-        current_response = response.json
-        current_response["fileloc"] = "/tmp/test-dag.py"
-        self.assertEqual(
-            {
-                "dag_id": "TEST_DAG_1",
-                "description": None,
-                "fileloc": "/tmp/test-dag.py",
-                "is_paused": False,
-                "is_subdag": False,
-                "owners": [],
-                "root_dag_id": None,
-                "schedule_interval": None,
-                "tags": [],
-            },
-            current_response,
-        )
+        assert {
+            "dag_id": "TEST_DAG_1",
+            "description": None,
+            "fileloc": "/tmp/dag_1.py",
+            "file_token": 'Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk',
+            "is_paused": False,
+            "is_subdag": False,
+            "owners": [],
+            "root_dag_id": None,
+            "schedule_interval": None,
+            "tags": [],
+        } == response.json
 
     def test_should_respond_200_with_granular_dag_access(self):
         self._create_dag_models(1)
@@ -199,10 +214,12 @@ class TestGetDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": "details",
             "fileloc": __file__,
+            "file_token": FILE_TOKEN,
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owners": ['airflow'],
+            "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
                 "days": 1,
@@ -210,7 +227,71 @@ class TestGetDagDetails(TestDagEndpoint):
                 "seconds": 0,
             },
             "start_date": "2020-06-15T00:00:00+00:00",
-            "tags": None,
+            "tags": [{'name': 'example'}],
+            "timezone": "Timezone('UTC')",
+        }
+        assert response.json == expected
+
+    def test_should_response_200_with_doc_md_none(self):
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag2_id}/details", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        expected = {
+            "catchup": True,
+            "concurrency": 16,
+            "dag_id": "test_dag2",
+            "dag_run_timeout": None,
+            "default_view": "tree",
+            "description": None,
+            "doc_md": None,
+            "fileloc": __file__,
+            "file_token": FILE_TOKEN,
+            "is_paused": None,
+            "is_subdag": False,
+            "orientation": "LR",
+            "owners": ['airflow'],
+            "params": {},
+            "schedule_interval": {
+                "__type": "TimeDelta",
+                "days": 1,
+                "microseconds": 0,
+                "seconds": 0,
+            },
+            "start_date": "2020-06-15T00:00:00+00:00",
+            "tags": [],
+            "timezone": "Timezone('UTC')",
+        }
+        assert response.json == expected
+
+    def test_should_response_200_for_null_start_date(self):
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag3_id}/details", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        expected = {
+            "catchup": True,
+            "concurrency": 16,
+            "dag_id": "test_dag3",
+            "dag_run_timeout": None,
+            "default_view": "tree",
+            "description": None,
+            "doc_md": None,
+            "fileloc": __file__,
+            "file_token": FILE_TOKEN,
+            "is_paused": None,
+            "is_subdag": False,
+            "orientation": "LR",
+            "owners": ['airflow'],
+            "params": {},
+            "schedule_interval": {
+                "__type": "TimeDelta",
+                "days": 1,
+                "microseconds": 0,
+                "seconds": 0,
+            },
+            "start_date": None,
+            "tags": [],
             "timezone": "Timezone('UTC')",
         }
         assert response.json == expected
@@ -234,10 +315,12 @@ class TestGetDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": "details",
             "fileloc": __file__,
+            "file_token": FILE_TOKEN,
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owners": ['airflow'],
+            "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
                 "days": 1,
@@ -245,7 +328,7 @@ class TestGetDagDetails(TestDagEndpoint):
                 "seconds": 0,
             },
             "start_date": "2020-06-15T00:00:00+00:00",
-            "tags": None,
+            "tags": [{'name': 'example'}],
             "timezone": "Timezone('UTC')",
         }
         response = client.get(
@@ -268,13 +351,15 @@ class TestGetDagDetails(TestDagEndpoint):
             'description': None,
             'doc_md': 'details',
             'fileloc': __file__,
+            "file_token": FILE_TOKEN,
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',
-            'owners': [],
+            'owners': ['airflow'],
+            "params": {"foo": 1},
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'microseconds': 0, 'seconds': 0},
             'start_date': '2020-06-15T00:00:00+00:00',
-            'tags': None,
+            'tags': [{'name': 'example'}],
             'timezone': "Timezone('UTC')",
         }
         assert response.json == expected
@@ -284,50 +369,62 @@ class TestGetDagDetails(TestDagEndpoint):
 
         assert_401(response)
 
+    def test_should_raise_404_when_dag_is_not_found(self):
+        response = self.client.get(
+            "/api/v1/dags/non_existing_dag_id/details", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 404
+        assert response.json == {
+            'detail': 'The DAG with dag_id: non_existing_dag_id was not found',
+            'status': 404,
+            'title': 'DAG not found',
+            'type': EXCEPTIONS_LINK_MAP[404],
+        }
+
 
 class TestGetDags(TestDagEndpoint):
     def test_should_respond_200(self):
         self._create_dag_models(2)
 
         response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test"})
-
+        file_token = SERIALIZER.dumps("/tmp/dag_1.py")
+        file_token2 = SERIALIZER.dumps("/tmp/dag_2.py")
         assert response.status_code == 200
-        self.assertEqual(
-            {
-                "dags": [
-                    {
-                        "dag_id": "TEST_DAG_1",
-                        "description": None,
-                        "fileloc": "/tmp/dag_1.py",
-                        "is_paused": False,
-                        "is_subdag": False,
-                        "owners": [],
-                        "root_dag_id": None,
-                        "schedule_interval": {
-                            "__type": "CronExpression",
-                            "value": "2 2 * * *",
-                        },
-                        "tags": [],
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": file_token,
+                    "is_paused": False,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
                     },
-                    {
-                        "dag_id": "TEST_DAG_2",
-                        "description": None,
-                        "fileloc": "/tmp/dag_2.py",
-                        "is_paused": False,
-                        "is_subdag": False,
-                        "owners": [],
-                        "root_dag_id": None,
-                        "schedule_interval": {
-                            "__type": "CronExpression",
-                            "value": "2 2 * * *",
-                        },
-                        "tags": [],
+                    "tags": [],
+                },
+                {
+                    "dag_id": "TEST_DAG_2",
+                    "description": None,
+                    "fileloc": "/tmp/dag_2.py",
+                    "file_token": file_token2,
+                    "is_paused": False,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
                     },
-                ],
-                "total_entries": 2,
-            },
-            response.json,
-        )
+                    "tags": [],
+                },
+            ],
+            "total_entries": 2,
+        } == response.json
 
     def test_should_respond_200_with_granular_dag_access(self):
         self._create_dag_models(3)
@@ -375,8 +472,8 @@ class TestGetDags(TestDagEndpoint):
 
         dag_ids = [dag["dag_id"] for dag in response.json["dags"]]
 
-        self.assertEqual(expected_dag_ids, dag_ids)
-        self.assertEqual(10, response.json["total_entries"])
+        assert expected_dag_ids == dag_ids
+        assert 10 == response.json["total_entries"]
 
     def test_should_respond_200_default_limit(self):
         self._create_dag_models(101)
@@ -385,8 +482,8 @@ class TestGetDags(TestDagEndpoint):
 
         assert response.status_code == 200
 
-        self.assertEqual(100, len(response.json["dags"]))
-        self.assertEqual(101, response.json["total_entries"])
+        assert 100 == len(response.json["dags"])
+        assert 101 == response.json["total_entries"]
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("api/v1/dags")
@@ -402,6 +499,9 @@ class TestGetDags(TestDagEndpoint):
 
 
 class TestPatchDag(TestDagEndpoint):
+
+    file_token = SERIALIZER.dumps("/tmp/dag_1.py")
+
     def test_should_respond_200_on_patch_is_paused(self):
         dag_model = self._create_dag_model()
         response = self.client.patch(
@@ -411,11 +511,13 @@ class TestPatchDag(TestDagEndpoint):
             },
             environ_overrides={'REMOTE_USER': "test"},
         )
-        self.assertEqual(response.status_code, 200)
+        assert response.status_code == 200
+
         expected_response = {
             "dag_id": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
+            "file_token": self.file_token,
             "is_paused": False,
             "is_subdag": False,
             "owners": [],
@@ -426,7 +528,7 @@ class TestPatchDag(TestDagEndpoint):
             },
             "tags": [],
         }
-        self.assertEqual(response.json, expected_response)
+        assert response.json == expected_response
 
     def test_should_respond_200_on_patch_with_granular_dag_access(self):
         self._create_dag_models(1)
@@ -449,20 +551,17 @@ class TestPatchDag(TestDagEndpoint):
         }
         dag_model = self._create_dag_model()
         response = self.client.patch(f"/api/v1/dags/{dag_model.dag_id}", json=patch_body)
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': "Property is read-only - 'schedule_interval'",
-                'status': 400,
-                'title': 'Bad Request',
-                'type': EXCEPTIONS_LINK_MAP[400],
-            },
-        )
+        assert response.status_code == 400
+        assert response.json == {
+            'detail': "Property is read-only - 'schedule_interval'",
+            'status': 400,
+            'title': 'Bad Request',
+            'type': EXCEPTIONS_LINK_MAP[400],
+        }
 
     def test_should_respond_404(self):
         response = self.client.get("/api/v1/dags/INVALID_DAG", environ_overrides={'REMOTE_USER': "test"})
-        self.assertEqual(response.status_code, 404)
+        assert response.status_code == 404
 
     @provide_session
     def _create_dag_model(self, session=None):
@@ -493,11 +592,13 @@ class TestPatchDag(TestDagEndpoint):
             json=payload,
             environ_overrides={'REMOTE_USER': "test"},
         )
-        self.assertEqual(response.status_code, 200)
+
+        assert response.status_code == 200
         expected_response = {
             "dag_id": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
+            "file_token": self.file_token,
             "is_paused": False,
             "is_subdag": False,
             "owners": [],
@@ -508,7 +609,7 @@ class TestPatchDag(TestDagEndpoint):
             },
             "tags": [],
         }
-        self.assertEqual(response.json, expected_response)
+        assert response.json == expected_response
 
     @parameterized.expand(
         [
@@ -536,8 +637,8 @@ class TestPatchDag(TestDagEndpoint):
             json=payload,
             environ_overrides={'REMOTE_USER': "test"},
         )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json['detail'], error_message)
+        assert response.status_code == 400
+        assert response.json['detail'] == error_message
 
     def test_should_respond_403_unauthorized(self):
         dag_model = self._create_dag_model()

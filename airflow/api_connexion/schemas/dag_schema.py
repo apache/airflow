@@ -17,10 +17,13 @@
 
 from typing import List, NamedTuple
 
+from itsdangerous import URLSafeSerializer
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
+from airflow import DAG
 from airflow.api_connexion.schemas.common_schema import ScheduleIntervalSchema, TimeDeltaSchema, TimezoneField
+from airflow.configuration import conf
 from airflow.models.dag import DagModel, DagTag
 
 
@@ -48,6 +51,7 @@ class DAGSchema(SQLAlchemySchema):
     is_paused = auto_field()
     is_subdag = auto_field(dump_only=True)
     fileloc = auto_field(dump_only=True)
+    file_token = fields.Method("get_token", dump_only=True)
     owners = fields.Method("get_owners", dump_only=True)
     description = auto_field(dump_only=True)
     schedule_interval = fields.Nested(ScheduleIntervalSchema)
@@ -60,18 +64,42 @@ class DAGSchema(SQLAlchemySchema):
             return []
         return obj.owners.split(",")
 
+    @staticmethod
+    def get_token(obj: DagModel):
+        """Return file token"""
+        serializer = URLSafeSerializer(conf.get('webserver', 'secret_key'))
+        return serializer.dumps(obj.fileloc)
+
 
 class DAGDetailSchema(DAGSchema):
     """DAG details"""
 
-    timezone = TimezoneField(dump_only=True)
-    catchup = fields.Boolean(dump_only=True)
-    orientation = fields.String(dump_only=True)
-    concurrency = fields.Integer(dump_only=True)
-    start_date = fields.DateTime(dump_only=True)
-    dag_run_timeout = fields.Nested(TimeDeltaSchema, dump_only=True, attribute="dagrun_timeout")
-    doc_md = fields.String(dump_only=True)
-    default_view = fields.String(dump_only=True)
+    owners = fields.Method("get_owners", dump_only=True)
+    timezone = TimezoneField()
+    catchup = fields.Boolean()
+    orientation = fields.String()
+    concurrency = fields.Integer()
+    start_date = fields.DateTime()
+    dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout")
+    doc_md = fields.String()
+    default_view = fields.String()
+    params = fields.Dict()
+    tags = fields.Method("get_tags", dump_only=True)
+
+    @staticmethod
+    def get_tags(obj: DAG):
+        """Dumps tags as objects"""
+        tags = obj.tags
+        if tags:
+            return [DagTagSchema().dump(dict(name=tag)) for tag in tags]
+        return []
+
+    @staticmethod
+    def get_owners(obj: DAG):
+        """Convert owners attribute to DAG representation"""
+        if not getattr(obj, 'owner', None):
+            return []
+        return obj.owner.split(",")
 
 
 class DAGCollection(NamedTuple):

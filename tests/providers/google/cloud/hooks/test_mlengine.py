@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import PropertyMock
 
 import httplib2
+import pytest
 from googleapiclient.errors import HttpError
 
 from airflow.providers.google.cloud.hooks import mlengine as hook
@@ -40,7 +41,7 @@ class TestMLEngineHook(unittest.TestCase):
     def test_mle_engine_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
 
-        self.assertEqual(mock_build.return_value, result)
+        assert mock_build.return_value == result
         mock_build.assert_called_with('ml', 'v1', http=mock_authorize.return_value, cache_discovery=False)
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
@@ -77,7 +78,7 @@ class TestMLEngineHook(unittest.TestCase):
             project_id=project_id, model_name=model_name, version_spec=deepcopy(version)
         )
 
-        self.assertEqual(create_version_response, operation_done)
+        assert create_version_response == operation_done
 
         mock_get_conn.assert_has_calls(
             [
@@ -129,7 +130,7 @@ class TestMLEngineHook(unittest.TestCase):
         )
         # fmt: on
 
-        self.assertEqual(create_version_response, operation_done)
+        assert create_version_response == operation_done
 
         mock_get_conn.assert_has_calls(
             [
@@ -166,7 +167,7 @@ class TestMLEngineHook(unittest.TestCase):
             project_id=project_id, model_name=model_name, version_name=version_name
         )
 
-        self.assertEqual(set_default_version_response, operation_done)
+        assert set_default_version_response == operation_done
 
         mock_get_conn.assert_has_calls(
             [
@@ -203,7 +204,7 @@ class TestMLEngineHook(unittest.TestCase):
         list_versions_response = self.hook.list_versions(
             project_id=project_id, model_name=model_name)
         # fmt: on
-        self.assertEqual(list_versions_response, version_names)
+        assert list_versions_response == version_names
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().list(pageSize=100, parent=model_path),
@@ -252,7 +253,7 @@ class TestMLEngineHook(unittest.TestCase):
             project_id=project_id, model_name=model_name, version_name=version_name
         )
 
-        self.assertEqual(delete_version_response, operation_done)
+        assert delete_version_response == operation_done
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().delete(name=version_path),
@@ -286,7 +287,7 @@ class TestMLEngineHook(unittest.TestCase):
         # fmt: on
         create_model_response = self.hook.create_model(project_id=project_id, model=deepcopy(model))
 
-        self.assertEqual(create_model_response, model)
+        assert create_model_response == model
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
@@ -349,7 +350,7 @@ class TestMLEngineHook(unittest.TestCase):
         # fmt: on
         create_model_response = self.hook.create_model(project_id=project_id, model=deepcopy(model))
 
-        self.assertEqual(create_model_response, model)
+        assert create_model_response == model
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
@@ -386,7 +387,7 @@ class TestMLEngineHook(unittest.TestCase):
             project_id=project_id, model=deepcopy(model)
         )
         # fmt: on
-        self.assertEqual(create_model_response, model)
+        assert create_model_response == model
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
@@ -411,7 +412,7 @@ class TestMLEngineHook(unittest.TestCase):
         # fmt: on
         get_model_response = self.hook.get_model(project_id=project_id, model_name=model_name)
 
-        self.assertEqual(get_model_response, model)
+        assert get_model_response == model
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().get(name=model_path),
@@ -574,7 +575,7 @@ class TestMLEngineHook(unittest.TestCase):
         # fmt: on
         create_job_response = self.hook.create_job(project_id=project_id, job=deepcopy(new_job))
 
-        self.assertEqual(create_job_response, job_succeeded)
+        assert create_job_response == job_succeeded
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().jobs().create(body=new_job_with_airflow_version, parent=project_path),
@@ -626,7 +627,7 @@ class TestMLEngineHook(unittest.TestCase):
             project_id=project_id, job=deepcopy(new_job)
         )
         # fmt: on
-        self.assertEqual(create_job_response, job_succeeded)
+        assert create_job_response == job_succeeded
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().jobs().create(body=new_job_with_airflow_version, parent=project_path),
@@ -666,7 +667,7 @@ class TestMLEngineHook(unittest.TestCase):
         # fmt: on
         create_job_response = self.hook.create_job(project_id=project_id, job=job_succeeded)
 
-        self.assertEqual(create_job_response, job_succeeded)
+        assert create_job_response == job_succeeded
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().jobs().create(body=job_succeeded, parent=project_path),
@@ -715,7 +716,7 @@ class TestMLEngineHook(unittest.TestCase):
         def check_input(existing_job):
             return existing_job.get('someInput') == my_job['someInput']
 
-        with self.assertRaises(HttpError):
+        with pytest.raises(HttpError):
             self.hook.create_job(project_id=project_id, job=my_job, use_existing_job_fn=check_input)
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
@@ -753,7 +754,7 @@ class TestMLEngineHook(unittest.TestCase):
             project_id=project_id, job=my_job, use_existing_job_fn=check_input
         )
 
-        self.assertEqual(create_job_response, my_job)
+        assert create_job_response == my_job
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_cancel_mlengine_job(self, mock_get_conn):
@@ -773,7 +774,7 @@ class TestMLEngineHook(unittest.TestCase):
         # fmt: on
         cancel_job_response = self.hook.cancel_job(job_id=job_id, project_id=project_id)
 
-        self.assertEqual(cancel_job_response, job_cancelled)
+        assert cancel_job_response == job_cancelled
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().jobs().cancel(name=job_path),
@@ -805,7 +806,7 @@ class TestMLEngineHook(unittest.TestCase):
             execute.return_value
         ) = job_cancelled
         # fmt: on
-        with self.assertRaises(HttpError):
+        with pytest.raises(HttpError):
             self.hook.cancel_job(job_id=job_id, project_id=project_id)
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
@@ -836,7 +837,7 @@ class TestMLEngineHook(unittest.TestCase):
         # fmt: on
         cancel_job_response = self.hook.cancel_job(job_id=job_id, project_id=project_id)
 
-        self.assertEqual(cancel_job_response, job_cancelled)
+        assert cancel_job_response == job_cancelled
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().jobs().cancel(name=job_path),
@@ -889,7 +890,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
             model_name=model_name, version_spec=version, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
         )
 
-        self.assertEqual(create_version_response, operation_done)
+        assert create_version_response == operation_done
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().create(body=version, parent=model_path),
@@ -930,7 +931,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
 
-        self.assertEqual(set_default_version_response, operation_done)
+        assert set_default_version_response == operation_done
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().setDefault(body={}, name=version_path),
@@ -971,7 +972,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
             model_name=model_name, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
         )
 
-        self.assertEqual(list_versions_response, version_names)
+        assert list_versions_response == version_names
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().list(pageSize=100, parent=model_path),
@@ -1029,7 +1030,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
             model_name=model_name, version_name=version_name, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
         )
 
-        self.assertEqual(delete_version_response, operation_done)
+        assert delete_version_response == operation_done
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().versions().delete(name=version_path),
@@ -1063,7 +1064,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         # fmt: on
         create_model_response = self.hook.create_model(model=model, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
 
-        self.assertEqual(create_model_response, model)
+        assert create_model_response == model
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().create(body=model, parent=project_path),
@@ -1094,7 +1095,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
             model_name=model_name, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
         )
 
-        self.assertEqual(get_model_response, model)
+        assert get_model_response == model
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().models().get(name=model_path),
@@ -1171,7 +1172,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         # fmt: on
         create_job_response = self.hook.create_job(job=new_job, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
 
-        self.assertEqual(create_job_response, job_succeeded)
+        assert create_job_response == job_succeeded
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().jobs().create(body=new_job, parent=project_path),
@@ -1203,7 +1204,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         # fmt: on
         cancel_job_response = self.hook.cancel_job(job_id=job_id, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
 
-        self.assertEqual(cancel_job_response, job_cancelled)
+        assert cancel_job_response == job_cancelled
         mock_get_conn.assert_has_calls(
             [
                 mock.call().projects().jobs().cancel(name=job_path),

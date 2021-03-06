@@ -18,7 +18,7 @@
 """This module contains a Google Compute Engine Hook."""
 
 import time
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 from googleapiclient.discovery import build
 
@@ -99,9 +99,7 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(
-                "Wrong response '{}' returned - it should contain " "'name' field".format(response)
-            )
+            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -130,9 +128,7 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(
-                "Wrong response '{}' returned - it should contain " "'name' field".format(response)
-            )
+            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -159,9 +155,7 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(
-                "Wrong response '{}' returned - it should contain " "'name' field".format(response)
-            )
+            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     def _execute_set_machine_type(self, zone: str, resource_id: str, body: dict, project_id: str) -> dict:
@@ -233,9 +227,7 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(
-                "Wrong response '{}' returned - it should contain " "'name' field".format(response)
-            )
+            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -318,9 +310,7 @@ class ComputeEngineHook(GoogleBaseHook):
         try:
             operation_name = response["name"]
         except KeyError:
-            raise AirflowException(
-                "Wrong response '{}' returned - it should contain " "'name' field".format(response)
-            )
+            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     def _wait_for_operation_to_complete(
@@ -378,3 +368,81 @@ class ComputeEngineHook(GoogleBaseHook):
             .get(project=project_id, operation=operation_name)
             .execute(num_retries=num_retries)
         )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_instance_info(self, zone: str, resource_id: str, project_id: str) -> Dict[str, Any]:
+        """
+        Gets instance information.
+
+        :param zone: Google Cloud zone where the Instance Group Manager exists
+        :type zone: str
+        :param resource_id: Name of the Instance Group Manager
+        :type resource_id: str
+        :param project_id: Optional, Google Cloud project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the Google Cloud connection is used.
+        :type project_id: str
+        """
+        instance_info = (
+            self.get_conn()  # pylint: disable=no-member
+            .instances()
+            .get(project=project_id, instance=resource_id, zone=zone)
+            .execute(num_retries=self.num_retries)
+        )
+        return instance_info
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_instance_address(
+        self, zone: str, resource_id: str, project_id: str, use_internal_ip: bool = False
+    ) -> str:
+        """
+        Return network address associated to instance.
+
+        :param zone: Google Cloud zone where the Instance Group Manager exists
+        :type zone: str
+        :param resource_id: Name of the Instance Group Manager
+        :type resource_id: str
+        :param project_id: Optional, Google Cloud project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the Google Cloud connection is used.
+        :type project_id: str
+        :param use_internal_ip: If true, return private IP address.
+        :type use_internal_ip: bool
+        """
+        instance_info = self.get_instance_info(project_id=project_id, resource_id=resource_id, zone=zone)
+        if use_internal_ip:
+            return instance_info["networkInterfaces"][0].get("networkIP")
+
+        access_config = instance_info.get("networkInterfaces")[0].get("accessConfigs")
+        if access_config:
+            return access_config[0].get("natIP")
+        raise AirflowException("The target instance does not have external IP")
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def set_instance_metadata(
+        self, zone: str, resource_id: str, metadata: Dict[str, str], project_id: str
+    ) -> None:
+        """
+        Set instance metadata.
+
+        :param zone: Google Cloud zone where the Instance Group Manager exists
+        :type zone: str
+        :param resource_id: Name of the Instance Group Manager
+        :type resource_id: str
+        :param metadata: The new instance metadata.
+        :type metadata: Dict
+        :param project_id: Optional, Google Cloud project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the Google Cloud connection is used.
+        :type project_id: str
+        """
+        response = (
+            self.get_conn()  # pylint: disable=no-member
+            .instances()
+            .setMetadata(  # pylint: disable=no-member
+                project=project_id, zone=zone, instance=resource_id, body=metadata
+            )
+            .execute(num_retries=self.num_retries)
+        )
+        operation_name = response["name"]
+        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)

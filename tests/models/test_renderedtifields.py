@@ -18,8 +18,10 @@
 
 """Unit tests for RenderedTaskInstanceFields."""
 
+import os
 import unittest
 from datetime import date, timedelta
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -31,6 +33,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.bash import BashOperator
 from airflow.utils.session import create_session
 from airflow.utils.timezone import datetime
+from airflow.version import version
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_rendered_ti_fields
 
@@ -47,7 +50,7 @@ class ClassWithCustomAttributes:
             setattr(self, key, value)
 
     def __str__(self):
-        return "{}({})".format(ClassWithCustomAttributes.__name__, str(self.__dict__))
+        return f"{ClassWithCustomAttributes.__name__}({str(self.__dict__)})"
 
     def __repr__(self):
         return self.__str__()
@@ -114,17 +117,15 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
 
         ti = TI(task=task, execution_date=EXECUTION_DATE)
         rtif = RTIF(ti=ti)
-        self.assertEqual(ti.dag_id, rtif.dag_id)
-        self.assertEqual(ti.task_id, rtif.task_id)
-        self.assertEqual(ti.execution_date, rtif.execution_date)
-        self.assertEqual(expected_rendered_field, rtif.rendered_fields.get("bash_command"))
+        assert ti.dag_id == rtif.dag_id
+        assert ti.task_id == rtif.task_id
+        assert ti.execution_date == rtif.execution_date
+        assert expected_rendered_field == rtif.rendered_fields.get("bash_command")
 
         with create_session() as session:
             session.add(rtif)
 
-        self.assertEqual(
-            {"bash_command": expected_rendered_field, "env": None}, RTIF.get_templated_fields(ti=ti)
-        )
+        assert {"bash_command": expected_rendered_field, "env": None} == RTIF.get_templated_fields(ti=ti)
 
         # Test the else part of get_templated_fields
         # i.e. for the TIs that are not stored in RTIF table
@@ -133,7 +134,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
             task_2 = BashOperator(task_id="test2", bash_command=templated_field)
 
         ti2 = TI(task_2, EXECUTION_DATE)
-        self.assertIsNone(RTIF.get_templated_fields(ti=ti2))
+        assert RTIF.get_templated_fields(ti=ti2) is None
 
     @parameterized.expand(
         [
@@ -166,15 +167,15 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
         result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
 
         for rtif in rtif_list:
-            self.assertIn(rtif, result)
+            assert rtif in result
 
-        self.assertEqual(rtif_num, len(result))
+        assert rtif_num == len(result)
 
         # Verify old records are deleted and only 'num_to_keep' records are kept
         with assert_queries_count(expected_query_count):
             RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
         result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
-        self.assertEqual(remaining_rtifs, len(result))
+        assert remaining_rtifs == len(result)
 
     def test_write(self):
         """
@@ -184,7 +185,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
 
         session = settings.Session()
         result = session.query(RTIF).all()
-        self.assertEqual([], result)
+        assert [] == result
 
         with DAG("test_write", start_date=START_DATE):
             task = BashOperator(task_id="test", bash_command="echo {{ var.value.test_key }}")
@@ -200,7 +201,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
             )
             .first()
         )
-        self.assertEqual(('test_write', 'test', {'bash_command': 'echo test_val', 'env': None}), result)
+        assert ('test_write', 'test', {'bash_command': 'echo test_val', 'env': None}) == result
 
         # Test that overwrite saves new values to the DB
         Variable.delete("test_key")
@@ -221,6 +222,84 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
             )
             .first()
         )
-        self.assertEqual(
-            ('test_write', 'test', {'bash_command': 'echo test_val_updated', 'env': None}), result_updated
-        )
+        assert (
+            'test_write',
+            'test',
+            {'bash_command': 'echo test_val_updated', 'env': None},
+        ) == result_updated
+
+    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
+    @mock.patch("airflow.settings.pod_mutation_hook")
+    def test_get_k8s_pod_yaml(self, mock_pod_mutation_hook):
+        """
+        Test that k8s_pod_yaml is rendered correctly, stored in the Database,
+        and are correctly fetched using RTIF.get_k8s_pod_yaml
+        """
+        dag = DAG("test_get_k8s_pod_yaml", start_date=START_DATE)
+        with dag:
+            task = BashOperator(task_id="test", bash_command="echo hi")
+
+        ti = TI(task=task, execution_date=EXECUTION_DATE)
+        rtif = RTIF(ti=ti)
+
+        # Test that pod_mutation_hook is called
+        mock_pod_mutation_hook.assert_called_once_with(mock.ANY)
+
+        assert ti.dag_id == rtif.dag_id
+        assert ti.task_id == rtif.task_id
+        assert ti.execution_date == rtif.execution_date
+
+        expected_pod_yaml = {
+            'metadata': {
+                'annotations': {
+                    'dag_id': 'test_get_k8s_pod_yaml',
+                    'execution_date': '2019-01-01T00:00:00+00:00',
+                    'task_id': 'test',
+                    'try_number': '1',
+                },
+                'labels': {
+                    'airflow-worker': 'worker-config',
+                    'airflow_version': version,
+                    'dag_id': 'test_get_k8s_pod_yaml',
+                    'execution_date': '2019-01-01T00_00_00_plus_00_00',
+                    'kubernetes_executor': 'True',
+                    'task_id': 'test',
+                    'try_number': '1',
+                },
+                'name': mock.ANY,
+                'namespace': 'default',
+            },
+            'spec': {
+                'containers': [
+                    {
+                        'args': [
+                            'airflow',
+                            'tasks',
+                            'run',
+                            'test_get_k8s_pod_yaml',
+                            'test',
+                            '2019-01-01T00:00:00+00:00',
+                        ],
+                        'image': ':',
+                        'name': 'base',
+                        'env': [{'name': 'AIRFLOW_IS_K8S_EXECUTOR_POD', 'value': 'True'}],
+                    }
+                ]
+            },
+        }
+
+        assert expected_pod_yaml == rtif.k8s_pod_yaml
+
+        with create_session() as session:
+            session.add(rtif)
+
+        assert expected_pod_yaml == RTIF.get_k8s_pod_yaml(ti=ti)
+
+        # Test the else part of get_k8s_pod_yaml
+        # i.e. for the TIs that are not stored in RTIF table
+        # Fetching them will return None
+        with dag:
+            task_2 = BashOperator(task_id="test2", bash_command="echo hello")
+
+        ti2 = TI(task_2, EXECUTION_DATE)
+        assert RTIF.get_k8s_pod_yaml(ti=ti2) is None

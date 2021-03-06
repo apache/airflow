@@ -228,7 +228,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         result = (
             self.get_conn_to_display_video()  # pylint: disable=no-member
             .sdfdownloadtasks()
-            .operation()
+            .operations()
             .get(name=operation_name)
             .execute(num_retries=self.num_retries)
         )

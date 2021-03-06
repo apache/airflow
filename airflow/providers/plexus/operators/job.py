@@ -149,9 +149,7 @@ class PlexusJobOperator(BaseOperator):
         """
         missing_params = self.required_params - set(self.job_params)
         if len(missing_params) > 0:
-            raise AirflowException(
-                "Missing the following required job_params: {}".format(", ".join(missing_params))
-            )
+            raise AirflowException(f"Missing the following required job_params: {', '.join(missing_params)}")
         params = {}
         for prm in self.job_params:
             if prm in self.lookups:

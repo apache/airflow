@@ -21,12 +21,11 @@ import json
 import logging
 import os
 import textwrap
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from typing import List
 
-from tabulate import tabulate
-
 from airflow import settings
+from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -36,13 +35,19 @@ from airflow.models.dag import DAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_dag, get_dag_by_file_location, get_dag_by_pickle, get_dags
+from airflow.utils.cli import (
+    get_dag,
+    get_dag_by_file_location,
+    get_dag_by_pickle,
+    get_dags,
+    suppress_logs_and_warning,
+)
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
 
-def _run_task_by_selected_method(args, dag, ti):
+def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
     """
     Runs the task in one of 3 modes
 
@@ -111,7 +116,12 @@ def _run_task_by_local_task_job(args, ti):
         ignore_ti_state=args.force,
         pool=args.pool,
     )
-    run_job.run()
+    try:
+        run_job.run()
+
+    finally:
+        if args.shut_down_logging:
+            logging.shutdown()
 
 
 RAW_TASK_UNSUPPORTED_OPTION = [
@@ -122,7 +132,7 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 ]
 
 
-def _run_raw_task(args, ti):
+def _run_raw_task(args, ti: TaskInstance) -> None:
     """Runs the main task handling code"""
     unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
 
@@ -139,7 +149,43 @@ def _run_raw_task(args, ti):
         mark_success=args.mark_success,
         job_id=args.job_id,
         pool=args.pool,
+        error_file=args.error_file,
     )
+
+
+@contextmanager
+def _capture_task_logs(ti):
+    """Manage logging context for a task run
+
+    - Replace the root logger configuration with the airflow.task configuration
+      so we can capture logs from any custom loggers used in the task.
+
+    - Redirect stdout and stderr to the task instance log, as INFO and WARNING
+      level messages, respectively.
+
+    """
+    modify = not settings.DONOT_MODIFY_HANDLERS
+
+    if modify:
+        root_logger, task_logger = logging.getLogger(), logging.getLogger('airflow.task')
+
+        orig_level = root_logger.level
+        root_logger.setLevel(task_logger.level)
+        orig_handlers = root_logger.handlers.copy()
+        root_logger.handlers[:] = task_logger.handlers
+
+    try:
+        info_writer = StreamLogWriter(ti.log, logging.INFO)
+        warning_writer = StreamLogWriter(ti.log, logging.WARNING)
+
+        with redirect_stdout(info_writer), redirect_stderr(warning_writer):
+            yield
+
+    finally:
+        if modify:
+            # Restore the root logger to its original state.
+            root_logger.setLevel(orig_level)
+            root_logger.handlers[:] = orig_handlers
 
 
 @cli_utils.action_logging
@@ -185,41 +231,8 @@ def task_run(args, dag=None):
     if args.interactive:
         _run_task_by_selected_method(args, dag, ti)
     else:
-        if settings.DONOT_MODIFY_HANDLERS:
-            with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), redirect_stderr(
-                StreamLogWriter(ti.log, logging.WARN)
-            ):
-                _run_task_by_selected_method(args, dag, ti)
-        else:
-            # Get all the Handlers from 'airflow.task' logger
-            # Add these handlers to the root logger so that we can get logs from
-            # any custom loggers defined in the DAG
-            airflow_logger_handlers = logging.getLogger('airflow.task').handlers
-            root_logger = logging.getLogger()
-            root_logger_handlers = root_logger.handlers
-
-            # Remove all handlers from Root Logger to avoid duplicate logs
-            for handler in root_logger_handlers:
-                root_logger.removeHandler(handler)
-
-            for handler in airflow_logger_handlers:
-                root_logger.addHandler(handler)
-            root_logger.setLevel(logging.getLogger('airflow.task').level)
-
-            with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), redirect_stderr(
-                StreamLogWriter(ti.log, logging.WARN)
-            ):
-                _run_task_by_selected_method(args, dag, ti)
-
-            # We need to restore the handlers to the loggers as celery worker process
-            # can call this command multiple times,
-            # so if we don't reset this then logs from next task would go to the wrong place
-            for handler in airflow_logger_handlers:
-                root_logger.removeHandler(handler)
-            for handler in root_logger_handlers:
-                root_logger.addHandler(handler)
-
-    logging.shutdown()
+        with _capture_task_logs(ti):
+            _run_task_by_selected_method(args, dag, ti)
 
 
 @cli_utils.action_logging
@@ -250,6 +263,7 @@ def task_failed_deps(args):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def task_state(args):
     """
     Returns the state of a TaskInstance at the command line.
@@ -263,6 +277,7 @@ def task_state(args):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def task_list(args, dag=None):
     """Lists the tasks within a DAG at the command line"""
     dag = dag or get_dag(args.subdir, args.dag_id)
@@ -302,43 +317,38 @@ def _guess_debugger():
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def task_states_for_dag_run(args):
     """Get the status of all task instances in a DagRun"""
-    session = settings.Session()
-
-    tis = (
-        session.query(
-            TaskInstance.dag_id,
-            TaskInstance.execution_date,
-            TaskInstance.task_id,
-            TaskInstance.state,
-            TaskInstance.start_date,
-            TaskInstance.end_date,
-        )
-        .filter(TaskInstance.dag_id == args.dag_id, TaskInstance.execution_date == args.execution_date)
-        .all()
-    )
-
-    if len(tis) == 0:
-        raise AirflowException("DagRun does not exist.")
-
-    formatted_rows = []
-
-    for ti in tis:
-        formatted_rows.append(
-            (ti.dag_id, ti.execution_date, ti.task_id, ti.state, ti.start_date, ti.end_date)
+    with create_session() as session:
+        tis = (
+            session.query(
+                TaskInstance.dag_id,
+                TaskInstance.execution_date,
+                TaskInstance.task_id,
+                TaskInstance.state,
+                TaskInstance.start_date,
+                TaskInstance.end_date,
+            )
+            .filter(TaskInstance.dag_id == args.dag_id, TaskInstance.execution_date == args.execution_date)
+            .all()
         )
 
-    print(
-        "\n%s"
-        % tabulate(
-            formatted_rows,
-            ['dag', 'exec_date', 'task', 'state', 'start_date', 'end_date'],
-            tablefmt=args.output,
-        )
-    )
+        if len(tis) == 0:
+            raise AirflowException("DagRun does not exist.")
 
-    session.close()
+        AirflowConsole().print_as(
+            data=tis,
+            output=args.output,
+            mapper=lambda ti: {
+                "dag_id": ti.dag_id,
+                "execution_date": ti.execution_date.isoformat(),
+                "task_id": ti.task_id,
+                "state": ti.state,
+                "start_date": ti.start_date.isoformat() if ti.start_date else "",
+                "end_date": ti.end_date.isoformat() if ti.end_date else "",
+            },
+        )
 
 
 @cli_utils.action_logging
@@ -389,6 +399,7 @@ def task_test(args, dag=None):
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
@@ -398,14 +409,11 @@ def task_render(args):
     for attr in task.__class__.template_fields:
         print(
             textwrap.dedent(
-                """\
+                f"""        # ----------------------------------------------------------
+        # property: {attr}
         # ----------------------------------------------------------
-        # property: {}
-        # ----------------------------------------------------------
-        {}
-        """.format(
-                    attr, getattr(task, attr)
-                )
+        {getattr(task, attr)}
+        """
             )
         )
 

@@ -16,20 +16,41 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+import warnings
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
 
-import yaml
 from kubernetes.client import CoreV1Api, models as k8s
+
+try:
+    import airflow.utils.yaml as yaml
+except ImportError:
+    import yaml
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.models import BaseOperator
+from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
+    convert_affinity,
+    convert_configmap,
+    convert_env_vars,
+    convert_image_pull_secrets,
+    convert_pod_runtime_info_env,
+    convert_port,
+    convert_resources,
+    convert_toleration,
+    convert_volume,
+    convert_volume_mount,
+)
+from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
+
+if TYPE_CHECKING:
+    import jinja2
 
 
 class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -67,7 +88,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes.
     :type volumes: list[k8s.V1Volume]
     :param env_vars: Environment variables initialized in the container. (templated)
-    :type env_vars: dict
+    :type env_vars: list[k8s.V1EnvVar]
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume.
     :type secrets: list[airflow.kubernetes.secret.Secret]
@@ -96,7 +117,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         See also kubernetes.io/docs/concepts/configuration/manage-compute-resources-container
     :type resources: k8s.V1ResourceRequirements
     :param affinity: A dict containing a group of affinity scheduling rules.
-    :type affinity: dict
+    :type affinity: k8s.V1Affinity
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
     :type config_file: str
@@ -115,7 +136,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param hostnetwork: If True enable host networking on the pod.
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations.
-    :type tolerations: list tolerations
+    :type tolerations: List[k8s.V1Toleration]
     :param security_context: security options the pod should run with (PodSecurityContext).
     :type security_context: dict
     :param dnspolicy: dnspolicy for the pod.
@@ -142,50 +163,64 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     """
 
     template_fields: Iterable[str] = (
-        'image', 'cmds', 'arguments', 'env_vars', 'labels', 'config_file', 'pod_template_file')
+        'image',
+        'cmds',
+        'arguments',
+        'env_vars',
+        'labels',
+        'config_file',
+        'pod_template_file',
+    )
 
+    # fmt: off
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
-                 *,
-                 namespace: Optional[str] = None,
-                 image: Optional[str] = None,
-                 name: Optional[str] = None,
-                 cmds: Optional[List[str]] = None,
-                 arguments: Optional[List[str]] = None,
-                 ports: Optional[List[k8s.V1ContainerPort]] = None,
-                 volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
-                 volumes: Optional[List[k8s.V1Volume]] = None,
-                 env_vars: Optional[List[k8s.V1EnvVar]] = None,
-                 env_from: Optional[List[k8s.V1EnvFromSource]] = None,
-                 secrets: Optional[List[Secret]] = None,
-                 in_cluster: Optional[bool] = None,
-                 cluster_context: Optional[str] = None,
-                 labels: Optional[Dict] = None,
-                 reattach_on_restart: bool = True,
-                 startup_timeout_seconds: int = 120,
-                 get_logs: bool = True,
-                 image_pull_policy: str = 'IfNotPresent',
-                 annotations: Optional[Dict] = None,
-                 resources: Optional[k8s.V1ResourceRequirements] = None,
-                 affinity: Optional[Dict] = None,
-                 config_file: Optional[str] = None,
-                 node_selectors: Optional[Dict] = None,
-                 image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
-                 service_account_name: str = 'default',
-                 is_delete_operator_pod: bool = False,
-                 hostnetwork: bool = False,
-                 tolerations: Optional[List] = None,
-                 security_context: Optional[Dict] = None,
-                 dnspolicy: Optional[str] = None,
-                 schedulername: Optional[str] = None,
-                 full_pod_spec: Optional[k8s.V1Pod] = None,
-                 init_containers: Optional[List[k8s.V1Container]] = None,
-                 log_events_on_failure: bool = False,
-                 do_xcom_push: bool = False,
-                 pod_template_file: Optional[str] = None,
-                 priority_class_name: Optional[str] = None,
-                 termination_grace_period: Optional[int] = None,
-                 **kwargs) -> None:
+    def __init__(  # pylint: disable=too-many-arguments,too-many-locals
+        # fmt: on
+        self,
+        *,
+        namespace: Optional[str] = None,
+        image: Optional[str] = None,
+        name: Optional[str] = None,
+        cmds: Optional[List[str]] = None,
+        arguments: Optional[List[str]] = None,
+        ports: Optional[List[k8s.V1ContainerPort]] = None,
+        volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
+        volumes: Optional[List[k8s.V1Volume]] = None,
+        env_vars: Optional[List[k8s.V1EnvVar]] = None,
+        env_from: Optional[List[k8s.V1EnvFromSource]] = None,
+        secrets: Optional[List[Secret]] = None,
+        in_cluster: Optional[bool] = None,
+        cluster_context: Optional[str] = None,
+        labels: Optional[Dict] = None,
+        reattach_on_restart: bool = True,
+        startup_timeout_seconds: int = 120,
+        get_logs: bool = True,
+        image_pull_policy: str = 'IfNotPresent',
+        annotations: Optional[Dict] = None,
+        resources: Optional[k8s.V1ResourceRequirements] = None,
+        affinity: Optional[k8s.V1Affinity] = None,
+        config_file: Optional[str] = None,
+        node_selectors: Optional[dict] = None,
+        node_selector: Optional[dict] = None,
+        image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
+        service_account_name: str = 'default',
+        is_delete_operator_pod: bool = False,
+        hostnetwork: bool = False,
+        tolerations: Optional[List[k8s.V1Toleration]] = None,
+        security_context: Optional[Dict] = None,
+        dnspolicy: Optional[str] = None,
+        schedulername: Optional[str] = None,
+        full_pod_spec: Optional[k8s.V1Pod] = None,
+        init_containers: Optional[List[k8s.V1Container]] = None,
+        log_events_on_failure: bool = False,
+        do_xcom_push: bool = False,
+        pod_template_file: Optional[str] = None,
+        priority_class_name: Optional[str] = None,
+        pod_runtime_info_envs: List[PodRuntimeInfoEnv] = None,
+        termination_grace_period: Optional[int] = None,
+        configmaps: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(resources=None, **kwargs)
@@ -197,27 +232,39 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
-        self.env_vars = env_vars or []
+        self.env_vars = convert_env_vars(env_vars) if env_vars else []
+        if pod_runtime_info_envs:
+            self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
         self.env_from = env_from or []
-        self.ports = ports or []
-        self.volume_mounts = volume_mounts or []
-        self.volumes = volumes or []
+        if configmaps:
+            self.env_from.extend([convert_configmap(c) for c in configmaps])
+        self.ports = [convert_port(p) for p in ports] if ports else []
+        self.volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
+        self.volumes = [convert_volume(volume) for volume in volumes] if volumes else []
         self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
         self.reattach_on_restart = reattach_on_restart
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
-        self.node_selectors = node_selectors or {}
+        if node_selectors:
+            # Node selectors is incorrect based on k8s API
+            warnings.warn("node_selectors is deprecated. Please use node_selector instead.")
+            self.node_selector = node_selectors or {}
+        elif node_selector:
+            self.node_selector = node_selector or {}
+        else:
+            self.node_selector = None
         self.annotations = annotations or {}
-        self.affinity = affinity or {}
-        self.k8s_resources = resources or {}
+        self.affinity = convert_affinity(affinity) if affinity else k8s.V1Affinity()
+        self.k8s_resources = convert_resources(resources) if resources else {}
         self.config_file = config_file
-        self.image_pull_secrets = image_pull_secrets or []
+        self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
-        self.tolerations = tolerations or []
+        self.tolerations = [convert_toleration(toleration) for toleration in tolerations] \
+            if tolerations else []
         self.security_context = security_context or {}
         self.dnspolicy = dnspolicy
         self.schedulername = schedulername
@@ -230,6 +277,25 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.termination_grace_period = termination_grace_period
         self.client: CoreV1Api = None
         self.pod: k8s.V1Pod = None
+
+    def _render_nested_template_fields(
+        self,
+        content: Any,
+        context: Dict,
+        jinja_env: "jinja2.Environment",
+        seen_oids: set,
+    ) -> None:
+        if id(content) not in seen_oids and isinstance(content, k8s.V1EnvVar):
+            seen_oids.add(id(content))
+            self._do_render_template_fields(content, ('value', 'name'), context, jinja_env, seen_oids)
+            return
+
+        super()._render_nested_template_fields(
+            content,
+            context,
+            jinja_env,
+            seen_oids
+        )
 
     @staticmethod
     def create_labels_for_pod(context) -> dict:
@@ -258,12 +324,15 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     def execute(self, context) -> Optional[str]:
         try:
             if self.in_cluster is not None:
-                client = kube_client.get_kube_client(in_cluster=self.in_cluster,
-                                                     cluster_context=self.cluster_context,
-                                                     config_file=self.config_file)
+                client = kube_client.get_kube_client(
+                    in_cluster=self.in_cluster,
+                    cluster_context=self.cluster_context,
+                    config_file=self.config_file,
+                )
             else:
-                client = kube_client.get_kube_client(cluster_context=self.cluster_context,
-                                                     config_file=self.config_file)
+                client = kube_client.get_kube_client(
+                    cluster_context=self.cluster_context, config_file=self.config_file
+                )
 
             self.pod = self.create_pod_request_obj()
             self.namespace = self.pod.metadata.namespace
@@ -281,22 +350,22 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
             if len(pod_list.items) > 1 and self.reattach_on_restart:
                 raise AirflowException(
-                    'More than one pod running with labels: '
-                    '{label_selector}'.format(label_selector=label_selector))
+                    f'More than one pod running with labels: {label_selector}'
+                )
 
             launcher = pod_launcher.PodLauncher(kube_client=client, extract_xcom=self.do_xcom_push)
 
             if len(pod_list.items) == 1:
                 try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
-                final_state, result = self.handle_pod_overlap(labels, try_numbers_match, launcher,
-                                                              pod_list.items[0])
+                final_state, result = self.handle_pod_overlap(
+                    labels, try_numbers_match, launcher, pod_list.items[0]
+                )
             else:
                 self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
             if final_state != State.SUCCESS:
-                status = self.client.read_namespaced_pod(self.name, self.namespace)
-                raise AirflowException(
-                    f'Pod returned a failure: {status}')
+                status = self.client.read_namespaced_pod(self.pod.metadata.name, self.namespace)
+                raise AirflowException(f'Pod {self.pod.metadata.name} returned a failure: {status}')
             return result
         except AirflowException as ex:
             raise AirflowException(f'Pod Launching failed: {ex}')
@@ -345,7 +414,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         return pod.metadata.labels['try_number'] == context['ti'].try_number
 
     def _set_name(self, name):
-        if self.pod_template_file or self.full_pod_spec:
+        if name is None:
             return None
         validate_key(name, max_length=220)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
@@ -360,6 +429,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         if self.pod_template_file:
             self.log.debug("Pod template file found, will parse for base pod")
             pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
+            if self.full_pod_spec:
+                pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
+        elif self.full_pod_spec:
+            pod_template = self.full_pod_spec
         else:
             pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="name"))
 
@@ -369,12 +442,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             metadata=k8s.V1ObjectMeta(
                 namespace=self.namespace,
                 labels=self.labels,
-                name=self.name,
+                name=PodGenerator.make_unique_pod_id(self.name),
                 annotations=self.annotations,
-
             ),
             spec=k8s.V1PodSpec(
-                node_selector=self.node_selectors,
+                node_selector=self.node_selector,
                 affinity=self.affinity,
                 tolerations=self.tolerations,
                 init_containers=self.init_containers,
@@ -384,6 +456,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                         name="base",
                         command=self.cmds,
                         ports=self.ports,
+                        image_pull_policy=self.image_pull_policy,
                         resources=self.k8s_resources,
                         volume_mounts=self.volume_mounts,
                         args=self.arguments,
@@ -400,7 +473,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 restart_policy='Never',
                 priority_class_name=self.priority_class_name,
                 volumes=self.volumes,
-            )
+            ),
         )
 
         pod = PodGenerator.reconcile_pods(pod_template, pod)
@@ -435,9 +508,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             self.pod.metadata.labels = self.labels
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(self.pod.to_dict()))
         try:
-            launcher.start_pod(
-                self.pod,
-                startup_timeout=self.startup_timeout_seconds)
+            launcher.start_pod(self.pod, startup_timeout=self.startup_timeout_seconds)
             final_state, result = launcher.monitor_pod(pod=self.pod, get_logs=self.get_logs)
         except AirflowException:
             if self.log_events_on_failure:
@@ -474,9 +545,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 for event in launcher.read_pod_events(pod).items:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
             self.patch_already_checked(self.pod)
-            raise AirflowException(
-                f'Pod returned a failure: {final_state}'
-            )
+            raise AirflowException(f'Pod returned a failure: {final_state}')
         return final_state, result
 
     def on_kill(self) -> None:

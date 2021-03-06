@@ -19,6 +19,7 @@ import subprocess
 import sys
 from functools import lru_cache
 from tempfile import NamedTemporaryFile
+from typing import Any, Dict, Tuple
 
 import jmespath
 import jsonschema
@@ -28,7 +29,7 @@ from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.12.9"
+BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.0"
 
 
 @lru_cache(maxsize=None)
@@ -60,7 +61,7 @@ def validate_k8s_object(instance):
     validate.validate(instance)
 
 
-def render_chart(name="RELEASE-NAME", values=None, show_only=None):
+def render_chart(name="RELEASE-NAME", values=None, show_only=None, validate_schema=True):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
     """
@@ -74,11 +75,23 @@ def render_chart(name="RELEASE-NAME", values=None, show_only=None):
             for i in show_only:
                 command.extend(["--show-only", i])
         templates = subprocess.check_output(command)
-        k8s_objects = yaml.load_all(templates)
+        k8s_objects = yaml.full_load_all(templates)
         k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
-        for k8s_object in k8s_objects:
-            validate_k8s_object(k8s_object)
+        if validate_schema:
+            for k8s_object in k8s_objects:
+                validate_k8s_object(k8s_object)
         return k8s_objects
+
+
+def prepare_k8s_lookup_dict(k8s_objects) -> Dict[Tuple[str, str], Dict[str, Any]]:
+    """
+    Helper to create a lookup dict from k8s_objects.
+    The keys of the dict are the k8s object's kind and name
+    """
+    k8s_obj_by_key = {
+        (k8s_object["kind"], k8s_object["metadata"]["name"]): k8s_object for k8s_object in k8s_objects
+    }
+    return k8s_obj_by_key
 
 
 def render_k8s_object(obj, type_to_render):

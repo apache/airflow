@@ -17,7 +17,10 @@
 # under the License.
 import os
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -46,14 +49,16 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         try:
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
-            return S3Hook(remote_conn_id)
-        except Exception:  # pylint: disable=broad-except
+            return S3Hook(remote_conn_id, transfer_config_args={"use_threads": False})
+        except Exception as e:  # pylint: disable=broad-except
             self.log.exception(
                 'Could not create an S3Hook with connection id "%s". '
                 'Please make sure that airflow[aws] is installed and '
-                'the S3 connection exists.',
+                'the S3 connection exists. Exception : "%s"',
                 remote_conn_id,
+                e,
             )
+            return None
 
     def set_context(self, ti):
         super().set_context(ti)
@@ -109,7 +114,16 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         log_relative_path = self._render_filename(ti, try_number)
         remote_loc = os.path.join(self.remote_base, log_relative_path)
 
-        if self.s3_log_exists(remote_loc):
+        log_exists = False
+        log = ""
+
+        try:
+            log_exists = self.s3_log_exists(remote_loc)
+        except Exception as error:  # pylint: disable=broad-except
+            self.log.exception(error)
+            log = f'*** Failed to verify remote log exists {remote_loc}.\n{str(error)}\n'
+
+        if log_exists:
             # If S3 remote file exists, we do not fetch logs from task instance
             # local machine even if there are errors reading remote logs, as
             # returned remote_log will contain error messages.
@@ -117,7 +131,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         else:
-            return super()._read(ti, try_number)
+            log += '*** Falling back to local log\n'
+            local_log, metadata = super()._read(ti, try_number)
+            return log + local_log, metadata
 
     def s3_log_exists(self, remote_log_location: str) -> bool:
         """
@@ -127,11 +143,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         :type remote_log_location: str
         :return: True if location exists else False
         """
-        try:
-            return self.hook.get_key(remote_log_location) is not None
-        except Exception:  # pylint: disable=broad-except
-            pass
-        return False
+        return self.hook.check_for_key(remote_log_location)
 
     def s3_read(self, remote_log_location: str, return_error: bool = False) -> str:
         """
@@ -147,8 +159,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         """
         try:
             return self.hook.read_key(remote_log_location)
-        except Exception:  # pylint: disable=broad-except
-            msg = f'Could not read logs from {remote_log_location}'
+        except Exception as error:  # pylint: disable=broad-except
+            msg = f'Could not read logs from {remote_log_location} with error: {error}'
             self.log.exception(msg)
             # return error if needed
             if return_error:
@@ -168,9 +180,12 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             the new log is appended to any existing logs.
         :type append: bool
         """
-        if append and self.s3_log_exists(remote_log_location):
-            old_log = self.s3_read(remote_log_location)
-            log = '\n'.join([old_log, log]) if old_log else log
+        try:
+            if append and self.s3_log_exists(remote_log_location):
+                old_log = self.s3_read(remote_log_location)
+                log = '\n'.join([old_log, log]) if old_log else log
+        except Exception as error:  # pylint: disable=broad-except
+            self.log.exception('Could not verify previous log to append: %s', str(error))
 
         try:
             self.hook.load_string(

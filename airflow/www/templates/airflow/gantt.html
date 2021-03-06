@@ -19,7 +19,7 @@
 
 {% extends "airflow/dag.html" %}
 
-{% block page_title %}{{ dag.dag_id }} - Gantt - Airflow{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - Gantt - {{ appbuilder.app_name }}{% endblock %}
 
 {% block head_css %}
   {{ super() }}
@@ -45,24 +45,25 @@
         <div class="form-group">
           <label class="sr-only" for="base_date">Base date</label>
           <div class="input-group">
-            {{ form.base_date(class_="form-control") }}
+            {{ form.base_date(class_="form-control", disabled=not(dag.has_dag_runs())) }}
           </div>
         </div>
         <div class="form-group">
           <label class="sr-only" for="num_runs">Number of runs</label>
           <div class="input-group">
             <div class="input-group-addon">Runs</div>
-            {{ form.num_runs(class_="form-control") }}
+            {{ form.num_runs(class_="form-control", disabled=not(dag.has_dag_runs())) }}
           </div>
         </div>
         <div class="form-group">
           <label class="sr-only" for="execution_date">Run</label>
           <div class="input-group">
             <div class="input-group-addon">Run</div>
-            {{ form.execution_date(class_="form-control") }}
+            {{ form.execution_date(class_="form-control", disabled=not(dag.has_dag_runs())) }}
           </div>
         </div>
-        <button type="submit" class="btn">Update</button>
+        <button type="submit" class="btn"{{' disabled' if not dag.has_dag_runs() else ''}}>Update</button>
+        {% if not dag.has_dag_runs() %}<span class="text-warning" style="margin-left:16px;">No DAG runs yet.</span>{% endif %}
       </form>
     </div>
   </div>
@@ -75,23 +76,9 @@
   {{ super() }}
   <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script src="{{ url_for_asset('d3-tip.js') }}"></script>
-  <script src="{{ url_for_asset('ganttChartD3v2.js') }}"></script>
-  <script src="{{ url_for_asset('taskInstances.js') }}"></script>
+  <script src="{{ url_for_asset('gantt.js') }}"></script>
   <script>
-    $( document ).ready(function() {
-      var dag_id = '{{ dag.dag_id }}';
-      var task_id = '';
-      var execution_date = '';
-      data = {{ data |tojson }};
-      var gantt = d3.gantt()
-        .taskTypes(data.taskNames)
-        .height(data.height)
-        .selector('.gantt')
-        .tickFormat("%H:%M:%S");
-      gantt(data.tasks);
-      $('body').on('airflow.timezone-change', (e) => {
-        gantt.redraw(data.tasks);
-      });
-    });
+    // Loading data via <meta> wasn't loading extra_links in a task
+    const data = JSON.parse('{{ data|tojson }}');
   </script>
 {% endblock %}

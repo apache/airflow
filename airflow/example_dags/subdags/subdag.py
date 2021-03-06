@@ -20,7 +20,7 @@
 
 # [START subdag]
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils.dates import days_ago
 
 
@@ -43,7 +43,7 @@ def subdag(parent_dag_name, child_dag_name, args):
 
     for i in range(5):
         DummyOperator(
-            task_id='{}-task-{}'.format(child_dag_name, i + 1),
+            task_id=f'{child_dag_name}-task-{i + 1}',
             default_args=args,
             dag=dag_subdag,
         )

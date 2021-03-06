@@ -16,6 +16,9 @@
 # under the License.
 import os
 import unittest
+from unittest import mock
+
+import pytest
 
 from airflow import settings
 from airflow.configuration import conf
@@ -73,7 +76,7 @@ class TestXCom(unittest.TestCase):
             .value
         )
 
-        self.assertEqual(ret_value, json_obj)
+        assert ret_value == json_obj
 
         session = settings.Session()
         ret_value = (
@@ -88,7 +91,7 @@ class TestXCom(unittest.TestCase):
             .value
         )
 
-        self.assertEqual(ret_value, json_obj)
+        assert ret_value == json_obj
 
     @conf_vars({("core", "enable_xcom_pickling"): "False"})
     def test_xcom_get_one_disable_pickle_type(self):
@@ -101,7 +104,7 @@ class TestXCom(unittest.TestCase):
 
         ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
 
-        self.assertEqual(ret_value, json_obj)
+        assert ret_value == json_obj
 
         session = settings.Session()
         ret_value = (
@@ -116,7 +119,7 @@ class TestXCom(unittest.TestCase):
             .value
         )
 
-        self.assertEqual(ret_value, json_obj)
+        assert ret_value == json_obj
 
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_xcom_enable_pickle_type(self):
@@ -133,7 +136,7 @@ class TestXCom(unittest.TestCase):
             .value
         )
 
-        self.assertEqual(ret_value, json_obj)
+        assert ret_value == json_obj
 
         session = settings.Session()
         ret_value = (
@@ -148,7 +151,7 @@ class TestXCom(unittest.TestCase):
             .value
         )
 
-        self.assertEqual(ret_value, json_obj)
+        assert ret_value == json_obj
 
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_xcom_get_one_enable_pickle_type(self):
@@ -161,7 +164,7 @@ class TestXCom(unittest.TestCase):
 
         ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
 
-        self.assertEqual(ret_value, json_obj)
+        assert ret_value == json_obj
 
         session = settings.Session()
         ret_value = (
@@ -176,7 +179,37 @@ class TestXCom(unittest.TestCase):
             .value
         )
 
-        self.assertEqual(ret_value, json_obj)
+        assert ret_value == json_obj
+
+    def test_xcom_deserialize_with_json_to_pickle_switch(self):
+        json_obj = {"key": "value"}
+        execution_date = timezone.utcnow()
+        key = "xcom_test3"
+        dag_id = "test_dag"
+        task_id = "test_task3"
+
+        with conf_vars({("core", "enable_xcom_pickling"): "False"}):
+            XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+        with conf_vars({("core", "enable_xcom_pickling"): "True"}):
+            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+        assert ret_value == json_obj
+
+    def test_xcom_deserialize_with_pickle_to_json_switch(self):
+        json_obj = {"key": "value"}
+        execution_date = timezone.utcnow()
+        key = "xcom_test3"
+        dag_id = "test_dag"
+        task_id = "test_task3"
+
+        with conf_vars({("core", "enable_xcom_pickling"): "True"}):
+            XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+        with conf_vars({("core", "enable_xcom_pickling"): "False"}):
+            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+        assert ret_value == json_obj
 
     @conf_vars({("core", "xcom_enable_pickling"): "False"})
     def test_xcom_disable_pickle_type_fail_on_non_json(self):
@@ -184,15 +217,14 @@ class TestXCom(unittest.TestCase):
             def __reduce__(self):
                 return os.system, ("ls -alt",)
 
-        self.assertRaises(
-            TypeError,
-            XCom.set,
-            key="xcom_test3",
-            value=PickleRce(),
-            dag_id="test_dag3",
-            task_id="test_task3",
-            execution_date=timezone.utcnow(),
-        )
+        with pytest.raises(TypeError):
+            XCom.set(
+                key="xcom_test3",
+                value=PickleRce(),
+                dag_id="test_dag3",
+                task_id="test_task3",
+                execution_date=timezone.utcnow(),
+            )
 
     @conf_vars({("core", "xcom_enable_pickling"): "True"})
     def test_xcom_get_many(self):
@@ -211,4 +243,19 @@ class TestXCom(unittest.TestCase):
         results = XCom.get_many(key=key, execution_date=execution_date)
 
         for result in results:
-            self.assertEqual(result.value, json_obj)
+            assert result.value == json_obj
+
+    @mock.patch("airflow.models.xcom.XCom.orm_deserialize_value")
+    def test_xcom_init_on_load_uses_orm_deserialize_value(self, mock_orm_deserialize):
+        # pylint: disable=unexpected-keyword-arg
+        instance = BaseXCom(
+            key="key",
+            value="value",
+            timestamp=timezone.utcnow(),
+            execution_date=timezone.utcnow(),
+            task_id="task_id",
+            dag_id="dag_id",
+        )
+        # pylint: enable=unexpected-keyword-arg
+        instance.init_on_load()
+        mock_orm_deserialize.assert_called_once_with()

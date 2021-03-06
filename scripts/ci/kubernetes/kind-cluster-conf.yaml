@@ -23,6 +23,11 @@ networking:
 nodes:
   - role: control-plane
   - role: worker
+    extraPortMappings:
+      - containerPort: 30007
+        hostPort: 8080
+        listenAddress: "0.0.0.0"
+        protocol: TCP
 kubeadmConfigPatchesJson6902:
   - group: kubeadm.k8s.io
     version: v1beta2

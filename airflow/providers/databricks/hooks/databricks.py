@@ -31,7 +31,7 @@ from requests.auth import AuthBase
 
 from airflow import __version__
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
@@ -42,6 +42,9 @@ SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
 USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
+
+INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
+UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 
 
 class RunState:
@@ -100,9 +103,14 @@ class DatabricksHook(BaseHook):  # noqa
     :type retry_delay: float
     """
 
+    conn_name_attr = 'databricks_conn_id'
+    default_conn_name = 'databricks_default'
+    conn_type = 'databricks'
+    hook_name = 'Databricks'
+
     def __init__(
         self,
-        databricks_conn_id: str = 'databricks_default',
+        databricks_conn_id: str = default_conn_name,
         timeout_seconds: int = 180,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
@@ -170,7 +178,7 @@ class DatabricksHook(BaseHook):  # noqa
             auth = (self.databricks_conn.login, self.databricks_conn.password)
             host = self.databricks_conn.host
 
-        url = 'https://{host}/{endpoint}'.format(host=self._parse_host(host), endpoint=endpoint)
+        url = f'https://{self._parse_host(host)}/{endpoint}'
 
         if method == 'GET':
             request_func = requests.get
@@ -310,6 +318,28 @@ class DatabricksHook(BaseHook):  # noqa
         :param json: json dictionary containing cluster specification.
         """
         self._do_api_call(TERMINATE_CLUSTER_ENDPOINT, json)
+
+    def install(self, json: dict) -> None:
+        """
+        Install libraries on the cluster.
+
+        Utility function to call the ``2.0/libraries/install`` endpoint.
+
+        :param json: json dictionary containing cluster_id and an array of library
+        :type json: dict
+        """
+        self._do_api_call(INSTALL_LIBS_ENDPOINT, json)
+
+    def uninstall(self, json: dict) -> None:
+        """
+        Uninstall libraries on the cluster.
+
+        Utility function to call the ``2.0/libraries/uninstall`` endpoint.
+
+        :param json: json dictionary containing cluster_id and an array of library
+        :type json: dict
+        """
+        self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
 
 
 def _retryable_error(exception) -> bool:

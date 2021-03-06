@@ -43,6 +43,6 @@ class TestJiraHook(unittest.TestCase):
     def test_jira_client_connection(self, jira_mock):
         jira_hook = JiraHook()
 
-        self.assertTrue(jira_mock.called)
-        self.assertIsInstance(jira_hook.client, Mock)
-        self.assertEqual(jira_hook.client.name, jira_mock.return_value.name)  # pylint: disable=no-member
+        assert jira_mock.called
+        assert isinstance(jira_hook.client, Mock)
+        assert jira_hook.client.name == jira_mock.return_value.name  # pylint: disable=no-member

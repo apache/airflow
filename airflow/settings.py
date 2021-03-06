@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 import atexit
+import functools
 import json
 import logging
 import os
 import sys
+import warnings
 from typing import Optional
 
 import pendulum
@@ -31,6 +33,7 @@ from sqlalchemy.pool import NullPool
 
 # pylint: disable=unused-import
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
+from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 
@@ -93,13 +96,37 @@ STATE_COLORS = {
 }
 
 
-def policy(task):  # pylint: disable=unused-argument
+@functools.lru_cache(maxsize=None)
+def _get_rich_console(file):
+    # Delay imports until we need it
+    import rich.console
+
+    return rich.console.Console(file=file)
+
+
+def custom_show_warning(message, category, filename, lineno, file=None, line=None):
+    """Custom function to print rich and visible warnings"""
+    # Delay imports until we need it
+    from rich.markup import escape
+
+    msg = f"[bold]{line}" if line else f"[bold][yellow]{filename}:{lineno}"
+    msg += f" {category.__name__}[/bold]: {escape(str(message))}[/yellow]"
+    write_console = _get_rich_console(file or sys.stderr)
+    write_console.print(msg, soft_wrap=True)
+
+
+warnings.showwarning = custom_show_warning
+
+
+def task_policy(task) -> None:  # pylint: disable=unused-argument
     """
     This policy setting allows altering tasks after they are loaded in
-    the DagBag. It allows administrator to rewire some task parameters.
+    the DagBag. It allows administrator to rewire some task's parameters.
+    Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
+    to stop DAG from being executed.
 
     To define policy, add a ``airflow_local_settings`` module
-    to your PYTHONPATH that defines this ``policy`` function.
+    to your PYTHONPATH that defines this ``task_policy`` function.
 
     Here are a few examples of how this can be useful:
 
@@ -108,7 +135,29 @@ def policy(task):  # pylint: disable=unused-argument
         tasks get wired to the right workers
     * You could enforce a task timeout policy, making sure that no tasks run
         for more than 48 hours
-    * ...
+
+    :param task: task to be mutated
+    :type task: airflow.models.baseoperator.BaseOperator
+    """
+
+
+def dag_policy(dag) -> None:  # pylint: disable=unused-argument
+    """
+    This policy setting allows altering DAGs after they are loaded in
+    the DagBag. It allows administrator to rewire some DAG's parameters.
+    Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
+    to stop DAG from being executed.
+
+    To define policy, add a ``airflow_local_settings`` module
+    to your PYTHONPATH that defines this ``dag_policy`` function.
+
+    Here are a few examples of how this can be useful:
+
+    * You could enforce default user for DAGs
+    * Check if every DAG has configured tags
+
+    :param dag: dag to be mutated
+    :type dag: airflow.models.dag.DAG
     """
 
 
@@ -121,6 +170,9 @@ def task_instance_mutation_hook(task_instance):  # pylint: disable=unused-argume
     to your PYTHONPATH that defines this ``task_instance_mutation_hook`` function.
 
     This could be used, for instance, to modify the task instance during retries.
+
+    :param task_instance: task instance to be mutated
+    :type task_instance: airflow.models.taskinstance.TaskInstance
     """
 
 
@@ -273,7 +325,7 @@ def configure_adapters():
 
 def validate_session():
     """Validate ORM Session"""
-    worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
+    worker_precheck = conf.getboolean('celery', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
     else:
@@ -312,6 +364,36 @@ def prepare_syspath():
         sys.path.append(PLUGINS_FOLDER)
 
 
+def get_session_lifetime_config():
+    """Gets session timeout configs and handles outdated configs gracefully."""
+    session_lifetime_minutes = conf.get('webserver', 'session_lifetime_minutes', fallback=None)
+    session_lifetime_days = conf.get('webserver', 'session_lifetime_days', fallback=None)
+    uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
+        'webserver', 'force_log_out_after', fallback=None
+    )
+
+    minutes_per_day = 24 * 60
+    default_lifetime_minutes = '43200'
+    if uses_deprecated_lifetime_configs and session_lifetime_minutes == default_lifetime_minutes:
+        warnings.warn(
+            '`session_lifetime_days` option from `[webserver]` section has been '
+            'renamed to `session_lifetime_minutes`. The new option allows to configure '
+            'session lifetime in minutes. The `force_log_out_after` option has been removed '
+            'from `[webserver]` section. Please update your configuration.',
+            category=DeprecationWarning,
+        )
+        if session_lifetime_days:
+            session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)
+
+    if not session_lifetime_minutes:
+        session_lifetime_days = 30
+        session_lifetime_minutes = minutes_per_day * session_lifetime_days
+
+    logging.debug('User session lifetime is set to %s minutes.', session_lifetime_minutes)
+
+    return int(session_lifetime_minutes)
+
+
 def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file"""
     try:  # pylint: disable=too-many-nested-blocks
@@ -324,6 +406,17 @@ def import_local_settings():
             for k, v in airflow_local_settings.__dict__.items():
                 if not k.startswith("__"):
                     globals()[k] = v
+
+        # TODO: Remove once deprecated
+        if "policy" in globals() and "task_policy" not in globals():
+            warnings.warn(
+                "Using `policy` in airflow_local_settings.py is deprecated. "
+                "Please rename your `policy` to `task_policy`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            globals()["task_policy"] = globals()["policy"]
+            del globals()["policy"]
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
     except ImportError:
@@ -342,7 +435,7 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
-    # Ensure we close DB connections at scheduler and gunicon worker terminations
+    # Ensure we close DB connections at scheduler and gunicorn worker terminations
     atexit.register(dispose_orm)
 
 
@@ -388,15 +481,19 @@ ALLOW_FUTURE_EXEC_DATES = conf.getboolean('scheduler', 'allow_trigger_in_future'
 # Whether or not to check each dagrun against defined SLAs
 CHECK_SLAS = conf.getboolean('core', 'check_slas', fallback=True)
 
-# Number of times, the code should be retried in case of DB Operational Errors
-# Retries are done using tenacity. Not all transactions should be retried as it can cause
-# undesired state.
-# Currently used in the following places:
-# `DagFileProcessor.process_file` to retry `dagbag.sync_to_db`
-MAX_DB_RETRIES = conf.getint('core', 'max_db_retries', fallback=3)
-
 USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=True)
 
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
 # if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
 LAZY_LOAD_PLUGINS = conf.getboolean('core', 'lazy_load_plugins', fallback=True)
+
+# By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
+# Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
+# loaded from module.
+LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallback=True)
+
+# Determines if the executor utilizes Kubernetes
+IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
+    executor_constants.KUBERNETES_EXECUTOR,
+    executor_constants.CELERY_KUBERNETES_EXECUTOR,
+}

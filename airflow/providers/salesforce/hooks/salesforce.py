@@ -30,7 +30,7 @@ from typing import Iterable, List, Optional
 import pandas as pd
 from simple_salesforce import Salesforce, api
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -146,7 +146,7 @@ class SalesforceHook(BaseHook):
         :return: all instances of the object from Salesforce.
         :rtype: dict
         """
-        query = "SELECT {} FROM {}".format(",".join(fields), obj)
+        query = f"SELECT {','.join(fields)} FROM {obj}"
 
         self.log.info(
             "Making query to Salesforce: %s",

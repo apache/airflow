@@ -92,13 +92,13 @@ class DiscordWebhookHook(HttpHook):
             endpoint = extra.get('webhook_endpoint', '')
         else:
             raise AirflowException(
-                'Cannot get webhook endpoint: No valid Discord ' 'webhook endpoint or http_conn_id supplied.'
+                'Cannot get webhook endpoint: No valid Discord webhook endpoint or http_conn_id supplied.'
             )
 
         # make sure endpoint matches the expected Discord webhook format
         if not re.match('^webhooks/[0-9]+/[a-zA-Z0-9_-]+$', endpoint):
             raise AirflowException(
-                'Expected Discord webhook endpoint in the form ' 'of "webhooks/{webhook.id}/{webhook.token}".'
+                'Expected Discord webhook endpoint in the form of "webhooks/{webhook.id}/{webhook.token}".'
             )
 
         return endpoint
@@ -122,7 +122,7 @@ class DiscordWebhookHook(HttpHook):
         if len(self.message) <= 2000:
             payload['content'] = self.message
         else:
-            raise AirflowException('Discord message length must be 2000 or fewer ' 'characters.')
+            raise AirflowException('Discord message length must be 2000 or fewer characters.')
 
         return json.dumps(payload)
 

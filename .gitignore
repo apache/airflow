@@ -17,7 +17,7 @@ airflow/www/static/dist
 airflow/www_rbac/static/coverage/
 airflow/www_rbac/static/dist/
 
-logs/
+/logs/
 airflow-webserver.pid
 
 # Byte-compiled / optimized / DLL files
@@ -87,7 +87,9 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-docs/_api/
+docs/_doctrees/
+docs/_inventory_cache/
+docs/*/_api/
 
 # PyBuilder
 target/
@@ -186,8 +188,14 @@ dmypy.json
 /.kube
 /.inputrc
 log.txt*
-/provider_packages/CHANGELOG.txt
 
+# Provider-related ignores
+/provider_packages/CHANGELOG.txt
+/provider_packages/MANIFEST.in
+/airflow/providers/__init__.py
+
+# Docker context files
+/docker-context-files
 # Local .terraform directories
 **/.terraform/*
 

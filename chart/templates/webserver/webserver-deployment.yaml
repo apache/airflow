@@ -18,6 +18,9 @@
 ################################
 ## Airflow Webserver Deployment
 #################################
+{{- $nodeSelector := or .Values.webserver.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.webserver.affinity .Values.affinity }}
+{{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -54,18 +57,21 @@ spec:
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
-        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
+        checksum/webserver-config: {{ include (print $.Template.BasePath "/configmaps/webserver-configmap.yaml") . | sha256sum }}
+        checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
+        checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
         {{- if .Values.airflowPodAnnotations }}
         {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
     spec:
       serviceAccountName: {{ .Release.Name }}-webserver
       nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
+{{ toYaml $nodeSelector | indent 8 }}
       affinity:
-{{ toYaml .Values.affinity | indent 8 }}
+{{ toYaml $affinity | indent 8 }}
       tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
+{{ toYaml $tolerations | indent 8 }}
       restartPolicy: Always
       securityContext:
         runAsUser: {{ .Values.uid }}
@@ -80,6 +86,8 @@ spec:
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
@@ -90,7 +98,7 @@ spec:
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["webserver"]
+          args: ["bash", "-c", "exec airflow webserver"]
           resources:
 {{ toYaml .Values.webserver.resources | indent 12 }}
           volumeMounts:
@@ -99,7 +107,7 @@ spec:
               subPath: airflow.cfg
               readOnly: true
 {{- if .Values.webserver.webserverConfig }}
-            - name: config
+            - name: webserver-config
               mountPath: {{ template "airflow_webserver_config_path" . }}
               subPath: webserver_config.py
               readOnly: true
@@ -122,20 +130,32 @@ spec:
               containerPort: {{ .Values.ports.airflowUI }}
           livenessProbe:
             httpGet:
-              path: /health
+              path: {{if .Values.config.webserver.base_url }}{{- with urlParse .Values.config.webserver.base_url }}{{ .path }}{{end}}{{end}}/health
               port: {{ .Values.ports.airflowUI }}
+{{- if .Values.config.webserver.base_url}}
+              httpHeaders:
+                - name: Host
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse .Values.config.webserver.base_url).host  "" }}
+{{- end }}
             initialDelaySeconds: {{ .Values.webserver.livenessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.livenessProbe.timeoutSeconds | default 30 }}
             failureThreshold: {{ .Values.webserver.livenessProbe.failureThreshold | default 20 }}
             periodSeconds: {{ .Values.webserver.livenessProbe.periodSeconds | default 5 }}
           readinessProbe:
             httpGet:
-              path: /health
+              path: {{if .Values.config.webserver.base_url }}{{- with urlParse .Values.config.webserver.base_url }}{{ .path }}{{end}}{{end}}/health
               port: {{ .Values.ports.airflowUI }}
+{{- if .Values.config.webserver.base_url}}
+              httpHeaders:
+                - name: Host
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse .Values.config.webserver.base_url).host  "" }}
+{{- end }}
             initialDelaySeconds: {{ .Values.webserver.readinessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds | default 30 }}
             failureThreshold: {{ .Values.webserver.readinessProbe.failureThreshold | default 20 }}
             periodSeconds: {{ .Values.webserver.readinessProbe.periodSeconds | default 5 }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
@@ -143,6 +163,11 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if .Values.webserver.webserverConfig }}
+        - name: webserver-config
+          configMap:
+            name: {{ .Release.Name }}-webserver-config
+        {{- end }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:

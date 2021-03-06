@@ -23,21 +23,21 @@ from tests.helm_template_generator import render_chart
 
 
 class GitSyncWebserverTest(unittest.TestCase):
-    def test_should_add_dags_volume_to_the_webserver_if_git_sync_and_peristence_is_enabled(self):
+    def test_should_add_dags_volume_to_the_webserver_if_git_sync_and_persistence_is_enabled(self):
         docs = render_chart(
             values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
+        assert "dags" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
 
-    def test_should_add_dags_volume_to_the_webserver_if_git_sync_is_enabled_and_peristence_is_disabled(self):
+    def test_should_add_dags_volume_to_the_webserver_if_git_sync_is_enabled_and_persistence_is_disabled(self):
         docs = render_chart(
             values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": False}}},
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        self.assertEqual("dags", jmespath.search("spec.template.spec.volumes[1].name", docs[0]))
+        assert "dags" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
 
     def test_should_add_git_sync_container_to_webserver_if_persistence_is_not_enabled_but_git_sync_is(self):
         docs = render_chart(
@@ -50,7 +50,7 @@ class GitSyncWebserverTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        self.assertEqual("git-sync", jmespath.search("spec.template.spec.containers[0].name", docs[0]))
+        assert "git-sync" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
     def test_should_have_service_account_defined(self):
         docs = render_chart(
@@ -58,6 +58,4 @@ class GitSyncWebserverTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        self.assertEqual(
-            "RELEASE-NAME-webserver", jmespath.search("spec.template.spec.serviceAccountName", docs[0])
-        )
+        assert "RELEASE-NAME-webserver" == jmespath.search("spec.template.spec.serviceAccountName", docs[0])

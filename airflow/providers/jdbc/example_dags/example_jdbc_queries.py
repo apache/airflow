@@ -16,12 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Example DAG demonstrating the usage of the BashOperator."""
+"""Example DAG demonstrating the usage of the JdbcOperator."""
 
 from datetime import timedelta
 
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 from airflow.utils.dates import days_ago
 

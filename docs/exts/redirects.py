@@ -18,7 +18,6 @@
 import os
 
 from sphinx.builders import html as builders
-from sphinx.errors import ExtensionError
 from sphinx.util import logging
 
 TEMPLATE = '<html><head><meta http-equiv="refresh" content="0; url={}"/></head></html>'
@@ -30,14 +29,12 @@ def generate_redirects(app):
     """Generate redirects files."""
     redirect_file_path = os.path.join(app.srcdir, app.config.redirects_file)
     if not os.path.exists(redirect_file_path):
-        raise ExtensionError(f"Could not find redirects file at '{redirect_file_path}'")
+        log.info("Could not found the redirect file: %s", redirect_file_path)
+        return
 
     in_suffix = next(iter(app.config.source_suffix.keys()))
 
     if not isinstance(app.builder, builders.StandaloneHTMLBuilder):
-        log.warning(
-            f"The plugin supports only 'html' builder, but you are using '{type(app.builder)}'. Skipping..."
-        )
         return
 
     with open(redirect_file_path) as redirects:
@@ -57,7 +54,7 @@ def generate_redirects(app):
             from_path = from_path.replace(in_suffix, '.html')
             to_path = to_path.replace(in_suffix, ".html")
 
-            to_path_prefix = "..%s" % os.path.sep * (len(from_path.split(os.path.sep)) - 1)
+            to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)) - 1)
             to_path = to_path_prefix + to_path
 
             log.debug("Resolved redirect '%s' to '%s'", from_path, to_path)

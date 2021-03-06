@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-microsoft-azure
 
-Release: 2020.10.29
+Release: 2021.3.3
 
 **Table of contents**
 
@@ -44,6 +44,9 @@ Release: 2020.10.29
     - [Secrets](#secrets)
         - [New secrets](#new-secrets)
 - [Releases](#releases)
+    - [Release 2021.3.3](#release-202133)
+    - [Release 2021.2.5](#release-202125)
+    - [Release 2020.11.23](#release-20201123)
     - [Release 2020.10.29](#release-20201029)
     - [Release 2020.10.5](#release-2020105)
     - [Release 2020.6.24](#release-2020624)
@@ -59,6 +62,18 @@ While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade pyth
 want to use this backport package.
 
 
+# Changelog
+
+## Release 2021.3.3
+
+### Features
+
+* `Add Azure Data Factory hook (#11015)`
+
+### Bug fixes
+
+* `BugFix: Fix remote log in azure storage blob displays in one line (#14313)`
+
 
 ## Installation
 
@@ -67,19 +82,21 @@ You can install this package on top of an existing airflow 1.10.* installation v
 
 ## PIP requirements
 
-| PIP package                  | Version required   |
-|:-----------------------------|:-------------------|
-| azure-batch                  | &gt;=8.0.0            |
-| azure-cosmos                 | &gt;=3.0.1,&lt;4         |
-| azure-datalake-store         | &gt;=0.0.45           |
-| azure-identity               | &gt;=1.3.1            |
-| azure-keyvault               | &gt;=4.1.0            |
-| azure-kusto-data             | &gt;=0.0.43,&lt;0.1      |
-| azure-mgmt-containerinstance | &gt;=1.5.0,&lt;2.0       |
-| azure-mgmt-datalake-store    | &gt;=0.5.0            |
-| azure-mgmt-resource          | &gt;=2.2.0            |
-| azure-storage                | &gt;=0.34.0, &lt;0.37.0  |
-| azure-storage-blob           | &lt;12.0              |
+| PIP package                    | Version required   |
+|:-------------------------------|:-------------------|
+| `azure-batch`                  | `>=8.0.0`          |
+| `azure-cosmos`                 | `>=3.0.1,<4`       |
+| `azure-datalake-store`         | `>=0.0.45`         |
+| `azure-identity`               | `>=1.3.1`          |
+| `azure-keyvault`               | `>=4.1.0`          |
+| `azure-kusto-data`             | `>=0.0.43,<0.1`    |
+| `azure-mgmt-containerinstance` | `>=1.5.0,<2.0`     |
+| `azure-mgmt-datafactory`       | `>=0.13.0`         |
+| `azure-mgmt-datalake-store`    | `>=0.5.0`          |
+| `azure-mgmt-resource`          | `>=2.2.0`          |
+| `azure-storage-blob`           | `>=12.7.0`         |
+| `azure-storage-common`         | `>=2.1.0`          |
+| `azure-storage-file`           | `>=2.1.0`          |
 
 ## Cross provider package dependencies
 
@@ -92,10 +109,10 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 pip install apache-airflow-backport-providers-microsoft-azure[google]
 ```
 
-| Dependent package                                                                                                  | Extra   |
-|:-------------------------------------------------------------------------------------------------------------------|:--------|
-| [apache-airflow-backport-providers-google](https://github.com/apache/airflow/tree/master/airflow/providers/google) | google  |
-| [apache-airflow-backport-providers-oracle](https://github.com/apache/airflow/tree/master/airflow/providers/oracle) | oracle  |
+| Dependent package                                                                                                  | Extra    |
+|:-------------------------------------------------------------------------------------------------------------------|:---------|
+| [apache-airflow-backport-providers-google](https://github.com/apache/airflow/tree/master/airflow/providers/google) | `google` |
+| [apache-airflow-backport-providers-oracle](https://github.com/apache/airflow/tree/master/airflow/providers/oracle) | `oracle` |
 
 # Provider classes summary
 
@@ -109,10 +126,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ### New operators
 
-| New Airflow 2.0 operators: `airflow.providers.microsoft.azure` package                                                                               |
-|:-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.adx.AzureDataExplorerQueryOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/adx.py)     |
-| [operators.azure_batch.AzureBatchOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/azure_batch.py) |
+| New Airflow 2.0 operators: `airflow.providers.microsoft.azure` package                                                                                               |
+|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.adls_delete.AzureDataLakeStorageDeleteOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/adls_delete.py) |
+| [operators.adx.AzureDataExplorerQueryOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/adx.py)                     |
+| [operators.azure_batch.AzureBatchOperator](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/operators/azure_batch.py)                 |
 
 
 ### Moved operators
@@ -167,12 +185,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ### New hooks
 
-| New Airflow 2.0 hooks: `airflow.providers.microsoft.azure` package                                                                                  |
-|:----------------------------------------------------------------------------------------------------------------------------------------------------|
-| [hooks.adx.AzureDataExplorerHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/adx.py)                     |
-| [hooks.azure_batch.AzureBatchHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_batch.py)            |
-| [hooks.azure_data_lake.AzureDataLakeHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_data_lake.py) |
-| [hooks.base_azure.AzureBaseHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/base_azure.py)               |
+| New Airflow 2.0 hooks: `airflow.providers.microsoft.azure` package                                                                                           |
+|:-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [hooks.adx.AzureDataExplorerHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/adx.py)                              |
+| [hooks.azure_batch.AzureBatchHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_batch.py)                     |
+| [hooks.azure_data_factory.AzureDataFactoryHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_data_factory.py) |
+| [hooks.azure_data_lake.AzureDataLakeHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/azure_data_lake.py)          |
+| [hooks.base_azure.AzureBaseHook](https://github.com/apache/airflow/blob/master/airflow/providers/microsoft/azure/hooks/base_azure.py)                        |
 
 
 ### Moved hooks
@@ -201,11 +220,67 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
+### Release 2021.3.3
+
+| Commit                                                                                         | Committed   | Subject                                                                      |
+|:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------------------|
+| [11d03d2f6](https://github.com/apache/airflow/commit/11d03d2f63d88a284d6aaded5f9ab6642a60561b) | 2021-02-26  | `Add Azure Data Factory hook (#11015)`                                       |
+| [5bfa0f123](https://github.com/apache/airflow/commit/5bfa0f123b39babe1ef66c139e59e452240a6bd7) | 2021-02-25  | `BugFix: Fix remote log in azure storage blob displays in one line (#14313)` |
+| [ca35bd7f7](https://github.com/apache/airflow/commit/ca35bd7f7f6bc2fb4f2afd7762114ce262c61941) | 2021-02-21  | `By default PIP will install all packages in .local folder (#14125)`         |
+| [10343ec29](https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda) | 2021-02-05  | `Corrections in docs and tools after releasing provider RCs (#14082)`        |
+
+
+### Release 2021.2.5
+
+| Commit                                                                                         | Committed   | Subject                                                                       |
+|:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------------------------------------|
+| [88bdcfa0d](https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43) | 2021-02-04  | `Prepare to release a new wave of providers. (#14013)`                        |
+| [ac2f72c98](https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b) | 2021-02-01  | `Implement provider versioning tools (#13767)`                                |
+| [94b153123](https://github.com/apache/airflow/commit/94b1531230231c57610d720e59563ccd98e7ecb2) | 2021-01-23  | `Upgrade azure blob to v12 (#12188)`                                          |
+| [a9ac2b040](https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22) | 2021-01-23  | `Switch to f-strings using flynt. (#13732)`                                   |
+| [3fd5ef355](https://github.com/apache/airflow/commit/3fd5ef355556cf0ad7896bb570bbe4b2eabbf46e) | 2021-01-21  | `Add missing logos for integrations (#13717)`                                 |
+| [b2cb6ee5b](https://github.com/apache/airflow/commit/b2cb6ee5ba895983e4e9d9327ff62a9262b765a2) | 2021-01-07  | `Fix Azure Data Explorer Operator (#13520)`                                   |
+| [295d66f91](https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a) | 2020-12-30  | `Fix Grammar in PIP warning (#13380)`                                         |
+| [a1e919507](https://github.com/apache/airflow/commit/a1e91950766d12022a89bd667cc1ef1a4dec387c) | 2020-12-26  | `add system test for azure local to adls operator (#13190)`                   |
+| [5185d81ff](https://github.com/apache/airflow/commit/5185d81ff99523fe363bd5024cef9660c94214ff) | 2020-12-24  | `add AzureDatalakeStorageDeleteOperator (#13206)`                             |
+| [6cf76d7ac](https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e) | 2020-12-18  | `Fix typo in pip upgrade command :( (#13148)`                                 |
+| [5090fb0c8](https://github.com/apache/airflow/commit/5090fb0c8967d2d8719c6f4a468f2151395b5444) | 2020-12-15  | `Add script to generate integrations.json (#13073)`                           |
+| [32971a1a2](https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f) | 2020-12-09  | `Updates providers versions to 1.0.0 (#12955)`                                |
+| [b40dffa08](https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364) | 2020-12-08  | `Rename remaing modules to match AIP-21 (#12917)`                             |
+| [9b39f2478](https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36) | 2020-12-08  | `Add support for dynamic connection form fields per provider (#12558)`        |
+| [bd90136aa](https://github.com/apache/airflow/commit/bd90136aaf5035e3234fe545b79a3e4aad21efe2) | 2020-11-30  | `Move operator guides to provider documentation packages (#12681)`            |
+| [2037303ee](https://github.com/apache/airflow/commit/2037303eef93fd36ab13746b045d1c1fee6aa143) | 2020-11-29  | `Adds support for Connection/Hook discovery from providers (#12466)`          |
+| [543d88b3a](https://github.com/apache/airflow/commit/543d88b3a1ec7f0a41af390273868d9aed4edb7b) | 2020-11-28  | `Add example dag and system tests for azure wasb and fileshare (#12673)`      |
+| [6b3c6add9](https://github.com/apache/airflow/commit/6b3c6add9ea245b43ee367491bf9193d59bd248c) | 2020-11-27  | `Update setup.py to get non-conflicting set of dependencies (#12636)`         |
+| [c34ef853c](https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2) | 2020-11-20  | `Separate out documentation building per provider  (#12444)`                  |
+| [008035450](https://github.com/apache/airflow/commit/00803545023b096b8db4fbd6eb473843096d7ce4) | 2020-11-18  | `Update provider READMEs for 1.0.0b2 batch release (#12449)`                  |
+| [7ca0b6f12](https://github.com/apache/airflow/commit/7ca0b6f121c9cec6e25de130f86a56d7c7fbe38c) | 2020-11-18  | `Enable Markdownlint rule MD003/heading-style/header-style (#12427) (#12438)` |
+
+
+### Release 2020.11.23
+
+| Commit                                                                                         | Committed   | Subject                                                                        |
+|:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------|
+| [4873d9759](https://github.com/apache/airflow/commit/4873d9759dfdec1dd3663074f9e64ad69fa881cc) | 2020-11-18  | Enable Markdownlint rule MD003/heading-style/header-style (#12427)             |
+| [ae7cb4a1e](https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d) | 2020-11-17  | Update wrong commit hash in backport provider changes (#12390)                 |
+| [6889a333c](https://github.com/apache/airflow/commit/6889a333cff001727eb0a66e375544a28c9a5f03) | 2020-11-15  | Improvements for operators and hooks ref docs (#12366)                         |
+| [7825e8f59](https://github.com/apache/airflow/commit/7825e8f59034645ab3247229be83a3aa90baece1) | 2020-11-13  | Docs installation improvements (#12304)                                        |
+| [dd2095f4a](https://github.com/apache/airflow/commit/dd2095f4a8b07c9b1a4c279a3578cd1e23b71a1b) | 2020-11-10  | Simplify string expressions &amp; Use f-string (#12216)                            |
+| [85a18e13d](https://github.com/apache/airflow/commit/85a18e13d9dec84275283ff69e34704b60d54a75) | 2020-11-09  | Point at pypi project pages for cross-dependency of provider packages (#12212) |
+| [59eb5de78](https://github.com/apache/airflow/commit/59eb5de78c70ee9c7ae6e4cba5c7a2babb8103ca) | 2020-11-09  | Update provider READMEs for up-coming 1.0.0beta1 releases (#12206)             |
+| [b2a28d159](https://github.com/apache/airflow/commit/b2a28d1590410630d66966aa1f2b2a049a8c3b32) | 2020-11-09  | Moves provider packages scripts to dev (#12082)                                |
+| [3ff7e0743](https://github.com/apache/airflow/commit/3ff7e0743a1156efe1d6aaf7b8f82136d0bba08f) | 2020-11-08  | azure key vault optional lookup (#12174)                                       |
+| [41bf172c1](https://github.com/apache/airflow/commit/41bf172c1dc75099f4f9d8b3f3350b4b1f523ef9) | 2020-11-04  | Simplify string expressions (#12093)                                           |
+| [4e8f9cc8d](https://github.com/apache/airflow/commit/4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68) | 2020-11-03  | Enable Black - Python Auto Formmatter (#9550)                                  |
+| [8c42cf1b0](https://github.com/apache/airflow/commit/8c42cf1b00c90f0d7f11b8a3a455381de8e003c5) | 2020-11-03  | Use PyUpgrade to use Python 3.6 features (#11447)                              |
+| [5a439e84e](https://github.com/apache/airflow/commit/5a439e84eb6c0544dc6c3d6a9f4ceeb2172cd5d0) | 2020-10-26  | Prepare providers release 0.0.2a1 (#11855)                                     |
+
+
 ### Release 2020.10.29
 
 | Commit                                                                                         | Committed   | Subject                                                                                                             |
 |:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------------------------------------------------|
-| [b680bbc0b](https://github.com/apache/airflow/commit/b680bbc0b05ad71d403a5d58bc7023a2453b9a48) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29                                                           |
+| [b680bbc0b](https://github.com/apache/airflow/commit/872b1566a11cb73297e657ff325161721b296574) | 2020-10-24  | Generated backport providers readmes/setup for 2020.10.29                                                           |
 | [6ce855af1](https://github.com/apache/airflow/commit/6ce855af118daeaa4c249669079ab9d9aad23945) | 2020-10-24  | Fix spelling (#11821)                                                                                               |
 | [349b0811c](https://github.com/apache/airflow/commit/349b0811c3022605426ba57d30936240a7c2848a) | 2020-10-20  | Add D200 pydocstyle check (#11688)                                                                                  |
 | [f8ff217e2](https://github.com/apache/airflow/commit/f8ff217e2f2152bbb9fc701ff4c0b6eb447ad65c) | 2020-10-18  | Fix incorrect typing and move config args out of extra connection config to operator args (#11635)                  |

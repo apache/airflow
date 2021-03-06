@@ -90,8 +90,7 @@ class FileProcessorHandler(logging.Handler):
             filename = os.path.join("native_dags", os.path.relpath(filename, airflow_directory))
         else:
             filename = os.path.relpath(filename, self.dag_dir)
-        ctx = {}
-        ctx['filename'] = filename
+        ctx = {'filename': filename}
 
         if self.filename_jinja_template:
             return self.filename_jinja_template.render(**ctx)
@@ -126,7 +125,7 @@ class FileProcessorHandler(logging.Handler):
                 else:
                     os.symlink(log_directory, latest_log_directory_path)
             except OSError:
-                logging.warning("OSError while attempting to symlink " "the latest log directory")
+                logging.warning("OSError while attempting to symlink the latest log directory")
 
     def _init_file(self, filename):
         """

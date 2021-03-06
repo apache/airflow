@@ -61,9 +61,12 @@ with DAG(
             'notebook_path': '/Users/airflow@example.com/PrepareData',
         },
     }
+    # [START howto_operator_databricks_json]
     # Example of using the JSON parameter to initialize the operator.
     notebook_task = DatabricksSubmitRunOperator(task_id='notebook_task', json=notebook_task_params)
+    # [END howto_operator_databricks_json]
 
+    # [START howto_operator_databricks_named]
     # Example of using the named parameters of DatabricksSubmitRunOperator
     # to initialize the operator.
     spark_jar_task = DatabricksSubmitRunOperator(
@@ -72,5 +75,5 @@ with DAG(
         spark_jar_task={'main_class_name': 'com.example.ProcessData'},
         libraries=[{'jar': 'dbfs:/lib/etl-0.1.jar'}],
     )
-
+    # [END howto_operator_databricks_named]
     notebook_task >> spark_jar_task

@@ -57,7 +57,8 @@ class LoggingMixin:
 class ExternalLoggingMixin:
     """Define a log handler based on an external service (e.g. ELK, StackDriver)."""
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def log_name(self) -> str:
         """Return log name"""
 
@@ -140,7 +141,7 @@ class RedirectStdHandler(StreamHandler):
     def __init__(self, stream):
         if not isinstance(stream, str):
             raise Exception(
-                "Cannot use file like objects. Use 'stdout' or 'stderr'" " as a str and without 'ext://'."
+                "Cannot use file like objects. Use 'stdout' or 'stderr' as a str and without 'ext://'."
             )
 
         self._use_stderr = True

@@ -126,7 +126,7 @@ def secondary_training_status_message(
     for transition in transitions_to_print:
         message = transition['StatusMessage']
         time_str = timezone.convert_to_utc(job_description['LastModifiedTime']).strftime('%Y-%m-%d %H:%M:%S')
-        status_strs.append('{} {} - {}'.format(time_str, transition['Status'], message))
+        status_strs.append(f"{time_str} {transition['Status']} - {message}")
 
     return '\n'.join(status_strs)
 
@@ -215,7 +215,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             # or if s3 prefix exists in the case user provides multiple files in
             # a prefix
             raise AirflowException(
-                "The input S3 Key " "or Prefix {} does not exist in the Bucket {}".format(s3url, bucket)
+                f"The input S3 Key or Prefix {s3url} does not exist in the Bucket {bucket}"
             )
         return True
 
@@ -229,7 +229,8 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         if "InputDataConfig" in training_config:
             for channel in training_config['InputDataConfig']:
-                self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
+                if "S3DataSource" in channel['DataSource']:
+                    self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
 
     def check_tuning_config(self, tuning_config: dict) -> None:
         """
@@ -240,7 +241,8 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :return: None
         """
         for channel in tuning_config['TrainingJobDefinition']['InputDataConfig']:
-            self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
+            if "S3DataSource" in channel['DataSource']:
+                self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
 
     def get_log_conn(self):
         """
@@ -421,7 +423,8 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to transform job creation
         """
-        self.check_s3_url(config['TransformInput']['DataSource']['S3DataSource']['S3Uri'])
+        if "S3DataSource" in config['TransformInput']['DataSource']:
+            self.check_s3_url(config['TransformInput']['DataSource']['S3DataSource']['S3Uri'])
 
         response = self.get_conn().create_transform_job(**config)
         if wait_for_completion:
@@ -615,9 +618,9 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
         if state == LogState.JOB_COMPLETE:
             state = LogState.COMPLETE
-        elif time.time() - last_describe_job_call >= 30:
+        elif time.monotonic() - last_describe_job_call >= 30:
             description = self.describe_training_job(job_name)
-            last_describe_job_call = time.time()
+            last_describe_job_call = time.monotonic()
 
             if secondary_training_status_changed(description, last_description):
                 self.log.info(secondary_training_status_message(description, last_description))
@@ -731,7 +734,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             try:
                 response = describe_function(job_name)
                 status = response[key]
-                self.log.info('Job still running for %s seconds... ' 'current status is %s', sec, status)
+                self.log.info('Job still running for %s seconds... current status is %s', sec, status)
             except KeyError:
                 raise AirflowException('Could not get status of the SageMaker job')
             except ClientError:
@@ -740,7 +743,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
             if status in non_terminal_states:
                 running = True
             elif status in self.failed_states:
-                raise AirflowException('SageMaker job failed because %s' % response['FailureReason'])
+                raise AirflowException(f"SageMaker job failed because {response['FailureReason']}")
             else:
                 running = False
 
@@ -815,7 +818,7 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         # Notes:
         # - The JOB_COMPLETE state forces us to do an extra pause and read any items that
         # got to Cloudwatch after the job was marked complete.
-        last_describe_job_call = time.time()
+        last_describe_job_call = time.monotonic()
         last_description = description
 
         while True:

@@ -27,6 +27,7 @@ CONFIG_TEMPLATES_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "config_t
 DEFAULT_AIRFLOW_SECTIONS = [
     'core',
     "logging",
+    "metrics",
     'secrets',
     'cli',
     'debug',
@@ -44,7 +45,6 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'celery_broker_transport_options',
     'dask',
     'scheduler',
-    'ldap',
     'kerberos',
     'github_enterprise',
     'admin',
@@ -83,7 +83,7 @@ class TestAirflowCfg(unittest.TestCase):
     def test_should_be_ascii_file(self, filename: str):
         with open(os.path.join(CONFIG_TEMPLATES_FOLDER, filename), "rb") as f:
             content = f.read().decode("ascii")
-        self.assertTrue(content)
+        assert content
 
     @parameterized.expand(
         [
@@ -102,4 +102,4 @@ class TestAirflowCfg(unittest.TestCase):
         config = configparser.ConfigParser()
         config.read(filepath)
 
-        self.assertEqual(expected_sections, config.sections())
+        assert expected_sections == config.sections()

@@ -23,7 +23,7 @@ from typing import Optional
 
 from sqlalchemy import Column, Index, Integer, String
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
 from airflow.configuration import conf
@@ -74,15 +74,13 @@ class BaseJob(Base, LoggingMixin):
 
     task_instances_enqueued = relationship(
         TaskInstance,
-        primaryjoin=id == TaskInstance.queued_by_job_id,
-        foreign_keys=id,
+        primaryjoin=id == foreign(TaskInstance.queued_by_job_id),
         backref=backref('queued_by_job', uselist=False),
     )
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=id == DagRun.creating_job_id,
-        foreign_keys=id,
+        primaryjoin=id == foreign(DagRun.creating_job_id),
         backref=backref('creating_job'),
     )
 

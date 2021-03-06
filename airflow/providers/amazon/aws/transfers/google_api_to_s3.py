@@ -32,6 +32,15 @@ class GoogleApiToS3Operator(BaseOperator):
     """
     Basic class for transferring data from a Google API endpoint into a S3 Bucket.
 
+    This discovery-based operator use
+    :class:`~airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate
+    with Google Services via the
+    `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
+    Please note that this library is in maintenance mode hence it won't fully support Google Cloud in
+    the future.
+    Therefore it is recommended that you use the custom Google Cloud Service Operators for working
+    with the Google Cloud Platform.
+
     :param google_api_service_name: The specific API service that is being requested.
     :type google_api_service_name: str
     :param google_api_service_version: The version of the API that is being requested.

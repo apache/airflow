@@ -41,7 +41,7 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend.client.put_secret_value(**param)
 
         returned_uri = secrets_manager_backend.get_conn_uri(conn_id="test_postgres")
-        self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
+        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
 
     @mock_secretsmanager
     def test_get_conn_uri_non_existent_key(self):
@@ -58,8 +58,8 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend = SecretsManagerBackend()
         secrets_manager_backend.client.put_secret_value(**param)
 
-        self.assertIsNone(secrets_manager_backend.get_conn_uri(conn_id=conn_id))
-        self.assertEqual([], secrets_manager_backend.get_connections(conn_id=conn_id))
+        assert secrets_manager_backend.get_conn_uri(conn_id=conn_id) is None
+        assert [] == secrets_manager_backend.get_connections(conn_id=conn_id)
 
     @mock_secretsmanager
     def test_get_variable(self):
@@ -69,7 +69,7 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend.client.put_secret_value(**param)
 
         returned_uri = secrets_manager_backend.get_variable('hello')
-        self.assertEqual('world', returned_uri)
+        assert 'world' == returned_uri
 
     @mock_secretsmanager
     def test_get_variable_non_existent_key(self):
@@ -82,4 +82,46 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend = SecretsManagerBackend()
         secrets_manager_backend.client.put_secret_value(**param)
 
-        self.assertIsNone(secrets_manager_backend.get_variable("test_mysql"))
+        assert secrets_manager_backend.get_variable("test_mysql") is None
+
+    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
+    def test_connection_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in AWS Secrets Manager,
+        SecretsManagerBackend.get_conn_uri should return None,
+        SecretsManagerBackend._get_secret should not be called
+        """
+        kwargs = {'connections_prefix': None}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+
+        assert secrets_manager_backend.get_conn_uri("test_mysql") is None
+        mock_get_secret.assert_not_called()
+
+    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
+    def test_variable_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in AWS Secrets Manager,
+        SecretsManagerBackend.get_variables should return None,
+        SecretsManagerBackend._get_secret should not be called
+        """
+        kwargs = {'variables_prefix': None}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+
+        assert secrets_manager_backend.get_variable("hello") is None
+        mock_get_secret.assert_not_called()
+
+    @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
+    def test_config_prefix_none_value(self, mock_get_secret):
+        """
+        Test that if Variable key is not present in AWS Secrets Manager,
+        SecretsManagerBackend.get_config should return None,
+        SecretsManagerBackend._get_secret should not be called
+        """
+        kwargs = {'config_prefix': None}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+
+        assert secrets_manager_backend.get_config("config") is None
+        mock_get_secret.assert_not_called()

@@ -27,7 +27,7 @@ class ReadyToRescheduleDep(BaseTIDep):
     """Determines whether a task is ready to be rescheduled."""
 
     NAME = "Ready To Reschedule"
-    IGNOREABLE = True
+    IGNORABLE = True
     IS_TASK_DEP = True
     RESCHEDULEABLE_STATES = {State.UP_FOR_RESCHEDULE, State.NONE}
 
@@ -42,7 +42,7 @@ class ReadyToRescheduleDep(BaseTIDep):
         """
         if dep_context.ignore_in_reschedule_period:
             yield self._passing_status(
-                reason="The context specified that being in a reschedule period was " "permitted."
+                reason="The context specified that being in a reschedule period was permitted."
             )
             return
 

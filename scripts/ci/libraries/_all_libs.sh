@@ -32,6 +32,8 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_repeats.sh
 # shellcheck source=scripts/ci/libraries/_sanity_checks.sh
 . "${LIBRARIES_DIR}"/_sanity_checks.sh
+# shellcheck source=scripts/ci/libraries/_build_airflow_packages.sh
+. "${LIBRARIES_DIR}"/_build_airflow_packages.sh
 # shellcheck source=scripts/ci/libraries/_build_images.sh
 . "${LIBRARIES_DIR}"/_build_images.sh
 # shellcheck source=scripts/ci/libraries/_kind.sh
@@ -56,5 +58,5 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_start_end.sh
 # shellcheck source=scripts/ci/libraries/_verbosity.sh
 . "${LIBRARIES_DIR}"/_verbosity.sh
-# shellcheck source=scripts/ci/libraries/_kerberos.sh
-. "${LIBRARIES_DIR}"/_kerberos.sh
+# shellcheck source=scripts/ci/libraries/_verify_image.sh
+. "${LIBRARIES_DIR}"/_verify_image.sh

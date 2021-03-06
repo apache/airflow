@@ -182,7 +182,7 @@ class TestGetVariables(TestVariableEndpoint):
             Variable.set(f"var{i}", i)
         response = self.client.get("/api/v1/variables?limit=180", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        self.assertEqual(len(response.json['variables']), 150)
+        assert len(response.json['variables']) == 150
 
     def test_should_raises_401_unauthenticated(self):
         Variable.set("var1", 1)
@@ -203,8 +203,7 @@ class TestPatchVariable(TestVariableEndpoint):
             },
             environ_overrides={'REMOTE_USER': "test"},
         )
-        assert response.status_code == 204
-        response = self.client.get("/api/v1/variables/var1", environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
         assert response.json == {
             "key": "var1",
             "value": "updated",

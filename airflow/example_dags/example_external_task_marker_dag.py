@@ -28,7 +28,7 @@ downstream tasks.
 ExternalTaskSensor will keep poking for the status of remote ExternalTaskMarker task at a regular
 interval till one of the following will happen:
 1. ExternalTaskMarker reaches the states mentioned in the allowed_states list
-    In this case, ExternalTaskSensor will exit with a succes status code
+    In this case, ExternalTaskSensor will exit with a success status code
 2. ExternalTaskMarker reaches the states mentioned in the failed_states list
     In this case, ExternalTaskSensor will raise an AirflowException and user need to handle this
     with multiple downstream tasks
@@ -40,8 +40,8 @@ interval till one of the following will happen:
 import datetime
 
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.external_task_sensor import ExternalTaskMarker, ExternalTaskSensor
+from airflow.operators.dummy import DummyOperator
+from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 
 start_date = datetime.datetime(2015, 1, 1)
 

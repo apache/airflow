@@ -19,9 +19,13 @@
 import os
 import unittest
 from unittest import mock
+from unittest.mock import ANY
+
+import pytest
+from botocore.exceptions import ClientError
 
 from airflow.models import DAG, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State
@@ -75,7 +79,8 @@ class TestS3TaskHandler(unittest.TestCase):
                 pass
 
     def test_hook(self):
-        self.assertIsInstance(self.s3_task_handler.hook, S3Hook)
+        assert isinstance(self.s3_task_handler.hook, S3Hook)
+        assert self.s3_task_handler.hook.transfer_config.use_threads is False
 
     @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     def test_hook_raises(self):
@@ -88,25 +93,27 @@ class TestS3TaskHandler(unittest.TestCase):
 
             mock_error.assert_called_once_with(
                 'Could not create an S3Hook with connection id "%s". Please make '
-                'sure that airflow[aws] is installed and the S3 connection exists.',
+                'sure that airflow[aws] is installed and the S3 connection exists. Exception : "%s"',
                 'aws_default',
+                ANY,
                 exc_info=True,
             )
 
     def test_log_exists(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'')
-        self.assertTrue(self.s3_task_handler.s3_log_exists(self.remote_log_location))
+        assert self.s3_task_handler.s3_log_exists(self.remote_log_location)
 
     def test_log_exists_none(self):
-        self.assertFalse(self.s3_task_handler.s3_log_exists(self.remote_log_location))
+        assert not self.s3_task_handler.s3_log_exists(self.remote_log_location)
 
     def test_log_exists_raises(self):
-        self.assertFalse(self.s3_task_handler.s3_log_exists('s3://nonexistentbucket/foo'))
+        assert not self.s3_task_handler.s3_log_exists('s3://nonexistentbucket/foo')
 
     def test_log_exists_no_hook(self):
         with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as mock_hook:
             mock_hook.side_effect = Exception('Failed to connect')
-            self.assertFalse(self.s3_task_handler.s3_log_exists(self.remote_log_location))
+            with pytest.raises(Exception):
+                self.s3_task_handler.s3_log_exists(self.remote_log_location)
 
     def test_set_context_raw(self):
         self.ti.raw = True
@@ -114,7 +121,7 @@ class TestS3TaskHandler(unittest.TestCase):
         with mock.patch('airflow.providers.amazon.aws.log.s3_task_handler.open', mock_open):
             self.s3_task_handler.set_context(self.ti)
 
-        self.assertFalse(self.s3_task_handler.upload_on_close)
+        assert not self.s3_task_handler.upload_on_close
         mock_open.assert_not_called()
 
     def test_set_context_not_raw(self):
@@ -122,34 +129,49 @@ class TestS3TaskHandler(unittest.TestCase):
         with mock.patch('airflow.providers.amazon.aws.log.s3_task_handler.open', mock_open):
             self.s3_task_handler.set_context(self.ti)
 
-        self.assertTrue(self.s3_task_handler.upload_on_close)
+        assert self.s3_task_handler.upload_on_close
         mock_open.assert_called_once_with(os.path.abspath('local/log/location/1.log'), 'w')
         mock_open().write.assert_not_called()
 
     def test_read(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'Log line\n')
         log, metadata = self.s3_task_handler.read(self.ti)
-        self.assertEqual(
-            log[0][0][-1],
-            '*** Reading remote log from s3://bucket/remote/log/location/1.log.\n' 'Log line\n\n',
+        assert (
+            log[0][0][-1]
+            == '*** Reading remote log from s3://bucket/remote/log/location/1.log.\nLog line\n\n'
         )
-        self.assertEqual(metadata, [{'end_of_log': True}])
+        assert metadata == [{'end_of_log': True}]
 
     def test_read_when_s3_log_missing(self):
         log, metadata = self.s3_task_handler.read(self.ti)
 
-        self.assertEqual(1, len(log))
-        self.assertEqual(len(log), len(metadata))
-        self.assertIn('*** Log file does not exist:', log[0][0][-1])
-        self.assertEqual({'end_of_log': True}, metadata[0])
+        assert 1 == len(log)
+        assert len(log) == len(metadata)
+        assert '*** Log file does not exist:' in log[0][0][-1]
+        assert {'end_of_log': True} == metadata[0]
+
+    def test_s3_read_when_log_missing(self):
+        handler = self.s3_task_handler
+        url = 's3://bucket/foo'
+        with mock.patch.object(handler.log, 'error') as mock_error:
+            result = handler.s3_read(url, return_error=True)
+            msg = (
+                f'Could not read logs from {url} with error: An error occurred (404) when calling the '
+                f'HeadObject operation: Not Found'
+            )
+            assert result == msg
+            mock_error.assert_called_once_with(msg, exc_info=True)
 
     def test_read_raises_return_error(self):
         handler = self.s3_task_handler
         url = 's3://nonexistentbucket/foo'
         with mock.patch.object(handler.log, 'error') as mock_error:
             result = handler.s3_read(url, return_error=True)
-            msg = 'Could not read logs from %s' % url
-            self.assertEqual(result, msg)
+            msg = (
+                f'Could not read logs from {url} with error: An error occurred (NoSuchBucket) when '
+                f'calling the HeadObject operation: The specified bucket does not exist'
+            )
+            assert result == msg
             mock_error.assert_called_once_with(msg, exc_info=True)
 
     def test_write(self):
@@ -164,7 +186,7 @@ class TestS3TaskHandler(unittest.TestCase):
             .read()
         )
 
-        self.assertEqual(body, b'text')
+        assert body == b'text'
 
     def test_write_existing(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'previous ')
@@ -176,19 +198,18 @@ class TestS3TaskHandler(unittest.TestCase):
             .read()
         )
 
-        self.assertEqual(body, b'previous \ntext')
+        assert body == b'previous \ntext'
 
     def test_write_raises(self):
         handler = self.s3_task_handler
         url = 's3://nonexistentbucket/foo'
         with mock.patch.object(handler.log, 'error') as mock_error:
             handler.s3_write('text', url)
-            self.assertEqual
             mock_error.assert_called_once_with('Could not write logs to %s', url, exc_info=True)
 
     def test_close(self):
         self.s3_task_handler.set_context(self.ti)
-        self.assertTrue(self.s3_task_handler.upload_on_close)
+        assert self.s3_task_handler.upload_on_close
 
         self.s3_task_handler.close()
         # Should not raise
@@ -197,8 +218,8 @@ class TestS3TaskHandler(unittest.TestCase):
     def test_close_no_upload(self):
         self.ti.raw = True
         self.s3_task_handler.set_context(self.ti)
-        self.assertFalse(self.s3_task_handler.upload_on_close)
+        assert not self.s3_task_handler.upload_on_close
         self.s3_task_handler.close()
 
-        with self.assertRaises(self.conn.exceptions.NoSuchKey):
+        with pytest.raises(ClientError):
             boto3.resource('s3').Object('bucket', self.remote_log_key).get()  # pylint: disable=no-member

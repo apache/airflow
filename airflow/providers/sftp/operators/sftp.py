@@ -118,7 +118,7 @@ class SFTPOperator(BaseOperator):
                     self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
                 else:
                     self.log.info(
-                        "ssh_hook is not provided or invalid. " "Trying ssh_conn_id to create SSHHook."
+                        "ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook."
                     )
                     self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
 
@@ -154,7 +154,7 @@ class SFTPOperator(BaseOperator):
                     sftp_client.put(self.local_filepath, self.remote_filepath, confirm=self.confirm)
 
         except Exception as e:
-            raise AirflowException("Error while transferring {}, error: {}".format(file_msg, str(e)))
+            raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
 
         return self.local_filepath
 

@@ -23,7 +23,7 @@
       {% set locale = 'en' %}
   {% endif %}
   <li class="dropdown">
-    <a class="dropdown-toggle" data-toggle="dropdown" href="javascript:void(0)">
+    <a class="dropdown-toggle" href="javascript:void(0)">
        <div class="f16"><i class="flag {{languages[locale].get('flag')}}"></i><b class="caret"></b></div>
     </a>
     {% if languages.keys()|length > 1 %}
@@ -31,7 +31,7 @@
         <li class="dropdown">
           {% for lang in languages %}
             {% if lang != locale %}
-              <a tabindex="-1" href="{{appbuilder.get_url_for_locale(lang)}}">
+              <a href="{{appbuilder.get_url_for_locale(lang)}}">
                 <div class="f16"><i class="flag {{languages[lang].get('flag')}}"></i> - {{languages[lang].get('name')}}
               </div></a>
             {% endif %}
@@ -44,7 +44,7 @@
 
 {# clock and timezone menu #}
 <li class="dropdown" id="timezone-dropdown">
-  <a class="dropdown-toggle" data-toggle="dropdown" style="display:none" href="#">
+  <a class="dropdown-toggle" style="display:none" href="#">
     <time id="clock" class="js-tooltip"></time>
     <b class="caret"></b>
   </a>
@@ -57,7 +57,7 @@
     <li>
       <form>
         <label for="timezone-other">Other</label>
-        <input id="timezone-other" placeholder="Select Timezone name" autocomplete="off">
+        <input id="timezone-other" placeholder="Select Timezone name" autocomplete="off" tabindex="-1">
       </form>
     </li>
   </ul>
@@ -65,7 +65,7 @@
 
 {% if not current_user.is_anonymous %}
   <li class="dropdown">
-    <a class="dropdown-toggle" data-toggle="dropdown" href="#">
+    <a class="dropdown-toggle" href="#">
        <span class="navbar-user-icon" title="{{g.user.get_full_name()}}">
          {% if current_user.first_name and current_user.last_name %}
            <span>{{ (current_user.first_name[0] + current_user.last_name[0]).upper() }}</span>

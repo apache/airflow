@@ -140,7 +140,7 @@ class MLEngineHook(GoogleBaseHook):
                     existing_job = self._get_job(project_id, job_id)
                     if not use_existing_job_fn(existing_job):
                         self.log.error(
-                            'Job with job_id %s already exist, but it does ' 'not match our expectation: %s',
+                            'Job with job_id %s already exist, but it does not match our expectation: %s',
                             job_id,
                             existing_job,
                         )
@@ -420,7 +420,7 @@ class MLEngineHook(GoogleBaseHook):
         self._append_label(model)
         try:
             request = hook.projects().models().create(parent=project, body=model)  # pylint: disable=no-member
-            respone = request.execute(num_retries=self.num_retries)
+            response = request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status != 409:
                 raise e
@@ -441,9 +441,9 @@ class MLEngineHook(GoogleBaseHook):
                 or field_violation["description"] != "A model with the same name already exists."
             ):
                 raise e
-            respone = self.get_model(model_name=model['name'], project_id=project_id)
+            response = self.get_model(model_name=model['name'], project_id=project_id)
 
-        return respone
+        return response
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_model(

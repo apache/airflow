@@ -62,11 +62,14 @@ class TestXComArgBuild:
         assert actual.key == "test_key"
         # Asserting the overridden __eq__ method
         assert actual == XComArg(python_op, "test_key")
+        expected_str = (
+            "{{ task_instance.xcom_pull(task_ids='test_xcom_op', "
+            "dag_id='test_xcom_dag', key='test_key') }}"
+        )
+        assert str(actual) == expected_str
         assert (
-            str(actual) == "task_instance.xcom_pull("
-            "task_ids=\'test_xcom_op\', "
-            "dag_id=\'test_xcom_dag\', "
-            "key=\'test_key\')"
+            f"echo {actual}" == "echo {{ task_instance.xcom_pull(task_ids='test_xcom_op', "
+            "dag_id='test_xcom_dag', key='test_key') }}"
         )
 
     def test_xcom_key_is_empty_str(self):
@@ -74,8 +77,8 @@ class TestXComArgBuild:
         actual = XComArg(python_op, key="")
         assert actual.key == ""
         assert (
-            str(actual) == "task_instance.xcom_pull(task_ids='test_xcom_op', "
-            "dag_id='test_xcom_dag', key='')"
+            str(actual) == "{{ task_instance.xcom_pull(task_ids='test_xcom_op', "
+            "dag_id='test_xcom_dag', key='') }}"
         )
 
     def test_set_downstream(self):

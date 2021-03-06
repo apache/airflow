@@ -18,7 +18,10 @@
 import os
 from typing import Collection, Optional
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 from google.api_core.client_info import ClientInfo
 from google.cloud import storage
 
@@ -152,11 +155,11 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         try:
             blob = storage.Blob.from_string(remote_loc, self.client)
-            remote_log = blob.download_as_string()
+            remote_log = blob.download_as_bytes().decode()
             log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         except Exception as e:  # pylint: disable=broad-except
-            log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(remote_loc, str(e))
+            log = f'*** Unable to read remote log from {remote_loc}\n*** {str(e)}\n\n'
             self.log.error(log)
             local_log, metadata = super()._read(ti, try_number)
             log += local_log
@@ -174,11 +177,11 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
-            old_log = blob.download_as_string()
+            old_log = blob.download_as_bytes().decode()
             log = '\n'.join([old_log, log]) if old_log else log
         except Exception as e:  # pylint: disable=broad-except
             if not hasattr(e, 'resp') or e.resp.get('status') != '404':  # pylint: disable=no-member
-                log = '*** Previous log discarded: {}\n\n'.format(str(e)) + log
+                log = f'*** Previous log discarded: {str(e)}\n\n' + log
                 self.log.info("Previous log discarded: %s", e)
 
         try:

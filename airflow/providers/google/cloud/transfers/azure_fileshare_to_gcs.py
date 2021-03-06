@@ -125,7 +125,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         )
 
         gcs_hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
@@ -177,6 +177,6 @@ class AzureFileShareToGCSOperator(BaseOperator):
         if files:
             self.log.info("All done, uploaded %d files to Google Cloud Storage.", len(files))
         else:
-            self.log.info('In sync, no files needed to be uploaded to Google Cloud' 'Storage')
+            self.log.info('In sync, no files needed to be uploaded to Google Cloud Storage')
 
         return files

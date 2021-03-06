@@ -19,7 +19,7 @@
 from typing import Any, Dict, Optional, Union
 
 from airflow.providers.apache.livy.hooks.livy import LivyHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import json
 import unittest
 from unittest import mock
 
@@ -44,7 +45,7 @@ class TestAwsBaseHook(unittest.TestCase):
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='emr')
         client_from_hook = hook.get_client_type('emr')
 
-        self.assertEqual(client_from_hook.list_clusters()['Clusters'], [])
+        assert client_from_hook.list_clusters()['Clusters'] == []
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
@@ -64,7 +65,7 @@ class TestAwsBaseHook(unittest.TestCase):
 
         table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
 
-        self.assertEqual(table.item_count, 0)
+        assert table.item_count == 0
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
@@ -83,7 +84,7 @@ class TestAwsBaseHook(unittest.TestCase):
 
         table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
 
-        self.assertEqual(table.item_count, 0)
+        assert table.item_count == 0
 
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_login_with_token(self, mock_get_connection):
@@ -95,9 +96,9 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
-        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
-        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
-        self.assertEqual(credentials_from_hook.token, 'test_token')
+        assert credentials_from_hook.access_key == 'aws_access_key_id'
+        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
+        assert credentials_from_hook.token == 'test_token'
 
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_login_without_token(self, mock_get_connection):
@@ -109,9 +110,9 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='spam')
         credentials_from_hook = hook.get_credentials()
-        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
-        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
-        self.assertIsNone(credentials_from_hook.token)
+        assert credentials_from_hook.access_key == 'aws_access_key_id'
+        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
+        assert credentials_from_hook.token is None
 
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_extra_with_token(self, mock_get_connection):
@@ -123,9 +124,9 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
-        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
-        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
-        self.assertEqual(credentials_from_hook.token, 'session_token')
+        assert credentials_from_hook.access_key == 'aws_access_key_id'
+        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
+        assert credentials_from_hook.token == 'session_token'
 
     @mock.patch.object(AwsBaseHook, 'get_connection')
     def test_get_credentials_from_extra_without_token(self, mock_get_connection):
@@ -136,9 +137,9 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
-        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
-        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
-        self.assertIsNone(credentials_from_hook.token)
+        assert credentials_from_hook.access_key == 'aws_access_key_id'
+        assert credentials_from_hook.secret_key == 'aws_secret_access_key'
+        assert credentials_from_hook.token is None
 
     @mock.patch(
         'airflow.providers.amazon.aws.hooks.base_aws._parse_s3_config',
@@ -167,13 +168,88 @@ class TestAwsBaseHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         credentials_from_hook = hook.get_credentials()
-        self.assertIn("ASIA", credentials_from_hook.access_key)
+        assert "ASIA" in credentials_from_hook.access_key
 
         # We assert the length instead of actual values as the values are random:
         # Details: https://github.com/spulec/moto/commit/ab0d23a0ba2506e6338ae20b3fde70da049f7b03
-        self.assertEqual(20, len(credentials_from_hook.access_key))
-        self.assertEqual(40, len(credentials_from_hook.secret_key))
-        self.assertEqual(356, len(credentials_from_hook.token))
+        assert 20 == len(credentials_from_hook.access_key)
+        assert 40 == len(credentials_from_hook.secret_key)
+        assert 356 == len(credentials_from_hook.token)
+
+    def test_get_credentials_from_gcp_credentials(self):
+        mock_connection = Connection(
+            extra=json.dumps(
+                {
+                    "role_arn": "arn:aws:iam::123456:role/role_arn",
+                    "assume_role_method": "assume_role_with_web_identity",
+                    "assume_role_with_web_identity_federation": 'google',
+                    "assume_role_with_web_identity_federation_audience": 'aws-federation.airflow.apache.org',
+                }
+            )
+        )
+
+        # Store original __import__
+        orig_import = __import__
+        mock_id_token_credentials = mock.Mock()
+
+        def import_mock(name, *args):
+            if name == 'airflow.providers.google.common.utils.id_token_credentials':
+                return mock_id_token_credentials
+            return orig_import(name, *args)
+
+        with mock.patch('builtins.__import__', side_effect=import_mock), mock.patch.dict(
+            'os.environ', AIRFLOW_CONN_AWS_DEFAULT=mock_connection.get_uri()
+        ), mock.patch('airflow.providers.amazon.aws.hooks.base_aws.boto3') as mock_boto3, mock.patch(
+            'airflow.providers.amazon.aws.hooks.base_aws.botocore'
+        ) as mock_botocore, mock.patch(
+            'airflow.providers.amazon.aws.hooks.base_aws.botocore.session'
+        ) as mock_session:
+            hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
+
+            credentials_from_hook = hook.get_credentials()
+            mock_get_credentials = mock_boto3.session.Session.return_value.get_credentials
+            assert (
+                mock_get_credentials.return_value.get_frozen_credentials.return_value == credentials_from_hook
+            )
+
+        mock_boto3.assert_has_calls(
+            [
+                mock.call.session.Session(
+                    aws_access_key_id=None,
+                    aws_secret_access_key=None,
+                    aws_session_token=None,
+                    region_name=None,
+                ),
+                mock.call.session.Session()._session.__bool__(),
+                mock.call.session.Session(
+                    botocore_session=mock_session.Session.return_value,
+                    region_name=mock_boto3.session.Session.return_value.region_name,
+                ),
+                mock.call.session.Session().get_credentials(),
+                mock.call.session.Session().get_credentials().get_frozen_credentials(),
+            ]
+        )
+        mock_fetcher = mock_botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher
+        mock_botocore.assert_has_calls(
+            [
+                mock.call.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
+                    client_creator=mock_boto3.session.Session.return_value._session.create_client,
+                    extra_args={},
+                    role_arn='arn:aws:iam::123456:role/role_arn',
+                    web_identity_token_loader=mock.ANY,
+                ),
+                mock.call.credentials.DeferredRefreshableCredentials(
+                    method='assume-role-with-web-identity',
+                    refresh_using=mock_fetcher.return_value.fetch_credentials,
+                    time_fetcher=mock.ANY,
+                ),
+            ]
+        )
+
+        mock_session.assert_has_calls([mock.call.Session()])
+        mock_id_token_credentials.assert_has_calls(
+            [mock.call.get_default_id_token_credentials(target_audience='aws-federation.airflow.apache.org')]
+        )
 
     @unittest.skipIf(mock_iam is None, 'mock_iam package not present')
     @mock_iam
@@ -183,7 +259,7 @@ class TestAwsBaseHook(unittest.TestCase):
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
         arn = hook.expand_role('test-role')
         expect_arn = conn.get_role(RoleName='test-role').get('Role').get('Arn')
-        self.assertEqual(arn, expect_arn)
+        assert arn == expect_arn
 
     def test_use_default_boto3_behaviour_without_conn_id(self):
         for conn_id in (None, ''):

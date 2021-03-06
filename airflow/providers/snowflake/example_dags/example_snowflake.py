@@ -104,7 +104,7 @@ copy_into_table = S3ToSnowflakeOperator(
     table=SNOWFLAKE_SAMPLE_TABLE,
     schema=SNOWFLAKE_SCHEMA,
     stage=SNOWFLAKE_STAGE,
-    file_format="(type = 'CSV'," "field_delimiter = ';')",
+    file_format="(type = 'CSV',field_delimiter = ';')",
     dag=dag,
 )
 

@@ -121,6 +121,8 @@ class DockerOperator(BaseOperator):
     :param tty: Allocate pseudo-TTY to the container
         This needs to be set see logs of the Docker container.
     :type tty: bool
+    :param privileged: Give extended privileges to this container.
+    :type privileged: bool
     :param cap_add: Include container capabilities
     :type cap_add: list[str]
     """
@@ -164,6 +166,7 @@ class DockerOperator(BaseOperator):
         auto_remove: bool = False,
         shm_size: Optional[int] = None,
         tty: bool = False,
+        privileged: bool = False,
         cap_add: Optional[Iterable[str]] = None,
         extra_hosts: Optional[Dict[str, str]] = None,
         **kwargs,
@@ -198,6 +201,7 @@ class DockerOperator(BaseOperator):
         self.docker_conn_id = docker_conn_id
         self.shm_size = shm_size
         self.tty = tty
+        self.privileged = privileged
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
         if kwargs.get('xcom_push') is not None:
@@ -243,6 +247,7 @@ class DockerOperator(BaseOperator):
                     mem_limit=self.mem_limit,
                     cap_add=self.cap_add,
                     extra_hosts=self.extra_hosts,
+                    privileged=self.privileged,
                 ),
                 image=self.image,
                 user=self.user,
@@ -264,6 +269,8 @@ class DockerOperator(BaseOperator):
 
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
+                if self.auto_remove:
+                    self.cli.remove_container(self.container['Id'])
                 raise AirflowException('docker container failed: ' + repr(result))
 
             # duplicated conditional logic because of expensive operation
@@ -282,13 +289,24 @@ class DockerOperator(BaseOperator):
             raise Exception("The 'cli' should be initialized before!")
 
         # Pull the docker image if `force_pull` is set or image does not exist locally
+        # pylint: disable=too-many-nested-blocks
         if self.force_pull or not self.cli.images(name=self.image):
             self.log.info('Pulling docker image %s', self.image)
+            latest_status = {}
             for output in self.cli.pull(self.image, stream=True, decode=True):
                 if isinstance(output, str):
                     self.log.info("%s", output)
+                    continue
                 if isinstance(output, dict) and 'status' in output:
-                    self.log.info("%s", output['status'])
+                    output_status = output["status"]
+                    if 'id' not in output:
+                        self.log.info("%s", output_status)
+                        continue
+
+                    output_id = output["id"]
+                    if latest_status.get(output_id) != output_status:
+                        self.log.info("%s: %s", output_id, output_status)
+                        latest_status[output_id] = output_status
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         return self._run_image()

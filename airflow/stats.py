@@ -20,6 +20,7 @@ import logging
 import socket
 import string
 import textwrap
+import time
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 
@@ -72,20 +73,82 @@ class StatsLogger(Protocol):
         """Timer metric that can be cancelled"""
 
 
-class DummyTimer:
-    """No-op timer"""
+class Timer:
+    """
+    Timer that records duration, and optional sends to statsd backend.
+
+    This class lets us have an accurate timer with the logic in one place (so
+    that we don't use datetime math for duration -- it is error prone).
+
+    Example usage:
+
+    .. code-block:: python
+
+        with Stats.timer() as t:
+            # Something to time
+            frob_the_foos()
+
+        log.info("Frobbing the foos took %.2f", t.duration)
+
+    Or without a context manager:
+
+    .. code-block:: python
+
+        timer = Stats.timer().start()
+
+        # Something to time
+        frob_the_foos()
+
+        timer.end()
+
+        log.info("Frobbing the foos took %.2f", timer.duration)
+
+    To send a metric:
+
+    .. code-block:: python
+
+        with Stats.timer("foos.frob"):
+            # Something to time
+            frob_the_foos()
+
+    Or both:
+
+    .. code-block:: python
+
+        with Stats.timer("foos.frob") as t:
+            # Something to time
+            frob_the_foos()
+
+        log.info("Frobbing the foos took %.2f", t.duration)
+    """
+
+    # pystatsd and dogstatsd both have a timer class, but present different API
+    # so we can't use this as a mixin on those, instead this class is contains the "real" timer
+
+    _start_time: Optional[int]
+    duration: Optional[int]
+
+    def __init__(self, real_timer=None):
+        self.real_timer = real_timer
 
     def __enter__(self):
-        return self
+        return self.start()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        return self
+        self.stop()
 
     def start(self):
         """Start the timer"""
+        if self.real_timer:
+            self.real_timer.start()
+        self._start_time = time.perf_counter()
+        return self
 
     def stop(self, send=True):  # pylint: disable=unused-argument
-        """Stop, and (by default) submit the timer to statsd"""
+        """Stop the timer, and optionally send it to stats backend"""
+        self.duration = time.perf_counter() - self._start_time
+        if send and self.real_timer:
+            self.real_timer.stop()
 
 
 class DummyStatsLogger:
@@ -110,7 +173,7 @@ class DummyStatsLogger:
     @classmethod
     def timer(cls, *args, **kwargs):
         """Timer metric that can be cancelled"""
-        return DummyTimer()
+        return Timer()
 
 
 # Only characters in the character set are considered valid
@@ -150,7 +213,7 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
 
 def get_current_handler_stat_name_func() -> Callable[[str], str]:
     """Get Stat Name Handler from airflow.cfg"""
-    return conf.getimport('scheduler', 'stat_name_handler') or stat_name_default_handler
+    return conf.getimport('metrics', 'stat_name_handler') or stat_name_default_handler
 
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
@@ -162,11 +225,12 @@ def validate_stat(fn: T) -> T:
     """
 
     @wraps(fn)
-    def wrapper(_self, stat, *args, **kwargs):
+    def wrapper(_self, stat=None, *args, **kwargs):
         try:
-            handler_stat_name_func = get_current_handler_stat_name_func()
-            stat_name = handler_stat_name_func(stat)
-            return fn(_self, stat_name, *args, **kwargs)
+            if stat is not None:
+                handler_stat_name_func = get_current_handler_stat_name_func()
+                stat = handler_stat_name_func(stat)
+            return fn(_self, stat, *args, **kwargs)
         except InvalidStatsNameException:
             log.error('Invalid stat name: %s.', stat, exc_info=True)
             return None
@@ -179,6 +243,7 @@ class AllowListValidator:
 
     def __init__(self, allow_list=None):
         if allow_list:
+            # pylint: disable=consider-using-generator
             self.allow_list = tuple([item.strip().lower() for item in allow_list.split(',')])
         else:
             self.allow_list = None
@@ -227,11 +292,11 @@ class SafeStatsdLogger:
         return None
 
     @validate_stat
-    def timer(self, stat, *args, **kwargs):
+    def timer(self, stat=None, *args, **kwargs):
         """Timer metric that can be cancelled"""
-        if self.allow_list_validator.test(stat):
-            return self.statsd.timer(stat, *args, **kwargs)
-        return DummyTimer()
+        if stat and self.allow_list_validator.test(stat):
+            return Timer(self.statsd.timer(stat, *args, **kwargs))
+        return Timer()
 
 
 class SafeDogStatsdLogger:
@@ -274,34 +339,37 @@ class SafeDogStatsdLogger:
         return None
 
     @validate_stat
-    def timer(self, stat, *args, tags=None, **kwargs):
+    def timer(self, stat=None, *args, tags=None, **kwargs):
         """Timer metric that can be cancelled"""
-        if self.allow_list_validator.test(stat):
+        if stat and self.allow_list_validator.test(stat):
             tags = tags or []
-            return self.dogstatsd.timer(stat, *args, tags=tags, **kwargs)
-        return DummyTimer()
+            return Timer(self.dogstatsd.timer(stat, *args, tags=tags, **kwargs))
+        return Timer()
 
 
 class _Stats(type):
+    factory = None
     instance: Optional[StatsLogger] = None
 
     def __getattr__(cls, name):
+        if not cls.instance:
+            try:
+                cls.instance = cls.factory()
+            except (socket.gaierror, ImportError) as e:
+                log.error("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
+                cls.instance = DummyStatsLogger()
         return getattr(cls.instance, name)
 
     def __init__(cls, *args, **kwargs):
         super().__init__(cls)
-        if cls.__class__.instance is None:
-            try:
-                is_datadog_enabled_defined = conf.has_option('scheduler', 'statsd_datadog_enabled')
-                if is_datadog_enabled_defined and conf.getboolean('scheduler', 'statsd_datadog_enabled'):
-                    cls.__class__.instance = cls.get_dogstatsd_logger()
-                elif conf.getboolean('scheduler', 'statsd_on'):
-                    cls.__class__.instance = cls.get_statsd_logger()
-                else:
-                    cls.__class__.instance = DummyStatsLogger()
-            except (socket.gaierror, ImportError) as e:
-                log.error("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
-                cls.__class__.instance = DummyStatsLogger()
+        if cls.__class__.factory is None:
+            is_datadog_enabled_defined = conf.has_option('metrics', 'statsd_datadog_enabled')
+            if is_datadog_enabled_defined and conf.getboolean('metrics', 'statsd_datadog_enabled'):
+                cls.__class__.factory = cls.get_dogstatsd_logger
+            elif conf.getboolean('metrics', 'statsd_on'):
+                cls.__class__.factory = cls.get_statsd_logger
+            else:
+                cls.__class__.factory = DummyStatsLogger
 
     @classmethod
     def get_statsd_logger(cls):
@@ -310,9 +378,9 @@ class _Stats(type):
         # and previously it would crash with None is callable if it was called without it.
         from statsd import StatsClient
 
-        if conf.has_option('scheduler', 'statsd_custom_client_path'):
-            stats_class = conf.getimport('scheduler', 'statsd_custom_client_path')
+        stats_class = conf.getimport('metrics', 'statsd_custom_client_path', fallback=None)
 
+        if stats_class:
             if not issubclass(stats_class, StatsClient):
                 raise AirflowConfigException(
                     "Your custom Statsd client must extend the statsd.StatsClient in order to ensure "
@@ -325,11 +393,11 @@ class _Stats(type):
             stats_class = StatsClient
 
         statsd = stats_class(
-            host=conf.get('scheduler', 'statsd_host'),
-            port=conf.getint('scheduler', 'statsd_port'),
-            prefix=conf.get('scheduler', 'statsd_prefix'),
+            host=conf.get('metrics', 'statsd_host'),
+            port=conf.getint('metrics', 'statsd_port'),
+            prefix=conf.get('metrics', 'statsd_prefix'),
         )
-        allow_list_validator = AllowListValidator(conf.get('scheduler', 'statsd_allow_list', fallback=None))
+        allow_list_validator = AllowListValidator(conf.get('metrics', 'statsd_allow_list', fallback=None))
         return SafeStatsdLogger(statsd, allow_list_validator)
 
     @classmethod
@@ -338,12 +406,12 @@ class _Stats(type):
         from datadog import DogStatsd
 
         dogstatsd = DogStatsd(
-            host=conf.get('scheduler', 'statsd_host'),
-            port=conf.getint('scheduler', 'statsd_port'),
-            namespace=conf.get('scheduler', 'statsd_prefix'),
+            host=conf.get('metrics', 'statsd_host'),
+            port=conf.getint('metrics', 'statsd_port'),
+            namespace=conf.get('metrics', 'statsd_prefix'),
             constant_tags=cls.get_constant_tags(),
         )
-        dogstatsd_allow_list = conf.get('scheduler', 'statsd_allow_list', fallback=None)
+        dogstatsd_allow_list = conf.get('metrics', 'statsd_allow_list', fallback=None)
         allow_list_validator = AllowListValidator(dogstatsd_allow_list)
         return SafeDogStatsdLogger(dogstatsd, allow_list_validator)
 
@@ -351,7 +419,7 @@ class _Stats(type):
     def get_constant_tags(cls):
         """Get constant DataDog tags to add to all stats"""
         tags = []
-        tags_in_string = conf.get('scheduler', 'statsd_datadog_tags', fallback=None)
+        tags_in_string = conf.get('metrics', 'statsd_datadog_tags', fallback=None)
         if tags_in_string is None or tags_in_string == '':
             return tags
         else:

@@ -111,7 +111,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     def execute(self, context):
         """Uploads a file or list of files to Google Cloud Storage"""
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
@@ -120,7 +120,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         if os.path.basename(self.dst):  # path to a file
             if len(filepaths) > 1:  # multiple file upload
                 raise ValueError(
-                    "'dst' parameter references filepath. Please specifiy "
+                    "'dst' parameter references filepath. Please specify "
                     "directory (with trailing backslash) to upload multiple "
                     "files. e.g. /path/to/directory/"
                 )

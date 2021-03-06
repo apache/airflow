@@ -15,6 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+export INSTALL_FROM_PYPI="false"
+export INSTALL_PROVIDERS_FROM_SOURCES="false"
+export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
+export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+export DOCKER_CACHE="pulled"
+export VERBOSE="true"
+
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
@@ -23,21 +32,18 @@
 function build_prod_images_on_ci() {
     build_images::prepare_prod_build
 
-    rm -rf "${BUILD_CACHE_DIR}"
-    mkdir -pv "${BUILD_CACHE_DIR}"
-
     if [[ ${USE_GITHUB_REGISTRY} == "true" && ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
-
-        # Tries to wait for the image indefinitely
-        # skips further image checks - since we already have the target image
-
         build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}" \
             ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_IMAGE}"
 
-        build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" \
-            ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_BUILD_IMAGE}"
+        if [[ "${WAIT_FOR_PROD_BUILD_IMAGE=}" == "true" ]]; then
+            # If specified in variable - also waits for the build image
+            build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" \
+                ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_BUILD_IMAGE}"
+        fi
+
     else
-        build_images::build_prod_images
+        build_images::build_prod_images_from_locally_built_airflow_packages
     fi
 
 
@@ -46,6 +52,5 @@ function build_prod_images_on_ci() {
     unset FORCE_PULL_IMAGES
     unset FORCE_BUILD
 }
-
 
 build_prod_images_on_ci

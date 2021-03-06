@@ -159,7 +159,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
             # Based on Instance.__eq__ instance with the same ID and client is
             # considered as equal.
             self.log.info(
-                "The instance '%s' already exists in this project. " "Consider it as created",
+                "The instance '%s' already exists in this project. Consider it as created",
                 self.instance_id,
             )
             return
@@ -340,7 +340,7 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
             hook.delete_instance(project_id=self.project_id, instance_id=self.instance_id)
         except google.api_core.exceptions.NotFound:
             self.log.info(
-                "The instance '%s' does not exist in project '%s'. " "Consider it as deleted",
+                "The instance '%s' does not exist in project '%s'. Consider it as deleted",
                 self.instance_id,
                 self.project_id,
             )

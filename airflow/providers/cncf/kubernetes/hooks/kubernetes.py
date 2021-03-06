@@ -15,21 +15,28 @@
 # specific language governing permissions and limitations
 # under the License.
 import tempfile
-from typing import Any, Generator, Optional, Tuple, Union
+from typing import Any, Dict, Generator, Optional, Tuple, Union
 
-import yaml
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 from kubernetes import client, config, watch
 
+try:
+    import airflow.utils.yaml as yaml
+except ImportError:
+    import yaml
+
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 
 def _load_body_to_dict(body):
     try:
         body_dict = yaml.safe_load(body)
     except yaml.YAMLError as e:
-        raise AirflowException("Exception when loading resource definition: %s\n" % e)
+        raise AirflowException(f"Exception when loading resource definition: {e}\n")
     return body_dict
 
 
@@ -48,14 +55,47 @@ class KubernetesHook(BaseHook):
 
     .. seealso::
         For more information about Kubernetes connection:
-        :ref:`howto/connection:kubernetes`
+        :doc:`/connections/kubernetes`
 
     :param conn_id: the connection to Kubernetes cluster
     :type conn_id: str
     """
 
+    conn_name_attr = 'kubernetes_conn_id'
+    default_conn_name = 'kubernetes_default'
+    conn_type = 'kubernetes'
+    hook_name = 'Kubernetes Cluster Connection'
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField, StringField
+
+        return {
+            "extra__kubernetes__in_cluster": BooleanField(lazy_gettext('In cluster configuration')),
+            "extra__kubernetes__kube_config_path": StringField(
+                lazy_gettext('Kube config path'), widget=BS3TextFieldWidget()
+            ),
+            "extra__kubernetes__kube_config": StringField(
+                lazy_gettext('Kube config (JSON format)'), widget=BS3TextFieldWidget()
+            ),
+            "extra__kubernetes__namespace": StringField(
+                lazy_gettext('Namespace'), widget=BS3TextFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            "relabeling": {},
+        }
+
     def __init__(
-        self, conn_id: str = "kubernetes_default", client_configuration: Optional[client.Configuration] = None
+        self, conn_id: str = default_conn_name, client_configuration: Optional[client.Configuration] = None
     ) -> None:
         super().__init__()
         self.conn_id = conn_id
@@ -136,7 +176,7 @@ class KubernetesHook(BaseHook):
             self.log.debug("Response: %s", response)
             return response
         except client.rest.ApiException as e:
-            raise AirflowException("Exception when calling -> create_custom_object: %s\n" % e)
+            raise AirflowException(f"Exception when calling -> create_custom_object: {e}\n")
 
     def get_custom_object(
         self, group: str, version: str, plural: str, name: str, namespace: Optional[str] = None
@@ -164,7 +204,7 @@ class KubernetesHook(BaseHook):
             )
             return response
         except client.rest.ApiException as e:
-            raise AirflowException("Exception when calling -> get_custom_object: %s\n" % e)
+            raise AirflowException(f"Exception when calling -> get_custom_object: {e}\n")
 
     def get_namespace(self) -> str:
         """Returns the namespace that defined in the connection"""

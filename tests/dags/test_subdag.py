@@ -24,8 +24,8 @@ A DAG with subdag for testing purpose.
 from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.subdag_operator import SubDagOperator
+from airflow.operators.dummy import DummyOperator
+from airflow.operators.subdag import SubDagOperator
 
 DAG_NAME = 'test_subdag_operator'
 
@@ -48,7 +48,7 @@ def subdag(parent_dag_name, child_dag_name, args):
 
     for i in range(2):
         DummyOperator(
-            task_id='{}-task-{}'.format(child_dag_name, i + 1),
+            task_id=f'{child_dag_name}-task-{i + 1}',
             default_args=args,
             dag=dag_subdag,
         )

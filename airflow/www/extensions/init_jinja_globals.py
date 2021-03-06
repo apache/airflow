@@ -22,7 +22,7 @@ import pendulum
 
 import airflow
 from airflow.configuration import conf
-from airflow.settings import STATE_COLORS
+from airflow.settings import IS_K8S_OR_K8SCELERY_EXECUTOR, STATE_COLORS
 from airflow.utils.platform import get_airflow_git_version
 
 
@@ -43,7 +43,7 @@ def init_jinja_globals(app):
         default_ui_timezone = server_timezone
 
     expose_hostname = conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
-    hosstname = socket.getfqdn() if expose_hostname else 'redact'
+    hostname = socket.getfqdn() if expose_hostname else 'redact'
 
     try:
         airflow_version = airflow.__version__
@@ -57,7 +57,7 @@ def init_jinja_globals(app):
         extra_globals = {
             'server_timezone': server_timezone,
             'default_ui_timezone': default_ui_timezone,
-            'hostname': hosstname,
+            'hostname': hostname,
             'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
             'log_fetch_delay_sec': conf.getint('webserver', 'log_fetch_delay_sec', fallback=2),
             'log_auto_tailing_offset': conf.getint('webserver', 'log_auto_tailing_offset', fallback=30),
@@ -65,6 +65,7 @@ def init_jinja_globals(app):
             'state_color_mapping': STATE_COLORS,
             'airflow_version': airflow_version,
             'git_version': git_version,
+            'k8s_or_k8scelery_executor': IS_K8S_OR_K8SCELERY_EXECUTOR,
         }
 
         if 'analytics_tool' in conf.getsection('webserver'):

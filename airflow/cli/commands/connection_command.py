@@ -19,76 +19,54 @@ import io
 import json
 import os
 import sys
-from typing import List
-from urllib.parse import urlunparse
+from typing import Any, Dict, List
+from urllib.parse import urlparse, urlunparse
 
-import pygments
-import yaml
-from pygments.lexers.data import YamlLexer
 from sqlalchemy.orm import exc
-from tabulate import tabulate
 
+import airflow.utils.yaml as yaml
+from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowNotFoundException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import should_use_colors
-from airflow.utils.code_utils import get_terminal_formatter
+from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
 
 
-def _tabulate_connection(conns: List[Connection], tablefmt: str):
-    tabulate_data = [
-        {
-            'Conn Id': conn.conn_id,
-            'Conn Type': conn.conn_type,
-            'Host': conn.host,
-            'Port': conn.port,
-            'Is Encrypted': conn.is_encrypted,
-            'Is Extra Encrypted': conn.is_encrypted,
-            'Extra': conn.extra,
-        }
-        for conn in conns
-    ]
-
-    msg = tabulate(tabulate_data, tablefmt=tablefmt, headers='keys')
-    return msg
-
-
-def _yamulate_connection(conn: Connection):
-    yaml_data = {
-        'Id': conn.id,
-        'Conn Id': conn.conn_id,
-        'Conn Type': conn.conn_type,
-        'Host': conn.host,
-        'Schema': conn.schema,
-        'Login': conn.login,
-        'Password': conn.password,
-        'Port': conn.port,
-        'Is Encrypted': conn.is_encrypted,
-        'Is Extra Encrypted': conn.is_encrypted,
-        'Extra': conn.extra_dejson,
-        'URI': conn.get_uri(),
+def _connection_mapper(conn: Connection) -> Dict[str, Any]:
+    return {
+        'id': conn.id,
+        'conn_id': conn.conn_id,
+        'conn_type': conn.conn_type,
+        'description': conn.description,
+        'host': conn.host,
+        'schema': conn.schema,
+        'login': conn.login,
+        'password': conn.password,
+        'port': conn.port,
+        'is_encrypted': conn.is_encrypted,
+        'is_extra_encrypted': conn.is_encrypted,
+        'extra_dejson': conn.extra_dejson,
+        'get_uri': conn.get_uri(),
     }
-    return yaml.safe_dump(yaml_data, sort_keys=False)
 
 
+@suppress_logs_and_warning
 def connections_get(args):
     """Get a connection."""
     try:
         conn = BaseHook.get_connection(args.conn_id)
     except AirflowNotFoundException:
         raise SystemExit("Connection not found.")
-
-    yaml_content = _yamulate_connection(conn)
-    if should_use_colors(args):
-        yaml_content = pygments.highlight(
-            code=yaml_content, formatter=get_terminal_formatter(), lexer=YamlLexer()
-        )
-
-    print(yaml_content)
+    AirflowConsole().print_as(
+        data=[conn],
+        output=args.output,
+        mapper=_connection_mapper,
+    )
 
 
+@suppress_logs_and_warning
 def connections_list(args):
     """Lists all connections at the command line"""
     with create_session() as session:
@@ -97,9 +75,11 @@ def connections_list(args):
             query = query.filter(Connection.conn_id == args.conn_id)
         conns = query.all()
 
-        tablefmt = args.output
-        msg = _tabulate_connection(conns, tablefmt)
-        print(msg)
+        AirflowConsole().print_as(
+            data=conns,
+            output=args.output,
+            mapper=_connection_mapper,
+        )
 
 
 def _format_connections(conns: List[Connection], fmt: str) -> str:
@@ -113,6 +93,7 @@ def _format_connections(conns: List[Connection], fmt: str) -> str:
     for conn in conns:
         connections_dict[conn.conn_id] = {
             'conn_type': conn.conn_type,
+            'description': conn.description,
             'host': conn.host,
             'login': conn.login,
             'password': conn.password,
@@ -131,9 +112,13 @@ def _format_connections(conns: List[Connection], fmt: str) -> str:
 
 
 def _is_stdout(fileio: io.TextIOWrapper) -> bool:
-    if fileio.name == '<stdout>':
-        return True
-    return False
+    return fileio.name == '<stdout>'
+
+
+def _valid_uri(uri: str) -> bool:
+    """Check if a URI is valid, by checking if both scheme and netloc are available"""
+    uri_parts = urlparse(uri)
+    return uri_parts.scheme != '' and uri_parts.netloc != ''
 
 
 def connections_export(args):
@@ -151,11 +136,10 @@ def connections_export(args):
             _, filetype = os.path.splitext(args.file.name)
             filetype = filetype.lower()
             if filetype not in allowed_formats:
-                msg = (
-                    f"Unsupported file format. "
-                    f"The file must have the extension {', '.join(allowed_formats)}"
+                raise SystemExit(
+                    f"Unsupported file format. The file must have "
+                    f"the extension {', '.join(allowed_formats)}."
                 )
-                raise SystemExit(msg)
 
         connections = session.query(Connection).order_by(Connection.conn_id).all()
         msg = _format_connections(connections, filetype)
@@ -164,7 +148,7 @@ def connections_export(args):
         if _is_stdout(args.file):
             print("Connections successfully exported.", file=sys.stderr)
         else:
-            print(f"Connections successfully exported to {args.file.name}")
+            print(f"Connections successfully exported to {args.file.name}.")
 
 
 alternative_conn_specs = ['conn_type', 'conn_host', 'conn_login', 'conn_password', 'conn_schema', 'conn_port']
@@ -177,25 +161,28 @@ def connections_add(args):
     missing_args = []
     invalid_args = []
     if args.conn_uri:
+        if not _valid_uri(args.conn_uri):
+            raise SystemExit(f'The URI provided to --conn-uri is invalid: {args.conn_uri}')
         for arg in alternative_conn_specs:
             if getattr(args, arg) is not None:
                 invalid_args.append(arg)
     elif not args.conn_type:
         missing_args.append('conn-uri or conn-type')
     if missing_args:
-        msg = 'The following args are required to add a connection:' + f' {missing_args!r}'
-        raise SystemExit(msg)
+        raise SystemExit(f'The following args are required to add a connection: {missing_args!r}')
     if invalid_args:
-        msg = 'The following args are not compatible with the ' + 'add flag and --conn-uri flag: {invalid!r}'
-        msg = msg.format(invalid=invalid_args)
-        raise SystemExit(msg)
+        raise SystemExit(
+            f'The following args are not compatible with the '
+            f'add flag and --conn-uri flag: {invalid_args!r}'
+        )
 
     if args.conn_uri:
-        new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
+        new_conn = Connection(conn_id=args.conn_id, description=args.conn_description, uri=args.conn_uri)
     else:
         new_conn = Connection(
             conn_id=args.conn_id,
             conn_type=args.conn_type,
+            description=args.conn_description,
             host=args.conn_host,
             login=args.conn_login,
             password=args.conn_password,
@@ -208,7 +195,7 @@ def connections_add(args):
     with create_session() as session:
         if not session.query(Connection).filter(Connection.conn_id == new_conn.conn_id).first():
             session.add(new_conn)
-            msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
+            msg = 'Successfully added `conn_id`={conn_id} : {uri}'
             msg = msg.format(
                 conn_id=new_conn.conn_id,
                 uri=args.conn_uri
@@ -230,9 +217,8 @@ def connections_add(args):
             )
             print(msg)
         else:
-            msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
-            msg = msg.format(conn_id=new_conn.conn_id)
-            print(msg)
+            msg = f'A connection with `conn_id`={new_conn.conn_id} already exists.'
+            raise SystemExit(msg)
 
 
 @cli_utils.action_logging
@@ -242,18 +228,9 @@ def connections_delete(args):
         try:
             to_delete = session.query(Connection).filter(Connection.conn_id == args.conn_id).one()
         except exc.NoResultFound:
-            msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
+            raise SystemExit(f'Did not find a connection with `conn_id`={args.conn_id}')
         except exc.MultipleResultsFound:
-            msg = '\n\tFound more than one connection with ' + '`conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
+            raise SystemExit(f'Found more than one connection with `conn_id`={args.conn_id}')
         else:
-            deleted_conn_id = to_delete.conn_id
             session.delete(to_delete)
-            msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=deleted_conn_id)
-            print(msg)
+            print(f"Successfully deleted connection with `conn_id`={to_delete.conn_id}")

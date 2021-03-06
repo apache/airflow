@@ -83,7 +83,7 @@ class PodLauncher(LoggingMixin):
             )
             self.log.debug('Pod Creation Response: %s', resp)
         except Exception as e:
-            self.log.exception('Exception when attempting ' 'to create Namespaced Pod: %s', json_pod)
+            self.log.exception('Exception when attempting to create Namespaced Pod: %s', json_pod)
             raise e
         return resp
 
@@ -140,9 +140,10 @@ class PodLauncher(LoggingMixin):
                     break
 
                 self.log.warning('Pod %s log read interrupted', pod.metadata.name)
-                delta = pendulum.now() - last_log_time
-                # Prefer logs duplication rather than loss
-                read_logs_since_sec = math.ceil(delta.total_seconds())
+                if last_log_time:
+                    delta = pendulum.now() - last_log_time
+                    # Prefer logs duplication rather than loss
+                    read_logs_since_sec = math.ceil(delta.total_seconds())
         result = None
         if self.extract_xcom:
             while self.base_container_is_running(pod):

@@ -20,62 +20,81 @@ import json
 import os
 from json import JSONDecodeError
 
-from tabulate import tabulate
-
 from airflow.api.client import get_current_api_client
+from airflow.cli.simple_table import AirflowConsole
+from airflow.exceptions import PoolNotFound
 from airflow.utils import cli as cli_utils
+from airflow.utils.cli import suppress_logs_and_warning
 
 
-def _tabulate_pools(pools, tablefmt="fancy_grid"):
-    return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'], tablefmt=tablefmt)
+def _show_pools(pools, output):
+    AirflowConsole().print_as(
+        data=pools,
+        output=output,
+        mapper=lambda x: {
+            "pool": x[0],
+            "slots": x[1],
+            "description": x[2],
+        },
+    )
 
 
+@suppress_logs_and_warning
 def pool_list(args):
     """Displays info of all the pools"""
     api_client = get_current_api_client()
     pools = api_client.get_pools()
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    _show_pools(pools=pools, output=args.output)
 
 
+@suppress_logs_and_warning
 def pool_get(args):
     """Displays pool info by a given name"""
     api_client = get_current_api_client()
-    pools = [api_client.get_pool(name=args.pool)]
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    try:
+        pools = [api_client.get_pool(name=args.pool)]
+        _show_pools(pools=pools, output=args.output)
+    except PoolNotFound:
+        raise SystemExit(f"Pool {args.pool} does not exist")
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def pool_set(args):
     """Creates new pool with a given name and slots"""
     api_client = get_current_api_client()
-    pools = [api_client.create_pool(name=args.pool, slots=args.slots, description=args.description)]
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    api_client.create_pool(name=args.pool, slots=args.slots, description=args.description)
+    print("Pool created")
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def pool_delete(args):
     """Deletes pool by a given name"""
     api_client = get_current_api_client()
-    pools = [api_client.delete_pool(name=args.pool)]
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    try:
+        api_client.delete_pool(name=args.pool)
+        print("Pool deleted")
+    except PoolNotFound:
+        raise SystemExit(f"Pool {args.pool} does not exist")
 
 
 @cli_utils.action_logging
+@suppress_logs_and_warning
 def pool_import(args):
     """Imports pools from the file"""
-    api_client = get_current_api_client()
-    if os.path.exists(args.file):
-        pools = pool_import_helper(args.file)
-    else:
-        print("Missing pools file.")
-        pools = api_client.get_pools()
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    if not os.path.exists(args.file):
+        raise SystemExit("Missing pools file.")
+    pools, failed = pool_import_helper(args.file)
+    if len(failed) > 0:
+        raise SystemExit(f"Failed to update pool(s): {', '.join(failed)}")
+    print(f"Uploaded {len(pools)} pool(s)")
 
 
 def pool_export(args):
     """Exports all of the pools to the file"""
     pools = pool_export_helper(args.file)
-    print(_tabulate_pools(pools=pools, tablefmt=args.output))
+    print(f"Exported {len(pools)} pools to {args.file}")
 
 
 def pool_import_helper(filepath):
@@ -87,24 +106,15 @@ def pool_import_helper(filepath):
     try:  # pylint: disable=too-many-nested-blocks
         pools_json = json.loads(data)
     except JSONDecodeError as e:
-        print("Please check the validity of the json file: " + str(e))
-    else:
-        try:
-            pools = []
-            counter = 0
-            for k, v in pools_json.items():
-                if isinstance(v, dict) and len(v) == 2:
-                    pools.append(
-                        api_client.create_pool(name=k, slots=v["slots"], description=v["description"])
-                    )
-                    counter += 1
-                else:
-                    pass
-        except Exception:  # pylint: disable=broad-except
-            pass
-        finally:
-            print("{} of {} pool(s) successfully updated.".format(counter, len(pools_json)))
-            return pools  # pylint: disable=lost-exception
+        raise SystemExit("Invalid json file: " + str(e))
+    pools = []
+    failed = []
+    for k, v in pools_json.items():
+        if isinstance(v, dict) and len(v) == 2:
+            pools.append(api_client.create_pool(name=k, slots=v["slots"], description=v["description"]))
+        else:
+            failed.append(k)
+    return pools, failed
 
 
 def pool_export_helper(filepath):
@@ -116,5 +126,4 @@ def pool_export_helper(filepath):
         pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
     with open(filepath, 'w') as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
-    print("{} pools successfully exported to {}".format(len(pool_dict), filepath))
     return pools

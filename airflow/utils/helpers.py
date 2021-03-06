@@ -22,9 +22,11 @@ from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
 from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, TypeVar
+from urllib import parse
 
 from jinja2 import Template
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.module_loading import import_string
 
@@ -202,3 +204,13 @@ def cross_downstream(*args, **kwargs):
         stacklevel=2,
     )
     return import_string('airflow.models.baseoperator.cross_downstream')(*args, **kwargs)
+
+
+def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
+    """
+    Build airflow url using base_url and default_view and provided query
+    For example:
+    'http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
+    """
+    view = conf.get('webserver', 'dag_default_view').lower()
+    return f"/{view}?{parse.urlencode(query)}"

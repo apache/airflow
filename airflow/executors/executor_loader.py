@@ -21,6 +21,15 @@ from typing import Optional
 
 from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.executor_constants import (
+    CELERY_EXECUTOR,
+    CELERY_KUBERNETES_EXECUTOR,
+    DASK_EXECUTOR,
+    DEBUG_EXECUTOR,
+    KUBERNETES_EXECUTOR,
+    LOCAL_EXECUTOR,
+    SEQUENTIAL_EXECUTOR,
+)
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
@@ -28,14 +37,6 @@ log = logging.getLogger(__name__)
 
 class ExecutorLoader:
     """Keeps constants for all the currently available executors."""
-
-    LOCAL_EXECUTOR = "LocalExecutor"
-    SEQUENTIAL_EXECUTOR = "SequentialExecutor"
-    CELERY_EXECUTOR = "CeleryExecutor"
-    CELERY_KUBERNETES_EXECUTOR = "CeleryKubernetesExecutor"
-    DASK_EXECUTOR = "DaskExecutor"
-    KUBERNETES_EXECUTOR = "KubernetesExecutor"
-    DEBUG_EXECUTOR = "DebugExecutor"
 
     _default_executor: Optional[BaseExecutor] = None
     executors = {
@@ -74,7 +75,7 @@ class ExecutorLoader:
 
         :return: an instance of executor class via executor_name
         """
-        if executor_name == cls.CELERY_KUBERNETES_EXECUTOR:
+        if executor_name == CELERY_KUBERNETES_EXECUTOR:
             return cls.__load_celery_kubernetes_executor()
 
         if executor_name in cls.executors:
@@ -111,15 +112,15 @@ class ExecutorLoader:
     @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:
         """:return: an instance of CeleryKubernetesExecutor"""
-        celery_executor = import_string(cls.executors[cls.CELERY_EXECUTOR])()
-        kubernetes_executor = import_string(cls.executors[cls.KUBERNETES_EXECUTOR])()
+        celery_executor = import_string(cls.executors[CELERY_EXECUTOR])()
+        kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
 
-        celery_kubernetes_executor_cls = import_string(cls.executors[cls.CELERY_KUBERNETES_EXECUTOR])
+        celery_kubernetes_executor_cls = import_string(cls.executors[CELERY_KUBERNETES_EXECUTOR])
         return celery_kubernetes_executor_cls(celery_executor, kubernetes_executor)
 
 
 UNPICKLEABLE_EXECUTORS = (
-    ExecutorLoader.LOCAL_EXECUTOR,
-    ExecutorLoader.SEQUENTIAL_EXECUTOR,
-    ExecutorLoader.DASK_EXECUTOR,
+    LOCAL_EXECUTOR,
+    SEQUENTIAL_EXECUTOR,
+    DASK_EXECUTOR,
 )

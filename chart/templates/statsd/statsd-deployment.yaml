@@ -19,6 +19,9 @@
 ## Airflow StatsD Deployment
 #################################
 {{- if .Values.statsd.enabled }}
+{{- $nodeSelector := or .Values.statsd.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.statsd.affinity .Values.affinity }}
+{{- $tolerations := or .Values.statsd.tolerations .Values.tolerations }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -48,13 +51,17 @@ spec:
 {{- with .Values.labels }}
 {{ toYaml . | indent 8 }}
 {{- end }}
+{{- if .Values.statsd.extraMappings }}
+      annotations:
+        checksum/statsd-config: {{ include (print $.Template.BasePath "/configmaps/statsd-configmap.yaml") . | sha256sum }}
+{{- end }}
     spec:
       nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
+{{ toYaml $nodeSelector | indent 8 }}
       affinity:
-{{ toYaml .Values.affinity | indent 8 }}
+{{ toYaml $affinity | indent 8 }}
       tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
+{{ toYaml $tolerations | indent 8 }}
       restartPolicy: Always
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
@@ -88,4 +95,14 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
+{{- if .Values.statsd.extraMappings }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/statsd-exporter/mappings.yml
+              subPath: mappings.yml
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-statsd
+{{- end }}
 {{- end }}

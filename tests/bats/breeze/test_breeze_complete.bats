@@ -272,3 +272,11 @@
 
   assert_equal "" "${TEST_TYPE}"
 }
+
+@test "Test default package format is wheel" {
+  load ../bats_utils
+  #shellcheck source=breeze-complete
+  source "${AIRFLOW_SOURCES}/breeze-complete"
+
+  assert_equal "wheel" "${PACKAGE_FORMAT}"
+}

@@ -19,7 +19,7 @@
 from typing import Optional
 
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

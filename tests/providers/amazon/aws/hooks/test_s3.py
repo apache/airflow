@@ -43,6 +43,16 @@ class TestAwsS3Hook:
         hook = S3Hook()
         assert hook.get_conn() is not None
 
+    @mock_s3
+    def test_use_threads_default_value(self):
+        hook = S3Hook()
+        assert hook.transfer_config.use_threads is True
+
+    @mock_s3
+    def test_use_threads_set_value(self):
+        hook = S3Hook(transfer_config_args={"use_threads": False})
+        assert hook.transfer_config.use_threads is False
+
     def test_parse_s3_url(self):
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-key.txt")
         assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
@@ -118,8 +128,8 @@ class TestAwsS3Hook:
         bucket = hook.get_bucket(s3_bucket)
 
         # we don't need to test the paginator that's covered by boto tests
-        keys = ["%s/b" % i for i in range(2)]
-        dirs = ["%s/" % i for i in range(2)]
+        keys = [f"{i}/b" for i in range(2)]
+        dirs = [f"{i}/" for i in range(2)]
         for key in keys:
             bucket.put_object(Key=key, Body=b'a')
 
@@ -231,6 +241,18 @@ class TestAwsS3Hook:
         resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
         assert resource.get()['Body'].read() == b'Cont\xC3\xA9nt'
 
+    def test_load_string_compress(self, s3_bucket):
+        hook = S3Hook()
+        hook.load_string("Contént", "my_key", s3_bucket, compression='gzip')
+        resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+        data = gz.decompress(resource.get()['Body'].read())
+        assert data == b'Cont\xC3\xA9nt'
+
+    def test_load_string_compress_exception(self, s3_bucket):
+        hook = S3Hook()
+        with pytest.raises(NotImplementedError):
+            hook.load_string("Contént", "my_key", s3_bucket, compression='bad-compression')
+
     def test_load_string_acl(self, s3_bucket):
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket, acl_policy='public-read')
@@ -324,10 +346,9 @@ class TestAwsS3Hook:
     def test_delete_bucket_if_not_bucket_exist(self, s3_bucket):
         # assert if exception is raised if bucket not present
         mock_hook = S3Hook()
-        with pytest.raises(ClientError) as error:
-            # assert error
+        with pytest.raises(ClientError) as ctx:
             assert mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
-        assert error.value.response['Error']['Code'] == 'NoSuchBucket'
+        assert ctx.value.response['Error']['Code'] == 'NoSuchBucket'
 
     @mock.patch.object(S3Hook, 'get_connection', return_value=Connection(schema='test_bucket'))
     def test_provide_bucket_name(self, mock_get_connection):
@@ -346,11 +367,11 @@ class TestAwsS3Hook:
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         hook = S3Hook()
-        with pytest.raises(AirflowException) as err:
+        with pytest.raises(AirflowException) as ctx:
             hook.delete_objects(bucket=s3_bucket, keys=['key-1'])
 
-        assert isinstance(err.value, AirflowException)
-        assert str(err.value) == "Errors when deleting: ['key-1']"
+        assert isinstance(ctx.value, AirflowException)
+        assert str(ctx.value) == "Errors when deleting: ['key-1']"
 
     def test_delete_objects_one_key(self, mocked_s3_res, s3_bucket):
         key = 'key-1'
@@ -394,9 +415,9 @@ class TestAwsS3Hook:
         test_bucket_name_with_key = fake_s3_hook.test_function_with_key('s3://foo/bar.csv')
         assert ('foo', 'bar.csv') == test_bucket_name_with_key
 
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError) as ctx:
             fake_s3_hook.test_function_with_test_key('s3://foo/bar.csv')
-        assert isinstance(err.value, ValueError)
+        assert isinstance(ctx.value, ValueError)
 
     @mock.patch('airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile')
     def test_download_file(self, mock_temp_file):
@@ -446,3 +467,125 @@ class TestAwsS3Hook:
             hook.load_file_obj(temp_file, "my_key", s3_bucket, acl_policy='public-read')
             resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
             assert resource.get()['ContentLanguage'] == "value"
+
+    @mock_s3
+    def test_get_bucket_tagging_no_tags_raises_error(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name='new_bucket')
+
+        with pytest.raises(ClientError, match=r".*NoSuchTagSet.*"):
+            hook.get_bucket_tagging(bucket_name='new_bucket')
+
+    @mock_s3
+    def test_get_bucket_tagging_no_bucket_raises_error(self):
+        hook = S3Hook()
+
+        with pytest.raises(ClientError, match=r".*NoSuchBucket.*"):
+            hook.get_bucket_tagging(bucket_name='new_bucket')
+
+    @mock_s3
+    def test_put_bucket_tagging_with_valid_set(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name='new_bucket')
+        tag_set = [{'Key': 'Color', 'Value': 'Green'}]
+        hook.put_bucket_tagging(bucket_name='new_bucket', tag_set=tag_set)
+
+        assert hook.get_bucket_tagging(bucket_name='new_bucket') == tag_set
+
+    @mock_s3
+    def test_put_bucket_tagging_with_pair(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name='new_bucket')
+        tag_set = [{'Key': 'Color', 'Value': 'Green'}]
+        key = 'Color'
+        value = 'Green'
+        hook.put_bucket_tagging(bucket_name='new_bucket', key=key, value=value)
+
+        assert hook.get_bucket_tagging(bucket_name='new_bucket') == tag_set
+
+    @mock_s3
+    def test_put_bucket_tagging_with_pair_and_set(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name='new_bucket')
+        expected = [{'Key': 'Color', 'Value': 'Green'}, {'Key': 'Fruit', 'Value': 'Apple'}]
+        tag_set = [{'Key': 'Color', 'Value': 'Green'}]
+        key = 'Fruit'
+        value = 'Apple'
+        hook.put_bucket_tagging(bucket_name='new_bucket', tag_set=tag_set, key=key, value=value)
+
+        result = hook.get_bucket_tagging(bucket_name='new_bucket')
+        assert len(result) == 2
+        assert result == expected
+
+    @mock_s3
+    def test_put_bucket_tagging_with_key_but_no_value_raises_error(self):
+        hook = S3Hook()
+
+        hook.create_bucket(bucket_name='new_bucket')
+        key = 'Color'
+        with pytest.raises(ValueError):
+            hook.put_bucket_tagging(bucket_name='new_bucket', key=key)
+
+    @mock_s3
+    def test_put_bucket_tagging_with_value_but_no_key_raises_error(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name='new_bucket')
+        value = 'Color'
+        with pytest.raises(ValueError):
+            hook.put_bucket_tagging(bucket_name='new_bucket', value=value)
+
+    @mock_s3
+    def test_put_bucket_tagging_with_key_and_set_raises_error(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name='new_bucket')
+        tag_set = [{'Key': 'Color', 'Value': 'Green'}]
+        key = 'Color'
+        with pytest.raises(ValueError):
+            hook.put_bucket_tagging(bucket_name='new_bucket', key=key, tag_set=tag_set)
+
+    @mock_s3
+    def test_put_bucket_tagging_with_value_and_set_raises_error(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name='new_bucket')
+        tag_set = [{'Key': 'Color', 'Value': 'Green'}]
+        value = 'Green'
+        with pytest.raises(ValueError):
+            hook.put_bucket_tagging(bucket_name='new_bucket', value=value, tag_set=tag_set)
+
+    @mock_s3
+    def test_put_bucket_tagging_when_tags_exist_overwrites(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name='new_bucket')
+        initial_tag_set = [{'Key': 'Color', 'Value': 'Green'}]
+        hook.put_bucket_tagging(bucket_name='new_bucket', tag_set=initial_tag_set)
+        assert len(hook.get_bucket_tagging(bucket_name='new_bucket')) == 1
+        assert hook.get_bucket_tagging(bucket_name='new_bucket') == initial_tag_set
+
+        new_tag_set = [{'Key': 'Fruit', 'Value': 'Apple'}]
+        hook.put_bucket_tagging(bucket_name='new_bucket', tag_set=new_tag_set)
+
+        result = hook.get_bucket_tagging(bucket_name='new_bucket')
+        assert len(result) == 1
+        assert result == new_tag_set
+
+    @mock_s3
+    def test_delete_bucket_tagging(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name='new_bucket')
+        tag_set = [{'Key': 'Color', 'Value': 'Green'}]
+        hook.put_bucket_tagging(bucket_name='new_bucket', tag_set=tag_set)
+        hook.get_bucket_tagging(bucket_name='new_bucket')
+
+        hook.delete_bucket_tagging(bucket_name='new_bucket')
+        with pytest.raises(ClientError, match=r".*NoSuchTagSet.*"):
+            hook.get_bucket_tagging(bucket_name='new_bucket')
+
+    @mock_s3
+    def test_delete_bucket_tagging_with_no_tags(self):
+        hook = S3Hook()
+        hook.create_bucket(bucket_name='new_bucket')
+
+        hook.delete_bucket_tagging(bucket_name='new_bucket')
+
+        with pytest.raises(ClientError, match=r".*NoSuchTagSet.*"):
+            hook.get_bucket_tagging(bucket_name='new_bucket')

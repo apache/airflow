@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.sensors.base_sensor_operator import apply_defaults
+from airflow.sensors.base import apply_defaults
 
 
 class GCSToLocalFilesystemOperator(BaseOperator):
@@ -129,7 +129,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Executing download: %s, %s, %s', self.bucket, self.object, self.filename)
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
@@ -137,7 +137,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         if self.store_to_xcom_key:
             file_bytes = hook.download(bucket_name=self.bucket, object_name=self.object)
             if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
-                context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
+                context['ti'].xcom_push(key=self.store_to_xcom_key, value=str(file_bytes))
             else:
                 raise AirflowException('The size of the downloaded file is too large to push to XCom!')
         else:

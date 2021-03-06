@@ -23,22 +23,19 @@ import uuid
 import warnings
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
-from cached_property import cached_property
 from google.api_core.exceptions import ServerError
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1beta2 import (  # pylint: disable=no-name-in-module
-    ClusterControllerClient,
-    JobControllerClient,
-    WorkflowTemplateServiceClient,
-)
-from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-module
     Cluster,
-    Duration,
-    FieldMask,
+    ClusterControllerClient,
     Job,
+    JobControllerClient,
     JobStatus,
     WorkflowTemplate,
+    WorkflowTemplateServiceClient,
 )
+from google.protobuf.duration_pb2 import Duration
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -212,22 +209,29 @@ class DataprocHook(GoogleBaseHook):
 
     def get_cluster_client(self, location: Optional[str] = None) -> ClusterControllerClient:
         """Returns ClusterControllerClient."""
-        client_options = {'api_endpoint': f'{location}-dataproc.googleapis.com:443'} if location else None
+        client_options = None
+        if location and location != 'global':
+            client_options = {'api_endpoint': f'{location}-dataproc.googleapis.com:443'}
 
         return ClusterControllerClient(
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
-    @cached_property
-    def get_template_client(self) -> WorkflowTemplateServiceClient:
+    def get_template_client(self, location: Optional[str] = None) -> WorkflowTemplateServiceClient:
         """Returns WorkflowTemplateServiceClient."""
+        client_options = None
+        if location and location != 'global':
+            client_options = {'api_endpoint': f'{location}-dataproc.googleapis.com:443'}
+
         return WorkflowTemplateServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info
+            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
     def get_job_client(self, location: Optional[str] = None) -> JobControllerClient:
         """Returns JobControllerClient."""
-        client_options = {'api_endpoint': f'{location}-dataproc.googleapis.com:443'} if location else None
+        client_options = None
+        if location and location != 'global':
+            client_options = {'api_endpoint': f'{location}-dataproc.googleapis.com:443'}
 
         return JobControllerClient(
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
@@ -289,10 +293,12 @@ class DataprocHook(GoogleBaseHook):
 
         client = self.get_cluster_client(location=region)
         result = client.create_cluster(
-            project_id=project_id,
-            region=region,
-            cluster=cluster,
-            request_id=request_id,
+            request={
+                'project_id': project_id,
+                'region': region,
+                'cluster': cluster,
+                'request_id': request_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -338,11 +344,13 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_cluster_client(location=region)
         result = client.delete_cluster(
-            project_id=project_id,
-            region=region,
-            cluster_name=cluster_name,
-            cluster_uuid=cluster_uuid,
-            request_id=request_id,
+            request={
+                'project_id': project_id,
+                'region': region,
+                'cluster_name': cluster_name,
+                'cluster_uuid': cluster_uuid,
+                'request_id': request_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -380,9 +388,7 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_cluster_client(location=region)
         operation = client.diagnose_cluster(
-            project_id=project_id,
-            region=region,
-            cluster_name=cluster_name,
+            request={'project_id': project_id, 'region': region, 'cluster_name': cluster_name},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -421,9 +427,7 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_cluster_client(location=region)
         result = client.get_cluster(
-            project_id=project_id,
-            region=region,
-            cluster_name=cluster_name,
+            request={'project_id': project_id, 'region': region, 'cluster_name': cluster_name},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -465,10 +469,7 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_cluster_client(location=region)
         result = client.list_clusters(
-            project_id=project_id,
-            region=region,
-            filter_=filter_,
-            page_size=page_size,
+            request={'project_id': project_id, 'region': region, 'filter': filter_, 'page_size': page_size},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -549,13 +550,15 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_cluster_client(location=location)
         operation = client.update_cluster(
-            project_id=project_id,
-            region=location,
-            cluster_name=cluster_name,
-            cluster=cluster,
-            update_mask=update_mask,
-            graceful_decommission_timeout=graceful_decommission_timeout,
-            request_id=request_id,
+            request={
+                'project_id': project_id,
+                'region': location,
+                'cluster_name': cluster_name,
+                'cluster': cluster,
+                'update_mask': update_mask,
+                'graceful_decommission_timeout': graceful_decommission_timeout,
+                'request_id': request_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -591,10 +594,11 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-        client = self.get_template_client
-        parent = client.region_path(project_id, location)
+        metadata = metadata or ()
+        client = self.get_template_client(location)
+        parent = f'projects/{project_id}/regions/{location}'
         return client.create_workflow_template(
-            parent=parent, template=template, retry=retry, timeout=timeout, metadata=metadata
+            request={'parent': parent, 'template': template}, retry=retry, timeout=timeout, metadata=metadata
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -641,13 +645,11 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-        client = self.get_template_client
-        name = client.workflow_template_path(project_id, location, template_name)
+        metadata = metadata or ()
+        client = self.get_template_client(location)
+        name = f'projects/{project_id}/regions/{location}/workflowTemplates/{template_name}'
         operation = client.instantiate_workflow_template(
-            name=name,
-            version=version,
-            parameters=parameters,
-            request_id=request_id,
+            request={'name': name, 'version': version, 'request_id': request_id, 'parameters': parameters},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -688,12 +690,11 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-        client = self.get_template_client
-        parent = client.region_path(project_id, location)
+        metadata = metadata or ()
+        client = self.get_template_client(location)
+        parent = f'projects/{project_id}/regions/{location}'
         operation = client.instantiate_inline_workflow_template(
-            parent=parent,
-            template=template,
-            request_id=request_id,
+            request={'parent': parent, 'template': template, 'request_id': request_id},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -720,19 +721,19 @@ class DataprocHook(GoogleBaseHook):
         """
         state = None
         start = time.monotonic()
-        while state not in (JobStatus.ERROR, JobStatus.DONE, JobStatus.CANCELLED):
+        while state not in (JobStatus.State.ERROR, JobStatus.State.DONE, JobStatus.State.CANCELLED):
             if timeout and start + timeout < time.monotonic():
                 raise AirflowException(f"Timeout: dataproc job {job_id} is not ready after {timeout}s")
             time.sleep(wait_time)
             try:
-                job = self.get_job(location=location, job_id=job_id, project_id=project_id)
+                job = self.get_job(project_id=project_id, location=location, job_id=job_id)
                 state = job.status.state
             except ServerError as err:
                 self.log.info("Retrying. Dataproc API returned server error when waiting for job: %s", err)
 
-        if state == JobStatus.ERROR:
+        if state == JobStatus.State.ERROR:
             raise AirflowException(f'Job failed:\n{job}')
-        if state == JobStatus.CANCELLED:
+        if state == JobStatus.State.CANCELLED:
             raise AirflowException(f'Job was cancelled:\n{job}')
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -765,9 +766,7 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_job_client(location=location)
         job = client.get_job(
-            project_id=project_id,
-            region=location,
-            job_id=job_id,
+            request={'project_id': project_id, 'region': location, 'job_id': job_id},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -810,10 +809,7 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_job_client(location=location)
         return client.submit_job(
-            project_id=project_id,
-            region=location,
-            job=job,
-            request_id=request_id,
+            request={'project_id': project_id, 'region': location, 'job': job, 'request_id': request_id},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -882,9 +878,7 @@ class DataprocHook(GoogleBaseHook):
         client = self.get_job_client(location=location)
 
         job = client.cancel_job(
-            project_id=project_id,
-            region=location,
-            job_id=job_id,
+            request={'project_id': project_id, 'region': location, 'job_id': job_id},
             retry=retry,
             timeout=timeout,
             metadata=metadata,

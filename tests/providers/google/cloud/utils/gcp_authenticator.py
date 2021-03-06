@@ -35,6 +35,8 @@ GCP_BIGTABLE_KEY = 'gcp_bigtable.json'
 GCP_CLOUD_BUILD_KEY = 'gcp_cloud_build.json'
 GCP_CLOUDSQL_KEY = 'gcp_cloudsql.json'
 GCP_COMPUTE_KEY = 'gcp_compute.json'
+GCP_COMPUTE_SSH_KEY = 'gcp_compute_ssh.json'
+GCP_DATACATALOG_KEY = 'gcp_datacatalog.json'
 GCP_DATAFLOW_KEY = 'gcp_dataflow.json'
 GCP_DATAFUSION_KEY = 'gcp_datafusion.json'
 GCP_DATAPROC_KEY = 'gcp_dataproc.json'
@@ -44,15 +46,18 @@ GCP_FUNCTION_KEY = 'gcp_function.json'
 GCP_GCS_KEY = 'gcp_gcs.json'
 GCP_GCS_TRANSFER_KEY = 'gcp_gcs_transfer.json'
 GCP_GKE_KEY = "gcp_gke.json"
+GCP_KMS_KEY = "gcp_kms.json"
 GCP_LIFE_SCIENCES_KEY = 'gcp_life_sciences.json'
 GCP_MEMORYSTORE = 'gcp_memorystore.json'
 GCP_PUBSUB_KEY = "gcp_pubsub.json"
 GCP_SECRET_MANAGER_KEY = 'gcp_secret_manager.json'
 GCP_SPANNER_KEY = 'gcp_spanner.json'
-GCP_STACKDDRIVER = 'gcp_stackdriver.json'
+GCP_STACKDRIVER = 'gcp_stackdriver.json'
 GCP_TASKS_KEY = 'gcp_tasks.json'
+GCP_WORKFLOWS_KEY = "gcp_workflows.json"
 GMP_KEY = 'gmp.json'
 G_FIREBASE_KEY = 'g_firebase.json'
+GCP_AWS_KEY = 'gcp_aws.json'
 
 KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'
@@ -209,7 +214,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
 
     def gcp_restore_authentication(self):
         """
-        Restore authentication to the original one one.
+        Restore authentication to the original one.
         """
         self._validate_key_set()
         if GcpAuthenticator.original_account:

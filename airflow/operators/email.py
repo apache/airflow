@@ -33,7 +33,7 @@ class EmailOperator(BaseOperator):
     :param html_content: content of the email, html markup
         is allowed. (templated)
     :type html_content: str
-    :param files: file names to attach in email
+    :param files: file names to attach in email (templated)
     :type files: list
     :param cc: list of recipients to be added in CC field
     :type cc: list or string (comma or semicolon delimited)
@@ -46,7 +46,8 @@ class EmailOperator(BaseOperator):
     :type mime_charset: str
     """
 
-    template_fields = ('to', 'subject', 'html_content')
+    template_fields = ('to', 'subject', 'html_content', 'files')
+    template_fields_renderers = {"html_content": "html"}
     template_ext = ('.html',)
     ui_color = '#e6faf9'
 
@@ -62,6 +63,7 @@ class EmailOperator(BaseOperator):
         bcc: Optional[Union[List[str], str]] = None,
         mime_subtype: str = 'mixed',
         mime_charset: str = 'utf-8',
+        conn_id: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -73,6 +75,7 @@ class EmailOperator(BaseOperator):
         self.bcc = bcc
         self.mime_subtype = mime_subtype
         self.mime_charset = mime_charset
+        self.conn_id = conn_id
 
     def execute(self, context):
         send_email(
@@ -84,4 +87,5 @@ class EmailOperator(BaseOperator):
             bcc=self.bcc,
             mime_subtype=self.mime_subtype,
             mime_charset=self.mime_charset,
+            conn_id=self.conn_id,
         )
