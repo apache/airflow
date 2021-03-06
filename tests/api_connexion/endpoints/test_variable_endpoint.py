@@ -198,7 +198,6 @@ class TestPatchVariable(TestVariableEndpoint):
         response = self.client.patch(
             "/api/v1/variables/var1",
             json={
-                "key": "var1",
                 "value": "updated",
             },
             environ_overrides={'REMOTE_USER': "test"},
@@ -221,10 +220,10 @@ class TestPatchVariable(TestVariableEndpoint):
         )
         assert response.status_code == 400
         assert response.json == {
-            "title": "Invalid post body",
+            "title": "Bad Request",
             "status": 400,
             "type": EXCEPTIONS_LINK_MAP[400],
-            "detail": "key from request body doesn't match uri parameter",
+            "detail": "Additional properties are not allowed ('key' was unexpected)",
         }
 
         response = self.client.patch(
@@ -235,10 +234,10 @@ class TestPatchVariable(TestVariableEndpoint):
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.json == {
-            "title": "Invalid Variable schema",
+            "title": "Bad Request",
             "status": 400,
             "type": EXCEPTIONS_LINK_MAP[400],
-            "detail": "{'value': ['Missing data for required field.']}",
+            "detail": "Additional properties are not allowed ('key' was unexpected)",
         }
 
     def test_should_raises_401_unauthenticated(self):
@@ -247,7 +246,6 @@ class TestPatchVariable(TestVariableEndpoint):
         response = self.client.patch(
             "/api/v1/variables/var1",
             json={
-                "key": "var1",
                 "value": "updated",
             },
         )

@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 from flask import current_app, g, request
-from marshmallow import ValidationError
 
 from airflow import DAG
 from airflow.api_connexion import security
@@ -75,10 +74,7 @@ def patch_dag(session, dag_id, update_mask=None):
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
     if not dag:
         raise NotFound(f"Dag with id: '{dag_id}' not found")
-    try:
-        patch_body = dag_schema.load(request.json, session=session)
-    except ValidationError as err:
-        raise BadRequest("Invalid Dag schema", detail=str(err.messages))
+    patch_body = request.json
     if update_mask:
         patch_body_ = {}
         if len(update_mask) > 1:

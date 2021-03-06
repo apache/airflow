@@ -553,7 +553,7 @@ class TestPatchDag(TestDagEndpoint):
         response = self.client.patch(f"/api/v1/dags/{dag_model.dag_id}", json=patch_body)
         assert response.status_code == 400
         assert response.json == {
-            'detail': "Property is read-only - 'schedule_interval'",
+            'detail': "Additional properties are not allowed ('schedule_interval' was unexpected)",
             'status': 400,
             'title': 'Bad Request',
             'type': EXCEPTIONS_LINK_MAP[400],

@@ -425,7 +425,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DAG'
+              type: object
+              properties:
+                is_paused:
+                  type: boolean
+                  description: Whether to pause or unpause the dag
+              additionalProperties: false
       responses:
         '200':
           description: Success.
@@ -988,7 +993,6 @@ paths:
   /variables/{variable_key}:
     parameters:
       - $ref: '#/components/parameters/VariableKey'
-
     get:
       summary: Get a variable
       description: Get a variable by key.
@@ -1022,7 +1026,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Variable'
+              type: object
+              properties:
+                value:
+                  type: string
+              additionalProperties: false
 
       responses:
         '200':

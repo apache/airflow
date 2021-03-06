@@ -70,22 +70,14 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE)])
 def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -> Response:
     """Update a variable by key"""
-    try:
-        data = variable_schema.load(request.json)
-    except ValidationError as err:
-        raise BadRequest("Invalid Variable schema", detail=str(err.messages))
-
-    if data["key"] != variable_key:
-        raise BadRequest("Invalid post body", detail="key from request body doesn't match uri parameter")
-
+    data = request.json
     if update_mask:
         if "key" in update_mask:
             raise BadRequest("key is a ready only field")
         if "value" not in update_mask:
             raise BadRequest("No field to update")
-
-    Variable.set(data["key"], data["val"])
-    return variable_schema.dump(data)
+    Variable.set(variable_key, data["value"])
+    return variable_schema.dump({"key": variable_key, "val": data['value']})
 
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
