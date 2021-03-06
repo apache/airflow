@@ -185,6 +185,8 @@
 
         // When an expanded group is clicked, collapse it.
         d3.selectAll("g.cluster").on("click", function (node_id) {
+          d3.event.stopPropagation();
+
           if (d3.event.defaultPrevented) // Ignore dragging actions.
               return;
           node = g.node(node_id)
@@ -192,6 +194,7 @@
         })
         // When a node is clicked, action depends on the node type.
         d3.selectAll("g.node").on("click", function (node_id) {
+          d3.event.stopPropagation();
           node = g.node(node_id)
           if (node.children != undefined && Object.keys(node.children).length > 0) {
             // A group node
@@ -408,6 +411,8 @@
               .style("opacity", 1);
           d3.selectAll('.js-state-legend-item')
               .style("background-color", null);
+
+          localStorage.setItem(focused_group_key(dag_id), undefined)
       }
 
       function focusState(state, node, color){
@@ -617,6 +622,16 @@
         return "no_status"
       }
 
+      // Returns the key used to store expanded task group ids in localStorage
+      function expanded_groups_key(dag_id) {
+          return `expanded_groups_${dag_id}`
+      }
+
+      // Returns the key used to store the focused task group id in localStorage
+      function focused_group_key(dag_id) {
+          return `focused_group_${dag_id}`
+      }
+
       // Focus the graph on the expanded/collapsed node
       function focus_group(node_id) {
         if(node_id != null && zoom != null) {
@@ -659,6 +674,8 @@
                       .style("opacity", 0.2).duration(duration)
               }
             });
+
+            localStorage.setItem(focused_group_key(dag_id), node_id)
         }
       }
 
@@ -698,6 +715,8 @@
 
         draw()
         focus_group(node_id)
+
+        save_expanded_group(node_id)
     }
 
     // Remove the node with this node_id from g.
@@ -736,10 +755,67 @@
 
         draw()
         focus_group(node_id)
+
+        remove_expanded_group(node_id)
       }
 
-      expand_group(null, nodes)
+    function get_saved_groups(dag_id) {
+        // expanded_groups is a Set
+        try {
+            var expanded_groups = new Set(JSON.parse(localStorage.getItem(expanded_groups_key(dag_id))));
+        } catch {
+            var expanded_groups = new Set();
+        }
 
-      initRefresh();
+        return expanded_groups;
+    }
+
+    // Remember the expanded groups in local storage so that refreshing the page doesn't reset
+    // the graph state.
+    function save_expanded_group(node_id) {
+        // expanded_groups is a Set
+        var expanded_groups = get_saved_groups(dag_id);
+        expanded_groups.add(node_id)
+        localStorage.setItem(expanded_groups_key(dag_id), JSON.stringify(Array.from(expanded_groups)))
+    }
+
+    // Remove the node_id from the expanded state
+    function remove_expanded_group(node_id) {
+        var expanded_groups = get_saved_groups(dag_id);
+        expanded_groups.delete(node_id)
+        localStorage.setItem(expanded_groups_key(dag_id), JSON.stringify(Array.from(expanded_groups)))
+    }
+
+    // Restore previously expanded task groups
+    function expand_saved_groups(expanded_groups, node) {
+        if (node.children == undefined) {
+            return;
+        }
+
+        node.children.forEach(function (child_node) {
+            if(expanded_groups.has(child_node.id)) {
+                expand_group(child_node.id, g.node(child_node.id))
+
+                expand_saved_groups(expanded_groups, child_node)
+            }
+        })
+    }
+
+    svg.node().onclick = clearFocus
+
+    const focus_node_id = localStorage.getItem(focused_group_key(dag_id))
+    const expanded_groups = get_saved_groups(dag_id)
+
+    // Always expand the root node
+    expand_group(null, nodes)
+
+    // Expand the node that were previously expanded
+    expand_saved_groups(expanded_groups, nodes)
+
+    // Focus the node that was previously in focus
+    if (focus_node_id != undefined && g.hasNode(focus_node_id))
+        focus_group(focus_node_id)
+
+    initRefresh();
   </script>
 {% endblock %}
