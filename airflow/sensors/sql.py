@@ -81,6 +81,7 @@ class SqlSensor(BaseSensorOperator):
             'odbc',
             'oracle',
             'postgres',
+            'trino',
             'presto',
             'snowflake',
             'sqlite',

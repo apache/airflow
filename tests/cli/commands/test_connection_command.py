@@ -93,6 +93,10 @@ class TestCliListConnections(unittest.TestCase):
             'postgres',
         ),
         (
+            'trino_default',
+            'trino',
+        ),
+        (
             'presto_default',
             'presto',
         ),
