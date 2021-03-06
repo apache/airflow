@@ -24,7 +24,7 @@ KEDA stands for Kubernetes Event Driven Autoscaling.
 `KEDA <https://github.com/kedacore/keda>`__ is a custom controller that
 allows users to create custom bindings to the Kubernetes `Horizontal Pod
 Autoscaler <https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/>`__.
-We have built a scalers that allows users to create scalers based on
+We have built scalers that allows users to create scalers based on
 PostgreSQL queries and shared it with the community. This enables us to
 scale the number of airflow workers deployed on Kubernetes by this chart
 depending on the number of task that are ``queued`` or ``running``.
