@@ -2654,28 +2654,38 @@ class ConfigurationView(AirflowBaseView):
     def conf(self):
         """Shows configuration."""
         title = "Airflow Configuration"
-        # Don't show config when expose_config variable is False in airflow config
-        expose_config = conf.getboolean("webserver", "expose_config")
-        if expose_config:
+
+        if conf.getboolean("webserver", "expose_config"):
             table = [
                 (section, key, value, source)
                 for section, parameters in conf.as_dict(True, True).items()
                 for key, (value, source) in parameters.items()
             ]
-        else:
-            table = None
 
-        if request.args.get('raw') == "true" and expose_config:
-            with open(AIRFLOW_CONFIG) as file:
-                config = file.read()
-            return Response(response=config, status=200, mimetype="application/text")
-        else:
+            if request.args.get('raw') == "true":
+                return Response(response=json.dumps(table), status=200, mimetype="application/json")
+
             return self.render_template(
                 'airflow/config.html',
-                pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
                 title=title,
+                pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
                 table=table,
-                expose_config=expose_config,
+            )
+
+        else:
+            hide_config_msg = (
+                "Your Airflow administrator chose not to expose the configuration, "
+                "most likely for security reasons."
+            )
+
+            if request.args.get('raw') == "true":
+                return Response(headers={"Reason": hide_config_msg}, status=204, mimetype="application/text")
+
+            return self.render_template(
+                'airflow/config.html',
+                title=title,
+                pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
+                hide_config_msg=hide_config_msg,
             )
 
 
