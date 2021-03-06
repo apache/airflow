@@ -28,7 +28,7 @@ class TestAirbyteJobSensor(unittest.TestCase):
 
     task_id = "task-id"
     airbyte_conn_id = "airbyte-conn-test"
-    job_id = ''
+    job_id = 1
     timeout = 120
 
     def get_job(self, status):

@@ -30,6 +30,7 @@ class TestAirbyteTriggerSyncOp(unittest.TestCase):
     airbyte_conn_id = 'test_airbyte_conn_id'
     connection_id = 'test_airbyte_connection'
     job_id = 1
+    wait_seconds = 0
     timeout = 360
 
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.submit_sync_connection')
@@ -43,9 +44,12 @@ class TestAirbyteTriggerSyncOp(unittest.TestCase):
             task_id='test_Airbyte_op',
             airbyte_conn_id=self.airbyte_conn_id,
             connection_id=self.connection_id,
+            wait_seconds=self.wait_seconds,
             timeout=self.timeout,
         )
         op.execute({})
 
         mock_submit_sync_connection.assert_called_once_with(connection_id=self.connection_id)
-        mock_wait_for_job.assert_called_once_with(job_id=self.job_id, timeout=self.timeout)
+        mock_wait_for_job.assert_called_once_with(
+            job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout
+        )

@@ -24,7 +24,7 @@ The Airbyte connection type use the HTTP protocol.
 Configuring the Connection
 --------------------------
 Host(required)
-    The host to connect to Airbyte server.
+    The host to connect to the Airbyte server.
 
 Port (required)
     The port for the Airbyte server.
