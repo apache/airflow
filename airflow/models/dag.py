@@ -1087,7 +1087,7 @@ class DAG(LoggingMixin):
             # using the items() method for iterating, a copy of the
             # unsorted graph is used, allowing us to modify the unsorted
             # graph as we move through it. We also keep a flag for
-            # checking that that graph is acyclic, which is true if any
+            # checking that graph is acyclic, which is true if any
             # nodes are resolved during each pass through the graph. If
             # not, we need to exit as the graph therefore can't be
             # sorted.

@@ -230,7 +230,7 @@ dependencies that are not needed in the final image. You need to use Airflow Sou
 from the `official distribution folder of Apache Airflow <https://downloads.apache.org/airflow/>`_ for the
 released versions, or checked out from the GitHub project if you happen to do it from git sources.
 
-The easiest way to build the image image is to use ``breeze`` script, but you can also build such customized
+The easiest way to build the image is to use ``breeze`` script, but you can also build such customized
 image by running appropriately crafted docker build in which you specify all the ``build-args``
 that you need to add to customize it. You can read about all the args and ways you can build the image
 in the `<#production-image-build-arguments>`_ chapter below.

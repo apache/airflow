@@ -556,5 +556,5 @@ jobs:
           cancelMode: self
           notifyPRCancel: true
           notifyPRCancelMessage: |
-            Building images for the PR has failed. Follow the the workflow link to check the reason.
+            Building images for the PR has failed. Follow the workflow link to check the reason.
           sourceRunId: ${{ github.event.workflow_run.id }}
