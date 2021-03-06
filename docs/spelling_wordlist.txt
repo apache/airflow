@@ -345,6 +345,8 @@ Sqoop
 Stackdriver
 Standarization
 Standish
+StatefulSet
+StatefulSets
 StatsD
 Statsd
 StoredInfoType
@@ -690,6 +692,7 @@ docstrings
 doesn
 doesnt
 donot
+downscaling
 dropdown
 druidHook
 ds
@@ -1110,6 +1113,7 @@ projectId
 projectid
 proto
 protobuf
+provisioner
 psql
 psycopg
 pty
@@ -1155,6 +1159,7 @@ reformats
 regexes
 reidentify
 reinit
+reinitialization
 relativedelta
 renewer
 replicaSet
@@ -1193,6 +1198,8 @@ sasl
 savedModel
 scalability
 scalable
+scaler
+scalers
 sched
 schedulable
 schedulername
