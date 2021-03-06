@@ -261,33 +261,33 @@ class DockerOperator(BaseOperator):
             )
 
             lines = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
-            self.cli.start(self.container['Id'])
 
-            line = ''
-            res_lines = []
-            for line in lines:
-                line = line.strip()
-                if hasattr(line, 'decode'):
-                    # Note that lines returned can also be byte sequences so we have to handle decode here
-                    line = line.decode('utf-8')
-                res_lines.append(line)
-                self.log.info(line)
+            try:
+                self.cli.start(self.container['Id'])
 
-            result = self.cli.wait(self.container['Id'])
-            if result['StatusCode'] != 0:
+                line = ''
+                res_lines = []
+                for line in lines:
+                    line = line.strip()
+                    if hasattr(line, 'decode'):
+                        # Note that lines returned can also be byte sequences so we have to handle decode here
+                        line = line.decode('utf-8')
+                    res_lines.append(line)
+                    self.log.info(line)
+
+                result = self.cli.wait(self.container['Id'])
+                if result['StatusCode'] != 0:
+                    res_lines = "\n".join(res_lines)
+                    raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
+
+                ret = None
+                if self.do_xcom_push:
+                    ret = self.cli.logs(container=self.container['Id']) if self.xcom_all else line.encode('utf-8')
+                return ret
+            finally:
                 if self.auto_remove:
                     self.cli.remove_container(self.container['Id'])
-                res_lines = "\n".join(res_lines)
-                raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
 
-            # duplicated conditional logic because of expensive operation
-            ret = None
-            if self.do_xcom_push:
-                ret = self.cli.logs(container=self.container['Id']) if self.xcom_all else line.encode('utf-8')
-            if self.auto_remove:
-                self.cli.remove_container(self.container['Id'])
-
-            return ret
 
     def execute(self, context) -> Optional[str]:
         self.cli = self._get_cli()
