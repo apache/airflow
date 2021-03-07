@@ -35,9 +35,9 @@ Unidecode==1.2.0
 WTForms==2.3.3
 Werkzeug==1.0.1
 adal==1.2.6
-aiohttp==3.7.4
+aiohttp==3.7.4.post0
 alabaster==0.7.12
-alembic==1.5.5
+alembic==1.5.6
 amqp==2.6.1
 analytics-python==1.2.9
 ansiwrap==0.8.4
@@ -152,7 +152,6 @@ boto3==1.15.18
 boto==2.49.0
 botocore==1.18.18
 bowler==0.9.0
-cached-property==1.5.2
 cachetools==4.2.1
 cassandra-driver==3.20.2
 cattrs==1.3.0
@@ -214,13 +213,13 @@ gevent==21.1.2
 gitdb==4.0.5
 github3.py==2.0.0
 google-ads==7.0.0
-google-api-core==1.26.0
+google-api-core==1.26.1
 google-api-python-client==1.12.8
 google-apitools==0.5.31
-google-auth-httplib2==0.0.4
-google-auth-oauthlib==0.4.2
-google-auth==1.27.0
-google-cloud-automl==2.1.0
+google-auth-httplib2==0.1.0
+google-auth-oauthlib==0.4.3
+google-auth==1.27.1
+google-cloud-automl==2.2.0
 google-cloud-bigquery-datatransfer==3.0.0
 google-cloud-bigquery-storage==2.3.0
 google-cloud-bigquery==1.28.0
@@ -229,7 +228,7 @@ google-cloud-build==2.0.0
 google-cloud-container==1.0.1
 google-cloud-core==1.6.0
 google-cloud-datacatalog==3.0.0
-google-cloud-dataproc==2.2.0
+google-cloud-dataproc==2.3.0
 google-cloud-datastore==1.15.3
 google-cloud-dlp==1.0.0
 google-cloud-kms==2.2.0
@@ -239,7 +238,7 @@ google-cloud-memcache==0.3.0
 google-cloud-monitoring==2.0.1
 google-cloud-os-login==2.1.0
 google-cloud-pubsub==2.4.0
-google-cloud-redis==2.0.0
+google-cloud-redis==2.1.0
 google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.19.1
 google-cloud-speech==1.3.2
@@ -360,7 +359,7 @@ prison==0.1.3
 prometheus-client==0.8.0
 prompt-toolkit==3.0.16
 proto-plus==1.14.2
-protobuf==3.15.4
+protobuf==3.15.5
 psutil==5.8.0
 psycopg2-binary==2.8.6
 ptyprocess==0.7.0
@@ -432,11 +431,11 @@ sentry-sdk==0.20.3
 setproctitle==1.2.2
 simple-salesforce==1.10.1
 six==1.15.0
-slack-sdk==3.4.1
+slack-sdk==3.4.2
 smmap==3.0.5
 snakebite-py3==3.0.5
 snowballstemmer==2.1.0
-snowflake-connector-python==2.4.0
+snowflake-connector-python==2.4.1
 snowflake-sqlalchemy==1.2.4
 sortedcontainers==2.3.0
 soupsieve==2.2
@@ -457,7 +456,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.4
 sphinxcontrib-spelling==5.2.1
-spython==0.0.85
+spython==0.1.1
 sshpubkeys==3.3.1
 sshtunnel==0.1.5
 starkbank-ecdsa==1.1.0
@@ -475,7 +474,7 @@ thrift==0.13.0
 toml==0.10.2
 toolz==0.11.1
 tornado==6.1
-tqdm==4.58.0
+tqdm==4.59.0
 traitlets==5.0.5
 typed-ast==1.4.2
 typing-extensions==3.7.4.3
@@ -498,6 +497,6 @@ yandexcloud==0.75.0
 yarl==1.6.3
 zdesk==2.7.1
 zict==2.0.0
-zipp==3.4.0
+zipp==3.4.1
 zope.event==4.5.0
 zope.interface==5.2.0
