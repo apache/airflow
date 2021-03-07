@@ -1393,7 +1393,6 @@ paths:
         - $ref: '#/components/parameters/PageOffset'
         - $ref: '#/components/parameters/FilterByUsername'
         - $ref: '#/components/parameters/FilterByEmail'
-        - $ref: '#/components/parameters/FilterByPermissions'
       responses:
         '200':
           description: Success.
@@ -1411,7 +1410,7 @@ paths:
       - $ref: '#/components/parameters/RoleName'
 
     get:
-      summary: Get a connection
+      summary: Get a role
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
       operationId: get_role
       tags: [Role]
@@ -1429,6 +1428,48 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /permissions:
+    get:
+      summary: List permissions
+      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      operationId: get_permissions
+      tags: [Permission]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /permissions/{permission_name}:
+    parameters:
+      - $ref: '#/components/parameters/PermissionName'
+    get:
+      summary: Get a permission
+      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      operationId: get_permission
+      tags: [Permission]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionCollectionItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
   # Reusable schemas (data models)
@@ -2221,9 +2262,6 @@ components:
       description: Role collection item
       type: object
       properties:
-        role_id:
-          type: integer
-          description: The role ID
         name:
           type: string
           description: The name of the role
@@ -2248,9 +2286,6 @@ components:
       description: Permission Action Collection Item
       type: object
       properties:
-        action_id:
-          type: integer
-          description: The permission action ID
         name:
           type: string
           description: The name of the permission
@@ -2272,25 +2307,17 @@ components:
       description: The Action-Resource permission item
       type: object
       properties:
-        action_resource_id:
-          type: integer
-          description: The PermissionView ID
         action:
-          type: object
+          type: string
           description: The permission actions
-          $ref: '#/components/schemas/ActionCollection'
         resource:
-          type: object
+          type: string
           description: The permission resource
-          $ref: '#/components/schemas/ResourceCollection'
 
     ResourceCollectionItem:
       description: Resource Collection Item
       type: object
       properties:
-        resource_id:
-          type: integer
-          description: The Resource ID
         name:
           type: string
           description: The name of the Resource
@@ -2818,6 +2845,14 @@ components:
         type: string
       required: true
       description: The role name
+
+    PermissionName:
+      in: path
+      name: permission_name
+      schema:
+        type: string
+      required: true
+      description: The permission name
 
     ConnectionID:
       in: path

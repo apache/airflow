@@ -30,7 +30,6 @@ class ResourceCollectionItemSchema(SQLAlchemySchema):
 
         model = ViewMenu
 
-    id = auto_field()
     name = auto_field()
 
 
@@ -56,7 +55,6 @@ class ActionCollectionItemSchema(SQLAlchemySchema):
 
         model = Permission
 
-    id = auto_field()
     name = auto_field()
 
 
@@ -82,20 +80,28 @@ class ActionResourceSchema(SQLAlchemySchema):
 
         model = PermissionView
 
-    action_resource_id = auto_field('id')
-    permission = fields.Nested(ActionCollectionItemSchema, data_key="action")
-    view_menu = fields.Nested(ResourceCollectionItemSchema, data_key="resource")
+    action = fields.Method("get_action_name")
+    resource = fields.Method('get_resource_name')
+
+    @staticmethod
+    def get_action_name(obj: PermissionView):
+        """Get permission name"""
+        return obj.permission.name
+
+    @staticmethod
+    def get_resource_name(obj: PermissionView):
+        """Get resource name"""
+        return obj.view_menu.name
 
 
 class RoleCollectionItemSchema(SQLAlchemySchema):
-    """Role item shema"""
+    """Role item schema"""
 
     class Meta:
         """Meta"""
 
         model = Role
 
-    role_id = auto_field('id')
     name = auto_field()
     permissions = fields.List(fields.Nested(ActionResourceSchema), data_key='actions')
 
