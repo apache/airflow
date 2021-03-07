@@ -21,7 +21,13 @@ Apache Hadoop HDFS Operators
 ============================
 
 
-`Apache Hadoop HDFS <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__ is a distributed file system designed to run on commodity hardware. It has many similarities with existing distributed file systems. However, the differences from other distributed file systems are significant. HDFS is highly fault-tolerant and is designed to be deployed on low-cost hardware. HDFS provides high throughput access to application data and is suitable for applications that have large data sets. HDFS relaxes a few POSIX requirements to enable streaming access to file system data. HDFS is now an Apache Hadoop sub project.
+`Apache Hadoop HDFS <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__ is a distributed file system
+designed to run on commodity hardware. It has many similarities with existing distributed file systems.
+However, the differences from other distributed file systems are significant.
+HDFS is highly fault-tolerant and is designed to be deployed on low-cost hardware.
+HDFS provides high throughput access to application data and is suitable for applications that have
+large data sets. HDFS relaxes a few POSIX requirements to enable streaming access to file
+system data. HDFS is now an Apache Hadoop sub project.
 
 .. contents::
   :depth: 1
@@ -30,7 +36,7 @@ Apache Hadoop HDFS Operators
 Prerequisite
 ------------
 
-To use operators, you must configure a :doc:`HDFS Connection <../../connection/hdfs>`.
+To use operators, you must configure a :doc:`HDFS Connection <connections>`.
 
 .. _howto/operator:HdfsFolderSensor:
 
@@ -39,7 +45,8 @@ HdfsFolderSensor
 Waits for a non-empty directory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The :class:`~airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor` operator is used to check for a non-empty directory in HDFS.
+The :class:`~airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor` operator is used to
+check for a non-empty directory in HDFS.
 
 Use the ``filepath`` parameter to poke until the provided file is found.
 
@@ -50,9 +57,11 @@ HdfsRegexSensor
 Waits for matching files by matching on regex
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The :class:`~airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor` operator is used to check for matching files by matching on regex in HDFS.
+The :class:`~airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor` operator is used to check for
+matching files by matching on regex in HDFS.
 
-Use the ``filepath`` parameter to mention the keyspace and table for the record. Use dot notation to target a specific keyspace.
+Use the ``filepath`` parameter to mention the keyspace and table for the record. Use dot notation to target a
+specific keyspace.
 
 
 .. _howto/operator:HdfsSensor:

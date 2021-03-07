@@ -23,7 +23,10 @@ The Apache HDFS connection type enables connection to Apache HDFS.
 Default Connection IDs
 ----------------------
 
-HDFS Hook uses parameter ``hdfs_conn_id`` for Connection IDs and the value of the parameter as ``hdfs_default`` by default. Web HDFS Hook uses parameter ``webhdfs_conn_id`` for Connection IDs and the value of the parameter as ``webhdfs_default`` by default.
+HDFS Hook uses parameter ``hdfs_conn_id`` for Connection IDs and the value of the parameter
+as ``hdfs_default`` by default.
+Web HDFS Hook uses parameter ``webhdfs_conn_id`` for Connection IDs and the value of the
+parameter as ``webhdfs_default`` by default.
 
 Configuring the Connection
 --------------------------
@@ -34,7 +37,8 @@ Port
     Specify the port in case of host be an URL.
 
 Extra (optional, connection parameters)
-    Specify the extra parameters (as json dictionary) that can be used in HDFS connection. The following parameters out of the standard python parameters are supported:
+    Specify the extra parameters (as json dictionary) that can be used in HDFS connection. The following
+    parameters out of the standard python parameters are supported:
 
     * ``proxy_user`` - Effective user for HDFS operations.
     * ``autoconfig`` - Default value is bool: False. Use snakebite's automatically configured client. This HDFSHook implementation requires snakebite.
