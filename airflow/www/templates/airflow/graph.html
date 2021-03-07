@@ -185,8 +185,6 @@
 
         // When an expanded group is clicked, collapse it.
         d3.selectAll("g.cluster").on("click", function (node_id) {
-          d3.event.stopPropagation();
-
           if (d3.event.defaultPrevented) // Ignore dragging actions.
               return;
           node = g.node(node_id)
@@ -194,7 +192,6 @@
         })
         // When a node is clicked, action depends on the node type.
         d3.selectAll("g.node").on("click", function (node_id) {
-          d3.event.stopPropagation();
           node = g.node(node_id)
           if (node.children != undefined && Object.keys(node.children).length > 0) {
             // A group node
@@ -235,7 +232,7 @@
         });
 
         d3.selectAll("g.node").on("mouseout", function (d) {
-          d3.select(this).selectAll("rect").style("stroke", null);
+          d3.select(this).selectAll("rect,circle").style("stroke", null);
           highlight_nodes(g.predecessors(d), null, initialStrokeWidth)
           highlight_nodes(g.successors(d), null, initialStrokeWidth)
           d3.selectAll("g.node")
@@ -244,6 +241,7 @@
             .style("stroke-width", initialStrokeWidth);
           d3.selectAll("g.edgePath")
             .style("opacity", 1);
+          localStorage.removeItem(focused_group_key(dag_id))
         });
         updateNodesStates(task_instances);
         setUpZoomSupport();
@@ -412,7 +410,7 @@
           d3.selectAll('.js-state-legend-item')
               .style("background-color", null);
 
-          localStorage.setItem(focused_group_key(dag_id), undefined)
+          localStorage.removeItem(focused_group_key(dag_id))
       }
 
       function focusState(state, node, color){
@@ -587,6 +585,22 @@
         return children
       }
 
+      // Return list of all task group ids in the given task group including the given group itself.
+      function get_all_group_ids(group) {
+        var children = [group.id]
+
+        for(const [key, val] of Object.entries(group.children)) {
+          if(val.children != undefined) {
+            // group
+            const sub_group_children = get_all_group_ids(val)
+            for(const id of sub_group_children) {
+              children.push(id)
+            }
+          }
+        }
+        return children
+      }
+
 
       // Return the state for the node based on the state of its taskinstance or that of its
       // children if it's a group node
@@ -680,7 +694,7 @@
       }
 
       // Expands a group node
-      function expand_group(node_id, node) {
+      function expand_group(node_id, node, focus=true) {
         node.children.forEach(function (val) {
           // Set children nodes
           g.setNode(val.id, val.value)
@@ -714,7 +728,9 @@
         })
 
         draw()
-        focus_group(node_id)
+
+        if (focus)
+          focus_group(node_id)
 
         save_expanded_group(node_id)
     }
@@ -756,7 +772,7 @@
         draw()
         focus_group(node_id)
 
-        remove_expanded_group(node_id)
+        remove_expanded_group(node_id, node)
       }
 
     function get_saved_groups(dag_id) {
@@ -770,8 +786,17 @@
         return expanded_groups;
     }
 
-    // Remember the expanded groups in local storage so that refreshing the page doesn't reset
-    // the graph state.
+    // Clean up invalid group_ids from saved_group_ids (e.g. due to DAG changes)
+    function prune_invalid_saved_group_ids() {
+        // All the group_ids in the whole DAG
+        const all_group_ids = new Set(get_all_group_ids(nodes))
+        var expanded_groups = get_saved_groups(dag_id);
+        expanded_groups = Array.from(expanded_groups).filter(group_id => all_group_ids.has(group_id))
+        localStorage.setItem(expanded_groups_key(dag_id), JSON.stringify(expanded_groups))
+    }
+
+    // Remember the expanded groups in local storage so that it can be used to restore the expanded state
+    // of task groups.
     function save_expanded_group(node_id) {
         // expanded_groups is a Set
         var expanded_groups = get_saved_groups(dag_id);
@@ -780,9 +805,10 @@
     }
 
     // Remove the node_id from the expanded state
-    function remove_expanded_group(node_id) {
+    function remove_expanded_group(node_id, node) {
         var expanded_groups = get_saved_groups(dag_id);
-        expanded_groups.delete(node_id)
+        const child_group_ids = get_all_group_ids(node)
+        child_group_ids.forEach(child_id => expanded_groups.delete(child_id))
         localStorage.setItem(expanded_groups_key(dag_id), JSON.stringify(Array.from(expanded_groups)))
     }
 
@@ -794,15 +820,14 @@
 
         node.children.forEach(function (child_node) {
             if(expanded_groups.has(child_node.id)) {
-                expand_group(child_node.id, g.node(child_node.id))
+                expand_group(child_node.id, g.node(child_node.id), false)
 
                 expand_saved_groups(expanded_groups, child_node)
             }
         })
     }
 
-    svg.node().onclick = clearFocus
-
+    prune_invalid_saved_group_ids()
     const focus_node_id = localStorage.getItem(focused_group_key(dag_id))
     const expanded_groups = get_saved_groups(dag_id)
 
@@ -812,9 +837,9 @@
     // Expand the node that were previously expanded
     expand_saved_groups(expanded_groups, nodes)
 
-    // Focus the node that was previously in focus
-    if (focus_node_id != undefined && g.hasNode(focus_node_id))
-        focus_group(focus_node_id)
+    // Restore focus (if available)
+    if(g.hasNode(focus_node_id))
+      focus_group(focus_node_id)
 
     initRefresh();
   </script>
