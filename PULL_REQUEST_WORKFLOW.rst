@@ -237,7 +237,7 @@ As explained above the approval and matrix tests workflow works according to the
     :align: center
     :alt: Full tests are needed for the PR
 
-4) If this or another committer "request changes" in a  previously approved PR with "full tests needed"
+4) If this or another committer "request changes" in a previously approved PR with "full tests needed"
    label, the bot automatically removes the label, moving it back to "run only default set of parameters"
    mode. For PRs touching core of airflow once the PR gets approved back, the label will be restored.
    If it was manually set by the committer, it has to be restored manually.
