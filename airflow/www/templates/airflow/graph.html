@@ -673,7 +673,7 @@
             // Is there a better way to get node_width and node_height ?
             const [node_width, node_height] = [rect[0][0].attributes.width.value, rect[0][0].attributes.height.value];
 
-            // Calculate zoom scale to fill most of the canvas with the the node/cluster in focus.
+            // Calculate zoom scale to fill most of the canvas with the node/cluster in focus.
             const scale = Math.min(
               Math.min(width / node_width, height / node_height),
               1.5,  // cap zoom level to 1.5 so nodes are not too large

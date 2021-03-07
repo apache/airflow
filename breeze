@@ -2012,7 +2012,7 @@ ${CMDNAME} static-check [FLAGS] static_check [-- <EXTRA_ARGS>]
 
 ${FORMATTED_STATIC_CHECKS}
 
-      You can pass extra arguments including options to to the pre-commit framework as
+      You can pass extra arguments including options to the pre-commit framework as
       <EXTRA_ARGS> passed after --. For example:
 
       '${CMDNAME} static-check mypy' or

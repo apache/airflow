@@ -237,7 +237,7 @@ As explained above the approval and matrix tests workflow works according to the
     :align: center
     :alt: Full tests are needed for the PR
 
-4) If this or another committer "request changes" in in a  previously approved PR with "full tests needed"
+4) If this or another committer "request changes" in a previously approved PR with "full tests needed"
    label, the bot automatically removes the label, moving it back to "run only default set of parameters"
    mode. For PRs touching core of airflow once the PR gets approved back, the label will be restored.
    If it was manually set by the committer, it has to be restored manually.
@@ -248,7 +248,7 @@ As explained above the approval and matrix tests workflow works according to the
       for the PRs and they provide good "notification" for the committer to act on a PR that was recently
       approved.
 
-The PR approval workflow is possible thanks two two custom GitHub Actions we've developed:
+The PR approval workflow is possible thanks to two custom GitHub Actions we've developed:
 
 * `Get workflow origin <https://github.com/potiuk/get-workflow-origin/>`_
 * `Label when approved <https://github.com/TobKed/label-when-approved-action>`_

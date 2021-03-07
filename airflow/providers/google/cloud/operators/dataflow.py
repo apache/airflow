@@ -84,7 +84,7 @@ class DataflowConfiguration:
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of canceling during during killing task instance. See:
+        instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :type drain_pipeline: bool
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
@@ -717,7 +717,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         domain-wide delegation enabled.
     :type delegate_to: str
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of canceling during during killing task instance. See:
+        instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :type drain_pipeline: bool
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
@@ -843,7 +843,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         domain-wide delegation enabled.
     :type delegate_to: str
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of canceling during during killing task instance. See:
+        instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :type drain_pipeline: bool
     """
@@ -982,7 +982,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of canceling during during killing task instance. See:
+        instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :type drain_pipeline: bool
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be

@@ -166,7 +166,7 @@ secret: []
 # Extra secrets that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
 # The format is "key/value" where
-#    * key (can be templated) is the the name the secret that will be created
+#    * key (can be templated) is the name of the secret that will be created
 #    * value: an object with the standard 'data' or 'stringData' key (or both).
 #          The value associated with those keys must be a string (can be templated)
 extraSecrets: {}
@@ -185,7 +185,7 @@ extraSecrets: {}
 # Extra ConfigMaps that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
 # The format is "key/value" where
-#    * key (can be templated) is the the name the configmap that will be created
+#    * key (can be templated) is the name of the configmap that will be created
 #    * value: an object with the standard 'data' key.
 #          The value associated with this keys must be a string (can be templated)
 extraConfigMaps: {}

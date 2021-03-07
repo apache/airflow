@@ -436,7 +436,7 @@ Customizing the image
 
 Customizing the image is an alternative way of adding your own dependencies to the image.
 
-The easiest way to build the image image is to use ``breeze`` script, but you can also build such customized
+The easiest way to build the image is to use ``breeze`` script, but you can also build such customized
 image by running appropriately crafted docker build in which you specify all the ``build-args``
 that you need to add to customize it. You can read about all the args and ways you can build the image
 in the `<#ci-image-build-arguments>`_ chapter below.

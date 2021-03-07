@@ -576,7 +576,7 @@ class DagRun(Base, LoggingMixin):
         started task within the DAG and calculate the expected DagRun start time (based on
         dag.execution_date & dag.schedule_interval), and minus these two values to get the delay.
         The emitted data may contains outlier (e.g. when the first task was cleared, so
-        the second task's start_date will be used), but we can get rid of the the outliers
+        the second task's start_date will be used), but we can get rid of the outliers
         on the stats side through the dashboards tooling built.
         Note, the stat will only be emitted if the DagRun is a scheduler triggered one
         (i.e. external_trigger is False).

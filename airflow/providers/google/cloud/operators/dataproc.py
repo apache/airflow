@@ -610,7 +610,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         # Check if cluster is not in ERROR state
         self._handle_error_state(hook, cluster)
         if cluster.status.state == cluster.status.State.CREATING:
-            # Wait for cluster to be be created
+            # Wait for cluster to be created
             cluster = self._wait_for_cluster_in_creating_state(hook)
             self._handle_error_state(hook, cluster)
         elif cluster.status.state == cluster.status.State.DELETING:

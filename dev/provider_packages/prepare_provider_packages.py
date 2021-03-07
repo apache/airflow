@@ -971,7 +971,7 @@ def make_sure_remote_apache_exists_and_fetch():
     Make sure that apache remote exist in git. We need to take a log from the apache
     repository - not locally.
 
-    Also the the local repo might be shallow so we need to unshallow it.
+    Also the local repo might be shallow so we need to unshallow it.
 
     This will:
     * check if the remote exists and add if it does not

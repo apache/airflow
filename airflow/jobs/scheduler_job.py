@@ -1459,7 +1459,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
           By "next oldest", we mean hasn't been examined/scheduled in the most time.
 
           The reason we don't select all dagruns at once because the rows are selected with row locks, meaning
-          that only one scheduler can "process them", even it it is waiting behind other dags. Increasing this
+          that only one scheduler can "process them", even it is waiting behind other dags. Increasing this
           limit will allow more throughput for smaller DAGs but will likely slow down throughput for larger
           (>500 tasks.) DAGs
 

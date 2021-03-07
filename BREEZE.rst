@@ -2283,7 +2283,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
                  version-sync yamllint
 
-        You can pass extra arguments including options to to the pre-commit framework as
+        You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
 
         'breeze static-check mypy' or
