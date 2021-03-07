@@ -450,7 +450,7 @@ def is_from_the_expected_base_package(the_class: Type, expected_package: str) ->
     return the_class.__module__.startswith(expected_package)
 
 
-def inherits_from(the_class: Type, expected_ancestor: Optional[Type]) -> bool:
+def inherits_from(the_class: Type, expected_ancestor: Optional[Type] = None) -> bool:
     """
     Returns true if the class inherits (directly or indirectly) from the class specified.
     :param the_class: The class to check
