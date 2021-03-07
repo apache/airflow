@@ -214,9 +214,7 @@ class TestSFTPToWasbOperator(unittest.TestCase):
             [mock.call("main_dir/test_object.json", mock.ANY)]
         )
 
-        mock_hook.return_value.load_file.assert_called_once_with(
-            mock.ANY, CONTAINER_NAME, "test_object.json"
-        )
+        mock_hook.return_value.load_file.assert_called_once_with(mock.ANY, CONTAINER_NAME, "test_object.json")
 
         sftp_hook.return_value.delete_file.assert_not_called()
 
@@ -250,6 +248,6 @@ class TestSFTPToWasbOperator(unittest.TestCase):
         )
 
         mock_hook.return_value.load_file.assert_called_once_with(
-            mock.ANY, CONTAINER_NAME, BLOB_PREFIX + "test_object" ".json"
+            mock.ANY, CONTAINER_NAME, BLOB_PREFIX + "test_object.json"
         )
         assert sftp_hook.return_value.delete_file.called is True, "File must be moved"
