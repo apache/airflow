@@ -326,14 +326,16 @@ svn update .
 
 This can be done with the Apache RAT tool.
 
-* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the sources,
+* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the -source.tar.gz to a folder
+* Unpack the binary (`-bin.tar.gz`) to a folder
 * Enter the folder and run the check (point to the place where you extracted the .jar)
 
 ```shell script
 java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
 ```
+
+where `.rat-excludes` is the file in the root of Airflow source code.
 
 ### Signature check
 
