@@ -251,7 +251,7 @@ You can see for example list of all provider packages:
 ```
 
 
-You can add ``--verbose`` flag in breeze command if you want to see commands executed.
+You can add `--verbose` flag in breeze command if you want to see commands executed.
 
 ## Debugging import check
 
