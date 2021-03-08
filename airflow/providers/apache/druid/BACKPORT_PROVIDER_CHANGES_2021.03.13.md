@@ -1,9 +1,11 @@
 
 
-### Release 2021.3.3
+### Release 2021.3.13
 
 | Commit                                                                                         | Committed   | Subject                                                                          |
 |:-----------------------------------------------------------------------------------------------|:------------|:---------------------------------------------------------------------------------|
+| [59065400f](https://github.com/apache/airflow/commit/59065400ff6333e3ff085f3d9fe9005a0a849aef) | 2021-03-05  | `Bugfix: DruidOperator fails to submit ingestion tasks (#14418)`                 |
+| [589d6dec9](https://github.com/apache/airflow/commit/589d6dec922565897785bcbc5ac6bb3b973d7f5d) | 2021-02-27  | `Prepare to release the next wave of providers: (#14487)`                        |
 | [33214d932](https://github.com/apache/airflow/commit/33214d9326bb0bb52f06e230895f4f68fc952664) | 2021-02-26  | `Refactor SQL/BigQuery/Qubole/Druid Check operators (#12677)`                    |
 | [88bdcfa0d](https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43) | 2021-02-04  | `Prepare to release a new wave of providers. (#14013)`                           |
 | [ac2f72c98](https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b) | 2021-02-01  | `Implement provider versioning tools (#13767)`                                   |
