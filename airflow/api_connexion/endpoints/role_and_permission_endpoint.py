@@ -16,14 +16,20 @@
 # under the License.
 
 from flask import current_app
-from flask_appbuilder.security.sqla.models import Permission, Role, User, assoc_user_role
-from sqlalchemy import and_, func, or_
+from flask_appbuilder.security.sqla.models import (
+    Permission,
+    PermissionView,
+    Role,
+    User,
+    assoc_permissionview_role,
+    assoc_user_role,
+)
+from sqlalchemy import and_, func
 
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.role_and_permission_schema import (
     ActionCollection,
     RoleCollection,
-    action_collection_item_schema,
     action_collection_schema,
     role_collection_item_schema,
     role_collection_schema,
@@ -39,37 +45,34 @@ def get_role(role_name):
     return role_collection_item_schema.dump(role)
 
 
-def get_roles(username=None, email=None, limit=None, offset=None):
+def get_roles(usernames=None, action_resource_ids=None, role_name=None, limit=None, offset=None):
     """Get roles"""
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(Role.id)).scalar()
     query = session.query(Role)
-    if username or email:
+
+    if usernames:
         query = (
             query.join(
                 assoc_user_role,
                 and_(
-                    (Role.id == assoc_user_role.c.role_id),
+                    Role.id == assoc_user_role.c.role_id,
                 ),
             )
             .join(User)
-            .filter(or_(User.username == username, User.email == email))
+            .filter(User.username.in_(usernames))
         )
+    if action_resource_ids:
+        query = query.join(
+            assoc_permissionview_role, and_(Role.id == assoc_permissionview_role.c.role_id)
+        ).filter(PermissionView.id.in_(action_resource_ids))
+    if role_name:
+        query = query.filter(func.lower(Role.name) == role_name.lower())
+
     roles = query.offset(offset).limit(limit).all()
 
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
-
-
-def get_permission(permission_name):
-    """Get permission"""
-    ab_security_manager = current_app.appbuilder.sm
-    permission = ab_security_manager.find_permission(name=permission_name)
-    if not permission:
-        raise NotFound(
-            title="Permission not found", detail=f"The permission with name {permission_name} was not found"
-        )
-    return action_collection_item_schema.dump(permission)
 
 
 def get_permissions(limit=None, offset=None):

@@ -1391,8 +1391,9 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/FilterByUsername'
-        - $ref: '#/components/parameters/FilterByEmail'
+        - $ref: '#/components/parameters/FilterByUsernames'
+        - $ref: '#/components/parameters/FilterByActionResourceID'
+        - $ref: '#/components/parameters/FilterByRoleName'
       responses:
         '200':
           description: Success.
@@ -1449,27 +1450,6 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /permissions/{permission_name}:
-    parameters:
-      - $ref: '#/components/parameters/PermissionName'
-    get:
-      summary: Get a permission
-      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
-      operationId: get_permission
-      tags: [Permission]
-      responses:
-        '200':
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ActionCollectionItem'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
 
 components:
   # Reusable schemas (data models)
@@ -2955,31 +2935,33 @@ components:
       required: true
       description: The XCom key.
     # Filter
-    FilterByUsername:
+    FilterByUsernames:
       in: query
-      name: username
-      schema:
-        type: string
-      required: false
-      description: Filters object by the given username
-
-    FilterByEmail:
-      in: query
-      name: email
-      schema:
-        type: string
-      required: false
-      description: Filters object by the given email
-
-    FilterByPermissions:
-      in: query
-      name: permissions
+      name: usernames
       schema:
         type: array
         items:
           type: string
       required: false
-      description: Filter Roles by the given permission
+      description: Filters object by the given username
+
+    FilterByRoleName:
+      in: query
+      name: role_name
+      schema:
+        type: string
+      required: false
+      description: Filters object by the given role name
+
+    FilterByActionResourceID:
+      in: query
+      name: action_resource_ids
+      schema:
+        type: array
+        items:
+          type: integer
+      required: false
+      description: Filters object by action and resource id(PermissionView ID)
 
     FilterExecutionDateGTE:
       in: query
