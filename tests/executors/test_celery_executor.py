@@ -143,8 +143,7 @@ class TestCeleryExecutor(unittest.TestCase):
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
                 for (key, simple_ti, command, queue, task) in task_tuples_to_send:  # pylint: disable=W0612
                     executor.queued_tasks.add(key)
-                    heappush(self.queued_tasks_priority_queue, (-1,
-                                                                (command, 1, queue, simple_ti)))
+                    heappush(executor.queued_tasks_priority_queue, (-1, (command, 1, queue, simple_ti)))
                     executor.task_publish_retries[key] = 1
 
                 executor._process_tasks(task_tuples_to_send)
@@ -189,7 +188,7 @@ class TestCeleryExecutor(unittest.TestCase):
 
             executor.queued_tasks.add(simple_ti.key)
             heappush(executor.queued_tasks_priority_queue, (-1, value_tuple))
-            executor.task_publish_retries[key] = 1
+            executor.task_publish_retries[simple_ti.key] = 1
             executor.heartbeat()
         assert 0 == len(executor.queued_tasks), "Task should no longer be queued"
         assert executor.event_buffer[('fail', 'fake_simple_ti', when, 0)][0] == State.FAILED
@@ -221,7 +220,8 @@ class TestCeleryExecutor(unittest.TestCase):
                 SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.now())),
             )
             key = ('fail', 'fake_simple_ti', when, 0)
-            executor.queued_tasks[key] = value_tuple
+            executor.queued_tasks.add(key)
+            heappush(executor.queued_tasks_priority_queue, (-1, value_tuple))
 
             # Test that when heartbeat is called again, task is published again to Celery Queue
             executor.heartbeat()

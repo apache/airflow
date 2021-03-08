@@ -84,8 +84,7 @@ class BaseExecutor(LoggingMixin):
             self.queued_tasks.add(task_instance.key)
             # heapq provides a min heap, while we need a max heap here
             # so we use `-priority` as the 1st element of the items
-            heappush(self.queued_tasks_priority_queue, (-priority,
-                                                        (command, priority, queue, task_instance)))
+            heappush(self.queued_tasks_priority_queue, (-priority, (command, priority, queue, task_instance)))
         else:
             self.log.error("could not queue task %s", task_instance.key)
 
@@ -294,7 +293,7 @@ class BaseExecutor(LoggingMixin):
         self.log.info(
             "executor.queued (%d)\n\t%s",
             len(self.queued_tasks),
-            "\n\t".join(map(repr, self.queued_tasks.items())),
+            "\n\t".join(map(repr, self.queued_tasks)),
         )
         self.log.info("executor.running (%d)\n\t%s", len(self.running), "\n\t".join(map(repr, self.running)))
         self.log.info(
