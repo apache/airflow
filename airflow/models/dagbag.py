@@ -445,10 +445,6 @@ class DagBag(BaseDagBag, LoggingMixin):
                 self.log.exception(e)
         self.dagbag_stats = sorted(
             stats, key=lambda x: x.duration, reverse=True)
-        for file_stat in self.dagbag_stats:
-            # file_stat.file similar format: /subdir/dag_name.py
-            filename = file_stat.file.split('/')[-1].replace('.py', '')
-            Stats.timing('dag.loading-duration.{}'.format(filename), file_stat.duration)
 
     def collect_dags_from_db(self):
         """Collects DAGs from database."""
