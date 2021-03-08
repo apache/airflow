@@ -910,6 +910,7 @@ json
 jthomas
 jupyter
 jupytercmd
+jwt
 kaxil
 kaxilnaik
 keepalive
