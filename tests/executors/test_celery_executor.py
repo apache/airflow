@@ -165,7 +165,7 @@ class TestCeleryExecutor(unittest.TestCase):
         assert 'success' not in executor.tasks
         assert 'fail' not in executor.tasks
 
-        assert executor.queued_tasks == {}
+        assert executor.queued_tasks == set()
         assert timedelta(0, 600) == executor.task_adoption_timeout
 
     @pytest.mark.integration("redis")
