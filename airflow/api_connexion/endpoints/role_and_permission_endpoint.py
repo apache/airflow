@@ -41,7 +41,7 @@ def get_role(role_name):
     ab_security_manager = current_app.appbuilder.sm
     role = ab_security_manager.find_role(name=role_name)
     if not role:
-        raise NotFound(title="Role not found", detail=f"The role with name {role_name} was not found")
+        raise NotFound(title="Role not found", detail=f"The Role with name `{role_name}` was not found")
     return role_collection_item_schema.dump(role)
 
 
