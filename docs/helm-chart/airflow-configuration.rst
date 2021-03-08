@@ -65,6 +65,6 @@ configuration prior to installing and deploying the service.
 
 .. note::
 
-  The recommended way to load example DAGs using the official Docker image and chart is to configure `AIRFLOW__CORE__LOAD_EXAMPLES` environment variable 
-  in `extraEnv` (see :doc:`Parameters reference <parameters-ref.rst>`). Because the official Docker image has `AIRFLOW__CORE__LOAD_EXAMPLES=False` set 
+  The recommended way to load example DAGs using the official Docker image and chart is to configure the ``AIRFLOW__CORE__LOAD_EXAMPLES`` environment variable
+  in ``extraEnv`` (see :doc:`Parameters reference <parameters-ref.rst>`). Because the official Docker image has ``AIRFLOW__CORE__LOAD_EXAMPLES=False`` set
   within the image, so you need to override it when deploying the chart.
