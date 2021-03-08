@@ -17,6 +17,7 @@
 
 import unittest
 
+from flask import current_app
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -67,7 +68,7 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
         assert roles == EXISTING_ROLES
 
 
-class TestGetRolesEndpointPagination(TestRoleEndpoint):
+class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
     @parameterized.expand(
         [
             ("/api/v1/roles?limit=1", ['Admin']),
@@ -131,3 +132,39 @@ class TestGetRolesEndpointPagination(TestRoleEndpoint):
         assert response.json["total_entries"] == 5
         roles = [role['name'] for role in response.json['roles'] if role]
         assert roles.sort() == expected_roles.sort()
+
+
+class TestGetActionsEndpoint(TestRoleEndpoint):
+    def test_should_response_200(self):
+        response = self.client.get("/api/v1/permissions")
+        with self.app.app_context():
+            sec_manager = current_app.appbuilder.sm
+            actions = {i[0] for i in sec_manager.get_all_permissions() if i}
+        assert response.status_code == 200
+        assert response.json['total_entries'] == len(actions)
+        returned_actions = {perm['name'] for perm in response.json['actions']}
+        assert actions == returned_actions
+
+    @parameterized.expand(
+        [
+            ("/api/v1/permissions?resources=DAGs", ["can_edit", "can_read", "can_delete"]),
+            (
+                "/api/v1/permissions?resources=Connections",
+                ["can_edit", "can_read", "can_delete", "can_create", "menu_access"],
+            ),
+            (
+                "/api/v1/permissions?resources=DAGs,Connections",
+                ["can_edit", "can_read", "can_delete", "can_create", "menu_access"],
+            ),
+            ("/api/v1/permissions?resources=UnknownResource", []),
+        ]
+    )
+    def test_filter_by_resources(self, url, expected_actions):
+        response = self.client.get(url)
+        with self.app.app_context():
+            sec_manager = current_app.appbuilder.sm
+            actions = {i[0] for i in sec_manager.get_all_permissions() if i}
+        assert response.status_code == 200
+        assert response.json["total_entries"] == len(actions)
+        actions = [action['name'] for action in response.json['actions'] if action]
+        assert actions.sort() == expected_actions.sort()

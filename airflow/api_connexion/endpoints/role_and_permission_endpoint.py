@@ -21,6 +21,7 @@ from flask_appbuilder.security.sqla.models import (
     PermissionView,
     Role,
     User,
+    ViewMenu,
     assoc_permissionview_role,
     assoc_user_role,
 )
@@ -75,10 +76,16 @@ def get_roles(usernames=None, action_resource_ids=None, role_name=None, limit=No
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
 
-def get_permissions(limit=None, offset=None):
+def get_permissions(resources=None, limit=None, offset=None):
     """Get permissions"""
     session = current_app.appbuilder.get_session
     total_entries = session.query(func.count(Permission.id)).scalar()
     query = session.query(Permission)
+    if resources:
+        query = (
+            query.join(PermissionView, PermissionView.permission_id == Permission.id)
+            .join(ViewMenu)
+            .filter(ViewMenu.name.in_(resources))
+        )
     permissions = query.offset(offset).limit(limit).all()
     return action_collection_schema.dump(ActionCollection(actions=permissions, total_entries=total_entries))

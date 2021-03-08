@@ -1438,6 +1438,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/FilterByResources'
       responses:
         '200':
           description: Success.
@@ -2962,6 +2963,16 @@ components:
           type: integer
       required: false
       description: Filters object by action and resource id(PermissionView ID)
+
+    FilterByResources:
+      in: query
+      name: resources
+      schema:
+        type: array
+        items:
+          type: string
+      required: false
+      description: Filters permissions(actions) by resources(ViewMenu)
 
     FilterExecutionDateGTE:
       in: query
