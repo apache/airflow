@@ -1657,7 +1657,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             return 0
 
         if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
-            self.log.info("Execution date is in future: %s and not schedule now.", dag_run.execution_date)
+            self.log.info("Execution date is in future: %s and need not to schedule now.", dag_run.execution_date)
             return 0
 
         if dag.max_active_runs:
