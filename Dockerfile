@@ -275,7 +275,6 @@ ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 # Force them on the main Airflow package.
 # * chardet<4 - required to keep snowflake happy
 # * urllib3 - required to keep boto3 happy
-# * pytz<2021.0: required by snowflake provider
 # * pyjwt<2.0.0: flask-jwt-extended requires it
 ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 urllib3<1.26 pyjwt<2.0.0"
 

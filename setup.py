@@ -427,10 +427,7 @@ slack = [
     'slack_sdk>=3.0.0,<4.0.0',
 ]
 snowflake = [
-    # Snowflake connector > 2.3.8 is needed because it has vendored-in, patched urllib and requests libraries
-    # In earlier versions of the snowflake library, monkey-patching the libraries caused other
-    # providers to fail (Google, Amazon etc.)
-    'snowflake-connector-python>=2.3.8',
+    'snowflake-connector-python>=2.4.1',
     'snowflake-sqlalchemy>=1.1.0',
 ]
 spark = [
