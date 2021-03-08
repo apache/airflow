@@ -2827,14 +2827,6 @@ components:
       required: true
       description: The role name
 
-    PermissionName:
-      in: path
-      name: permission_name
-      schema:
-        type: string
-      required: true
-      description: The permission name
-
     ConnectionID:
       in: path
       name: connection_id
