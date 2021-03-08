@@ -17,7 +17,6 @@
 
 import subprocess
 import sys
-from collections import namedtuple
 from functools import lru_cache
 from io import StringIO
 from tempfile import NamedTemporaryFile
@@ -33,12 +32,8 @@ api_client = ApiClient()
 
 BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.0"
 
-K8sObject = namedtuple('K8sObject', ['api_version', 'kind'])
-
 crd_lookup = {
-    K8sObject(
-        'keda.sh/v1alpha1', 'ScaledObject'
-    ): 'https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml',
+    'keda.sh/v1alpha1::ScaledObject': 'https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml',  # noqa: E501 # pylint: disable=line-too-long
 }
 
 
@@ -59,7 +54,7 @@ def get_schema_k8s(api_version, kind):
 
 
 def get_schema_crd(api_version, kind):
-    url = crd_lookup.get(K8sObject(api_version, kind))
+    url = crd_lookup.get(f"{api_version}::{kind}")
     if not url:
         return None
     response = requests.get(url)
