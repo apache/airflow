@@ -347,7 +347,9 @@ class PythonVirtualenvOperator(PythonOperator):
         self.pickling_library = dill if self.use_dill else pickle
 
     def execute(self, context: Dict):
-        serializable_context = {key: context[key] for key in self._get_serializable_context_keys()}
+        serializable_context = {
+            key: context[key] for key in self._get_serializable_context_keys() if context.get(key) is not None
+        }
         return super().execute(context=serializable_context)
 
     def execute_callable(self):
