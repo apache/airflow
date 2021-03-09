@@ -2280,15 +2280,26 @@ components:
                 $ref: '#/components/schemas/ActionCollectionItem'
         - $ref: '#/components/schemas/CollectionInfo'
 
+    Resource:
+      description: The ViewMenu resources
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the resource
+          nullable: false
+
     ActionResource:
       description: The Action-Resource permission item
       type: object
       properties:
         action:
-          type: string
+          type: object
+          $ref: '#/components/schemas/ActionCollectionItem'
           description: The permission actions
         resource:
-          type: string
+          type: object
+          $ref: '#/components/schemas/Resource'
           description: The permission resource
 
     # Configuration
@@ -3146,7 +3157,8 @@ tags:
   - name: Variable
   - name: XCom
   - name: Plugin
-
+  - name: Role
+  - name: Permission
 
 externalDocs:
   url: https://airflow.apache.org/docs/apache-airflow/stable/
