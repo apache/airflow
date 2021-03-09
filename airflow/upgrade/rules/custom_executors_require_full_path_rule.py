@@ -29,8 +29,15 @@ To load a custom executor, you have to provide a full path to the the custom exe
                   """
 
     def check(self):
-        from airflow.plugins_manager import executors_modules
-        if executors_modules:
+        from airflow.plugins_manager import plugins
+        executors_via_plugins = []
+
+        for plugin in plugins:
+            if plugin.executors:
+                for executor in plugin.executors:
+                    executors_via_plugins.append(executor.__name__)
+
+        if executors_via_plugins:
             return (
                 "Deprecation Warning: Found Custom Executor imported via a plugin."
                 "From Airflow 2.0, you should use regular Python Modules to import Custom Executor."
@@ -39,5 +46,5 @@ To load a custom executor, you have to provide a full path to the the custom exe
                 "https://github.com/apache/airflow/blob/2.0.0/"
                 "UPDATING.md#custom-executors-is-loaded-using-full-import-path \n"
                 "Following Executors were imported using Plugins: \n"
-                "{}".format(executors_modules)
+                "{}".format(executors_via_plugins)
             )
