@@ -63,6 +63,7 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app as application
 from airflow.www.extensions import init_views
+from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
 from airflow.www.views import ConnectionModelView, get_safe_url, truncate_task_duration
 from tests.test_utils import fab_utils
 from tests.test_utils.asserts import assert_queries_count
@@ -125,13 +126,10 @@ class TestBase(unittest.TestCase):
     @classmethod
     @dont_initialize(
         to_initialize=[
-            "init_api_connexion",
             "init_appbuilder",
-            "init_appbuilder_links",
             "init_appbuilder_views",
             "init_flash_views",
             "init_jinja_globals",
-            "init_plugins",
         ]
     )
     def setUpClass(cls):
@@ -406,7 +404,6 @@ class TestPoolModelView(TestBase):
         self.check_content_in_response('Already exists.', resp)
 
     def test_create_pool_with_empty_name(self):
-
         self.pool['pool'] = ''
         resp = self.client.post('/pool/add', data=self.pool, follow_redirects=True)
         self.check_content_in_response('This field is required.', resp)
@@ -441,7 +438,8 @@ class TestMountPoint(unittest.TestCase):
     def setUpClass(cls):
         application.app = None
         application.appbuilder = None
-        app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, testing=True)
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_ENABLED'] = False
         cls.client = Client(app, BaseResponse)
 
     @classmethod
@@ -474,6 +472,9 @@ class TestAirflowBaseViews(TestBase):
         models.DagBag(include_examples=True).sync_to_db()
         cls.dagbag = models.DagBag(include_examples=True, read_dags_from_db=True)
         cls.app.dag_bag = cls.dagbag
+        init_views.init_api_connexion(cls.app)
+        init_views.init_plugins(cls.app)
+        init_appbuilder_links(cls.app)
 
     def setUp(self):
         super().setUp()
@@ -1198,6 +1199,11 @@ class TestConfigurationView(TestBase):
 
 
 class TestRedocView(TestBase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        init_views.init_api_connexion(cls.app)
+
     def test_should_render_template(self):
         with self.capture_templates() as templates:
             resp = self.client.get('redoc')
@@ -2378,6 +2384,7 @@ class TestDagACLView(TestBase):
             data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
             follow_redirects=True,
         )
+
         blocked_dags = {blocked['dag_id'] for blocked in json.loads(resp.data.decode('utf-8'))}
         assert 'example_bash_operator' in blocked_dags
         assert 'example_subdag_operator' in blocked_dags
@@ -2595,6 +2602,7 @@ class TestDagACLView(TestBase):
         url = 'log?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'.format(
             self.percent_encode(self.default_date)
         )
+
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('Log by attempts', resp)
         url = (
