@@ -55,8 +55,8 @@ class ActionResourceSchema(SQLAlchemySchema):
 
         model = PermissionView
 
-    action = fields.Method("get_action_name")
-    resource = fields.Method('get_resource_name')
+    permission = fields.Method("get_action_name", deserialize="get_related", data_key="action")
+    view_menu = fields.Method('get_resource_name', deserialize="get_related", data_key="resource")
 
     @staticmethod
     def get_action_name(obj: PermissionView):
@@ -67,6 +67,10 @@ class ActionResourceSchema(SQLAlchemySchema):
     def get_resource_name(obj: PermissionView):
         """Get resource name"""
         return obj.view_menu.name
+
+    def get_related(self, value):
+        """Load value as it is in the related model"""
+        return {"name": value}
 
 
 class RoleCollectionItemSchema(SQLAlchemySchema):
