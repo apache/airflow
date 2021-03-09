@@ -154,7 +154,7 @@ cd airflow-dev
 svn update
 
 # Create a new folder for the release.
-cd airflow-dev/providers
+cd providers
 
 # Move the artifacts to svn folder
 mv ${AIRFLOW_REPO_ROOT}/dist/* .
@@ -264,7 +264,7 @@ for all providers, or if you have just few providers:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 ./breeze build-docs -- \
-  --for-production
+  --for-production \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
@@ -300,7 +300,7 @@ All providers:
 cd "${AIRFLOW_SITE_DIRECTORY}"
 ```
 
-If you have providers as list of provider ids beacuse you just released them you can build them with
+If you have providers as list of provider ids because you just released them you can build them with
 
 ```shell script
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
@@ -332,7 +332,7 @@ subject:
 
 ```shell script
 cat <<EOF
-[VOTE] Airflow Providers - release done $(date "+%Y-%m-%d%n")
+[VOTE] Airflow Providers - release prepared $(date "+%Y-%m-%d%n")
 EOF
 ```
 
