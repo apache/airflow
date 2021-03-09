@@ -21,11 +21,9 @@ from flask import current_app
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.security import permissions
 from airflow.www import app
 from airflow.www.security import EXISTING_ROLES
 from tests.test_utils.config import conf_vars
-from tests.test_utils.fab_utils import create_role
 
 
 class TestRoleEndpoint(unittest.TestCase):
@@ -34,13 +32,6 @@ class TestRoleEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        cls.role = create_role(
-            cls.app,  # type: ignore
-            name="Test",
-            permissions=[
-                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
-            ],
-        )
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -48,15 +39,9 @@ class TestRoleEndpoint(unittest.TestCase):
 
 class TestGetRoleEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/api/v1/roles/Test")
+        response = self.client.get("/api/v1/roles/Admin")
         assert response.status_code == 200
-        assert response.json == {
-            'name': 'Test',
-            'actions': [
-                {'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}},
-                {'resource': {'name': 'Website'}, 'action': {'name': 'can_read'}},
-            ],
-        }
+        assert response.json['name'] == "Admin"
 
     def test_should_respond_404(self):
         response = self.client.get("/api/v1/roles/invalid-role")
@@ -73,7 +58,6 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
         response = self.client.get("/api/v1/roles")
         assert response.status_code == 200
-        EXISTING_ROLES.add("Test")
         assert response.json['total_entries'] == len(EXISTING_ROLES)
         roles = {role['name'] for role in response.json['roles']}
         assert roles == EXISTING_ROLES
@@ -103,7 +87,7 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
     def test_can_handle_limit_and_offset(self, url, expected_roles):
         response = self.client.get(url)
         assert response.status_code == 200
-        assert response.json["total_entries"] == 6
+        assert response.json["total_entries"] == 5
         roles = [role['name'] for role in response.json['roles'] if role]
         assert roles.sort() == expected_roles.sort()
 
