@@ -86,7 +86,7 @@ PIP requirements
 ==============================  ==================
 PIP package                     Version required
 ==============================  ==================
-``snowflake-connector-python``  ``>=2.3.8``
+``snowflake-connector-python``  ``>=2.4.1``
 ``snowflake-sqlalchemy``        ``>=1.1.0``
 ==============================  ==================
 

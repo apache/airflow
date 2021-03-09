@@ -45,7 +45,7 @@ class TestHealthTestBase(unittest.TestCase):
             session.query(BaseJob).delete()
 
 
-class TestGetHeath(TestHealthTestBase):
+class TestGetHealth(TestHealthTestBase):
     @provide_session
     def test_healthy_scheduler_status(self, session):
         last_scheduler_heartbeat_for_testing_1 = timezone.utcnow()

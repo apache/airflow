@@ -43,7 +43,11 @@ from typing import (
 
 import attr
 import jinja2
-from cached_property import cached_property
+
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 

@@ -1203,7 +1203,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(ti2)
         session.flush()
 
-        # One task w/o pool up for execution and one task task running
+        # One task w/o pool up for execution and one task running
         res = scheduler._executable_task_instances_to_queued(max_tis=32, session=session)
         assert 0 == len(res)
 

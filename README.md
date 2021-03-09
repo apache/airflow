@@ -31,7 +31,7 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
 
-[Apache Airflow](https://airflow.apache.org/docs/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
+[Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
 
 When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
 
@@ -63,7 +63,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Airflow works best with workflows that are mostly static and slowly changing. When DAG structure is similar from one run to the next, it allows for clarity around unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](https://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
 
-Airflow is commonly used to process data, but has the opinion that tasks should ideally be idempotent (i.e. results of the task will be the same, and will not create duplicated data in a destination system), and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [Xcom feature](https://airflow.apache.org/docs/stable/concepts.html#xcoms)). For high-volume, data-intensive tasks, a best practice is to delegate to external services that specialize on that type of work.
+Airflow is commonly used to process data, but has the opinion that tasks should ideally be idempotent (i.e. results of the task will be the same, and will not create duplicated data in a destination system), and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [Xcom feature](https://airflow.apache.org/docs/apache-airflow/stable/concepts.html#xcoms)). For high-volume, data-intensive tasks, a best practice is to delegate to external services that specialize on that type of work.
 
 Airflow is not a streaming solution, but it is often used to process real-time data, pulling data off streams in batches.
 
@@ -87,7 +87,8 @@ Apache Airflow is tested with:
 | Kubernetes   | 1.16.9, 1.17.5, 1.18.6    | 1.16.9, 1.17.5, 1.18.6   | 1.16.9, 1.17.5, 1.18.6     |
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
-running multiple schedulers -- please see the "Scheduler" docs. MariaDB is not tested/recommended.
+running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html).
+MariaDB is not tested/recommended.
 
 **Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
@@ -115,11 +116,15 @@ release schedule of Python, nicely summarized in the
 
 ## Getting started
 
-Visit the official Airflow website documentation (latest **stable** release) for help with [installing Airflow](https://airflow.apache.org/installation.html), [getting started](https://airflow.apache.org/start.html), or walking through a more complete [tutorial](https://airflow.apache.org/tutorial.html).
+Visit the official Airflow website documentation (latest **stable** release) for help with
+[installing Airflow](https://airflow.apache.org/docs/apache-airflow/stable/installation.html),
+[getting started](https://airflow.apache.org/docs/apache-airflow/stable/start/index.html), or walking
+through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflow/stable/tutorial.html).
 
 > Note: If you're looking for documentation for master branch (latest development branch): you can find it on [s.apache.org/airflow-docs](https://s.apache.org/airflow-docs/).
 
-For more information on Airflow's Roadmap or Airflow Improvement Proposals (AIPs), visit the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home).
+For more information on Airflow Improvement Proposals (AIPs), visit
+the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals).
 
 Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](IMAGES.rst).
 
@@ -244,7 +249,8 @@ Want to help build Apache Airflow? Check out our [contributing documentation](ht
 
 ## Who uses Apache Airflow?
 
-More than 350 organizations are using Apache Airflow [in the wild](https://github.com/apache/airflow/blob/master/INTHEWILD.md).
+More than 400 organizations are using Apache Airflow
+[in the wild](https://github.com/apache/airflow/blob/master/INTHEWILD.md).
 
 ## Who Maintains Apache Airflow?
 
@@ -252,7 +258,7 @@ Airflow is the work of the [community](https://github.com/apache/airflow/graphs/
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
 are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
 If you would like to become a maintainer, please review the Apache Airflow
-[committer requirements](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#guidelines-to-become-an-airflow-committer).
+[committer requirements](https://github.com/apache/airflow/blob/master/COMMITTERS.rst#guidelines-to-become-an-airflow-committer).
 
 ## Can I use the Apache Airflow logo in my presentation?
 
@@ -265,5 +271,5 @@ If you would love to have Apache Airflow stickers, t-shirt etc. then check out
 
 ## Links
 
-- [Documentation](https://airflow.apache.org/docs/stable/)
+- [Documentation](https://airflow.apache.org/docs/apache-airflow/stable/)
 - [Chat](https://s.apache.org/airflow-slack)

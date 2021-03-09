@@ -21,6 +21,7 @@ import unittest
 from airflow.providers_manager import ProvidersManager
 
 ALL_PROVIDERS = [
+    'apache-airflow-providers-airbyte',
     'apache-airflow-providers-amazon',
     'apache-airflow-providers-apache-beam',
     'apache-airflow-providers-apache-cassandra',

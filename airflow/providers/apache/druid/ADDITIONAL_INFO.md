@@ -17,8 +17,12 @@
  under the License.
  -->
 
-## Release 2021.3.3
+## Release 2021.3.13
 
 ### Features
 
 * `Refactor SQL/BigQuery/Qubole/Druid Check operators (#12677)`
+
+### Bug fixes
+
+* `Bugfix: DruidOperator fails to submit ingestion tasks (#14418)`

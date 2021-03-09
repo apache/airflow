@@ -2611,6 +2611,7 @@ components:
         - queued
         - none
         - scheduled
+        - removed
 
     DagState:
       description: DAG State.

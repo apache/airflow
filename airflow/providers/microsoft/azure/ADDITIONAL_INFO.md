@@ -19,11 +19,12 @@
 
 # Changelog
 
-## Release 2021.3.3
+## Release 2021.3.13
 
 ### Features
 
 * `Add Azure Data Factory hook (#11015)`
+* ``Fix AzureDataFactoryHook failing to instantiate its connection (#14565)``
 
 ### Bug fixes
 

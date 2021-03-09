@@ -88,6 +88,7 @@ function build_provider_packages() {
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
             generate-setup-files \
             "${OPTIONAL_BACKPORT_FLAG[@]}" \
+            "${OPTIONAL_VERBOSE_FLAG[@]}" \
             --no-git-update \
             --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
             "${provider_package}"
@@ -113,6 +114,7 @@ function build_provider_packages() {
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
             build-provider-packages \
             "${OPTIONAL_BACKPORT_FLAG[@]}" \
+            "${OPTIONAL_VERBOSE_FLAG[@]}" \
             --no-git-update \
             --version-suffix "${package_suffix}" \
             "${package_format_args[@]}" \

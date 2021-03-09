@@ -20,7 +20,11 @@ import shutil
 from typing import Dict, Optional, Tuple
 
 from azure.common import AzureHttpError
-from cached_property import cached_property
+
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler

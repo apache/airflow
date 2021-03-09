@@ -145,6 +145,9 @@ if PACKAGE_NAME == "apache-airflow-providers":
             'providers_packages_ref',
         ]
     )
+elif PACKAGE_NAME == "helm-chart":
+    # No extra extensions
+    pass
 else:
     extensions.append('autoapi.extension')
 # List of patterns, relative to source directory, that match files and
@@ -536,4 +539,4 @@ if PACKAGE_NAME == 'apache-airflow':
     ]
 
     # Options for script updater
-    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.30/bundles/redoc.standalone.js"
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"

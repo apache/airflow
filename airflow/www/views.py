@@ -3740,7 +3740,7 @@ class DagModelView(AirflowModelView):
     list_columns = [
         'dag_id',
         'is_paused',
-        'last_scheduler_run',
+        'last_parsed_time',
         'last_expired',
         'scheduler_lock',
         'fileloc',

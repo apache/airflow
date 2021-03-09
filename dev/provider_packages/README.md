@@ -187,6 +187,7 @@ also do not container the leading 0s.
 
 * You can install the .whl packages with `pip install <PACKAGE_FILE>`
 
+You can add `--verbose` flag if you want to see detailed commands executed by the script.
 
 # Testing and debugging provider preparation
 
@@ -248,6 +249,9 @@ You can see for example list of all provider packages:
 ```shell script
 ./dev/provider_packages/prepare_provider_packages.py list-providers-packages
 ```
+
+
+You can add `--verbose` flag in breeze command if you want to see commands executed.
 
 ## Debugging import check
 
@@ -345,6 +349,8 @@ to setup any credentials for it.
 In case version being prepared is already tagged in the repo documentation preparation returns immediately
 and prints warning.
 
+You can add `--verbose` flag if you want to see detailed commands executed by the script.
+
 ## Debugging preparing setup files
 
 This script prepares the actual packages.
@@ -399,6 +405,8 @@ TAG for it, so in the CI the setup.py is generated and should never fail.
     --version-suffix "<SUFFIX>" \
     <PACKAGE>
 ```
+
+You can add `--verbose` flag if you want to see detailed commands executed by the script.
 
 ## Debugging preparing the packages
 

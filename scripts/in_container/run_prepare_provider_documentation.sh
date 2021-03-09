@@ -49,6 +49,7 @@ function run_prepare_documentation() {
             --version-suffix "${TARGET_VERSION_SUFFIX}" \
             --no-git-update \
             "${OPTIONAL_BACKPORT_FLAG[@]}" \
+            "${OPTIONAL_VERBOSE_FLAG[@]}" \
             "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \
             "${provider_package}"
         res=$?

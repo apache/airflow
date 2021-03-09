@@ -17,7 +17,10 @@
 import tempfile
 from typing import Any, Dict, Generator, Optional, Tuple, Union
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 from kubernetes import client, config, watch
 
 try:

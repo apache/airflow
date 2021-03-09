@@ -131,7 +131,9 @@ def cli():
 
 @cli.resultcallback()
 def process_result(result):
-    if not result:
+    # This is special case - when the command executed returns false, it means that we are skipping
+    # the package
+    if result is False:
         raise click.exceptions.Exit(64)
     return result
 
@@ -155,6 +157,11 @@ option_version_suffix = click.option(
         adds version suffix to version of the packages.
         only useful when generating rc candidates for pypi."""
     ),
+)
+option_verbose = click.option(
+    "--verbose",
+    is_flag=True,
+    help="Print verbose information about performed steps",
 )
 argument_package_id = click.argument('package_id')
 
@@ -443,7 +450,7 @@ def is_from_the_expected_base_package(the_class: Type, expected_package: str) ->
     return the_class.__module__.startswith(expected_package)
 
 
-def inherits_from(the_class: Type, expected_ancestor: Type) -> bool:
+def inherits_from(the_class: Type, expected_ancestor: Optional[Type] = None) -> bool:
     """
     Returns true if the class inherits (directly or indirectly) from the class specified.
     :param the_class: The class to check
@@ -469,7 +476,7 @@ def is_class(the_class: Type) -> bool:
     return inspect.isclass(the_class)
 
 
-def package_name_matches(the_class: Type, expected_pattern: Optional[str]) -> bool:
+def package_name_matches(the_class: Type, expected_pattern: Optional[str] = None) -> bool:
     """
     In case expected_pattern is set, it checks if the package name matches the pattern.
     .
@@ -477,7 +484,7 @@ def package_name_matches(the_class: Type, expected_pattern: Optional[str]) -> bo
     :param expected_pattern: the pattern that should match the package
     :return: true if the expected_pattern is None or the pattern matches the package
     """
-    return expected_pattern is None or re.match(expected_pattern, the_class.__module__)
+    return expected_pattern is None or re.match(expected_pattern, the_class.__module__) is not None
 
 
 def find_all_entities(
@@ -487,7 +494,7 @@ def find_all_entities(
     sub_package_pattern_match: str,
     expected_class_name_pattern: str,
     unexpected_class_name_patterns: Set[str],
-    exclude_class_type: Type = None,
+    exclude_class_type: Optional[Type] = None,
     false_positive_class_names: Optional[Set[str]] = None,
 ) -> VerifiedEntities:
     """
@@ -680,8 +687,8 @@ def print_wrong_naming(entity_type: EntityType, wrong_classes: List[Tuple[type, 
     """
     if wrong_classes:
         print(f"\n[red]There are wrongly named entities of type {entity_type}:[/]\n", file=sys.stderr)
-        for entity_type, message in wrong_classes:
-            print(f"{entity_type}: {message}", file=sys.stderr)
+        for wrong_entity_type, message in wrong_classes:
+            print(f"{wrong_entity_type}: {message}", file=sys.stderr)
 
 
 def get_package_class_summary(
@@ -796,7 +803,7 @@ def render_template(
 
 
 def convert_git_changes_to_table(
-    print_version: str, changes: str, base_url: str, markdown: bool = True
+    print_version: Optional[str], changes: str, base_url: str, markdown: bool = True
 ) -> str:
     """
     Converts list of changes from it's string form to markdown table.
@@ -836,7 +843,7 @@ def convert_git_changes_to_table(
         return header
     table = tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
     if not markdown:
-        header += f"\n\n{print_version}\n" + "." * len(print_version) + "\n\n"
+        header += f"\n\n{print_version}\n" + "." * (len(print_version) if print_version else 0) + "\n\n"
         release_date = table_data[0][1]
         header += f"Latest change: {release_date}\n\n"
     return header + table
@@ -956,14 +963,14 @@ def strip_leading_zeros(version: str) -> str:
     This converts 1974.04.03 to 1974.4.3 as the format with leading month and day zeros is not accepted
     by PIP versioning.
 
-    :param version: version number in calver format (potentially with leading 0s in date and month)
+    :param version: version number in CALVER format (potentially with leading 0s in date and month)
     :return: string with leading 0s after dot replaced.
     """
     return ".".join(str(int(i)) for i in version.split("."))
 
 
 def get_previous_release_info(
-    previous_release_version: str, past_releases: List[ReleaseInfo], current_release_version: str
+    previous_release_version: Optional[str], past_releases: List[ReleaseInfo], current_release_version: str
 ) -> Optional[str]:
     """
     Find previous release. In case we are re-running current release we assume that last release was
@@ -1021,24 +1028,25 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> List[str]
     return dependent_packages
 
 
-def make_sure_remote_apache_exists_and_fetch(git_update: bool):
+def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
     """
     Make sure that apache remote exist in git. We need to take a log from the apache
     repository - not locally.
 
-    Also the the local repo might be shallow so we need to unshallow it.
+    Also the local repo might be shallow so we need to unshallow it.
 
     This will:
     * check if the remote exists and add if it does not
-    * check if the local repo is shallow, markit to be unshallowed in this case
+    * check if the local repo is shallow, mark it to be unshallowed in this case
     * fetch from the remote including all tags and overriding local tags in case they are set differently
 
     :param git_update: If the git remote already exists, should we try to update it
-
+    :param verbose: print verbose messages while fetching
     """
     try:
         check_remote_command = ["git", "remote", "get-url", HTTPS_REMOTE]
-        print(f"Running command: '{' '.join(check_remote_command)}'")
+        if verbose:
+            print(f"Running command: '{' '.join(check_remote_command)}'")
         subprocess.check_call(
             check_remote_command,
             stdout=subprocess.DEVNULL,
@@ -1057,7 +1065,8 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool):
                 HTTPS_REMOTE,
                 "https://github.com/apache/airflow.git",
             ]
-            print(f"Running command: '{' '.join(remote_add_command)}'")
+            if verbose:
+                print(f"Running command: '{' '.join(remote_add_command)}'")
             try:
                 subprocess.check_output(
                     remote_add_command,
@@ -1067,26 +1076,35 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool):
                 print("[red]Error: when adding remote:[/]", ex)
         else:
             raise
-    print("Fetching full history and tags from remote. ")
-    print("This might override your local tags!")
+    if verbose:
+        print("Fetching full history and tags from remote. ")
+        print("This might override your local tags!")
     is_shallow_repo = (
         subprocess.check_output(["git", "rev-parse", "--is-shallow-repository"], stderr=subprocess.DEVNULL)
         == 'true'
     )
     fetch_command = ["git", "fetch", "--tags", "--force", HTTPS_REMOTE]
     if is_shallow_repo:
-        print("This will also unshallow the repository, making all history available and increasing storage!")
+        if verbose:
+            print(
+                "This will also unshallow the repository, "
+                "making all history available and increasing storage!"
+            )
         fetch_command.append("--unshallow")
-    print(f"Running command: '{' '.join(fetch_command)}'")
+    if verbose:
+        print(f"Running command: '{' '.join(fetch_command)}'")
     subprocess.check_call(
         fetch_command,
         stderr=subprocess.DEVNULL,
     )
 
 
-def get_git_log_command(from_commit: Optional[str] = None, to_commit: Optional[str] = None) -> List[str]:
+def get_git_log_command(
+    verbose: bool, from_commit: Optional[str] = None, to_commit: Optional[str] = None
+) -> List[str]:
     """
     Get git command to run for the current repo from the current folder (which is the package folder).
+    :param verbose: whether to print verbose info while getting the command
     :param from_commit: if present - base commit from which to start the log from
     :param to_commit: if present - final commit which should be the start of the log
     :return: git command to run
@@ -1102,7 +1120,8 @@ def get_git_log_command(from_commit: Optional[str] = None, to_commit: Optional[s
     elif from_commit:
         git_cmd.append(from_commit)
     git_cmd.extend(['--', '.'])
-    print(f"Running command: '{' '.join(git_cmd)}'")
+    if verbose:
+        print(f"Command to run: '{' '.join(git_cmd)}'")
     return git_cmd
 
 
@@ -1337,8 +1356,10 @@ def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, 
     return provider_info
 
 
-def get_backport_current_changes_table(previous_release_commit_ref: str, source_provider_package_path: str):
-    git_cmd = get_git_log_command(HEAD_OF_HTTPS_REMOTE, previous_release_commit_ref)
+def get_backport_current_changes_table(
+    previous_release_commit_ref: Optional[str], source_provider_package_path: str, verbose: bool
+):
+    git_cmd = get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, previous_release_commit_ref)
     try:
         changes = subprocess.check_output(git_cmd, cwd=source_provider_package_path, universal_newlines=True)
         changes_table = convert_git_changes_to_table(
@@ -1365,20 +1386,22 @@ def get_all_changes_for_regular_packages(
     versions: List[str],
     provider_package_id: str,
     source_provider_package_path: str,
-    version_suffix: str,
+    verbose: bool,
 ) -> Tuple[bool, str]:
     current_version = versions[0]
     current_tag_no_suffix = get_version_tag(current_version, provider_package_id)
-    print(f"Checking if tag '{current_tag_no_suffix}' exist.")
+    if verbose:
+        print(f"Checking if tag '{current_tag_no_suffix}' exist.")
     if not subprocess.call(
         get_git_tag_check_command(current_tag_no_suffix),
         cwd=source_provider_package_path,
         stderr=subprocess.DEVNULL,
     ):
-        print(f"The tag {current_tag_no_suffix} exists.")
+        if verbose:
+            print(f"The tag {current_tag_no_suffix} exists.")
         # The tag already exists
         changes = subprocess.check_output(
-            get_git_log_command(HEAD_OF_HTTPS_REMOTE, current_tag_no_suffix),
+            get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, current_tag_no_suffix),
             cwd=source_provider_package_path,
             universal_newlines=True,
         )
@@ -1389,8 +1412,9 @@ def get_all_changes_for_regular_packages(
             )
             print()
             print(
-                f"Please update version in 'airflow/providers/{provider_package_id.replace('-','/')}/'"
-                "provider.yaml' to prepare release.\n"
+                "[yellow]Please update version in "
+                f"'airflow/providers/{provider_package_id.replace('-','/')}/'"
+                "provider.yaml' to prepare release.[/]\n"
             )
             changes_table = convert_git_changes_to_table(
                 "UNKNOWN", changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
@@ -1400,7 +1424,8 @@ def get_all_changes_for_regular_packages(
         else:
             print(f"No changes for {provider_package_id}")
             return False, ""
-    print("The tag does not exist. ")
+    if verbose:
+        print("The tag does not exist. ")
     if len(versions) == 1:
         print(f"The provider '{provider_package_id}' has never been released but it is ready to release!\n")
     else:
@@ -1411,7 +1436,7 @@ def get_all_changes_for_regular_packages(
     for version in versions[1:]:
         version_tag = get_version_tag(version, provider_package_id)
         changes = subprocess.check_output(
-            get_git_log_command(next_version_tag, version_tag),
+            get_git_log_command(verbose, next_version_tag, version_tag),
             cwd=source_provider_package_path,
             universal_newlines=True,
         )
@@ -1421,13 +1446,15 @@ def get_all_changes_for_regular_packages(
         next_version_tag = version_tag
         print_version = version
     changes = subprocess.check_output(
-        get_git_log_command(next_version_tag),
+        get_git_log_command(verbose, next_version_tag),
         cwd=source_provider_package_path,
         universal_newlines=True,
     )
     changes_table += convert_git_changes_to_table(
         print_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
     )
+    if verbose:
+        print_changes_table(changes_table)
     return True, changes_table
 
 
@@ -1519,6 +1546,7 @@ def update_generated_files_for_regular_package(
     version_suffix: str,
     update_release_notes: bool,
     update_setup: bool,
+    verbose: bool,
 ) -> bool:
     """
     Updates generated files (readme, changes and/or setup.cfg/setup.py/manifest.in/provider_info)
@@ -1527,6 +1555,7 @@ def update_generated_files_for_regular_package(
     :param version_suffix: version suffix corresponding to the version in the code
     :param update_release_notes: whether to update release notes
     :param update_setup: whether to update setup files
+    :param verbose: whether to print verbose messages
     :returns False if the package should be skipped, Tre if everything generated properly
     """
     verify_provider_package(provider_package_id)
@@ -1545,7 +1574,7 @@ def update_generated_files_for_regular_package(
             provider_details.versions,
             provider_package_id,
             provider_details.source_provider_package_path,
-            version_suffix,
+            verbose,
         )
         if not proceed:
             print()
@@ -1647,7 +1676,7 @@ def black_mode():
     config = parse_pyproject_toml(os.path.join(SOURCE_DIR_PATH, "pyproject.toml"))
 
     target_versions = set(
-        target_version_option_callback(None, None, config.get('target_version', [])),  # type: ignore
+        target_version_option_callback(None, None, config.get('target_version', [])),  # noqa
     )
 
     return Mode(
@@ -1821,6 +1850,7 @@ def update_generated_files_for_backport_package(
     version_suffix: str,
     update_release_notes: bool,
     update_setup: bool,
+    verbose: bool,
 ) -> None:
     """
     Updates generated files (readme, changes and setup.cfg/setup.py)
@@ -1830,6 +1860,7 @@ def update_generated_files_for_backport_package(
     :param version_suffix: version suffix corresponding to the version in the code
     :param update_release_notes: whether to update release notes
     :param update_setup: whether to update setup files
+    :param verbose: whether to print verbose messages
 
     :return: Tuple of total/bad number of entities
     """
@@ -1867,7 +1898,7 @@ def update_generated_files_for_backport_package(
     )
     if update_release_notes:
         changes_table = get_backport_current_changes_table(
-            previous_release_commit_ref, provider_details.source_provider_package_path
+            previous_release_commit_ref, provider_details.source_provider_package_path, verbose
         )
         jinja_context["CURRENT_CHANGES_TABLE"] = changes_table
         prepare_readme_and_changes_files_for_backport_providers(
@@ -1946,7 +1977,7 @@ def copy_readme_and_changelog_for_backports(provider_package_id: str) -> None:
 
 @cli.command()
 @option_backports
-def list_providers_packages(backports) -> bool:
+def list_providers_packages(backports: bool) -> bool:
     """List all provider packages."""
     providers = get_all_backportable_providers() if backports else get_all_providers()
     for provider in providers:
@@ -1965,7 +1996,15 @@ def list_providers_packages(backports) -> bool:
 @option_version_suffix
 @option_git_update
 @argument_package_id
-def update_package_documentation(backports, release_version, version_suffix, git_update, package_id):
+@option_verbose
+def update_package_documentation(
+    backports: bool,
+    release_version: str,
+    version_suffix: str,
+    git_update: bool,
+    package_id: str,
+    verbose: bool,
+):
     """
     Updates package documentation.
 
@@ -1983,7 +2022,7 @@ def update_package_documentation(backports, release_version, version_suffix, git
             print(f"Preparing release version: {current_release_version}")
         else:
             print("Updating documentation for the latest release version.")
-        make_sure_remote_apache_exists_and_fetch(git_update)
+        make_sure_remote_apache_exists_and_fetch(git_update, verbose)
         if backports:
             provider_details = get_provider_details(provider_package_id)
             past_releases = get_all_releases_for_backport_providers(
@@ -1999,6 +2038,7 @@ def update_package_documentation(backports, release_version, version_suffix, git
                 version_suffix,
                 update_release_notes=True,
                 update_setup=False,
+                verbose=verbose,
             )
         else:
             if not update_generated_files_for_regular_package(
@@ -2006,23 +2046,27 @@ def update_package_documentation(backports, release_version, version_suffix, git
                 version_suffix,
                 update_release_notes=True,
                 update_setup=False,
+                verbose=verbose,
             ):
                 package_ok = False
     return package_ok
 
 
-def tag_exists_for_version(provider_package_id, current_tag):
+def tag_exists_for_version(provider_package_id: str, current_tag: str, verbose: bool):
     provider_details = get_provider_details(provider_package_id)
-    print(f"Checking if tag `{current_tag}` exists.")
+    if verbose:
+        print(f"Checking if tag `{current_tag}` exists.")
     if not subprocess.call(
         get_git_tag_check_command(current_tag),
         cwd=provider_details.source_provider_package_path,
         stderr=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
     ):
-        print(f"Tag `{current_tag}` exists.")
+        if verbose:
+            print(f"Tag `{current_tag}` exists.")
         return True
-    print(f"Tag `{current_tag}` does not exist.")
+    if verbose:
+        print(f"Tag `{current_tag}` does not exist.")
     return False
 
 
@@ -2031,7 +2075,10 @@ def tag_exists_for_version(provider_package_id, current_tag):
 @option_version_suffix
 @option_git_update
 @argument_package_id
-def generate_setup_files(backports, version_suffix, git_update, package_id):
+@option_verbose
+def generate_setup_files(
+    backports: bool, version_suffix: str, git_update: bool, package_id: str, verbose: bool
+):
     """
     Generates setup files for the package.
 
@@ -2040,18 +2087,27 @@ def generate_setup_files(backports, version_suffix, git_update, package_id):
     provider_package_id = package_id
     package_ok = True
     with with_group(f"Generate setup files for '{provider_package_id}'"):
-        current_tag = get_current_tag(provider_package_id, version_suffix, git_update)
-        if not backports and tag_exists_for_version(provider_package_id, current_tag):
+        current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
+        if not backports and tag_exists_for_version(provider_package_id, current_tag, verbose):
             print(f"[yellow]The tag {current_tag} exists. Not preparing the package.[/]")
             package_ok = False
         elif backports:
             update_generated_files_for_backport_package(
-                provider_package_id, "", version_suffix, update_release_notes=False, update_setup=True
+                provider_package_id,
+                "",
+                version_suffix,
+                update_release_notes=False,
+                update_setup=True,
+                verbose=verbose,
             )
             print(f"[green]Generated backport package setup files for {provider_package_id}[/]")
         else:
             if update_generated_files_for_regular_package(
-                provider_package_id, version_suffix, update_release_notes=False, update_setup=True
+                provider_package_id,
+                version_suffix,
+                update_release_notes=False,
+                update_setup=True,
+                verbose=verbose,
             ):
                 print(f"[green]Generated regular package setup files for {provider_package_id}[/]")
             else:
@@ -2059,9 +2115,9 @@ def generate_setup_files(backports, version_suffix, git_update, package_id):
     return package_ok
 
 
-def get_current_tag(provider_package_id, suffix, git_update):
+def get_current_tag(provider_package_id: str, suffix: str, git_update: bool, verbose: bool):
     verify_provider_package(provider_package_id)
-    make_sure_remote_apache_exists_and_fetch(git_update)
+    make_sure_remote_apache_exists_and_fetch(git_update, verbose)
     provider_info = get_provider_info_from_provider_yaml(provider_package_id)
     versions: List[str] = provider_info['versions']
     current_version = versions[0]
@@ -2069,8 +2125,9 @@ def get_current_tag(provider_package_id, suffix, git_update):
     return current_tag
 
 
-def cleanup_remnants():
-    print("Cleaning remnants (build, *.egginfo)")
+def cleanup_remnants(verbose: bool):
+    if verbose:
+        print("Cleaning remnants (build, *.egginfo)")
     shutil.rmtree("build", ignore_errors=True)
     files = glob.glob("*.egg-info")
     for file in files:
@@ -2104,7 +2161,15 @@ def verify_setup_py_prepared(provider_package):
 @option_git_update
 @option_version_suffix
 @argument_package_id
-def build_provider_packages(package_format, backports, git_update, version_suffix, package_id) -> bool:
+@option_verbose
+def build_provider_packages(
+    package_format: str,
+    backports: bool,
+    git_update: bool,
+    version_suffix: str,
+    package_id: str,
+    verbose: bool,
+) -> bool:
     """
     Builds provider package.
 
@@ -2112,15 +2177,16 @@ def build_provider_packages(package_format, backports, git_update, version_suffi
     """
     provider_package_id = package_id
     with with_group(f"Prepare provider package for '{provider_package_id}'"):
-        current_tag = get_current_tag(provider_package_id, version_suffix, git_update)
-        if not backports and tag_exists_for_version(provider_package_id, current_tag):
+        current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
+        if not backports and tag_exists_for_version(provider_package_id, current_tag, verbose):
             print(f"[yellow]The tag {current_tag} exists. Skipping the package.[/]")
             return False
         print(f"Changing directory to ${TARGET_PROVIDER_PACKAGES_PATH}")
         os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
-        cleanup_remnants()
+        cleanup_remnants(verbose)
         provider_package = package_id
         verify_setup_py_prepared(provider_package)
+
         print(f"Building provider package: {provider_package} in format {package_format}")
         if backports:
             copy_readme_and_changelog_for_backports(provider_package)
@@ -2141,7 +2207,7 @@ def build_provider_packages(package_format, backports, git_update, version_suffi
     return True
 
 
-def verify_provider_classes_for_single_provider(imported_classes, provider_package_id):
+def verify_provider_classes_for_single_provider(imported_classes: List[str], provider_package_id: str):
     """Verify naming of provider classes for single provider."""
     full_package_name = f"airflow.providers.{provider_package_id}"
     entity_summaries = get_package_class_summary(full_package_name, imported_classes)
@@ -2181,7 +2247,7 @@ def summarise_total_vs_bad(total: int, bad: int):
 
 @cli.command()
 @option_backports
-def verify_provider_classes(backports) -> bool:
+def verify_provider_classes(backports: bool) -> bool:
     """Verifies if all classes in all providers are correctly named."""
     with with_group("Verifies names for all provider classes"):
         if backports:

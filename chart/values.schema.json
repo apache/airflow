@@ -280,37 +280,37 @@
                     }
                 },
                 "pgbouncer": {
-                    "description": "Configuration of the pgbouncer image.",
+                    "description": "Configuration of the PgBouncer image.",
                     "type": "object",
                     "properties": {
                         "repository": {
-                            "description": "The pgbouncer image repository.",
+                            "description": "The PgBouncer image repository.",
                             "type": "string"
                         },
                         "tag": {
-                            "description": "The pgbouncer image tag.",
+                            "description": "The PgBouncer image tag.",
                             "type": "string"
                         },
                         "pullPolicy": {
-                            "description": "The pgbouncer image pull policy.",
+                            "description": "The PgBouncer image pull policy.",
                             "type": "string"
                         }
                     }
                 },
                 "pgbouncerExporter": {
-                    "description": "Configuration of the pgbouncerExporter image.",
+                    "description": "Configuration of the PgBouncer exporter image.",
                     "type": "object",
                     "properties": {
                         "repository": {
-                            "description": "The pgbouncerExporter image repository.",
+                            "description": "The PgBouncer exporter image repository.",
                             "type": "string"
                         },
                         "tag": {
-                            "description": "The pgbouncerExporter image tag.",
+                            "description": "The PgBouncer exporter image tag.",
                             "type": "string"
                         },
                         "pullPolicy": {
-                            "description": "The pgbouncerExporter image pull policy.",
+                            "description": "The PgBouncer exporter image pull policy.",
                             "type": "string"
                         }
                     }

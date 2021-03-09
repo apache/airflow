@@ -250,7 +250,7 @@ For example:
 
   apache/airflow:master-python3.6                - production "latest" image from current master
   apache/airflow:master-python3.6-ci             - CI "latest" image from current master
-  apache/airflow:v2-0-test-python2.7-ci          - CI "latest" image from current v2-0-test branch
+  apache/airflow:v2-0-test-python3.6-ci          - CI "latest" image from current v2-0-test branch
   apache/airflow:2.0.0-python3.6                 - production image for 2.0.0 release
   apache/airflow:python3.6-master                - base Python image for the master branch
 
@@ -436,7 +436,7 @@ Customizing the image
 
 Customizing the image is an alternative way of adding your own dependencies to the image.
 
-The easiest way to build the image image is to use ``breeze`` script, but you can also build such customized
+The easiest way to build the image is to use ``breeze`` script, but you can also build such customized
 image by running appropriately crafted docker build in which you specify all the ``build-args``
 that you need to add to customize it. You can read about all the args and ways you can build the image
 in the `<#ci-image-build-arguments>`_ chapter below.

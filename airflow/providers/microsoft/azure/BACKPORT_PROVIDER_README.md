@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-microsoft-azure
 
-Release: 2021.3.3
+Release: 2021.3.13
 
 **Table of contents**
 
@@ -44,7 +44,7 @@ Release: 2021.3.3
     - [Secrets](#secrets)
         - [New secrets](#new-secrets)
 - [Releases](#releases)
-    - [Release 2021.3.3](#release-202133)
+    - [Release 2021.3.13](#release-2021313)
     - [Release 2021.2.5](#release-202125)
     - [Release 2020.11.23](#release-20201123)
     - [Release 2020.10.29](#release-20201029)
@@ -64,11 +64,12 @@ want to use this backport package.
 
 # Changelog
 
-## Release 2021.3.3
+## Release 2021.3.13
 
 ### Features
 
 * `Add Azure Data Factory hook (#11015)`
+* ``Fix AzureDataFactoryHook failing to instantiate its connection (#14565)``
 
 ### Bug fixes
 
@@ -91,7 +92,7 @@ You can install this package on top of an existing airflow 1.10.* installation v
 | `azure-keyvault`               | `>=4.1.0`          |
 | `azure-kusto-data`             | `>=0.0.43,<0.1`    |
 | `azure-mgmt-containerinstance` | `>=1.5.0,<2.0`     |
-| `azure-mgmt-datafactory`       | `>=0.13.0`         |
+| `azure-mgmt-datafactory`       | `>=1.0.0,<2.0`     |
 | `azure-mgmt-datalake-store`    | `>=0.5.0`          |
 | `azure-mgmt-resource`          | `>=2.2.0`          |
 | `azure-storage-blob`           | `>=12.7.0`         |
@@ -220,10 +221,13 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2021.3.3
+### Release 2021.3.13
 
 | Commit                                                                                         | Committed   | Subject                                                                      |
 |:-----------------------------------------------------------------------------------------------|:------------|:-----------------------------------------------------------------------------|
+| [e7bb17aeb](https://github.com/apache/airflow/commit/e7bb17aeb83b2218620c5320241b0c9f902d74ff) | 2021-03-06  | `Use built-in &#39;cached_property&#39; on Python 3.8 where possible (#14606)`       |
+| [630aeff72](https://github.com/apache/airflow/commit/630aeff72c7903ae8d4608f3530057bb6255e10b) | 2021-03-02  | `Fix AzureDataFactoryHook failing to instantiate its connection (#14565)`    |
+| [589d6dec9](https://github.com/apache/airflow/commit/589d6dec922565897785bcbc5ac6bb3b973d7f5d) | 2021-02-27  | `Prepare to release the next wave of providers: (#14487)`                    |
 | [11d03d2f6](https://github.com/apache/airflow/commit/11d03d2f63d88a284d6aaded5f9ab6642a60561b) | 2021-02-26  | `Add Azure Data Factory hook (#11015)`                                       |
 | [5bfa0f123](https://github.com/apache/airflow/commit/5bfa0f123b39babe1ef66c139e59e452240a6bd7) | 2021-02-25  | `BugFix: Fix remote log in azure storage blob displays in one line (#14313)` |
 | [ca35bd7f7](https://github.com/apache/airflow/commit/ca35bd7f7f6bc2fb4f2afd7762114ce262c61941) | 2021-02-21  | `By default PIP will install all packages in .local folder (#14125)`         |
