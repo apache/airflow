@@ -24,6 +24,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
+from tests.test_utils.decorators import dont_initialize
 
 
 class TestDagRunsEndpoint(unittest.TestCase):
@@ -39,6 +40,14 @@ class TestDagRunsEndpoint(unittest.TestCase):
             dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
 
+    @dont_initialize(
+        to_initialize=[
+            "init_api_experimental_auth",
+            "init_appbuilder_views",
+            "init_api_experimental",
+            "init_appbuilder",
+        ]
+    )
     def setUp(self):
         super().setUp()
         with conf_vars(
