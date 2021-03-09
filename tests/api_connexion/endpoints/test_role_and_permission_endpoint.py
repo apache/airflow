@@ -107,34 +107,8 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
         roles = [role['name'] for role in response.json['roles'] if role]
         assert roles.sort() == expected_roles.sort()
 
-    @parameterized.expand(
-        [
-            ("/api/v1/roles?usernames=test", ['Admin']),
-            ("/api/v1/roles?usernames=unknownuser", []),
-        ]
-    )
-    def test_can_filter_roles_by_username(self, url, expected_roles):
-        response = self.client.get(url)
-        assert response.status_code == 200
-        assert response.json["total_entries"] == 5
-        roles = [role['name'] for role in response.json['roles'] if role]
-        assert roles.sort() == expected_roles.sort()
 
-    @parameterized.expand(
-        [
-            ("/api/v1/roles?role_name=Admin", ['Admin']),
-            ("/api/v1/roles?usernames=Admin,Viewer", ['Admin', 'Viewer']),
-        ]
-    )
-    def test_can_filter_by_role_name(self, url, expected_roles):
-        response = self.client.get(url)
-        assert response.status_code == 200
-        assert response.json["total_entries"] == 5
-        roles = [role['name'] for role in response.json['roles'] if role]
-        assert roles.sort() == expected_roles.sort()
-
-
-class TestGetActionsEndpoint(TestRoleEndpoint):
+class TestGetPermissionsEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
         response = self.client.get("/api/v1/permissions")
         with self.app.app_context():
@@ -144,27 +118,3 @@ class TestGetActionsEndpoint(TestRoleEndpoint):
         assert response.json['total_entries'] == len(actions)
         returned_actions = {perm['name'] for perm in response.json['actions']}
         assert actions == returned_actions
-
-    @parameterized.expand(
-        [
-            ("/api/v1/permissions?resources=DAGs", ["can_edit", "can_read", "can_delete"]),
-            (
-                "/api/v1/permissions?resources=Connections",
-                ["can_edit", "can_read", "can_delete", "can_create", "menu_access"],
-            ),
-            (
-                "/api/v1/permissions?resources=DAGs,Connections",
-                ["can_edit", "can_read", "can_delete", "can_create", "menu_access"],
-            ),
-            ("/api/v1/permissions?resources=UnknownResource", []),
-        ]
-    )
-    def test_filter_by_resources(self, url, expected_actions):
-        response = self.client.get(url)
-        with self.app.app_context():
-            sec_manager = current_app.appbuilder.sm
-            actions = {i[0] for i in sec_manager.get_all_permissions() if i}
-        assert response.status_code == 200
-        assert response.json["total_entries"] == len(actions)
-        actions = [action['name'] for action in response.json['actions'] if action]
-        assert actions.sort() == expected_actions.sort()

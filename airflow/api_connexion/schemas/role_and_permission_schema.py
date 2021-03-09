@@ -80,7 +80,6 @@ class ActionResourceSchema(SQLAlchemySchema):
 
         model = PermissionView
 
-    action_resource_id = auto_field("id")
     action = fields.Method("get_action_name")
     resource = fields.Method('get_resource_name')
 
