@@ -27,6 +27,7 @@ from airflow.security import permissions
 from airflow.www.app import create_app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_pools
 
 
 class TestWebserverAuth(unittest.TestCase):
@@ -50,6 +51,7 @@ class TestWebserverAuth(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()
+        clear_db_pools()
 
     def test_basic_auth_can_get_token(self):
         # For most users that would use username and password especially in local
