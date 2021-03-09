@@ -17,13 +17,32 @@
 
 from unittest import TestCase
 
+from airflow.executors import BaseExecutor
+from airflow.plugins_manager import AirflowPlugin
 from airflow.upgrade.rules.custom_executors_require_full_path_rule import CustomExecutorsRequireFullPathRule
 from tests.compat import patch
 
 
+class PluginExecutor(BaseExecutor):
+    pass
+
+
+class MyCustomExecutor(BaseExecutor):
+    pass
+
+
+class AirflowTestPlugin(AirflowPlugin):
+    name = "my_plugin"
+    executors = [PluginExecutor, MyCustomExecutor]
+
+
+class AirflowTestPlugin2(AirflowPlugin):
+    name = "my_plugin"
+
+
 class TestCustomExecutorsRequireFullPath(TestCase):
-    @patch('airflow.plugins_manager.executors_modules',
-           ["my_plugin.MyCustomExecutor", "my_acme.executors.MyCustomExecutor"])
+
+    @patch('airflow.plugins_manager.plugins', [AirflowTestPlugin])
     def test_invalid_check(self):
         rule = CustomExecutorsRequireFullPathRule()
 
@@ -38,12 +57,12 @@ class TestCustomExecutorsRequireFullPath(TestCase):
             "https://github.com/apache/airflow/blob/2.0.0/"
             "UPDATING.md#custom-executors-is-loaded-using-full-import-path \n"
             "Following Executors were imported using Plugins: \n"
-            "['my_plugin.MyCustomExecutor', 'my_acme.executors.MyCustomExecutor']"
+            "['PluginExecutor', 'MyCustomExecutor']"
         )
 
         assert msg == rule.check()
 
-    @patch('airflow.plugins_manager.executors_modules', [])
+    @patch('airflow.plugins_manager.plugins', [AirflowTestPlugin2])
     def test_check(self):
         rule = CustomExecutorsRequireFullPathRule()
 
