@@ -17,21 +17,46 @@
  * under the License.
  */
 
-const airbnb = require('@neutrinojs/airbnb');
+require('dotenv').config();
+const typescript = require('neutrinojs-typescript');
+const typescriptLint = require('neutrinojs-typescript-eslint');
 const react = require('@neutrinojs/react');
 const jest = require('@neutrinojs/jest');
+const eslint = require('@neutrinojs/eslint');
+const { resolve } = require('path');
+const copy = require('@neutrinojs/copy');
 
 module.exports = {
   options: {
     root: __dirname,
   },
   use: [
-    airbnb(),
+    (neutrino) => {
+      // Alias's for internal modules
+      neutrino.config.resolve.alias.set('root', resolve(__dirname));
+      neutrino.config.resolve.alias.set('src', resolve(__dirname, 'src'));
+    },
+    typescript(),
+    typescriptLint(),
+    eslint({
+      eslint: {
+        useEslintrc: true,
+      },
+    }),
+    jest({
+      moduleDirectories: ['node_modules', 'src'],
+    }),
     react({
       html: {
-        title: 'ui'
+        title: 'Apache Airflow',
       }
     }),
-    jest(),
+    copy({
+      patterns: [
+        { from: 'src/static/favicon.ico', to: '.' },
+        { from: 'src/static/robots.txt', to: '.' },
+        { from: 'src/static/_redirects', to: '.' },
+      ],
+    }),
   ],
 };

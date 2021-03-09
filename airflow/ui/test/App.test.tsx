@@ -17,8 +17,13 @@
  * under the License.
  */
 
-describe('simple', () => {
-  it('should be sane', () => {
-    expect(false).not.toBe(true);
-  });
+import React from 'react';
+import '@testing-library/jest-dom';
+import { render } from '@testing-library/react';
+
+import App from 'App';
+
+test('App renders message', () => {
+  const { getByText } = render(<App />);
+  expect(getByText('Apache Airflow new UI')).toBeInTheDocument();
 });
