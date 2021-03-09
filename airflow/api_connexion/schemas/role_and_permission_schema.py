@@ -17,34 +17,9 @@
 
 from typing import List, NamedTuple
 
-from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role, ViewMenu
+from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
-
-
-class ResourceCollectionItemSchema(SQLAlchemySchema):
-    """Permission Resources Schema"""
-
-    class Meta:
-        """Meta"""
-
-        model = ViewMenu
-
-    name = auto_field()
-
-
-class ResourceCollection(NamedTuple):
-    """Permission Resources list"""
-
-    resources: List[ViewMenu]
-    total_entries: int
-
-
-class ResourceCollectionSchema(Schema):
-    """ViewMenu list schema"""
-
-    resources = fields.List(fields.Nested(ResourceCollectionItemSchema))
-    total_entries = fields.Int()
 
 
 class ActionCollectionItemSchema(SQLAlchemySchema):

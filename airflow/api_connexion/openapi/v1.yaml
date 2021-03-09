@@ -2291,27 +2291,6 @@ components:
           type: string
           description: The permission resource
 
-    ResourceCollectionItem:
-      description: Resource Collection Item
-      type: object
-      properties:
-        name:
-          type: string
-          description: The name of the Resource
-          nullable: false
-
-    ResourceCollection:
-      description: Resource Collection
-      type: object
-      allOf:
-        - type: object
-          properties:
-            resources:
-              type: array
-              items:
-                $ref: '#/components/schemas/ResourceCollectionItem'
-        - $ref: '#/components/schemas/CollectionInfo'
-
     # Configuration
     ConfigOption:
       type: object
