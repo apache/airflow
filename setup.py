@@ -238,7 +238,10 @@ cgroups = [
 cloudant = [
     'cloudant>=2.0',
 ]
-dask = ['cloudpickle>=1.4.1, <1.5.0', 'distributed>=2.11.1, <2.20']
+dask = [
+    'cloudpickle>=1.4.1, <1.5.0',
+    'distributed>=2.11.1, <2.20',
+]
 databricks = [
     'requests>=2.20.0, <3',
 ]
@@ -351,7 +354,9 @@ kubernetes = [
     'cryptography>=2.0.0',
     'kubernetes>=3.0.0, <12.0.0',
 ]
-kylin = ['kylinpy>=2.6']
+kylin = [
+    'kylinpy>=2.6',
+]
 ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
@@ -367,7 +372,9 @@ mysql = [
     'mysql-connector-python>=8.0.11, <=8.0.22',
     'mysqlclient>=1.3.6,<1.4',
 ]
-neo4j = ['neo4j>=4.2.1']
+neo4j = [
+    'neo4j>=4.2.1',
+]
 odbc = [
     'pyodbc',
 ]
@@ -396,11 +403,8 @@ plexus = [
 postgres = [
     'psycopg2-binary>=2.7.4',
 ]
-trino = [
-    'trino>=0.305'
-]
 presto = [
-    'presto-python-client>=0.7.0,<0.8'
+    'presto-python-client>=0.7.0,<0.8',
 ]
 qubole = [
     'qds-sdk>=1.10.4',
@@ -428,7 +432,9 @@ sentry = [
     'blinker>=1.1',
     'sentry-sdk>=0.8.0',
 ]
-singularity = ['spython>=0.0.56']
+singularity = [
+    'spython>=0.0.56',
+]
 slack = [
     'slack_sdk>=3.0.0,<4.0.0',
 ]
@@ -452,6 +458,9 @@ tableau = [
 ]
 telegram = [
     'python-telegram-bot==13.0',
+]
+trino = [
+    'trino>=0.305',
 ]
 vertica = [
     'vertica-python>=0.5.1',
@@ -517,7 +526,7 @@ devel = [
 ]
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
-devel_hadoop = devel_minreq + hdfs + hive + kerberos + trino + presto + webhdfs
+devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + trino + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
@@ -568,7 +577,6 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'papermill': papermill,
     'plexus': plexus,
     'postgres': postgres,
-    'trino': trino,
     'presto': presto,
     'qubole': qubole,
     'redis': redis,
@@ -584,6 +592,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'ssh': ssh,
     'tableau': tableau,
     'telegram': telegram,
+    'trino': trino,
     'vertica': vertica,
     'yandex': yandex,
     'zendesk': zendesk,
@@ -715,8 +724,8 @@ ALL_DB_PROVIDERS = [
     'mysql',
     'neo4j',
     'postgres',
-    'trino',
     'presto',
+    'trino',
     'vertica',
 ]
 
@@ -928,7 +937,9 @@ def add_all_provider_packages() -> None:
     add_provider_packages_to_extra_requirements("devel_ci", ALL_PROVIDERS)
     add_provider_packages_to_extra_requirements("devel_all", ALL_PROVIDERS)
     add_provider_packages_to_extra_requirements("all_dbs", ALL_DB_PROVIDERS)
-    add_provider_packages_to_extra_requirements("devel_hadoop", ["apache.hdfs", "apache.hive", "trino", "presto"])
+    add_provider_packages_to_extra_requirements(
+        "devel_hadoop", ["apache.hdfs", "apache.hive", "presto", "trino"]
+    )
 
 
 class Develop(develop_orig):

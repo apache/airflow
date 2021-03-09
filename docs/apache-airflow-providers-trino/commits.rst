@@ -25,8 +25,3 @@ Package apache-airflow-providers-trino
 
 This is detailed commit list of changes for versions provider package: ``trino``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
-
-1.0.0
-.....
-
-Latest change: 2020-03-10

@@ -378,6 +378,7 @@ Timmins
 ToC
 Tomasz
 Tooltip
+Trino
 Tsai
 Tuneables
 UA
@@ -1349,6 +1350,7 @@ tooltips
 traceback
 tracebacks
 travis
+trino
 trojan
 tsv
 ttl

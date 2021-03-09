@@ -17,10 +17,16 @@
     under the License.
 
 ``apache-airflow-providers-trino``
-===================================
+==================================
 
 Content
 -------
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections/trino>
 
 .. toctree::
     :maxdepth: 1
@@ -45,7 +51,7 @@ Content
 
 
 Package apache-airflow-providers-trino
-------------------------------------------------------
+--------------------------------------
 
 `Trino <https://trino.io/>`__
 

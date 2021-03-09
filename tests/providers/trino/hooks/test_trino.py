@@ -19,7 +19,6 @@
 import json
 import re
 import unittest
-from typing import *
 from unittest import mock
 from unittest.mock import patch
 
@@ -79,18 +78,20 @@ class TestTrinoHookConn(unittest.TestCase):
             login='login',
             host='host',
             schema='hive',
-            extra=json.dumps({
-                'auth': 'kerberos',
-                'kerberos__config': 'TEST_KERBEROS_CONFIG',
-                'kerberos__service_name': 'TEST_SERVICE_NAME',
-                'kerberos__mutual_authentication': 'TEST_MUTUAL_AUTHENTICATION',
-                'kerberos__force_preemptive': True,
-                'kerberos__hostname_override': 'TEST_HOSTNAME_OVERRIDE',
-                'kerberos__sanitize_mutual_error_response': True,
-                'kerberos__principal': 'TEST_PRINCIPAL',
-                'kerberos__delegate': 'TEST_DELEGATE',
-                'kerberos__ca_bundle': 'TEST_CA_BUNDLE',
-            }),
+            extra=json.dumps(
+                {
+                    'auth': 'kerberos',
+                    'kerberos__config': 'TEST_KERBEROS_CONFIG',
+                    'kerberos__service_name': 'TEST_SERVICE_NAME',
+                    'kerberos__mutual_authentication': 'TEST_MUTUAL_AUTHENTICATION',
+                    'kerberos__force_preemptive': True,
+                    'kerberos__hostname_override': 'TEST_HOSTNAME_OVERRIDE',
+                    'kerberos__sanitize_mutual_error_response': True,
+                    'kerberos__principal': 'TEST_PRINCIPAL',
+                    'kerberos__delegate': 'TEST_DELEGATE',
+                    'kerberos__ca_bundle': 'TEST_CA_BUNDLE',
+                }
+            ),
         )
 
         conn = TrinoHook().get_conn()
@@ -138,7 +139,7 @@ class TestTrinoHookConn(unittest.TestCase):
             )
             TrinoHook().get_conn()
             mock_connect.assert_called_once()
-            args, kwargs = mock_connect.call_args  # type: Tuple, Dict[str, Any]
+            args, kwargs = mock_connect.call_args
             assert 'verify' in kwargs
             assert kwargs['verify'] == expected_verify
 

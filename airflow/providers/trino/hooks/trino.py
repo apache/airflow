@@ -57,6 +57,7 @@ class TrinoHook(DbApiHook):
     def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
+            "hidden_fields": [],
             "relabeling": {
                 'schema': 'Catalog',
                 'login': 'Username',
@@ -97,7 +98,7 @@ class TrinoHook(DbApiHook):
             auth=auth,
             source=db.extra_dejson.get('source', 'airflow'),
             isolation_level=self.get_isolation_level(),
-            verify=_boolify(extra.get('verify', True))
+            verify=_boolify(extra.get('verify', True)),
         )
 
         return trino_conn
@@ -115,12 +116,12 @@ class TrinoHook(DbApiHook):
     def get_records(self, hql, parameters: Optional[dict] = None):
         """Get a set of records from Trino"""
         sql = self._strip_sql(hql)
-        return super(TrinoHook, self).get_records(sql, parameters)
+        return super().get_records(sql, parameters)
 
     def get_first(self, hql: str, parameters: Optional[dict] = None) -> Any:
         """Returns only the first row, regardless of how many rows the query returns."""
         sql = self._strip_sql(hql)
-        return super(TrinoHook, self).get_first(sql, parameters)
+        return super().get_first(sql, parameters)
 
     def get_pandas_df(self, hql, parameters=None, **kwargs):
         """Get a pandas dataframe from a sql query."""
@@ -146,7 +147,7 @@ class TrinoHook(DbApiHook):
     ) -> None:
         """Execute the statement against Trino. Can be used to create views."""
         sql = self._strip_sql(hql)
-        return super(TrinoHook, self).run(sql=sql, parameters=parameters)
+        return super().run(sql=sql, parameters=parameters)
 
     def insert_rows(
         self,
@@ -180,4 +181,4 @@ class TrinoHook(DbApiHook):
             )
             commit_every = 0
 
-        super(TrinoHook, self).insert_rows(table, rows, target_fields, commit_every)
+        super().insert_rows(table, rows, target_fields, commit_every)

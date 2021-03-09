@@ -64,11 +64,11 @@ Extra (optional)
     .. code-block:: json
 
           {
-              'auth': 'kerberos',
-              'kerberos__config': '/etc/krb5.conf',
-              'kerberos__principal': 'primary/instance@REALM',
-              'kerberos__delegate': False,
-              'kerberos__mutual_authentication': False,
-              'kerberos__force_preemptive': True,
-              'kerberos__ca_bundle': '/path/to/ca-bundle.pem',
+              "auth": "kerberos",
+              "kerberos__config": "/etc/krb5.conf",
+              "kerberos__principal": "primary/instance@REALM",
+              "kerberos__delegate": false,
+              "kerberos__mutual_authentication": false,
+              "kerberos__force_preemptive": true,
+              "kerberos__ca_bundle": "/path/to/ca-bundle.pem"
           }

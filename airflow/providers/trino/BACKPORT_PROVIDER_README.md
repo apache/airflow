@@ -65,5 +65,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 * [airflow.providers.trino.hooks.trino.TrinoHook](airflow/providers/trino/hooks/trino.py)
 
 ## Releases
+
 ### Release 2021.3.3
+
 TBD
