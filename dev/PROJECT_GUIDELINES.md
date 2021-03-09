@@ -49,7 +49,7 @@ When voting on AIPs, both PMC members and committers have a binding vote.
 
 The Airflow 1.10.x series will be supported for six months (June 17, 2021) from Airflow 2.0.0
 release date (Dec 17, 2020). Specifically, only 'critical fixes' defined as fixes to bugs
-that take down Production systems, will be backported to 1.10.x until Dec 17, 2020.
+that take down Production systems, will be backported to 1.10.x until June 17, 2021.
 
 ## Support for Backport Providers
 
