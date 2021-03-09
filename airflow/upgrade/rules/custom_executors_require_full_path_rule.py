@@ -34,9 +34,8 @@ To load a custom executor, you have to provide a full path to the the custom exe
 
         for plugin in plugins:
             if plugin.executors:
-                executors_via_plugins.extend(plugin.executors)
-
-        executors_via_plugins = ["{}".format(executor.__name__) for executor in executors_via_plugins]
+                for executor in plugin.executors:
+                    executors_via_plugins.append(executor.__name__)
 
         if executors_via_plugins:
             return (
