@@ -15,7 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import sys
 from tempfile import NamedTemporaryFile
+
+import pytest
+
 from tests.compat import mock
 
 from airflow.upgrade.rules.import_changes import ImportChange, ImportChangesRule
@@ -85,6 +89,10 @@ class TestImportChangesRule:
     @mock.patch(
         "airflow.upgrade.rules.import_changes.ImportChangesRule.ALL_CHANGES",
         [ImportChange.from_new_old_paths(NEW_PATH, OLD_PATH)],
+    )
+    @pytest.mark.skipif(
+        sys.version_info.major == 2,
+        reason="Test is irrelevant in Python 2.7 because of unicode differences"
     )
     def test_decode_error_are_handled(self, mock_list_files):
         with NamedTemporaryFile("wb+", suffix=".py") as temp:

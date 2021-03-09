@@ -14,10 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 from contextlib import contextmanager
 from unittest import TestCase
 
 from tempfile import NamedTemporaryFile
+
+import pytest
+
 from tests.compat import mock
 
 from airflow.upgrade.rules.chain_between_dag_and_operator_not_allowed_rule import \
@@ -124,6 +128,10 @@ class TestChainBetweenDAGAndOperatorNotAllowedRule(TestCase):
             msgs = rule.check()
             assert msgs == []
 
+    @pytest.mark.skipif(
+        sys.version_info.major == 2,
+        reason="Test is irrelevant in Python 2.7 because of unicode differences"
+    )
     def test_decode_errors_are_handled(self, mock_list_files):
 
         with NamedTemporaryFile("wb+", suffix=".py") as temp_file:
