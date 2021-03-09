@@ -17,6 +17,7 @@
 
 from __future__ import absolute_import
 
+from airflow.configuration import conf
 from airflow.models.dagbag import DagBag
 from airflow.upgrade.rules.base_rule import BaseRule
 from airflow.utils.db import provide_session
@@ -47,7 +48,7 @@ To ensure this, we can no longer allow custom metaclasses in custom operators.
 
     @provide_session
     def check(self, session=None):
-        dagbag = DagBag(include_examples=False)
+        dagbag = DagBag(dag_folder=conf.get("core", "dags_folder"), include_examples=False)
         for dag_id, dag in dagbag.dags.items():
             for task in dag.tasks:
                 res = check_task_for_metaclasses(task)
