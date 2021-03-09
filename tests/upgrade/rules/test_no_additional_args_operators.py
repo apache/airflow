@@ -45,5 +45,5 @@ class TestNoAdditionalArgsInOperatorsRule(TestCase):
                 BashOperator(task_id='test', bash_command="true", extra_param=42)
                 '''))
             dag_file.flush()
-            msgs = list(rule.check(dags_folder=dag_file.name))
+            msgs = list(rule.check())
             assert len(msgs) == 1
