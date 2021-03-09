@@ -506,7 +506,7 @@ class PodGenerator(object):
             'volume_mounts',
             'mount_path')
         client_container = extend_object_field(base_container, client_container, 'env')
-        client_container = extend_object_field(base_container, client_container, 'env_from')
+        client_container = extend_object_field(base_container, client_container, 'env_from', None)
         client_container = extend_object_field(base_container, client_container, 'ports')
         client_container = extend_object_field(base_container, client_container, 'volume_devices')
         client_container = merge_objects(base_container, client_container)
@@ -650,10 +650,14 @@ def extend_object_field(base_obj, client_obj, field_name, field_to_merge="name")
         setattr(client_obj_cp, field_name, base_obj_field)
         return client_obj_cp
 
-    base_obj_set = _get_dict_from_list(base_obj_field, field_to_merge)
-    client_obj_set = _get_dict_from_list(client_obj_field, field_to_merge)
+    if field_to_merge is None:
+        # no merge, just append
+        appended_fields = base_obj_field + client_obj_field
+    else:
+        base_obj_set = _get_dict_from_list(base_obj_field, field_to_merge)
+        client_obj_set = _get_dict_from_list(client_obj_field, field_to_merge)
 
-    appended_fields = _merge_list_of_objects(base_obj_set, client_obj_set)
+        appended_fields = _merge_list_of_objects(base_obj_set, client_obj_set)
 
     setattr(client_obj_cp, field_name, appended_fields)
     return client_obj_cp
