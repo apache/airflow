@@ -2661,31 +2661,16 @@ class ConfigurationView(AirflowBaseView):
                 for section, parameters in conf.as_dict(True, True).items()
                 for key, (value, source) in parameters.items()
             ]
-
-            if request.args.get('raw') == "true":
-                return Response(response=json.dumps(table), status=200, mimetype="application/json")
-
-            return self.render_template(
-                'airflow/config.html',
-                title=title,
-                pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
-                table=table,
-            )
+            return self.render_template('airflow/config.html', title=title, table=table)
 
         else:
-            hide_config_msg = (
-                "Your Airflow administrator chose not to expose the configuration, "
-                "most likely for security reasons."
-            )
-
-            if request.args.get('raw') == "true":
-                return Response(headers={"Reason": hide_config_msg}, status=204, mimetype="application/text")
-
             return self.render_template(
                 'airflow/config.html',
                 title=title,
-                pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
-                hide_config_msg=hide_config_msg,
+                hide_config_msg=(
+                    "Your Airflow administrator chose not to expose the configuration, "
+                    "most likely for security reasons."
+                ),
             )
 
 

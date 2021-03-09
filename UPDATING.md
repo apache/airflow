@@ -80,10 +80,8 @@ Since values in airflow.cfg can be overridden by environment variables, this led
 not represent the currently active configuration. Therefore, the airflow.cfg content was removed from the Configuration
 View and only the table with running configuration is displayed.
 
-The `raw` argument (`http://airflow/configuration?raw=true`) was given slightly different behaviour:
-
-- In case `AIRFLOW__WEBSERVER__EXPOSE_CONFIG=False`: returns HTTP 204 (with a header `Reason`)
-- In case `AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True`: returns running configuration in JSON format
+In the process, the `raw` argument (`http://airflow/configuration?raw=true`) was removed. It is substituted by Config
+endpoint of the REST API.
 
 ## Airflow 2.0.1
 
