@@ -6,6 +6,7 @@ from .entity import ClsEntity
 from typing import Optional, Dict
 import threading
 import os
+import json
 import time
 import pprint
 from airflow.utils.logger import generate_logger
@@ -112,7 +113,8 @@ class ClsKafkaConsumer(ClsEntity):
         self.ensure_connected()
         try:
             for msg in self._consumer:
-                _logger.debug('Message: {}'.format(pprint.pformat(msg, indent=4)))
+                # msg: headers, value
+                _logger.debug('Kafka New Message: {}'.format(pprint.pformat(msg, indent=4)))
         except Exception as e:
             _logger.error('Read Error', e)
             self._consumer.unsubscribe()
@@ -124,7 +126,8 @@ class ClsKafkaConsumer(ClsEntity):
         consumer_config = {
             'group_id': self.group_id,
             'bootstrap_servers': self.servers,
-            'client_id': 'qcos_kafka_consumer_{}'.format(FACTORY_CODE)
+            'client_id': 'qcos_kafka_consumer_{}'.format(FACTORY_CODE),
+            'value_deserializer': lambda data: json.loads(data), # 数据只支持json数据包
         }
         if self._auth_type:
             self.consumer_add_auth_config(consumer_config)

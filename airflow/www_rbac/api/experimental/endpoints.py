@@ -51,7 +51,7 @@ from airflow.settings import TIMEZONE
 from flask_login import current_user
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
-from airflow.utils.misc import profile
+from airflow.utils.misc import profile, get_first_valid_data
 from airflow.configuration import conf
 
 PROFILE_DIR = conf.get('core', 'PROFILE_DIR')
@@ -408,7 +408,7 @@ def get_spc_by_entity_id():
         tType = request.args.get('type', 'torque')  # 默认是扭矩图
         spc.update({'type': tType})
         entity_ids = str(vals).split(",")
-        if entity_ids is None or not len(entity_ids):
+        if not entity_ids:
             raise AirflowException(u'entityID为空!')
         results = get_results(entity_ids)
         ll = len(results)
@@ -430,7 +430,7 @@ def get_spc_by_entity_id():
             xr_r_part = rbar(data, SPC_SIZE)
             xs_xbar_part = xbar_sbar(data, SPC_SIZE)
             xs_s_part = sbar(data, SPC_SIZE)
-            cpk_data = cpk(entry, results[0].get(mm_max.get(key)), results[0].get(mm_min.get(key)))
+            cpk_data = cpk(entry, get_first_valid_data(results, mm_max.get(key)), get_first_valid_data(results,mm_min.get(key)))
             # todo: SPC包
             # xbar-r chart
             xr_ee: dict = x_r_entry.get(key)
