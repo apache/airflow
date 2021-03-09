@@ -17,7 +17,7 @@
 
 from typing import List, NamedTuple
 
-from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role
+from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role, ViewMenu
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
@@ -29,6 +29,17 @@ class ActionCollectionItemSchema(SQLAlchemySchema):
         """Meta"""
 
         model = Permission
+
+    name = auto_field()
+
+
+class ResourceSchema(SQLAlchemySchema):
+    """View menu Schema"""
+
+    class Meta:
+        """Meta"""
+
+        model = ViewMenu
 
     name = auto_field()
 
@@ -55,22 +66,8 @@ class ActionResourceSchema(SQLAlchemySchema):
 
         model = PermissionView
 
-    permission = fields.Method("get_action_name", deserialize="get_related", data_key="action")
-    view_menu = fields.Method('get_resource_name', deserialize="get_related", data_key="resource")
-
-    @staticmethod
-    def get_action_name(obj: PermissionView):
-        """Get permission name"""
-        return obj.permission.name
-
-    @staticmethod
-    def get_resource_name(obj: PermissionView):
-        """Get resource name"""
-        return obj.view_menu.name
-
-    def get_related(self, value):
-        """Load value as it is in the related model"""
-        return {"name": value}
+    permission = fields.Nested(ActionCollectionItemSchema, data_key="action")
+    view_menu = fields.Nested(ResourceSchema, data_key="resource")
 
 
 class RoleCollectionItemSchema(SQLAlchemySchema):
