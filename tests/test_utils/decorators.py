@@ -29,7 +29,6 @@ def dont_initialize(_func=None, *, to_initialize=None):
         def no_op(*args, **kwargs):
             pass
 
-        # ["init_api_experimental_auth", "init_api_experimental", "init_appbuilder"]
         methods = [
             "init_api_experimental_auth",
             "init_flash_views",
