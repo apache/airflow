@@ -1,4 +1,3 @@
-from _typeshed import NoneType
 from airflow import models
 from airflow.utils.db import create_session, get_connection
 from airflow.utils.logger import generate_logger
