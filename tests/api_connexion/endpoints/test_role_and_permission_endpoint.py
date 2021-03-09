@@ -23,7 +23,6 @@ from parameterized import parameterized
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.www import app
 from airflow.www.security import EXISTING_ROLES
-from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.config import conf_vars
 
 
@@ -33,13 +32,9 @@ class TestRoleEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
-        create_user(cls.app, username="test", role_name="Admin")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
-
-    def tearDown(self) -> None:
-        delete_user(self.app, 'test')
 
 
 class TestGetRoleEndpoint(TestRoleEndpoint):
