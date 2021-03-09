@@ -658,6 +658,10 @@
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "array"
+                },
+                "hostAliases": {
+                    "description": "Specify hostAliases for workers.",
+                    "type": "array"
                 }
             }
         },
