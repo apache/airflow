@@ -107,6 +107,17 @@ custom_rules:
 
 ## Changelog
 
+### 1.3.0
+
+- Fix wrong warning about class that was not used in a dag file (#14700)
+- Fill DagBag from `dag_folder` setting for upgrade rules (#14588)
+- Bugfix: False positives for Custom Executors via Plugins check (#14680)
+- Bugfix: Fix False alarm in import changes rule (#14493)
+- Use `CustomSQLAInterface` instead of `SQLAInterface` (#14475)
+- Fix comparing airflow version to work with older versions of packaging library (#14435)
+- Fix Incorrect warning in upgrade check and error in reading file (#14344)
+- Handle possible suffix in MySQL version + avoid hard-coding (#14274)
+
 ### 1.2.0
 
 - Add upgrade check option to list checks (#13392)
