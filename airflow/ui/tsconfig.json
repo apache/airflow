@@ -1,3 +1,6 @@
+/*
+*  Typescript config
+*/
 {
   "compilerOptions": {
     "strict": true,

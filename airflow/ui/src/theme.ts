@@ -1,3 +1,7 @@
+/*
+  Global themes for all Chakra UI components in the app
+*/
+
 import { extendTheme } from '@chakra-ui/react';
 
 const theme = extendTheme({

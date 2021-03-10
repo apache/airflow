@@ -17,6 +17,9 @@
  * under the License.
  */
 
+/*
+* Most testing config happens in .neutrinorc.js instead
+*/
 const neutrino = require('neutrino');
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'test';

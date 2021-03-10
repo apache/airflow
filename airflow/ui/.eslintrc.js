@@ -17,6 +17,9 @@
  * under the License.
  */
 
+/*
+*  Linting config
+*/
 module.exports = {
   env: {
     jest: true,

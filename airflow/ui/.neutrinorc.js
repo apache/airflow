@@ -17,6 +17,9 @@
  * under the License.
  */
 
+/*
+  Config for running and building the app
+*/
 require('dotenv').config();
 const typescript = require('neutrinojs-typescript');
 const typescriptLint = require('neutrinojs-typescript-eslint');
@@ -32,14 +35,16 @@ module.exports = {
   },
   use: [
     (neutrino) => {
-      // Alias's for internal modules
+      // Aliases for internal modules
       neutrino.config.resolve.alias.set('root', resolve(__dirname));
       neutrino.config.resolve.alias.set('src', resolve(__dirname, 'src'));
     },
     typescript(),
+    // Modify typescript config in .tsconfig.json
     typescriptLint(),
     eslint({
       eslint: {
+        // Modify eslint config in .eslintrc.js config instead
         useEslintrc: true,
       },
     }),
