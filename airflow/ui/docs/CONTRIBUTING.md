@@ -38,3 +38,7 @@ the more confidence they can give you." Keep their [cheatsheet](https://testing-
 
 - `src/index.tsx` is the entry point of the app. Here you will find all the root level Providers that expose functionality to the rest of the app like the Chakra component library, routing, authentication or API queries.
 - `.neutrinorc.js` is the main config file. Although some custom typescript or linting may need to be changed in `tsconfig.json` or `.eslintrc.js`, respectively
+
+## Find open issues
+
+Take a look at our [project board](https://github.com/apache/airflow/projects/9) for unassigned issues in the `Next Up` column. If you're interested in one, leave a comment saying you'd like it to be assigned to you.
