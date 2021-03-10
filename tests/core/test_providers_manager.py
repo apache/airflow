@@ -96,6 +96,7 @@ CONNECTIONS_LIST = [
     'azure_container_instances',
     'azure_cosmos',
     'azure_data_explorer',
+    'azure_data_factory',
     'azure_data_lake',
     'cassandra',
     'cloudant',

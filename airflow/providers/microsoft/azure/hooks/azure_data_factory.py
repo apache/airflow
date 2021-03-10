@@ -77,7 +77,12 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
     :param conn_id: The Azure Data Factory connection id.
     """
 
-    def __init__(self, conn_id: str = "azure_data_factory_default"):
+    conn_type: str = 'azure_data_factory'
+    conn_name_attr: str = 'azure_data_factory_conn_id'
+    default_conn_name: str = 'azure_data_factory_default'
+    hook_name: str = 'Azure Data Factory'
+
+    def __init__(self, conn_id: Optional[str] = default_conn_name):
         self._conn: DataFactoryManagementClient = None
         self.conn_id = conn_id
         super().__init__()
