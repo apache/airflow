@@ -32,6 +32,17 @@ from airflow.typing_compat import Protocol, runtime_checkable
 from airflow.utils.decorators import apply_defaults
 
 
+def should_retry(exception: Exception):
+    """Check if exception is related to ECS resource quota (CPU, MEM)."""
+    if isinstance(exception, ECSOperatorError):
+        return any(
+            quota_reason in failure['reason']
+            for quota_reason in ['RESOURCE:MEMORY', 'RESOURCE:CPU']
+            for failure in exception.failures
+        )
+    return False
+
+
 @runtime_checkable
 class ECSProtocol(Protocol):
     """
@@ -211,7 +222,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
         return None
 
-    @AwsBaseHook.retry
+    @AwsBaseHook.retry(should_retry)
     def _start_task(self):
         run_opts = {
             'cluster': self.cluster,

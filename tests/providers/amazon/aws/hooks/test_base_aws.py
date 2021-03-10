@@ -270,7 +270,7 @@ class TestAwsBaseHook(unittest.TestCase):
             hook.get_client_type('s3')
 
 
-class ECSOperatorErrorUntilCount:
+class ThrowErrorUntilCount:
     """Holds counter state for invoking a method several times in a row."""
 
     def __init__(self, count, quota_retry, **kwargs):
@@ -287,40 +287,66 @@ class ECSOperatorErrorUntilCount:
         """
         if self.counter < self.count:
             self.counter += 1
-            raise ECSOperatorError(**self.kwargs)
+            raise Exception()
         return True
 
 
-@AwsBaseHook.retry
-def _retryable_test_with_temporary_quota_retry(thing):
+def _always_true_predicate(e: Exception):
+    return True
+
+
+@AwsBaseHook.retry(_always_true_predicate)
+def _retryable_test(thing):
+    return thing()
+
+
+def _always_false_predicate(e: Exception):
+    return False
+
+
+@AwsBaseHook.retry(_always_false_predicate)
+def _non_retryable_test(thing):
     return thing()
 
 
 class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
-    def test_do_nothing_on_non_error(self):
-        result = _retryable_test_with_temporary_quota_retry(lambda: 42)
+    def test_do_nothing_on_non_exception(self):
+        result = _retryable_test(lambda: 42)
         assert result, 42
 
-    def test_retry_on_quota_exception(self):
+    def test_retry_on_exception(self):
         quota_retry = {
             'stop_after_delay': 2,
             'multiplier': 1,
             'min': 1,
             'max': 10,
         }
-        custom_fn = ECSOperatorErrorUntilCount(
+        custom_fn = ThrowErrorUntilCount(
             count=2,
-            failures=[{'reason': 'RESOURCE:CPU'}],
-            message='ECS quota exception.',
             quota_retry=quota_retry,
         )
-        result = _retryable_test_with_temporary_quota_retry(custom_fn)
+        result = _retryable_test(custom_fn)
         assert custom_fn.counter == 2
         assert result
 
-    def test_retry_on_non_quota_exception(self):
-        custom_fn = ECSOperatorErrorUntilCount(
-            count=2, failures=[{'reason': 'OTHER'}], message='Non quota exception.', quota_retry=None
+    def test_no_retry_on_exception(self):
+        quota_retry = {
+            'stop_after_delay': 2,
+            'multiplier': 1,
+            'min': 1,
+            'max': 10,
+        }
+        custom_fn = ThrowErrorUntilCount(
+            count=2,
+            quota_retry=quota_retry,
         )
-        with pytest.raises(Exception, match="Non quota exception."):
-            _retryable_test_with_temporary_quota_retry(custom_fn)
+        with pytest.raises(Exception):
+            _non_retryable_test(custom_fn)
+
+    def test_raise_exception_when_no_retry_args(self):
+        custom_fn = ThrowErrorUntilCount(
+            count=2,
+            quota_retry=None
+        )
+        with pytest.raises(Exception):
+            _retryable_test(custom_fn)
