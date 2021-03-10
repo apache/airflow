@@ -27,6 +27,7 @@ This module contains Base AWS Hook.
 import configparser
 import datetime
 import logging
+from functools import wraps
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import boto3
@@ -500,6 +501,7 @@ class AwsBaseHook(BaseHook):
         """
 
         def retry_decorator(fun: Callable):
+            @wraps(fun)
             def decorator_f(self):
                 retry_args = getattr(self, 'retry_args', None)
                 if retry_args is None:

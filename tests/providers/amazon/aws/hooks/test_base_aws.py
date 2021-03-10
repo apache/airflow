@@ -278,7 +278,7 @@ class ThrowErrorUntilCount:
         self.count = count
         self.retry_args = quota_retry
         self.kwargs = kwargs
-        self.logger = None
+        self.log = None
 
     def __call__(self):
         """
@@ -309,7 +309,7 @@ def _non_retryable_test(thing):
     return thing()
 
 
-class QuotaRetryTestCase(unittest.TestCase):  # ptlint: disable=invalid-name
+class TestRetryDecorator(unittest.TestCase):  # ptlint: disable=invalid-name
     def test_do_nothing_on_non_exception(self):
         result = _retryable_test(lambda: 42)
         assert result, 42
