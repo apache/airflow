@@ -502,7 +502,7 @@ class AwsBaseHook(BaseHook):
 
         def retry_decorator(fun: Callable):
             @wraps(fun)
-            def decorator_f(self):
+            def decorator_f(self, *args, **kwargs):
                 retry_args = getattr(self, 'retry_args', None)
                 if retry_args is None:
                     return fun(self)
