@@ -126,6 +126,7 @@ class ClsKafkaConsumer(ClsEntity):
         consumer_config = {
             'group_id': self.group_id,
             'bootstrap_servers': self.servers,
+            'auto_offset_reset': 'earliest',  # 不会收到之前重复的数据
             'client_id': 'qcos_kafka_consumer_{}'.format(FACTORY_CODE),
             'value_deserializer': lambda data: json.loads(data), # 数据只支持json数据包
         }
