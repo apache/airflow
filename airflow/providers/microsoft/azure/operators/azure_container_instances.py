@@ -341,9 +341,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                         )
 
                 if state == "Terminated":
-                    self.log.error(
-                        "Container exited with detail_status %s", detail_status
-                    )
+                    self.log.error("Container exited with detail_status %s", detail_status)
                     return exit_code
 
                 if state == "Failed":
@@ -353,7 +351,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             except AirflowTaskTimeout:
                 raise
             except CloudError as err:
-                if "ResourceNotFound" in str(err):
+                if 'ResourceNotFound' in str(err):
                     self.log.warning(
                         "ResourceNotFound, container is probably removed "
                         "by another process "
@@ -362,7 +360,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     return 1
                 else:
                     self.log.exception("Exception while getting container groups")
-            except Exception: # pylint: disable=broad-except
+            except Exception:  # pylint: disable=broad-except
                 self.log.exception("Exception while getting container groups")
 
             sleep(5)
