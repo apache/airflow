@@ -20,7 +20,6 @@
 /*
   Config for running and building the app
 */
-require('dotenv').config();
 const typescript = require('neutrinojs-typescript');
 const typescriptLint = require('neutrinojs-typescript-eslint');
 const react = require('@neutrinojs/react');
@@ -59,8 +58,6 @@ module.exports = {
     copy({
       patterns: [
         { from: 'src/static/favicon.ico', to: '.' },
-        { from: 'src/static/robots.txt', to: '.' },
-        { from: 'src/static/_redirects', to: '.' },
       ],
     }),
   ],

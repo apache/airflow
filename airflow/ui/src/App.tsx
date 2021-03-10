@@ -3,7 +3,7 @@ import React from 'react';
 import { Center, Heading } from '@chakra-ui/react';
 
 const App = () => (
-  <Center>
+  <Center height="100vh">
     <Heading>Apache Airflow new UI</Heading>
   </Center>
 );

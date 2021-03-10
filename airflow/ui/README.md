@@ -17,7 +17,7 @@
  under the License.
  -->
 
-# Airflow UI POC
+# Airflow UI
 
 ## Built with:
 
