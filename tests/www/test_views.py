@@ -2763,7 +2763,38 @@ class TestTriggerDag(TestBase):
             ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
         ]
     )
-    def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
+    @pytest.mark.skipif(
+        sys.version_info < (3, 8, 8),
+        reason='Vulnerability was fixed in Python 3.8.8 which changed the query string separator: bpo-42967',
+    )
+    def test_trigger_dag_form_origin_url_py_lte_387(self, test_origin, expected_origin):
+        test_dag_id = "example_bash_operator"
+
+        resp = self.client.get(f'trigger?dag_id={test_dag_id}&origin={test_origin}')
+        self.check_content_in_response(
+            '<button type="button" class="btn" onclick="location.href = \'{}\'; return false">'.format(
+                expected_origin
+            ),
+            resp,
+        )
+
+    @parameterized.expand(
+        [
+            ("javascript:alert(1)", "/home"),
+            ("http://google.com", "/home"),
+            (
+                "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
+                "/tree?dag_id=example_bash_operator%27%3Balert%2833%29%2F%2F",
+            ),
+            ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
+            ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
+        ]
+    )
+    @pytest.mark.skipif(
+        sys.version_info > (3, 8, 7),
+        reason='Vulnerability was fixed in Python 3.8.8 which changed the query string separator: bpo-42967',
+    )
+    def test_trigger_dag_form_origin_url_py_gt_387(self, test_origin, expected_origin):
         test_dag_id = "example_bash_operator"
 
         resp = self.client.get(f'trigger?dag_id={test_dag_id}&origin={test_origin}')
@@ -3306,11 +3337,40 @@ class TestHelperFunctions(TestBase):
             ),
         ]
     )
-    @mock.patch("airflow.www.views.url_for")
-    def test_get_safe_url(self, test_url, expected_url, mock_url_for):
-        mock_url_for.return_value = "/home"
-        with self.app.test_request_context(base_url="http://localhost:8080"):
-            assert get_safe_url(test_url) == expected_url
+    @pytest.mark.skipif(
+        sys.version_info < (3, 8, 8),
+        reason='Vulnerability was fixed in Python 3.8.8 which changed the query string separator: bpo-42967',
+    )
+    def test_get_safe_url_py_lte_387(self, test_url, expected_url):
+        with mock.patch("airflow.www.views.url_for") as mock_url_for:
+            mock_url_for.return_value = "/home"
+            with self.app.test_request_context(base_url="http://localhost:8080"):
+                assert get_safe_url(test_url) == expected_url
+
+    @parameterized.expand(
+        [
+            ("", "/home"),
+            ("http://google.com", "/home"),
+            (
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag';alert(33)//",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3F"
+                "dag_id%25test_dag%27%3Balert%2833%29%2F%2F",
+            ),
+            (
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%25test_dag",
+            ),
+        ]
+    )
+    @pytest.mark.skipif(
+        sys.version_info > (3, 8, 7),
+        reason='Vulnerability was fixed in Python 3.8.8 which changed the query string separator: bpo-42967',
+    )
+    def test_get_safe_url_py_gt_387(self, test_url, expected_url):
+        with mock.patch("airflow.www.views.url_for") as mock_url_for:
+            mock_url_for.return_value = "/home"
+            with self.app.test_request_context(base_url="http://localhost:8080"):
+                assert get_safe_url(test_url) == expected_url
 
     @parameterized.expand(
         [
