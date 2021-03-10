@@ -23,9 +23,9 @@
 
 If you're new to modern frontend development or parts of our stack, you may want to check out these resources to understand our codebase:
 
-- React powers our entire app so it would be valuable to learn the syntax of html-in-js that is jsx. Check out their official [tutorial](https://reactjs.org/tutorial/tutorial.html#overview) for a basic overview.
+- Typescript is an extension of javascript to add type-checking to our app. Files ending in `.ts` or `.tsx` will be type-checked. Check out the [handbook](https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes-func.html) for an introduction or feel free to keep this [cheatsheet](https://github.com/typescript-cheatsheets/react) open while developing.
 
-- Typescript is an extension of javascript to add type-checking to our app. Check out the [handbook](https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes-func.html) for an introduction or feel free to keep this [cheatsheet](https://github.com/typescript-cheatsheets/react) open while developing.
+- React powers our entire app so it would be valuable to learn JSX, the html-in-js templates React utilizes. Files that contain JSX will end in `.tsx` instead of `.ts`. Check out their official [tutorial](https://reactjs.org/tutorial/tutorial.html#overview) for a basic overview.
 
 - Chakra-UI is our component library and theming system. You'll notice we have no traditional css nor html tags. This is all handled in Chakra with importing standard components like `<Box>` or `<Text>` that are styled globally in `src/theme.ts` file and then by passing styles as component props. Check out their [docs](https://chakra-ui.com/docs/getting-started) to see all the included components and hooks.
 

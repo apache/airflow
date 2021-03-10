@@ -1,8 +1,7 @@
 {
   "name": "ui",
   "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "start": "webpack-dev-server --mode development --open",
     "build": "webpack --mode production",
