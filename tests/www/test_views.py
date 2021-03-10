@@ -70,7 +70,7 @@ from airflow.www.views import (
     dag_query_for_key,
     get_safe_url,
     query_ordering_transform_for_key,
-    truncate_task_duration
+    truncate_task_duration,
 )
 from tests.test_utils import fab_utils
 from tests.test_utils.asserts import assert_queries_count
