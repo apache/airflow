@@ -17,7 +17,6 @@
 
 import unittest
 
-from flask import current_app
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -32,6 +31,8 @@ class TestRoleEndpoint(unittest.TestCase):
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
+        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
+        cls.security_manager = cls.appbuilder.sm  # type:ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -95,9 +96,7 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
 class TestGetPermissionsEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
         response = self.client.get("/api/v1/permissions")
-        with self.app.app_context():
-            sec_manager = current_app.appbuilder.sm
-            actions = {i[0] for i in sec_manager.get_all_permissions() if i}
+        actions = {i[0] for i in self.security_manager.get_all_permissions() if i}
         assert response.status_code == 200
         assert response.json['total_entries'] == len(actions)
         returned_actions = {perm['name'] for perm in response.json['actions']}
