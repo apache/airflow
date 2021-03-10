@@ -149,36 +149,38 @@ class TestBase(unittest.TestCase):
         self.login()
 
     def login(self, username='test', password='test'):
-        if username == 'test' and not self.appbuilder.sm.find_user(username='test'):
-            self.appbuilder.sm.add_user(
-                username='test',
-                first_name='test',
-                last_name='test',
-                email='test@fab.org',
-                role=self.appbuilder.sm.find_role('Admin'),
-                password='test',
-            )
-        if username == 'test_user' and not self.appbuilder.sm.find_user(username='test_user'):
-            self.appbuilder.sm.add_user(
-                username='test_user',
-                first_name='test_user',
-                last_name='test_user',
-                email='test_user@fab.org',
-                role=self.appbuilder.sm.find_role('User'),
-                password='test_user',
-            )
+        with mock.patch('flask_appbuilder.security.manager.check_password_hash') as set_mock:
+            set_mock.return_value = True
+            if username == 'test' and not self.appbuilder.sm.find_user(username='test'):
+                self.appbuilder.sm.add_user(
+                    username='test',
+                    first_name='test',
+                    last_name='test',
+                    email='test@fab.org',
+                    role=self.appbuilder.sm.find_role('Admin'),
+                    password='test',
+                )
+            if username == 'test_user' and not self.appbuilder.sm.find_user(username='test_user'):
+                self.appbuilder.sm.add_user(
+                    username='test_user',
+                    first_name='test_user',
+                    last_name='test_user',
+                    email='test_user@fab.org',
+                    role=self.appbuilder.sm.find_role('User'),
+                    password='test_user',
+                )
 
-        if username == 'test_viewer' and not self.appbuilder.sm.find_user(username='test_viewer'):
-            self.appbuilder.sm.add_user(
-                username='test_viewer',
-                first_name='test_viewer',
-                last_name='test_viewer',
-                email='test_viewer@fab.org',
-                role=self.appbuilder.sm.find_role('Viewer'),
-                password='test_viewer',
-            )
+            if username == 'test_viewer' and not self.appbuilder.sm.find_user(username='test_viewer'):
+                self.appbuilder.sm.add_user(
+                    username='test_viewer',
+                    first_name='test_viewer',
+                    last_name='test_viewer',
+                    email='test_viewer@fab.org',
+                    role=self.appbuilder.sm.find_role('Viewer'),
+                    password='test_viewer',
+                )
 
-        return self.client.post('/login/', data={"username": username, "password": password})
+            return self.client.post('/login/', data={"username": username, "password": password})
 
     def logout(self):
         return self.client.get('/logout/')
