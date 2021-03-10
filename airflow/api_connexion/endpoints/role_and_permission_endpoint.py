@@ -45,7 +45,7 @@ def get_roles(limit=None, offset=None):
     total_entries = session.query(func.count(Role.id)).scalar()
     query = session.query(Role)
 
-    roles = query.offset(offset).limit(limit).all()
+    roles = query.order_by(Role.name).offset(offset).limit(limit).all()
 
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 

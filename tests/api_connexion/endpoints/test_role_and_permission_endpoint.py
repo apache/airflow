@@ -67,20 +67,20 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
     @parameterized.expand(
         [
             ("/api/v1/roles?limit=1", ['Admin']),
-            ("/api/v1/roles?limit=2", ['Admin', "Viewer"]),
+            ("/api/v1/roles?limit=2", ['Admin', "Op"]),
             (
                 "/api/v1/roles?offset=1",
-                ['Viewer', 'User', 'Op', 'Public', 'Test'],
+                ['Op', 'Public', 'User', 'Viewer'],
             ),
             (
                 "/api/v1/roles?offset=0",
-                ["Admin", 'Viewer', 'User', 'Op', 'Public', 'Test'],
+                ['Admin', 'Op', 'Public', 'User', 'Viewer'],
             ),
-            ("/api/v1/roles?limit=1&offset=2", ["User"]),
-            ("/api/v1/roles?limit=1&offset=1", ["Viewer"]),
+            ("/api/v1/roles?limit=1&offset=2", ["Public"]),
+            ("/api/v1/roles?limit=1&offset=1", ["Op"]),
             (
                 "/api/v1/roles?limit=2&offset=2",
-                ["User", "Op"],
+                ['Public', 'User'],
             ),
         ]
     )
@@ -89,7 +89,7 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
         assert response.status_code == 200
         assert response.json["total_entries"] == 5
         roles = [role['name'] for role in response.json['roles'] if role]
-        assert roles.sort() == expected_roles.sort()
+        assert roles == expected_roles
 
 
 class TestGetPermissionsEndpoint(TestRoleEndpoint):
