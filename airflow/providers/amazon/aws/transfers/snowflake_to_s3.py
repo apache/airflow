@@ -76,6 +76,7 @@ class SnowflakeToS3Operator(BaseOperator):
         'snowflake_conn_id',
     )
     template_ext = ('.sql',)
+    template_fields_renderers = {"query_or_table": "sql"}
     ui_color = '#ffebb2'
 
     @apply_defaults
@@ -107,7 +108,7 @@ class SnowflakeToS3Operator(BaseOperator):
         self.database = database
         self.snowflake_conn_id = snowflake_conn_id
         self.query_or_table = query_or_table
-        self.unload_options = unload_options or []  # type: List
+        self.unload_options: List = unload_options or []
         self.autocommit = autocommit
         self.include_header = include_header
         self.role = role
