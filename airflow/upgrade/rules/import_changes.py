@@ -53,6 +53,10 @@ class ImportChange(
         return ".".join(part)
 
     @cached_property
+    def old_class(self):
+        return self.old_path.split(".")[-1]
+
+    @cached_property
     def new_class(self):
         return self.new_path.split(".")[-1]
 
@@ -116,7 +120,7 @@ class ImportChangesRule(BaseRule):
             try:
                 content = file.read()
                 for change in ImportChangesRule.ALL_CHANGES:
-                    if change.old_path_without_classname in content:
+                    if change.old_path_without_classname in content and change.old_class in content:
                         problems.append(change.info(file_path))
                         if change.providers_package:
                             providers.add(change.providers_package)
