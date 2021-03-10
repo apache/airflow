@@ -29,13 +29,13 @@ class DateTimeBranchOperator(BaseBranchOperator):
     Branches into one of two lists of tasks depending on the current datetime.
 
     True branch will be returned when `datetime.datetime.now()` falls below
-    `target_upper` and above `target_lower`.
+    ``target_upper`` and above ``target_lower``.
 
     :param follow_task_ids_if_true: task id or task ids to follow if
-        `datetime.datetime.now()` falls above target_lower and below `target_upper`.
+        ``datetime.datetime.now()`` falls above target_lower and below ``target_upper``.
     :type follow_task_ids_if_true: str or list[str]
     :param follow_task_ids_if_false: task id or task ids to follow if
-        `datetime.datetime.now()` falls below target_lower or above `target_upper`.
+        ``datetime.datetime.now()`` falls below target_lower or above ``target_upper``.
     :type follow_task_ids_if_false: str or list[str]
     :param target_lower: target lower bound.
     :type target_lower: Optional[datetime.datetime]
