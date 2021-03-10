@@ -24,7 +24,6 @@ import boto3
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.amazon.aws.exceptions import ECSOperatorError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 try:
@@ -291,7 +290,7 @@ class ThrowErrorUntilCount:
         return True
 
 
-def _always_true_predicate(e: Exception):
+def _always_true_predicate(e: Exception):  # pylint: disable=unused-argument
     return True
 
 
@@ -300,7 +299,7 @@ def _retryable_test(thing):
     return thing()
 
 
-def _always_false_predicate(e: Exception):
+def _always_false_predicate(e: Exception):  # pylint: disable=unused-argument
     return False
 
 

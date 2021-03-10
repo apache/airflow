@@ -45,13 +45,6 @@ from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class retry_if_permissible_error(tenacity.retry_if_exception):  # pylint: disable=invalid-name
-    """Retries if there was an exception for exceeding the temporary quote limit."""
-
-    def __init__(self, predicate):
-        super().__init__(predicate)
-
-
 class _SessionFactory(LoggingMixin):
     def __init__(self, conn: Connection, region_name: Optional[str], config: Config) -> None:
         super().__init__()
@@ -513,7 +506,7 @@ class AwsBaseHook(BaseHook):
                 tenacity_logger = tenacity.before_log(self.log, logging.DEBUG) if self.log else None
                 default_kwargs = {
                     'wait': tenacity.wait_exponential(multiplier=multiplier, max=max_limit, min=min_limit),
-                    'retry': retry_if_permissible_error(should_retry),
+                    'retry': tenacity.retry_if_exception(should_retry),
                     'stop': tenacity.stop_after_delay(stop_after_delay),
                     'before': tenacity_logger,
                     'after': tenacity_logger,
