@@ -502,7 +502,7 @@ ARG_DO_PICKLE = Arg(
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
-    default=conf.get('celery', 'DEFAULT_QUEUE'),
+    default=conf.get('operators', 'DEFAULT_QUEUE'),
 )
 ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),

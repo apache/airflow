@@ -738,11 +738,12 @@ config:
     statsd_port: 9125
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
+  operators:
+    default_queue: celery
   webserver:
     enable_proxy_fix: 'True'
     rbac: 'True'
   celery:
-    default_queue: celery
     worker_concurrency: 16
   scheduler:
     scheduler_heartbeat_sec: 5

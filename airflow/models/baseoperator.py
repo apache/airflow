@@ -367,7 +367,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         default_args: Optional[Dict] = None,  # pylint: disable=unused-argument
         priority_weight: int = 1,
         weight_rule: str = WeightRule.DOWNSTREAM,
-        queue: str = conf.get('celery', 'default_queue'),
+        queue: str = conf.get('operators', 'default_queue'),
         pool: Optional[str] = None,
         pool_slots: int = 1,
         sla: Optional[timedelta] = None,

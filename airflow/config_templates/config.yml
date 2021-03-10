@@ -867,6 +867,13 @@
       type: string
       example: ~
       default: "0"
+    - name: default_queue
+      description: |
+        Default queue that tasks get assigned to and that worker listen on.
+      version_added: ~
+      type: string
+      example: ~
+      default: "default"
     - name: allow_illegal_arguments
       description: |
         Is allowed to pass additional/unused arguments (args, kwargs) to the BaseOperator operator.
@@ -1507,13 +1514,6 @@
       sensitive: true
       example: "user1:password1,user2:password2"
       default: ""
-    - name: default_queue
-      description: |
-        Default queue that tasks get assigned to and that worker listen on.
-      version_added: ~
-      type: string
-      example: ~
-      default: "default"
     - name: sync_parallelism
       description: |
         How many processes CeleryExecutor uses to sync task state.
