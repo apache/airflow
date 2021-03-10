@@ -39,6 +39,7 @@ from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
+from tests.test_utils.decorators import dont_initialize
 
 
 class TestGetLog(unittest.TestCase):
@@ -47,6 +48,7 @@ class TestGetLog(unittest.TestCase):
     TRY_NUMBER = 1
 
     @classmethod
+    @dont_initialize(to_initialize=["init_api_connexion", "init_appbuilder"])
     def setUpClass(cls):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)
@@ -90,6 +92,7 @@ class TestGetLog(unittest.TestCase):
         session.add(dagrun_model)
         session.commit()
 
+    @dont_initialize(to_initialize=["init_api_connexion", "init_appbuilder", "init_api_experimental_auth"])
     def _configure_loggers(self):
         # Create a custom logging configuration
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)

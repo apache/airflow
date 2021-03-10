@@ -23,6 +23,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.www import app
+from tests.test_utils.decorators import dont_initialize
 
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
@@ -30,6 +31,7 @@ UNHEALTHY = "unhealthy"
 
 class TestHealthTestBase(unittest.TestCase):
     @classmethod
+    @dont_initialize(to_initialize=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"])
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.app = app.create_app(testing=True)  # type:ignore

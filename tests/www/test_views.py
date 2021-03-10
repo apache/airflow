@@ -1224,6 +1224,7 @@ class TestLogView(TestBase):
     ENDPOINT = f'log?dag_id={DAG_ID}&task_id={TASK_ID}&execution_date={DEFAULT_DATE}'
 
     @classmethod
+    @dont_initialize(to_initialize=["init_appbuilder", "init_jinja_globals", "init_appbuilder_views"])
     def setUpClass(cls):
         # Make sure that the configure_logging is not cached
         cls.old_modules = dict(sys.modules)

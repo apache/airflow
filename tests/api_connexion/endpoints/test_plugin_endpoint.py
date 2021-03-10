@@ -24,11 +24,13 @@ from airflow.security import permissions
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
+from tests.test_utils.decorators import dont_initialize
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
 
 class TestPluginsEndpoint(unittest.TestCase):
     @classmethod
+    @dont_initialize(to_initialize=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"])
     def setUpClass(cls) -> None:
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
