@@ -40,7 +40,7 @@ const config = {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
     dagCode: `${JS_DIR}/dag_code.js`,
-    dags: `${CSS_DIR}/dags.css`,
+    dags: [`${CSS_DIR}/dags.css`, `${JS_DIR}/dags.js`],
     flash: `${CSS_DIR}/flash.css`,
     gantt: [`${CSS_DIR}/gantt.css`, `${JS_DIR}/gantt.js`],
     graph: `${CSS_DIR}/graph.css`,
