@@ -116,7 +116,6 @@ class TestDateTimeBranchOperator(unittest.TestCase):
         """Check DateTimeBranchOperator branch operation"""
         for target_lower, target_upper in self.targets:
             with self.subTest(target_lower=target_lower, target_upper=target_upper):
-                print(f"{target_lower}, {target_upper}")
                 self.branch_op.target_lower = target_lower
                 self.branch_op.target_upper = target_upper
                 self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -222,5 +221,31 @@ class TestDateTimeBranchOperator(unittest.TestCase):
                         'datetime_branch': State.SUCCESS,
                         'branch_1': State.SKIPPED,
                         'branch_2': State.NONE,
+                    }
+                )
+
+    @freezegun.freeze_time("2020-12-01 09:00:00")
+    def test_datetime_branch_operator_use_task_execution_date(self):
+        """Check if DateTimeBranchOperator uses task execution date"""
+        in_between_date = timezone.datetime(2020, 7, 7, 10, 30, 0)
+        self.branch_op.use_task_execution_date = True
+        self.dr = self.dag.create_dagrun(
+            run_id='manual_exec_date__',
+            start_date=in_between_date,
+            execution_date=in_between_date,
+            state=State.RUNNING,
+        )
+
+        for target_lower, target_upper in self.targets:
+            with self.subTest(target_lower=target_lower, target_upper=target_upper):
+                self.branch_op.target_lower = target_lower
+                self.branch_op.target_upper = target_upper
+                self.branch_op.run(start_date=in_between_date, end_date=in_between_date)
+
+                self._assert_task_ids_match_states(
+                    {
+                        'datetime_branch': State.SUCCESS,
+                        'branch_1': State.NONE,
+                        'branch_2': State.SKIPPED,
                     }
                 )

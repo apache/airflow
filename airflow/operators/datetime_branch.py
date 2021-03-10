@@ -41,6 +41,9 @@ class DateTimeBranchOperator(BaseBranchOperator):
     :type target_lower: Optional[datetime.datetime]
     :param target_upper: target upper bound.
     :type target_upper: Optional[datetime.datetime]
+    :param use_task_execution_date: If ``True``, uses task's execution day to compare with targets.
+        Execution date is useful for backfilling. If ``False``, uses system's date.
+    :type use_task_execution_date: bool
     """
 
     @apply_defaults
@@ -51,6 +54,7 @@ class DateTimeBranchOperator(BaseBranchOperator):
         follow_task_ids_if_false: Union[str, Iterable[str]],
         target_lower: Union[datetime.datetime, datetime.time, None],
         target_upper: Union[datetime.datetime, datetime.time, None],
+        use_task_execution_date: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -64,12 +68,15 @@ class DateTimeBranchOperator(BaseBranchOperator):
         self.target_upper = target_upper
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
+        self.use_task_execution_date = use_task_execution_date
 
     def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
-        now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
+        if self.use_task_execution_date is True:
+            now = timezone.make_naive(context["execution_date"], self.dag.timezone)
+        else:
+            now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
 
         lower, upper = target_times_as_dates(now, self.target_lower, self.target_upper)
-
         if upper is not None and upper < now:
             return self.follow_task_ids_if_false
 
