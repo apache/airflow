@@ -343,7 +343,7 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 # * pyOpenSSL: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
 # * urllib3<1.26: Required to keep boto3 happy
 # * pyjwt<2.0.0: flask-jwt-extended requires it
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 purllib3<1.26 pyjwt<2.0.0"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 urllib3<1.26 pyjwt<2.0.0"
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
 
 ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"

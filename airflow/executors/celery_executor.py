@@ -116,7 +116,7 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
         args.func(args)
         ret = 0
     except Exception as e:  # pylint: disable=broad-except
-        log.error("Failed to execute task %s.", str(e))
+        log.exception("Failed to execute task %s.", str(e))
         ret = 1
     finally:
         Sentry.flush()

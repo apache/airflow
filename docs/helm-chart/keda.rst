@@ -24,10 +24,8 @@ KEDA stands for Kubernetes Event Driven Autoscaling.
 `KEDA <https://github.com/kedacore/keda>`__ is a custom controller that
 allows users to create custom bindings to the Kubernetes `Horizontal Pod
 Autoscaler <https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/>`__.
-We have built scalers that allows users to create scalers based on
-PostgreSQL queries and shared it with the community. This enables us to
-scale the number of airflow workers deployed on Kubernetes by this chart
-depending on the number of task that are ``queued`` or ``running``.
+The autoscaler will adjust the number of active celery workers based on the number
+of tasks in ``queued`` or ``running`` state.
 
 .. code-block:: bash
 
@@ -35,16 +33,14 @@ depending on the number of task that are ``queued`` or ``running``.
 
    helm repo update
 
-   helm install \
-       --set image.keda=docker.io/kedacore/keda:1.2.0 \
-       --set image.metricsAdapter=docker.io/kedacore/keda-metrics-adapter:1.2.0 \
-       --namespace keda --name keda kedacore/keda
+   kubectl create namespace keda
 
-Once KEDA is installed (which should be pretty quick since there is only
-one pod). You can try out KEDA autoscaling on this chart by setting
-``workers.keda.enabled=true`` your helm command or in the
-``values.yaml``. (Note: KEDA does not support StatefulSets so you need
-to set ``worker.persistence.enabled`` to ``false``)
+   helm install keda kedacore/keda \
+       --namespace keda \
+       --version "v2.0.0"
+
+Enable for the airflow instance by setting ``workers.keda.enabled=true`` in your
+helm command or in the ``values.yaml``.
 
 .. code-block:: bash
 
@@ -54,7 +50,8 @@ to set ``worker.persistence.enabled`` to ``false``)
        --namespace airflow \
        --set executor=CeleryExecutor \
        --set workers.keda.enabled=true \
-       --set workers.persistence.enabled=false
+
+A ``ScaledObject`` and an ``hpa`` will be created in the airflow namespace.
 
 KEDA will derive the desired number of celery workers by querying
 Airflow metadata database:
@@ -66,7 +63,9 @@ Airflow metadata database:
    FROM task_instance
    WHERE state='running' OR state='queued'
 
-You should set celery worker concurrency through the helm value
-``config.celery.worker_concurrency`` (i.e. instead of airflow.cfg or
-environment variables) so that the KEDA trigger will be consistent with
-the worker concurrency setting.
+.. note::
+
+   Set celery worker concurrency through the helm value
+   ``config.celery.worker_concurrency`` (i.e. instead of airflow.cfg or
+   environment variables) so that the KEDA trigger will be consistent with
+   the worker concurrency setting.

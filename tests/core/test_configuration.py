@@ -80,6 +80,15 @@ class TestConf(unittest.TestCase):
         assert conf.get("core", "PERCENT") == "with%inside"
         assert conf.get("CORE", "PERCENT") == "with%inside"
 
+    def test_config_as_dict(self):
+        """Test that getting config as dict works even if
+        environment has non-legal env vars"""
+        with unittest.mock.patch.dict('os.environ'):
+            os.environ['AIRFLOW__VAR__broken'] = "not_ok"
+            asdict = conf.as_dict(raw=True, display_sensitive=True)
+        assert asdict.get('VAR') is None
+        assert asdict['testsection']['testkey'] == 'testvalue'
+
     def test_env_var_config(self):
         opt = conf.get('testsection', 'testkey')
         assert opt == 'testvalue'

@@ -30,13 +30,14 @@
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi)
   - [Add tags in git](#add-tags-in-git)
-  - [Publish documentation](#publish-documentation)
+  - [Prepare documentation](#prepare-documentation)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
   - [Verify the release by PMC members](#verify-the-release-by-pmc-members)
   - [Verify by Contributors](#verify-by-contributors)
 - [Publish release](#publish-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi-1)
+  - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
 
@@ -229,7 +230,7 @@ set tags for the providers in the repo.
 ./dev/provider_packages/tag_providers.sh
 ```
 
-## Publish documentation
+## Prepare documentation
 
 Documentation is an essential part of the product and should be made available to users.
 In our cases, documentation  for the released versions is published in a separate repository -
@@ -648,7 +649,7 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 
 # Go to the directory where you have checked out the dev svn release
 # And go to the sub-folder with RC candidates
-cd "<ROOT_OF_YOUR_DEV_REPO>/backport-providers/${VERSION_RC}"
+cd "<ROOT_OF_YOUR_DEV_REPO>/providers/"
 export SOURCE_DIR=$(pwd)
 
 # Go the folder where you have checked out the release repo
@@ -687,25 +688,18 @@ python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
 
 
 # Commit to SVN
-svn commit -m "Release Airflow Backport Providers ${VERSION} from ${VERSION_RC}"
+svn commit -m "Release Airflow Providers on $(date)"
 ```
 
 Verify that the packages appear in
-[backport-providers](https://dist.apache.org/repos/dist/release/airflow/backport-providers)
+[backport-providers](https://dist.apache.org/repos/dist/release/airflow/providers)
 
 ### Publish the final version convenience package to PyPI
 
-Checkout the RC Version:
+Checkout the RC Version for the RC Version released (there is a batch of providers - one of them is enough):
 
 ```shell script
-git checkout backport-providers-${VERSION_RC}
-```
-
-Tag and push the final version (providing that your apache remote is named 'apache'):
-
-```shell script
-git tag backport-providers-${VERSION}
-git push apache backport-providers-${VERSION}
+git checkout providers-<PROVIDER_NAME>/<VERSION_RC>
 ```
 
 In order to publish to PyPI you just need to build and release packages.
@@ -719,7 +713,7 @@ In order to publish to PyPI you just need to build and release packages.
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages <PACKAGE> ...
+./breeze prepare-provider-packages <PACKAGE> ...
 ```
 
 In case you decided to remove some of the packages. remove them from dist folder now:
@@ -765,6 +759,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 if you ony build few packages, run:
 
 ```shell script
+rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
@@ -791,6 +786,12 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 
 * Again, confirm that the packages are available under the links printed.
 
+## Publish documentation prepared before
+
+Merge the PR that you prepared before with the documentation. If you removed some of the providers
+from the release - remove the versions from the prepared documentation and update stable.txt with the
+previous version for those providers before merging the PR.
+
 
 ## Add tags in git
 
@@ -811,7 +812,7 @@ Subject:
 
 ```shell script
 cat <<EOF
-Airflow Providers are released
+Airflow Providers released on $(date) are ready
 EOF
 ```
 
@@ -821,7 +822,7 @@ Body:
 cat <<EOF
 Dear Airflow community,
 
-I'm happy to announce that new version of Airflow Providers packages were just released.
+I'm happy to announce that new versions of Airflow Providers packages were just released.
 
 The source release, as well as the binary releases, are available here:
 
@@ -831,7 +832,7 @@ We also made those versions available on PyPi for convenience ('pip install apac
 
 https://pypi.org/search/?q=apache-airflow-providers
 
-The documentation and changelogs are available in the PyPI packages:
+The documentation is available at http://airflow.apache.org/docs/ and linked from the PyPI packages:
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
