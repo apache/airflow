@@ -126,6 +126,11 @@ jobs:
       runsOn: ${{ steps.set-runs-on.outputs.runsOn }}
     steps:
       # Avoid having to specify the runs-on logic every time
+      - name: debug dump
+        runs: |
+          echo "${{toJSON(runner)"
+          echo "${{toJSON(job)"
+          echo "${{toJSON(env)"
       - name: Set runs-on
         id: set-runs-on
         run: echo "::set-output name=runsOn::$(jq -n 'env.RUNS_ON')"
