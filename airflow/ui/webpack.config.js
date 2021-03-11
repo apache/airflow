@@ -17,11 +17,11 @@
  * under the License.
  */
 
-import getMetaValue from './meta_value';
+/*
+* Whilst the configuration object can be modified here, the recommended way of making
+* changes is via the presets' options or Neutrino's API in `.neutrinorc.js` instead.
+* Neutrino's inspect feature can be used to view/export the generated configuration.
+*/
+const neutrino = require('neutrino');
 
-const isWrapped = getMetaValue('wrapped');
-
-// pygments generates the HTML so set wrap toggle via js
-if (isWrapped) {
-  $('.code pre').toggleClass('wrap');
-}
+module.exports = neutrino().webpack();

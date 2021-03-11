@@ -415,8 +415,6 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         pip install --no-cache-dir ${ADDITIONAL_PYTHON_DEPS}; \
     fi
 
-WORKDIR ${AIRFLOW_SOURCES}
-
 ENV PATH "/files/bin/:/opt/airflow/scripts/in_container/bin/:${HOME}:${PATH}"
 
 # Needed to stop Gunicorn from crashing when /tmp is now mounted from host

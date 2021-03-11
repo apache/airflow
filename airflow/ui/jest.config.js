@@ -17,11 +17,11 @@
  * under the License.
  */
 
-import getMetaValue from './meta_value';
+/*
+* Most testing config happens in .neutrinorc.js instead
+*/
+const neutrino = require('neutrino');
 
-const isWrapped = getMetaValue('wrapped');
+process.env.NODE_ENV = process.env.NODE_ENV || 'test';
 
-// pygments generates the HTML so set wrap toggle via js
-if (isWrapped) {
-  $('.code pre').toggleClass('wrap');
-}
+module.exports = neutrino().jest();

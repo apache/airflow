@@ -1065,14 +1065,6 @@
       type: string
       example: ~
       default: "LR"
-    - name: demo_mode
-      description: |
-        Puts the webserver in demonstration mode; blurs the names of Operators for
-        privacy.
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     - name: log_fetch_timeout_sec
       description: |
         The amount of time (in secs) webserver will wait for initial handshake

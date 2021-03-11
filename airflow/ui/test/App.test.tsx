@@ -17,11 +17,13 @@
  * under the License.
  */
 
-import getMetaValue from './meta_value';
+import React from 'react';
+import '@testing-library/jest-dom';
+import { render } from '@testing-library/react';
 
-const isWrapped = getMetaValue('wrapped');
+import App from 'App';
 
-// pygments generates the HTML so set wrap toggle via js
-if (isWrapped) {
-  $('.code pre').toggleClass('wrap');
-}
+test('App renders message', () => {
+  const { getByText } = render(<App />);
+  expect(getByText('Apache Airflow new UI')).toBeInTheDocument();
+});
