@@ -128,9 +128,9 @@ jobs:
       # Avoid having to specify the runs-on logic every time
       - name: debug dump
         run: |
-          echo "${{toJSON(runner)"
-          echo "${{toJSON(job)"
-          echo "${{toJSON(env)"
+          echo "${{toJSON(runner) }}"
+          echo "${{toJSON(job) }}"
+          echo "${{toJSON(env) }}"
       - name: Set runs-on
         id: set-runs-on
         run: echo "::set-output name=runsOn::$(jq -n 'env.RUNS_ON')"
