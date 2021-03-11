@@ -135,14 +135,14 @@ class BaseDecoratedOperator(BaseOperator):
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def base_task(
+def task_decorator_factory(
     python_callable: Optional[Callable] = None,
     multiple_outputs: Optional[bool] = None,
-    impl_class=None,
+    decorated_operator_class: BaseDecoratedOperator = None,
     **kwargs,
 ) -> Callable[[T], T]:
     """
-    Python operator decorator. Wraps a function into an Airflow operator.
+    A factory that generates a wrapper that raps a function into an Airflow operator.
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 
     :param python_callable: Function to decorate
@@ -152,6 +152,9 @@ def base_task(
         with index as key. Dict will unroll to xcom values with keys as XCom keys.
         Defaults to False.
     :type multiple_outputs: bool
+    :param decorated_operator_class: The operator that executes the logic needed to run the python function in
+        the correct environment
+    :type decorated_operator_class: BaseDecoratedOperator
 
     """
     # try to infer from  type annotation
@@ -171,7 +174,7 @@ def base_task(
 
         @functools.wraps(f)
         def factory(*args, **f_kwargs):
-            op = impl_class(
+            op = decorated_operator_class(
                 python_callable=f,
                 op_args=args,
                 op_kwargs=f_kwargs,

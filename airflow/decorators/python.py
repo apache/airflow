@@ -15,10 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import functools
 from typing import Callable, Dict, Optional, TypeVar
 
-from airflow.decorators.base import BaseDecoratedOperator, base_task
+from airflow.decorators.base import BaseDecoratedOperator, task_decorator_factory
 from airflow.exceptions import AirflowException
 from airflow.utils.decorators import apply_defaults
 
@@ -95,18 +94,9 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[
         Defaults to False.
     :type multiple_outputs: bool
     """
-
-    @functools.wraps(python_callable)
-    def wrapper(f):
-        return base_task(
-            python_callable=f,
-            multiple_outputs=multiple_outputs,
-            impl_class=_PythonDecoratedOperator,
-            **kwargs,
-        )
-
-    if callable(python_callable):
-        return wrapper(python_callable)
-    elif python_callable is not None:
-        raise AirflowException('No args allowed while using @task, use kwargs instead')
-    return wrapper
+    return task_decorator_factory(
+        python_callable=python_callable,
+        multiple_outputs=multiple_outputs,
+        decorated_operator_class=_PythonDecoratedOperator,
+        **kwargs,
+    )

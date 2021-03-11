@@ -29,8 +29,7 @@ import dill
 
 # To maintain backwards compatibility, we import the task object into this file
 # This prevents breakages in dags that use `from airflow.operators.python import task`
-# pylint: disable=unused-import
-from airflow.decorators.python import task  # noqa
+from airflow.decorators.python import PYTHON_OPERATOR_UI_COLOR, task  # noqa # pylint: disable=unused-import
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
@@ -39,8 +38,6 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import determine_kwargs
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
-
-PYTHON_OPERATOR_UI_COLOR = '#ffefeb'
 
 
 class PythonOperator(BaseOperator):
