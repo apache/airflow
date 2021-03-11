@@ -78,8 +78,7 @@ ALL_PROVIDERS = [
     'apache-airflow-providers-sftp',
     'apache-airflow-providers-singularity',
     'apache-airflow-providers-slack',
-    # Uncomment when https://github.com/apache/airflow/issues/12881 is fixed
-    # 'apache-airflow-providers-snowflake',
+    'apache-airflow-providers-snowflake',
     'apache-airflow-providers-sqlite',
     'apache-airflow-providers-ssh',
     'apache-airflow-providers-tableau',
@@ -139,8 +138,7 @@ CONNECTIONS_LIST = [
     'samba',
     'segment',
     'sftp',
-    #  Uncomment when https://github.com/apache/airflow/issues/12881 is fixed
-    # 'snowflake',
+    'snowflake',
     'spark',
     'spark_jdbc',
     'spark_sql',
@@ -174,6 +172,13 @@ CONNECTION_FORM_WIDGETS = [
     'extra__yandexcloud__public_ssh_key',
     'extra__yandexcloud__service_account_json',
     'extra__yandexcloud__service_account_json_path',
+    'extra__snowflake__account',
+    'extra__snowflake__warehouse',
+    'extra__snowflake__database',
+    'extra__snowflake__region',
+    'extra__snowflake__aws_access_key_id',
+    'extra__snowflake__aws_secret_access_key',
+
 ]
 
 CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
@@ -188,6 +193,7 @@ CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
     'spark',
     'ssh',
     'yandexcloud',
+    'snowflake',
 ]
 
 EXTRA_LINKS = [

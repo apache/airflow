@@ -39,10 +39,10 @@ class TestSnowflakeHook(unittest.TestCase):
         self.conn.password = 'pw'
         self.conn.schema = 'public'
         self.conn.extra_dejson = {
-            'extra__snowflake__database': 'db',
-            'extra__snowflake__account': 'airflow',
-            'extra__snowflake__warehouse': 'af_wh',
-            'extra__snowflake__region': 'af_region',
+            'database': 'db',
+            'account': 'airflow',
+            'warehouse': 'af_wh',
+            'region': 'af_region',
             'role': 'af_role',
         }
 
