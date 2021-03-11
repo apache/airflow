@@ -26,7 +26,7 @@ on:  # yamllint disable-line rule:truthy
     branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
 
 env:
-
+  AIRFLOW_COMMITERS: ${{ secrets.AIRFLOW_COMMITERS }}
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
@@ -73,25 +73,57 @@ jobs:
 
   build-info:
     name: "Build info"
+    # The runs-on cannot refer to env. or secrets. context, so we have no
+    # option but to specify a hard-coded list here. This is "safe", as the list
+    # is checked again by the runner using it's own list, so a PR author cannot
+    # change this and get access to our self-hosted runners
+    #
+    # When changing this list, ensure that it is kept in sync with the
+    # configOverride parameter in AWS SSM (which is what the runner uses)
     runs-on: >-
       ${{ (
         (
           github.event_name == 'push' ||
           github.event_name == 'schedule' ||
-          github.event.pull_request.author_association == 'OWNER' ||
-          github.event.pull_request.author_association == 'MEMBER'
+          contains(fromJSON('[
+            "BasPH",
+            "Fokko",
+            "KevinYang21",
+            "XD-DENG",
+            "aijamalnk",
+            "alexvanboxel",
+            "aoen",
+            "artwr",
+            "ashb",
+            "bolkedebruin",
+            "criccomini",
+            "dimberman",
+            "feng-tao",
+            "houqp",
+            "jghoman",
+            "jmcarp",
+            "kaxil",
+            "leahecole",
+            "mik-laj",
+            "milton0825",
+            "mistercrunch",
+            "msumit",
+            "potiuk",
+            "r39132",
+            "ryanahamilton",
+            "ryw",
+            "saguziel",
+            "sekikn",
+            "turbaszek",
+            "zhongjiajie",
+            "ephraimbuddy",
+            "jhtimmins",
+            "dstandish"
+          ]'), github.actor)
         ) && github.repository == 'apache/airflow'
       ) && 'self-hosted' || 'ubuntu-20.04' }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
-      RUNS_ON: ${{ (
-          (
-            github.event_name == 'push' ||
-            github.event_name == 'schedule' ||
-            github.event.pull_request.author_association == 'OWNER' ||
-            github.event.pull_request.author_association == 'MEMBER'
-          ) && github.repository == 'apache/airflow'
-        ) && 'self-hosted' || 'ubuntu-20.04' }}
     outputs:
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
       upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
@@ -127,10 +159,19 @@ jobs:
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
       runsOn: ${{ steps.set-runs-on.outputs.runsOn }}
     steps:
-      # Avoid having to specify the runs-on logic every time
+      # Avoid having to specify the runs-on logic every time. We use the custom
+      # env var AIRFLOW_SELF_HOSTED_RUNNER set only on our runners, but never
+      # on the public runners
       - name: Set runs-on
         id: set-runs-on
-        run: echo "::set-output name=runsOn::$(jq -n 'env.RUNS_ON')"
+        run: |
+          echo "::set-output name=runsOn::$(jq -n '
+            if env.AIRFLOW_SELF_HOSTED_RUNNER or (["push", "schedule"] | index(env.GITHUB_EVENT_NAME)) then
+              "self-hosted"
+            else
+              "ubuntu-20.04"
+            end
+          ')"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
