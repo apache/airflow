@@ -20,8 +20,9 @@ from typing import Callable, Dict, Optional, TypeVar
 
 from airflow.decorators.base import _BaseDecoratedOperator, base_task
 from airflow.exceptions import AirflowException
-from airflow.operators.python import PythonOperator
 from airflow.utils.decorators import apply_defaults
+
+PYTHON_OPERATOR_UI_COLOR = '#ffefeb'
 
 
 class _PythonDecoratedOperator(_BaseDecoratedOperator):
@@ -45,7 +46,7 @@ class _PythonDecoratedOperator(_BaseDecoratedOperator):
     template_fields = ('op_args', 'op_kwargs')
     template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
 
-    ui_color = PythonOperator.ui_color
+    ui_color = PYTHON_OPERATOR_UI_COLOR
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).

@@ -40,6 +40,8 @@ from airflow.utils.operator_helpers import determine_kwargs
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
+PYTHON_OPERATOR_UI_COLOR = '#ffefeb'
+
 
 class PythonOperator(BaseOperator):
     """
@@ -69,7 +71,7 @@ class PythonOperator(BaseOperator):
 
     template_fields = ('templates_dict', 'op_args', 'op_kwargs')
     template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
-    ui_color = '#ffefeb'
+    ui_color = PYTHON_OPERATOR_UI_COLOR
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects(e.g protobuf).
