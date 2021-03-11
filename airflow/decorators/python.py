@@ -18,14 +18,14 @@
 import functools
 from typing import Callable, Dict, Optional, TypeVar
 
-from airflow.decorators.base import _BaseDecoratedOperator, base_task
+from airflow.decorators.base import BaseDecoratedOperator, base_task
 from airflow.exceptions import AirflowException
 from airflow.utils.decorators import apply_defaults
 
 PYTHON_OPERATOR_UI_COLOR = '#ffefeb'
 
 
-class _PythonDecoratedOperator(_BaseDecoratedOperator):
+class _PythonDecoratedOperator(BaseDecoratedOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
 

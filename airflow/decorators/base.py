@@ -29,7 +29,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 
 
-class _BaseDecoratedOperator(BaseOperator):
+class BaseDecoratedOperator(BaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
 
@@ -166,7 +166,7 @@ def base_task(
         Python wrapper to generate PythonDecoratedOperator out of simple python functions.
         Used for Airflow Decorated interface
         """
-        _BaseDecoratedOperator.validate_python_callable(f)
+        BaseDecoratedOperator.validate_python_callable(f)
         kwargs.setdefault('task_id', f.__name__)
 
         @functools.wraps(f)
