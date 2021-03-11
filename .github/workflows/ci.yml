@@ -165,17 +165,13 @@ jobs:
       - name: Set runs-on
         id: set-runs-on
         run: |
-          set -x
-          echo "$AIRFLOW_SELF_HOSTED_RUNNER"
-          echo "$GITHUB_EVENT_NAME"
           echo "::set-output name=runsOn::$(jq -n '
-            if env.AIRFLOW_SELF_HOSTED_RUNNER and (["push", "schedule"] | index(env.GITHUB_EVENT_NAME)) then
+            if env.AIRFLOW_SELF_HOSTED_RUNNER or (["push", "schedule"] | index(env.GITHUB_EVENT_NAME)) then
               "self-hosted"
             else
               "ubuntu-20.04"
             end
           ')"
-          env | sort
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
