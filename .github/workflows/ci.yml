@@ -127,7 +127,7 @@ jobs:
     steps:
       # Avoid having to specify the runs-on logic every time
       - name: debug dump
-        runs: |
+        run: |
           echo "${{toJSON(runner)"
           echo "${{toJSON(job)"
           echo "${{toJSON(env)"
