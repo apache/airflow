@@ -26,7 +26,6 @@ on:  # yamllint disable-line rule:truthy
     branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
 
 env:
-  AIRFLOW_COMMITERS: ${{ secrets.AIRFLOW_COMMITERS }}
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
@@ -208,13 +207,11 @@ jobs:
       - name: Selective checks
         id: selective-checks
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          TARGET_COMMIT_SHA: ${{ github.sha }}
           PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
         run: |
-          if [[ ${EVENT_NAME} == "pull_request" ]]; then
+          if [[ ${GITHUB_EVENT_NAME} == "pull_request" ]]; then
             # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${TARGET_COMMIT_SHA}"
+            ./scripts/ci/selective_ci_checks.sh "${GITHUB_SHA}"
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
