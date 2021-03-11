@@ -31,7 +31,7 @@ from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss
-from tests.test_utils.decorators import dont_initialize
+from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
@@ -40,7 +40,9 @@ DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
 
 class TestTaskInstanceEndpoint(unittest.TestCase):
     @classmethod
-    @dont_initialize(to_initialize=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"])
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+    )
     def setUpClass(cls) -> None:
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):

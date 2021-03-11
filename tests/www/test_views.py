@@ -69,7 +69,7 @@ from tests.test_utils import fab_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
-from tests.test_utils.decorators import dont_initialize
+from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
 
@@ -124,8 +124,8 @@ class TemplateWithContext(NamedTuple):
 
 class TestBase(unittest.TestCase):
     @classmethod
-    @dont_initialize(
-        to_initialize=[
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=[
             "init_appbuilder",
             "init_appbuilder_views",
             "init_flash_views",
@@ -1224,7 +1224,9 @@ class TestLogView(TestBase):
     ENDPOINT = f'log?dag_id={DAG_ID}&task_id={TASK_ID}&execution_date={DEFAULT_DATE}'
 
     @classmethod
-    @dont_initialize(to_initialize=["init_appbuilder", "init_jinja_globals", "init_appbuilder_views"])
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=["init_appbuilder", "init_jinja_globals", "init_appbuilder_views"]
+    )
     def setUpClass(cls):
         # Make sure that the configure_logging is not cached
         cls.old_modules = dict(sys.modules)
@@ -1890,6 +1892,9 @@ class TestDagACLView(TestBase):
         dag_read_only_role = self.appbuilder.sm.find_role('dag_acl_read_only')
         self.appbuilder.sm.add_permission_role(dag_read_only_role, read_only_perm_on_dag)
         self.appbuilder.sm.add_permission_role(dag_read_only_role, website_permission)
+
+        dag_acl_faker_role = self.appbuilder.sm.find_role('dag_acl_faker')
+        self.appbuilder.sm.add_permission_role(dag_acl_faker_role, website_permission)
 
     def test_permission_exist(self):
         self.create_user_and_login(

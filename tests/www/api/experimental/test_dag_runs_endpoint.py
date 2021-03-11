@@ -24,7 +24,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
-from tests.test_utils.decorators import dont_initialize
+from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 class TestDagRunsEndpoint(unittest.TestCase):
@@ -40,8 +40,8 @@ class TestDagRunsEndpoint(unittest.TestCase):
             dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
 
-    @dont_initialize(
-        to_initialize=[
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=[
             "init_api_experimental_auth",
             "init_appbuilder_views",
             "init_api_experimental",

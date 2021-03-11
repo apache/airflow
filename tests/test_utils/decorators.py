@@ -21,11 +21,11 @@ from unittest.mock import patch
 from airflow.www.app import purge_cached_app
 
 
-def dont_initialize(_func=None, *, to_initialize=None):
-    if not to_initialize:
-        to_initialize = []
+def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
+    if not skip_all_except:
+        skip_all_except = []
 
-    def decorator_dont_initialize(f):
+    def decorator_dont_initialize_flask_app_submodules(f):
         def no_op(*args, **kwargs):
             pass
 
@@ -50,7 +50,7 @@ def dont_initialize(_func=None, *, to_initialize=None):
         def func(*args, **kwargs):
 
             for method in methods:
-                if method not in to_initialize:
+                if method not in skip_all_except:
                     patcher = patch(f"airflow.www.app.{method}", no_op)
                     patcher.start()
             purge_cached_app()
@@ -63,6 +63,6 @@ def dont_initialize(_func=None, *, to_initialize=None):
         return func
 
     if _func is None:
-        return decorator_dont_initialize
+        return decorator_dont_initialize_flask_app_submodules
     else:
-        return decorator_dont_initialize(_func)
+        return decorator_dont_initialize_flask_app_submodules(_func)
