@@ -1618,7 +1618,7 @@ do the same, but then it is more suitable to use a virtualenv and pip.
     mkdir zip_dag_contents
     cd zip_dag_contents
 
-    pip install --install-option="--install-lib=$PWD" my_useful_package
+    pip install --prefix=$PWD my_useful_package
     cp ~/my_dag.py .
 
     zip -r zip_dag.zip *
