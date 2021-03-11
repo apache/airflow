@@ -59,7 +59,7 @@ class SFTPToWasbOperator(BaseOperator):
     :param wasb_conn_id: Reference to the wasb connection.
     :type wasb_conn_id: str
     :param load_options: Optional keyword arguments that
-        `WasbHook.load_file()` takes.
+        ``WasbHook.load_file()`` takes.
     :type load_options: dict
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
