@@ -27,6 +27,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 import dill
 
+# To maintain backwards compatibility, we import the task object into this file
+# This prevents breakages in dags that use `from airflow.operators.python import task`
 # pylint: disable=unused-import
 from airflow.decorators.python import task  # noqa
 from airflow.exceptions import AirflowException
