@@ -78,8 +78,7 @@ jobs:
         (
           github.event_name == 'push' ||
           github.event_name == 'schedule' ||
-          github.event.pull_request.author_association == 'OWNER' ||
-          github.event.pull_request.author_association == 'MEMBER'
+          contains(secrets.AIRFLOW_COMMITERS, github.actor)
         ) && github.repository == 'apache/airflow'
       ) && 'self-hosted' || 'ubuntu-20.04' }}
     env:
@@ -88,8 +87,7 @@ jobs:
           (
             github.event_name == 'push' ||
             github.event_name == 'schedule' ||
-            github.event.pull_request.author_association == 'OWNER' ||
-            github.event.pull_request.author_association == 'MEMBER'
+            contains(secrets.AIRFLOW_COMMITERS, github.actor)
           ) && github.repository == 'apache/airflow'
         ) && 'self-hosted' || 'ubuntu-20.04' }}
     outputs:
