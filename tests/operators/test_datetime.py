@@ -23,8 +23,8 @@ import freezegun
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
-from airflow.operators.datetime_branch import DateTimeBranchOperator
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.datetime import BranchDateTimeOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -33,7 +33,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
 
 
-class TestDateTimeBranchOperator(unittest.TestCase):
+class TestBranchDateTimeOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -52,7 +52,7 @@ class TestDateTimeBranchOperator(unittest.TestCase):
 
     def setUp(self):
         self.dag = DAG(
-            'datetime_branch_operator_test',
+            'branch_datetime_operator_test',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
             schedule_interval=INTERVAL,
         )
@@ -60,7 +60,7 @@ class TestDateTimeBranchOperator(unittest.TestCase):
         self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
 
-        self.branch_op = DateTimeBranchOperator(
+        self.branch_op = BranchDateTimeOperator(
             task_id='datetime_branch',
             follow_task_ids_if_true='branch_1',
             follow_task_ids_if_false='branch_2',
@@ -100,9 +100,9 @@ class TestDateTimeBranchOperator(unittest.TestCase):
                 )
 
     def test_no_target_time(self):
-        """Check if DateTimeBranchOperator raises exception on missing target"""
+        """Check if BranchDateTimeOperator raises exception on missing target"""
         with self.assertRaises(AirflowException):
-            DateTimeBranchOperator(
+            BranchDateTimeOperator(
                 task_id='datetime_branch',
                 follow_task_ids_if_true='branch_1',
                 follow_task_ids_if_false='branch_2',
@@ -112,8 +112,8 @@ class TestDateTimeBranchOperator(unittest.TestCase):
             )
 
     @freezegun.freeze_time("2020-07-07 10:54:05")
-    def test_datetime_branch_operator_falls_within_range(self):
-        """Check DateTimeBranchOperator branch operation"""
+    def test_branch_datetime_operator_falls_within_range(self):
+        """Check BranchDateTimeOperator branch operation"""
         for target_lower, target_upper in self.targets:
             with self.subTest(target_lower=target_lower, target_upper=target_upper):
                 self.branch_op.target_lower = target_lower
@@ -128,8 +128,8 @@ class TestDateTimeBranchOperator(unittest.TestCase):
                     }
                 )
 
-    def test_datetime_branch_operator_falls_outside_range(self):
-        """Check DateTimeBranchOperator branch operation"""
+    def test_branch_datetime_operator_falls_outside_range(self):
+        """Check BranchDateTimeOperator branch operation"""
         dates = [
             datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
             datetime.datetime(2020, 6, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
@@ -153,8 +153,8 @@ class TestDateTimeBranchOperator(unittest.TestCase):
                         )
 
     @freezegun.freeze_time("2020-07-07 10:54:05")
-    def test_datetime_branch_operator_upper_comparison_within_range(self):
-        """Check DateTimeBranchOperator branch operation"""
+    def test_branch_datetime_operator_upper_comparison_within_range(self):
+        """Check BranchDateTimeOperator branch operation"""
         for _, target_upper in self.targets:
             with self.subTest(target_upper=target_upper):
                 self.branch_op.target_upper = target_upper
@@ -171,8 +171,8 @@ class TestDateTimeBranchOperator(unittest.TestCase):
                 )
 
     @freezegun.freeze_time("2020-07-07 10:54:05")
-    def test_datetime_branch_operator_lower_comparison_within_range(self):
-        """Check DateTimeBranchOperator branch operation"""
+    def test_branch_datetime_operator_lower_comparison_within_range(self):
+        """Check BranchDateTimeOperator branch operation"""
         for target_lower, _ in self.targets:
             with self.subTest(target_lower=target_lower):
                 self.branch_op.target_lower = target_lower
@@ -189,8 +189,8 @@ class TestDateTimeBranchOperator(unittest.TestCase):
                 )
 
     @freezegun.freeze_time("2020-07-07 12:00:00")
-    def test_datetime_branch_operator_upper_comparison_outside_range(self):
-        """Check DateTimeBranchOperator branch operation"""
+    def test_branch_datetime_operator_upper_comparison_outside_range(self):
+        """Check BranchDateTimeOperator branch operation"""
         for _, target_upper in self.targets:
             with self.subTest(target_upper=target_upper):
                 self.branch_op.target_upper = target_upper
@@ -207,8 +207,8 @@ class TestDateTimeBranchOperator(unittest.TestCase):
                 )
 
     @freezegun.freeze_time("2020-07-07 09:00:00")
-    def test_datetime_branch_operator_lower_comparison_outside_range(self):
-        """Check DateTimeBranchOperator branch operation"""
+    def test_branch_datetime_operator_lower_comparison_outside_range(self):
+        """Check BranchDateTimeOperator branch operation"""
         for target_lower, _ in self.targets:
             with self.subTest(target_lower=target_lower):
                 self.branch_op.target_lower = target_lower
@@ -225,8 +225,8 @@ class TestDateTimeBranchOperator(unittest.TestCase):
                 )
 
     @freezegun.freeze_time("2020-12-01 09:00:00")
-    def test_datetime_branch_operator_use_task_execution_date(self):
-        """Check if DateTimeBranchOperator uses task execution date"""
+    def test_branch_datetime_operator_use_task_execution_date(self):
+        """Check if BranchDateTimeOperator uses task execution date"""
         in_between_date = timezone.datetime(2020, 7, 7, 10, 30, 0)
         self.branch_op.use_task_execution_date = True
         self.dr = self.dag.create_dagrun(

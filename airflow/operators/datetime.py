@@ -19,12 +19,12 @@ import datetime
 from typing import Dict, Iterable, Union
 
 from airflow.exceptions import AirflowException
-from airflow.operators.branch_operator import BaseBranchOperator
+from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 
 
-class DateTimeBranchOperator(BaseBranchOperator):
+class BranchDateTimeOperator(BaseBranchOperator):
     """
     Branches into one of two lists of tasks depending on the current datetime.
 
