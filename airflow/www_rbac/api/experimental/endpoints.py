@@ -118,7 +118,7 @@ def trigger_dag(dag_id):
         response.status_code = err.status_code
         return response
 
-    _log.info("User {} created {}".format(_get_user_from_header(), dr))
+    log.info("User {} created {}".format(_get_user_from_header(), dr))
     if getattr(g, 'user', None):
         log.info("User {} created {}".format(g.user, dr))
 
