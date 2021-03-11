@@ -2769,9 +2769,9 @@ class TestTriggerDag(TestBase):
         # https://github.com/python/cpython/pull/24297/files
         # Check if tests are running with a Python version containing the above fix
         # where ";" is removed as a separator
-        if parse_qsl(";a=b") != [(';a', 'b')]:
-            expected_url = expected_origin.replace("%3B", "&")
-            expected_url += "="
+        if parse_qsl(";a=b") != [(';a', 'b')] and ";" in test_origin:
+            expected_origin = expected_origin.replace("%3B", "&")
+            expected_origin += "="
 
         resp = self.client.get(f'trigger?dag_id={test_dag_id}&origin={test_origin}')
         self.check_content_in_response(
@@ -3318,7 +3318,7 @@ class TestHelperFunctions(TestBase):
         # https://github.com/python/cpython/pull/24297/files
         # Check if tests are running with a Python version containing the above fix
         # where ";" is removed as a separator
-        if parse_qsl(";a=b") != [(';a', 'b')]:
+        if parse_qsl(";a=b") != [(';a', 'b')] and ";" in test_url:
             expected_url = expected_url.replace("%3B", "&")
             expected_url += "="
 
