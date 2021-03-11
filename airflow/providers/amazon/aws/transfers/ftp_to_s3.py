@@ -27,22 +27,22 @@ class FTPToS3Operator(BaseOperator):
     """
     This operator enables the transferring of files from FTP server to S3.
 
-    :param ftp_conn_id: The ftp connection id. The name or identifier for
-        establishing a connection to the FTP server.
-    :type ftp_conn_id: str
-    :param ftp_path: The ftp remote path, including the file.
-    :type ftp_path: str
-    :param aws_conn_id: The s3 connection id. The name or identifier for
-        establishing a connection to S3
-    :type aws_conn_id: str
     :param s3_bucket: The targeted s3 bucket in which upload the file to
     :type s3_bucket: str
     :param s3_key: The targeted s3 key. This is the specified file path for
         uploading the file to S3.
     :type s3_key: str
+    :param ftp_path: The ftp remote path, including the file.
+    :type ftp_path: str
+    :param ftp_conn_id: The ftp connection id. The name or identifier for
+        establishing a connection to the FTP server.
+    :type ftp_conn_id: str
+    :param aws_conn_id: The s3 connection id. The name or identifier for
+        establishing a connection to S3
+    :type aws_conn_id: str
     :param replace: A flag to decide whether or not to overwrite the key
-            if it already exists. If replace is False and the key exists, an
-            error will be raised.
+        if it already exists. If replace is False and the key exists, an
+        error will be raised.
     :type replace: bool
     :param encrypt: If True, the file will be encrypted on the server-side
         by S3 and will be stored in an encrypted form while at rest in S3.
@@ -66,8 +66,8 @@ class FTPToS3Operator(BaseOperator):
         s3_bucket,
         s3_key,
         ftp_path,
-        aws_conn_id='aws_default',
         ftp_conn_id='ftp_default',
+        aws_conn_id='aws_default',
         replace=False,
         encrypt=False,
         gzip=False,
