@@ -15,5 +15,52 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.decorators.python import task  # noqa # pylint: disable=unused-import
+import warnings
+from typing import Callable, Optional
+
+from airflow.decorators.python import python_task
 from airflow.models.dag import dag  # noqa # pylint: disable=unused-import
+
+
+class _TaskDecorator:
+    def __call__(
+        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+    ):
+        """
+        Deprecated function that calls @task.python and allows users to turn a python function into
+        an Airflow task.
+        @param python_callable:
+        @param multiple_outputs:
+        @param kwargs:
+        @return:
+        """
+        warnings.warn(
+            """Calling airflow.decorators.task for python tasks is deprecated.
+            Please use @task.python instead.
+            Example:
+
+            from airflow.decorators import task
+            @task.python
+            def my_task()""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return task.python(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
+
+    @staticmethod
+    def python(python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs):
+        """
+        Python operator decorator. Wraps a function into an Airflow operator.
+        Accepts kwargs for operator kwarg. Can be reused in a single DAG.
+        :param python_callable: Function to decorate
+        :type python_callable: Optional[Callable]
+        :param multiple_outputs: if set, function return value will be
+            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
+            with index as key. Dict will unroll to xcom values with keys as XCom keys.
+            Defaults to False.
+        :type multiple_outputs: bool
+        """
+        return python_task(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
+
+
+task = _TaskDecorator()

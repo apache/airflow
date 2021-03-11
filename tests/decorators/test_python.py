@@ -22,7 +22,7 @@ from typing import Dict, Tuple
 
 import pytest
 
-from airflow.decorators.python import task as task_decorator
+from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.xcom_arg import XComArg

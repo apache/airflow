@@ -82,7 +82,9 @@ class _PythonDecoratedOperator(BaseDecoratedOperator):
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs):
+def python_task(
+    python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+):
     """
     Python operator decorator. Wraps a function into an Airflow operator.
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.

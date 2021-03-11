@@ -29,7 +29,10 @@ import dill
 
 # To maintain backwards compatibility, we import the task object into this file
 # This prevents breakages in dags that use `from airflow.operators.python import task`
-from airflow.decorators.python import PYTHON_OPERATOR_UI_COLOR, task  # noqa # pylint: disable=unused-import
+from airflow.decorators.python import (  # noqa # pylint: disable=unused-import
+    PYTHON_OPERATOR_UI_COLOR,
+    python_task,
+)
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
@@ -38,6 +41,33 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import determine_kwargs
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
+
+
+def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs):
+    """
+    Deprecated function that calls @task.python and allows users to turn a python function into
+    an Airflow task. Please use the following instead:
+
+    from airflow.decorators import task
+
+    @task.python
+    def my_task()
+
+    @param python_callable:
+    @param multiple_outputs:
+    @param kwargs:
+    @return:
+    """
+    warnings.warn(
+        """airflow.operators.python.task is deprecated. Please use the following instead
+
+        from airflow.decorators import task
+        @task.python
+        def my_task()""",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return python_task(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
 
 
 class PythonOperator(BaseOperator):
