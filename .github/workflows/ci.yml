@@ -73,21 +73,94 @@ jobs:
 
   build-info:
     name: "Build info"
+    # The runs-on cannot refer to env. or secrets. context, so we have no
+    # option but to specify a hard-coded list here. This is "safe", as the list
+    # is checked again by the runner using it's own list, so a PR author cannot
+    # change this and get access to our self-hosted runners
     runs-on: >-
       ${{ (
         (
           github.event_name == 'push' ||
           github.event_name == 'schedule' ||
-          contains(fromJSON('["ashb"]'), github.actor)
+          contains(fromJSON('[
+            "BasPH",
+            "Fokko",
+            "KevinYang21",
+            "XD-DENG",
+            "aijamalnk",
+            "alexvanboxel",
+            "aoen",
+            "artwr",
+            "ashb",
+            "bolkedebruin",
+            "criccomini",
+            "dimberman",
+            "feng-tao",
+            "houqp",
+            "jghoman",
+            "jmcarp",
+            "kaxil",
+            "leahecole",
+            "mik-laj",
+            "milton0825",
+            "mistercrunch",
+            "msumit",
+            "potiuk",
+            "r39132",
+            "ryanahamilton",
+            "ryw",
+            "saguziel",
+            "sekikn",
+            "turbaszek",
+            "zhongjiajie",
+            "ephraimbuddy",
+            "jhtimmins",
+            "dstandish"
+          ]'), github.actor)
         ) && github.repository == 'apache/airflow'
       ) && 'self-hosted' || 'ubuntu-20.04' }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
+      # Sadly we have to duplicate this list _again_ :(. There is no way to refer
       RUNS_ON: ${{ (
           (
             github.event_name == 'push' ||
             github.event_name == 'schedule' ||
-            contains(fromJSON('["ashb"]'), github.actor)
+          contains(fromJSON('[
+            "BasPH",
+            "Fokko",
+            "KevinYang21",
+            "XD-DENG",
+            "aijamalnk",
+            "alexvanboxel",
+            "aoen",
+            "artwr",
+            "ashb",
+            "bolkedebruin",
+            "criccomini",
+            "dimberman",
+            "feng-tao",
+            "houqp",
+            "jghoman",
+            "jmcarp",
+            "kaxil",
+            "leahecole",
+            "mik-laj",
+            "milton0825",
+            "mistercrunch",
+            "msumit",
+            "potiuk",
+            "r39132",
+            "ryanahamilton",
+            "ryw",
+            "saguziel",
+            "sekikn",
+            "turbaszek",
+            "zhongjiajie",
+            "ephraimbuddy",
+            "jhtimmins",
+            "dstandish"
+          ]'), github.actor)
           ) && github.repository == 'apache/airflow'
         ) && 'self-hosted' || 'ubuntu-20.04' }}
     outputs:
@@ -128,9 +201,7 @@ jobs:
       # Avoid having to specify the runs-on logic every time
       - name: debug dump
         run: |
-          echo "${{toJSON(runner) }}"
-          echo "${{toJSON(job) }}"
-          echo "${{toJSON(env) }}"
+          env | sort
       - name: Set runs-on
         id: set-runs-on
         run: echo "::set-output name=runsOn::$(jq -n 'env.RUNS_ON')"
