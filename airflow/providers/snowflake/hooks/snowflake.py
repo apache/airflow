@@ -29,12 +29,16 @@ from airflow.hooks.dbapi import DbApiHook
 
 class SnowflakeHook(DbApiHook):
     """
+<<<<<<< HEAD
     A client to interact with Snowflake.
 
     This hook requires the snowflake_conn_id connection. The snowflake host, login,
     and, password field must be setup in the connection. Other inputs can be defined
     in the connection or hook instantiation. If used with the S3ToSnowflakeOperator
     add 'aws_access_key_id' and 'aws_secret_access_key' to extra field in the connection.
+=======
+    A client to interact with Snowflake
+>>>>>>> 74050c9b1c7e4566a670235bbbffdd23b5faf56f
 
     :param account: snowflake account name
     :type account: Optional[str]
