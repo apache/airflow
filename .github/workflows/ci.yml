@@ -77,6 +77,9 @@ jobs:
     # option but to specify a hard-coded list here. This is "safe", as the list
     # is checked again by the runner using it's own list, so a PR author cannot
     # change this and get access to our self-hosted runners
+    #
+    # When changing this list, ensure that it is kept in sync with the
+    # configOverride parameter in AWS SSM (which is what the runner uses)
     runs-on: >-
       ${{ (
         (
@@ -162,6 +165,9 @@ jobs:
       - name: Set runs-on
         id: set-runs-on
         run: |
+          set -x
+          echo "$AIRFLOW_SELF_HOSTED_RUNNER"
+          echo "$GITHUB_EVENT_NAME"
           echo "::set-output name=runsOn::$(jq -n '
             if env.AIRFLOW_SELF_HOSTED_RUNNER and (["push", "schedule"] | index(env.GITHUB_EVENT_NAME)) then
               "self-hosted"
@@ -169,6 +175,7 @@ jobs:
               "ubuntu-20.04"
             end
           ')"
+          env | sort
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
