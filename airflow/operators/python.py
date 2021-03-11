@@ -27,6 +27,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 import dill
 
+# pylint: disable=unused-import
+from airflow.decorators.python import task  # noqa
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
