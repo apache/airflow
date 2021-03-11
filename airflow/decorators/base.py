@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG, DagContext
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.python import PythonOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 
@@ -50,8 +49,6 @@ class _BaseDecoratedOperator(BaseOperator):
 
     template_fields = ('op_args', 'op_kwargs')
     template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
-
-    ui_color = PythonOperator.ui_color
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
