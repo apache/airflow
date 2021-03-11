@@ -121,48 +121,6 @@ jobs:
       ) && 'self-hosted' || 'ubuntu-20.04' }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
-      # Sadly we have to duplicate this list _again_ :(. There is no way to refer
-      RUNS_ON: ${{ (
-          (
-            github.event_name == 'push' ||
-            github.event_name == 'schedule' ||
-          contains(fromJSON('[
-            "BasPH",
-            "Fokko",
-            "KevinYang21",
-            "XD-DENG",
-            "aijamalnk",
-            "alexvanboxel",
-            "aoen",
-            "artwr",
-            "ashb",
-            "bolkedebruin",
-            "criccomini",
-            "dimberman",
-            "feng-tao",
-            "houqp",
-            "jghoman",
-            "jmcarp",
-            "kaxil",
-            "leahecole",
-            "mik-laj",
-            "milton0825",
-            "mistercrunch",
-            "msumit",
-            "potiuk",
-            "r39132",
-            "ryanahamilton",
-            "ryw",
-            "saguziel",
-            "sekikn",
-            "turbaszek",
-            "zhongjiajie",
-            "ephraimbuddy",
-            "jhtimmins",
-            "dstandish"
-          ]'), github.actor)
-          ) && github.repository == 'apache/airflow'
-        ) && 'self-hosted' || 'ubuntu-20.04' }}
     outputs:
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
       upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
@@ -198,13 +156,19 @@ jobs:
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
       runsOn: ${{ steps.set-runs-on.outputs.runsOn }}
     steps:
-      # Avoid having to specify the runs-on logic every time
-      - name: debug dump
-        run: |
-          env | sort
+      # Avoid having to specify the runs-on logic every time. We use the custom
+      # env var AIRFLOW_SELF_HOSTED_RUNNER set only on our runners, but never
+      # on the public runners
       - name: Set runs-on
         id: set-runs-on
-        run: echo "::set-output name=runsOn::$(jq -n 'env.RUNS_ON')"
+        run: |
+          echo "::set-output name=runsOn::$(jq -n '
+            if env.AIRFLOW_SELF_HOSTED_RUNNER and (["push", "schedule"] | index(env.GITHUB_EVENT_NAME)) then
+              "self-hosted"
+            else
+              "ubuntu-20.04"
+            end
+          ')"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
