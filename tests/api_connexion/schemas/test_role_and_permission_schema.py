@@ -40,8 +40,9 @@ class TestRoleCollectionItemSchema(unittest.TestCase):
             ],
         )
 
-    def tearDown(self) -> None:
-        delete_role(self.app, 'Test')
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_role(cls.app, 'Test')
 
     def test_serialize(self):
         deserialized_role = role_collection_item_schema.dump(self.role)
@@ -82,9 +83,10 @@ class TestRoleCollectionSchema(unittest.TestCase):
             ],
         )
 
-    def tearDown(self) -> None:
-        delete_role(self.app, 'Test1')
-        delete_role(self.app, 'Test2')
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_role(cls.app, 'Test1')
+        delete_role(cls.app, 'Test2')
 
     def test_serialize(self):
         instance = RoleCollection([self.role1, self.role2], total_entries=2)

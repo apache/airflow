@@ -2281,7 +2281,7 @@ components:
         - $ref: '#/components/schemas/CollectionInfo'
 
     Resource:
-      description: The ViewMenu resources
+      description: A "resource" on which permissions are granted.
       type: object
       properties:
         name:
