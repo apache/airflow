@@ -21,7 +21,10 @@ from collections import namedtuple
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List, Optional, Tuple
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
