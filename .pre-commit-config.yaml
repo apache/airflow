@@ -338,6 +338,7 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^airflow/decorators/.*$|
           ^airflow/gcp/.*$|
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
