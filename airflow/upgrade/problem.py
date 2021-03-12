@@ -33,6 +33,10 @@ class RuleStatus(NamedTuple(
     def is_success(self):
         return len(self.messages) == 0
 
+    @property
+    def is_problem(self):
+        return not self.skipped and not self.is_success
+
     @classmethod
     def from_rule(cls, rule):
         # type: (BaseRule) -> RuleStatus
