@@ -1,4 +1,4 @@
-# Editable install with no version control (apache-airflow==1.10.14)
+# Editable install with no version control (apache-airflow==1.10.15)
 Babel==2.9.0
 Flask-Admin==1.5.4
 Flask-AppBuilder==1.13.1
@@ -239,7 +239,7 @@ psycopg2-binary==2.8.6
 ptyprocess==0.6.0
 py==1.9.0
 pyOpenSSL==20.0.0
-pyarrow==2.0.0
+pyarrow==0.17.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycodestyle==2.6.0
