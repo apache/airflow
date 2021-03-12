@@ -63,7 +63,6 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app = None
 
     def setUp(self) -> None:
         self.default_time = DEFAULT_DATETIME_1
