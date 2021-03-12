@@ -25,10 +25,12 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
 from airflow.security import permissions
 from airflow.www import app
 from tests.test_utils.api_connexion_utils import create_role, delete_role
+from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 class TestRoleCollectionItemSchema(unittest.TestCase):
     @classmethod
+    @dont_initialize_flask_app_submodules(skip_all_except=["init_appbuilder"])
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.app = app.create_app(testing=True)  # type:ignore
@@ -65,6 +67,7 @@ class TestRoleCollectionItemSchema(unittest.TestCase):
 
 class TestRoleCollectionSchema(unittest.TestCase):
     @classmethod
+    @dont_initialize_flask_app_submodules(skip_all_except=["init_appbuilder"])
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.app = app.create_app(testing=True)  # type:ignore
@@ -84,6 +87,7 @@ class TestRoleCollectionSchema(unittest.TestCase):
         )
 
     @classmethod
+    @dont_initialize_flask_app_submodules(skip_all_except=["init_appbuilder"])
     def tearDownClass(cls) -> None:
         delete_role(cls.app, 'Test1')
         delete_role(cls.app, 'Test2')
