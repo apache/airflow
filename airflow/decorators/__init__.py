@@ -52,6 +52,7 @@ class _TaskDecorator:
         """
         Python operator decorator. Wraps a function into an Airflow operator.
         Accepts kwargs for operator kwarg. Can be reused in a single DAG.
+        
         :param python_callable: Function to decorate
         :type python_callable: Optional[Callable]
         :param multiple_outputs: if set, function return value will be
