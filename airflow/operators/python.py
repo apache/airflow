@@ -53,9 +53,18 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[
     @task
     def my_task()
 
-    :param python_callable:
-    :param multiple_outputs:
-    :param kwargs:
+    :param python_callable: A reference to an object that is callable
+    :type python_callable: python callable
+    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
+        in your function (templated)
+    :type op_kwargs: dict
+    :param op_args: a list of positional arguments that will get unpacked when
+        calling your callable (templated)
+    :type op_args: list
+    :param multiple_outputs: if set, function return value will be
+        unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
+        Defaults to False.
+    :type multiple_outputs: bool
     :return:
     """
     warnings.warn(
