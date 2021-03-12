@@ -25,16 +25,15 @@ source "${CLIENTS_GEN_DIR}/common.sh"
 VERSION=1.0.0
 readonly VERSION
 
-go_config=(
+python_config=(
     "packageVersion=${VERSION}"
-    "enumClassPrefix=true"
 )
 
 validate_input "$@"
 
-gen_client go \
-    --package-name airflow \
-    --git-repo-id airflow-client-go/airflow \
-    --additional-properties "${go_config[*]}"
+gen_client python \
+    --package-name airflow_client \
+    --git-repo-id airflow-client-python/airflow \
+    --additional-properties "${python_config[*]}"
 
 run_pre_commit
