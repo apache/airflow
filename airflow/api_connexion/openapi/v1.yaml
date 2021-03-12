@@ -1447,11 +1447,140 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
+  /users:
+    get:
+      summary: List users
+      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      operationId: get_users
+      tags: [User]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /users/{username}:
+    parameters:
+      - $ref: '#/components/parameters/Username'
+    get:
+      summary: Get a user
+      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      operationId: get_user
+      tags: [User]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCollectionItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
   # Reusable schemas (data models)
   schemas:
     # Database entities
+    UserCollectionItem:
+      description: >
+        A user object
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: The user id
+          readOnly: true
+        first_name:
+          type: string
+          description: The user firstname
+        last_name:
+          type: string
+          description: The user lastname
+        username:
+          type: string
+          description: The username
+        email:
+          type: string
+          description: The user's email
+        active:
+          type: boolean
+          description: Whether the user is active
+          readOnly: true
+          nullable: true
+        last_login:
+          type: string
+          format: datetime
+          description: The last user login
+          readOnly: true
+          nullable: true
+        login_count:
+          type: integer
+          description: The login count
+          readOnly: true
+          nullable: true
+        failed_login_count:
+          type: integer
+          description: The number of times the login failed
+          readOnly: true
+          nullable: true
+        roles:
+          type: array
+          description: User roles
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+            nullable: true
+          readOnly: true
+        created_on:
+          type: string
+          format: datetime
+          description: The date user was created
+          readOnly: true
+          nullable: true
+        changed_on:
+          type: string
+          format: datetime
+          description: The date user was changed
+          readOnly: true
+          nullable: true
+    User:
+      type: object
+      description: A user object with sensitive data
+      allOf:
+        - $ref: '#/components/schemas/UserCollectionItem'
+        - type: object
+          properties:
+            password:
+              type: string
+              writeOnly: true
+
+    UserCollection:
+      type: object
+      description: Collection of users.
+      allOf:
+        - type: object
+          properties:
+            users:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserCollectionItem'
+        - $ref: '#/components/schemas/CollectionInfo'
+
     ConnectionCollectionItem:
       description: >
         Connection collection item.
@@ -2805,6 +2934,13 @@ components:
       description: The numbers of items to return.
 
     # Database entity fields
+    Username:
+      in: path
+      name: username
+      schema:
+        type: string
+      required: true
+      description: The username of the user
     RoleName:
       in: path
       name: role_name
@@ -3159,6 +3295,7 @@ tags:
   - name: Plugin
   - name: Role
   - name: Permission
+  - name: User
 
 externalDocs:
   url: https://airflow.apache.org/docs/apache-airflow/stable/
