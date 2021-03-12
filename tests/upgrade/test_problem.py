@@ -25,6 +25,11 @@ class TestRuleStatus:
         assert RuleStatus(rule=mock.MagicMock(), messages=[], skipped=False).is_success is True
         assert RuleStatus(rule=mock.MagicMock(), messages=["aaa"], skipped=False).is_success is False
 
+    def test_is_problem(self):
+        assert RuleStatus(rule=mock.MagicMock(), messages=[], skipped=False).is_problem is False
+        assert RuleStatus(rule=mock.MagicMock(), messages=["aaa"], skipped=False).is_problem is True
+        assert RuleStatus(rule=mock.MagicMock(), messages=["aaa"], skipped=True).is_problem is False
+
     def test_rule_status_from_rule(self):
         msgs = ["An interesting problem to solve"]
         rule = mock.MagicMock()
