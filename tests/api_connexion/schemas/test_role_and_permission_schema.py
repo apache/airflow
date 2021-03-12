@@ -43,6 +43,7 @@ class TestRoleCollectionItemSchema(unittest.TestCase):
         )
 
     @classmethod
+    @dont_initialize_flask_app_submodules(skip_all_except=["init_appbuilder"])
     def tearDownClass(cls) -> None:
         delete_role(cls.app, 'Test')
 
