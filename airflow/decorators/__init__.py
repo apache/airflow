@@ -45,7 +45,7 @@ class _TaskDecorator:
             DeprecationWarning,
             stacklevel=2,
         )
-        return task.python(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
+        return self.python(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
 
     @staticmethod
     def python(python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs):
