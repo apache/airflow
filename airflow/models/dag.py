@@ -1574,7 +1574,7 @@ class DAG(LoggingMixin):
 
     @property
     def task(self):
-        from airflow.operators.python import task
+        from airflow.decorators import task
 
         return functools.partial(task, dag=self)
 

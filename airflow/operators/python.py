@@ -50,7 +50,7 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[
 
     from airflow.decorators import task
 
-    @task.python
+    @task
     def my_task()
 
     @param python_callable:
@@ -62,7 +62,7 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[
         """airflow.operators.python.task is deprecated. Please use the following instead
 
         from airflow.decorators import task
-        @task.python
+        @task
         def my_task()""",
         DeprecationWarning,
         stacklevel=2,
