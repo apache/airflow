@@ -32,7 +32,7 @@ from datetime import datetime as dt, timedelta
 from typing import Any, Dict, Generator, List, NamedTuple
 from unittest import mock
 from unittest.mock import PropertyMock
-from urllib.parse import parse_qsl, quote_plus
+from urllib.parse import quote_plus
 
 import jinja2
 import pytest
@@ -2755,9 +2755,10 @@ class TestTriggerDag(TestBase):
         [
             ("javascript:alert(1)", "/home"),
             ("http://google.com", "/home"),
+            ("36539'%3balert(1)%2f%2f166", "/home"),
             (
                 "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
-                "/tree?dag_id=example_bash_operator%27%3Balert%2833%29%2F%2F",
+                "/home",
             ),
             ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
             ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
@@ -2765,13 +2766,6 @@ class TestTriggerDag(TestBase):
     )
     def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
         test_dag_id = "example_bash_operator"
-
-        # https://github.com/python/cpython/pull/24297/files
-        # Check if tests are running with a Python version containing the above fix
-        # where ";" is removed as a separator
-        if parse_qsl(";a=b") != [(';a', 'b')] and ";" in test_origin:
-            expected_origin = expected_origin.replace("%3B", "&")
-            expected_origin += "="
 
         resp = self.client.get(f'trigger?dag_id={test_dag_id}&origin={test_origin}')
         self.check_content_in_response(
@@ -3302,10 +3296,14 @@ class TestHelperFunctions(TestBase):
         [
             ("", "/home"),
             ("http://google.com", "/home"),
+            ("36539'%3balert(1)%2f%2f166", "/home"),
+            (
+                "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2",
+                "http://localhost:8080/trigger?dag_id=test&abc=2",
+            ),
             (
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag';alert(33)//",
-                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3F"
-                "dag_id%25test_dag%27%3Balert%2833%29%2F%2F",
+                "http://localhost:8080/trigger?dag_id=test_dag",
             ),
             (
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag",
@@ -3315,13 +3313,6 @@ class TestHelperFunctions(TestBase):
     )
     @mock.patch("airflow.www.views.url_for")
     def test_get_safe_url(self, test_url, expected_url, mock_url_for):
-        # https://github.com/python/cpython/pull/24297/files
-        # Check if tests are running with a Python version containing the above fix
-        # where ";" is removed as a separator
-        if parse_qsl(";a=b") != [(';a', 'b')] and ";" in test_url:
-            expected_url = expected_url.replace("%3B", "&")
-            expected_url += "="
-
         mock_url_for.return_value = "/home"
         with self.app.test_request_context(base_url="http://localhost:8080"):
             assert get_safe_url(test_url) == expected_url
