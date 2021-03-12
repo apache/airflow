@@ -41,7 +41,7 @@ from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
 
 from airflow import models, settings, version
-from airflow.configuration import conf
+from airflow.configuration import conf, WEBSERVER_CONFIG, _read_default_config_file
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs import BaseJob
@@ -66,15 +66,26 @@ from tests.test_utils.db import clear_db_runs
 class TestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.orig_rbac_conf = conf.get('webserver', 'rbac')
+        conf.set('webserver', 'rbac', 'True')
+        cls._create_default_webserver_config()
         cls.app, cls.appbuilder = application.create_app(session=Session, testing=True)
         cls.app.config['WTF_CSRF_ENABLED'] = False
         cls.app.jinja_env.undefined = jinja2.StrictUndefined
         settings.configure_orm()
         cls.session = Session
 
+    @staticmethod
+    def _create_default_webserver_config():
+        if not os.path.isfile(WEBSERVER_CONFIG):
+            DEFAULT_WEBSERVER_CONFIG, _ = _read_default_config_file('default_webserver_config.py')
+            with open(WEBSERVER_CONFIG, 'w') as file:
+                file.write(DEFAULT_WEBSERVER_CONFIG)
+
     @classmethod
     def tearDownClass(cls):
         clear_db_runs()
+        conf.set('webserver', 'rbac', cls.orig_rbac_conf)
 
     def setUp(self):
         self.client = self.app.test_client()
@@ -2244,16 +2255,19 @@ class TestTriggerDag(TestBase):
         self.check_content_in_response(
             'Triggered example_bash_operator, it should start any moment now.', response)
 
-    @parameterized.expand([
-        ("javascript:alert(1)", "/home"),
-        ("http://google.com", "/home"),
-        (
-            "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
-            "/tree?dag_id=example_bash_operator%27&amp;alert%2833%29%2F%2F=",
-        ),
-        ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
-        ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
-    ])
+    @parameterized.expand(
+        [
+            ("javascript:alert(1)", "/home"),
+            ("http://google.com", "/home"),
+            ("36539'%3balert(1)%2f%2f166", "/home"),
+            (
+                "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
+                "/home",
+            ),
+            ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
+            ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
+        ]
+    )
     def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
         test_dag_id = "example_bash_operator"
 

@@ -1119,6 +1119,11 @@ class TestTriggerDag(unittest.TestCase):
     @parameterized.expand([
         ("javascript:alert(1)", "/admin/"),
         ("http://google.com", "/admin/"),
+        ("36539'%3balert(1)%2f%2f166", "/admin/"),
+        (
+            "%2Fadmin%2Fairflow%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
+            "/admin/",
+        ),
         (
             "%2Fadmin%2Fairflow%2Ftree%3Fdag_id%3Dexample_bash_operator"
             "&dag_id=example_bash_operator';alert(33)//",
