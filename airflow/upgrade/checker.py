@@ -116,7 +116,7 @@ def run(args):
     logging.disable(logging.ERROR)
 
     all_rule_statuses = check_upgrade(formatter, rules)
-    any_problems = any([rule.is_problem for rule in all_rule_statuses])
+    any_problems = any(rule.is_problem for rule in all_rule_statuses)
     if any_problems:
         sys.exit(1)
 
