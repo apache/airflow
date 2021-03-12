@@ -2269,7 +2269,7 @@ components:
           nullable: false
 
     ActionCollection:
-      description: Permission Collection
+      description: Action Collection
       type: object
       allOf:
         - type: object
@@ -2290,13 +2290,13 @@ components:
           nullable: false
 
     ActionResource:
-      description: The Action-Resource permission item
+      description: The Action-Resource item
       type: object
       properties:
         action:
           type: object
           $ref: '#/components/schemas/ActionCollectionItem'
-          description: The permission actions
+          description: The permission action
         resource:
           type: object
           $ref: '#/components/schemas/Resource'
