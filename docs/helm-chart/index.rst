@@ -27,6 +27,7 @@ Helm Chart for Apache Airflow
     manage-dags-files
     keda
     external-redis
+    using-additional-containers
 
 .. toctree::
     :hidden:
