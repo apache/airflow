@@ -241,7 +241,7 @@
             .style("stroke-width", initialStrokeWidth);
           d3.selectAll("g.edgePath")
             .style("opacity", 1);
-          localStorage.removeItem(focused_group_key(dag_id))
+          localStorage.removeItem(focused_group_key(dag_id));
         });
         updateNodesStates(task_instances);
         setUpZoomSupport();
@@ -410,7 +410,7 @@
           d3.selectAll('.js-state-legend-item')
               .style("background-color", null);
 
-          localStorage.removeItem(focused_group_key(dag_id))
+          localStorage.removeItem(focused_group_key(dag_id));
       }
 
       function focusState(state, node, color){
@@ -587,18 +587,18 @@
 
       // Return list of all task group ids in the given task group including the given group itself.
       function get_all_group_ids(group) {
-        var children = [group.id]
+        var children = [group.id];
 
-        for(const [key, val] of Object.entries(group.children)) {
-          if(val.children != undefined) {
+        for (const [key, val] of Object.entries(group.children)) {
+          if (val.children != undefined) {
             // group
             const sub_group_children = get_all_group_ids(val)
-            for(const id of sub_group_children) {
-              children.push(id)
+            for (const id of sub_group_children) {
+              children.push(id);
             }
           }
         }
-        return children
+        return children;
       }
 
 
@@ -638,12 +638,12 @@
 
       // Returns the key used to store expanded task group ids in localStorage
       function expanded_groups_key(dag_id) {
-          return `expanded_groups_${dag_id}`
+          return `expanded_groups_${dag_id}`;
       }
 
       // Returns the key used to store the focused task group id in localStorage
       function focused_group_key(dag_id) {
-          return `focused_group_${dag_id}`
+          return `focused_group_${dag_id}`;
       }
 
       // Focus the graph on the expanded/collapsed node
@@ -689,7 +689,7 @@
               }
             });
 
-            localStorage.setItem(focused_group_key(dag_id), node_id)
+            localStorage.setItem(focused_group_key(dag_id), node_id);
         }
       }
 
@@ -729,20 +729,21 @@
 
         draw()
 
-        if (focus)
-          focus_group(node_id)
+        if (focus) {
+          focus_group(node_id);
+        }
 
         save_expanded_group(node_id)
     }
 
     // Remove the node with this node_id from g.
     function remove_node(node_id) {
-      if(g.hasNode(node_id)) {
+      if (g.hasNode(node_id)) {
           node = g.node(node_id)
           if(node.children != undefined) {
             // If the child is an expanded group node, remove children too.
             node.children.forEach(function (child) {
-              remove_node(child.id)
+              remove_node(child.id);
             })
           }
       }
@@ -772,7 +773,7 @@
         draw()
         focus_group(node_id)
 
-        remove_expanded_group(node_id, node)
+        remove_expanded_group(node_id, node);
       }
 
     function get_saved_groups(dag_id) {
@@ -789,10 +790,10 @@
     // Clean up invalid group_ids from saved_group_ids (e.g. due to DAG changes)
     function prune_invalid_saved_group_ids() {
         // All the group_ids in the whole DAG
-        const all_group_ids = new Set(get_all_group_ids(nodes))
+        const all_group_ids = new Set(get_all_group_ids(nodes));
         var expanded_groups = get_saved_groups(dag_id);
-        expanded_groups = Array.from(expanded_groups).filter(group_id => all_group_ids.has(group_id))
-        localStorage.setItem(expanded_groups_key(dag_id), JSON.stringify(expanded_groups))
+        expanded_groups = Array.from(expanded_groups).filter(group_id => all_group_ids.has(group_id));
+        localStorage.setItem(expanded_groups_key(dag_id), JSON.stringify(expanded_groups));
     }
 
     // Remember the expanded groups in local storage so that it can be used to restore the expanded state
@@ -801,15 +802,15 @@
         // expanded_groups is a Set
         var expanded_groups = get_saved_groups(dag_id);
         expanded_groups.add(node_id)
-        localStorage.setItem(expanded_groups_key(dag_id), JSON.stringify(Array.from(expanded_groups)))
+        localStorage.setItem(expanded_groups_key(dag_id), JSON.stringify(Array.from(expanded_groups)));
     }
 
     // Remove the node_id from the expanded state
     function remove_expanded_group(node_id, node) {
         var expanded_groups = get_saved_groups(dag_id);
-        const child_group_ids = get_all_group_ids(node)
-        child_group_ids.forEach(child_id => expanded_groups.delete(child_id))
-        localStorage.setItem(expanded_groups_key(dag_id), JSON.stringify(Array.from(expanded_groups)))
+        const child_group_ids = get_all_group_ids(node);
+        child_group_ids.forEach(child_id => expanded_groups.delete(child_id));
+        localStorage.setItem(expanded_groups_key(dag_id), JSON.stringify(Array.from(expanded_groups)));
     }
 
     // Restore previously expanded task groups
@@ -820,26 +821,27 @@
 
         node.children.forEach(function (child_node) {
             if(expanded_groups.has(child_node.id)) {
-                expand_group(child_node.id, g.node(child_node.id), false)
+                expand_group(child_node.id, g.node(child_node.id), false);
 
-                expand_saved_groups(expanded_groups, child_node)
+                expand_saved_groups(expanded_groups, child_node);
             }
-        })
+        });
     }
 
-    prune_invalid_saved_group_ids()
-    const focus_node_id = localStorage.getItem(focused_group_key(dag_id))
-    const expanded_groups = get_saved_groups(dag_id)
+    prune_invalid_saved_group_ids();
+    const focus_node_id = localStorage.getItem(focused_group_key(dag_id));
+    const expanded_groups = get_saved_groups(dag_id);
 
     // Always expand the root node
-    expand_group(null, nodes)
+    expand_group(null, nodes);
 
     // Expand the node that were previously expanded
-    expand_saved_groups(expanded_groups, nodes)
+    expand_saved_groups(expanded_groups, nodes);
 
     // Restore focus (if available)
-    if(g.hasNode(focus_node_id))
-      focus_group(focus_node_id)
+    if(g.hasNode(focus_node_id)) {
+      focus_group(focus_node_id);
+    }
 
     initRefresh();
   </script>
