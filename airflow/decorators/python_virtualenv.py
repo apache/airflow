@@ -15,14 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import inspect
+from textwrap import dedent
 from typing import Callable, Optional, TypeVar
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonVirtualenvOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.python_virtualenv import remove_task_decorator
 
 
-class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
+class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
 
@@ -57,14 +60,19 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
             "op_args": kwargs["op_args"],
             "op_kwargs": kwargs["op_kwargs"],
         }
-
         super().__init__(kwargs_to_upstream=kwargs_to_upstream, **kwargs)
+
+    def get_python_source(self):
+        raw_source = inspect.getsource(self.python_callable)
+        res = dedent(raw_source)
+        res = remove_task_decorator(res, "@task.virtualenv")
+        return res
 
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def python_task(
+def _virtualenv_task(
     python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
 ):
     """
@@ -82,6 +90,6 @@ def python_task(
     return task_decorator_factory(
         python_callable=python_callable,
         multiple_outputs=multiple_outputs,
-        decorated_operator_class=_PythonDecoratedOperator,
+        decorated_operator_class=_PythonVirtualenvDecoratedOperator,
         **kwargs,
     )

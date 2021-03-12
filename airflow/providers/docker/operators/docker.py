@@ -256,22 +256,24 @@ class DockerOperator(BaseOperator):
             )
 
             lines = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
-
             self.cli.start(self.container['Id'])
 
             line = ''
+            res_lines = []
             for line in lines:
                 line = line.strip()
                 if hasattr(line, 'decode'):
                     # Note that lines returned can also be byte sequences so we have to handle decode here
                     line = line.decode('utf-8')
+                res_lines.append(line)
                 self.log.info(line)
 
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
                 if self.auto_remove:
                     self.cli.remove_container(self.container['Id'])
-                raise AirflowException('docker container failed: ' + repr(result))
+                res_lines = "\n".join(res_lines)
+                raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
 
             # duplicated conditional logic because of expensive operation
             ret = None
