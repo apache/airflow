@@ -3572,6 +3572,7 @@ class TaskInstanceModelView(AirflowModelView):
         'operator',
         'start_date',
         'end_date',
+        'queued_dttm',
     ]
 
     edit_columns = [
