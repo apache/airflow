@@ -116,6 +116,11 @@ In the example below, a database ``airflow_db`` and user  with username ``airflo
    CREATE USER 'airflow_user' IDENTIFIED BY 'airflow_pass';
    GRANT ALL PRIVILEGES ON airflow_db.* TO 'airflow_user';
 
+
+.. note::
+
+   The database must use a UTF-8 character set
+
 We rely on more strict ANSI SQL settings for MySQL in order to have sane defaults.
 Make sure to have specified ``explicit_defaults_for_timestamp=1`` option under ``[mysqld]`` section
 in your ``my.cnf`` file. You can also activate these options with the ``--explicit-defaults-for-timestamp`` switch passed to ``mysqld`` executable
@@ -149,6 +154,10 @@ In the example below, a database ``airflow_db`` and user  with username ``airflo
    CREATE DATABASE airflow_db;
    CREATE USER airflow_user WITH PASSWORD 'airflow_pass';
    GRANT ALL PRIVILEGES ON DATABASE airflow_db TO airflow_user;
+
+.. note::
+
+   The database must use a UTF-8 character set
 
 You may need to update your Postgres ``pg_hba.conf`` to add the
 ``airflow`` user to the database access control list; and to reload
