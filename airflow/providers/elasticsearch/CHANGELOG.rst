@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+1.0.3
+.....
+
+Bug fixes
+~~~~~~~~~
+
+* ``Elasticsearch Provider: Fix logs downloading for tasks (#14686)``
+
 1.0.2
 .....
 

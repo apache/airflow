@@ -56,7 +56,7 @@ Package apache-airflow-providers-elasticsearch
 `Elasticsearch <https://https//www.elastic.co/elasticsearch>`__
 
 
-Release: 1.0.2
+Release: 1.0.3
 
 Provider package
 ----------------
@@ -110,6 +110,14 @@ PIP package              Version required
 
 Changelog
 ---------
+
+1.0.3
+.....
+
+Bug fixes
+~~~~~~~~~
+
+* ``Elasticsearch Provider: Fix logs downloading for tasks (#14686)``
 
 1.0.2
 .....
