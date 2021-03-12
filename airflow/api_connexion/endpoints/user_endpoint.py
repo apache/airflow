@@ -19,6 +19,7 @@ from flask_appbuilder.security.sqla.models import User
 from sqlalchemy import func
 
 from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
     UserCollection,
     user_collection_item_schema,
@@ -35,6 +36,7 @@ def get_user(username):
     return user_collection_item_schema.dump(user)
 
 
+@format_parameters({'limit': check_limit})
 def get_users(limit=None, offset=None):
     """Get users"""
     appbuilder = current_app.appbuilder
