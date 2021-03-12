@@ -1,6 +1,6 @@
 # Editable install with no version control (apache-airflow==2.1.0.dev0)
 Babel==2.9.0
-Flask-AppBuilder==3.1.1
+Flask-AppBuilder==3.2.0
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.0
@@ -24,7 +24,7 @@ SQLAlchemy-Utils==0.36.8
 SQLAlchemy==1.3.23
 WTForms==2.3.3
 Werkzeug==1.0.1
-alembic==1.5.6
+alembic==1.5.7
 amqp==2.6.1
 apispec==3.3.2
 appdirs==1.4.4
@@ -53,7 +53,7 @@ croniter==0.3.37
 cryptography==3.4.6
 dask==2021.3.0
 dataclasses==0.7
-defusedxml==0.7.0
+defusedxml==0.7.1
 dill==0.3.3
 distlib==0.3.1
 distributed==2.19.0
@@ -112,7 +112,7 @@ python-ldap==3.3.1
 python-nvd3==0.15.0
 python-slugify==4.0.1
 python3-openid==3.2.0
-pytz==2020.5
+pytz==2021.1
 pytzdata==2020.1
 requests-kerberos==0.12.0
 requests-oauthlib==1.1.0
