@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from flask import current_app
 from flask_appbuilder.security.sqla.models import Permission, Role
 from sqlalchemy import func
 
 from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.role_and_permission_schema import (
     ActionCollection,
     RoleCollection,
@@ -38,6 +38,7 @@ def get_role(role_name):
     return role_collection_item_schema.dump(role)
 
 
+@format_parameters({'limit': check_limit})
 def get_roles(limit=None, offset=None):
     """Get roles"""
     appbuilder = current_app.appbuilder
@@ -50,6 +51,7 @@ def get_roles(limit=None, offset=None):
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
 
+@format_parameters({'limit': check_limit})
 def get_permissions(limit=None, offset=None):
     """Get permissions"""
     session = current_app.appbuilder.get_session
