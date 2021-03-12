@@ -33,7 +33,7 @@ providing upgrade path (where the old code continues to work and prints out a de
 unfortunately some breaking changes where we couldn't provide a compatibility shim.
 
 The recommended upgrade path to get to Airflow 2.0.0 is to first upgrade to the latest release in the 1.10
-series (at the time of writing: 1.10.14) and to then run this script.
+series (at the time of writing: 1.10.15) and to then run this script.
 
 ```bash
 pip install apache-airflow-upgrade-check

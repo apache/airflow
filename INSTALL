@@ -52,7 +52,7 @@ python setup.py install
 # For example:
 
 pip install . \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.14/constraints-3.6.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.15/constraints-3.6.txt"
 
 
 .. note::

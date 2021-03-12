@@ -64,7 +64,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.14
+  FROM apache/airflow:1.10.15
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -81,7 +81,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.14
+  FROM apache/airflow:1.10.15
   RUN pip install --no-cache-dir --user my-awesome-pip-dependency-to-add
 
 
@@ -92,7 +92,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.14
+  FROM apache/airflow:1.10.15
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -125,7 +125,7 @@ in the `<#production-image-build-arguments>`_ chapter below.
 
 Here just a few examples are presented which should give you general understanding of what you can customize.
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.14 PyPI package and
+This builds the production image in version 3.7 with additional airflow extras from 1.10.15 PyPI package and
 additional apt dev and runtime dependencies.
 
 .. code-block:: bash
@@ -134,8 +134,8 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
+    --build-arg AIRFLOW_VERSION="1.10.15" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.15" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -151,7 +151,7 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 .. code-block:: bash
 
   ./breeze build-image \
-      --production-image  --python 3.7 --install-airflow-version=1.10.14 \
+      --production-image  --python 3.7 --install-airflow-version=1.10.15 \
       --additional-extras=jdbc --additional-python-deps="pandas" \
       --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
 
@@ -167,8 +167,8 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
+    --build-arg AIRFLOW_VERSION="1.10.15" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.15" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -227,7 +227,7 @@ Preparing the constraint files and wheel files:
 
   pip download --dest docker-context-files \
     --constraint docker-context-files/constraints-1-10.txt  \
-    apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv]==1.10.14
+    apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv]==1.10.15
 
 
 Building the image (after copying the files downloaded to the "docker-context-files" directory:
@@ -235,7 +235,7 @@ Building the image (after copying the files downloaded to the "docker-context-fi
 .. code-block:: bash
 
   ./breeze build-image \
-      --production-image --python 3.7 --install-airflow-version=1.10.14 \
+      --production-image --python 3.7 --install-airflow-version=1.10.15 \
       --disable-mysql-client-installation --disable-pip-cache --install-from-local-files-when-building \
       --constraints-location="/docker-context-files/constraints-1-10.txt"
 
@@ -247,8 +247,8 @@ or
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
+    --build-arg AIRFLOW_VERSION="1.10.15" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.15" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
@@ -417,7 +417,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | 1.10.* installation. In case of building |
 |                                          |                                          | specific version you want to point it    |
 |                                          |                                          | to specific tag, for example             |
-|                                          |                                          | ``constraints-1.10.14``.                 |
+|                                          |                                          | ``constraints-1.10.15``.                 |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed.                               |
@@ -528,13 +528,13 @@ production image. There are three types of build:
 |                                   |                        | Only used when ``INSTALL_FROM_PYPI`` is set to ``true``.                          |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 | ``AIRFLOW_INSTALL_VERSION``       |                        | Optional - might be used for package installation of different Airflow version    |
-|                                   |                        | for example"==1.10.14". For consistency, you should also set``AIRFLOW_VERSION``   |
+|                                   |                        | for example"==1.10.15". For consistency, you should also set``AIRFLOW_VERSION``   |
 |                                   |                        | to the same value AIRFLOW_VERSION is embedded as label in the image created.      |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE`` | ``constraints-master`` | Reference (branch or tag) from GitHub where constraints file is taken from.       |
 |                                   |                        | It can be ``constraints-master`` but also can be``constraints-1-10`` for          |
 |                                   |                        | 1.10.*  installations. In case of building specific version                       |
-|                                   |                        | you want to point it to specific tag, for example ``constraints-1.10.14``         |
+|                                   |                        | you want to point it to specific tag, for example ``constraints-1.10.15``         |
 +-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 | ``AIRFLOW_WWW``                   | ``www``                | In case of Airflow 2.0 it should be "www", in case of Airflow 1.10                |
 |                                   |                        | series it should be "www_rbac".                                                   |
@@ -553,7 +553,7 @@ of 2.0 currently):
 
   docker build .
 
-This builds the production image in version 3.7 with default extras from 1.10.14 tag and
+This builds the production image in version 3.7 with default extras from 1.10.15 tag and
 constraints taken from constraints-1-10-12 branch in GitHub.
 
 .. code-block:: bash
@@ -561,14 +561,14 @@ constraints taken from constraints-1-10-12 branch in GitHub.
   docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/1.10.14.tar.gz#egg=apache-airflow" \
+    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/1.10.15.tar.gz#egg=apache-airflow" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty"
 
-This builds the production image in version 3.7 with default extras from 1.10.14 PyPI package and
-constraints taken from 1.10.14 tag in GitHub and pre-installed pip dependencies from the top
+This builds the production image in version 3.7 with default extras from 1.10.15 PyPI package and
+constraints taken from 1.10.15 tag in GitHub and pre-installed pip dependencies from the top
 of v1-10-test branch.
 
 .. code-block:: bash
@@ -577,15 +577,15 @@ of v1-10-test branch.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
+    --build-arg AIRFLOW_VERSION="1.10.15" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.15" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.14" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.15" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty"
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.14 PyPI package and
-additional python dependencies and pre-installed pip dependencies from 1.10.14 tagged constraints.
+This builds the production image in version 3.7 with additional airflow extras from 1.10.15 PyPI package and
+additional python dependencies and pre-installed pip dependencies from 1.10.15 tagged constraints.
 
 .. code-block:: bash
 
@@ -593,16 +593,16 @@ additional python dependencies and pre-installed pip dependencies from 1.10.14 t
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
+    --build-arg AIRFLOW_VERSION="1.10.15" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.15" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.14" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.15" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
     --build-arg ADDITIONAL_PYTHON_DEPS="sshtunnel oauth2client"
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.14 PyPI package and
+This builds the production image in version 3.7 with additional airflow extras from 1.10.15 PyPI package and
 additional apt dev and runtime dependencies.
 
 .. code-block:: bash
@@ -611,8 +611,8 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
+    --build-arg AIRFLOW_VERSION="1.10.15" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.15" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \

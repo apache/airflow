@@ -1262,7 +1262,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
+                 1.10.15 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and
@@ -2225,7 +2225,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
+                 1.10.15 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and
