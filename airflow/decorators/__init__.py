@@ -27,7 +27,7 @@ class _TaskDecorator:
     ):
         """
         Python operator decorator. Wraps a function into an Airflow operator.
-        Accepts kwargs for operator kwarg. Can be reused in a single DAG.
+        Accepts kwargs for operator kwarg. This decorator can be reused in a single DAG.
 
         :param python_callable: Function to decorate
         :type python_callable: Optional[Callable]
@@ -43,7 +43,7 @@ class _TaskDecorator:
     def python(python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs):
         """
         Python operator decorator. Wraps a function into an Airflow operator.
-        Accepts kwargs for operator kwarg. Can be reused in a single DAG.
+        Accepts kwargs for operator kwarg. This decorator can be reused in a single DAG.
 
         :param python_callable: Function to decorate
         :type python_callable: Optional[Callable]
