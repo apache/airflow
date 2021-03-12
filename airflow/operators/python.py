@@ -53,10 +53,10 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[
     @task
     def my_task()
 
-    @param python_callable:
-    @param multiple_outputs:
-    @param kwargs:
-    @return:
+    :param python_callable:
+    :param multiple_outputs:
+    :param kwargs:
+    :return:
     """
     warnings.warn(
         """airflow.operators.python.task is deprecated. Please use the following instead
