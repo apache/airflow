@@ -15,14 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import inspect
+from collections import deque
+from textwrap import dedent
 from typing import Callable, Optional, TypeVar
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonVirtualenvOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
+class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
 
@@ -59,11 +62,42 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
         }
         super().__init__(kwargs_to_upstream=kwargs_to_upstream, **kwargs)
 
+    def get_python_source(self):
+        raw_source = inspect.getsource(self.python_callable)
+        res = dedent(raw_source)
+        res = self._remove_task_decorator(res)
+        return res
+
+    @staticmethod
+    def _remove_task_decorator(python_source):
+        if "@task.virtualenv" not in python_source:
+            return python_source
+        split = python_source.split("@task.virtualenv")
+        before_decorator, after_decorator = split[0], split[1]
+        if after_decorator[0] == "(":
+            after_decorator = _PythonVirtualenvDecoratedOperator._balance_parens(after_decorator)
+        if after_decorator[0] == "\n":
+            after_decorator = after_decorator[1:]
+        return before_decorator + after_decorator
+
+    @staticmethod
+    def _balance_parens(after_decorator):
+        num_paren = 1
+        after_decorator = deque(after_decorator)
+        after_decorator.popleft()
+        while num_paren:
+            current = after_decorator.popleft()
+            if current == "(":
+                num_paren = num_paren + 1
+            elif current == ")":
+                num_paren = num_paren - 1
+        return ''.join(after_decorator)
+
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def python_task(
+def _virtualenv_task(
     python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
 ):
     """
@@ -81,6 +115,6 @@ def python_task(
     return task_decorator_factory(
         python_callable=python_callable,
         multiple_outputs=multiple_outputs,
-        decorated_operator_class=_PythonDecoratedOperator,
+        decorated_operator_class=_PythonVirtualenvDecoratedOperator,
         **kwargs,
     )
