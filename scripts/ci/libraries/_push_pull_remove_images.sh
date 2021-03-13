@@ -104,33 +104,34 @@ function push_pull_remove_images::pull_image_github_dockerhub() {
     set -e
 }
 
-# Pulls the base Python image. This image is used as base for CI and PROD imaages, depending on the parameters used:
+# Force pulls the python base image
+function push_pull_remove_images::force_pull_python_base_image() {
+   docker pull "${PYTHON_BASE_IMAGE}"
+    echo "FROM ${PYTHON_BASE_IMAGE}" | \
+        docker build \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            -t "${AIRFLOW_PYTHON_BASE_IMAGE}" -
+}
+
+# Pulls the base Python image. This image is used as base for CI and PROD images, depending on the parameters used:
 #
-# * if UPGRADE_TO_NEWER_DEPENDENCIES is noy false, then it pulls the latest Python image available first and
+# * if FORCE_PULL_IMAGES is true or UPGRADE_TO_NEWER_DEPENDENCIES != false, then it pulls the latest Python image available first and
 #     adds `org.opencontainers.image.source` label to it, so that it is linked to Airflow repository when
 #     we push it to GHCR registry
-# * If UPGRADE_TO_NEWER_DEPENDENCIES it pulls the Python base image from either GitHub registry or from DockerHub
+# * Otherwise it pulls the Python base image from either GitHub registry or from DockerHub
 #     depending on USE_GITHUB_REGISTRY variable. In case we pull specific build image (via suffix)
 #     it will pull the right image using the specified suffix
 function push_pull_remove_images::pull_base_python_image() {
     echo
-    echo "Force pull base image ${AIRFLOW_PYTHON_BASE_IMAGE}. Upgrade to newer dependencies: ${UPGRADE_TO_NEWER_DEPENDENCIES}"
+    echo "Force pull python base image ${AIRFLOW_PYTHON_BASE_IMAGE}. Upgrade to newer dependencies: ${UPGRADE_TO_NEWER_DEPENDENCIES}"
     echo
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
         echo -n "
 Docker pulling ${AIRFLOW_PYTHON_BASE_IMAGE}. Upgrade to newer dependencies ${UPGRADE_TO_NEWER_DEPENDENCIES}
 " > "${DETECTED_TERMINAL}"
     fi
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
-        # Pull latest PYTHON_BASE_IMAGE, so that it is linked to the current project it is build in.
-        # This is necessary in case we use Google Container registry - we always use the
-        # Airflow version of the python image with the opencontainers label, so that GHCR can link it
-        # to the Apache Airflow repository.
-        docker pull "${PYTHON_BASE_IMAGE}"
-        echo "FROM ${PYTHON_BASE_IMAGE}" | \
-            docker build \
-                --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
-                -t "${AIRFLOW_PYTHON_BASE_IMAGE}" -
+    if [[ "${FORCE_PULL_IMAGES}" == "true" || ${UPGRADE_TO_NEWER_DEPENDENCIES} != "false" ]]; then
+        push_pull_remove_images::force_pull_python_base_image
     else
         if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
             PYTHON_TAG_SUFFIX=""
