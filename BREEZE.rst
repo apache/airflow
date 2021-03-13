@@ -157,6 +157,23 @@ If you use zsh, run this command and re-login:
     echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
     . ~/.zprofile
 
+
+Let's confirm that ``getopt`` and ``gstat`` utilities are successfully installed
+
+.. code-block:: bash
+
+    $ getopt --version
+    getopt from util-linux *
+    $ gstat --version
+    stat (GNU coreutils) *
+    Copyright (C) 2020 Free Software Foundation, Inc.
+    License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+    This is free software: you are free to change and redistribute it.
+    There is NO WARRANTY, to the extent permitted by law.
+
+    Written by Michael Meskes.
+
+
 Memory
 ------
 
