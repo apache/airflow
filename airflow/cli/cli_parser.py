@@ -1551,6 +1551,7 @@ airflow_commands: List[CLICommand] = [
             ARG_ANONYMIZE,
             ARG_FILE_IO,
             ARG_VERBOSE,
+            ARG_OUTPUT,
         ),
     ),
     ActionCommand(
