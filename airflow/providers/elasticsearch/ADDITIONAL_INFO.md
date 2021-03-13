@@ -17,6 +17,12 @@
  under the License.
  -->
 
+## Release 2021.3.17
+
+### Bug fixes
+
+* `Elasticsearch Provider: Fix logs downloading for tasks (#14686)`
+
 ## Release 2021.3.3
 
 ### Bug fixes
