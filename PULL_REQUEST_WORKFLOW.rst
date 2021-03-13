@@ -112,7 +112,6 @@ pytest markers. They can be found in any of those packages and they can be selec
 pylint custom command line options. See `TESTING.rst <TESTING.rst>`_ for details but those are:
 
 * Integration - tests that require external integration images running in docker-compose
-* Heisentests - tests that are vulnerable to some side effects and are better to be run on their own
 * Quarantined - tests that are flaky and need to be fixed
 * Postgres - tests that require Postgres database. They are only run when backend is Postgres
 * MySQL - tests that require MySQL database. They are only run when backend is MySQL
@@ -165,7 +164,7 @@ The logic implemented for the changes works as follows:
       all changed files. In case there are any files changed, then we assume that some unknown files
       changed (likely from the core of airflow) and in this case we enable all test types above and the
       Core test types - simply because we do not want to risk to miss anything.
-   h) In all cases where tests are enabled we also add Heisentests, Integration and - depending on
+   h) In all cases where tests are enabled we also add Integration and - depending on
       the backend used = Postgres or MySQL types of tests.
 
 10) Quarantined tests are always run when tests are run - we need to run them often to observe how

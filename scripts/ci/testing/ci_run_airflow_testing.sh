@@ -115,7 +115,7 @@ function prepare_tests_to_run() {
     fi
 
     if [[ -z "${TEST_TYPES=}" ]]; then
-        TEST_TYPES="Core Providers API CLI Integration Other WWW Heisentests"
+        TEST_TYPES="Core Providers API CLI Integration Other WWW"
         echo
         echo "Test types not specified. Running all: ${TEST_TYPES}"
         echo
