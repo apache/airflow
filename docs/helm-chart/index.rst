@@ -15,6 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
+.. image:: /img/helm-logo.svg
+    :width: 100
+
 Helm Chart for Apache Airflow
 =============================
 
