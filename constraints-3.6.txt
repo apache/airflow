@@ -200,7 +200,7 @@ entrypoints==0.3
 eventlet==0.30.1
 execnet==1.8.0
 facebook-business==10.0.0
-fastavro==1.3.2
+fastavro==1.3.3
 fasteners==0.16
 filelock==3.0.12
 fissix==20.8.0
