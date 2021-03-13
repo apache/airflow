@@ -59,8 +59,3 @@ class ProperlyImportConfFromAirflow(BaseRule):
             problems.extend(self._check_file(file))
         return problems
 
-
-if __name__ == "__main__":
-    rule = ProperlyImportConfFromAirflow()
-    result = rule.check()
-    print(result)
