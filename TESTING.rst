@@ -177,7 +177,7 @@ kinds of test types:
 
        ./breeze --test-type Providers --db-reset tests
 
-* Special kinds of tests - Integration, Heisentests, Quarantined, Postgres, MySQL, which are marked with pytest
+* Special kinds of tests - Integration, Quarantined, Postgres, MySQL, which are marked with pytest
   marks and for those you need to select the type using test-type switch. If you want to run such tests
   using breeze, you need to pass appropriate ``--test-type`` otherwise the test will be skipped.
   Similarly to the per-directory tests if you do not specify the test or tests to run,
@@ -417,17 +417,6 @@ tests are usually flaky tests that need some attention and fix.
 Those tests are marked with ``@pytest.mark.quarantined`` annotation.
 Those tests are skipped by default. You can enable them with ``--include-quarantined`` flag. You
 can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
-
-Heisen tests
-------------
-
-Some of our tests are Heisentests. This means that they run fine in isolation but when they run together with
-others they might fail the tests (this is likely due to resource consumptions). Therefore we run those tests
-in isolation.
-
-Those tests are marked with ``@pytest.mark.heisentests`` annotation.
-Those tests are skipped by default. You can enable them with ``--include-heisentests`` flag. You
-can also decide to only run tests with ``-m heisentests`` flag to run only those tests.
 
 Running Tests with provider packages
 ====================================

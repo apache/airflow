@@ -199,7 +199,7 @@ function set_upgrade_to_newer_dependencies() {
 }
 
 
-ALL_TESTS="Always Core Other API CLI Providers WWW Integration Heisentests"
+ALL_TESTS="Always Core Other API CLI Providers WWW Integration"
 readonly ALL_TESTS
 
 function set_outputs_run_everything_and_exit() {
@@ -600,7 +600,7 @@ function calculate_test_types_to_run() {
             echo
             SELECTED_TESTS="${SELECTED_TESTS} WWW"
         fi
-        initialization::ga_output test-types "Always Integration Heisentests ${SELECTED_TESTS}"
+        initialization::ga_output test-types "Always Integration ${SELECTED_TESTS}"
     fi
     start_end::group_end
 }

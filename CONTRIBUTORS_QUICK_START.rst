@@ -635,13 +635,6 @@ All Tests are inside ./tests directory.
 
   - Types of tests
 
-  .. code-block:: bash
-
-   $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type
-      All          CLI          Heisentests  Integration  Other        Providers
-      API          Core         Helm         MySQL        Postgres     WWW
-
-
   - Running specific type of test
 
   .. code-block:: bash
@@ -650,16 +643,6 @@ All Tests are inside ./tests directory.
 
 
 - Running Integration test for specific test type
-
-
-  - Types of Integration Tests
-
-  .. code-block:: bash
-
-     $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type Core --integration
-
-       all        kerberos   openldap   presto     redis
-       cassandra  mongo      pinot      rabbitmq
 
   - Running an Integration Test
 

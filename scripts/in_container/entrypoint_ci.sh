@@ -321,7 +321,7 @@ else
     elif [[ ${TEST_TYPE:=""} == "All" || ${TEST_TYPE} == "Quarantined" || \
             ${TEST_TYPE} == "Always" || \
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
-            ${TEST_TYPE} == "Heisentests" || ${TEST_TYPE} == "Long" || \
+            ${TEST_TYPE} == "Long" || \
             ${TEST_TYPE} == "Integration" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
     else
@@ -345,11 +345,6 @@ elif [[ ${TEST_TYPE:=""} == "Long" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "long_running"
         "--include-long-running"
-    )
-elif [[ ${TEST_TYPE:=""} == "Heisentests" ]]; then
-    EXTRA_PYTEST_ARGS+=(
-        "-m" "heisentests"
-        "--include-heisentests"
     )
 elif [[ ${TEST_TYPE:=""} == "Postgres" ]]; then
     EXTRA_PYTEST_ARGS+=(
