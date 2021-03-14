@@ -21,7 +21,18 @@ The sole purpose of this yaml file is it to check the values file is consistent 
 
 {{- /*
 ##############################
-   Redis related checks
+  Executors related checks
+#############################
+*/ -}}
+  {{- $supportedExecutors := list "LocalExecutor" "CeleryExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
+
+  {{- if not (has .Values.executor $supportedExecutors) }}
+    {{ required "Unsupported executor. Supported values: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor." nil }}
+  {{- end }}
+
+{{- /*
+##############################
+  Redis related checks
 #############################
 */ -}}
 

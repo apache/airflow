@@ -109,10 +109,10 @@ airflowPodAnnotations: {}
 rbacEnabled: true
 
 # Airflow executor
-# Options: SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor
+# Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
 executor: "KubernetesExecutor"
 
-# If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheduler's
+# If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
 # service account will have access to communicate with the api-server and launch pods.
 # If this is true and using the CeleryExecutor, the workers will be able to launch pods.
 allowPodLaunching: true
