@@ -45,7 +45,7 @@ apipkg==1.5
 apispec==3.3.2
 appdirs==1.4.4
 argcomplete==1.12.2
-arrow==1.0.3
+arrow==0.17.0
 asn1crypto==1.4.0
 astroid==2.5.1
 async-generator==1.10
