@@ -1116,13 +1116,17 @@ class DAG(LoggingMixin):
         session: Session = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        include_subdags=False,
     ) -> None:
-        query = session.query(DagRun).filter_by(dag_id=self.dag_id)
+        dag_ids = [self.dag_id]
+        if include_subdags:
+            dag_ids.extend([dag.dag_id for dag in self.subdags])
+        query = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
         if start_date:
             query = query.filter(DagRun.execution_date >= start_date)
         if end_date:
             query = query.filter(DagRun.execution_date <= end_date)
-        query.update({DagRun.state: state})
+        query.update({DagRun.state: state}, synchronize_session=False)
 
     @provide_session
     def clear(
@@ -1327,11 +1331,13 @@ class DAG(LoggingMixin):
                 dag=self,
                 activate_dag_runs=False,  # We will set DagRun state later.
             )
+
             self.set_dag_runs_state(
                 session=session,
                 start_date=start_date,
                 end_date=end_date,
                 state=dag_run_state,
+                include_subdags=include_subdags,
             )
         else:
             count = 0
