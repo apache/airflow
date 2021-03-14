@@ -296,7 +296,7 @@ can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker.
 2. Restart Breeze with ``./breeze restart``.
-3. Delete the ``.build`` directory and run ``./breeze build-image --force-pull-images``.
+3. Delete the ``.build`` directory and run ``./breeze build-image``.
 4. Clean up Docker images via ``breeze cleanup-image`` command.
 5. Restart your Docker Engine and try again.
 6. Restart your machine and try again.
@@ -1255,16 +1255,24 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze build-image [FLAGS]
 
         Builds docker image (CI or production) without entering the container. You can pass
-        additional options to this command, such as '--force-build-image',
-        '--force-pull-image', '--python', '--build-cache-local' or '-build-cache-pulled'
-        in order to modify build behaviour.
+        additional options to this command, such as:
+
+        Choosing python version:
+          '--python'
+
+        Choosing cache option:
+           '--build-cache-local' or '-build-cache-pulled', or '--build-cache-none'
+
+        Choosing whether to force pull images or force build the image:
+            '--force-build-image',
+             '--force-pull-image', '--force-pull-base-python-image'
 
         You can also pass '--production-image' flag to build production image rather than CI image.
 
-        For DockerHub pull --dockerhub-user and --dockerhub-repo flags can be used to specify
-        the repository to pull from. For GitHub repository, the --github-repository
+        For DockerHub pull. '--dockerhub-user' and '--dockerhub-repo' flags can be used to specify
+        the repository to pull from. For GitHub repository, the '--github-repository'
         flag can be used for the same purpose. You can also use
-        --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to pull the image with
+        '--github-image-id <COMMIT_SHA>|<RUN_ID>' in case you want to pull the image with
         specific COMMIT_SHA tag or RUN_ID.
 
   Flags:
@@ -1333,6 +1341,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Forces pulling of images from DockerHub before building to populate cache. The
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
+
+  --force-pull-base-python-image
+          Forces pulling of Python base image from DockerHub before building to
+          populate cache. This should only be run in case we need to update to latest available
+          Python base image. This should be a rare and manually triggered event. Also this flag
+          is used in the scheduled run in CI when we rebuild all the images from the scratch
+          and run the tests to see if the latest python images do not fail our tests.
 
   Customization options:
 
@@ -1982,6 +1997,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
 
+  --force-pull-base-python-image
+          Forces pulling of Python base image from DockerHub before building to
+          populate cache. This should only be run in case we need to update to latest available
+          Python base image. This should be a rare and manually triggered event. Also this flag
+          is used in the scheduled run in CI when we rebuild all the images from the scratch
+          and run the tests to see if the latest python images do not fail our tests.
+
   Customization options:
 
   -E, --extras EXTRAS
@@ -2569,6 +2591,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Forces pulling of images from DockerHub before building to populate cache. The
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
+
+  --force-pull-base-python-image
+          Forces pulling of Python base image from DockerHub before building to
+          populate cache. This should only be run in case we need to update to latest available
+          Python base image. This should be a rare and manually triggered event. Also this flag
+          is used in the scheduled run in CI when we rebuild all the images from the scratch
+          and run the tests to see if the latest python images do not fail our tests.
 
   Customization options:
 

@@ -116,6 +116,10 @@ function breeze::setup_default_breeze_constants() {
     # This can be overridden by '--force-pull-images' flag
     export FORCE_PULL_IMAGES="false"
 
+    # By default we do not pull python base image. We should do that only when we run upgrade check in
+    # CI master and when we manually refresh the images to latest versions
+    export FORCE_PULL_BASE_PYTHON_IMAGE="false"
+
     # Forward common host credentials to docker (gcloud, aws etc.).
     export FORWARD_CREDENTIALS="false"
 
@@ -983,6 +987,15 @@ function breeze::parse_arguments() {
             export FORCE_ANSWER_TO_QUESTIONS="yes"
             shift
             ;;
+        --force-pull-base-python-image)
+            echo "Force pulling base python image. Uses pulled images as cache."
+            echo
+            export FORCE_PULL_BASE_PYTHON_IMAGE="true"
+            export FORCE_BUILD_IMAGES="true"
+            # if you want to force  build an image - assume you want to build it :)
+            export FORCE_ANSWER_TO_QUESTIONS="yes"
+            shift
+            ;;
         -I | --production-image)
             export PRODUCTION_IMAGE="true"
             export SQLITE_URL=
@@ -1719,16 +1732,24 @@ ${CMDNAME} build-docs [-- <EXTRA_ARGS>]
 ${CMDNAME} build-image [FLAGS]
 
       Builds docker image (CI or production) without entering the container. You can pass
-      additional options to this command, such as '--force-build-image',
-      '--force-pull-image', '--python', '--build-cache-local' or '-build-cache-pulled'
-      in order to modify build behaviour.
+      additional options to this command, such as:
+
+      Choosing python version:
+        '--python'
+
+      Choosing cache option:
+         '--build-cache-local' or '-build-cache-pulled', or '--build-cache-none'
+
+      Choosing whether to force pull images or force build the image:
+          '--force-build-image',
+           '--force-pull-image', '--force-pull-base-python-image'
 
       You can also pass '--production-image' flag to build production image rather than CI image.
 
-      For DockerHub pull --dockerhub-user and --dockerhub-repo flags can be used to specify
-      the repository to pull from. For GitHub repository, the --github-repository
+      For DockerHub pull. '--dockerhub-user' and '--dockerhub-repo' flags can be used to specify
+      the repository to pull from. For GitHub repository, the '--github-repository'
       flag can be used for the same purpose. You can also use
-      --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to pull the image with
+      '--github-image-id <COMMIT_SHA>|<RUN_ID>' in case you want to pull the image with
       specific COMMIT_SHA tag or RUN_ID.
 
 Flags:
@@ -2579,6 +2600,13 @@ function breeze::flag_build_docker_images() {
         Forces pulling of images from DockerHub before building to populate cache. The
         images are pulled by default only for the first time you run the
         environment, later the locally build images are used as cache.
+
+--force-pull-base-python-image
+        Forces pulling of Python base image from DockerHub before building to
+        populate cache. This should only be run in case we need to update to latest available
+        Python base image. This should be a rare and manually triggered event. Also this flag
+        is used in the scheduled run in CI when we rebuild all the images from the scratch
+        and run the tests to see if the latest python images do not fail our tests.
 
 Customization options:
 

@@ -757,12 +757,9 @@ significant changes have been made to apt packages or even the base python image
 Pulling the Latest Images
 -------------------------
 
-Sometimes the image needs to be rebuilt from scratch. This is required, for example,
-when there is a security update of the Python version that all the images are based on and new version
-of the image is pushed to the repository. In this case it is usually faster to pull the latest
-images rather than rebuild them from scratch.
-
-You can do it via the ``--force-pull-images`` flag to force pulling the latest images from the Docker Hub.
+Sometimes the image needs to be refreshed from the registry in DockerHub - because you have an outdated
+version. You can do it via the ``--force-pull-images`` flag to force pulling the latest images from the
+DockerHub.
 
 For production image:
 
@@ -776,6 +773,41 @@ however uou can also force it with the same flag.
 .. code-block:: bash
 
   ./breeze build-image --force-pull-images
+
+Refreshing Base Python images
+=============================
+
+Python base images are updated from time-to-time, usually as a result of implementing security fixes.
+When you build your image locally using ``docker build`` you use the version of image that you have locally.
+For the CI builds using ``breeze`` we use the image that is stored in our repository in order to use cache
+efficiently. However we can refresh the image to latest available by specifying
+``--force-pull-base-python-image`` and running it manually (you need to have access to DockerHub and our
+GitHub Registies in order to be able to do that.
+
+.. code-block:: bash
+
+    #/bin/bash
+    export DOCKERHUB_USER="apache"
+    export GITHUB_REPOSITORY="apache/airflow"
+    export FORCE_ANSWER_TO_QUESTIONS="true"
+    export CI="true"
+
+    for python_version in "3.6" "3.7" "3.8"
+    do
+            ./breeze build-image --python ${python_version} --build-cache-local \
+                    --force-pull-base-python-image --verbose
+            ./breeze build-image --python ${python_version} --build-cache-local \
+                    --production-image --verbose
+            ./breeze push-image
+            ./breeze push-image --github-registry ghcr.io
+            ./breeze push-image --github-registry docker.pkg.github.com
+            ./breeze push-image --production-image
+            ./breeze push-image --github-registry ghcr.io --production-image
+            ./breeze push-image --github-registry docker.pkg.github.com --production-image
+    done
+
+
+
 
 Embedded image scripts
 ======================

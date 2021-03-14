@@ -104,10 +104,13 @@ function push_pull_remove_images::pull_image_github_dockerhub() {
     set -e
 }
 
-# Force pulls the python base image
-function push_pull_remove_images::force_pull_python_base_image() {
+# Rebuilds python base image from the latest available Python version
+function push_pull_remove_images::rebuild_python_base_image() {
+   echo
+   echo "Rebuilding ${AIRFLOW_PYTHON_BASE_IMAGE} from latest ${PYTHON_BASE_IMAGE}"
+   echo
    docker pull "${PYTHON_BASE_IMAGE}"
-    echo "FROM ${PYTHON_BASE_IMAGE}" | \
+   echo "FROM ${PYTHON_BASE_IMAGE}" | \
         docker build \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             -t "${AIRFLOW_PYTHON_BASE_IMAGE}" -
@@ -115,34 +118,33 @@ function push_pull_remove_images::force_pull_python_base_image() {
 
 # Pulls the base Python image. This image is used as base for CI and PROD images, depending on the parameters used:
 #
-# * if FORCE_PULL_IMAGES is true or UPGRADE_TO_NEWER_DEPENDENCIES != false, then it pulls the latest Python image available first and
-#     adds `org.opencontainers.image.source` label to it, so that it is linked to Airflow repository when
-#     we push it to GHCR registry
+# * if FORCE_PULL_BASE_PYTHON_IMAGE != false, then it rebuild the image using latest Python image available
+#     and adds `org.opencontainers.image.source` label to it, so that it is linked to Airflow
+#     repository when we push it to GHCR registry
 # * Otherwise it pulls the Python base image from either GitHub registry or from DockerHub
 #     depending on USE_GITHUB_REGISTRY variable. In case we pull specific build image (via suffix)
 #     it will pull the right image using the specified suffix
 function push_pull_remove_images::pull_base_python_image() {
+    if [[ ${FORCE_PULL_BASE_PYTHON_IMAGE} == "true" ]] ; then
+        push_pull_remove_images::rebuild_python_base_image
+        return
+    fi
     echo
-    echo "Force pull python base image ${AIRFLOW_PYTHON_BASE_IMAGE}. Upgrade to newer dependencies: ${UPGRADE_TO_NEWER_DEPENDENCIES}"
+    echo "Docker pulling base python image. Upgrade to newer deps: ${UPGRADE_TO_NEWER_DEPENDENCIES}"
     echo
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
-        echo -n "
-Docker pulling ${AIRFLOW_PYTHON_BASE_IMAGE}. Upgrade to newer dependencies ${UPGRADE_TO_NEWER_DEPENDENCIES}
+        echo -n "Docker pulling base python image. Upgrade to newer deps: ${UPGRADE_TO_NEWER_DEPENDENCIES}
 " > "${DETECTED_TERMINAL}"
     fi
-    if [[ "${FORCE_PULL_IMAGES}" == "true" || ${UPGRADE_TO_NEWER_DEPENDENCIES} != "false" ]]; then
-        push_pull_remove_images::force_pull_python_base_image
-    else
-        if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-            PYTHON_TAG_SUFFIX=""
-            if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
-                PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-            fi
-            push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PYTHON_BASE_IMAGE}" \
-                "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
-        else
-            docker pull "${AIRFLOW_PYTHON_BASE_IMAGE}"
+    if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
+        PYTHON_TAG_SUFFIX=""
+        if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
+            PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         fi
+        push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PYTHON_BASE_IMAGE}" \
+            "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+    else
+        docker pull "${AIRFLOW_PYTHON_BASE_IMAGE}"
     fi
 }
 
@@ -150,7 +152,8 @@ Docker pulling ${AIRFLOW_PYTHON_BASE_IMAGE}. Upgrade to newer dependencies ${UPG
 function push_pull_remove_images::pull_ci_images_if_needed() {
     local python_image_hash
     python_image_hash=$(docker images -q "${AIRFLOW_PYTHON_BASE_IMAGE}" 2> /dev/null || true)
-    if [[ -z "${python_image_hash=}" || "${FORCE_PULL_IMAGES}" == "true" ]]; then
+    if [[ -z "${python_image_hash=}" || "${FORCE_PULL_IMAGES}" == "true" || \
+            ${FORCE_PULL_BASE_PYTHON_IMAGE} == "true" ]]; then
         push_pull_remove_images::pull_base_python_image
     fi
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
@@ -168,7 +171,8 @@ function push_pull_remove_images::pull_ci_images_if_needed() {
 function push_pull_remove_images::pull_prod_images_if_needed() {
     local python_image_hash
     python_image_hash=$(docker images -q "${AIRFLOW_PYTHON_BASE_IMAGE}" 2> /dev/null || true)
-    if [[ -z "${python_image_hash=}" || "${FORCE_PULL_IMAGES}" == "true" ]]; then
+    if [[ -z "${python_image_hash=}" || "${FORCE_PULL_IMAGES}" == "true"  || \
+            ${FORCE_PULL_BASE_PYTHON_IMAGE} == "true" ]]; then
         push_pull_remove_images::pull_base_python_image
     fi
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
