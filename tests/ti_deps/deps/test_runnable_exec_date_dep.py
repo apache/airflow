@@ -89,7 +89,7 @@ class TestRunnableExecDateDep(unittest.TestCase):
 
     def test_exec_date_after_task_end_date(self):
         """
-        If the task instance execution date is after the tasks's end date
+        If the task instance execution date is after the tasks end date
         this dep should fail
         """
         ti = self._get_task_instance(

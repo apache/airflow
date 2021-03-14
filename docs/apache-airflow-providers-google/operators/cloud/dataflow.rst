@@ -180,7 +180,7 @@ To execute a streaming Dataflow job, ensure the streaming option is set (for Pyt
 source, such as Pub/Sub, in your pipeline (for Java).
 
 Setting argument ``drain_pipeline`` to ``True`` allows to stop streaming job by draining it
-instead of canceling during during killing task instance.
+instead of canceling during killing task instance.
 
 See the `Stopping a running pipeline
 <https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline>`_.

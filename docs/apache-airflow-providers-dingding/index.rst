@@ -57,7 +57,7 @@ Package apache-airflow-providers-dingding
 `Dingding <https://oapi.dingtalk.com/>`__
 
 
-Release: 1.0.1
+Release: 1.0.2
 
 Provider package
 ----------------
@@ -119,6 +119,14 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+1.0.2
+.....
+
+Bug fixes
+~~~~~~~~~
+
+* ``Replace deprecated doc links to the correct one (#14429)``
 
 1.0.1
 .....

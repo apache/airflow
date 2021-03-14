@@ -24,7 +24,7 @@ on:  # yamllint disable-line rule:truthy
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
-  FORCE_PULL_IMAGES: "true"
+  FORCE_PULL_IMAGES: "false"
   CHECK_IMAGE_FOR_REBUILD: "true"
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
@@ -278,6 +278,8 @@ jobs:
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       CONTINUE_ON_PIP_CHECK_FAILURE: "true"
       DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
+      FORCE_PULL_BASE_PYTHON_IMAGE: >
+        ${{ needs.cancel-workflow-runs.sourceEvent == 'schedule' && 'true' || 'false' }}
     steps:
       - name: >
           Checkout [${{ needs.cancel-workflow-runs.outputs.sourceEvent }}]
@@ -405,6 +407,8 @@ jobs:
       GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.workflow_run.id }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
+      FORCE_PULL_BASE_PYTHON_IMAGE: >
+        ${{ needs.cancel-workflow-runs.sourceEvent == 'schedule' && 'true' || 'false' }}
       VERSION_SUFFIX_FOR_PYPI: "dev"
       VERSION_SUFFIX_FOR_SVN: "dev"
     steps:
@@ -556,5 +560,5 @@ jobs:
           cancelMode: self
           notifyPRCancel: true
           notifyPRCancelMessage: |
-            Building images for the PR has failed. Follow the the workflow link to check the reason.
+            Building images for the PR has failed. Follow the workflow link to check the reason.
           sourceRunId: ${{ github.event.workflow_run.id }}

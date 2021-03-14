@@ -50,7 +50,7 @@ Package apache-airflow-providers-slack
 `Slack <https://slack.com/>`__
 
 
-Release: 2.0.0
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -121,6 +121,15 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Don't allow SlackHook.call method accept *args (#14289)``
+
 
 2.0.0
 .....

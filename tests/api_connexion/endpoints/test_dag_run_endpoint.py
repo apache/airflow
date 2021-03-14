@@ -29,10 +29,14 @@ from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 class TestDagRunEndpoint(unittest.TestCase):
     @classmethod
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+    )
     def setUpClass(cls) -> None:
         super().setUpClass()
 

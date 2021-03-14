@@ -33,6 +33,7 @@ from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 SERIALIZER = URLSafeSerializer(conf.get('webserver', 'secret_key'))
 FILE_TOKEN = SERIALIZER.dumps(__file__)
@@ -51,6 +52,9 @@ class TestDagEndpoint(unittest.TestCase):
         clear_db_serialized_dags()
 
     @classmethod
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+    )
     def setUpClass(cls) -> None:
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
@@ -75,7 +79,13 @@ class TestDagEndpoint(unittest.TestCase):
             access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
         )
 
-        with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details", params={"foo": 1}) as dag:
+        with DAG(
+            cls.dag_id,
+            start_date=datetime(2020, 6, 15),
+            doc_md="details",
+            params={"foo": 1},
+            tags=['example'],
+        ) as dag:
             DummyOperator(task_id=cls.task_id)
 
         with DAG(cls.dag2_id, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
@@ -212,7 +222,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owners": ['airflow'],
             "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -221,7 +231,7 @@ class TestGetDagDetails(TestDagEndpoint):
                 "seconds": 0,
             },
             "start_date": "2020-06-15T00:00:00+00:00",
-            "tags": None,
+            "tags": [{'name': 'example'}],
             "timezone": "Timezone('UTC')",
         }
         assert response.json == expected
@@ -244,7 +254,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owners": ['airflow'],
             "params": {},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -253,7 +263,7 @@ class TestGetDagDetails(TestDagEndpoint):
                 "seconds": 0,
             },
             "start_date": "2020-06-15T00:00:00+00:00",
-            "tags": None,
+            "tags": [],
             "timezone": "Timezone('UTC')",
         }
         assert response.json == expected
@@ -276,7 +286,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owners": ['airflow'],
             "params": {},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -285,11 +295,14 @@ class TestGetDagDetails(TestDagEndpoint):
                 "seconds": 0,
             },
             "start_date": None,
-            "tags": None,
+            "tags": [],
             "timezone": "Timezone('UTC')",
         }
         assert response.json == expected
 
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+    )
     def test_should_respond_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
@@ -313,7 +326,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_paused": None,
             "is_subdag": False,
             "orientation": "LR",
-            "owners": [],
+            "owners": ['airflow'],
             "params": {"foo": 1},
             "schedule_interval": {
                 "__type": "TimeDelta",
@@ -322,7 +335,7 @@ class TestGetDagDetails(TestDagEndpoint):
                 "seconds": 0,
             },
             "start_date": "2020-06-15T00:00:00+00:00",
-            "tags": None,
+            "tags": [{'name': 'example'}],
             "timezone": "Timezone('UTC')",
         }
         response = client.get(
@@ -349,11 +362,11 @@ class TestGetDagDetails(TestDagEndpoint):
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',
-            'owners': [],
+            'owners': ['airflow'],
             "params": {"foo": 1},
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'microseconds': 0, 'seconds': 0},
             'start_date': '2020-06-15T00:00:00+00:00',
-            'tags': None,
+            'tags': [{'name': 'example'}],
             'timezone': "Timezone('UTC')",
         }
         assert response.json == expected

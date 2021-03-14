@@ -31,6 +31,7 @@ from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss
+from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
@@ -39,6 +40,9 @@ DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
 
 class TestTaskInstanceEndpoint(unittest.TestCase):
     @classmethod
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+    )
     def setUpClass(cls) -> None:
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
@@ -59,7 +63,6 @@ class TestTaskInstanceEndpoint(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         delete_user(cls.app, username="test")  # type: ignore
-        cls.app = app.create_app(testing=True)  # type:ignore
 
     def setUp(self) -> None:
         self.default_time = DEFAULT_DATETIME_1
@@ -161,6 +164,37 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "sla_miss": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
+            "task_id": "print_the_context",
+            "try_number": 0,
+            "unixname": getpass.getuser(),
+        }
+
+    @provide_session
+    def test_should_respond_200_with_task_state_in_removed(self, session):
+        self.create_task_instances(session, task_instances=[{"state": State.REMOVED}], update_extras=True)
+        response = self.client.get(
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00+00:00",
+            "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor_config": "{}",
+            "hostname": "",
+            "max_tries": 0,
+            "operator": "PythonOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 6,
+            "queue": "default_queue",
+            "queued_when": None,
+            "sla_miss": None,
+            "start_date": "2020-01-02T00:00:00+00:00",
+            "state": "removed",
             "task_id": "print_the_context",
             "try_number": 0,
             "unixname": getpass.getuser(),

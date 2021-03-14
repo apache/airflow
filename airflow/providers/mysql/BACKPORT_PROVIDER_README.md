@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-mysql
 
-Release: 2021.2.5
+Release: 2021.3.3
 
 **Table of contents**
 
@@ -37,6 +37,7 @@ Release: 2021.2.5
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
+    - [Release 2021.3.3](#release-202133)
     - [Release 2021.2.5](#release-202125)
     - [Release 2020.10.29](#release-20201029)
     - [Release 2020.10.5](#release-2020105)
@@ -53,10 +54,16 @@ While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade pyth
 want to use this backport package.
 
 
+## Release 2021.3.3
+
+### Bug fixes
+
+* `MySQL hook respects conn_name_attr (#14240)`
+
 # Mysql client requirements
 
 The version of MySQL server has to be 5.6.4+. The exact version upper bound depends
-on the version of ``mysqlclient`` package. For example, ``mysqlclient`` 1.3.12 can only be
+on the version of `mysqlclient` package. For example, `mysqlclient` 1.3.12 can only be
 used with MySQL server 5.6.4 through 5.7.
 
 
@@ -138,6 +145,14 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 ## Releases
+
+### Release 2021.3.3
+
+| Commit                                                                                         | Committed   | Subject                                                               |
+|:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------|
+| [cdc20904a](https://github.com/apache/airflow/commit/cdc20904a59610822968ab57aa127d989ec7e2a5) | 2021-02-17  | `MySQL hook respects conn_name_attr (#14240)`                         |
+| [10343ec29](https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda) | 2021-02-05  | `Corrections in docs and tools after releasing provider RCs (#14082)` |
+
 
 ### Release 2021.2.5
 

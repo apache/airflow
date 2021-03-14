@@ -34,7 +34,6 @@ from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 import lazy_object_proxy
 import nvd3
 import sqlalchemy as sqla
-import yaml
 from flask import (
     Markup,
     Response,
@@ -66,6 +65,7 @@ from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
 
 import airflow
+import airflow.utils.yaml as yaml
 from airflow import models, plugins_manager, settings
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -129,8 +129,18 @@ def get_safe_url(url):
 
     parsed = urlparse(url)
 
+    # If the url is relative & it contains semicolon, redirect it to homepage to avoid
+    # potential XSS. (Similar to https://github.com/python/cpython/pull/24297/files (bpo-42967))
+    if parsed.netloc == '' and parsed.scheme == '' and ';' in unquote(url):
+        return url_for('Airflow.index')
+
     query = parse_qsl(parsed.query, keep_blank_values=True)
-    url = parsed._replace(query=urlencode(query)).geturl()
+
+    # Remove all the query elements containing semicolon
+    # As part of https://github.com/python/cpython/pull/24297/files (bpo-42967)
+    # semicolon was already removed as a separator for query arguments by default
+    sanitized_query = [query_arg for query_arg in query if ';' not in query_arg[1]]
+    url = parsed._replace(query=urlencode(sanitized_query)).geturl()
 
     if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
         return url
@@ -841,7 +851,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag=dag_orm,
             title=dag_id,
             root=request.args.get('root'),
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             wrapped=conf.getboolean('webserver', 'default_wrap'),
         )
 
@@ -1372,6 +1381,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
             return redirect(origin)
 
+        executor.job_id = "manual"
         executor.start()
         executor.queue_task_instance(
             ti,
@@ -1869,7 +1879,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     def tree(self):
         """Get Dag as tree."""
         dag_id = request.args.get('dag_id')
-        blur = conf.getboolean('webserver', 'demo_mode')
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
@@ -2014,7 +2023,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag=dag,
             doc_md=doc_md,
             data=data,
-            blur=blur,
             num_runs=num_runs,
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
@@ -2034,7 +2042,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     def graph(self, session=None):
         """Get DAG as Graph."""
         dag_id = request.args.get('dag_id')
-        blur = conf.getboolean('webserver', 'demo_mode')
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing.', "error")
@@ -2100,7 +2107,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             doc_md=doc_md,
             arrange=arrange,
             operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
-            blur=blur,
             root=root or '',
             task_instances=task_instances,
             tasks=tasks,
@@ -2233,7 +2239,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         return self.render_template(
             'airflow/duration_chart.html',
             dag=dag,
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -2305,7 +2310,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         return self.render_template(
             'airflow/chart.html',
             dag=dag,
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -2391,7 +2395,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag=dag,
             chart=Markup(chart.htmlcontent),
             height=str(chart_height + 100) + "px",
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
             tab_title='Landing times',
@@ -2466,7 +2469,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Show GANTT chart."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
-        demo_mode = conf.getboolean('webserver', 'demo_mode')
 
         root = request.args.get('root')
         if root:
@@ -2545,7 +2547,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             form=form,
             data=data,
             base_date='',
-            demo_mode=demo_mode,
             root=root,
         )
 
@@ -2981,6 +2982,11 @@ class PluginView(AirflowBaseView):
     ]
 
     @expose('/plugin')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
+        ]
+    )
     def list(self):
         """List loaded plugins."""
         plugins_manager.ensure_plugins_loaded()
@@ -3302,7 +3308,7 @@ class DagRunModelView(AirflowModelView):
         'external_trigger',
         'conf',
     ]
-    edit_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'conf']
+    edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
 
     base_order = ('execution_date', 'desc')
 
@@ -3576,6 +3582,7 @@ class TaskInstanceModelView(AirflowModelView):
         'operator',
         'start_date',
         'end_date',
+        'queued_dttm',
     ]
 
     edit_columns = [
@@ -3734,7 +3741,7 @@ class DagModelView(AirflowModelView):
     list_columns = [
         'dag_id',
         'is_paused',
-        'last_scheduler_run',
+        'last_parsed_time',
         'last_expired',
         'scheduler_lock',
         'fileloc',

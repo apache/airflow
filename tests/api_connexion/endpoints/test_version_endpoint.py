@@ -18,10 +18,14 @@ import unittest
 from unittest import mock
 
 from airflow.www import app
+from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 class TestGetHealthTest(unittest.TestCase):
     @classmethod
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+    )
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.app = app.create_app(testing=True)  # type:ignore

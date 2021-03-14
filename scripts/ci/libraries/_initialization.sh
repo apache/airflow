@@ -148,6 +148,9 @@ function initialization::initialize_base_variables() {
     # If no Airflow Home defined - fallback to ${HOME}/airflow
     AIRFLOW_HOME_DIR=${AIRFLOW_HOME:=${HOME}/airflow}
     export AIRFLOW_HOME_DIR
+
+    # Dry run - only show docker-compose and docker commands but do not execute them
+    export DRY_RUN_DOCKER=${DRY_RUN_DOCKER:="false"}
 }
 
 # Determine current branch

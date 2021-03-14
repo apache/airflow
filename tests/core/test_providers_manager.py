@@ -21,6 +21,7 @@ import unittest
 from airflow.providers_manager import ProvidersManager
 
 ALL_PROVIDERS = [
+    'apache-airflow-providers-airbyte',
     'apache-airflow-providers-amazon',
     'apache-airflow-providers-apache-beam',
     'apache-airflow-providers-apache-cassandra',
@@ -81,6 +82,7 @@ ALL_PROVIDERS = [
     # 'apache-airflow-providers-snowflake',
     'apache-airflow-providers-sqlite',
     'apache-airflow-providers-ssh',
+    'apache-airflow-providers-tableau',
     'apache-airflow-providers-telegram',
     'apache-airflow-providers-vertica',
     'apache-airflow-providers-yandex',
@@ -94,12 +96,14 @@ CONNECTIONS_LIST = [
     'azure_container_instances',
     'azure_cosmos',
     'azure_data_explorer',
+    'azure_data_factory',
     'azure_data_lake',
     'cassandra',
     'cloudant',
     'databricks',
     'dataprep',
     'docker',
+    'druid',
     'elasticsearch',
     'emr',
     'exasol',

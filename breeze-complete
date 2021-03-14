@@ -36,7 +36,7 @@ _breeze_allowed_kind_versions="v0.8.0"
 _breeze_allowed_mysql_versions="5.7 8"
 _breeze_allowed_postgres_versions="9.6 10 11 12 13"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell k9s"
-_breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Heisentests Postgres MySQL Helm"
+_breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Postgres MySQL Helm"
 _breeze_allowed_package_formats="both sdist wheel"
 _breeze_allowed_installation_methods=". apache-airflow"
 
@@ -132,6 +132,7 @@ setup-order
 setup-extra-packages
 shellcheck
 sort-in-the-wild
+sort-spelling-wordlist
 stylelint
 trailing-whitespace
 update-breeze-file
@@ -164,7 +165,7 @@ help python: backend: integration:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
 skip-mounting-local-sources mount-all-local-sources install-airflow-version: install-airflow-reference: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials init-script:
-force-build-images force-pull-images production-image extras: force-clean-images skip-rebuild-check
+force-build-images force-pull-base-python-image production-image extras: force-clean-images skip-rebuild-check
 build-cache-local build-cache-pulled build-cache-disabled disable-pip-cache
 dockerhub-user: dockerhub-repo: use-github-registry github-registry: github-repository: github-image-id: generate-constraints-mode:
 postgres-version: mysql-version:
@@ -176,8 +177,7 @@ dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-comma
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
 install-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure
-test-type:
-preserve-volumes
+test-type: preserve-volumes dry-run-docker
 "
 
 _breeze_commands="

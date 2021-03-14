@@ -440,7 +440,7 @@ class DagRun(Base, LoggingMixin):
                     msg='task_failure',
                 )
 
-        # if all leafs succeeded and no unfinished tasks, the run succeeded
+        # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished_tasks and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
             self.log.info('Marking run %s successful', self)
             self.set_state(State.SUCCESS)
@@ -576,7 +576,7 @@ class DagRun(Base, LoggingMixin):
         started task within the DAG and calculate the expected DagRun start time (based on
         dag.execution_date & dag.schedule_interval), and minus these two values to get the delay.
         The emitted data may contains outlier (e.g. when the first task was cleared, so
-        the second task's start_date will be used), but we can get rid of the the outliers
+        the second task's start_date will be used), but we can get rid of the outliers
         on the stats side through the dashboards tooling built.
         Note, the stat will only be emitted if the DagRun is a scheduler triggered one
         (i.e. external_trigger is False).
@@ -592,7 +592,7 @@ class DagRun(Base, LoggingMixin):
             dag = self.get_dag()
 
             if not self.dag.schedule_interval or self.dag.schedule_interval == "@once":
-                # We can't emit this metric if there is no following schedule to cacluate from!
+                # We can't emit this metric if there is no following schedule to calculate from!
                 return
 
             ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
@@ -610,6 +610,12 @@ class DagRun(Base, LoggingMixin):
 
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:
+            return
+        if self.start_date is None:
+            self.log.warning('Failed to record duration of %s: start_date is not set.', self)
+            return
+        if self.end_date is None:
+            self.log.warning('Failed to record duration of %s: end_date is not set.', self)
             return
 
         duration = self.end_date - self.start_date

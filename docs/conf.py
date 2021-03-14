@@ -39,6 +39,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
+try:
+    from yaml import CSafeLoader as SafeLoader
+except ImportError:
+    from yaml import SafeLoader  # type: ignore[misc]
+
 import airflow
 from airflow.configuration import AirflowConfigParser, default_config_yaml
 from docs.exts.docs_build.third_party_inventories import (  # pylint: disable=no-name-in-module,wrong-import-order
@@ -140,6 +145,9 @@ if PACKAGE_NAME == "apache-airflow-providers":
             'providers_packages_ref',
         ]
     )
+elif PACKAGE_NAME == "helm-chart":
+    # No extra extensions
+    pass
 else:
     extensions.append('autoapi.extension')
 # List of patterns, relative to source directory, that match files and
@@ -332,7 +340,7 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
             return {}
 
         with open(file_path) as config_file:
-            return yaml.safe_load(config_file)
+            return yaml.load(config_file, SafeLoader)
 
     config = _load_config()
     if config:
@@ -531,4 +539,4 @@ if PACKAGE_NAME == 'apache-airflow':
     ]
 
     # Options for script updater
-    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.30/bundles/redoc.standalone.js"
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"

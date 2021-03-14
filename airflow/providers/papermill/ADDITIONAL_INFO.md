@@ -17,6 +17,13 @@
  under the License.
  -->
 
+## Release 2021.3.3
+
+### Bug fixes
+
+* `Corrections in docs and tools after releasing provider RCs (#14082)`
+
+
 ## Additional notes
 
 Papermill operator is the only one to work with AUTO inlets for now (for lineage support).

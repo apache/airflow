@@ -80,6 +80,7 @@ class TestS3TaskHandler(unittest.TestCase):
 
     def test_hook(self):
         assert isinstance(self.s3_task_handler.hook, S3Hook)
+        assert self.s3_task_handler.hook.transfer_config.use_threads is False
 
     @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     def test_hook_raises(self):

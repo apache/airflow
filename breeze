@@ -18,9 +18,22 @@
 # under the License.
 set -euo pipefail
 
+
 AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ ${BREEZE_REDIRECT=} == "" ]]; then
+    mkdir -p "${AIRFLOW_SOURCES}"/logs
+    export BREEZE_REDIRECT="true"
+    if [[ "$(uname)" == "Darwin" ]]; then
+      exec script -q "${AIRFLOW_SOURCES}"/logs/breeze.out "$BASH" -c "$(printf "%q " "${0}" "${@}")"
+    else
+      exec script --return --quiet "${AIRFLOW_SOURCES}"/logs/breeze.out -c "$(printf "%q " "${0}" "${@}")"
+    fi
+fi
+
 export AIRFLOW_SOURCES
 readonly AIRFLOW_SOURCES
+
 
 # Bash arrays need to be defined outside of functions unfortunately :(
 # Because on Mac OS Bash 3.4 defining arrays inside functions does not work
@@ -102,6 +115,10 @@ function breeze::setup_default_breeze_constants() {
     # By default we only pull images if we do not have them locally.
     # This can be overridden by '--force-pull-images' flag
     export FORCE_PULL_IMAGES="false"
+
+    # By default we do not pull python base image. We should do that only when we run upgrade check in
+    # CI master and when we manually refresh the images to latest versions
+    export FORCE_PULL_BASE_PYTHON_IMAGE="false"
 
     # Forward common host credentials to docker (gcloud, aws etc.).
     export FORWARD_CREDENTIALS="false"
@@ -469,7 +486,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_PROD_IMAGE}
-                               Github cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
+                               GitHub cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
                                Airflow source version: $(build_images::get_airflow_version_from_production_image)
 EOF
         else
@@ -479,7 +496,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_CI_IMAGE}
-                               Github cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
+                               GitHub cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
                                Airflow source version: ${AIRFLOW_VERSION}
 EOF
         fi
@@ -504,7 +521,7 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_PROD_IMAGE}
-   Github cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
+   GitHub cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
 EOF
         else
             cat <<EOF
@@ -513,7 +530,7 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_CI_IMAGE}
-   Github cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
+   GitHub cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
 
 EOF
         fi
@@ -970,6 +987,15 @@ function breeze::parse_arguments() {
             export FORCE_ANSWER_TO_QUESTIONS="yes"
             shift
             ;;
+        --force-pull-base-python-image)
+            echo "Force pulling base python image. Uses pulled images as cache."
+            echo
+            export FORCE_PULL_BASE_PYTHON_IMAGE="true"
+            export FORCE_BUILD_IMAGES="true"
+            # if you want to force  build an image - assume you want to build it :)
+            export FORCE_ANSWER_TO_QUESTIONS="yes"
+            shift
+            ;;
         -I | --production-image)
             export PRODUCTION_IMAGE="true"
             export SQLITE_URL=
@@ -1014,7 +1040,7 @@ function breeze::parse_arguments() {
             echo "Additional apt dev dependencies: ${ADDITIONAL_DEV_APT_DEPS}"
             shift 2
             ;;
-        --dev-apt-commad)
+        --dev-apt-command)
             export DEV_APT_COMMAND="${2}"
             echo "Apt dev command: ${DEV_APT_COMMAND}"
             shift 2
@@ -1039,7 +1065,7 @@ function breeze::parse_arguments() {
             echo "Additional apt runtime dependencies: ${ADDITIONAL_RUNTIME_APT_DEPS}"
             shift 2
             ;;
-        --runtime-apt-commad)
+        --runtime-apt-command)
             export RUNTIME_APT_COMMAND="${2}"
             echo "Apt runtime command: ${RUNTIME_APT_COMMAND}"
             shift 2
@@ -1231,6 +1257,12 @@ function breeze::parse_arguments() {
             echo "Selected test type: ${TEST_TYPE}"
             echo
             shift 2
+            ;;
+        --dry-run-docker)
+            export DRY_RUN_DOCKER="true"
+            echo "Dry run mode"
+            echo
+            shift
             ;;
         --)
             shift
@@ -1700,16 +1732,24 @@ ${CMDNAME} build-docs [-- <EXTRA_ARGS>]
 ${CMDNAME} build-image [FLAGS]
 
       Builds docker image (CI or production) without entering the container. You can pass
-      additional options to this command, such as '--force-build-image',
-      '--force-pull-image', '--python', '--build-cache-local' or '-build-cache-pulled'
-      in order to modify build behaviour.
+      additional options to this command, such as:
+
+      Choosing python version:
+        '--python'
+
+      Choosing cache option:
+         '--build-cache-local' or '-build-cache-pulled', or '--build-cache-none'
+
+      Choosing whether to force pull images or force build the image:
+          '--force-build-image',
+           '--force-pull-image', '--force-pull-base-python-image'
 
       You can also pass '--production-image' flag to build production image rather than CI image.
 
-      For DockerHub pull --dockerhub-user and --dockerhub-repo flags can be used to specify
-      the repository to pull from. For GitHub repository, the --github-repository
+      For DockerHub pull. '--dockerhub-user' and '--dockerhub-repo' flags can be used to specify
+      the repository to pull from. For GitHub repository, the '--github-repository'
       flag can be used for the same purpose. You can also use
-      --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to pull the image with
+      '--github-image-id <COMMIT_SHA>|<RUN_ID>' in case you want to pull the image with
       specific COMMIT_SHA tag or RUN_ID.
 
 Flags:
@@ -1993,7 +2033,7 @@ ${CMDNAME} static-check [FLAGS] static_check [-- <EXTRA_ARGS>]
 
 ${FORMATTED_STATIC_CHECKS}
 
-      You can pass extra arguments including options to to the pre-commit framework as
+      You can pass extra arguments including options to the pre-commit framework as
       <EXTRA_ARGS> passed after --. For example:
 
       '${CMDNAME} static-check mypy' or
@@ -2516,6 +2556,11 @@ function breeze::flag_verbosity() {
 
         Note that you can further increase verbosity and see all the commands executed by breeze
         by running 'export VERBOSE_COMMANDS=\"true\"' before running breeze.
+
+--dry-run-docker
+        Only show docker commands to execute instead of actually executing them. The docker
+        commands are printed in yellow color.
+
 "
 }
 
@@ -2555,6 +2600,13 @@ function breeze::flag_build_docker_images() {
         Forces pulling of images from DockerHub before building to populate cache. The
         images are pulled by default only for the first time you run the
         environment, later the locally build images are used as cache.
+
+--force-pull-base-python-image
+        Forces pulling of Python base image from DockerHub before building to
+        populate cache. This should only be run in case we need to update to latest available
+        Python base image. This should be a rare and manually triggered event. Also this flag
+        is used in the scheduled run in CI when we rebuild all the images from the scratch
+        and run the tests to see if the latest python images do not fail our tests.
 
 Customization options:
 
@@ -2705,7 +2757,7 @@ function breeze::flag_pull_push_docker_images() {
         and you need to be committer to push to Apache Airflow' GitHub registry.
 
 --github-registry GITHUB_REGISTRY
-        Github registry used. GitHub has legacy Packages registry and Public Beta Container
+        GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
         registry.
 
         Default: ${_breeze_default_github_registry:=}.
@@ -3349,6 +3401,20 @@ function breeze::run_build_command() {
     esac
 }
 
+# executes command
+function breeze::run_command() {
+    "${@}"
+}
+
+
+# print command instead of executing
+function breeze::print_command() {
+    echo
+    echo "${COLOR_YELLOW}" "${@}" "${COLOR_RESET}"
+    echo
+}
+
+
 #######################################################################################################
 #
 # Runs the actual command - depending on the command chosen it will use the right
@@ -3370,6 +3436,10 @@ function breeze::run_build_command() {
 function breeze::run_breeze_command() {
     set +u
     local dc_run_file
+    local run_command="breeze::run_command"
+    if [[ ${DRY_RUN_DOCKER} != "false" ]]; then
+        run_command="breeze::print_command"
+    fi
     if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
         dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}"
     else
@@ -3378,10 +3448,10 @@ function breeze::run_breeze_command() {
     case "${command_to_run}" in
     enter_breeze)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            "${dc_run_file}" run --service-ports --rm airflow "${@}"
-            "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
+            ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
+            ${run_command} "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
         else
-            "${dc_run_file}" run --service-ports --rm airflow "${@}"
+            ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
         fi
         ;;
     run_exec)
@@ -3398,16 +3468,11 @@ function breeze::run_breeze_command() {
     run_tests)
         export RUN_TESTS="true"
         readonly RUN_TESTS
-        "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" run --service-ports --rm airflow "$@"
+        ${run_command} "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" run --service-ports --rm airflow "$@"
         ;;
     run_docker_compose)
         set +u
-        if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}"
-        else
-            dc_run_file="${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}"
-        fi
-        "${dc_run_file}" "${docker_compose_command}" "${EXTRA_DC_OPTIONS[@]}" "$@"
+        ${run_command} "${dc_run_file}" "${docker_compose_command}" "${EXTRA_DC_OPTIONS[@]}" "$@"
         set -u
         ;;
     perform_static_checks)

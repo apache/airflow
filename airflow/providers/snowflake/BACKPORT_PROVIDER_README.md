@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-snowflake
 
-Release: 2021.2.5
+Release: 2021.3.13
 
 **Table of contents**
 
@@ -36,6 +36,7 @@ Release: 2021.2.5
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
+    - [Release 2021.3.13](#release-2021313)
     - [Release 2021.2.5](#release-202125)
     - [Release 2020.11.23](#release-20201123)
     - [Release 2020.10.29](#release-20201029)
@@ -52,6 +53,16 @@ are in `airflow.providers.snowflake` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
+
+## Release 2021.3.13
+
+### Features
+
+* ``Bumped snowflake-connector-python library to &gt;=2.4.1 version and get rid of pytz library pinning``
+
+### Bug fixes
+
+* `Corrections in docs and tools after releasing provider RCs (#14082)`
 
 ## Release 2021.2.5
 
@@ -70,10 +81,7 @@ You can install this package on top of an existing airflow 1.10.* installation v
 
 | PIP package                  | Version required   |
 |:-----------------------------|:-------------------|
-| `azure-core`                 | `>=1.10.0`         |
-| `azure-storage-blob`         |                    |
-| `azure-storage-common`       |                    |
-| `snowflake-connector-python` | `>=2.3.8`          |
+| `snowflake-connector-python` | `>=2.4.1`          |
 | `snowflake-sqlalchemy`       | `>=1.1.0`          |
 
 ## Cross provider package dependencies
@@ -134,6 +142,14 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 ## Releases
+
+### Release 2021.3.13
+
+| Commit                                                                                         | Committed   | Subject                                                               |
+|:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------------------|
+| [589d6dec9](https://github.com/apache/airflow/commit/589d6dec922565897785bcbc5ac6bb3b973d7f5d) | 2021-02-27  | `Prepare to release the next wave of providers: (#14487)`             |
+| [10343ec29](https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda) | 2021-02-05  | `Corrections in docs and tools after releasing provider RCs (#14082)` |
+
 
 ### Release 2021.2.5
 

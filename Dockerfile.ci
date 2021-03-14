@@ -38,7 +38,7 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="5"
+ARG DEPENDENCIES_EPOCH_NUMBER="6"
 # Increase the value below to force reinstalling of all dependencies
 ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
@@ -290,7 +290,7 @@ RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
 ARG PIP_PROGRESS_BAR="on"
 ENV PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR}
 
-RUN pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # Only copy install_airflow_from_latest_master.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_airflow_from_latest_master.sh /scripts/docker/install_airflow_from_latest_master.sh
@@ -338,13 +338,12 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Those limitations are:
-# * chardet,<4: required by snowflake provider
+# * chardet<4: required by snowflake provider
 # * lazy-object-proxy<1.5.0: required by astroid
-# * pytz<2021.0: required by snowflake provider
 # * pyOpenSSL: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
 # * urllib3<1.26: Required to keep boto3 happy
 # * pyjwt<2.0.0: flask-jwt-extended requires it
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 pytz<2021.0 urllib3<1.26 pyjwt<2.0.0"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 urllib3<1.26 pyjwt<2.0.0"
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
 
 ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
@@ -413,10 +412,8 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
 ARG ADDITIONAL_PYTHON_DEPS=""
 
 RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        pip install ${ADDITIONAL_PYTHON_DEPS}; \
+        pip install --no-cache-dir ${ADDITIONAL_PYTHON_DEPS}; \
     fi
-
-WORKDIR ${AIRFLOW_SOURCES}
 
 ENV PATH "/files/bin/:/opt/airflow/scripts/in_container/bin/:${HOME}:${PATH}"
 

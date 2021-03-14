@@ -111,6 +111,7 @@ else
     export INSTALL_PROVIDERS_FROM_SOURCES="false"
     export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
     export DOCKER_CACHE="local"
+    export FORCE_PULL_BASE_PYTHON_IMAGE="true"
     # Name the image based on the TAG rather than based on the branch name
     export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
     export INSTALL_AIRFLOW_VERSION="${DOCKER_TAG%-python*}"

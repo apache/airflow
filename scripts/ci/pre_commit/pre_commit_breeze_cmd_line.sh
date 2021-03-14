@@ -49,6 +49,8 @@ readonly FORCE_SCREEN_WIDTH
 export VERBOSE="false"
 readonly VERBOSE
 
+export BREEZE_REDIRECT="false"
+
 ./breeze help-all | sed 's/^/  /' | sed 's/ *$//' >>"${TMP_FILE}"
 
 MAX_LEN_FOUND=$(awk '{ print length($0); }' "${TMP_FILE}" | sort -n | tail -1 )

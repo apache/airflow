@@ -30,6 +30,7 @@ from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
+from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
@@ -37,6 +38,9 @@ EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operato
 
 class TestGetSource(unittest.TestCase):
     @classmethod
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+    )
     def setUpClass(cls) -> None:
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):

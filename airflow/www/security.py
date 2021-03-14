@@ -474,15 +474,16 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         :return: None.
         """
         perms = self.get_all_permissions()
-        dag_models = (
-            session.query(models.DagModel)
+        rows = (
+            session.query(models.DagModel.dag_id)
             .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))
             .all()
         )
 
-        for dag in dag_models:
+        for row in rows:
+            dag_id = row[0]
             for perm_name in self.DAG_PERMS:
-                dag_resource_name = self.prefixed_dag_id(dag.dag_id)
+                dag_resource_name = self.prefixed_dag_id(dag_id)
                 if dag_resource_name and perm_name and (dag_resource_name, perm_name) not in perms:
                     self._merge_perm(perm_name, dag_resource_name)
 

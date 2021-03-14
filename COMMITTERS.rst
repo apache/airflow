@@ -46,7 +46,7 @@ Prerequisites
 General prerequisites that we look for in all candidates:
 
 1.  Consistent contribution over last few months
-2.  Visibility on discussions on the dev mailing list, Slack channels or Github issues/discussions
+2.  Visibility on discussions on the dev mailing list, Slack channels or GitHub issues/discussions
 3.  Contributions to community health and project's sustainability for the long-term
 4.  Understands contributor/committer guidelines:
     `Contributors' Guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__
@@ -127,7 +127,7 @@ Community involvement
 * Growing the community:
 
   * Mentors new members/contributors
-  * Answers users/contributors via Github issues, dev list or slack
+  * Answers users/contributors via GitHub issues, dev list or slack
 
 Code contribution
 ^^^^^^^^^^^^^^^^^^

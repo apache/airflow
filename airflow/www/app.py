@@ -144,3 +144,9 @@ def cached_app(config=None, testing=False):
     if not app:
         app = create_app(config=config, testing=testing)
     return app
+
+
+def purge_cached_app():
+    """Removes the cached version of the app in global state."""
+    global app  # pylint: disable=global-statement
+    app = None

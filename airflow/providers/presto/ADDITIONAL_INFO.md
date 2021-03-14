@@ -17,6 +17,12 @@
  under the License.
  -->
 
+## Release 2021.3.3
+
+### Bug fixes
+
+* `Corrections in docs and tools after releasing provider RCs (#14082)`
+
 ## Additional limitations
 
 The presto provider might not work correctly with Kerberos + SSL when it is installed together with the

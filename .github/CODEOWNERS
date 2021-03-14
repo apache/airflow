@@ -17,13 +17,17 @@
 
 # API
 /airflow/api/ @mik-laj @kaxil
-/airflow/api_connexion/ @mik-laj @kaxil
+/airflow/api_connexion/ @mik-laj @kaxil @ephraimbuddy
+
+# UI
+/airflow/ui/ @ryanahamilton @ashb
 
 # WWW
 /airflow/www/ @ryanahamilton @ashb
 
 # Providers
 /airflow/providers/google/ @turbaszek @mik-laj
+/airflow/providers/snowflake @turbaszek @potiuk
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @kaxil

@@ -33,7 +33,7 @@ the project.
 Labels
 ''''''
 
-Since Apache Airflow uses Github Issues as the issue tracking system, the
+Since Apache Airflow uses GitHub Issues as the issue tracking system, the
 use of labels is extensive. Though issue labels tend to change over time
 based on components within the project, the majority of the ones listed
 below should stand the test of time.

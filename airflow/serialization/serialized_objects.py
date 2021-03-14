@@ -452,7 +452,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = set(v)
             elif k == "subdag":
                 v = SerializedDAG.deserialize_dag(v)
-            elif k in {"retry_delay", "execution_timeout", "sla"}:
+            elif k in {"retry_delay", "execution_timeout", "sla", "max_retry_delay"}:
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
                 pass

@@ -49,7 +49,7 @@ Follow the guidelines when writing unit tests:
 * For standard unit tests that do not require integrations with external systems, make sure to simulate all communications.
 * All Airflow tests are run with ``pytest``. Make sure to set your IDE/runners (see below) to use ``pytest`` by default.
 * For new tests, use standard "asserts" of Python and ``pytest`` decorators/context managers for testing
-  rather than ``unittest`` ones. See `Pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
+  rather than ``unittest`` ones. See `pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
 * Use a parameterized framework for tests that have variations in parameters.
 
 **NOTE:** We plan to convert all unit tests to standard "asserts" semi-automatically, but this will be done later
@@ -91,20 +91,20 @@ in the official documentation, but here are a few basic examples:
 
 .. code-block:: bash
 
-    pytest -k "TestCore and not check"
+    pytest tests/core -k "TestCore and not check"
 
 This runs the ``TestCore`` class but skips tests of this class that include 'check' in their names.
 For better performance (due to a test collection), run:
 
 .. code-block:: bash
 
-    pytest tests/tests_core.py -k "TestCore and not bash".
+    pytest tests/core/test_core.py -k "TestCore and not bash"
 
 This flag is useful when used to run a single test like this:
 
 .. code-block:: bash
 
-    pytest tests/tests_core.py -k "test_check_operators"
+    pytest tests/core/test_core.py -k "test_check_operators"
 
 This can also be done by specifying a full path to the test:
 
@@ -123,7 +123,7 @@ for debugging purposes, enter:
 
 .. code-block:: bash
 
-    pytest --log-level=DEBUG tests/core/test_core.py::TestCore
+    pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
 
 
 Running Tests for a Specified Target Using Breeze from the Host
@@ -136,7 +136,7 @@ to breeze.
 
 .. code-block:: bash
 
-     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --db-reset -- --logging-level=DEBUG
+     ./breeze tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset -- --log-cli-level=DEBUG
 
 You can run the whole test suite without adding the test target:
 
@@ -177,7 +177,7 @@ kinds of test types:
 
        ./breeze --test-type Providers --db-reset tests
 
-* Special kinds of tests - Integration, Heisentests, Quarantined, Postgres, MySQL, which are marked with pytest
+* Special kinds of tests - Integration, Quarantined, Postgres, MySQL, which are marked with pytest
   marks and for those you need to select the type using test-type switch. If you want to run such tests
   using breeze, you need to pass appropriate ``--test-type`` otherwise the test will be skipped.
   Similarly to the per-directory tests if you do not specify the test or tests to run,
@@ -198,7 +198,7 @@ kinds of test types:
 Helm Unit Tests
 ===============
 
-On the Airflow Project, we have decided to stick with Pythonic testing for our Helm chart. This makes our chart
+On the Airflow Project, we have decided to stick with pythonic testing for our Helm chart. This makes our chart
 easier to test, easier to modify, and able to run with the same testing infrastructure. To add Helm unit tests
 go to the ``chart/tests`` directory and add your unit test by creating a class that extends ``unittest.TestCase``
 
@@ -417,17 +417,6 @@ tests are usually flaky tests that need some attention and fix.
 Those tests are marked with ``@pytest.mark.quarantined`` annotation.
 Those tests are skipped by default. You can enable them with ``--include-quarantined`` flag. You
 can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
-
-Heisen tests
-------------
-
-Some of our tests are Heisentests. This means that they run fine in isolation but when they run together with
-others they might fail the tests (this is likely due to resource consumptions). Therefore we run those tests
-in isolation.
-
-Those tests are marked with ``@pytest.mark.heisentests`` annotation.
-Those tests are skipped by default. You can enable them with ``--include-heisentests`` flag. You
-can also decide to only run tests with ``-m heisentests`` flag to run only those tests.
 
 Running Tests with provider packages
 ====================================
@@ -950,7 +939,7 @@ Preparing provider packages for System Tests for Airflow 1.10.* series
 
 To run system tests with the older Airflow version, you need to prepare provider packages. This
 can be done by running ``./breeze prepare-provider-packages <PACKAGES TO BUILD>``. For
-example, the below command will build google postgres and mysql wheel packages:
+example, the below command will build google, postgres and mysql wheel packages:
 
 .. code-block:: bash
 

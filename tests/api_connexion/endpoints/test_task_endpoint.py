@@ -27,6 +27,7 @@ from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 class TestTaskEndpoint(unittest.TestCase):
@@ -40,6 +41,9 @@ class TestTaskEndpoint(unittest.TestCase):
         clear_db_serialized_dags()
 
     @classmethod
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+    )
     def setUpClass(cls) -> None:
         super().setUpClass()
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
@@ -112,6 +116,9 @@ class TestGetTask(TestTaskEndpoint):
         assert response.status_code == 200
         assert response.json == expected
 
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+    )
     def test_should_respond_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):

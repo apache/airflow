@@ -36,6 +36,8 @@ We called it *Airflow Breeze* as **It's a Breeze to contribute to Airflow**.
 The advantages and disadvantages of using the Breeze environment vs. other ways of testing Airflow
 are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-development-environment>`_.
 
+All the output from the last ./breeze command is automatically logged to the ``logs/breeze.out`` file.
+
 Watch the video below about Airflow Breeze. It explains the motivation for Breeze
 and screencasts all its uses.
 
@@ -155,6 +157,23 @@ If you use zsh, run this command and re-login:
     echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
     . ~/.zprofile
 
+
+Let's confirm that ``getopt`` and ``gstat`` utilities are successfully installed
+
+.. code-block:: bash
+
+    $ getopt --version
+    getopt from util-linux *
+    $ gstat --version
+    stat (GNU coreutils) *
+    Copyright (C) 2020 Free Software Foundation, Inc.
+    License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+    This is free software: you are free to change and redistribute it.
+    There is NO WARRANTY, to the extent permitted by law.
+
+    Written by Michael Meskes.
+
+
 Memory
 ------
 
@@ -175,7 +194,7 @@ them, you may end up with some unused image data.
 
 To clean up the Docker environment:
 
-1. Stop Breeze with ``./breeze stop``.
+1. Stop Breeze with ``./breeze stop``. (If Breeze is already running)
 
 2. Run the ``docker system prune`` command.
 
@@ -294,7 +313,7 @@ can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker.
 2. Restart Breeze with ``./breeze restart``.
-3. Delete the ``.build`` directory and run ``./breeze build-image --force-pull-images``.
+3. Delete the ``.build`` directory and run ``./breeze build-image``.
 4. Clean up Docker images via ``breeze cleanup-image`` command.
 5. Restart your Docker Engine and try again.
 6. Restart your machine and try again.
@@ -331,7 +350,7 @@ Managing CI environment:
     * Generate constraints with ``breeze generate-constraints``
     * Execute arbitrary command in the test environment with ``breeze shell`` command
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
-    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
+    * Push docker images with ``breeze push-image`` command (require committers rights to push images)
 
 You can optionally reset the Airflow metada database if specified as extra ``--db-reset`` flag and for CI image
 you can also start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
@@ -354,7 +373,7 @@ Managing Prod environment (with ``--production-image`` flag):
     * Restart running interactive environment with ``breeze restart`` command
     * Execute arbitrary command in the test environment with ``breeze shell`` command
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
-    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
+    * Push docker images with ``breeze push-image`` command (require committers rights to push images)
 
 You can optionally reset database if specified as extra ``--db-reset`` flag. You can also
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
@@ -1257,16 +1276,24 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze build-image [FLAGS]
 
         Builds docker image (CI or production) without entering the container. You can pass
-        additional options to this command, such as '--force-build-image',
-        '--force-pull-image', '--python', '--build-cache-local' or '-build-cache-pulled'
-        in order to modify build behaviour.
+        additional options to this command, such as:
+
+        Choosing python version:
+          '--python'
+
+        Choosing cache option:
+           '--build-cache-local' or '-build-cache-pulled', or '--build-cache-none'
+
+        Choosing whether to force pull images or force build the image:
+            '--force-build-image',
+             '--force-pull-image', '--force-pull-base-python-image'
 
         You can also pass '--production-image' flag to build production image rather than CI image.
 
-        For DockerHub pull --dockerhub-user and --dockerhub-repo flags can be used to specify
-        the repository to pull from. For GitHub repository, the --github-repository
+        For DockerHub pull. '--dockerhub-user' and '--dockerhub-repo' flags can be used to specify
+        the repository to pull from. For GitHub repository, the '--github-repository'
         flag can be used for the same purpose. You can also use
-        --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to pull the image with
+        '--github-image-id <COMMIT_SHA>|<RUN_ID>' in case you want to pull the image with
         specific COMMIT_SHA tag or RUN_ID.
 
   Flags:
@@ -1335,6 +1362,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Forces pulling of images from DockerHub before building to populate cache. The
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
+
+  --force-pull-base-python-image
+          Forces pulling of Python base image from DockerHub before building to
+          populate cache. This should only be run in case we need to update to latest available
+          Python base image. This should be a rare and manually triggered event. Also this flag
+          is used in the scheduled run in CI when we rebuild all the images from the scratch
+          and run the tests to see if the latest python images do not fail our tests.
 
   Customization options:
 
@@ -1469,7 +1503,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
   --github-registry GITHUB_REGISTRY
-          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
           Default: docker.pkg.github.com.
@@ -1503,6 +1537,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
 
 
   ####################################################################################################
@@ -1539,6 +1577,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
 
 
   ####################################################################################################
@@ -1603,6 +1645,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
 
   ####################################################################################################
 
@@ -1651,7 +1697,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
   --github-registry GITHUB_REGISTRY
-          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
           Default: docker.pkg.github.com.
@@ -1685,6 +1731,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
 
 
   ####################################################################################################
@@ -1754,6 +1804,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
 
 
   ####################################################################################################
@@ -1913,6 +1967,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
 
   ####################################################################################################
 
@@ -1959,6 +2017,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Forces pulling of images from DockerHub before building to populate cache. The
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
+
+  --force-pull-base-python-image
+          Forces pulling of Python base image from DockerHub before building to
+          populate cache. This should only be run in case we need to update to latest available
+          Python base image. This should be a rare and manually triggered event. Also this flag
+          is used in the scheduled run in CI when we rebuild all the images from the scratch
+          and run the tests to see if the latest python images do not fail our tests.
 
   Customization options:
 
@@ -2151,6 +2216,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
 
   ####################################################################################################
 
@@ -2224,6 +2293,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
+
 
   ####################################################################################################
 
@@ -2249,10 +2322,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  pre-commit-hook-names provide-create-sessions providers-init-file provider-yamls
                  pydevd pydocstyle pylint pylint-tests python-no-log-warn pyupgrade
                  restrict-start_date rst-backticks setup-order setup-extra-packages shellcheck
-                 sort-in-the-wild stylelint trailing-whitespace update-breeze-file update-extras
-                 update-local-yml-file update-setup-cfg-file version-sync yamllint
+                 sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
+                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 version-sync yamllint
 
-        You can pass extra arguments including options to to the pre-commit framework as
+        You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
 
         'breeze static-check mypy' or
@@ -2294,7 +2368,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --test-type TEST_TYPE
           Type of the test to run. One of:
 
-                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL,Helm
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm
 
           Default: All
 
@@ -2539,6 +2613,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
 
+  --force-pull-base-python-image
+          Forces pulling of Python base image from DockerHub before building to
+          populate cache. This should only be run in case we need to update to latest available
+          Python base image. This should be a rare and manually triggered event. Also this flag
+          is used in the scheduled run in CI when we rebuild all the images from the scratch
+          and run the tests to see if the latest python images do not fail our tests.
+
   Customization options:
 
   -E, --extras EXTRAS
@@ -2675,7 +2756,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
   --github-registry GITHUB_REGISTRY
-          Github registry used. GitHub has legacy Packages registry and Public Beta Container
+          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
           Default: docker.pkg.github.com.
@@ -2708,7 +2789,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --test-type TEST_TYPE
           Type of the test to run. One of:
 
-                 All,Core,Providers,API,CLI,Integration,Other,WWW,Heisentests,Postgres,MySQL,Helm
+                 All,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm
 
           Default: All
 
@@ -2733,6 +2814,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+  --dry-run-docker
+          Only show docker commands to execute instead of actually executing them. The docker
+          commands are printed in yellow color.
 
   ****************************************************************************************************
    Print detailed help message
