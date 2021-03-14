@@ -361,6 +361,13 @@ Or update it if you already checked it out:
 svn update .
 ```
 
+Optionally you can use `check.files.py` script to verify that all expected files are
+present in SVN. This script may help also with verifying installation of the packages.
+
+```shell script
+python check_files.py -v {VERSION} -t airflow -p {PATH_TO_SVN}
+```
+
 ## Licence check
 
 This can be done with the Apache RAT tool.

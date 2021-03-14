@@ -44,14 +44,25 @@ RUN pip install "apache-airflow=={}"
 
 """
 
+DOCKER_UPGRADE = """\
+FROM apache/airflow:1.10.14
+
+# Install upgrade-check
+RUN pip install "apache-airflow-upgrade-check=={}"
+
+"""
+
+
 DOCKER_CMD = """
 docker build -t local/airflow .
 docker local/airflow info
 """
 
+
 AIRFLOW = "AIRFLOW"
 PROVIDERS = "PROVIDERS"
 BACKPORTS = "BACKPORTS"
+UPGRADE_CHECK = "UPGRADE_CHECK"
 
 ASC = re.compile(r".*\.asc$")
 SHA = re.compile(r".*\.sha512$")
@@ -135,14 +146,27 @@ def check_release(files: List[str], version: str):
     check_all_present("wheel", filter_files(files, name))
 
 
+def check_upgrade_check(files: List[str], version: str):
+    print(f"apache_airflow-upgrade-check-{version}")
+
+    name = f"apache-airflow-upgrade-check-{version}-bin"
+    check_all_present("binaries", filter_files(files, name))
+
+    name = f"apache-airflow-upgrade-check-{version}-source"
+    check_all_present("sources", filter_files(files, name))
+
+    name = f"apache_airflow_upgrade_check-{version}-py"
+    check_all_present("wheel", filter_files(files, name))
+
+
 @click.command()
 @click.option(
     "--type",
     "-t",
     "check_type",
-    prompt="backports, providers, airflow",
+    prompt="backports, providers, airflow, upgrade_check",
     type=str,
-    help="Type of the check to perform. One of: backports, providers, airflow",
+    help="Type of the check to perform. One of: backports, providers, airflow, upgrade_check",
 )
 @click.option(
     "--version",
@@ -164,9 +188,14 @@ def main(check_type: str, path: str, version: str):
     In case of providers and backports it will generate Dockerfile.pmc that you can use
     to verify that all packages are installable.
 
+    In case of providers/backport you should update `packages.txt` file with list of packages
+    that you expect to find (copy-paste the list from VOTE thread).
+
     Example usages:
-    python check_files.py -v 2021.3.17rc1 -t backports -p ~/code/airflow_svn/backport-providers
     python check_files.py -v 1.10.15rc1 -t airflow -p ~/code/airflow_svn
+    python check_files.py -v 1.3.0rc2 -t upgrade_check -p ~/code/airflow_svn
+    python check_files.py -v 1.0.3rc1 -t providers -p ~/code/airflow_svn
+    python check_files.py -v 2021.3.17rc1 -t backports -p ~/code/airflow_svn
     """
 
     if check_type.upper() == BACKPORTS:
@@ -194,6 +223,13 @@ def main(check_type: str, path: str, version: str):
         base_version = version.split("rc")[0]
         prev_version = base_version[:-1] + str(int(base_version[-1]) - 1)
         create_docker(AIRFLOW_DOCKER.format(prev_version, version))
+        return
+
+    if check_type.upper() == UPGRADE_CHECK:
+        files = os.listdir(os.path.join(path, "upgrade-check", version))
+        check_upgrade_check(files, version)
+
+        create_docker(DOCKER_UPGRADE.format(version))
         return
 
     raise SystemExit(f"Unknown check type: {check_type}")
