@@ -242,8 +242,10 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
         if not self._linked_service_exists(resource_group_name, factory_name, linked_service_name):
             raise AirflowException(f"Linked service {linked_service_name!r} does not exist.")
 
+        linked_service_resource = LinkedServiceResource(properties=linked_service)
+
         return self.get_conn().linked_services.create_or_update(
-            resource_group_name, factory_name, linked_service_name, linked_service, **config
+            resource_group_name, factory_name, linked_service_name, linked_service_resource, **config
         )
 
     @provide_targeted_factory
@@ -269,8 +271,10 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
         if self._linked_service_exists(resource_group_name, factory_name, linked_service_name):
             raise AirflowException(f"Linked service {linked_service_name!r} already exists.")
 
+        linked_service_resource = LinkedServiceResource(properties=linked_service)
+
         return self.get_conn().linked_services.create_or_update(
-            resource_group_name, factory_name, linked_service_name, linked_service, **config
+            resource_group_name, factory_name, linked_service_name, linked_service_resource, **config
         )
 
     @provide_targeted_factory
@@ -344,8 +348,10 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
         if not self._dataset_exists(resource_group_name, factory_name, dataset_name):
             raise AirflowException(f"Dataset {dataset_name!r} does not exist.")
 
+        dataset_resource = DatasetResource(properties=dataset)
+
         return self.get_conn().datasets.create_or_update(
-            resource_group_name, factory_name, dataset_name, dataset, **config
+            resource_group_name, factory_name, dataset_name, dataset_resource, **config
         )
 
     @provide_targeted_factory
@@ -371,8 +377,10 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
         if self._dataset_exists(resource_group_name, factory_name, dataset_name):
             raise AirflowException(f"Dataset {dataset_name!r} already exists.")
 
+        dataset_resource = DatasetResource(properties=dataset)
+
         return self.get_conn().datasets.create_or_update(
-            resource_group_name, factory_name, dataset_name, dataset, **config
+            resource_group_name, factory_name, dataset_name, dataset_resource, **config
         )
 
     @provide_targeted_factory
@@ -602,8 +610,10 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
         if not self._trigger_exists(resource_group_name, factory_name, trigger_name):
             raise AirflowException(f"Trigger {trigger_name!r} does not exist.")
 
+        trigger_resource = TriggerResource(properties=trigger)
+
         return self.get_conn().triggers.create_or_update(
-            resource_group_name, factory_name, trigger_name, trigger, **config
+            resource_group_name, factory_name, trigger_name, trigger_resource, **config
         )
 
     @provide_targeted_factory
@@ -629,8 +639,10 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
         if self._trigger_exists(resource_group_name, factory_name, trigger_name):
             raise AirflowException(f"Trigger {trigger_name!r} already exists.")
 
+        trigger_resource = TriggerResource(properties=trigger)
+
         return self.get_conn().triggers.create_or_update(
-            resource_group_name, factory_name, trigger_name, trigger, **config
+            resource_group_name, factory_name, trigger_name, trigger_resource, **config
         )
 
     @provide_targeted_factory
