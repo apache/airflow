@@ -278,6 +278,8 @@ jobs:
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       CONTINUE_ON_PIP_CHECK_FAILURE: "true"
       DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
+      FORCE_PULL_BASE_PYTHON_IMAGE: >
+        ${{ needs.cancel-workflow-runs.sourceEvent == 'schedule' && 'true' || 'false' }}
     steps:
       - name: >
           Checkout [${{ needs.cancel-workflow-runs.outputs.sourceEvent }}]
@@ -405,6 +407,8 @@ jobs:
       GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.workflow_run.id }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
+      FORCE_PULL_BASE_PYTHON_IMAGE: >
+        ${{ needs.cancel-workflow-runs.sourceEvent == 'schedule' && 'true' || 'false' }}
       VERSION_SUFFIX_FOR_PYPI: "dev"
       VERSION_SUFFIX_FOR_SVN: "dev"
     steps:
