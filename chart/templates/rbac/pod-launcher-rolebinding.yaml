@@ -19,7 +19,8 @@
 ## Airflow Pod Launcher Role Binding
 #################################
 {{- if and .Values.rbacEnabled .Values.allowPodLaunching }}
-{{- $podLaunchExecutors := list "LocalExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
+{{- $schedulerLaunchExecutors := list "LocalExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
+{{- $workerLaunchExecutors := list "CeleryExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
 {{- else }}
@@ -48,9 +49,14 @@ roleRef:
 {{- end }}
   name: {{ .Release.Name }}-pod-launcher-role
 subjects:
-{{- if has .Values.executor $podLaunchExecutors }}
+{{- if has .Values.executor $schedulerLaunchExecutors }}
   - kind: ServiceAccount
     name: {{ .Release.Name }}-scheduler
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- if has .Values.executor $workerLaunchExecutors }}
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-worker
     namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- end }}
