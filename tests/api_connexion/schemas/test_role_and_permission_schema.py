@@ -19,8 +19,8 @@ import unittest
 
 from airflow.api_connexion.schemas.role_and_permission_schema import (
     RoleCollection,
-    role_collection_item_schema,
     role_collection_schema,
+    role_schema,
 )
 from airflow.security import permissions
 from airflow.www import app
@@ -48,7 +48,7 @@ class TestRoleCollectionItemSchema(unittest.TestCase):
         delete_role(cls.app, 'Test')
 
     def test_serialize(self):
-        deserialized_role = role_collection_item_schema.dump(self.role)
+        deserialized_role = role_schema.dump(self.role)
         assert deserialized_role == {
             'name': 'Test',
             'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
@@ -59,7 +59,7 @@ class TestRoleCollectionItemSchema(unittest.TestCase):
             'name': 'Test',
             'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
         }
-        role_obj = role_collection_item_schema.load(role)
+        role_obj = role_schema.load(role)
         assert role_obj == {
             'name': 'Test',
             'permissions': [{'view_menu': {'name': 'Connections'}, 'permission': {'name': 'can_create'}}],

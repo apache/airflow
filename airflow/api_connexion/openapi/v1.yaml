@@ -1418,7 +1418,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RoleCollectionItem'
+                $ref: '#/components/schemas/Role'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -2235,8 +2235,8 @@ components:
                 $ref: '#/components/schemas/PluginCollectionItem'
         - $ref: '#/components/schemas/CollectionInfo'
 
-    RoleCollectionItem:
-      description: Role collection item
+    Role:
+      description: Role item
       type: object
       properties:
         name:
@@ -2256,11 +2256,11 @@ components:
             roles:
               type: array
               items:
-                $ref: '#/components/schemas/RoleCollectionItem'
+                $ref: '#/components/schemas/Role'
         - $ref: '#/components/schemas/CollectionInfo'
 
-    ActionCollectionItem:
-      description: Action Collection Item
+    Action:
+      description: Action Item
       type: object
       properties:
         name:
@@ -2277,7 +2277,7 @@ components:
             actions:
               type: array
               items:
-                $ref: '#/components/schemas/ActionCollectionItem'
+                $ref: '#/components/schemas/Action'
         - $ref: '#/components/schemas/CollectionInfo'
 
     Resource:
@@ -2295,7 +2295,7 @@ components:
       properties:
         action:
           type: object
-          $ref: '#/components/schemas/ActionCollectionItem'
+          $ref: '#/components/schemas/Action'
           description: The permission action
         resource:
           type: object

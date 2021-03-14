@@ -24,8 +24,8 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
     ActionCollection,
     RoleCollection,
     action_collection_schema,
-    role_collection_item_schema,
     role_collection_schema,
+    role_schema,
 )
 
 
@@ -35,7 +35,7 @@ def get_role(role_name):
     role = ab_security_manager.find_role(name=role_name)
     if not role:
         raise NotFound(title="Role not found", detail=f"The Role with name `{role_name}` was not found")
-    return role_collection_item_schema.dump(role)
+    return role_schema.dump(role)
 
 
 @format_parameters({'limit': check_limit})

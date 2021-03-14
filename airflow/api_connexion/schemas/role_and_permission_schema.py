@@ -22,7 +22,7 @@ from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 
-class ActionCollectionItemSchema(SQLAlchemySchema):
+class ActionSchema(SQLAlchemySchema):
     """Permission Action Schema"""
 
     class Meta:
@@ -54,7 +54,7 @@ class ActionCollection(NamedTuple):
 class ActionCollectionSchema(Schema):
     """Permissions list schema"""
 
-    actions = fields.List(fields.Nested(ActionCollectionItemSchema))
+    actions = fields.List(fields.Nested(ActionSchema))
     total_entries = fields.Int()
 
 
@@ -66,11 +66,11 @@ class ActionResourceSchema(SQLAlchemySchema):
 
         model = PermissionView
 
-    permission = fields.Nested(ActionCollectionItemSchema, data_key="action")
+    permission = fields.Nested(ActionSchema, data_key="action")
     view_menu = fields.Nested(ResourceSchema, data_key="resource")
 
 
-class RoleCollectionItemSchema(SQLAlchemySchema):
+class RoleSchema(SQLAlchemySchema):
     """Role item schema"""
 
     class Meta:
@@ -92,11 +92,10 @@ class RoleCollection(NamedTuple):
 class RoleCollectionSchema(Schema):
     """List of roles"""
 
-    roles = fields.List(fields.Nested(RoleCollectionItemSchema))
+    roles = fields.List(fields.Nested(RoleSchema))
     total_entries = fields.Int()
 
 
-role_collection_item_schema = RoleCollectionItemSchema()
+role_schema = RoleSchema()
 role_collection_schema = RoleCollectionSchema()
-action_collection_item_schema = ActionCollectionItemSchema()
 action_collection_schema = ActionCollectionSchema()
