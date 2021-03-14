@@ -1009,7 +1009,7 @@ function build_images::wait_for_image_tag() {
             echo "The image ${IMAGE_TO_WAIT_FOR} is not yet available. No local hash for the image. Waiting."
             echo
             echo "Last log:"
-            cat "${OUTPUT_LOG}"
+            cat "${OUTPUT_LOG}" || true
             echo
             sleep 10
         else
