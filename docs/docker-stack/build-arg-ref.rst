@@ -42,7 +42,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | file has to be in docker context so      |
 |                                          |                                          | it's best to place such file in          |
 |                                          |                                          | one of the folders included in           |
-|                                          |                                          | .dockerignore.                           |
+|                                          |                                          | ``.dockerignore`` file.                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE``        | ``constraints-master``                   | Reference (branch or tag) from GitHub    |
 |                                          |                                          | where constraints file is taken from     |
