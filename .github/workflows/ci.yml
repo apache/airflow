@@ -272,37 +272,8 @@ jobs:
         # The job will set the output "githubRegistry" - result of auto-detect which registry has
         # been used by checking where the image can be downloaded from.
         #
-        run: ./scripts/ci/images/ci_wait_for_all_ci_images.sh
+        run: ./scripts/ci/images/ci_wait_for_and_verify_all_ci_images.sh
 
-
-  verify-ci-images:
-    timeout-minutes: 20
-    name: "Verify CI Image Py${{matrix.python-version}}"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs: [build-info, ci-images]
-    strategy:
-      matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
-    env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      BACKEND: sqlite
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
-    if: needs.build-info.outputs.image-build == 'true'
-    steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
-        if: needs.build-info.outputs.waitForImage == 'true'
-        with:
-          persist-credentials: false
-      - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-        if: |
-          needs.build-info.outputs.waitForImage == 'true'
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Verify CI image Py${{matrix.python-version}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_verify_ci_image.sh
-        if: needs.build-info.outputs.waitForImage == 'true'
 
   static-checks:
     timeout-minutes: 30
@@ -948,34 +919,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
             ${{needs.build-info.outputs.pythonVersionsListAsString}}
-        run: ./scripts/ci/images/ci_wait_for_all_prod_images.sh
-
-  verify-prod-images:
-    timeout-minutes: 20
-    name: "Verify Prod Image Py${{matrix.python-version}}"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs: [build-info, prod-images]
-    strategy:
-      matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
-    env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      BACKEND: sqlite
-      GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
-    steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
-        if: needs.build-info.outputs.waitForImage == 'true'
-        with:
-          persist-credentials: false
-      - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-        if: needs.build-info.outputs.waitForImage == 'true'
-      - name: "Prepare PROD Image"
-        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-      - name: "Verify PROD image Py${{matrix.python-version}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_verify_prod_image.sh
-        if: needs.build-info.outputs.waitForImage == 'true'
+        run: ./scripts/ci/images/ci_wait_for_and_verify_all_prod_images.sh
 
   tests-kubernetes:
     timeout-minutes: 50
@@ -1068,7 +1012,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - prepare-provider-packages
       - test-provider-packages-released-airflow
       - prod-images
-      - verify-prod-images
       - docs
     if: >
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
@@ -1116,7 +1059,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-mysql
       - tests-kubernetes
       - ci-images
-      - verify-ci-images
       - docs
     if: >
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
@@ -1204,8 +1146,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs:
       - build-info
       - constraints
-      - verify-ci-images
-      - verify-prod-images
+      - ci-images
+      - prod-images
       - static-checks
       - static-checks-pylint
       - tests-sqlite

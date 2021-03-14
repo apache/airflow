@@ -71,6 +71,7 @@ function parallel::monitor_loop() {
         for directory in "${PARALLEL_MONITORED_DIR}"/*/*
         do
             parallel_process=$(basename "${directory}")
+
             echo "${COLOR_BLUE}### The last lines for ${parallel_process} process ###${COLOR_RESET}"
             echo
             tail -2 "${directory}/stdout" || true
