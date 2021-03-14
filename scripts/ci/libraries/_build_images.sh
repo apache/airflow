@@ -998,11 +998,18 @@ function build_images::wait_for_image_tag() {
     start_end::group_start "Wait for image tag ${IMAGE_TO_WAIT_FOR}"
     while true; do
         set +e
-        docker pull "${IMAGE_TO_WAIT_FOR}" 2>/dev/null >/dev/null
+        echo "${COLOR_BLUE}Docker pull ${IMAGE_TO_WAIT_FOR} ${COLOR_RESET}" >"${OUTPUT_LOG}"
+        docker pull "${IMAGE_TO_WAIT_FOR}" >>"${OUTPUT_LOG}" 2>&1
         set -e
-        if [[ -z "$(docker images -q "${IMAGE_TO_WAIT_FOR}" 2>/dev/null || true)" ]]; then
+        local image_hash
+        echo "${COLOR_BLUE} Docker images -q ${IMAGE_TO_WAIT_FOR}${COLOR_RESET}" >>"${OUTPUT_LOG}"
+        image_hash="$(docker images -q "${IMAGE_TO_WAIT_FOR}" 2>>"${OUTPUT_LOG}" || true)"
+        if [[ -z "${image_hash}" ]]; then
             echo
-            echo "The image ${IMAGE_TO_WAIT_FOR} is not yet available. Waiting"
+            echo "The image ${IMAGE_TO_WAIT_FOR} is not yet available. No local hash for the image. Waiting."
+            echo
+            echo "Last log:"
+            cat "${OUTPUT_LOG}"
             echo
             sleep 10
         else
