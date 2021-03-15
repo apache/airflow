@@ -76,10 +76,10 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     except StopIteration:
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
-    PACKAGE_VERSION = 'master'
+    PACKAGE_VERSION = 'devel'
 else:
     PACKAGE_DIR = None
-    PACKAGE_VERSION = 'master'
+    PACKAGE_VERSION = 'devel'
 # Adds to environment variables for easy access from other plugins like airflow_intersphinx.
 os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
 if PACKAGE_DIR:
@@ -302,8 +302,8 @@ html_context = {
     'conf_py_path': f'/docs/{PACKAGE_NAME}/',
     'github_user': 'apache',
     'github_repo': 'airflow',
-    'github_version': 'master',
-    'display_github': 'master',
+    'github_version': 'devel',
+    'display_github': 'devel',
     'suffix': '.rst',
 }
 

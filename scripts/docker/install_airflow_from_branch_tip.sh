@@ -17,7 +17,7 @@
 # under the License.
 # shellcheck disable=SC2086
 
-# Installs Airflow from latest master. This is pure optimisation. It is done because we do not want
+# Installs Airflow from $AIRFLOW_BRANCH tip. This is pure optimisation. It is done because we do not want
 # to reinstall all dependencies from scratch when setup.py changes. Problem with Docker caching is that
 # when a file is changed, when added to docker context, it invalidates the cache and it causes Docker
 # build to reinstall all dependencies from scratch. This can take a loooooot of time. Therefore we install
@@ -37,14 +37,14 @@ test -v AIRFLOW_PIP_VERSION
 
 set -x
 
-function install_airflow_from_latest_master() {
+function install_airflow_from_branch_tip() {
     echo
-    echo Installing airflow from latest master. It is used to cache dependencies
+    echo "Installing airflow from ${AIRFLOW_BRANCH}. It is used to cache dependencies"
     echo
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
     fi
-    # Install latest master set of dependencies using constraints \
+    # Install latest set of dependencies using constraints
     pip install ${AIRFLOW_INSTALL_USER_FLAG} \
       "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
       --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
@@ -57,4 +57,4 @@ function install_airflow_from_latest_master() {
     pip uninstall --yes apache-airflow
 }
 
-install_airflow_from_latest_master
+install_airflow_from_branch_tip

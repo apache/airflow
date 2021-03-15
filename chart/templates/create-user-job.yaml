@@ -67,7 +67,7 @@ spec:
           args:
             - "bash"
             - "-c"
-            # Support running against 1.10.x and 2.0.0dev/master
+            # Support running against 1.10.x and 2.x
             - 'airflow users create "$@" || airflow create_user "$@"'
             - --
             - "-r"

@@ -64,7 +64,7 @@ function output_all_basic_variables() {
     else
         initialization::ga_output python-versions \
             "$(initialization::parameters_to_json "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}")"
-        # this will work as long as DEFAULT_PYTHON_MAJOR_VERSION is the same master/v1-10
+        # this will work as long as DEFAULT_PYTHON_MAJOR_VERSION is the same on HEAD and v1-10
         # all-python-versions are used in BuildImage Workflow
         initialization::ga_output all-python-versions \
             "$(initialization::parameters_to_json "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}")"
@@ -611,11 +611,11 @@ upgrade_to_newer_dependencies="false"
 
 if (($# < 1)); then
     echo
-    echo "No Commit SHA - running all tests (likely direct master merge, or scheduled run)!"
+    echo "No Commit SHA - running all tests (likely direct merge, or scheduled run)!"
     echo
     INCOMING_COMMIT_SHA=""
     readonly INCOMING_COMMIT_SHA
-    # override FULL_TESTS_NEEDED_LABEL in master/scheduled run
+    # override FULL_TESTS_NEEDED_LABEL in main/scheduled run
     FULL_TESTS_NEEDED_LABEL="true"
     readonly FULL_TESTS_NEEDED_LABEL
     output_all_basic_variables

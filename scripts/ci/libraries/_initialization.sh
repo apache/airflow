@@ -195,7 +195,7 @@ function initialization::initialize_files_for_rebuild_check() {
         "scripts/docker/compile_www_assets.sh"
         "scripts/docker/install_additional_dependencies.sh"
         "scripts/docker/install_airflow.sh"
-        "scripts/docker/install_airflow_from_latest_master.sh"
+        "scripts/docker/install_airflow_from_branch_tip.sh"
         "scripts/docker/install_from_docker_context_files.sh"
         "scripts/docker/install_mysql.sh"
         "airflow/www/package.json"
@@ -314,7 +314,7 @@ function initialization::initialize_image_build_variables() {
     # Default build id
     export CI_BUILD_ID="${CI_BUILD_ID:="0"}"
 
-    # Default extras used for building Production image. The master of this information is in the Dockerfile
+    # Default extras used for building Production image. The canonical source of this information is in the Dockerfile
     DEFAULT_PROD_EXTRAS=$(grep "ARG AIRFLOW_EXTRAS=" "${AIRFLOW_SOURCES}/Dockerfile" |
         awk 'BEGIN { FS="=" } { print $2 }' | tr -d '"')
     export DEFAULT_PROD_EXTRAS
