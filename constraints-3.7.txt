@@ -29,7 +29,7 @@ PyYAML==5.4.1
 Pygments==2.8.1
 SQLAlchemy-JSONField==1.0.0
 SQLAlchemy-Utils==0.36.8
-SQLAlchemy==1.3.23
+SQLAlchemy==1.4.0
 Sphinx==3.4.3
 Unidecode==1.2.0
 WTForms==2.3.3
@@ -133,7 +133,7 @@ azure-keyvault==4.1.0
 azure-kusto-data==0.0.45
 azure-mgmt-containerinstance==1.5.0
 azure-mgmt-core==1.2.2
-azure-mgmt-datafactory==1.0.0
+azure-mgmt-datafactory==1.1.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
@@ -378,7 +378,7 @@ pydata-google-auth==1.1.0
 pydot==1.4.2
 pydruid==0.6.2
 pyenchant==3.2.0
-pyexasol==0.18.0
+pyexasol==0.18.1
 pyflakes==2.2.0
 pykerberos==1.2.1
 pylint==2.7.2
