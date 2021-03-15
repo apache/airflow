@@ -15,49 +15,40 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
+import pytest
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
-from airflow.www import app
 from airflow.www.security import EXISTING_ROLES
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.config import conf_vars
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
-class TestRoleEndpoint(unittest.TestCase):
-    @classmethod
-    @dont_initialize_flask_app_submodules(
-        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+@pytest.fixture(scope="module")
+def configured_app(minimal_app_for_api):
+    app = minimal_app_for_api
+    create_user(
+        app,  # type: ignore
+        username="test",
+        role_name="Test",
+        permissions=[
+            (permissions.ACTION_CAN_LIST, permissions.RESOURCE_ROLE_MODEL_VIEW),
+            (permissions.ACTION_CAN_SHOW, permissions.RESOURCE_ROLE_MODEL_VIEW),
+            (permissions.ACTION_CAN_LIST, permissions.RESOURCE_PERMISSION_MODEL_VIEW),
+        ],
     )
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
-            cls.app = app.create_app(testing=True)  # type:ignore
-        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
-        cls.security_manager = cls.appbuilder.sm  # type:ignore
-        create_user(
-            cls.app,  # type: ignore
-            username="test",
-            role_name="Test",
-            permissions=[
-                (permissions.ACTION_CAN_LIST, permissions.RESOURCE_ROLE_MODEL_VIEW),
-                (permissions.ACTION_CAN_SHOW, permissions.RESOURCE_ROLE_MODEL_VIEW),
-                (permissions.ACTION_CAN_LIST, permissions.RESOURCE_PERMISSION_MODEL_VIEW),
-            ],
-        )
-        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    yield app
 
-    def setUp(self) -> None:
+    delete_user(app, username="test")  # type: ignore
+    delete_user(app, username="test_no_permissions")  # type: ignore
+
+
+class TestRoleEndpoint:
+    @pytest.fixture(autouse=True)
+    def setup_attrs(self, configured_app) -> None:
+        self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        delete_user(cls.app, username="test")  # type: ignore
-        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
 
 class TestGetRoleEndpoint(TestRoleEndpoint):
@@ -91,10 +82,11 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
         response = self.client.get("/api/v1/roles", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        EXISTING_ROLES.update(['Test', 'TestNoPermissions'])
-        assert response.json['total_entries'] == len(EXISTING_ROLES)
+        existing_roles = set(EXISTING_ROLES)
+        existing_roles.update(['Test', 'TestNoPermissions'])
+        assert response.json['total_entries'] == len(existing_roles)
         roles = {role['name'] for role in response.json['roles']}
-        assert roles == EXISTING_ROLES
+        assert roles == existing_roles
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/roles")
@@ -129,8 +121,9 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
     def test_can_handle_limit_and_offset(self, url, expected_roles):
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        EXISTING_ROLES.update(['Test', 'TestNoPermissions'])
-        assert response.json["total_entries"] == len(EXISTING_ROLES)
+        existing_roles = set(EXISTING_ROLES)
+        existing_roles.update(['Test', 'TestNoPermissions'])
+        assert response.json['total_entries'] == len(existing_roles)
         roles = [role['name'] for role in response.json['roles'] if role]
         assert roles == expected_roles
 
@@ -138,7 +131,7 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
 class TestGetPermissionsEndpoint(TestRoleEndpoint):
     def test_should_response_200(self):
         response = self.client.get("/api/v1/permissions", environ_overrides={'REMOTE_USER': "test"})
-        actions = {i[0] for i in self.security_manager.get_all_permissions() if i}
+        actions = {i[0] for i in self.app.appbuilder.sm.get_all_permissions() if i}
         assert response.status_code == 200
         assert response.json['total_entries'] == len(actions)
         returned_actions = {perm['name'] for perm in response.json['actions']}
