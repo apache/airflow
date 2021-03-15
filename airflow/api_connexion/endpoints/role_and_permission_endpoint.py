@@ -18,6 +18,7 @@ from flask import current_app
 from flask_appbuilder.security.sqla.models import Permission, Role
 from sqlalchemy import func
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.role_and_permission_schema import (
@@ -27,8 +28,10 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
     role_collection_schema,
     role_schema,
 )
+from airflow.security import permissions
 
 
+@security.requires_access([(permissions.ACTION_CAN_SHOW, permissions.RESOURCE_ROLE_MODEL_VIEW)])
 def get_role(role_name):
     """Get role"""
     ab_security_manager = current_app.appbuilder.sm
@@ -38,6 +41,7 @@ def get_role(role_name):
     return role_schema.dump(role)
 
 
+@security.requires_access([(permissions.ACTION_CAN_LIST, permissions.RESOURCE_ROLE_MODEL_VIEW)])
 @format_parameters({'limit': check_limit})
 def get_roles(limit=None, offset=None):
     """Get roles"""
@@ -51,11 +55,12 @@ def get_roles(limit=None, offset=None):
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
 
+@security.requires_access([(permissions.ACTION_CAN_LIST, permissions.RESOURCE_PERMISSION_MODEL_VIEW)])
 @format_parameters({'limit': check_limit})
 def get_permissions(limit=None, offset=None):
     """Get permissions"""
     session = current_app.appbuilder.get_session
     total_entries = session.query(func.count(Permission.id)).scalar()
     query = session.query(Permission)
-    permissions = query.offset(offset).limit(limit).all()
-    return action_collection_schema.dump(ActionCollection(actions=permissions, total_entries=total_entries))
+    actions = query.offset(offset).limit(limit).all()
+    return action_collection_schema.dump(ActionCollection(actions=actions, total_entries=total_entries))
