@@ -58,7 +58,9 @@ def delete_user(app, username):
     appbuilder = app.appbuilder
     for user in appbuilder.sm.get_all_users():
         if user.username == username:
-            _ = [delete_role(app, role.name) for role in user.roles if role and role not in EXISTING_ROLES]
+            _ = [
+                delete_role(app, role.name) for role in user.roles if role and role.name not in EXISTING_ROLES
+            ]
             appbuilder.sm.del_register_user(user)
             break
 
