@@ -126,15 +126,20 @@ class HttpHook(BaseHook):
         else:
             url = (self.base_url or '') + (endpoint or '')
 
+        request_parameters = dict(method=self.method.upper(), url=url, headers=headers)
+        request_parameters.update(request_kwargs)
+
         if self.method == 'GET':
             # GET uses params
-            req = requests.Request(self.method, url, params=data, headers=headers, **request_kwargs)
+            request_parameters["params"] = data
         elif self.method == 'HEAD':
             # HEAD doesn't use params
-            req = requests.Request(self.method, url, headers=headers, **request_kwargs)
+            pass
         else:
             # Others use data
-            req = requests.Request(self.method, url, data=data, headers=headers, **request_kwargs)
+            request_parameters["data"] = data
+
+        req = requests.Request(**request_parameters)
 
         prepped_request = session.prepare_request(req)
         self.log.info("Sending '%s' to url: %s", self.method, url)
@@ -176,16 +181,23 @@ class HttpHook(BaseHook):
         """
         extra_options = extra_options or {}
 
+        settings = session.merge_environment_settings(
+            prepped_request.url,
+            proxies=extra_options.get("proxies", {}),
+            stream=extra_options.get("stream", False),
+            verify=extra_options.get("verify"),
+            cert=extra_options.get("cert"),
+        )
+
+        # Send the request.
+        send_kwargs = {
+            "timeout": extra_options.get("timeout"),
+            "allow_redirects": extra_options.get("allow_redirects", True),
+        }
+        send_kwargs.update(settings)
+
         try:
-            response = session.send(
-                prepped_request,
-                stream=extra_options.get("stream", False),
-                verify=extra_options.get("verify", True),
-                proxies=extra_options.get("proxies", {}),
-                cert=extra_options.get("cert"),
-                timeout=extra_options.get("timeout"),
-                allow_redirects=extra_options.get("allow_redirects", True),
-            )
+            response = session.send(prepped_request, **send_kwargs)
 
             if extra_options.get('check_response', True):
                 self.check_response(response)

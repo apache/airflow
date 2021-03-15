@@ -138,7 +138,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         except MissingSchema:
             pass
         mock_request.assert_called_once_with(
-            self.expected_method, self.expected_url, headers=mock.ANY, data=mock.ANY
+            method=self.expected_method, url=self.expected_url, headers=mock.ANY, data=mock.ANY
         )
         mock_request.reset_mock()
 
@@ -151,7 +151,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         except MissingSchema:
             pass
         mock_request.assert_called_once_with(
-            self.expected_method, self.expected_url, headers=mock.ANY, data=mock.ANY
+            method=self.expected_method, url=self.expected_url, headers=mock.ANY, data=mock.ANY
         )
         mock_request.reset_mock()
 
@@ -164,6 +164,6 @@ class TestSlackWebhookHook(unittest.TestCase):
         except MissingSchema:
             pass
         mock_request.assert_called_once_with(
-            self.expected_method, self.expected_url, headers=mock.ANY, data=mock.ANY
+            method=self.expected_method, url=self.expected_url, headers=mock.ANY, data=mock.ANY
         )
         mock_request.reset_mock()
