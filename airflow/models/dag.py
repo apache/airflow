@@ -1124,7 +1124,7 @@ class DAG(LoggingMixin):
             query = query.filter(DagRun.execution_date >= start_date)
         if end_date:
             query = query.filter(DagRun.execution_date <= end_date)
-        query.update({DagRun.state: state}, synchronize_session=False)
+        query.update({DagRun.state: state}, synchronize_session='fetch')
 
     @provide_session
     def clear(
