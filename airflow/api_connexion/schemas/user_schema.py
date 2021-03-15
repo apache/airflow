@@ -21,7 +21,7 @@ from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.parameters import validate_istimezone
-from airflow.api_connexion.schemas.role_and_permission_schema import RoleCollectionItemSchema
+from airflow.api_connexion.schemas.role_and_permission_schema import RoleSchema
 
 
 class UserCollectionItemSchema(SQLAlchemySchema):
@@ -42,7 +42,7 @@ class UserCollectionItemSchema(SQLAlchemySchema):
     last_login = auto_field(dump_only=True)
     login_count = auto_field(dump_only=True)
     fail_login_count = auto_field(dump_only=True)
-    roles = fields.List(fields.Nested(RoleCollectionItemSchema, only=('name',)))
+    roles = fields.List(fields.Nested(RoleSchema, only=('name',)))
     created_on = auto_field(validate=validate_istimezone, dump_only=True)
     changed_on = auto_field(validate=validate_istimezone, dump_only=True)
 

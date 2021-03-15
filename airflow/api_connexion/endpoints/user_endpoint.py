@@ -18,6 +18,7 @@ from flask import current_app
 from flask_appbuilder.security.sqla.models import User
 from sqlalchemy import func
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
@@ -25,8 +26,10 @@ from airflow.api_connexion.schemas.user_schema import (
     user_collection_item_schema,
     user_collection_schema,
 )
+from airflow.security import permissions
 
 
+@security.requires_access([(permissions.ACTION_CAN_SHOW, permissions.RESOURCE_USER_DB_MODELVIEW)])
 def get_user(username):
     """Get a user"""
     ab_security_manager = current_app.appbuilder.sm
@@ -36,6 +39,7 @@ def get_user(username):
     return user_collection_item_schema.dump(user)
 
 
+@security.requires_access([(permissions.ACTION_CAN_LIST, permissions.RESOURCE_USER_DB_MODELVIEW)])
 @format_parameters({'limit': check_limit})
 def get_users(limit=None, offset=None):
     """Get users"""

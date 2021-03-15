@@ -21,9 +21,11 @@ from flask_appbuilder.security.sqla.models import User
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
@@ -40,6 +42,21 @@ class TestUserEndpoint(unittest.TestCase):
         with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
             cls.app = app.create_app(testing=True)  # type:ignore
         cls.client = cls.app.test_client()  # type:ignore
+        create_user(
+            cls.app,  # type: ignore
+            username="test",
+            role_name="Test",
+            permissions=[
+                (permissions.ACTION_CAN_LIST, permissions.RESOURCE_USER_DB_MODELVIEW),
+                (permissions.ACTION_CAN_SHOW, permissions.RESOURCE_USER_DB_MODELVIEW),
+            ],
+        )
+        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
+        delete_user(cls.app, username="test_no_permissions")  # type: ignore
 
     @provide_session
     def tearDown(self, session) -> None:
@@ -78,7 +95,7 @@ class TestGetUser(TestUserEndpoint):
         users = self._create_users(1)
         session.add_all(users)
         session.commit()
-        response = self.client.get("/api/v1/users/TEST_USER1")
+        response = self.client.get("/api/v1/users/TEST_USER1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json == {
             'active': None,
@@ -96,7 +113,7 @@ class TestGetUser(TestUserEndpoint):
         }
 
     def test_should_respond_404(self):
-        response = self.client.get("/api/v1/users/invalid-user")
+        response = self.client.get("/api/v1/users/invalid-user", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         assert {
             'detail': "The User with username `invalid-user` was not found",
@@ -105,58 +122,44 @@ class TestGetUser(TestUserEndpoint):
             'type': EXCEPTIONS_LINK_MAP[404],
         } == response.json
 
+    def test_should_raises_401_unauthenticated(self):
+        response = self.client.get("/api/v1/users/TEST_USER1")
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get(
+            "/api/v1/users/TEST_USER1", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
+
 
 class TestGetUsers(TestUserEndpoint):
-    @provide_session
-    def test_should_response_200(self, session):
-        users = self._create_users(2)
-        session.add_all(users)
-        session.commit()
-        response = self.client.get("/api/v1/users")
+    def test_should_response_200(self):
+        response = self.client.get("/api/v1/users", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        assert response.json == {
-            'total_entries': 2,
-            'users': [
-                {
-                    'active': None,
-                    'changed_on': '2020-06-11T18:00:00+00:00',
-                    'created_on': '2020-06-11T18:00:00+00:00',
-                    'email': 'mytest@test1.org',
-                    'fail_login_count': None,
-                    'first_name': 'test1',
-                    'last_login': None,
-                    'last_name': 'test1',
-                    'login_count': None,
-                    'roles': [],
-                    'user_id': users[0].id,
-                    'username': 'TEST_USER1',
-                },
-                {
-                    'active': None,
-                    'changed_on': '2020-06-11T18:00:00+00:00',
-                    'created_on': '2020-06-11T18:00:00+00:00',
-                    'email': 'mytest@test2.org',
-                    'fail_login_count': None,
-                    'first_name': 'test2',
-                    'last_login': None,
-                    'last_name': 'test2',
-                    'login_count': None,
-                    'roles': [],
-                    'user_id': users[1].id,
-                    'username': 'TEST_USER2',
-                },
-            ],
-        }
+        assert response.json["total_entries"] == 2
+        usernames = [user["username"] for user in response.json["users"] if user]
+        assert usernames == ['test', 'test_no_permissions']
+
+    def test_should_raises_401_unauthenticated(self):
+        response = self.client.get("/api/v1/users")
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get("/api/v1/users", environ_overrides={'REMOTE_USER': "test_no_permissions"})
+        assert response.status_code == 403
 
 
 class TestGetUsersPagination(TestUserEndpoint):
     @parameterized.expand(
         [
-            ("/api/v1/users?limit=1", ['TEST_USER1']),
-            ("/api/v1/users?limit=2", ['TEST_USER1', "TEST_USER2"]),
+            ("/api/v1/users?limit=1", ['test']),
+            ("/api/v1/users?limit=2", ['test', "test_no_permissions"]),
             (
                 "/api/v1/users?offset=5",
                 [
+                    "TEST_USER4",
+                    "TEST_USER5",
                     "TEST_USER6",
                     "TEST_USER7",
                     "TEST_USER8",
@@ -167,6 +170,8 @@ class TestGetUsersPagination(TestUserEndpoint):
             (
                 "/api/v1/users?offset=0",
                 [
+                    "test",
+                    "test_no_permissions",
                     "TEST_USER1",
                     "TEST_USER2",
                     "TEST_USER3",
@@ -179,11 +184,11 @@ class TestGetUsersPagination(TestUserEndpoint):
                     "TEST_USER10",
                 ],
             ),
-            ("/api/v1/users?limit=1&offset=5", ["TEST_USER6"]),
-            ("/api/v1/users?limit=1&offset=1", ["TEST_USER2"]),
+            ("/api/v1/users?limit=1&offset=5", ["TEST_USER4"]),
+            ("/api/v1/users?limit=1&offset=1", ["test_no_permissions"]),
             (
                 "/api/v1/users?limit=2&offset=2",
-                ["TEST_USER3", "TEST_USER4"],
+                ["TEST_USER1", "TEST_USER2"],
             ),
         ]
     )
@@ -192,9 +197,9 @@ class TestGetUsersPagination(TestUserEndpoint):
         users = self._create_users(10)
         session.add_all(users)
         session.commit()
-        response = self.client.get(url)
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == 10
+        assert response.json["total_entries"] == 12
         usernames = [user["username"] for user in response.json["users"] if user]
         assert usernames == expected_usernames
 
@@ -204,10 +209,10 @@ class TestGetUsersPagination(TestUserEndpoint):
         session.add_all(users)
         session.commit()
 
-        response = self.client.get("/api/v1/users")
+        response = self.client.get("/api/v1/users", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-
-        assert response.json["total_entries"] == 200
+        # Explicitly add the 2 users on setUp
+        assert response.json["total_entries"] == 200 + len(['test', 'test_no_permissions'])
         assert len(response.json["users"]) == 100
 
     @provide_session
@@ -216,10 +221,10 @@ class TestGetUsersPagination(TestUserEndpoint):
         session.add_all(users)
         session.commit()
 
-        response = self.client.get("/api/v1/users?limit=0")
+        response = self.client.get("/api/v1/users?limit=0", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
-
-        assert response.json["total_entries"] == 200
+        # Explicit add the 2 users on setUp
+        assert response.json["total_entries"] == 200 + len(['test', 'test_no_permissions'])
         assert len(response.json["users"]) == 100
 
     @provide_session
@@ -229,6 +234,6 @@ class TestGetUsersPagination(TestUserEndpoint):
         session.add_all(users)
         session.commit()
 
-        response = self.client.get("/api/v1/users?limit=180")
+        response = self.client.get("/api/v1/users?limit=180", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert len(response.json['users']) == 150
