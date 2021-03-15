@@ -739,6 +739,25 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
 
+    def __del__(self):
+        """
+        Cleans up the scheduler job when it gets out of the scope by gracefully ending the processor agent.
+
+        The SchedulerJob in tests has been causing a number of flaky test problems - ranging from missing rows
+        to wrong status and wrong number of queires - exposing side effects. This was investigated as
+        side effects from other tests which started scheduler jobs but never ended them.
+
+        More discussion here: https://github.com/apache/airflow/pull/14792
+
+        The _del_ seems a good solution to those problems and also valid solution to finalising
+        the SchedulerJob in production  - see https://github.com/apache/airflow/pull/14085 and seems like
+        a good strategy for the SchedulerJob object to implement also in production Airflow code.
+
+        """
+        if self.processor_agent:
+            self.processor_agent.end()
+            self.processor_agent = None
+
     def register_signals(self) -> None:
         """Register signals that stop child processes"""
         signal.signal(signal.SIGINT, self._exit_gracefully)

@@ -840,7 +840,6 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.heartrate = 0
         scheduler.run()
 
-    @pytest.mark.quarantined
     def test_no_orphan_process_will_be_left(self):
         empty_dir = mkdtemp()
         current_process = psutil.Process()
@@ -2469,7 +2468,6 @@ class TestSchedulerJob(unittest.TestCase):
             session.commit()
             assert [] == self.null_exec.sorted_tasks
 
-    @pytest.mark.quarantined
     def test_scheduler_task_start_date(self):
         """
         Test that the scheduler respects task start dates that are different from DAG start dates
@@ -2573,6 +2571,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.flush()
 
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        SerializedDagModel.write_dag(dag)
 
         scheduler = SchedulerJob(executor=self.null_exec)
         scheduler.processor_agent = mock.MagicMock()
@@ -2624,6 +2623,7 @@ class TestSchedulerJob(unittest.TestCase):
         pool = Pool(pool='test_scheduler_verify_pool_full_2_slots_per_task', slots=6)
         session.add(pool)
         session.commit()
+        SerializedDagModel.write_dag(dag)
 
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
@@ -2700,6 +2700,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.commit()
 
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        SerializedDagModel.write_dag(dag)
 
         scheduler = SchedulerJob(executor=self.null_exec)
         scheduler.processor_agent = mock.MagicMock()
@@ -2933,7 +2934,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    @pytest.mark.quarantined
+    @pytest.mark.xfail(reason="This test needs fixing. It's very wrong now and always fails")
     def test_retry_handling_job(self):
         """
         Integration test of the scheduler not accidentally resetting
@@ -4059,27 +4060,33 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
     made that affects the performance of the SchedulerJob.
     """
 
-    def setUp(self) -> None:
+    @staticmethod
+    def clean_db():
         clear_db_runs()
         clear_db_pools()
         clear_db_dags()
         clear_db_sla_miss()
         clear_db_import_errors()
+        clear_db_jobs()
         clear_db_serialized_dags()
-        clear_db_dags()
+
+    def setUp(self) -> None:
+        self.clean_db()
+
+    def tearDown(self):
+        self.clean_db()
 
     @parameterized.expand(
         [
             # expected, dag_count, task_count
             # One DAG with one task per DAG file
-            (23, 1, 1),  # noqa
+            (24, 1, 1),  # noqa
             # One DAG with five tasks per DAG  file
-            (23, 1, 5),  # noqa
+            (28, 1, 5),  # noqa
             # 10 DAGs with 10 tasks per DAG file
-            (95, 10, 10),  # noqa
+            (195, 10, 10),  # noqa
         ]
     )
-    @pytest.mark.quarantined
     def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
         with mock.patch.dict(
             "os.environ",
@@ -4094,10 +4101,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             {
                 ('scheduler', 'use_job_schedule'): 'True',
                 ('core', 'load_examples'): 'False',
-                ('core', 'store_serialized_dags'): 'True',
             }
-        ), mock.patch.object(
-            settings, 'STORE_SERIALIZED_DAGS', True
         ):
             dagruns = []
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False, read_dags_from_db=False)
@@ -4133,38 +4137,37 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
         [
             # expected, dag_count, task_count, start_ago, schedule_interval, shape
             # One DAG with one task per DAG file
-            ([8, 8, 8, 8], 1, 1, "1d", "None", "no_structure"),  # noqa
-            ([8, 8, 8, 8], 1, 1, "1d", "None", "linear"),  # noqa
-            ([20, 11, 11, 11], 1, 1, "1d", "@once", "no_structure"),  # noqa
-            ([20, 11, 11, 11], 1, 1, "1d", "@once", "linear"),  # noqa
-            ([20, 21, 23, 25], 1, 1, "1d", "30m", "no_structure"),  # noqa
-            ([20, 21, 23, 25], 1, 1, "1d", "30m", "linear"),  # noqa
-            ([20, 21, 23, 25], 1, 1, "1d", "30m", "binary_tree"),  # noqa
-            ([20, 21, 23, 25], 1, 1, "1d", "30m", "star"),  # noqa
-            ([20, 21, 23, 25], 1, 1, "1d", "30m", "grid"),  # noqa
+            ([9, 9, 9, 9], 1, 1, "1d", "None", "no_structure"),  # noqa
+            ([9, 9, 9, 9], 1, 1, "1d", "None", "linear"),  # noqa
+            ([21, 12, 12, 12], 1, 1, "1d", "@once", "no_structure"),  # noqa
+            ([21, 12, 12, 12], 1, 1, "1d", "@once", "linear"),  # noqa
+            ([21, 22, 24, 26], 1, 1, "1d", "30m", "no_structure"),  # noqa
+            ([21, 22, 24, 26], 1, 1, "1d", "30m", "linear"),  # noqa
+            ([21, 22, 24, 26], 1, 1, "1d", "30m", "binary_tree"),  # noqa
+            ([21, 22, 24, 26], 1, 1, "1d", "30m", "star"),  # noqa
+            ([21, 22, 24, 26], 1, 1, "1d", "30m", "grid"),  # noqa
             # One DAG with five tasks per DAG  file
-            ([8, 8, 8, 8], 1, 5, "1d", "None", "no_structure"),  # noqa
-            ([8, 8, 8, 8], 1, 5, "1d", "None", "linear"),  # noqa
-            ([20, 11, 11, 11], 1, 5, "1d", "@once", "no_structure"),  # noqa
-            ([21, 12, 12, 12], 1, 5, "1d", "@once", "linear"),  # noqa
-            ([20, 21, 23, 25], 1, 5, "1d", "30m", "no_structure"),  # noqa
-            ([21, 23, 26, 29], 1, 5, "1d", "30m", "linear"),  # noqa
-            ([21, 23, 26, 29], 1, 5, "1d", "30m", "binary_tree"),  # noqa
-            ([21, 23, 26, 29], 1, 5, "1d", "30m", "star"),  # noqa
-            ([21, 23, 26, 29], 1, 5, "1d", "30m", "grid"),  # noqa
+            ([9, 9, 9, 9], 1, 5, "1d", "None", "no_structure"),  # noqa
+            ([9, 9, 9, 9], 1, 5, "1d", "None", "linear"),  # noqa
+            ([21, 12, 12, 12], 1, 5, "1d", "@once", "no_structure"),  # noqa
+            ([22, 13, 13, 13], 1, 5, "1d", "@once", "linear"),  # noqa
+            ([21, 22, 24, 26], 1, 5, "1d", "30m", "no_structure"),  # noqa
+            ([22, 24, 27, 30], 1, 5, "1d", "30m", "linear"),  # noqa
+            ([22, 24, 27, 30], 1, 5, "1d", "30m", "binary_tree"),  # noqa
+            ([22, 24, 27, 30], 1, 5, "1d", "30m", "star"),  # noqa
+            ([22, 24, 27, 30], 1, 5, "1d", "30m", "grid"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
-            ([8, 8, 8, 8], 10, 10, "1d", "None", "no_structure"),  # noqa
-            ([8, 8, 8, 8], 10, 10, "1d", "None", "linear"),  # noqa
-            ([83, 26, 26, 26], 10, 10, "1d", "@once", "no_structure"),  # noqa
-            ([93, 39, 39, 39], 10, 10, "1d", "@once", "linear"),  # noqa
-            ([83, 87, 87, 87], 10, 10, "1d", "30m", "no_structure"),  # noqa
-            ([93, 113, 113, 113], 10, 10, "1d", "30m", "linear"),  # noqa
-            ([93, 107, 107, 107], 10, 10, "1d", "30m", "binary_tree"),  # noqa
-            ([93, 107, 107, 107], 10, 10, "1d", "30m", "star"),  # noqa
-            ([93, 107, 107, 107], 10, 10, "1d", "30m", "grid"),  # noqa
+            ([9, 9, 9, 9], 10, 10, "1d", "None", "no_structure"),  # noqa
+            ([9, 9, 9, 9], 10, 10, "1d", "None", "linear"),  # noqa
+            ([84, 27, 27, 27], 10, 10, "1d", "@once", "no_structure"),  # noqa
+            ([94, 40, 40, 40], 10, 10, "1d", "@once", "linear"),  # noqa
+            ([84, 88, 88, 88], 10, 10, "1d", "30m", "no_structure"),  # noqa
+            ([94, 114, 114, 114], 10, 10, "1d", "30m", "linear"),  # noqa
+            ([94, 108, 108, 108], 10, 10, "1d", "30m", "binary_tree"),  # noqa
+            ([94, 108, 108, 108], 10, 10, "1d", "30m", "star"),  # noqa
+            ([94, 108, 108, 108], 10, 10, "1d", "30m", "grid"),  # noqa
         ]
     )
-    @pytest.mark.quarantined
     def test_process_dags_queries_count(
         self, expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape
     ):
