@@ -21,5 +21,5 @@
 sudo swapoff -a
 sudo rm -f /swapfile
 sudo apt clean
-docker system prune --all --force
+docker system prune --all --force --volumes
 df -h

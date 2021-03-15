@@ -35,17 +35,20 @@ class TestCliConfigList(unittest.TestCase):
 
     def setUp(self) -> None:
         clear_db_jobs()
+        self.scheduler_job = None
 
     def tearDown(self) -> None:
+        if self.scheduler_job and self.scheduler_job.processor_agent:
+            self.scheduler_job.processor_agent.end()
         clear_db_jobs()
 
     def test_should_report_success_for_one_working_scheduler(self):
         with create_session() as session:
-            job = SchedulerJob()
-            job.state = State.RUNNING
-            session.add(job)
+            self.scheduler_job = SchedulerJob()
+            self.scheduler_job.state = State.RUNNING
+            session.add(self.scheduler_job)
             session.commit()
-            job.heartbeat()
+            self.scheduler_job.heartbeat()
 
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             jobs_command.check(self.parser.parse_args(['jobs', 'check', '--job-type', 'SchedulerJob']))
@@ -53,12 +56,12 @@ class TestCliConfigList(unittest.TestCase):
 
     def test_should_report_success_for_one_working_scheduler_with_hostname(self):
         with create_session() as session:
-            job = SchedulerJob()
-            job.state = State.RUNNING
-            job.hostname = 'HOSTNAME'
-            session.add(job)
+            self.scheduler_job = SchedulerJob()
+            self.scheduler_job.state = State.RUNNING
+            self.scheduler_job.hostname = 'HOSTNAME'
+            session.add(self.scheduler_job)
             session.commit()
-            job.heartbeat()
+            self.scheduler_job.heartbeat()
 
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             jobs_command.check(
@@ -69,13 +72,15 @@ class TestCliConfigList(unittest.TestCase):
         self.assertIn("Found one alive job.", temp_stdout.getvalue())
 
     def test_should_report_success_for_ha_schedulers(self):
+        scheduler_jobs = []
         with create_session() as session:
             for _ in range(3):
-                job = SchedulerJob()
-                job.state = State.RUNNING
-                session.add(job)
+                scheduler_job = SchedulerJob()
+                scheduler_job.state = State.RUNNING
+                session.add(scheduler_job)
+                scheduler_jobs.append(scheduler_job)
             session.commit()
-            job.heartbeat()
+            scheduler_job.heartbeat()
 
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             jobs_command.check(
@@ -84,27 +89,36 @@ class TestCliConfigList(unittest.TestCase):
                 )
             )
         self.assertIn("Found 3 alive jobs.", temp_stdout.getvalue())
+        for scheduler_job in scheduler_jobs:
+            if scheduler_job.processor_agent:
+                scheduler_job.processor_agent.end()
 
     def test_should_ignore_not_running_jobs(self):
+        scheduler_jobs = []
         with create_session() as session:
             for _ in range(3):
-                job = SchedulerJob()
-                job.state = State.SHUTDOWN
-                session.add(job)
+                scheduler_job = SchedulerJob()
+                scheduler_job.state = State.SHUTDOWN
+                session.add(scheduler_job)
+                scheduler_jobs.append(scheduler_job)
             session.commit()
         # No alive jobs found.
         with pytest.raises(SystemExit, match=r"No alive jobs found."):
             jobs_command.check(self.parser.parse_args(['jobs', 'check']))
+        for scheduler_job in scheduler_jobs:
+            if scheduler_job.processor_agent:
+                scheduler_job.processor_agent.end()
 
     def test_should_raise_exception_for_multiple_scheduler_on_one_host(self):
+        scheduler_jobs = []
         with create_session() as session:
             for _ in range(3):
-                job = SchedulerJob()
-                job.state = State.RUNNING
-                job.hostname = 'HOSTNAME'
-                session.add(job)
+                scheduler_job = SchedulerJob()
+                scheduler_job.state = State.RUNNING
+                scheduler_job.hostname = 'HOSTNAME'
+                session.add(scheduler_job)
             session.commit()
-            job.heartbeat()
+            scheduler_job.heartbeat()
 
         with pytest.raises(SystemExit, match=r"Found 3 alive jobs. Expected only one."):
             jobs_command.check(
@@ -119,6 +133,9 @@ class TestCliConfigList(unittest.TestCase):
                     ]
                 )
             )
+        for scheduler_job in scheduler_jobs:
+            if scheduler_job.processor_agent:
+                scheduler_job.processor_agent.end()
 
     def test_should_raise_exception_for_allow_multiple_and_limit_1(self):
         with pytest.raises(
