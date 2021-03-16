@@ -21,8 +21,6 @@ import base64
 import json
 import unittest
 
-from airflow.providers.amazon.aws.hooks.secrets_manager import SecretsManagerHook
-
 try:
     from moto import mock_secretsmanager
 except ImportError:
@@ -33,12 +31,14 @@ class TestSecretsManagerHook(unittest.TestCase):
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
     def test_get_conn_returns_a_boto3_connection(self):
+        from airflow.providers.amazon.aws.hooks.secrets_manager import SecretsManagerHook
         hook = SecretsManagerHook(aws_conn_id='aws_default')
         assert hook.get_conn() is not None
 
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
     def test_get_secret_string(self):
+        from airflow.providers.amazon.aws.hooks.secrets_manager import SecretsManagerHook
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value = '{"user": "test"}'
         hook = SecretsManagerHook(aws_conn_id='aws_default')
@@ -56,6 +56,7 @@ class TestSecretsManagerHook(unittest.TestCase):
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
     def test_get_secret_dict(self):
+        from airflow.providers.amazon.aws.hooks.secrets_manager import SecretsManagerHook
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value = '{"user": "test"}'
         hook = SecretsManagerHook(aws_conn_id='aws_default')
@@ -73,6 +74,7 @@ class TestSecretsManagerHook(unittest.TestCase):
     @unittest.skipIf(mock_secretsmanager is None, 'mock_secretsmanager package not present')
     @mock_secretsmanager
     def test_get_secret_binary(self):
+        from airflow.providers.amazon.aws.hooks.secrets_manager import SecretsManagerHook
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value_binary = base64.b64encode(b'{"username": "test"}')
         hook = SecretsManagerHook(aws_conn_id='aws_default')
