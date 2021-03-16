@@ -567,13 +567,13 @@ repos:
         name: Lint React UI
         language: node
         entry: bash
-        args: ["-c", "cd airflow/ui && yarn lint"]
+        args: ["-c", "cd airflow/ui && yarn install && yarn lint"]
         files: ^airflow/ui/.*\.(ts|tsx)$
       - id: ui-test
         name: Test React UI
         language: node
         entry: bash
-        args: ["-c", "cd airflow/ui && yarn test"]
+        args: ["-c", "cd airflow/ui && yarn install && yarn test"]
         files: ^airflow/ui/.*\.(ts|tsx)$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
