@@ -6,7 +6,8 @@
     "start": "webpack-dev-server --mode development --open",
     "build": "webpack --mode production",
     "test": "jest",
-    "lint": "eslint --format codeframe --ext mjs,jsx,js,tsx,ts src test && tsc"
+    "lint": "eslint --format codeframe --ext mjs,jsx,js,tsx,ts src test && tsc",
+    "prepare": "cd ../.. && husky install"
   },
   "dependencies": {
     "@chakra-ui/react": "^1.3.4",
@@ -31,6 +32,7 @@
     "eslint-config-airbnb-typescript": "^12.3.1",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-jsx-a11y": "^6.4.1",
+    "husky": "^5.1.3",
     "jest": "^26",
     "neutrino": "^9.5.0",
     "neutrinojs-typescript": "^1.1.6",

@@ -95,7 +95,7 @@ detect-private-key
 doctoc
 dont-use-safe-filter
 end-of-file-fixer
-eslint
+eslint-ui
 fix-encoding-pragma
 flake8
 flynt

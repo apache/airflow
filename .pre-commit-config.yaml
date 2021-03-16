@@ -463,7 +463,7 @@ repos:
         require_serial: true
         files: provider.yaml$|scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py$|^docs/
         additional_dependencies: ['PyYAML==5.3.1', 'jsonschema==3.2.0', 'tabulate==0.8.7']
-      - id: eslint
+      - id: eslint-ui
         name: ESLint
         entry: "eslint"
         args:
