@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from connexion import NoContent
 from flask import current_app, request
 from flask_appbuilder.security.sqla.models import Permission, Role
 from marshmallow import ValidationError
@@ -69,12 +70,49 @@ def get_permissions(limit=None, offset=None):
     return action_collection_schema.dump(ActionCollection(actions=actions, total_entries=total_entries))
 
 
-def delete_role():
+@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE_MODEL_VIEW)])
+def delete_role(role_name):
     """Delete a role"""
+    ab_security_manager = current_app.appbuilder.sm
+    role = ab_security_manager.find_role(name=role_name)
+    if not role:
+        raise NotFound(title="Role not found", detail=f"The Role with name `{role_name}` was not found")
+    ab_security_manager.delete_role(role_name=role_name)
+    return NoContent, 204
 
 
-def patch_role():
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE_MODEL_VIEW)])
+def patch_role(role_name, update_mask=None):
     """Update a role"""
+    appbuilder = current_app.appbuilder
+    security_manager = appbuilder.sm
+    body = request.json
+    try:
+        data = role_schema.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+    role = security_manager.find_role(name=role_name)
+    if not role:
+        raise NotFound(title="Role not found", detail=f"Role with name: `{role_name} was not found")
+    if update_mask:
+        update_mask = [i.strip() for i in update_mask]
+        data_ = {}
+        for field in update_mask:
+            if field in data and not field == "permissions":
+                data_[field] = data[field]
+            elif field == "actions":
+                data_["permissions"] = data['permissions']
+            else:
+                raise BadRequest(detail=f"'{field}' in update_mask is unknown")
+        data = data_
+    perms = data.get("permissions", [])
+    if perms:
+        perms = [
+            (item['permission']['name'], item['view_menu']['name']) for item in data['permissions'] if item
+        ]
+    security_manager.update_role(pk=role.id, name=data['name'])
+    security_manager.init_role(role_name=data['name'], perms=perms or role.permissions)
+    return role_schema.dump(role)
 
 
 @security.requires_access([(permissions.ACTION_CAN_ADD, permissions.RESOURCE_ROLE_MODEL_VIEW)])
