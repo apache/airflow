@@ -28,7 +28,7 @@ from the variables used to build the image starting with ``AIRFLOW``.
 The image entrypoint works as follows:
 
 * In case the user is not "airflow" (with undefined user id) and the group id of the user is set to ``0`` (root),
-  then the user is dynamically added to /etc/passwd at entry using ``USER_NAME`` variable to define the user name.
+  then the user is dynamically added to ``/etc/passwd`` at entry using ``USER_NAME`` variable to define the user name.
   This is in order to accommodate the
   `OpenShift Guidelines <https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html>`_
 
