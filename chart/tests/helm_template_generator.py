@@ -96,7 +96,7 @@ def render_chart(name="RELEASE-NAME", values=None, show_only=None):
         if show_only:
             for i in show_only:
                 command.extend(["--show-only", i])
-        templates = subprocess.check_output(command)
+        templates = subprocess.check_output(command, stderr=subprocess.PIPE)
         k8s_objects = yaml.full_load_all(templates)
         k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
         for k8s_object in k8s_objects:

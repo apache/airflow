@@ -15,19 +15,21 @@
     specific language governing permissions and limitations
     under the License.
 
-External Redis
---------------
+Using additional containers
+----------------------------
 
-When using the ``CeleryExecutor`` or the ``CeleryKubernetesExecutor``
-the chart will by default create a redis Deployment/StatefulSet
-alongside airflow. You can also use “your own” redis instance by
-providing the ``data.brokerUrl`` (or ``data.brokerUrlSecretName``) value
-directly:
+If you are using your own sidecar container, you can add it through the ``extraContainers`` value.
+You can define different containers for scheduler, webserver and worker pods.
 
-.. code-block:: bash
+For example, a sidecar that syncs DAGs from object storage.
 
-   helm install airflow . \
-       --namespace airflow \
-       --set executor=CeleryExecutor \
-       --set redis.enabled=false \
-       --set data.brokerUrl=redis://redis-user:password@redis-host:6379/0
+.. note::
+
+   ``extraContainers`` value supports CeleryExecutor only.
+
+.. code-block:: yaml
+
+    extraContainers:
+      - name: s3-sync
+        image: my-company/s3-sync:latest
+        imagePullPolicy: Always

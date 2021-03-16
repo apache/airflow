@@ -30,6 +30,7 @@ Helm Chart for Apache Airflow
     manage-dags-files
     keda
     external-redis
+    using-additional-containers
 
 .. toctree::
     :hidden:
@@ -42,12 +43,29 @@ This chart will bootstrap an `Airflow <https://airflow.apache.org>`__
 deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 `Helm <https://helm.sh>`__ package manager.
 
-Prerequisites
--------------
+Requirements
+------------
 
 -  Kubernetes 1.14+ cluster
 -  Helm 2.11+ or Helm 3.0+
--  PV provisioner support in the underlying infrastructure
+-  PV provisioner support in the underlying infrastructure (optionally)
+
+Features
+--------
+
+* Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``CeleryKubernetesExecutor``, ``KubernetesExecutor``.
+* Supported Airflow version: ``1.10+``, ``2.0+``
+* Supported database backend: ``PostgresSQL``, ``MySQL``
+* Autoscaling for ``CeleryExecutor`` provided by KEDA
+* PostgresSQL and PgBouncer with a battle-tested configuration
+* Monitoring:
+   * StatsD/Prometheus metrics for Airflow
+   * Prometheus metrics for PgBouncer
+   * Flower
+* Automatic database migration after a new deployment
+* Administrator account creation during deployment
+* Kerberos secure configuration
+* One-command deployment for any type of executor. You don't need to provide other services e.g. Redis/Database to test the Airflow.
 
 Installing the Chart
 --------------------

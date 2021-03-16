@@ -109,12 +109,13 @@ airflowPodAnnotations: {}
 rbacEnabled: true
 
 # Airflow executor
-# Options: SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor
+# Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
 executor: "KubernetesExecutor"
 
-# If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheduler's
+# If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
 # service account will have access to communicate with the api-server and launch pods.
-# If this is true and using the CeleryExecutor, the workers will be able to launch pods.
+# If this is true and using CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers
+# will be able to launch pods.
 allowPodLaunching: true
 
 # Images
@@ -354,6 +355,10 @@ workers:
   safeToEvict: true
   # Annotations to add to worker kubernetes service account.
   serviceAccountAnnotations: {}
+
+  # Launch additional containers into worker.
+  extraContainers: []
+
   # Mount additional volumes into worker.
   extraVolumes: []
   extraVolumeMounts: []
@@ -394,6 +399,9 @@ scheduler:
 
   # Annotations to add to scheduler kubernetes service account.
   serviceAccountAnnotations: {}
+
+  # Launch additional containers into scheduler.
+  extraContainers: []
 
   # Mount additional volumes into scheduler.
   extraVolumes: []
@@ -442,6 +450,9 @@ webserver:
     firstName: admin
     lastName: user
     password: admin
+
+  # Launch additional containers into webserver.
+  extraContainers: []
 
   # Mount additional volumes into webserver.
   extraVolumes: []

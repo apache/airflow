@@ -160,10 +160,11 @@
         },
         "executor": {
             "description": "Airflow executor.",
-            "type": "string"
+            "type": "string",
+            "enum": ["LocalExecutor", "CeleryExecutor", "KubernetesExecutor", "CeleryKubernetesExecutor"]
         },
         "allowPodLaunching": {
-            "description": "If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheduler's service account will have access to communicate with the api-server and launch pods. If this is true and using the CeleryExecutor, the workers will be able to launch pods.",
+            "description": "If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's service account will have access to communicate with the api-server and launch pods. \nIf this is true and using the CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers will be able to launch pods.",
             "type": "boolean"
         },
         "images": {
@@ -631,6 +632,10 @@
                   "description": "Annotations to add to the worker kubernetes service account.",
                   "type": "object"
                 },
+                "extraContainers": {
+                    "description": "Launch additional containers into workers.",
+                    "type": "array"
+                },
                 "extraVolumes": {
                     "description": "Mount additional volumes into workers.",
                     "type": "array"
@@ -704,6 +709,10 @@
                 "serviceAccountAnnotations": {
                   "description": "Annotations to add to the scheduler kubernetes service account.",
                   "type": "object"
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into scheduler.",
+                    "type": "array"
                 },
                 "extraVolumes": {
                     "description": "Mount additional volumes into scheduler.",
@@ -830,6 +839,10 @@
                             "type": "string"
                         }
                     }
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into webserver.",
+                    "type": "array"
                 },
                 "extraVolumes": {
                     "description": "Mount additional volumes into webserver.",

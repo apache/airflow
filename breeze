@@ -25,7 +25,7 @@ if [[ ${BREEZE_REDIRECT=} == "" ]]; then
     mkdir -p "${AIRFLOW_SOURCES}"/logs
     export BREEZE_REDIRECT="true"
     if [[ "$(uname)" == "Darwin" ]]; then
-      exec script -q "${AIRFLOW_SOURCES}"/logs/breeze.out "$BASH" -c "$(printf "%q " "${0}" "${@}")"
+      exec script -q "${AIRFLOW_SOURCES}"/logs/breeze.out "$(command -v bash)" -c "$(printf "%q " "${0}" "${@}")"
     else
       exec script --return --quiet "${AIRFLOW_SOURCES}"/logs/breeze.out -c "$(printf "%q " "${0}" "${@}")"
     fi

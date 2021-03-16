@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +14,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-if [[ ${GITHUB_REF} == 'refs/heads/main' ]]; then
-  echo "::set-output name=branch::constraints-main"
-elif [[ ${GITHUB_REF} == 'refs/heads/master' ]]; then
-  echo "::set-output name=branch::constraints-master"
-elif [[ ${GITHUB_REF} == 'refs/heads/v1-10-test' ]]; then
-  echo "::set-output name=branch::constraints-1-10"
-elif [[ ${GITHUB_REF} == 'refs/heads/v2-0-test' ]]; then
-  echo "::set-output name=branch::constraints-2-0"
-else
-  echo
-  echo "Unexpected ref ${GITHUB_REF}. Exiting!"
-  echo
-  exit 1
-fi
+import pytest
+
+from airflow.www import app
+from tests.test_utils.config import conf_vars
+from tests.test_utils.decorators import dont_initialize_flask_app_submodules
+
+
+@pytest.fixture(scope="session")
+def minimal_app_for_api():
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+    )
+    def factory():
+        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
+            return app.create_app(testing=True)  # type:ignore
+
+    return factory()
+
+
+@pytest.fixture
+def session():
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        yield session

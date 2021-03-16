@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import unittest
+import unittest.mock
 from datetime import datetime
 
+import pytest
 from itsdangerous import URLSafeSerializer
 from parameterized import parameterized
 
@@ -29,17 +30,43 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy import DummyOperator
 from airflow.security import permissions
 from airflow.utils.session import provide_session
-from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 SERIALIZER = URLSafeSerializer(conf.get('webserver', 'secret_key'))
 FILE_TOKEN = SERIALIZER.dumps(__file__)
 
 
-class TestDagEndpoint(unittest.TestCase):
+@pytest.fixture(scope="module")
+def configured_app(minimal_app_for_api):
+    app = minimal_app_for_api
+    create_user(
+        app,  # type: ignore
+        username="test",
+        role_name="Test",
+        permissions=[
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+        ],
+    )
+    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_granular_permissions", role_name="TestGranularDag")  # type: ignore
+    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+        "TEST_DAG_1",
+        access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
+    )
+
+    yield app
+
+    delete_user(app, username="test")  # type: ignore
+    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test_granular_permissions")  # type: ignore
+
+
+class TestDagEndpoint:
     dag_id = "test_dag"
     task_id = "op1"
     dag2_id = "test_dag2"
@@ -51,69 +78,45 @@ class TestDagEndpoint(unittest.TestCase):
         clear_db_dags()
         clear_db_serialized_dags()
 
-    @classmethod
-    @dont_initialize_flask_app_submodules(
-        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
-    )
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
-            cls.app = app.create_app(testing=True)  # type:ignore
-        create_user(
-            cls.app,  # type: ignore
-            username="test",
-            role_name="Test",
-            permissions=[
-                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
-            ],
-        )
-        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
-        create_user(
-            cls.app, username="test_granular_permissions", role_name="TestGranularDag"  # type: ignore
-        )
-        cls.app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+    def __init__(self, configured_app):
+
+        app = configured_app
+        app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
             "TEST_DAG_1",
             access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
         )
 
         with DAG(
-            cls.dag_id,
+            self.dag_id,
             start_date=datetime(2020, 6, 15),
             doc_md="details",
             params={"foo": 1},
             tags=['example'],
         ) as dag:
-            DummyOperator(task_id=cls.task_id)
+            DummyOperator(task_id=self.task_id)
 
-        with DAG(cls.dag2_id, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
-            DummyOperator(task_id=cls.task_id)
+        with DAG(self.dag2_id, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
+            DummyOperator(task_id=self.task_id)
 
-        with DAG(cls.dag3_id) as dag3:  # DAG start_date set to None
-            DummyOperator(task_id=cls.task_id, start_date=datetime(2019, 6, 12))
+        with DAG(self.dag3_id) as dag3:  # DAG start_date set to None
+            DummyOperator(task_id=self.task_id, start_date=datetime(2019, 6, 12))
 
-        cls.dag = dag  # type:ignore
-        cls.dag2 = dag2  # type: ignore
-        cls.dag3 = dag3  # tupe: ignore
+        self.dag = dag  # type:ignore
+        self.dag2 = dag2  # type: ignore
+        self.dag3 = dag3  # tupe: ignore
 
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {dag.dag_id: dag, dag2.dag_id: dag2, dag3.dag_id: dag3}
 
-        cls.app.dag_bag = dag_bag  # type:ignore
+        configured_app.dag_bag = dag_bag  # type:ignore
 
-    @classmethod
-    def tearDownClass(cls) -> None:
-        delete_user(cls.app, username="test")  # type: ignore
-        delete_user(cls.app, username="test_no_permissions")  # type: ignore
-        delete_user(cls.app, username="test_granular_permissions")  # type: ignore
-
-    def setUp(self) -> None:
+    @pytest.fixture(autouse=True)
+    def setup_attrs(self, configured_app) -> None:
         self.clean_db()
+        self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         self.clean_db()
 
     @provide_session
@@ -147,8 +150,7 @@ class TestGetDag(TestDagEndpoint):
         } == response.json
 
     @conf_vars({("webserver", "secret_key"): "mysecret"})
-    @provide_session
-    def test_should_respond_200_with_schedule_interval_none(self, session=None):
+    def test_should_respond_200_with_schedule_interval_none(self, session):
         dag_model = DagModel(
             dag_id="TEST_DAG_1",
             fileloc="/tmp/dag_1.py",
@@ -300,18 +302,14 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
-    @dont_initialize_flask_app_submodules(
-        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
-    )
     def test_should_respond_200_serialized(self):
-        # Create empty app with empty dagbag to check if DAG is read from db
-        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
-            app_serialized = app.create_app(testing=True)
-        dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
-        app_serialized.dag_bag = dag_bag
-        client = app_serialized.test_client()
+        # Get the dag out of the dagbag before we patch it to an empty one
+        SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id))
 
-        SerializedDagModel.write_dag(self.dag)
+        # Create empty app with empty dagbag to check if DAG is read from db
+        dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
+        patcher = unittest.mock.patch.object(self.app, 'dag_bag', dag_bag)
+        patcher.start()
 
         expected = {
             "catchup": True,
@@ -338,12 +336,14 @@ class TestGetDagDetails(TestDagEndpoint):
             "tags": [{'name': 'example'}],
             "timezone": "Timezone('UTC')",
         }
-        response = client.get(
+        response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
 
         assert response.status_code == 200
         assert response.json == expected
+
+        patcher.stop()
 
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={'REMOTE_USER': "test"}

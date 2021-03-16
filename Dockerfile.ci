@@ -241,12 +241,12 @@ RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
 ENV CONSTRAINTS_GITHUB_REPOSITORY=${CONSTRAINTS_GITHUB_REPOSITORY}
 
-ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
+ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${AIRFLOW_BRANCH}"
 ARG AIRFLOW_CONSTRAINTS="constraints"
 ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${AIRFLOW_CONSTRAINTS_REFERENCE}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
 
-# By changing the CI build epoch we can force reinstalling Airflow from the current master
+# By changing the CI build epoch we can force reinstalling Airflow and pip all dependencies
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
 ARG AIRFLOW_CI_BUILD_EPOCH="3"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
@@ -292,8 +292,8 @@ ENV PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR}
 
 RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
-# Only copy install_airflow_from_latest_master.sh to not invalidate cache on other script changes
-COPY scripts/docker/install_airflow_from_latest_master.sh /scripts/docker/install_airflow_from_latest_master.sh
+# Only copy install_airflow_from_branch_tip.sh to not invalidate cache on other script changes
+COPY scripts/docker/install_airflow_from_branch_tip.sh /scripts/docker/install_airflow_from_branch_tip.sh
 
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
@@ -307,7 +307,7 @@ ENV UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 # account for removed dependencies (we do not install them in the first place)
 RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
-        bash /scripts/docker/install_airflow_from_latest_master.sh; \
+        bash /scripts/docker/install_airflow_from_branch_tip.sh; \
     fi
 
 # Generate random hex dump file so that we can determine whether it's faster to rebuild the image

@@ -160,7 +160,9 @@ disable=print-statement,
         missing-docstring,
         no-self-use,
         too-many-public-methods,
-        protected-access
+        protected-access,
+        redefined-outer-name, # Gets confused about file-scoped pytest fixtures
+        attribute-defined-outside-init,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

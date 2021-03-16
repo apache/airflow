@@ -72,7 +72,7 @@ jobs:
         with:
           python-version: '3.7'
       - name: "Set issue id for master"
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
         run: |
           echo "ISSUE_ID=10118" >> $GITHUB_ENV
       - name: "Set issue id for v1-10-stable"

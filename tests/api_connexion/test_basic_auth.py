@@ -15,33 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from base64 import b64encode
 
+import pytest
 from flask_login import current_user
 from parameterized import parameterized
 
-from airflow.www.app import create_app
+from tests.test_utils.api_connexion_utils import assert_401
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 
 
-class TestBasicAuth(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        with conf_vars(
-            {
-                ("api", "auth_backend"): "airflow.api.auth.backend.basic_auth",
-                ('api', 'enable_experimental_api'): 'true',
-            }
-        ):
-            cls.app = create_app(testing=True)
+class TestBasicAuth:
+    @pytest.fixture(autouse=True)
+    def set_attrs(self, minimal_app_for_api):
+        self.app = minimal_app_for_api
 
-        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
-        role_admin = cls.appbuilder.sm.find_role("Admin")
-        tester = cls.appbuilder.sm.find_user(username="test")
+        sm = self.app.appbuilder.sm  # pylint: disable=no-member,invalid-name
+        tester = sm.find_user(username="test")
         if not tester:
-            cls.appbuilder.sm.add_user(
+            role_admin = sm.find_role("Admin")
+            sm.add_user(
                 username="test",
                 first_name="test",
                 last_name="test",
@@ -50,15 +44,41 @@ class TestBasicAuth(unittest.TestCase):
                 password="test",
             )
 
+    @pytest.fixture(autouse=True, scope="class")
+    def with_basic_auth_backend(self, minimal_app_for_api):
+        from airflow.www.extensions.init_security import init_api_experimental_auth
+
+        old_auth = getattr(minimal_app_for_api, 'api_auth')
+
+        try:
+            with conf_vars({("api", "auth_backend"): "airflow.api.auth.backend.basic_auth"}):
+                init_api_experimental_auth(minimal_app_for_api)
+                yield
+        finally:
+            setattr(minimal_app_for_api, 'api_auth', old_auth)
+
     def test_success(self):
         token = "Basic " + b64encode(b"test:test").decode()
         clear_db_pools()
 
         with self.app.test_client() as test_client:
-            response = test_client.get("/api/experimental/pools", headers={"Authorization": token})
+            response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert current_user.email == "test@fab.org"
 
         assert response.status_code == 200
+        assert response.json == {
+            "pools": [
+                {
+                    "name": "default_pool",
+                    "slots": 128,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "open_slots": 128,
+                },
+            ],
+            "total_entries": 1,
+        }
 
     @parameterized.expand(
         [
@@ -74,9 +94,11 @@ class TestBasicAuth(unittest.TestCase):
     )
     def test_malformed_headers(self, token):
         with self.app.test_client() as test_client:
-            response = test_client.get("/api/experimental/pools", headers={"Authorization": token})
+            response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert response.status_code == 401
+            assert response.headers["Content-Type"] == "application/problem+json"
             assert response.headers["WWW-Authenticate"] == "Basic"
+            assert_401(response)
 
     @parameterized.expand(
         [
@@ -88,21 +110,8 @@ class TestBasicAuth(unittest.TestCase):
     )
     def test_invalid_auth_header(self, token):
         with self.app.test_client() as test_client:
-            response = test_client.get("/api/experimental/pools", headers={"Authorization": token})
+            response = test_client.get("/api/v1/pools", headers={"Authorization": token})
             assert response.status_code == 401
+            assert response.headers["Content-Type"] == "application/problem+json"
             assert response.headers["WWW-Authenticate"] == "Basic"
-
-    def test_experimental_api(self):
-        with self.app.test_client() as test_client:
-            response = test_client.get("/api/experimental/pools", headers={"Authorization": "Basic"})
-            assert response.status_code == 401
-            assert response.headers["WWW-Authenticate"] == "Basic"
-            assert response.data == b'Unauthorized'
-
-            clear_db_pools()
-            response = test_client.get(
-                "/api/experimental/pools",
-                headers={"Authorization": "Basic " + b64encode(b"test:test").decode()},
-            )
-            assert response.status_code == 200
-            assert response.json[0]["pool"] == 'default_pool'
+            assert_401(response)
