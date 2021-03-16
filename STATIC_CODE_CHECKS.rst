@@ -170,6 +170,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``trailing-whitespace``               Removes trailing whitespace at end of line
 ----------------------------------- ---------------------------------------------------------------- ------------
+``ui-lint-test``                      Lint and test the React UI
+----------------------------------- ---------------------------------------------------------------- ------------
 ``update-breeze-file``                Update output of breeze command in BREEZE.rst
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-extras``                     Updates extras in the documentation

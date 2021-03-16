@@ -563,6 +563,10 @@ repos:
         language_version: python3
         additional_dependencies: ['flynt']
         files: \.py$
+      - id: ui-lint-test
+        name: Lint and test React UI
+        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_ui_lint_test.sh
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: build
