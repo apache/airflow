@@ -1419,6 +1419,11 @@ function breeze::parse_arguments() {
             command_to_run="run_docker_compose"
             docker_compose_command="down"
             EXTRA_DC_OPTIONS+=("--remove-orphans")
+            for INTEGRATION in ${_breeze_allowed_integrations}; do
+                if [[ ${INTEGRATION} != "all" ]]; then
+                    INTEGRATIONS+=("${INTEGRATION}")
+                fi
+            done
             shift
             ;;
         restart)
