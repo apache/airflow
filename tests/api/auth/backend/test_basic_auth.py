@@ -15,33 +15,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from base64 import b64encode
 
+import pytest
 from flask_login import current_user
 from parameterized import parameterized
 
-from airflow.www.app import create_app
-from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 
 
-class TestBasicAuth(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        with conf_vars(
-            {
-                ("api", "auth_backend"): "airflow.api.auth.backend.basic_auth",
-                ('api', 'enable_experimental_api'): 'true',
-            }
-        ):
-            cls.app = create_app(testing=True)
+class TestBasicAuth:
+    @pytest.fixture(autouse=True)
+    def set_attrs(self, minimal_app_for_experimental_api):
+        self.app = minimal_app_for_experimental_api
 
-        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
-        role_admin = cls.appbuilder.sm.find_role("Admin")
-        tester = cls.appbuilder.sm.find_user(username="test")
+        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
+        role_admin = self.appbuilder.sm.find_role("Admin")
+        tester = self.appbuilder.sm.find_user(username="test")
         if not tester:
-            cls.appbuilder.sm.add_user(
+            self.appbuilder.sm.add_user(
                 username="test",
                 first_name="test",
                 last_name="test",

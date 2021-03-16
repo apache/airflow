@@ -389,7 +389,7 @@ min-similarity-lines=4
 # Regular expression matching correct argument names. Overrides argument-
 # naming-style.
 # BasPH: Kept snake_case but allow for 1-char argument names.
-argument-rgx=[a-z_][a-z0-9_]{0,30}$
+argument-rgx=[a-z_][a-z0-9_]{0,32}$
 
 # Naming style matching correct attribute names.
 attr-naming-style=snake_case
