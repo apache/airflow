@@ -838,3 +838,4 @@ dags:
     wait: 60
     containerName: git-sync
     uid: 65533
+    extraVolumeMounts: []

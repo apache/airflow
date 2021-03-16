@@ -1446,6 +1446,10 @@
                             "description": "Git sync container run as user parameter.",
                             "type": "integer"
                         },
+                        "extraVolumeMounts": {
+                            "description": "Mount additional volumes into git sync container.",
+                            "type": "array"
+                        },
                         "credentialsSecret": {
                             "description": "TODO",
                             "type": ["string", "null"]
