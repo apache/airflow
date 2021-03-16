@@ -36,11 +36,16 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialize
 
 SERIALIZER = URLSafeSerializer(conf.get('webserver', 'secret_key'))
 FILE_TOKEN = SERIALIZER.dumps(__file__)
+DAG_ID = "test_dag"
+TASK_ID = "op1"
+DAG2_ID = "test_dag2"
+DAG3_ID = "test_dag3"
 
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
+
     create_user(
         app,  # type: ignore
         username="test",
@@ -58,6 +63,30 @@ def configured_app(minimal_app_for_api):
         "TEST_DAG_1",
         access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )
+    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+        "TEST_DAG_1",
+        access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
+    )
+
+    with DAG(
+        DAG_ID,
+        start_date=datetime(2020, 6, 15),
+        doc_md="details",
+        params={"foo": 1},
+        tags=['example'],
+    ) as dag:
+        DummyOperator(task_id=TASK_ID)
+
+    with DAG(DAG2_ID, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
+        DummyOperator(task_id=TASK_ID)
+
+    with DAG(DAG3_ID) as dag3:  # DAG start_date set to None
+        DummyOperator(task_id=TASK_ID, start_date=datetime(2019, 6, 12))
+
+    dag_bag = DagBag(os.devnull, include_examples=False)
+    dag_bag.dags = {dag.dag_id: dag, dag2.dag_id: dag2, dag3.dag_id: dag3}
+
+    app.dag_bag = dag_bag
 
     yield app
 
@@ -67,54 +96,20 @@ def configured_app(minimal_app_for_api):
 
 
 class TestDagEndpoint:
-    dag_id = "test_dag"
-    task_id = "op1"
-    dag2_id = "test_dag2"
-    dag3_id = "test_dag3"
-
     @staticmethod
     def clean_db():
         clear_db_runs()
         clear_db_dags()
         clear_db_serialized_dags()
 
-    def __init__(self, configured_app):
-
-        app = configured_app
-        app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
-            "TEST_DAG_1",
-            access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
-        )
-
-        with DAG(
-            self.dag_id,
-            start_date=datetime(2020, 6, 15),
-            doc_md="details",
-            params={"foo": 1},
-            tags=['example'],
-        ) as dag:
-            DummyOperator(task_id=self.task_id)
-
-        with DAG(self.dag2_id, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
-            DummyOperator(task_id=self.task_id)
-
-        with DAG(self.dag3_id) as dag3:  # DAG start_date set to None
-            DummyOperator(task_id=self.task_id, start_date=datetime(2019, 6, 12))
-
-        self.dag = dag  # type:ignore
-        self.dag2 = dag2  # type: ignore
-        self.dag3 = dag3  # tupe: ignore
-
-        dag_bag = DagBag(os.devnull, include_examples=False)
-        dag_bag.dags = {dag.dag_id: dag, dag2.dag_id: dag2, dag3.dag_id: dag3}
-
-        configured_app.dag_bag = dag_bag  # type:ignore
-
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
         self.clean_db()
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
+        self.dag_id = DAG_ID
+        self.dag2_id = DAG2_ID
+        self.dag3_id = DAG3_ID
 
     def teardown_method(self) -> None:
         self.clean_db()
