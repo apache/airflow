@@ -372,7 +372,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def serialize_operator(cls, op: BaseOperator) -> Dict[str, Any]:
         """Serializes operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
-        serialize_op['_task_type'] = op.__class__.__name__
+        serialize_op['_task_type'] = op.task_type
         serialize_op['_task_module'] = op.__class__.__module__
 
         # Used to determine if an Operator is inherited from DummyOperator
