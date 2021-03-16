@@ -183,9 +183,9 @@ class DagBag(LoggingMixin):
             # 2. check the last_updated column in SerializedDag table to see if Serialized DAG is updated
             # 3. if (2) is yes, fetch the Serialized DAG.
             min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
-            if (
-                dag_id in self.dags_last_fetched
-                and timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
+            if dag_id in self.dags_last_fetched and (
+                min_serialized_dag_fetch_secs == 0
+                or timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
             ):
                 sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(
                     dag_id=dag_id,

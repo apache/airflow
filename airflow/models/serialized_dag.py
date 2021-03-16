@@ -113,7 +113,7 @@ class SerializedDagModel(Base):
         # Checks if (Current Time - Time when the DAG was written to DB) < min_update_interval
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
-        if min_update_interval is not None:
+        if min_update_interval is not None and min_update_interval > 0:
             if session.query(
                 exists().where(
                     and_(

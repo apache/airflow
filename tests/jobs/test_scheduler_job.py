@@ -4101,6 +4101,8 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             {
                 ('scheduler', 'use_job_schedule'): 'True',
                 ('core', 'load_examples'): 'False',
+                ('core', 'min_serialized_dag_update_interval'): '0',
+                ('core', 'min_serialized_dag_fetch_interval'): '0',
             }
         ):
             dagruns = []
@@ -4184,6 +4186,8 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             {
                 ('scheduler', 'use_job_schedule'): 'True',
                 ('core', 'store_serialized_dags'): 'True',
+                ('core', 'min_serialized_dag_update_interval'): '0',
+                ('core', 'min_serialized_dag_fetch_interval'): '0',
             }
         ):
 
