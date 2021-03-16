@@ -50,6 +50,7 @@ RESOURCE_ROLE_MODEL_VIEW = "RoleModelView"
 RESOURCE_PERMISSION_MODEL_VIEW = "PermissionModelView"
 
 # Action Constants
+ACTION_CAN_ADD = "can_add"
 ACTION_CAN_LIST = "can_list"
 ACTION_CAN_SHOW = "can_show"
 ACTION_CAN_CREATE = "can_create"

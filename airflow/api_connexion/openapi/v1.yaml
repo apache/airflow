@@ -1412,6 +1412,31 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
+    post:
+      summary: Create a role
+      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      operationId: post_role
+      tags: [Role]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
   /roles/{role_name}:
     parameters:
       - $ref: '#/components/parameters/RoleName'
@@ -1428,6 +1453,53 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update a role
+      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      operationId: patch_role
+      tags: [Role]
+      parameters:
+        - $ref: '#/components/parameters/UpdateMask'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Role'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete a role
+      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      operationId: delete_role
+      tags: [Role]
+      responses:
+        '204':
+          description: Success.
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':

@@ -14,12 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import current_app
+from flask import current_app, request
 from flask_appbuilder.security.sqla.models import Permission, Role
+from marshmallow import ValidationError
 from sqlalchemy import func
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.role_and_permission_schema import (
     ActionCollection,
@@ -66,3 +67,33 @@ def get_permissions(limit=None, offset=None):
     query = session.query(Permission)
     actions = query.offset(offset).limit(limit).all()
     return action_collection_schema.dump(ActionCollection(actions=actions, total_entries=total_entries))
+
+
+def delete_role():
+    """Delete a role"""
+
+
+def patch_role():
+    """Update a role"""
+
+
+@security.requires_access([(permissions.ACTION_CAN_ADD, permissions.RESOURCE_ROLE_MODEL_VIEW)])
+def post_role():
+    """Create a new role"""
+    appbuilder = current_app.appbuilder
+    security_manager = appbuilder.sm
+    body = request.json
+    try:
+        data = role_schema.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+    role = security_manager.find_role(name=data['name'])
+    if not role:
+        perms = [
+            (item['permission']['name'], item['view_menu']['name']) for item in data['permissions'] if item
+        ]
+        security_manager.init_role(role_name=data['name'], perms=perms)
+        return role_schema.dump(role)
+    raise AlreadyExists(
+        detail=f"Role with name `{role.name}` already exist. Please update with patch endpoint"
+    )

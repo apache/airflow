@@ -21,7 +21,7 @@ from parameterized import parameterized
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 from airflow.www.security import EXISTING_ROLES
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_role, delete_user
 
 
 @pytest.fixture(scope="module")
@@ -33,6 +33,7 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_LIST, permissions.RESOURCE_ROLE_MODEL_VIEW),
+            (permissions.ACTION_CAN_ADD, permissions.RESOURCE_ROLE_MODEL_VIEW),
             (permissions.ACTION_CAN_SHOW, permissions.RESOURCE_ROLE_MODEL_VIEW),
             (permissions.ACTION_CAN_LIST, permissions.RESOURCE_PERMISSION_MODEL_VIEW),
         ],
@@ -154,3 +155,54 @@ class TestGetPermissionsEndpoint(TestRoleEndpoint):
             "/api/v1/permissions", environ_overrides={'REMOTE_USER': "test_no_permissions"}
         )
         assert response.status_code == 403
+
+
+class TestPostRole(TestRoleEndpoint):
+    def test_post_should_respond_200(self):
+        payload = {
+            'name': 'Test2',
+            'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+        }
+        response = self.client.post("/api/v1/roles", json=payload, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        role = self.app.appbuilder.sm.find_role('Test2')
+        assert role is not None
+        delete_role(self.app, "Test2")
+
+    def test_post_should_respond_400_for_invalid_payload(self):
+        payload = {
+            'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+        }
+        response = self.client.post("/api/v1/roles", json=payload, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 400
+        assert response.json == {
+            'detail': "{'name': ['Missing data for required field.']}",
+            'status': 400,
+            'title': 'Bad Request',
+            'type': EXCEPTIONS_LINK_MAP[400],
+        }
+
+    def test_post_should_respond_409_already_exist(self):
+        payload = {
+            'name': 'Test',
+            'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+        }
+        response = self.client.post("/api/v1/roles", json=payload, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 409
+        assert response.json == {
+            'detail': "Role with name `Test` already exist. Please update with patch endpoint",
+            'status': 409,
+            'title': 'Conflict',
+            'type': EXCEPTIONS_LINK_MAP[409],
+        }
+
+    def test_should_raises_401_unauthenticated(self):
+        response = self.client.post(
+            "/api/v1/roles",
+            json={
+                'name': 'Test2',
+                'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+            },
+        )
+
+        assert_401(response)
