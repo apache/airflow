@@ -209,9 +209,9 @@ class GitSyncSchedulerTest(unittest.TestCase):
         assert {"name": "test-volume", "emptyDir": {}} in jmespath.search(
             "spec.template.spec.volumes", docs[0]
         )
-        assert {'mountPath': '/git', 'name': 'dags'}  in jmespath.search(
+        assert {'mountPath': '/git', 'name': 'dags'} in jmespath.search(
             "spec.template.spec.containers[1].volumeMounts", docs[0]
         )
-        assert {"name": "test-volume", "mountPath": "/opt/test"}  in jmespath.search(
+        assert {"name": "test-volume", "mountPath": "/opt/test"} in jmespath.search(
             "spec.template.spec.containers[1].volumeMounts", docs[0]
         )
