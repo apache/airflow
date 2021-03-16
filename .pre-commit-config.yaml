@@ -463,6 +463,23 @@ repos:
         require_serial: true
         files: provider.yaml$|scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py$|^docs/
         additional_dependencies: ['PyYAML==5.3.1', 'jsonschema==3.2.0', 'tabulate==0.8.7']
+      - id: eslint
+        name: ESLint
+        entry: "eslint"
+        args:
+          - --config
+          - airflow/ui/.eslintrc
+          - --resolve-plugins-relative-to
+          - airflow/ui/node_modules/
+        language: node
+        files: ^airflow/ui/.*\.(ts|tsx)$
+        # Keep dependency versions in sync w/ airflow/ui/package.json
+        additional_dependencies:
+          - eslint@7.0.0
+          - eslint-config-airbnb-typescript@12.3.1
+          - neutrino@9.5.0
+          - neutrinojs-typescript@1.1.6
+          - neutrinojs-typescript-eslint@1.3.1
       - id: mermaid
         name: Generate mermaid images
         entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
