@@ -50,7 +50,7 @@ def create_role(app, name, permissions=None):
 
 
 def delete_role(app, name):
-    if app.appbuilder.sm.find_role(name) and name not in EXISTING_ROLES:
+    if app.appbuilder.sm.find_role(name):
         app.appbuilder.sm.delete_role(name)
 
 
