@@ -1,6 +1,6 @@
 # Editable install with no version control (apache-airflow==2.1.0.dev0)
 Babel==2.9.0
-Flask-AppBuilder==3.2.0
+Flask-AppBuilder==3.2.1
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.0
@@ -134,7 +134,7 @@ typing-extensions==3.7.4.3
 unicodecsv==0.14.1
 urllib3==1.25.11
 vine==1.3.0
-virtualenv==20.4.2
+virtualenv==20.4.3
 websocket-client==0.58.0
 zict==2.0.0
 zipp==3.4.1

@@ -2,7 +2,7 @@
 APScheduler==3.6.3
 Authlib==0.15.3
 Babel==2.9.0
-Flask-AppBuilder==3.2.0
+Flask-AppBuilder==3.2.1
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.0
