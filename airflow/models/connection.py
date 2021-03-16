@@ -347,8 +347,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             try:
                 obj = json.loads(self.extra)
             except JSONDecodeError as e:
-                self.log.exception(e)
-                self.log.error("Failed parsing the json for conn_id %s", self.conn_id)
+                self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
 
         return obj
 

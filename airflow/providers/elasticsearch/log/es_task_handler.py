@@ -246,7 +246,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
                 logs = search[self.MAX_LINE_PER_PAGE * self.PAGE : self.MAX_LINE_PER_PAGE].execute()
             except Exception as e:  # pylint: disable=broad-except
-                self.log.exception('Could not read log with log_id: %s, error: %s', log_id, str(e))
+                self.log.exception('Could not read log with log_id: %s', log_id)
 
         return logs
 

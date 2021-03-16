@@ -689,5 +689,4 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self.log.info("Spark on K8s killed with response: %s", api_response)
 
                 except kube_client.ApiException as e:
-                    self.log.error("Exception when attempting to kill Spark on K8s:")
-                    self.log.exception(e)
+                    self.log.exception("Exception when attempting to kill Spark on K8s")

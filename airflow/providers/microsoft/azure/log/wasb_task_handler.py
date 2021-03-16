@@ -162,7 +162,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             return self.hook.read_file(self.wasb_container, remote_log_location)
         except AzureHttpError as e:
             msg = f'Could not read logs from {remote_log_location}'
-            self.log.exception("Message: '%s', exception '%s'", msg, e)
+            self.log.exception(msg)
             # return error if needed
             if return_error:
                 return msg
