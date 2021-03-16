@@ -96,8 +96,6 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``end-of-file-fixer``                 Makes sure that there is an empty line at the end.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``eslint-ui``                         Checks TS in the new UI with ESLINT.
------------------------------------ ---------------------------------------------------------------- ------------
 ``fix-encoding-pragma``               Removes encoding header from python files
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pyupgrade``                         Runs pyupgrade
