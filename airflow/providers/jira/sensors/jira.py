@@ -136,7 +136,7 @@ class JiraTicketSensor(JiraSensor):
 
         except JIRAError as jira_error:
             self.log.error("Jira error while checking with expected value: %s", jira_error)
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             self.log.exception("Error while checking with expected value %s:", self.expected_value)
         if result is True:
             self.log.info(

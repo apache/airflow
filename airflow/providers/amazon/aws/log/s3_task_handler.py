@@ -185,7 +185,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             if append and self.s3_log_exists(remote_log_location):
                 old_log = self.s3_read(remote_log_location)
                 log = '\n'.join([old_log, log]) if old_log else log
-        except Exception as error:  # pylint: disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             self.log.exception('Could not verify previous log to append')
 
         try:
