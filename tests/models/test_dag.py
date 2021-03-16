@@ -1328,8 +1328,14 @@ class TestDag(unittest.TestCase):
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
         )
+        dagrun_2 = subdag.create_dagrun(
+            run_type=DagRunType.BACKFILL_JOB,
+            state=State.FAILED,
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+        )
         session.merge(dagrun_1)
-
+        session.merge(dagrun_2)
         task_instance_1 = TI(t_1, execution_date=DEFAULT_DATE, state=State.RUNNING)
         task_instance_2 = TI(t_2, execution_date=DEFAULT_DATE, state=State.RUNNING)
         session.merge(task_instance_1)
@@ -1345,18 +1351,13 @@ class TestDag(unittest.TestCase):
             session=session,
         )
 
-        dagruns = (
+        dagrun = (
             session.query(
                 DagRun,
             )
-            .filter(
-                DagRun.dag_id.in_([dag_id, dag_id + '.test']),
-            )
-            .all()
+            .filter(DagRun.dag_id == subdag.dag_id)
+            .one()
         )
-
-        assert len(dagruns) == 1
-        dagrun = dagruns[0]  # type: DagRun
         assert dagrun.state == dag_run_state
 
     @parameterized.expand(

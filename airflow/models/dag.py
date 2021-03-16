@@ -1112,11 +1112,11 @@ class DAG(LoggingMixin):
     @provide_session
     def set_dag_runs_state(
         self,
-        dag_ids: List[str] = None,
         state: str = State.RUNNING,
         session: Session = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        dag_ids: List[str] = None,
     ) -> None:
         dag_ids = dag_ids or [self.dag_id]
         query = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
@@ -1333,11 +1333,11 @@ class DAG(LoggingMixin):
             )
 
             self.set_dag_runs_state(
-                dag_ids=dag_ids,
                 session=session,
                 start_date=start_date,
                 end_date=end_date,
                 state=dag_run_state,
+                dag_ids=dag_ids,
             )
         else:
             count = 0
