@@ -18,7 +18,7 @@
 version: "2.2"
 services:
   pinot:
-    image: apachepinot/pinot:latest
+    image: apache/airflow:pinot-latest
     ports:
       - "9080:9080"
     volumes:

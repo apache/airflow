@@ -29,7 +29,7 @@ services:
         condition: service_healthy
 
   mysql:
-    image: mysql:${MYSQL_VERSION}
+    image: apache/airflow:mysql-${MYSQL_VERSION}
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%

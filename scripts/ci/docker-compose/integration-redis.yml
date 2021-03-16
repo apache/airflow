@@ -18,7 +18,7 @@
 version: "2.2"
 services:
   redis:
-    image: redis:5.0.1
+    image: apache/airflow:redis-5.0.1
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - redis-db-volume:/data/presto
