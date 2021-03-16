@@ -23,6 +23,7 @@ import shutil
 import unittest
 from datetime import timedelta
 from tempfile import NamedTemporaryFile, mkdtemp
+from time import sleep
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from zipfile import ZipFile
@@ -59,7 +60,7 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
     clear_db_dags,
-    clear_db_errors,
+    clear_db_import_errors,
     clear_db_jobs,
     clear_db_pools,
     clear_db_runs,
@@ -106,7 +107,7 @@ class TestDagFileProcessor(unittest.TestCase):
         clear_db_pools()
         clear_db_dags()
         clear_db_sla_miss()
-        clear_db_errors()
+        clear_db_import_errors()
         clear_db_jobs()
         clear_db_serialized_dags()
 
@@ -781,7 +782,7 @@ class TestSchedulerJob(unittest.TestCase):
         clear_db_pools()
         clear_db_dags()
         clear_db_sla_miss()
-        clear_db_errors()
+        clear_db_import_errors()
 
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
@@ -1202,7 +1203,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(ti2)
         session.flush()
 
-        # One task w/o pool up for execution and one task task running
+        # One task w/o pool up for execution and one task running
         res = scheduler._executable_task_instances_to_queued(max_tis=32, session=session)
         assert 0 == len(res)
 
@@ -2359,7 +2360,7 @@ class TestSchedulerJob(unittest.TestCase):
             dag.run(start_date=dr.execution_date, end_date=dr.execution_date, executor=self.null_exec)
 
         # Mark the successful task as never having run since we want to see if the
-        # dagrun will be in a running state despite haveing an unfinished task.
+        # dagrun will be in a running state despite having an unfinished task.
         with create_session() as session:
             ti = dr.get_task_instance('test_dagrun_unfinished', session=session)
             ti.state = State.NONE
@@ -3813,6 +3814,68 @@ class TestSchedulerJob(unittest.TestCase):
         ti = run2.get_task_instance(task1.task_id, session)
         assert ti.state == State.QUEUED
 
+    def test_do_schedule_max_active_runs_dag_timed_out(self):
+        """Test that tasks are set to a finished state when their DAG times out"""
+
+        dag = DAG(
+            dag_id='test_max_active_run_with_dag_timed_out',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@once',
+            max_active_runs=1,
+            catchup=True,
+        )
+        dag.dagrun_timeout = datetime.timedelta(seconds=1)
+
+        with dag:
+            task1 = BashOperator(
+                task_id='task1',
+                bash_command=' for((i=1;i<=600;i+=1)); do sleep "$i";  done',
+            )
+
+        session = settings.Session()
+        dagbag = DagBag(
+            dag_folder=os.devnull,
+            include_examples=False,
+            read_dags_from_db=True,
+        )
+
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        dagbag.sync_to_db(session=session)
+
+        run1 = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            session=session,
+        )
+        run1_ti = run1.get_task_instance(task1.task_id, session)
+        run1_ti.state = State.RUNNING
+
+        sleep(1)
+
+        run2 = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE + timedelta(seconds=10),
+            state=State.RUNNING,
+            session=session,
+        )
+
+        dag.sync_to_db(session=session)
+
+        job = SchedulerJob(subdir=os.devnull)
+        job.executor = MockExecutor()
+        job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        _ = job._do_scheduling(session)
+
+        assert run1.state == State.FAILED
+        assert run1_ti.state == State.SKIPPED
+        assert run2.state == State.RUNNING
+
+        _ = job._do_scheduling(session)
+        run2_ti = run2.get_task_instance(task1.task_id, session)
+        assert run2_ti.state == State.QUEUED
+
     def test_do_schedule_max_active_runs_task_removed(self):
         """Test that tasks in removed state don't count as actively running."""
 
@@ -4001,7 +4064,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
         clear_db_pools()
         clear_db_dags()
         clear_db_sla_miss()
-        clear_db_errors()
+        clear_db_import_errors()
         clear_db_serialized_dags()
         clear_db_dags()
 

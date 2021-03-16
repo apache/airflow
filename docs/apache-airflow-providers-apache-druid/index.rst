@@ -44,7 +44,7 @@ Package apache-airflow-providers-apache-druid
 `Apache Druid <https://druid.apache.org/>`__.
 
 
-Release: 1.0.1
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -115,6 +115,14 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Refactor SQL/BigQuery/Qubole/Druid Check operators (#12677)``
 
 1.0.1
 .....

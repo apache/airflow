@@ -17,6 +17,16 @@
  under the License.
  -->
 
+## Release 2021.3.13
+
+### Features
+
+* ``Bumped snowflake-connector-python library to >=2.4.1 version and get rid of pytz library pinning``
+
+### Bug fixes
+
+* `Corrections in docs and tools after releasing provider RCs (#14082)`
+
 ## Release 2021.2.5
 
 ### Features

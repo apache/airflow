@@ -355,7 +355,7 @@ class TestLocalTaskJob(unittest.TestCase):
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         with timeout(30):
             # This should be _much_ shorter to run.
-            # If you change this limit, make the timeout in the callbable above bigger
+            # If you change this limit, make the timeout in the callable above bigger
             job1.run()
 
         ti.refresh_from_db()
@@ -422,7 +422,7 @@ class TestLocalTaskJob(unittest.TestCase):
 
         with timeout(10):
             # This should be _much_ shorter to run.
-            # If you change this limit, make the timeout in the callbable above bigger
+            # If you change this limit, make the timeout in the callable above bigger
             job1.run()
 
         ti.refresh_from_db()
@@ -431,7 +431,7 @@ class TestLocalTaskJob(unittest.TestCase):
 
     def test_mark_success_on_success_callback(self):
         """
-        Test that ensures that where a task is marked suceess in the UI
+        Test that ensures that where a task is marked success in the UI
         on_success_callback gets executed
         """
         # use shared memory value so we can properly track value change even if

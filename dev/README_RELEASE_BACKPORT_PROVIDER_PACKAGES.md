@@ -115,13 +115,13 @@ It will generate `apache-airflow-backport-providers-${VERSION}-source.tar.gz`
   you intended to build.
 
 ```shell script
-./breeze --backports prepare-provider-packages --package-format-both --version-suffix-for-svn rc1
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-svn rc1
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages --package-format-both --version-suffix-for-svn rc1 \
+./breeze --backports prepare-provider-packages --package-format both --version-suffix-for-svn rc1 \
     PACKAGE PACKAGE ....
 ```
 
@@ -322,18 +322,27 @@ Or update it if you already checked it out:
 svn update .
 ```
 
+Optionally you can use `check.files.py` script to verify that all expected files are
+present in SVN. This script may help also with verifying installation of the packages.
+
+```shell script
+python check_files.py -v {VERSION} -t backports -p {PATH_TO_SVN}
+```
+
 ### Licences check
 
 This can be done with the Apache RAT tool.
 
-* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the sources,
+* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the -source.tar.gz to a folder
+* Unpack the binary (`-bin.tar.gz`) to a folder
 * Enter the folder and run the check (point to the place where you extracted the .jar)
 
 ```shell script
 java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
 ```
+
+where `.rat-excludes` is the file in the root of Airflow source code.
 
 ### Signature check
 
@@ -538,7 +547,7 @@ N "+1" binding votes received:
 
 N "+1" non-binding votes received:
 
-- COMMITER (non-binding)
+- COMMITTER (non-binding)
 
 Vote thread:
 https://lists.apache.org/thread.html/<TODO:REPLACE_ME_WITH_THE_VOTING_THREAD>@%3Cdev.airflow.apache.org%3E
@@ -635,13 +644,13 @@ In order to publish to PyPI you just need to build and release packages.
 * Generate the packages.
 
 ```shell script
-./breeze --backports prepare-provider-packages both
+./breeze --backports --package-format both prepare-provider-packages
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze --backports prepare-provider-packages <PACKAGE> ...
+./breeze --backports --package-format both prepare-provider-packages <PACKAGE> ...
 ```
 
 In case you decided to remove some of the packages. remove them from dist folder now:

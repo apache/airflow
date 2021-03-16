@@ -299,7 +299,7 @@ When DAGs are initialized with the ``access_control`` variable set, any usage of
     If you previously used non-RBAC UI, you have to switch to the new RBAC-UI and create users to be able
     to access Airflow's webserver. For more details on CLI to create users see :doc:`cli-and-env-variables-ref`
 
-Please note that that custom auth backends will need re-writing to target new FAB based UI.
+Please note that custom auth backends will need re-writing to target new FAB based UI.
 
 As part of this change, a few configuration items in ``[webserver]`` section are removed and no longer applicable,
 including ``authenticate``, ``filter_by_owner``, ``owner_mode``, and ``rbac``.
@@ -959,7 +959,7 @@ Old command                   New command                       Group
 ``airflow trigger_dag``       ``airflow dags trigger``          ``dags``
 ``airflow delete_dag``        ``airflow dags delete``           ``dags``
 ``airflow show_dag``          ``airflow dags show``             ``dags``
-``airflow list_dag``          ``airflow dags list``             ``dags``
+``airflow list_dags``         ``airflow dags list``             ``dags``
 ``airflow dag_status``        ``airflow dags status``           ``dags``
 ``airflow backfill``          ``airflow dags backfill``         ``dags``
 ``airflow list_dag_runs``     ``airflow dags list-runs``        ``dags``
@@ -1110,7 +1110,7 @@ and there is no need for it to be accessible from the CLI interface.
 
 If the DAGRun was triggered with conf key/values passed in, they will also be printed in the dag_state CLI response
 ie. running, {"name": "bob"}
-whereas in in prior releases it just printed the state:
+whereas in prior releases it just printed the state:
 ie. running
 
 **Deprecating ignore_first_depends_on_past on backfill command and default it to True**
@@ -1166,7 +1166,7 @@ non-RBAC UI (``flask-admin`` based UI), update it to use ``flask_appbuilder_view
 
         @expose("/")
         def test(self):
-            return self.render("test_plugin/test.html", content="Hello galaxy!")
+            return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
     v_appbuilder_view = TestAppBuilderBaseView()
     v_appbuilder_package = {"name": "Test View",

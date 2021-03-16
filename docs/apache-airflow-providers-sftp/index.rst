@@ -50,7 +50,7 @@ Package apache-airflow-providers-sftp
 `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 
-Release: 1.1.0
+Release: 1.1.1
 
 Provider package
 ----------------
@@ -123,6 +123,15 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+1.1.1
+.....
+
+Bug fixes
+~~~~~~~~~
+
+* ``Corrections in docs and tools after releasing provider RCs (#14082)``
+
 
 1.1.0
 .....

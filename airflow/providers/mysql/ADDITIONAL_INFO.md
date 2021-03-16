@@ -17,8 +17,14 @@
  under the License.
  -->
 
+## Release 2021.3.3
+
+### Bug fixes
+
+* `MySQL hook respects conn_name_attr (#14240)`
+
 # Mysql client requirements
 
 The version of MySQL server has to be 5.6.4+. The exact version upper bound depends
-on the version of ``mysqlclient`` package. For example, ``mysqlclient`` 1.3.12 can only be
+on the version of `mysqlclient` package. For example, `mysqlclient` 1.3.12 can only be
 used with MySQL server 5.6.4 through 5.7.

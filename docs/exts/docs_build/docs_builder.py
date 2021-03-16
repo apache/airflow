@@ -150,8 +150,8 @@ class AirflowDocsBuilder:
                 )
                 warning_text = ""
                 for filepath in glob(f"{tmp_dir}/**/*.spelling", recursive=True):
-                    with open(filepath) as speeling_file:
-                        warning_text += speeling_file.read()
+                    with open(filepath) as spelling_file:
+                        warning_text += spelling_file.read()
 
                 spelling_errors.extend(parse_spelling_warnings(warning_text, self._src_dir))
         return spelling_errors
@@ -241,4 +241,4 @@ def get_available_providers_packages():
 def get_available_packages():
     """Get list of all available packages to build."""
     provider_package_names = get_available_providers_packages()
-    return ["apache-airflow", *provider_package_names, "apache-airflow-providers"]
+    return ["apache-airflow", *provider_package_names, "apache-airflow-providers", "helm-chart"]

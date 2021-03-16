@@ -41,6 +41,7 @@ logs
 venv
 files
 airflow.iml
+.gitmodules
 
 # Generated doc files
 .*html

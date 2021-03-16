@@ -17,9 +17,15 @@
  under the License.
  -->
 
-# Release 2021.2.5
+## Release 2021.3.3
 
-## Breaking changes
+### Breaking changes
+
+* `Don't allow SlackHook.call method accept *args (#14289)`
+
+## Release 2021.2.5
+
+### Breaking changes
 
 We updated the support for `slack_sdk` from `>=2.0.0,<3.0.0` to `>=3.0.0,<4.0.0`. In most cases,
 this doesn't mean any breaking changes to the DAG files, but if you used this library directly then

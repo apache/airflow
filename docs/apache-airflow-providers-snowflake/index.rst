@@ -57,7 +57,7 @@ Package apache-airflow-providers-snowflake
 `Snowflake <https://www.snowflake.com/>`__
 
 
-Release: 1.1.0
+Release: 1.1.1
 
 Provider package
 ----------------
@@ -86,10 +86,7 @@ PIP requirements
 ==============================  ==================
 PIP package                     Version required
 ==============================  ==================
-``azure-core``                  ``>=1.10.0``
-``azure-storage-blob``
-``azure-storage-common``
-``snowflake-connector-python``  ``>=2.3.8``
+``snowflake-connector-python``  ``>=2.4.1``
 ``snowflake-sqlalchemy``        ``>=1.1.0``
 ==============================  ==================
 
@@ -132,6 +129,15 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+1.1.1
+.....
+
+Bug fixes
+~~~~~~~~~
+
+* ``Corrections in docs and tools after releasing provider RCs (#14082)``
+
 
 1.1.0
 .....
