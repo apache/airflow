@@ -32,7 +32,7 @@ class LivySensor(BaseSensorOperator):
     :param batch_id: identifier of the monitored batch
     :type batch_id: Union[int, str]
     :type extra_options: A dictionary of options, where key is string and value
-    depends on the option that's being modified.
+        depends on the option that's being modified.
     """
 
     template_fields = ('batch_id',)

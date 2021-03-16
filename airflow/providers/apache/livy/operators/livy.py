@@ -67,7 +67,7 @@ class LivyOperator(BaseOperator):
     :param polling_interval: time in seconds between polling for job completion. Don't poll for values >=0
     :type polling_interval: int
     :type extra_options: A dictionary of options, where key is string and value
-    depends on the option that's being modified.
+        depends on the option that's being modified.
     """
 
     template_fields = ('spark_params',)
