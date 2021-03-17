@@ -26,7 +26,7 @@ KubernetesPodOperator Guide
 KubernetesPodOperator with YAML file / JSON Spec
 ================================================
 
-- Creating a Pod Template file
+Below is an example of a basic pod_template_file for a KubernetesPodOperator pod. Please note that the first container is named base, as this is required for Airflow to later run the pod
 
 .. code-block:: yaml
 
