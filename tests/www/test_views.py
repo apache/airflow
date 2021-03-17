@@ -122,8 +122,11 @@ class TemplateWithContext(NamedTuple):
         return result
 
 
-class TestBase(unittest.TestCase):
-    @classmethod
+@pytest.fixture(scope="class")
+def minimal_app():
+    application.app = None
+    application.appbuilder = None
+
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_appbuilder",
@@ -132,21 +135,28 @@ class TestBase(unittest.TestCase):
             "init_jinja_globals",
         ]
     )
-    def setUpClass(cls):
+    def factory():
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_ENABLED'] = False
+        app.jinja_env.undefined = jinja2.StrictUndefined
+        return app
+
+    yield factory()
+    application.app = None
+    application.appbuilder = None
+
+
+class TestBase:
+    @pytest.fixture(autouse=True)
+    def _base_setup(self, minimal_app):
         settings.configure_orm()
-        cls.session = settings.Session
-        cls.app = application.create_app(testing=True)
-        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
-        cls.app.config['WTF_CSRF_ENABLED'] = False
-        cls.app.jinja_env.undefined = jinja2.StrictUndefined
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        clear_db_runs()
-
-    def setUp(self):
+        self.app = minimal_app
+        self.session = settings.Session
+        self.appbuilder = self.app.appbuilder
         self.client = self.app.test_client()
         self.login()
+        yield
+        clear_db_runs()
 
     def login(self, username='test', password='test'):
         with mock.patch('flask_appbuilder.security.manager.check_password_hash') as set_mock:
@@ -239,22 +249,20 @@ class TestBase(unittest.TestCase):
 
 
 class TestConnectionModelView(TestBase):
-    def setUp(self):
-        super().setUp()
+    connection = {
+        'conn_id': 'test_conn',
+        'conn_type': 'http',
+        'description': 'description',
+        'host': 'localhost',
+        'port': 8080,
+        'username': 'root',
+        'password': 'admin',
+    }
 
-        self.connection = {
-            'conn_id': 'test_conn',
-            'conn_type': 'http',
-            'description': 'description',
-            'host': 'localhost',
-            'port': 8080,
-            'username': 'root',
-            'password': 'admin',
-        }
-
-    def tearDown(self):
+    @pytest.fixture(autouse=True)
+    def _cleanup(self):
+        yield
         self.clear_table(Connection)
-        super().tearDown()
 
     def test_create_connection(self):
         init_views.init_connection_form()
@@ -270,13 +278,12 @@ class TestConnectionModelView(TestBase):
 
 
 class TestVariableModelView(TestBase):
-    def setUp(self):
-        super().setUp()
-        self.variable = {'key': 'test_key', 'val': 'text_val', 'is_encrypted': True}
+    variable = {'key': 'test_key', 'val': 'text_val', 'is_encrypted': True}
 
-    def tearDown(self):
+    @pytest.fixture(autouse=True)
+    def _cleanup(self):
+        yield
         self.clear_table(models.Variable)
-        super().tearDown()
 
     def test_can_handle_error_on_decrypt(self):
 
@@ -384,17 +391,16 @@ class TestPluginView(TestBase):
 
 
 class TestPoolModelView(TestBase):
-    def setUp(self):
-        super().setUp()
-        self.pool = {
-            'pool': 'test-pool',
-            'slots': 777,
-            'description': 'test-pool-description',
-        }
+    pool = {
+        'pool': 'test-pool',
+        'slots': 777,
+        'description': 'test-pool-description',
+    }
 
-    def tearDown(self):
+    @pytest.fixture(autouse=True)
+    def _cleanup(self):
+        yield
         self.clear_table(models.Pool)
-        super().tearDown()
 
     def test_create_pool_with_same_name(self):
         # create test pool
