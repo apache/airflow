@@ -66,7 +66,7 @@ Below is an example of a basic pod_template_file for a KubernetesPodOperator pod
           claimName: myapp-pvc-rw
 
 
-- Creating pod from a template using KubernetesPodOperator
+Once you have created a pod_template_file, you can use this file as a basis for your KPO pod, while using the other supplied arguments as "overrides". In this example,, we are able to take this template and modify the namespace and name of the pod.
 
 .. code-block:: python
 
