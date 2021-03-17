@@ -142,14 +142,15 @@ class TestBase:
 
         yield factory()
 
-    @pytest.fixture(scope="class", autouse=True)
-    def configure_settings(self):
+    @pytest.fixture(scope="class")
+    def configured_session(self):
         settings.configure_orm()
+        return settings.Session
 
     @pytest.fixture(autouse=True)
-    def _base_setup(self, minimal_app):
+    def _base_setup(self, minimal_app, configured_session):
         self.app = minimal_app
-        self.session = settings.Session
+        self.session = configured_session
         self.appbuilder = self.app.appbuilder
         self.client = self.app.test_client()
         self.login()
@@ -3126,15 +3127,15 @@ class TestExtraLinks(TestBase):
         assert json.loads(response_str) == {'url': 'https://www.google.com', 'error': None}
 
 
-@pytest.mark.skip(reason="not converted yet")
 class TestDagRunModelView(TestBase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
-        cls.session.commit()
-        cls.clear_table(models.DagRun)
-        cls.clear_table(models.TaskInstance)
+    @pytest.fixture(scope="class", autouse=True)
+    def _setup_cls(self, configured_session):
+        models.DagBag().get_dag("example_bash_operator").sync_to_db(
+            session=configured_session,
+        )
+        configured_session.commit()
+        self.clear_table(models.DagRun)
+        self.clear_table(models.TaskInstance)
 
     def tearDown(self):
         self.clear_table(models.DagRun)
