@@ -184,13 +184,20 @@ Adding DAG and Tasks documentation
 ----------------------------------
 We can add documentation for DAG or each single task. DAG documentation only support
 markdown so far and task documentation support plain text, markdown, reStructuredText,
-json, yaml.
+json, yaml. The DAG documentation must be written in a doc string at the beggining of the DAG file to be taken
+in account. Below you can find some examples on how to implement task and DAG docs, as well as screenshots:
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
     :dedent: 4
     :start-after: [START documentation]
     :end-before: [END documentation]
+
+.. image:: img/task_doc.png
+.. image:: img/dag_doc.png
+
+
+Using ``dedent`` in the task documentation is not mandatory.
 
 Setting up Dependencies
 -----------------------
