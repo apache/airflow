@@ -46,8 +46,6 @@ def get_users(limit=None, offset=None):
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
-    query = session.query(User)
-
-    users = query.order_by(User.id).offset(offset).limit(limit).all()
+    users = session.query(User).order_by(User.id).offset(offset).limit(limit).all()
 
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))

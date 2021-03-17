@@ -143,8 +143,8 @@ class TestGetUsers(TestUserEndpoint):
 class TestGetUsersPagination(TestUserEndpoint):
     @parameterized.expand(
         [
-            ("/api/v1/users?limit=1", ['test']),
-            ("/api/v1/users?limit=2", ['test', "test_no_permissions"]),
+            ("/api/v1/users?limit=1", ["test"]),
+            ("/api/v1/users?limit=2", ["test", "test_no_permissions"]),
             (
                 "/api/v1/users?offset=5",
                 [
