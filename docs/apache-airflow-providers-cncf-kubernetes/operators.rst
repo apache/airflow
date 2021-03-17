@@ -253,7 +253,9 @@ Ultimately, it allows Airflow to act a job orchestrator - no matter the language
   execution_date=20201203T000000, start_date=20201204T140331, end_date=20201204T140345
   ................................................................................................................
 
-- Getting kubernetes pods using labels ``dag_id`` and ``task_id`` automatically assigned by Airflow and Describing it.
+Another option for getting the pod launched by Airflow is to take advantage of the labels that Airflow injects into every KubernetesPodOperator pod. Using the line below, you can quickly get the name of the pod launched by Airflow.
+
+``kubectl get pods -l dag_id=<your dag id>,task_id=<your task id>``
 
 .. code-block:: bash
 
