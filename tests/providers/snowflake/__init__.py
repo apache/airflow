@@ -14,11 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-import unittest
-
-if os.environ.get('INTEGRATION_PRESTO') == 'true':
-    raise unittest.SkipTest(
-        'Snowflake monkeypatch the Python core to force SSL certificate validation.'
-        'To avoid these side effects, these tests were skipped.'
-    )
