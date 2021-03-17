@@ -777,7 +777,7 @@ Defining Pod resource Requirements and Limits
 =============================================
 
 
-- Defining ResourceRequirements for Pod
+This example defines ResourceRequirements for Pod, which allow users to modify CPU, memory, and GPU requests and limits.
 
 
 .. code-block:: python
