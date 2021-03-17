@@ -434,20 +434,26 @@ class TestPoolModelView(TestBase):
         self.check_content_in_response(queued_tag, resp)
 
 
-class TestMountPoint(unittest.TestCase):
-    @classmethod
+@pytest.fixture(scope="class")
+def mounted_app():
+    application.app = None
+    application.appbuilder = None
+
     @conf_vars({("webserver", "base_url"): "http://localhost/test"})
-    def setUpClass(cls):
-        application.app = None
-        application.appbuilder = None
+    def factory():
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_ENABLED'] = False
-        cls.client = Client(app, BaseResponse)
+        return app
 
-    @classmethod
-    def tearDownClass(cls):
-        application.app = None
-        application.appbuilder = None
+    yield factory()
+    application.app = None
+    application.appbuilder = None
+
+
+class TestMountPoint:
+    @pytest.fixture(autouse=True)
+    def _setup_client(self, mounted_app):
+        self.client = Client(mounted_app, BaseResponse)
 
     def test_mount(self):
         # Test an endpoint that doesn't need auth!
