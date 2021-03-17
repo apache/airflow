@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import collections
 import copy
 import html
 import io
@@ -475,6 +476,9 @@ class TestMountPoint:
         resp = self.client.get('/test/')
         assert resp.status_code == 302
         assert resp.headers['Location'] == 'http://localhost/test/home'
+
+
+Dags = collections.namedtuple("Dags", "bash sub xcom")
 
 
 @pytest.mark.skip(reason="not converted yet")
@@ -3283,42 +3287,45 @@ class TestDagRunModelView(TestBase):
         self.check_content_in_response("Failed to clear state", resp)
 
 
-@pytest.mark.skip(reason="not converted yet")
 class TestDecorators(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        models.DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
+    @pytest.fixture(scope="class")
+    def dags(self):
+        models.DagBag(
+            include_examples=True,
+            read_dags_from_db=False,
+        ).sync_to_db()
         dagbag = models.DagBag(include_examples=True, read_dags_from_db=True)
-        cls.bash_dag = dagbag.get_dag('example_bash_operator')
-        cls.sub_dag = dagbag.get_dag('example_subdag_operator')
-        cls.xcom_dag = dagbag.get_dag('example_xcom')
+        return Dags(
+            bash=dagbag.get_dag('example_bash_operator'),
+            sub=dagbag.get_dag('example_subdag_operator'),
+            xcom=dagbag.get_dag('example_xcom'),
+        )
 
-    def setUp(self):
-        super().setUp()
+    @pytest.fixture(autouse=True)
+    def _setup(self, dags):
         self.logout()
         self.login()
         clear_db_runs()
-        self.prepare_dagruns()
+        self.prepare_dagruns(dags)
 
-    def prepare_dagruns(self):
-        self.bash_dagrun = self.bash_dag.create_dagrun(
+    def prepare_dagruns(self, dags):
+        self.bash_dagrun = dags.bash.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
 
-        self.sub_dagrun = self.sub_dag.create_dagrun(
+        self.sub_dagrun = dags.sub.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
 
-        self.xcom_dagrun = self.xcom_dag.create_dagrun(
+        self.xcom_dagrun = dags.xcom.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
