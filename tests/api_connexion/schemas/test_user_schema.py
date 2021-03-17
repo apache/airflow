@@ -15,14 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
+import pytest
 from flask_appbuilder.security.sqla.models import User
 
 from airflow.api_connexion.schemas.user_schema import user_collection_item_schema, user_schema
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
-from airflow.www import app
 from tests.test_utils.api_connexion_utils import create_role, delete_role
 
 TEST_EMAIL = "test@example.org"
@@ -30,33 +27,36 @@ TEST_EMAIL = "test@example.org"
 DEFAULT_TIME = "2021-01-09T13:59:56.336000+00:00"
 
 
-class TestUserBase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
-        cls.role = create_role(
-            cls.app,
-            name="TestRole",
-            permissions=[],
-        )
+@pytest.fixture(scope="module")
+def configured_app(minimal_app_for_api):
+    app = minimal_app_for_api
+    create_role(
+        app,
+        name="TestRole",
+        permissions=[],
+    )
+    yield app
 
-    def tearDown(self) -> None:
-        delete_role(self.app, 'Test')
+    delete_role(app, 'TestRole')  # type:ignore
 
-    @provide_session
-    def setUp(self, session) -> None:
-        self.delete_user(session)
 
-    def delete_user(self, session):
-        user = session.query(User).filter(User.email == TEST_EMAIL).first()
+class TestUserBase:
+    @pytest.fixture(autouse=True)
+    def setup_attrs(self, configured_app) -> None:
+        self.app = configured_app
+        self.client = self.app.test_client()  # type:ignore
+        self.role = self.app.appbuilder.sm.find_role("TestRole")
+        self.session = self.app.appbuilder.get_session
+
+    def teardown_method(self):
+        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
         if user:
-            session.delete(user)
+            self.session.delete(user)
+            self.session.commit()
 
 
 class TestUserCollectionItemSchema(TestUserBase):
-    @provide_session
-    def test_serialize(self, session):
+    def test_serialize(self):
         user_model = User(
             first_name="Foo",
             last_name="Bar",
@@ -67,9 +67,9 @@ class TestUserCollectionItemSchema(TestUserBase):
             created_on=timezone.parse(DEFAULT_TIME),
             changed_on=timezone.parse(DEFAULT_TIME),
         )
-        session.add(user_model)
-        session.commit()
-        user = session.query(User).filter(User.email == TEST_EMAIL).first()
+        self.session.add(user_model)
+        self.session.commit()
+        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
         deserialized_user = user_collection_item_schema.dump(user)
         # No password in dump
         assert deserialized_user == {
@@ -89,8 +89,7 @@ class TestUserCollectionItemSchema(TestUserBase):
 
 
 class TestUserSchema(TestUserBase):
-    @provide_session
-    def test_serialize(self, session):
+    def test_serialize(self):
         user_model = User(
             first_name="Foo",
             last_name="Bar",
@@ -100,9 +99,9 @@ class TestUserSchema(TestUserBase):
             created_on=timezone.parse(DEFAULT_TIME),
             changed_on=timezone.parse(DEFAULT_TIME),
         )
-        session.add(user_model)
-        session.commit()
-        user = session.query(User).filter(User.email == TEST_EMAIL).first()
+        self.session.add(user_model)
+        self.session.commit()
+        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
         deserialized_user = user_schema.dump(user)
         # No password in dump
         assert deserialized_user == {
