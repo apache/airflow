@@ -112,7 +112,7 @@ Below is an example of a basic pod_template_file for a KubernetesPodOperator pod
   {backfill_job.py:830} INFO - Backfill done. Exiting.
 
 
-- Examining pod configuration
+If you need to examine a pod that is not running correctly, run the command ``kubectl describe pod <my pod name> to get all relevant details about the pod from the k8s cluster.
 
 .. code-block:: bash
 
