@@ -1230,7 +1230,6 @@ class TestRedocView(TestBase):
         assert templates[0].local_context == {'openapi_spec_url': '/api/v1/openapi.yaml'}
 
 
-@pytest.mark.skip(reason="not converted yet")
 class TestLogView(TestBase):
     DAG_ID = 'dag_for_testing_log_view'
     DAG_ID_REMOVED = 'removed_dag_for_testing_log_view'
@@ -1238,14 +1237,13 @@ class TestLogView(TestBase):
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
     ENDPOINT = f'log?dag_id={DAG_ID}&task_id={TASK_ID}&execution_date={DEFAULT_DATE}'
 
-    @classmethod
-    @dont_initialize_flask_app_submodules(
-        skip_all_except=["init_appbuilder", "init_jinja_globals", "init_appbuilder_views"]
-    )
-    def setUpClass(cls):
+    @pytest.fixture(scope="class")
+    def old_modules(self):
         # Make sure that the configure_logging is not cached
-        cls.old_modules = dict(sys.modules)
+        return dict(sys.modules)
 
+    @pytest.fixture(scope="class")
+    def settings_folder(self, old_modules):
         # Create a custom logging configuration
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1258,17 +1256,35 @@ class TestLogView(TestBase):
         ] = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(":", ".") }}/{{ try_number }}.log'
 
         # Write the custom logging configuration to a file
-        cls.settings_folder = tempfile.mkdtemp()
-        settings_file = os.path.join(cls.settings_folder, "airflow_local_settings.py")
+        settings_folder = tempfile.mkdtemp()
+        settings_file = os.path.join(settings_folder, "airflow_local_settings.py")
         new_logging_file = f"LOGGING_CONFIG = {logging_config}"
         with open(settings_file, 'w') as handle:
             handle.writelines(new_logging_file)
-        sys.path.append(cls.settings_folder)
+        sys.path.append(settings_folder)
 
-        with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
-            cls.app = application.create_app(testing=True)
+        yield settings_folder
 
-    def setUp(self):
+        sys.path.remove(settings_folder)
+        shutil.rmtree(settings_folder)
+
+    @pytest.fixture(scope="class")
+    def logging_app(self, settings_folder):
+        @dont_initialize_flask_app_submodules(
+            skip_all_except=["init_appbuilder", "init_jinja_globals", "init_appbuilder_views"]
+        )
+        def factory():
+            with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
+                return application.create_app(testing=True)
+
+        yield factory()
+
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, logging_app, old_modules):
+        self.app = logging_app
+
         with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
             self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
             self.app.config['WTF_CSRF_ENABLED'] = False
@@ -1302,22 +1318,16 @@ class TestLogView(TestBase):
                 session.merge(self.ti)
                 session.merge(self.ti_removed_dag)
 
-    def tearDown(self):
+        yield
+
         self.clear_table(TaskInstance)
 
         # Remove any new modules imported during the test run. This lets us
         # import the same source files for more than one test.
-        for mod in [m for m in sys.modules if m not in self.old_modules]:
+        for mod in [m for m in sys.modules if m not in old_modules]:
             del sys.modules[mod]
 
         self.logout()
-        super().tearDown()
-
-    @classmethod
-    def tearDownClass(cls):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
-        sys.path.remove(cls.settings_folder)
-        shutil.rmtree(cls.settings_folder)
 
     @parameterized.expand(
         [
