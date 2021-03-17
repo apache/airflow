@@ -776,7 +776,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         if plugins_manager.operator_extra_links is None:
             raise AirflowException("Can't load operators")
         for ope in plugins_manager.operator_extra_links:
-            if ope.operators and self.__class__ in ope.operators:
+            if ope.operators and (
+                self.__class__ in ope.operators
+                or self.task_type in ope.operators
+            ):
                 op_extra_links_from_plugin.update({ope.name: ope})
 
         operator_extra_links_all = {link.name: link for link in self.operator_extra_links}
@@ -1497,7 +1500,7 @@ def cross_downstream(
 class BaseOperatorLink(metaclass=ABCMeta):
     """Abstract base class that defines how we get an operator link."""
 
-    operators: ClassVar[List[Type[BaseOperator]]] = []
+    operators: ClassVar[List[Union[Type[BaseOperator], str]]] = []
     """
     This property will be used by Airflow Plugins to find the Operators to which you want
     to assign this Operator Link

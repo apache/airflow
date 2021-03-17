@@ -433,10 +433,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
             for ope in plugins_manager.operator_extra_links:
                 for operator in ope.operators:
-                    if (
+                    if ((
                         operator.__name__ == encoded_op["_task_type"]
                         and operator.__module__ == encoded_op["_task_module"]
-                    ):
+                    ) if not isinstance(operator, str) else (
+                        operator == encoded_op['_task_type']
+                    )):
                         op_extra_links_from_plugin.update({ope.name: ope})
 
             # If OperatorLinks are defined in Plugins but not in the Operator that is being Serialized
