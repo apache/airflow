@@ -15,36 +15,38 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from base64 import b64encode
 
-from airflow.www import app
+import pytest
+
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.config import conf_vars
 
 TEST_USERNAME = "test"
 
 
-class TestLoginEndpoint(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        with conf_vars(
-            {
-                ("webserver", "session_lifetime_minutes"): "1",
-                ("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend",
-            }
-        ):
-            cls.app = app.create_app(testing=True)  # type:ignore
-        create_user(cls.app, username="test", role_name="Test")  # type: ignore
+@pytest.fixture(scope="module")
+def configured_app(minimal_app_for_api):
+    app = minimal_app_for_api
+    create_user(
+        app,  # type: ignore
+        username="test",
+        role_name="Test",
+    )
 
-    @classmethod
-    def tearDownClass(cls) -> None:
-        delete_user(cls.app, username="test")  # type: ignore
+    yield app
 
-    def setUp(self) -> None:
+    delete_user(app, username="test")  # type: ignore
+
+
+class TestBase:
+    @pytest.fixture(autouse=True)
+    def setup_attrs(self, configured_app) -> None:
+        self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
 
+
+class TestLoginEndpoint(TestBase):
     def test_user_can_login_with_basic_auth(self):
         token = "Basic " + b64encode(b"test:test").decode()
         self.client.post("api/v1/login", headers={"Authorization": token})
@@ -94,3 +96,18 @@ class TestLoginEndpoint(unittest.TestCase):
         )
         assert cookie is not None
         assert isinstance(cookie.value, str)
+
+
+class TestLogout(TestBase):
+    def test_logout_unsets_cookie(self):
+        self.client.post("api/v1/login", environ_overrides={'REMOTE_USER': "test"})
+        cookie = next(
+            (cookie for cookie in self.client.cookie_jar if cookie.name == "access_token_cookie"), None
+        )
+        assert cookie is not None
+        assert isinstance(cookie.value, str)
+        self.client.post("api/v1/logout", environ_overrides={'REMOTE_USER': "test"})
+        cookie = next(
+            (cookie for cookie in self.client.cookie_jar if cookie.name == "access_token_cookie"), None
+        )
+        assert cookie is None

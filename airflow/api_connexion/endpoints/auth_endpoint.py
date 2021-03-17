@@ -16,25 +16,16 @@
 # under the License.
 
 from flask import current_app, jsonify
-from flask_jwt_extended import create_access_token, set_access_cookies, unset_jwt_cookies
+from flask_jwt_extended import set_access_cookies, unset_jwt_cookies
 
-from airflow.api_connexion import security
 from airflow.api_connexion.schemas.user_schema import user_collection_item_schema
 
 
 def login():
     """User login"""
     ab_security_manager = current_app.appbuilder.sm
-    user = ab_security_manager.current_user
-    if user:
-        access_token = create_access_token(user.id)
-        resp = jsonify(user_collection_item_schema.dump(user))
-        set_access_cookies(resp, access_token)
-        return resp
-    security.check_authentication()
-    user = current_app.appbuilder.sm.current_user
-    access_token = create_access_token(user.id)
-    resp = jsonify(user_collection_item_schema.dump(user))
+    access_token = ab_security_manager.create_access_token()
+    resp = jsonify(user_collection_item_schema.dump(ab_security_manager.current_user))
     set_access_cookies(resp, access_token)
     return resp
 

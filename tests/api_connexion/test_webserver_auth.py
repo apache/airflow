@@ -40,7 +40,7 @@ class TestWebserverAuth(unittest.TestCase):
         create_user(
             cls.app,  # type: ignore
             username="test",
-            role_name="Admin",
+            role_name="test",
             permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)],
         )
         cls.tester = cls.appbuilder.sm.find_user(username="test")

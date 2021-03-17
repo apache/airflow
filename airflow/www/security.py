@@ -23,10 +23,12 @@ from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
+from flask_jwt_extended import create_access_token
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from airflow import models
+from airflow.api_connexion import security as webserver_security
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.security import permissions
@@ -659,3 +661,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
                 return False
 
         return True
+
+    def create_access_token(self):
+        """Creates access token for api auth use"""
+        user = self.current_user
+        if user:
+            return create_access_token(user.id)
+        webserver_security.check_authentication()
+        return create_access_token(self.current_user.id)
