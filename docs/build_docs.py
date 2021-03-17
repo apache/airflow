@@ -216,8 +216,10 @@ def main():
             print(f"{pkg_no}. {pkg}")
 
     with with_group("Fetching inventories"):
-        fetch_inventories()
-
+        # Inventories that could not be retrieved should be retrieved first. This may mean this is a
+        # new package.
+        priority_packages = fetch_inventories()
+    current_packages = sorted(current_packages, key=lambda d: -1 if d in priority_packages else 1)
     all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
     all_spelling_errors: Dict[Optional[str], List[SpellingError]] = {}
     package_build_errors, package_spelling_errors = build_docs_for_packages(
