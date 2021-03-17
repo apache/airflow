@@ -1623,6 +1623,73 @@ components:
                 $ref: '#/components/schemas/UserCollectionItem'
         - $ref: '#/components/schemas/CollectionInfo'
 
+    Role:
+      description: Role item
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the role
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionResource'
+
+    RoleCollection:
+      description: Role Collections
+      type: object
+      allOf:
+        - type: object
+          properties:
+            roles:
+              type: array
+              items:
+                $ref: '#/components/schemas/Role'
+        - $ref: '#/components/schemas/CollectionInfo'
+
+    Action:
+      description: Action Item
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the permission "action"
+          nullable: false
+
+    ActionCollection:
+      description: Action Collection
+      type: object
+      allOf:
+        - type: object
+          properties:
+            actions:
+              type: array
+              items:
+                $ref: '#/components/schemas/Action'
+        - $ref: '#/components/schemas/CollectionInfo'
+
+    Resource:
+      description: A "resource" on which permissions are granted.
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the resource
+          nullable: false
+
+    ActionResource:
+      description: The Action-Resource item
+      type: object
+      properties:
+        action:
+          type: object
+          $ref: '#/components/schemas/Action'
+          description: The permission action
+        resource:
+          type: object
+          $ref: '#/components/schemas/Resource'
+          description: The permission resource
+
     ConnectionCollectionItem:
       description: >
         Connection collection item.
@@ -2405,73 +2472,6 @@ components:
               items:
                 $ref: '#/components/schemas/PluginCollectionItem'
         - $ref: '#/components/schemas/CollectionInfo'
-
-    Role:
-      description: Role item
-      type: object
-      properties:
-        name:
-          type: string
-          description: The name of the role
-        actions:
-          type: array
-          items:
-            $ref: '#/components/schemas/ActionResource'
-
-    RoleCollection:
-      description: Role Collections
-      type: object
-      allOf:
-        - type: object
-          properties:
-            roles:
-              type: array
-              items:
-                $ref: '#/components/schemas/Role'
-        - $ref: '#/components/schemas/CollectionInfo'
-
-    Action:
-      description: Action Item
-      type: object
-      properties:
-        name:
-          type: string
-          description: The name of the permission "action"
-          nullable: false
-
-    ActionCollection:
-      description: Action Collection
-      type: object
-      allOf:
-        - type: object
-          properties:
-            actions:
-              type: array
-              items:
-                $ref: '#/components/schemas/Action'
-        - $ref: '#/components/schemas/CollectionInfo'
-
-    Resource:
-      description: A "resource" on which permissions are granted.
-      type: object
-      properties:
-        name:
-          type: string
-          description: The name of the resource
-          nullable: false
-
-    ActionResource:
-      description: The Action-Resource item
-      type: object
-      properties:
-        action:
-          type: object
-          $ref: '#/components/schemas/Action'
-          description: The permission action
-        resource:
-          type: object
-          $ref: '#/components/schemas/Resource'
-          description: The permission resource
 
     # Configuration
     ConfigOption:
