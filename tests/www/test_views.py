@@ -1192,7 +1192,6 @@ class TestAirflowBaseViews(TestBase):
             self.check_content_not_in_response(xss_string, resp)
 
 
-@pytest.mark.skip(reason="not converted yet")
 class TestConfigurationView(TestBase):
     def test_configuration_do_not_expose_config(self):
         self.logout()
@@ -1216,12 +1215,10 @@ class TestConfigurationView(TestBase):
         self.check_content_in_response(['Airflow Configuration', 'Running Configuration'], resp)
 
 
-@pytest.mark.skip(reason="not converted yet")
 class TestRedocView(TestBase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        init_views.init_api_connexion(cls.app)
+    @pytest.fixture(scope="class", autouse=True)
+    def _init_api(self, minimal_app):
+        init_views.init_api_connexion(minimal_app)
 
     def test_should_render_template(self):
         with self.capture_templates() as templates:
@@ -1568,20 +1565,18 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.test.session.close()
 
     def assert_base_date_and_num_runs(self, base_date, num_runs, data):
-        self.test.assertNotIn(f'name="base_date" value="{base_date}"', data)
-        self.test.assertNotIn('<option selected="" value="{num}">{num}</option>'.format(num=num_runs), data)
+        assert f'name="base_date" value="{base_date}"' not in data
+        assert f'<option selected="" value="{num_runs}">{num_runs}</option>' not in data
 
     def assert_run_is_not_in_dropdown(self, run, data):
-        self.test.assertNotIn(run.execution_date.isoformat(), data)
-        self.test.assertNotIn(run.run_id, data)
+        assert run.execution_date.isoformat() not in data
+        assert run.run_id not in data
 
     def assert_run_is_in_dropdown_not_selected(self, run, data):
-        self.test.assertIn(f'<option value="{run.execution_date.isoformat()}">{run.run_id}</option>', data)
+        assert f'<option value="{run.execution_date.isoformat()}">{run.run_id}</option>' in data
 
     def assert_run_is_selected(self, run, data):
-        self.test.assertIn(
-            f'<option selected value="{run.execution_date.isoformat()}">{run.run_id}</option>', data
-        )
+        assert f'<option selected value="{run.execution_date.isoformat()}">{run.run_id}</option>' in data
 
     def test_with_default_parameters(self):
         """
@@ -1593,10 +1588,10 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         response = self.test.client.get(
             self.endpoint, data=dict(username='test', password='test'), follow_redirects=True
         )
-        self.test.assertEqual(response.status_code, 200)
+        assert response.status_code == 200
         data = response.data.decode('utf-8')
-        self.test.assertIn('<label class="sr-only" for="base_date">Base date</label>', data)
-        self.test.assertIn('<label class="sr-only" for="num_runs">Number of runs</label>', data)
+        assert '<label class="sr-only" for="base_date">Base date</label>' in data
+        assert '<label class="sr-only" for="num_runs">Number of runs</label>' in data
         self.assert_run_is_selected(self.runs[0], data)
         self.assert_run_is_in_dropdown_not_selected(self.runs[1], data)
         self.assert_run_is_in_dropdown_not_selected(self.runs[2], data)
@@ -1615,7 +1610,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             data=dict(username='test', password='test'),
             follow_redirects=True,
         )
-        self.test.assertEqual(response.status_code, 200)
+        assert response.status_code == 200
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(
             self.runs[1].execution_date, conf.getint('webserver', 'default_dag_run_display_number'), data
@@ -1638,7 +1633,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             data=dict(username='test', password='test'),
             follow_redirects=True,
         )
-        self.test.assertEqual(response.status_code, 200)
+        assert response.status_code == 200
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(self.runs[1].execution_date, 2, data)
         self.assert_run_is_not_in_dropdown(self.runs[0], data)
@@ -1663,7 +1658,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             data=dict(username='test', password='test'),
             follow_redirects=True,
         )
-        self.test.assertEqual(response.status_code, 200)
+        assert response.status_code == 200
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(self.runs[1].execution_date, 42, data)
         self.assert_run_is_not_in_dropdown(self.runs[0], data)
@@ -1688,7 +1683,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             data=dict(username='test', password='test'),
             follow_redirects=True,
         )
-        self.test.assertEqual(response.status_code, 200)
+        assert response.status_code == 200
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(self.runs[2].execution_date, 5, data)
         self.assert_run_is_not_in_dropdown(self.runs[0], data)
@@ -1697,28 +1692,19 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.assert_run_is_selected(self.runs[3], data)
 
 
-@pytest.mark.skip(reason="not converted yet")
 class TestGraphView(TestBase):
     GRAPH_ENDPOINT = '/graph?dag_id={dag_id}'.format(
         dag_id=ViewWithDateTimeAndNumRunsAndDagRunsFormTester.DAG_ID
     )
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
-    def setUp(self):
-        super().setUp()
-        self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(self, self.GRAPH_ENDPOINT)
+    @pytest.fixture(autouse=True)
+    def _setup_tester(self):
+        self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
+            self, self.GRAPH_ENDPOINT,
+        )
         self.tester.setup()
-
-    def tearDown(self):
+        yield
         self.tester.teardown()
-        super().tearDown()
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
 
     def test_dt_nr_dr_form_default_parameters(self):
         self.tester.test_with_default_parameters()
@@ -1736,28 +1722,19 @@ class TestGraphView(TestBase):
         self.tester.test_with_base_date_and_num_runs_and_execution_date_within()
 
 
-@pytest.mark.skip(reason="not converted yet")
 class TestGanttView(TestBase):
     GANTT_ENDPOINT = '/gantt?dag_id={dag_id}'.format(
         dag_id=ViewWithDateTimeAndNumRunsAndDagRunsFormTester.DAG_ID
     )
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
-    def setUp(self):
-        super().setUp()
-        self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(self, self.GANTT_ENDPOINT)
+    @pytest.fixture(autouse=True)
+    def _setup_tester(self):
+        self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
+            self, self.GANTT_ENDPOINT,
+        )
         self.tester.setup()
-
-    def tearDown(self):
+        yield
         self.tester.teardown()
-        super().tearDown()
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
 
     def test_dt_nr_dr_form_default_parameters(self):
         self.tester.test_with_default_parameters()
@@ -1775,7 +1752,6 @@ class TestGanttView(TestBase):
         self.tester.test_with_base_date_and_num_runs_and_execution_date_within()
 
 
-@pytest.mark.skip(reason="not converted yet")
 class TestDagACLView(TestBase):
     """
     Test Airflow DAG acl
@@ -1784,15 +1760,20 @@ class TestDagACLView(TestBase):
     next_year = dt.now().year + 1
     default_date = timezone.datetime(next_year, 6, 1)
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    @pytest.fixture(scope="class", autouse=True)
+    def _setup_acl(self, minimal_app):
         dagbag = models.DagBag(include_examples=True)
         DAG.bulk_write_to_db(dagbag.dags.values())
         for username in ['all_dag_user', 'dag_read_only', 'dag_faker', 'dag_tester']:
-            user = cls.appbuilder.sm.find_user(username=username)
+            user = minimal_app.appbuilder.sm.find_user(username=username)
             if user:
-                cls.appbuilder.sm.del_register_user(user)
+                minimal_app.appbuilder.sm.del_register_user(user)
+
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        clear_db_runs()
+        self.prepare_dagruns()
+        self.logout()
 
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True, read_dags_from_db=True)
@@ -1812,12 +1793,6 @@ class TestDagACLView(TestBase):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
-
-    def setUp(self):
-        super().setUp()
-        clear_db_runs()
-        self.prepare_dagruns()
-        self.logout()
 
     def login(self, username='dag_tester', password='dag_test'):
         dag_tester_role = self.appbuilder.sm.add_role('dag_acl_tester')
@@ -2679,10 +2654,9 @@ class TestTaskRescheduleView(TestBase):
         self.check_content_in_response('List Task Reschedule', resp)
 
 
-@pytest.mark.skip(reason="not converted yet")
 class TestRenderedView(TestBase):
-    def setUp(self):
-
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.default_date = datetime(2020, 3, 1)
         self.dag = DAG(
             "testdag",
@@ -2699,10 +2673,9 @@ class TestRenderedView(TestBase):
             session.query(RTIF).delete()
 
         self.app.dag_bag = mock.MagicMock(**{'get_dag.return_value': self.dag})
-        super().setUp()
 
-    def tearDown(self) -> None:
-        super().tearDown()
+        yield
+
         with create_session() as session:
             session.query(RTIF).delete()
 
@@ -2762,10 +2735,9 @@ class TestRenderedView(TestBase):
         )
 
 
-@pytest.mark.skip(reason="not converted yet")
 class TestTriggerDag(TestBase):
-    def setUp(self):
-        super().setUp()
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
         self.session.commit()
 
@@ -2910,9 +2882,9 @@ class TestTriggerDag(TestBase):
         assert "Access is Denied" in response_data
 
 
-@pytest.mark.skip(reason="not converted yet")
 class TestExtraLinks(TestBase):
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         from tests.test_utils.mock_operators import Dummy2TestOperator, Dummy3TestOperator
 
         self.endpoint = "extra_links"
@@ -2957,7 +2929,6 @@ class TestExtraLinks(TestBase):
         self.task_3 = Dummy3TestOperator(task_id="some_dummy_task_3", dag=self.dag)
 
         self.app.dag_bag = mock.MagicMock(**{'get_dag.return_value': self.dag})
-        super().setUp()
         self.logout()
         self.login('test_viewer', 'test_viewer')
 
@@ -3137,7 +3108,9 @@ class TestDagRunModelView(TestBase):
         self.clear_table(models.DagRun)
         self.clear_table(models.TaskInstance)
 
-    def tearDown(self):
+    @pytest.fixture(autouse=True)
+    def _cleanup(self):
+        yield
         self.clear_table(models.DagRun)
         self.clear_table(models.TaskInstance)
 
