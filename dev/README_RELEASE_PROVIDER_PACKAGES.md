@@ -36,6 +36,7 @@
   - [Verify by Contributors](#verify-by-contributors)
 - [Publish release](#publish-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
+  - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi-1)
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
@@ -255,7 +256,7 @@ export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 ./breeze build-docs -- \
-  --for-production
+  --for-production \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-*'
 ```
@@ -642,7 +643,7 @@ Cheers,
 
 
 
-### Publish release to SVN
+## Publish release to SVN
 
 The best way of doing this is to svn cp  between the two repos (this avoids having to upload the binaries
 again, and gives a clearer history in the svn commit logs.
@@ -699,61 +700,16 @@ svn commit -m "Release Airflow Providers on $(date)"
 ```
 
 Verify that the packages appear in
-[backport-providers](https://dist.apache.org/repos/dist/release/airflow/providers)
-
-### Publish the final version convenience package to PyPI
-
-Checkout the RC Version for the RC Version released (there is a batch of providers - one of them is enough):
-
-```shell script
-git checkout providers-<PROVIDER_NAME>/<VERSION_RC>
-```
-
-In order to publish to PyPI you just need to build and release packages.
-
-* Generate the packages.
-
-```shell script
-./breeze --backports prepare-provider-packages both
-```
-
-if you ony build few packages, run:
-
-```shell script
-./breeze prepare-provider-packages <PACKAGE> ...
-```
-
-In case you decided to remove some of the packages. remove them from dist folder now:
-
-```shell script
-ls dist/*<provider>*
-rm dist/*<provider>*
-```
-
-
-* Verify the artifacts that would be uploaded:
-
-```shell script
-twine check dist/*
-```
-
-* Upload the package to PyPi's test environment:
-
-```shell script
-twine upload -r pypitest dist/*
-```
-
-* Verify that the test packages look good by downloading it and installing them into a virtual environment.
-  Twine prints the package links as output - separately for each package.
-
-* Upload the package to PyPi's production environment:
-
-```shell script
-twine upload -r pypi dist/*
-```
+[providers](https://dist.apache.org/repos/dist/release/airflow/providers)
 
 
 ## Publish the Regular convenience package to PyPI
+
+* Checkout the RC Version for the RC Version released (there is a batch of providers - one of them is enough):
+
+    ```shell script
+    git checkout providers-<PROVIDER_NAME>/<VERSION_RC>
+    ```
 
 * Generate the packages with final version. Note that
   this will clean up dist folder before generating the packages, so you will only have the right packages there.
