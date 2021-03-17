@@ -14,53 +14,52 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
-
+import pytest
 from flask_appbuilder.security.sqla.models import User
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
-from airflow.www import app
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
 
 
-class TestUserEndpoint(unittest.TestCase):
-    @classmethod
-    @dont_initialize_flask_app_submodules(
-        skip_all_except=["init_appbuilder", "init_api_experimental_auth", "init_api_connexion"]
+@pytest.fixture(scope="module")
+def configured_app(minimal_app_for_api):
+    app = minimal_app_for_api
+    create_user(
+        app,  # type: ignore
+        username="test",
+        role_name="Test",
+        permissions=[
+            (permissions.ACTION_CAN_LIST, permissions.RESOURCE_USER_DB_MODELVIEW),
+            (permissions.ACTION_CAN_SHOW, permissions.RESOURCE_USER_DB_MODELVIEW),
+        ],
     )
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        with conf_vars({("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}):
-            cls.app = app.create_app(testing=True)  # type:ignore
-        cls.client = cls.app.test_client()  # type:ignore
-        create_user(
-            cls.app,  # type: ignore
-            username="test",
-            role_name="Test",
-            permissions=[
-                (permissions.ACTION_CAN_LIST, permissions.RESOURCE_USER_DB_MODELVIEW),
-                (permissions.ACTION_CAN_SHOW, permissions.RESOURCE_USER_DB_MODELVIEW),
-            ],
-        )
-        create_user(cls.app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    @classmethod
-    def tearDownClass(cls) -> None:
-        delete_user(cls.app, username="test")  # type: ignore
-        delete_user(cls.app, username="test_no_permissions")  # type: ignore
+    yield app
 
-    @provide_session
-    def tearDown(self, session) -> None:
-        self.delete_users(session)
+    delete_user(app, username="test")  # type: ignore
+    delete_user(app, username="test_no_permissions")  # type: ignore
+
+
+class TestUserEndpoint:
+    @pytest.fixture(autouse=True)
+    def setup_attrs(self, configured_app) -> None:
+        self.app = configured_app
+        self.client = self.app.test_client()  # type:ignore
+        self.session = self.app.appbuilder.get_session
+
+    def teardown_method(self) -> None:
+        # Delete users that have our custom default time
+        users = self.session.query(User).filter(User.changed_on == timezone.parse(DEFAULT_TIME)).all()
+        for user in users:
+            self.session.delete(user)
+        self.session.commit()
 
     def _create_users(self, count, roles=None):
         # create users with defined created_on and changed_on date
@@ -80,21 +79,12 @@ class TestUserEndpoint(unittest.TestCase):
             for i in range(1, count + 1)
         ]
 
-    @provide_session
-    def delete_users(self, session):
-        # Delete users that have our custom default time
-        users = session.query(User).filter(User.changed_on == timezone.parse(DEFAULT_TIME)).all()
-        for user in users:
-            session.delete(user)
-        session.commit()
-
 
 class TestGetUser(TestUserEndpoint):
-    @provide_session
-    def test_should_respond_200(self, session):
+    def test_should_respond_200(self):
         users = self._create_users(1)
-        session.add_all(users)
-        session.commit()
+        self.session.add_all(users)
+        self.session.commit()
         response = self.client.get("/api/v1/users/TEST_USER1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json == {
@@ -192,22 +182,20 @@ class TestGetUsersPagination(TestUserEndpoint):
             ),
         ]
     )
-    @provide_session
-    def test_handle_limit_offset(self, url, expected_usernames, session):
+    def test_handle_limit_offset(self, url, expected_usernames):
         users = self._create_users(10)
-        session.add_all(users)
-        session.commit()
+        self.session.add_all(users)
+        self.session.commit()
         response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == 12
         usernames = [user["username"] for user in response.json["users"] if user]
         assert usernames == expected_usernames
 
-    @provide_session
-    def test_should_respect_page_size_limit_default(self, session):
+    def test_should_respect_page_size_limit_default(self):
         users = self._create_users(200)
-        session.add_all(users)
-        session.commit()
+        self.session.add_all(users)
+        self.session.commit()
 
         response = self.client.get("/api/v1/users", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
@@ -215,11 +203,10 @@ class TestGetUsersPagination(TestUserEndpoint):
         assert response.json["total_entries"] == 200 + len(['test', 'test_no_permissions'])
         assert len(response.json["users"]) == 100
 
-    @provide_session
-    def test_limit_of_zero_should_return_default(self, session):
+    def test_limit_of_zero_should_return_default(self):
         users = self._create_users(200)
-        session.add_all(users)
-        session.commit()
+        self.session.add_all(users)
+        self.session.commit()
 
         response = self.client.get("/api/v1/users?limit=0", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
@@ -227,12 +214,11 @@ class TestGetUsersPagination(TestUserEndpoint):
         assert response.json["total_entries"] == 200 + len(['test', 'test_no_permissions'])
         assert len(response.json["users"]) == 100
 
-    @provide_session
     @conf_vars({("api", "maximum_page_limit"): "150"})
-    def test_should_return_conf_max_if_req_max_above_conf(self, session):
+    def test_should_return_conf_max_if_req_max_above_conf(self):
         users = self._create_users(200)
-        session.add_all(users)
-        session.commit()
+        self.session.add_all(users)
+        self.session.commit()
 
         response = self.client.get("/api/v1/users?limit=180", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
