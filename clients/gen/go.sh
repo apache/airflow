@@ -22,7 +22,7 @@ readonly CLIENTS_GEN_DIR
 # shellcheck source=./clients/gen/common.sh
 source "${CLIENTS_GEN_DIR}/common.sh"
 
-VERSION=1.0.0
+VERSION=1.1.0
 readonly VERSION
 
 go_config=(
