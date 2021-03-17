@@ -37,6 +37,7 @@ module.exports = {
       // Aliases for internal modules
       neutrino.config.resolve.alias.set('root', resolve(__dirname));
       neutrino.config.resolve.alias.set('src', resolve(__dirname, 'src'));
+      neutrino.config.resolve.alias.set('views', resolve(__dirname, 'src/views'));
     },
     typescript(),
     // Modify typescript config in .tsconfig.json
