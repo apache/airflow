@@ -477,6 +477,7 @@ class TestMountPoint:
         assert resp.headers['Location'] == 'http://localhost/test/home'
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestAirflowBaseViews(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
 
@@ -1189,6 +1190,7 @@ class TestAirflowBaseViews(TestBase):
             self.check_content_not_in_response(xss_string, resp)
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestConfigurationView(TestBase):
     def test_configuration_do_not_expose_config(self):
         self.logout()
@@ -1212,6 +1214,7 @@ class TestConfigurationView(TestBase):
         self.check_content_in_response(['Airflow Configuration', 'Running Configuration'], resp)
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestRedocView(TestBase):
     @classmethod
     def setUpClass(cls):
@@ -1228,6 +1231,7 @@ class TestRedocView(TestBase):
         assert templates[0].local_context == {'openapi_spec_url': '/api/v1/openapi.yaml'}
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestLogView(TestBase):
     DAG_ID = 'dag_for_testing_log_view'
     DAG_ID_REMOVED = 'removed_dag_for_testing_log_view'
@@ -1691,6 +1695,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.assert_run_is_selected(self.runs[3], data)
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestGraphView(TestBase):
     GRAPH_ENDPOINT = '/graph?dag_id={dag_id}'.format(
         dag_id=ViewWithDateTimeAndNumRunsAndDagRunsFormTester.DAG_ID
@@ -1729,6 +1734,7 @@ class TestGraphView(TestBase):
         self.tester.test_with_base_date_and_num_runs_and_execution_date_within()
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestGanttView(TestBase):
     GANTT_ENDPOINT = '/gantt?dag_id={dag_id}'.format(
         dag_id=ViewWithDateTimeAndNumRunsAndDagRunsFormTester.DAG_ID
@@ -1767,6 +1773,7 @@ class TestGanttView(TestBase):
         self.tester.test_with_base_date_and_num_runs_and_execution_date_within()
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestDagACLView(TestBase):
     """
     Test Airflow DAG acl
@@ -2670,6 +2677,7 @@ class TestTaskRescheduleView(TestBase):
         self.check_content_in_response('List Task Reschedule', resp)
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestRenderedView(TestBase):
     def setUp(self):
 
@@ -2752,6 +2760,7 @@ class TestRenderedView(TestBase):
         )
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestTriggerDag(TestBase):
     def setUp(self):
         super().setUp()
@@ -2899,6 +2908,7 @@ class TestTriggerDag(TestBase):
         assert "Access is Denied" in response_data
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestExtraLinks(TestBase):
     def setUp(self):
         from tests.test_utils.mock_operators import Dummy2TestOperator, Dummy3TestOperator
@@ -3115,6 +3125,7 @@ class TestExtraLinks(TestBase):
         assert json.loads(response_str) == {'url': 'https://www.google.com', 'error': None}
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestDagRunModelView(TestBase):
     @classmethod
     def setUpClass(cls):
@@ -3272,6 +3283,7 @@ class TestDagRunModelView(TestBase):
         self.check_content_in_response("Failed to clear state", resp)
 
 
+@pytest.mark.skip(reason="not converted yet")
 class TestDecorators(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
 
