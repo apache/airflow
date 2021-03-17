@@ -18,34 +18,12 @@
  */
 
 import React from 'react';
-import '@testing-library/jest-dom';
-import { Router } from 'react-router-dom';
-import { render } from '@testing-library/react';
-import { createMemoryHistory } from 'history';
+import { Center, Heading } from '@chakra-ui/react';
 
-import Pipelines from 'views/Pipelines';
-import NotFound from 'views/NotFound';
+const Config: React.FC = () => (
+  <Center height="100vh">
+    <Heading>Config</Heading>
+  </Center>
+);
 
-test('Root path redirects to Pipelines view', () => {
-  const history = createMemoryHistory();
-  history.push('/');
-  const { getByText } = render(
-    <Router history={history}>
-      <Pipelines />
-    </Router>,
-  );
-
-  expect(getByText('Pipelines')).toBeInTheDocument();
-});
-
-test('Bad route', () => {
-  const history = createMemoryHistory();
-  history.push('/invalid-path');
-  const { getByText } = render(
-    <Router history={history}>
-      <NotFound />
-    </Router>,
-  );
-
-  expect(getByText('Page not found')).toBeInTheDocument();
-});
+export default Config;
