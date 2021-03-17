@@ -123,34 +123,31 @@ class TemplateWithContext(NamedTuple):
         return result
 
 
-@pytest.fixture(scope="class")
-def minimal_app():
-    application.app = None
-    application.appbuilder = None
-
-    @dont_initialize_flask_app_submodules(
-        skip_all_except=[
-            "init_appbuilder",
-            "init_appbuilder_views",
-            "init_flash_views",
-            "init_jinja_globals",
-        ]
-    )
-    def factory():
-        app = application.create_app(testing=True)
-        app.config['WTF_CSRF_ENABLED'] = False
-        app.jinja_env.undefined = jinja2.StrictUndefined
-        return app
-
-    yield factory()
-    application.app = None
-    application.appbuilder = None
-
-
 class TestBase:
+    @pytest.fixture(scope="class")
+    def minimal_app(self):
+        @dont_initialize_flask_app_submodules(
+            skip_all_except=[
+                "init_appbuilder",
+                "init_appbuilder_views",
+                "init_flash_views",
+                "init_jinja_globals",
+            ]
+        )
+        def factory():
+            app = application.create_app(testing=True)
+            app.config['WTF_CSRF_ENABLED'] = False
+            app.jinja_env.undefined = jinja2.StrictUndefined
+            return app
+
+        yield factory()
+
+    @pytest.fixture(scope="class", autouse=True)
+    def configure_settings(self):
+        settings.configure_orm()
+
     @pytest.fixture(autouse=True)
     def _base_setup(self, minimal_app):
-        settings.configure_orm()
         self.app = minimal_app
         self.session = settings.Session
         self.appbuilder = self.app.appbuilder
@@ -3304,7 +3301,7 @@ class TestDecorators(TestBase):
         )
 
     @pytest.fixture(autouse=True)
-    def _setup(self, dags):
+    def _setup(self, dags, _base_setup):
         self.logout()
         self.login()
         clear_db_runs()
