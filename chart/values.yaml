@@ -225,7 +225,7 @@ data:
   # Otherwise pass connection values in
   metadataConnection:
     user: postgres
-    pass: postgres
+    pass: password
     host: ~
     port: 5432
     db: postgres
