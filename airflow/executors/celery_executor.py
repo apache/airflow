@@ -547,12 +547,12 @@ class BulkStateFetcher(LoggingMixin):
         """Gets status for many Celery tasks using the best method available."""
         if isinstance(app.backend, BaseKeyValueStoreBackend):
             result = self._get_many_from_kv_backend(async_results)
-            return result
-        if isinstance(app.backend, DatabaseBackend):
+        elif isinstance(app.backend, DatabaseBackend):
             result = self._get_many_from_db_backend(async_results)
-            return result
-        async_results = list(async_results)
-        result = self._get_many_using_multiprocessing(async_results)
+        else:
+            async_results = list(async_results)
+            result = self._get_many_using_multiprocessing(async_results)
+        async_results = list(async_results) if isinstance(async_results, map) else async_results
         self.log.debug("Fetched %d states for %d task", len(result), len(async_results))
         return result
 
