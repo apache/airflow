@@ -21,14 +21,26 @@ import React from 'react';
 import { render } from 'react-dom';
 import { BrowserRouter } from 'react-router-dom';
 import { ChakraProvider } from '@chakra-ui/react';
+import {
+  QueryClient,
+  QueryClientProvider,
+} from 'react-query';
+
+import AuthProvider from 'auth/AuthProvider';
 
 import App from './App';
 import theme from './theme';
 
+const queryClient = new QueryClient();
+
 render(
   <BrowserRouter basename="/">
     <ChakraProvider theme={theme}>
-      <App />
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </QueryClientProvider>
     </ChakraProvider>
   </BrowserRouter>,
   document.getElementById('root'),

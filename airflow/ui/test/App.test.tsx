@@ -25,28 +25,38 @@ import { createMemoryHistory } from 'history';
 
 import App from 'App';
 
-test('Root path redirects to Pipelines view', () => {
-  // Redirect is not working in <Router /> for some reason
-  const { getByText } = render(
-    <BrowserRouter basename="/">
-      <App />
-    </BrowserRouter>,
-  );
+// mock auth to be logged in
+jest.mock('auth/context', () => ({
+  useAuthContext: () => ({
+    hasValidAuthToken: true,
+  }),
+}));
 
-  expect(getByText('Pipelines')).toBeInTheDocument();
-});
+describe('test routes after login', () => {
+  test('Root path redirects to Pipelines view', () => {
+    // Redirect is not working in <Router /> for some reason
+    const { getByText } = render(
+      <BrowserRouter basename="/">
+        <App />
+      </BrowserRouter>
+      ,
+    );
 
-test('App displays 404 page on a bad route', () => {
-  const history = createMemoryHistory();
-  history.push('/pipelines');
-  const { getByText } = render(
-    <Router history={history}>
-      <App />
-    </Router>,
-  );
+    expect(getByText('Pipelines')).toBeInTheDocument();
+  });
 
-  expect(getByText('Pipelines')).toBeInTheDocument();
+  test('App displays 404 page on a bad route', () => {
+    const history = createMemoryHistory();
+    history.push('/pipelines');
+    const { getByText } = render(
+      <Router history={history}>
+        <App />
+      </Router>,
+    );
 
-  history.push('/invalid-path');
-  expect(getByText('Page not found')).toBeInTheDocument();
+    expect(getByText('Pipelines')).toBeInTheDocument();
+
+    history.push('/invalid-path');
+    expect(getByText('Page not found')).toBeInTheDocument();
+  });
 });

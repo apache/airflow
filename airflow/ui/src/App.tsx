@@ -21,6 +21,8 @@ import { hot } from 'react-hot-loader';
 import React from 'react';
 import { Route, Redirect, Switch } from 'react-router-dom';
 
+import PrivateRoute from 'auth/PrivateRoute';
+
 import Pipelines from 'views/Pipelines';
 import Pipeline from 'views/Pipeline';
 
@@ -38,19 +40,19 @@ import NotFound from 'views/NotFound';
 const App = () => (
   <Switch>
     <Redirect exact path="/" to="/pipelines" />
-    <Route exact path="/pipelines" component={Pipelines} />
-    <Route exact path="/pipelines/:dagId" component={Pipeline} />
+    <PrivateRoute exact path="/pipelines" component={Pipelines} />
+    <PrivateRoute exact path="/pipelines/:dagId" component={Pipeline} />
 
-    <Route exact path="/activity/event-logs" component={EventLogs} />
+    <PrivateRoute exact path="/activity/event-logs" component={EventLogs} />
 
-    <Route exact path="/config" component={Config} />
+    <PrivateRoute exact path="/config" component={Config} />
 
-    <Route exact path="/access" component={Access} />
-    <Route exact path="/access/users" component={Users} />
-    <Route exact path="/access/users/new" component={Users} />
-    <Route exact path="/access/users/:id" component={Users} />
-    <Route exact path="/access/users/:id/edit" component={Users} />
-    <Route exact path="/access/roles" component={Roles} />
+    <PrivateRoute exact path="/access" component={Access} />
+    <PrivateRoute exact path="/access/users" component={Users} />
+    <PrivateRoute exact path="/access/users/new" component={Users} />
+    <PrivateRoute exact path="/access/users/:id" component={Users} />
+    <PrivateRoute exact path="/access/users/:id/edit" component={Users} />
+    <PrivateRoute exact path="/access/roles" component={Roles} />
 
     <Route exact path="/docs" component={Docs} />
 
