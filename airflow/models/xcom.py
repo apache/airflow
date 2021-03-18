@@ -228,7 +228,7 @@ class BaseXCom(Base, LoggingMixin):
         except (ValueError, TypeError):
             log.error(
                 "Could not serialize the XCom value into JSON."
-                " If you are using pickles instead of JSON for XCom,"
+                " If you are using pickle instead of JSON for XCom,"
                 " then you need to enable pickle support for XCom"
                 " in your airflow config."
             )
@@ -237,15 +237,16 @@ class BaseXCom(Base, LoggingMixin):
     @staticmethod
     def deserialize_value(result: "XCom") -> Any:
         """Deserialize XCom value from str or pickle object"""
-        if not conf.getboolean('core', 'enable_xcom_pickling'):
+        if conf.getboolean('core', 'enable_xcom_pickling'):
+            try:
+                return pickle.loads(result.value)
+            except pickle.UnpicklingError:
+                return json.loads(result.value.decode('UTF-8'))
+        else:
             try:
                 return json.loads(result.value.decode('UTF-8'))
             except JSONDecodeError:
-                # For backward-compatibility.
-                # As 'enable_xcom_pickling' changed default from True to False,
-                # pickled (old) and JSON (new) are both existing.
-                pass
-        return pickle.loads(result.value)
+                return pickle.loads(result.value)
 
     def orm_deserialize_value(self) -> Any:
         """
