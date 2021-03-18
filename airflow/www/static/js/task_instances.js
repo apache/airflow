@@ -17,11 +17,12 @@
  * under the License.
  */
 
-/* global window, dagTZ, moment, convertSecsToHumanReadable */
+/* global window, moment, convertSecsToHumanReadable */
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
 import { escapeHtml } from './main';
 import { defaultFormat, formatDateTime } from './datetime_utils';
+import { dagTZ } from './dag';
 
 function makeDateTimeHTML(start, end) {
   // check task ended or not
@@ -29,7 +30,7 @@ function makeDateTimeHTML(start, end) {
   return `Started: ${start.format(defaultFormat)}<br>Ended: ${isEnded ? end.format(defaultFormat) : 'Not ended yet'}<br>`;
 }
 
-function generateTooltipDateTimes(startDate, endDate, dagTZ) {
+function generateTooltipDateTimes(startDate, endDate, dagTz) {
   if (!startDate) {
     return '<br><em>Not yet started</em>';
   }
@@ -38,7 +39,7 @@ function generateTooltipDateTimes(startDate, endDate, dagTZ) {
   const localTZ = moment.defaultZone.name.toUpperCase();
   startDate = moment.utc(startDate);
   endDate = moment.utc(endDate);
-  dagTZ = dagTZ.toUpperCase();
+  dagTz = dagTz.toUpperCase();
 
   // Generate UTC Start and End Date
   let tooltipHTML = '<br><strong>UTC:</strong><br>';

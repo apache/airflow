@@ -39,6 +39,7 @@ const config = {
   entry: {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
+    dag: `${JS_DIR}/dag.js`,
     dagCode: `${JS_DIR}/dag_code.js`,
     dags: [`${CSS_DIR}/dags.css`, `${JS_DIR}/dags.js`],
     flash: `${CSS_DIR}/flash.css`,
