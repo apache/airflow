@@ -126,5 +126,8 @@ def fetch_inventories():
     failed, success = list(failed), list(failed)
     print(f"Result: {len(success)}, success {len(failed)} failed")
     if failed:
-        print("Failed packages:", ", ".join(failed))
-    return [pkg_name for pkg_name, status in download_results if not status]
+        print("Failed packages:")
+        for pkg_no, (pkg_name, _) in enumerate(failed, start=1):
+            print(f"{pkg_no}. {pkg_name}")
+
+    return [pkg_name for pkg_name, status in failed]

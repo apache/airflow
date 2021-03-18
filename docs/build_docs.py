@@ -205,7 +205,7 @@ def main():
         _promote_new_flags()
 
     with with_group("Available packages"):
-        for pkg in available_packages:
+        for pkg in sorted(available_packages):
             print(f" - {pkg}")
 
     if package_filters:
