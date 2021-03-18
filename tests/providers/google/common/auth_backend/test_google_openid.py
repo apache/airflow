@@ -28,20 +28,21 @@ from tests.test_utils.db import clear_db_pools
 
 
 class TestGoogleOpenID(unittest.TestCase):
-    def setUp(self) -> None:
+    @classmethod
+    def setUpClass(cls) -> None:
         with conf_vars(
             {
                 ("api", "auth_backend"): "airflow.providers.google.common.auth_backend.google_openid",
                 ('api', 'enable_experimental_api'): 'true',
             }
         ):
-            self.app = create_app(testing=True)
+            cls.app = create_app(testing=True)
 
-        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
-        role_admin = self.appbuilder.sm.find_role("Admin")
-        tester = self.appbuilder.sm.find_user(username="test")
+        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
+        role_admin = cls.appbuilder.sm.find_role("Admin")
+        tester = cls.appbuilder.sm.find_user(username="test")
         if not tester:
-            self.appbuilder.sm.add_user(
+            cls.appbuilder.sm.add_user(
                 username="test",
                 first_name="test",
                 last_name="test",
