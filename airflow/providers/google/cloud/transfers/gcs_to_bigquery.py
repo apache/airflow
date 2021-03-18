@@ -157,9 +157,9 @@ class GCSToBigQueryOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
-    :param labels: dict
-    :type labels: [Optional] Labels for BQ table.
-    :param description: [Optional] Description for BQ table.
+    :param labels: [Optional] Labels for the BiqQuery table.
+    :type labels: dict
+    :param description: [Optional] Description for the BigQuery table.
     :type description: str
     """
 
