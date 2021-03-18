@@ -22,6 +22,7 @@ set -euo pipefail
 AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ ${BREEZE_REDIRECT=} == "" ]]; then
+    set +u
     mkdir -p "${AIRFLOW_SOURCES}"/logs
     export BREEZE_REDIRECT="true"
     if [[ "$(uname)" == "Darwin" ]]; then
@@ -29,6 +30,7 @@ if [[ ${BREEZE_REDIRECT=} == "" ]]; then
     else
       exec script --return --quiet "${AIRFLOW_SOURCES}"/logs/breeze.out -c "$(printf "%q " "${0}" "${@}")"
     fi
+    set -u
 fi
 
 export AIRFLOW_SOURCES
