@@ -526,6 +526,8 @@ paths:
         - $ref: '#/components/parameters/FilterStartDateLTE'
         - $ref: '#/components/parameters/FilterEndDateGTE'
         - $ref: '#/components/parameters/FilterEndDateLTE'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
           description: List of DAG runs.
@@ -3165,6 +3167,27 @@ components:
           type: string
       description:
         The value can be repeated to retrieve multiple matching values (OR condition).
+
+    # Sort/Order parameters
+    SortBy:
+      in: query
+      name: sort
+      schema:
+        type: string
+        enum:
+          - asc
+          - desc
+        default: desc
+      required: false
+      description: The direction to order results
+
+    OrderBy:
+      in: query
+      name: order_by
+      schema:
+        type: string
+      required: false
+      description: The name of the field to order results
 
     # Other parameters
     FileToken:

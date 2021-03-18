@@ -17,6 +17,7 @@
 from connexion import NoContent
 from flask import current_app, g, request
 from marshmallow import ValidationError
+from sqlalchemy import asc, desc
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
@@ -94,8 +95,16 @@ def get_dag_runs(
     end_date_lte=None,
     offset=None,
     limit=None,
-):
+    sort=None,
+    order_by=None,
+):  # pylint: disable=too-many-arguments
     """Get all DAG Runs."""
+    # return early if order_by field do not exist
+    if order_by and not hasattr(DagRun, order_by):
+        raise BadRequest(
+            title="Orderby column not found",
+            detail=f"The column `{order_by}` specified by order_by in query does not exist",
+        )
     query = session.query(DagRun)
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
@@ -115,6 +124,8 @@ def get_dag_runs(
         start_date_lte,
         limit,
         offset,
+        sort,
+        order_by,
     )
 
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
@@ -130,7 +141,9 @@ def _fetch_dag_runs(
     start_date_lte,
     limit,
     offset,
-):
+    sort=None,
+    order_by=None,
+):  # pylint: disable=too-many-arguments
     query = _apply_date_filters_to_query(
         query,
         end_date_gte,
@@ -142,8 +155,15 @@ def _fetch_dag_runs(
     )
     # Count items
     total_entries = query.count()
+    # sort
+    if sort == 'asc':
+        query = query.order_by(asc(order_by or DagRun.id))
+    elif sort == 'desc':
+        query = query.order_by(desc(order_by or DagRun.id))
+    else:
+        query = query.order_by(DagRun.id)
     # apply offset and limit
-    dag_run = query.order_by(DagRun.id).offset(offset).limit(limit).all()
+    dag_run = query.offset(offset).limit(limit).all()
     return dag_run, total_entries
 
 

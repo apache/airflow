@@ -249,7 +249,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
         result = session.query(DagRun).all()
         assert len(result) == 2
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns", environ_overrides={'REMOTE_USER': "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns?sort=asc", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
         assert response.json == {
@@ -278,9 +278,47 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "total_entries": 2,
         }
 
+    def test_return_correct_results_with_order_by(self, session):
+        self._create_test_dag_run()
+        result = session.query(DagRun).all()
+        assert len(result) == 2
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns?order_by=execution_date",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+
+        assert response.status_code == 200
+        assert self.default_time < self.default_time_2
+        # Sort is descending by default
+        assert response.json == {
+            "dag_runs": [
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_2',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time_2,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+            ],
+            "total_entries": 2,
+        }
+
     def test_should_return_all_with_tilde_as_dag_id_and_all_dag_permissions(self):
         self._create_test_dag_run(extra_dag=True)
-        expected_dag_run_ids = ['TEST_DAG_ID', 'TEST_DAG_ID', "TEST_DAG_ID_3", "TEST_DAG_ID_4"]
+        expected_dag_run_ids = ['TEST_DAG_ID_4', 'TEST_DAG_ID_3', "TEST_DAG_ID", "TEST_DAG_ID"]
         response = self.client.get("api/v1/dags/~/dagRuns", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
@@ -347,7 +385,7 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
     )
     def test_handle_limit_and_offset(self, url, expected_dag_run_ids):
         self._create_dag_runs(10)
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
 
         assert response.json["total_entries"] == 10
@@ -438,7 +476,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
         session.add_all(dagrun_models)
         session.commit()
 
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == len(expected_dag_run_ids)
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
