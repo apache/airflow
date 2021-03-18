@@ -20,6 +20,7 @@ from flask import current_app
 from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.parameters import format_parameters, return_plus
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
@@ -27,6 +28,7 @@ from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 
+@format_parameters({"dag_run_id": return_plus})
 @security.requires_access(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),

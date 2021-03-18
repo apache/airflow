@@ -16,12 +16,18 @@
 # under the License.
 from functools import wraps
 from typing import Callable, Dict, TypeVar, cast
+from urllib.parse import unquote
 
 from pendulum.parsing import ParserError
 
 from airflow.api_connexion.exceptions import BadRequest
 from airflow.configuration import conf
 from airflow.utils import timezone
+
+
+def return_plus(value: str):
+    """Unquote double quoted + for dag_run_id in url"""
+    return unquote(value)
 
 
 def validate_istimezone(value):

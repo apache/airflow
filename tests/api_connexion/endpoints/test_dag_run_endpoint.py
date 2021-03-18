@@ -102,7 +102,7 @@ class TestDagRunEndpoint:
         dags = [DagModel(dag_id="TEST_DAG_ID")]
         dagrun_model_1 = DagRun(
             dag_id="TEST_DAG_ID",
-            run_id="TEST_DAG_RUN_ID_1",
+            run_id="TEST_DAG_RUN_ID_1+00:00",
             run_type=DagRunType.MANUAL,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
@@ -144,12 +144,14 @@ class TestDeleteDagRun(TestDagRunEndpoint):
         session.add_all(self._create_test_dag_run())
         session.commit()
         response = self.client.delete(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1", environ_overrides={'REMOTE_USER': "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1%252B00:00",
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 204
         # Check if the Dag Run is deleted from the database
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1", environ_overrides={'REMOTE_USER': "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1%252B00:00",
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 404
 
@@ -170,7 +172,7 @@ class TestDeleteDagRun(TestDagRunEndpoint):
         session.commit()
 
         response = self.client.delete(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1+00:00",
         )
 
         assert_401(response)
@@ -187,7 +189,7 @@ class TestGetDagRun(TestDagRunEndpoint):
     def test_should_respond_200(self, session):
         dagrun_model = DagRun(
             dag_id="TEST_DAG_ID",
-            run_id="TEST_DAG_RUN_ID",
+            run_id="TEST_DAG_RUN_ID+00:00",
             run_type=DagRunType.MANUAL,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
@@ -198,12 +200,13 @@ class TestGetDagRun(TestDagRunEndpoint):
         result = session.query(DagRun).all()
         assert len(result) == 1
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID", environ_overrides={'REMOTE_USER': "test"}
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID%252B00:00",
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
         expected_response = {
             'dag_id': 'TEST_DAG_ID',
-            'dag_run_id': 'TEST_DAG_RUN_ID',
+            'dag_run_id': 'TEST_DAG_RUN_ID+00:00',
             'end_date': None,
             'state': 'running',
             'execution_date': self.default_time,
@@ -256,7 +259,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "dag_runs": [
                 {
                     'dag_id': 'TEST_DAG_ID',
-                    'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_1+00:00',
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time,
@@ -483,7 +486,7 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
             (
                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
                 f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
-                ["TEST_DAG_RUN_ID_1"],
+                ["TEST_DAG_RUN_ID_1+00:00"],
             ),
         ]
     )
@@ -509,7 +512,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "dag_runs": [
                 {
                     'dag_id': 'TEST_DAG_ID',
-                    'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_1+00:00',
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time,
@@ -543,7 +546,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "dag_runs": [
                 {
                     'dag_id': 'TEST_DAG_ID',
-                    'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_1+00:00',
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time,
@@ -790,7 +793,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
             ),
             (
                 {"end_date_lte": f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}"},
-                ["TEST_DAG_RUN_ID_1"],
+                ["TEST_DAG_RUN_ID_1+00:00"],
             ),
         ]
     )
@@ -906,7 +909,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={
-                "dag_run_id": "TEST_DAG_RUN_ID_1",
+                "dag_run_id": "TEST_DAG_RUN_ID_1+00:00",
                 "execution_date": self.default_time,
             },
             environ_overrides={'REMOTE_USER': "test"},
@@ -914,7 +917,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.status_code == 409, response.data
         assert response.json == {
             "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
-            "DAGRun ID: 'TEST_DAG_RUN_ID_1' already exists",
+            "DAGRun ID: 'TEST_DAG_RUN_ID_1+00:00' already exists",
             "status": 409,
             "title": "Conflict",
             "type": EXCEPTIONS_LINK_MAP[409],

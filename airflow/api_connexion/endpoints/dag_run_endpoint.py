@@ -20,7 +20,7 @@ from marshmallow import ValidationError
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
+from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters, return_plus
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     dagrun_collection_schema,
@@ -33,6 +33,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 
+@format_parameters({"dag_run_id": return_plus})
 @security.requires_access(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
@@ -47,6 +48,7 @@ def delete_dag_run(dag_id, dag_run_id, session):
     return NoContent, 204
 
 
+@format_parameters({"dag_run_id": return_plus})
 @security.requires_access(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),

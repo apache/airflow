@@ -22,7 +22,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
-from airflow.api_connexion.parameters import check_limit, format_parameters
+from airflow.api_connexion.parameters import check_limit, format_parameters, return_plus
 from airflow.api_connexion.schemas.xcom_schema import (
     XComCollection,
     XComCollectionItemSchema,
@@ -43,7 +43,7 @@ from airflow.utils.session import provide_session
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
     ]
 )
-@format_parameters({'limit': check_limit})
+@format_parameters({'limit': check_limit, "dag_run_id": return_plus})
 @provide_session
 def get_xcom_entries(
     dag_id: str,
@@ -74,6 +74,7 @@ def get_xcom_entries(
     return xcom_collection_schema.dump(XComCollection(xcom_entries=query.all(), total_entries=total_entries))
 
 
+@format_parameters({"dag_run_id": return_plus})
 @security.requires_access(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),

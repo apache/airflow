@@ -23,7 +23,7 @@ from sqlalchemy import and_, func
 from airflow.api.common.experimental.mark_tasks import set_state
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
-from airflow.api_connexion.parameters import format_datetime, format_parameters
+from airflow.api_connexion.parameters import format_datetime, format_parameters, return_plus
 from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceCollection,
     TaskInstanceReferenceCollection,
@@ -43,6 +43,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
+@format_parameters({"dag_run_id": return_plus})
 @security.requires_access(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
@@ -99,6 +100,7 @@ def _apply_range_filter(query, key, value_range: Tuple[Any, Any]):
         "start_date_lte": format_datetime,
         "end_date_gte": format_datetime,
         "end_date_lte": format_datetime,
+        "dag_run_id": return_plus,
     }
 )
 @security.requires_access(
@@ -111,8 +113,8 @@ def _apply_range_filter(query, key, value_range: Tuple[Any, Any]):
 @provide_session
 def get_task_instances(
     limit: int,
-    dag_id: Optional[str] = None,
-    dag_run_id: Optional[str] = None,
+    dag_id: str,
+    dag_run_id: str,
     execution_date_gte: Optional[str] = None,
     execution_date_lte: Optional[str] = None,
     start_date_gte: Optional[str] = None,
