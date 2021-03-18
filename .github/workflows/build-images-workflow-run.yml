@@ -361,9 +361,7 @@ jobs:
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-        if: |
-          !contains(needs.build-info.outputs.runsOn, 'self-hosted') &&
-          steps.defaults.outputs.proceed == 'true'
+        if: steps.defaults.outputs.proceed == 'true'
       - name: "Build CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
         if: steps.defaults.outputs.proceed == 'true'
@@ -491,9 +489,7 @@ jobs:
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-        if: |
-          !contains(needs.build-info.outputs.runsOn, 'self-hosted') &&
-          steps.defaults.outputs.proceed == 'true'
+        if: steps.defaults.outputs.proceed == 'true'
       - name: "Build CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
         # Pull images built in the previous step
