@@ -22,13 +22,6 @@ from typing import List
 import click as click
 from rich import print
 
-BACKPORTS_DOCKER = """\
-FROM apache/airflow:1.10.15
-
-# Install backports
-{}
-"""
-
 PROVIDERS_DOCKER = """\
 FROM apache/airflow:latest
 
@@ -61,7 +54,6 @@ docker local/airflow info
 
 AIRFLOW = "AIRFLOW"
 PROVIDERS = "PROVIDERS"
-BACKPORTS = "BACKPORTS"
 UPGRADE_CHECK = "UPGRADE_CHECK"
 
 ASC = re.compile(r".*\.asc$")
@@ -109,11 +101,8 @@ def filter_files(files: List[str], prefix: str):
     return [f for f in files if f.startswith(prefix)]
 
 
-def check_providers(files: List[str], version: str, backports: bool = False):
+def check_providers(files: List[str], version: str):
     name_tpl = "apache_airflow_providers_{}-{}"
-    if backports:
-        name_tpl = "apache_airflow_backport_providers_{}-{}"
-
     pip_packages = []
     for p in get_packages():
         print(p)
@@ -164,9 +153,9 @@ def check_upgrade_check(files: List[str], version: str):
     "--type",
     "-t",
     "check_type",
-    prompt="backports, providers, airflow, upgrade_check",
+    prompt="providers, airflow, upgrade_check",
     type=str,
-    help="Type of the check to perform. One of: backports, providers, airflow, upgrade_check",
+    help="Type of the check to perform. One of: providers, airflow, upgrade_check",
 )
 @click.option(
     "--version",
@@ -185,30 +174,17 @@ def check_upgrade_check(files: List[str], version: str):
 def main(check_type: str, path: str, version: str):
     """
     Use this tool to verify that all expected packages are present in Apache Airflow svn.
-    In case of providers and backports it will generate Dockerfile.pmc that you can use
+    In case of providers, it will generate Dockerfile.pmc that you can use
     to verify that all packages are installable.
 
-    In case of providers/backport you should update `packages.txt` file with list of packages
+    In case of providers, you should update `packages.txt` file with list of packages
     that you expect to find (copy-paste the list from VOTE thread).
 
     Example usages:
     python check_files.py -v 1.10.15rc1 -t airflow -p ~/code/airflow_svn
     python check_files.py -v 1.3.0rc2 -t upgrade_check -p ~/code/airflow_svn
     python check_files.py -v 1.0.3rc1 -t providers -p ~/code/airflow_svn
-    python check_files.py -v 2021.3.17rc1 -t backports -p ~/code/airflow_svn
     """
-
-    if check_type.upper() == BACKPORTS:
-        name = f"apache-airflow-backport-providers-{version}"
-        print(f"All sources: {name}")
-
-        files = os.listdir(os.path.join(path, "backport-providers", version))
-        check_all_present("sources", filter_files(files, name))
-        print()
-
-        pips = check_providers(files, version, backports=True)
-        create_docker(BACKPORTS_DOCKER.format("\n".join([f"RUN pip install '{p}'" for p in pips])))
-        return
 
     if check_type.upper() == PROVIDERS:
         files = os.listdir(os.path.join(path, "providers"))

@@ -493,7 +493,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
-    --build-arg ADDITIONAL_PYTHON_DEPS="apache-airflow-backport-providers-odbc \
+    --build-arg ADDITIONAL_PYTHON_DEPS="apache-airflow-providers-odbc \
         azure-storage-blob \
         sshtunnel \
         google-api-python-client \

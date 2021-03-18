@@ -53,8 +53,7 @@ that take down Production systems, will be backported to 1.10.x until June 17, 2
 
 ## Support for Backport Providers
 
-Backport providers within 1.10.x, will be supported for critical fixes for three months (March 17, 2021)
-from Airflow 2.0.0 release date (Dec 17, 2020).
+Backport providers within 1.10.x, are not released any more, as of (March 17, 2021).
 
 ## Release Guidelines
 

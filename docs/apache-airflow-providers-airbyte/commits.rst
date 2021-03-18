@@ -18,10 +18,23 @@
 
 
 Package apache-airflow-providers-airbyte
-----------------------------------------
+------------------------------------------------------
 
 `Airbyte <https://airbyte.io/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``airbyte``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2021-03-06
+
+================================================================================================  ===========  ======================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================
+`20b72aea4 <https://github.com/apache/airflow/commit/20b72aea4dc1e25f2aa3cfe62b45ca1ff29d1cbb>`_  2021-03-06   ``Adds new Airbyte provider (#14492)``
+================================================================================================  ===========  ======================================

@@ -200,10 +200,8 @@ install_remaining_dependencies
 install_provider_packages
 import_all_provider_classes
 
-if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
-    discover_all_provider_packages
-    discover_all_hooks
-    discover_all_connection_form_widgets
-    discover_all_field_behaviours
-    discover_all_extra_links
-fi
+discover_all_provider_packages
+discover_all_hooks
+discover_all_connection_form_widgets
+discover_all_field_behaviours
+discover_all_extra_links

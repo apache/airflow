@@ -456,8 +456,6 @@ function initialization::initialize_provider_package_building() {
     export VERSION_SUFFIX_FOR_PYPI="${VERSION_SUFFIX_FOR_PYPI=}"
     # Artifact name suffix for SVN packaging
     export VERSION_SUFFIX_FOR_SVN="${VERSION_SUFFIX_FOR_SVN=}"
-    # If set to true, the backport provider packages will be built (false will build regular provider packages)
-    export BACKPORT_PACKAGES=${BACKPORT_PACKAGES:="false"}
 
 }
 

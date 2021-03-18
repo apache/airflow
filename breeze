@@ -141,9 +141,6 @@ function breeze::setup_default_breeze_constants() {
     # Which means that you do not have to start from scratch
     export PRESERVE_VOLUMES="false"
 
-    # If set to true, Backport packages are prepared not the Regular ones
-    export BACKPORT_PACKAGES="false"
-
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC="false"
 
@@ -1188,12 +1185,6 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
-        --backports)
-            export BACKPORT_PACKAGES="true"
-            echo "Work on backport packages not the regular ones"
-            echo
-            shift
-            ;;
         --load-example-dags)
             export LOAD_EXAMPLES="true"
             echo "Include Airflow sample dags"
@@ -1801,7 +1792,7 @@ $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_FLAGS
     export DETAILED_USAGE_PREPARE_PROVIDER_DOCUMENTATION="
-${CMDNAME} prepare-provider-documentation [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
+${CMDNAME} prepare-provider-documentation [FLAGS] [PACKAGE_ID ...]
 
       Prepares documentation files for provider packages.
 
@@ -1810,23 +1801,14 @@ ${CMDNAME} prepare-provider-documentation [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
       If no packages are specified, readme for all packages are generated.
       If no date is specified, current date + 3 days is used (allowing for PMC votes to pass).
 
-      You can also specify --backport flag to prepare backport providers documentation and in this
-      case you can also optionally specify CALVER version as first parameter.
-
       Examples:
 
       '${CMDNAME} prepare-provider-documentation' or
-      '${CMDNAME} prepare-provider-documentation --version-suffix-for-pypi rc1' or
-      '${CMDNAME} prepare-provider-documentation --backports 2020.05.10' or
-      '${CMDNAME} prepare-provider-documentation --backports 2020.05.10 https google amazon'
+      '${CMDNAME} prepare-provider-documentation --version-suffix-for-pypi rc1'
 
       General form:
 
-      '${CMDNAME} prepare-provider-documentation YYYY.MM.DD <PACKAGE_ID> ...'
-
-      * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
-        cannot be earlier than the already released version (the script will fail if it
-        will be). It can be set in the future anticipating the future release date.
+      '${CMDNAME} prepare-provider-documentation <PACKAGE_ID> ...'
 
       * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
         'google' but in several cases, it might be one level deeper separated with
@@ -1891,7 +1873,7 @@ $(breeze::flag_verbosity)
     export DETAILED_USAGE_PREPARE_PROVIDER_PACKAGES="
 ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
 
-      Prepares backport packages. You can provide (after --) optional list of packages to prepare.
+      Prepares provider packages. You can provide (after --) optional list of packages to prepare.
       If no packages are specified, readme for all packages are generated. You can specify optional
       --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
       --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
@@ -1900,9 +1882,6 @@ ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
       so that you do not have accidental files there. This will delete airflow package if it is
       prepared there so make sure you run prepare-provider-packages first,
       and prepare-airflow-packages second.
-
-      You can also specify --backport flag to prepare backport providers or --package-format to
-      prepare one or both types of supported formats.
 
       Examples:
 
@@ -1916,7 +1895,7 @@ ${CMDNAME} prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
 
       General form:
 
-      '${CMDNAME} prepare-provider-packages [--backports] [--package-format PACKAGE_FORMAT] \\
+      '${CMDNAME} prepare-provider-packages [--package-format PACKAGE_FORMAT] \\
             [--version-suffix-for-svn|--version-suffix-for-pypi] <PACKAGE_ID> ...'
 
       * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
@@ -2539,10 +2518,6 @@ ${FORMATTED_PACKAGE_FORMATS}
 
         Default: ${_breeze_default_package_format:=}
 
---backports
-
-        Prepares backport providers rather than regular ones.
-
 "
 }
 
@@ -2804,7 +2779,7 @@ ${FORMATTED_GITHUB_REGISTRY}
 function breeze::flag_version_suffix() {
     echo "
 -S, --version-suffix-for-pypi SUFFIX
-        Adds optional suffix to the version in the generated backport package. It can be used
+        Adds optional suffix to the version in the generated provider package. It can be used
         to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
 
 -N, --version-suffix-for-svn SUFFIX
@@ -2937,7 +2912,7 @@ $(breeze::print_star_line)
 $(breeze::flag_tests)
 
 $(breeze::print_star_line)
- Flags for generation of the backport packages
+ Flags for generation of the provider packages
 $(breeze::flag_version_suffix)
 
 $(breeze::print_star_line)
