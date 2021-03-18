@@ -29,6 +29,7 @@ assists users migrating to a new version.
 - [Master](#master)
 - [Airflow 2.0.1](#airflow-201)
 - [Airflow 2.0.0](#airflow-200)
+- [Airflow 1.10.15](#airflow-11015)
 - [Airflow 1.10.14](#airflow-11014)
 - [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
@@ -1820,6 +1821,10 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 ...
 }
 ```
+
+## Airflow 1.10.15
+
+No breaking changes.
 
 ## Airflow 1.10.14
 
