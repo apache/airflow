@@ -1750,11 +1750,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if encryption_configuration:
             configuration["load"]["destinationEncryptionConfiguration"] = encryption_configuration
 
-        if labels:
-            configuration['load']['destinationTableProperties']['labels'] = labels
+        if labels or description:
+            configuration['load'].update({'destinationTableProperties': {}})
 
-        if description:
-            configuration['load']['destinationTableProperties']['description'] = description
+            if labels:
+                configuration['load']['destinationTableProperties']['labels'] = labels
+
+            if description:
+                configuration['load']['destinationTableProperties']['description'] = description
 
 
         src_fmt_to_configs_mapping = {
