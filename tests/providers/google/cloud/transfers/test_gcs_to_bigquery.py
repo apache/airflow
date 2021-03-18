@@ -26,6 +26,8 @@ TEST_EXPLICIT_DEST = 'test-project.dataset.table'
 TEST_BUCKET = 'test-bucket'
 MAX_ID_KEY = 'id'
 TEST_SOURCE_OBJECTS = ['test/objects/*']
+LABELS = {'test': 'label'}
+DESCRIPTION = "Test Description"
 
 
 class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
@@ -56,6 +58,46 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
             source_objects=TEST_SOURCE_OBJECTS,
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
             max_id_key=MAX_ID_KEY,
+        )
+
+        # using non-legacy SQL
+        bq_hook.return_value.get_conn.return_value.cursor.return_value.use_legacy_sql = False
+
+        operator.execute(None)
+
+        bq_hook.return_value.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(
+            "SELECT MAX(id) FROM `test-project.dataset.table`"
+        )
+
+    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
+    def test_execute_labels(self, bq_hook):
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            max_id_key=MAX_ID_KEY,
+            labels=LABELS
+        )
+
+        # using non-legacy SQL
+        bq_hook.return_value.get_conn.return_value.cursor.return_value.use_legacy_sql = False
+
+        operator.execute(None)
+
+        bq_hook.return_value.get_conn.return_value.cursor.return_value.execute.assert_called_once_with(
+            "SELECT MAX(id) FROM `test-project.dataset.table`"
+        )
+
+    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
+    def test_execute_description(self, bq_hook):
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            max_id_key=MAX_ID_KEY,
+            description=DESCRIPTION
         )
 
         # using non-legacy SQL
