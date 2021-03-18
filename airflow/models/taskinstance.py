@@ -1295,11 +1295,11 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 registered = False
                 try:
                     registered = task_copy.register_in_sensor_service(self, context)
-                except Exception:
+                except Exception:  # pylint: disable=broad-except
                     self.log.warning(
                         "Failed to register in sensor service."
-                        "Continue to run task in non smart sensor mode.",
-                        exc_info=True
+                        " Continue to run task in non smart sensor mode.",
+                        exc_info=True,
                     )
 
                 if registered:
