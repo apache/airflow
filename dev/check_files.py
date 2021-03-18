@@ -23,7 +23,7 @@ import click as click
 from rich import print
 
 BACKPORTS_DOCKER = """\
-FROM apache/airflow:1.10.14
+FROM apache/airflow:1.10.15
 
 # Install backports
 {}
@@ -45,7 +45,7 @@ RUN pip install "apache-airflow=={}"
 """
 
 DOCKER_UPGRADE = """\
-FROM apache/airflow:1.10.14
+FROM apache/airflow:1.10.15
 
 # Install upgrade-check
 RUN pip install "apache-airflow-upgrade-check=={}"

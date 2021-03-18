@@ -544,7 +544,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | 1.10.* installation. In case of building |
 |                                          |                                          | specific version you want to point it    |
 |                                          |                                          | to specific tag, for example             |
-|                                          |                                          | ``constraints-1.10.14``.                 |
+|                                          |                                          | ``constraints-1.10.15``.                 |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_PROVIDERS_FROM_SOURCES``       | ``false``                                | If set to ``true`` and image is built    |
 |                                          |                                          | from sources, all provider packages are  |

@@ -252,7 +252,7 @@ this RC are described in
 <https://github.com/apache/airflow/blob/master/dev/README_RELEASE_AIRFLOW.md#verify-release-candidates-by-contributors>,
 but again, this time it is a little bit different.
 
-To actually use this command you will need apache-airflow 1.10.14
+To actually use this command you will need apache-airflow 1.10.15
 
 Please note that the version number inside the archives exclude the
 `rcX` string, so it's now simply 1.3.0. This will allow us to rename
