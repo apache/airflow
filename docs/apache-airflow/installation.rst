@@ -27,7 +27,7 @@ installation with other tools as well.
 
 .. note::
 
-    Airflow is also distributed as a Docker image (OCI Image). For more information, see: :ref:`docker_image`
+    Airflow is also distributed as a Docker image (OCI Image). Consider using it to guarantee that software will always run the same no matter where it is deployed. For more information, see: :doc:`docker-stack:index`.
 
 Prerequisites
 '''''''''''''
