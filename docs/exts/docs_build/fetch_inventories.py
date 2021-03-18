@@ -21,7 +21,7 @@ import datetime
 import os
 import shutil
 from itertools import repeat
-from typing import Dict, Iterator, List, Tuple
+from typing import Iterator, List, Tuple
 
 import requests
 from requests.adapters import DEFAULT_POOLSIZE
@@ -123,5 +123,8 @@ def fetch_inventories():
             (path for _, _, path in to_download),
         )
     failed, success = partition(lambda d: d[1], download_results)
-    print(f"Result: {len(list(success))} success {len(list(failed))} failed")
+    failed, success = list(failed), list(failed)
+    print(f"Result: {len(success)}, success {len(failed)} failed")
+    if failed:
+        print("Failed packages:", ", ".join(failed))
     return [pkg_name for pkg_name, status in download_results if not status]
