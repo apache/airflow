@@ -23,9 +23,7 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
     role_schema,
 )
 from airflow.security import permissions
-from airflow.www import app
 from tests.test_utils.api_connexion_utils import create_role, delete_role
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 class TestRoleCollectionItemSchema:
