@@ -42,23 +42,6 @@ ROOT_FOLDER = os.path.realpath(
 
 
 @pytest.fixture(scope="module")
-def app():
-    @conf_vars({('api', 'enable_experimental_api'): 'true'})
-    @dont_initialize_flask_app_submodules(
-        skip_all_except=["init_api_experimental_auth", "init_api_experimental", "init_appbuilder"]
-    )
-    def factory():
-        app = application.create_app(testing=True)
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'
-        app.config['SECRET_KEY'] = 'secret_key'
-        app.config['CSRF_ENABLED'] = False
-        app.config['WTF_CSRF_ENABLED'] = False
-        return app
-
-    return factory()
-
-
-@pytest.fixture(scope="module")
 def configured_session():
     settings.configure_orm()
     return Session
@@ -66,10 +49,10 @@ def configured_session():
 
 class TestBase:
     @pytest.fixture(autouse=True)
-    def _setup_attrs_base(self, app, configured_session):
-        self.app = app
-        self.appbuilder = app.appbuilder  # pylint: disable=no-member
-        self.client = app.test_client()
+    def _setup_attrs_base(self, experiemental_api_app, configured_session):
+        self.app = experiemental_api_app
+        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
+        self.client = self.app.test_client()
         self.session = configured_session
 
     def assert_deprecated(self, resp):

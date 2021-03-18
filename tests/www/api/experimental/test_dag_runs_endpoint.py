@@ -23,26 +23,6 @@ from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
-from airflow.www import app as application
-from tests.test_utils.config import conf_vars
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
-
-
-@pytest.fixture(scope="module")
-def app():
-    @dont_initialize_flask_app_submodules(
-        skip_all_except=[
-            "init_api_experimental_auth",
-            "init_appbuilder_views",
-            "init_api_experimental",
-            "init_appbuilder",
-        ]
-    )
-    def factory():
-        with conf_vars({('api', 'enable_experimental_api'): 'true'}):
-            return application.create_app(testing=True)
-
-    return factory()
 
 
 class TestDagRunsEndpoint:
@@ -58,8 +38,8 @@ class TestDagRunsEndpoint:
             SerializedDagModel.write_dag(dag)
 
     @pytest.fixture(autouse=True)
-    def _reset_test_session(self, app):
-        self.app = app.test_client()
+    def _reset_test_session(self, experiemental_api_app):
+        self.app = experiemental_api_app.test_client()
         yield
         session = Session()
         session.query(DagRun).delete()
