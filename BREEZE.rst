@@ -1296,7 +1296,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 2.0.0 1.10.15 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
+                 2.0.1 2.0.0 1.10.15 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and
@@ -2539,7 +2539,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 2.0.0 1.10.15 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
+                 2.0.1 2.0.0 1.10.15 1.10.14 1.10.12 1.10.11 1.10.10 1.10.9 none wheel sdist
 
           When 'none' is used, you can install airflow from local packages. When building image,
           airflow package should be added to 'docker-context-files' and
