@@ -58,6 +58,7 @@ _breeze_allowed_installation_methods=". apache-airflow"
 
 _breeze_allowed_install_airflow_versions=$(cat <<-EOF
 2.0.0
+1.10.15
 1.10.14
 1.10.12
 1.10.11
