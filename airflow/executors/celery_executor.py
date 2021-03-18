@@ -551,6 +551,7 @@ class BulkStateFetcher(LoggingMixin):
         if isinstance(app.backend, DatabaseBackend):
             result = self._get_many_from_db_backend(async_results)
             return result
+        async_results = list(async_results)
         result = self._get_many_using_multiprocessing(async_results)
         self.log.debug("Fetched %d states for %d task", len(result), len(async_results))
         return result
