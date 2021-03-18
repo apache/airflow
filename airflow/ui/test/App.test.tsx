@@ -19,33 +19,34 @@
 
 import React from 'react';
 import '@testing-library/jest-dom';
-import { Router } from 'react-router-dom';
+import { Router, BrowserRouter } from 'react-router-dom';
 import { render } from '@testing-library/react';
 import { createMemoryHistory } from 'history';
 
-import Pipelines from 'views/Pipelines';
-import NotFound from 'views/NotFound';
+import App from 'App';
 
 test('Root path redirects to Pipelines view', () => {
-  const history = createMemoryHistory();
-  history.push('/');
+  // Redirect is not working in <Router /> for some reason
   const { getByText } = render(
-    <Router history={history}>
-      <Pipelines />
-    </Router>,
+    <BrowserRouter basename="/">
+      <App />
+    </BrowserRouter>,
   );
 
   expect(getByText('Pipelines')).toBeInTheDocument();
 });
 
-test('Bad route', () => {
+test('App displays 404 page on a bad route', () => {
   const history = createMemoryHistory();
-  history.push('/invalid-path');
+  history.push('/pipelines');
   const { getByText } = render(
     <Router history={history}>
-      <NotFound />
+      <App />
     </Router>,
   );
 
+  expect(getByText('Pipelines')).toBeInTheDocument();
+
+  history.push('/invalid-path');
   expect(getByText('Page not found')).toBeInTheDocument();
 });
