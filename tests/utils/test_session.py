@@ -16,20 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import sys
-import unittest
-from unittest import mock
-
 import pytest
 
 from airflow.utils.session import provide_session
 
 
-def dummy_session(session=None):
-    return session
+class TestSession:
+    def dummy_session(self, session=None):
+        return session
 
-
-class TestSession(unittest.TestCase):
     def test_raised_provide_session(self):
         with pytest.raises(ValueError, match="Function .*dummy has no `session` argument"):
 
@@ -37,38 +32,21 @@ class TestSession(unittest.TestCase):
             def dummy():
                 pass
 
-    @pytest.mark.skipif(sys.version_info < (3, 7, 2), reason="requires python3.7.3 or higher")
     def test_provide_session_without_args_and_kwargs(self):
-        mock_dummy = mock.create_autospec(dummy_session)
-        mock_dummy()
-        args, kwargs = mock_dummy.call_args
-        assert not args and not kwargs
+        assert self.dummy_session() is None
 
-        wrapper = provide_session(mock_dummy)
+        wrapper = provide_session(self.dummy_session)
 
-        wrapper()
-        args, kwargs = mock_dummy.call_args
-        assert not args
-        assert 'session' in kwargs and kwargs['session'] is not None
+        assert wrapper() is not None
 
-    @pytest.mark.skipif(sys.version_info < (3, 7, 2), reason="requires python3.7.3 or higher")
     def test_provide_session_with_args(self):
-        mock_dummy = mock.create_autospec(dummy_session)
-        wrapper = provide_session(mock_dummy)
+        wrapper = provide_session(self.dummy_session)
 
-        session = mock.Mock()
-        wrapper(session)
-        args, kwargs = mock_dummy.call_args
-        assert args and args[0] is session
-        assert 'session' not in kwargs
+        session = object()
+        assert wrapper(session) is session
 
-    @pytest.mark.skipif(sys.version_info < (3, 7, 2), reason="requires python3.7.3 or higher")
     def test_provide_session_with_kwargs(self):
-        mock_dummy = mock.create_autospec(dummy_session)
-        wrapper = provide_session(mock_dummy)
+        wrapper = provide_session(self.dummy_session)
 
-        session = mock.Mock()
-        wrapper(session=session)
-        args, kwargs = mock_dummy.call_args
-        assert not args
-        assert 'session' in kwargs and kwargs['session'] is session
+        session = object()
+        assert wrapper(session=session) is session
