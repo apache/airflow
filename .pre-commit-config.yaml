@@ -62,8 +62,8 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all JS/CSS/PUML files
-        files: \.(js|css|puml)$
+        name: Add license for all JS/TS/TSX/CSS/PUML files
+        files: \.(js|ts|tsx|css|puml)$
         exclude: ^\.github/.*$
         args:
           - --comment-style
