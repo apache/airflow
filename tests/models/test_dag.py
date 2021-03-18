@@ -1299,6 +1299,61 @@ class TestDag(unittest.TestCase):
         assert dagrun.state == dag_run_state
 
     @parameterized.expand(
+        [
+            (State.NONE,),
+            (State.RUNNING,),
+        ]
+    )
+    def test_clear_set_dagrun_state_for_subdag(self, dag_run_state):
+        dag_id = 'test_clear_set_dagrun_state_subdag'
+        self._clean_up(dag_id)
+        task_id = 't1'
+        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
+        t_1 = DummyOperator(task_id=task_id, dag=dag)
+        subdag = DAG(dag_id + '.test', start_date=DEFAULT_DATE, max_active_runs=1)
+        SubDagOperator(task_id='test', subdag=subdag, dag=dag)
+        t_2 = DummyOperator(task_id='task', dag=subdag)
+
+        session = settings.Session()
+        dagrun_1 = dag.create_dagrun(
+            run_type=DagRunType.BACKFILL_JOB,
+            state=State.FAILED,
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+        )
+        dagrun_2 = subdag.create_dagrun(
+            run_type=DagRunType.BACKFILL_JOB,
+            state=State.FAILED,
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+        )
+        session.merge(dagrun_1)
+        session.merge(dagrun_2)
+        task_instance_1 = TI(t_1, execution_date=DEFAULT_DATE, state=State.RUNNING)
+        task_instance_2 = TI(t_2, execution_date=DEFAULT_DATE, state=State.RUNNING)
+        session.merge(task_instance_1)
+        session.merge(task_instance_2)
+        session.commit()
+
+        dag.clear(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            dag_run_state=dag_run_state,
+            include_subdags=True,
+            include_parentdag=False,
+            session=session,
+        )
+
+        dagrun = (
+            session.query(
+                DagRun,
+            )
+            .filter(DagRun.dag_id == subdag.dag_id)
+            .one()
+        )
+        assert dagrun.state == dag_run_state
+
+    @parameterized.expand(
         [(state, State.NONE) for state in State.task_states if state != State.RUNNING]
         + [(State.RUNNING, State.SHUTDOWN)]
     )  # type: ignore
