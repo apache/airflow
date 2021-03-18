@@ -600,9 +600,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type encoding: str
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
-        :param labels: a dictionary containing labels for the table, passed to BigQuery
+        :param labels: A dictionary containing labels for the BiqQuery table.
         :type labels: dict
-        :param description: a string containing description for the table, passed to BigQuery
+        :param description: A string containing the description for the BigQuery table.
         :type descriptin: str
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
             **Example**: ::
@@ -1650,6 +1650,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                     "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
                 }
         :type encryption_configuration: dict
+        :param labels: A dictionary containing labels for the BiqQuery table.
+        :type labels: dict
+        :param description: A string containing the description for the BigQuery table.
+        :type descriptin: str
         """
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.", DeprecationWarning
