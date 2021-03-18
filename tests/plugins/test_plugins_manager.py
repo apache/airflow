@@ -31,9 +31,10 @@ importlib_metadata = 'importlib.metadata' if py39 else 'importlib_metadata'
 
 
 class TestPluginsRBAC(unittest.TestCase):
-    def setUp(self):
-        self.app = application.create_app(testing=True)
-        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
+    @classmethod
+    def setUpClass(cls):
+        cls.app = application.create_app(testing=True)
+        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
 
     def test_flaskappbuilder_views(self):
         from tests.plugins.test_plugin import v_appbuilder_package
