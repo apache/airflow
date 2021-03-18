@@ -60,23 +60,6 @@ class TestPluginsRBAC(unittest.TestCase):
         assert link.name == v_appbuilder_package['category']
         assert link.childs[0].name == v_appbuilder_package['name']
 
-    def test_flaskappbuilder_nomenu_views(self):
-        from tests.plugins.test_plugin import v_nomenu_appbuilder_package
-
-        class AirflowNoMenuViewsPlugin(AirflowPlugin):
-            appbuilder_views = [v_nomenu_appbuilder_package]
-
-        appbuilder_class_name = str(v_nomenu_appbuilder_package['view'].__class__.__name__)
-
-        with mock_plugin_manager(plugins=[AirflowNoMenuViewsPlugin()]):
-            appbuilder = application.create_app(testing=True).appbuilder  # pylint: disable=no-member
-
-            plugin_views = [
-                view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name
-            ]
-
-            assert len(plugin_views) == 1
-
     def test_flaskappbuilder_menu_links(self):
         from tests.plugins.test_plugin import appbuilder_mitem, appbuilder_mitem_toplevel
 
@@ -111,6 +94,24 @@ class TestPluginsRBAC(unittest.TestCase):
         # Blueprint should be present in the app
         assert 'test_plugin' in self.app.blueprints
         assert self.app.blueprints['test_plugin'].name == bp.name
+
+
+def test_flaskappbuilder_nomenu_views():
+    from tests.plugins.test_plugin import v_nomenu_appbuilder_package
+
+    class AirflowNoMenuViewsPlugin(AirflowPlugin):
+        appbuilder_views = [v_nomenu_appbuilder_package]
+
+    appbuilder_class_name = str(v_nomenu_appbuilder_package['view'].__class__.__name__)
+
+    with mock_plugin_manager(plugins=[AirflowNoMenuViewsPlugin()]):
+        appbuilder = application.create_app(testing=True).appbuilder  # pylint: disable=no-member
+
+        plugin_views = [
+            view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name
+        ]
+
+        assert len(plugin_views) == 1
 
 
 class TestPluginsManager:
