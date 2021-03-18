@@ -80,13 +80,12 @@ def fetch_inventories():
             f'{CACHE_DIR}/apache-airflow/objects.inv',
         )
     )
-    for pkg_name in ['apache-airflow-providers', 'docker-stack']:
-        to_download.append(
-            (
-                S3_DOC_URL_NON_VERSIONED.format(package_name=pkg_name),
-                f'{CACHE_DIR}/{pkg_name}/objects.inv',
-            )
+    to_download.append(
+        (
+            S3_DOC_URL_NON_VERSIONED.format(package_name='apache-airflow-providers'),
+            f'{CACHE_DIR}/apache-airflow-providers/objects.inv',
         )
+    )
     to_download.extend(
         (
             f"{doc_url}/objects.inv",

@@ -145,7 +145,7 @@ if PACKAGE_NAME == "apache-airflow-providers":
             'providers_packages_ref',
         ]
     )
-elif PACKAGE_NAME in ("helm-chart", "docker-stack"):
+elif PACKAGE_NAME == "helm-chart":
     # No extra extensions
     pass
 else:
