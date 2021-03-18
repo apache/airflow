@@ -14,6 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""
+Azure Data Factory hook example DAG.
+
+To work, the hook needs at least the following connection details:
+
+    {
+        "conn_type": "azure_data_factory",
+        "login": "[service principal id]",
+        "password": "[service principal secret]",
+        "extra": {
+            "subscriptionId": "[subscription id]",
+            "tenantId": "[tenant id]"
+        }
+    }
+
+If your connection always targets the same factory, you can optionnaly add the following extras:
+
+    {
+        "resourceGroup": "[resource group name]",
+        "factory": "[factory name]"
+    }
+"""
+
 import os
 
 from azure.mgmt.datafactory.models import AzureStorageLinkedService, Factory, SecureString
@@ -30,26 +54,7 @@ default_args = {
 @dag(default_args=default_args, schedule_interval=None, start_date=days_ago(2))
 def data_factory_pipeline():
     """
-    Azure Data Factory hook example DAG.
-
-    To work, the hook needs at least the following connection details:
-
-        {
-            "conn_type": "azure_data_factory",
-            "login": "[service principal id]",
-            "password": "[service principal secret]",
-            "extra": {
-                "subscriptionId": "[subscription id]",
-                "tenantId": "[tenant id]"
-            }
-        }
-
-    If your connection always targets the same factory, you can optionnaly add the following extras:
-
-        {
-            "resourceGroup": "[resource group name]",
-            "factory": "[factory name]"
-        }
+    Create a factory and a linked service for Azure Storage.
     """
 
     hook = AzureDataFactoryHook()
