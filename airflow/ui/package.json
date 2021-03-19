@@ -42,8 +42,5 @@
     "webpack": "^4",
     "webpack-cli": "^3",
     "webpack-dev-server": "^3"
-  },
-  "resolutions": {
-    "framer-motion": "3.6.7"
   }
 }
