@@ -16,6 +16,7 @@
 # under the License.
 from flask import current_app, g, request
 from marshmallow import ValidationError
+from sqlalchemy import asc, desc
 
 from airflow import DAG
 from airflow.api_connexion import security
@@ -59,10 +60,18 @@ def get_dag_details(dag_id):
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
-def get_dags(limit, offset=0):
+def get_dags(limit, sort, offset=0, order_by=None):
     """Get all DAGs."""
+    if order_by and not hasattr(DagModel, order_by):
+        raise BadRequest(
+            detail=f"DagModel has no attribute '{order_by}' specified in order_by parameter",
+        )
     readable_dags = current_app.appbuilder.sm.get_readable_dags(g.user)
-    dags = readable_dags.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
+    if sort == "asc":
+        query = readable_dags.order_by(asc(order_by or DagModel.dag_id))
+    else:
+        query = readable_dags.order_by(desc(order_by or DagModel.dag_id))
+    dags = query.offset(offset).limit(limit).all()
     total_entries = readable_dags.count()
 
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
