@@ -60,8 +60,6 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     :param params: Parameters that determine the query for Facebook
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
     :type params: Dict[str, Any]
-    :param sleep_time: Time to sleep when async call is happening
-    :type sleep_time: int
     :param gzip: Option to compress local file or file data for upload
     :type gzip: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
