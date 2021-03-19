@@ -35,6 +35,7 @@ function run_image_test_job() {
     export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job_name}/stdout"
     export PARALLEL_JOB_STATUS="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job_name}/status"
     parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
+        --joblog "${PARALLEL_JOB_LOG}"\
         --jobs "${MAX_PARALLEL_IMAGE_JOBS}" \
             "$(dirname "${BASH_SOURCE[0]}")/ci_run_prod_image_test.sh" "${job_name}" "${file}" >"${JOB_LOG}" 2>&1
 }

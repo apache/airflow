@@ -17,11 +17,13 @@
 # under the License.
 
 
-# Require SEMAPHORE_NAME
+# Needs SEMAPHORE_NAME. If not set assume "1"
 
 function parallel::initialize_monitoring() {
     PARALLEL_MONITORED_DIR="$(mktemp -d)"
     export PARALLEL_MONITORED_DIR
+    PARALLEL_JOB_LOG="$(mktemp)"
+    export PARALLEL_JOB_LOG
 }
 
 function parallel::make_sure_gnu_parallel_is_installed() {
@@ -40,7 +42,7 @@ function parallel::kill_stale_semaphore_locks() {
     echo
     echo "${COLOR_BLUE}Killing stale semaphore locks${COLOR_RESET}"
     echo
-    for s in "${HOME}/.parallel/semaphores/id-${SEMAPHORE_NAME}/"*@*
+    for s in "${HOME}/.parallel/semaphores/id-${SEMAPHORE_NAME="1"}/"*@*
     do
         pid="${s%%@*}"
         if [[ ${pid} != "-*" ]]; then
@@ -69,13 +71,12 @@ function parallel::monitor_loop() {
         echo "${COLOR_BLUE}########### STATISTICS #################"
         docker_engine_resources::print_overall_stats
         echo "########### STATISTICS #################${COLOR_RESET}"
-        for directory in "${PARALLEL_MONITORED_DIR}"/*/*
+        for directory in "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME=1}/"*
         do
             parallel_process=$(basename "${directory}")
-
             echo "${COLOR_BLUE}### The last lines for ${parallel_process} process ###${COLOR_RESET}"
             echo
-            tail -2 "${directory}/stdout" || true
+            tail -2 "${directory}/stdout" 2>/dev/null || true
             echo
             echo
         done
@@ -93,13 +94,23 @@ function parallel::monitor_loop() {
 # the parallel execution. Sets PAPARALLEL_MONITORED_DIR which should be be passed as --results
 # parameter to GNU parallel execution.
 function parallel::monitor_progress() {
-    echo "Parallel results are stored in: ${PARALLEL_MONITORED_DIR}"
-    parallel::monitor_loop 2>/dev/null &
+    echo "Parallel results are stored in output dir: ${PARALLEL_MONITORED_DIR}, joblog: ${PARALLEL_JOB_LOG}"
+    parallel::monitor_loop &
 
     # shellcheck disable=SC2034
     PARALLEL_MONITORING_PID=$!
     # shellcheck disable=SC2016
     traps::add_trap 'parallel::kill_monitor' EXIT
+}
+
+
+function parallel::store_exit_code() {
+    local exit_code=$?
+    if [[ -n ${PARALLEL_MONITORED_DIR=} ]]; then
+        mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="1"}/${1}"
+        echo ${exit_code} >"${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="1"}/${1}/status"
+    fi
+    exit ${exit_code}
 }
 
 
@@ -111,7 +122,7 @@ function parallel::kill_monitor() {
 # $1 test type
 function parallel::output_log_for_successful_job(){
     local job=$1
-    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
+    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="1"}/${job}"
     start_end::group_start "${COLOR_GREEN}Output for successful ${job}${COLOR_RESET}"
     echo "${COLOR_GREEN}##### The ${job} succeeded ##### ${COLOR_RESET}"
     echo
@@ -126,7 +137,7 @@ function parallel::output_log_for_successful_job(){
 # $1 test type
 function parallel::output_log_for_failed_job(){
     local job=$1
-    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
+    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="1"}/${job}"
     start_end::group_start "${COLOR_RED}Output: for failed ${job}${COLOR_RESET}"
     echo "${COLOR_RED}##### The ${job} failed ##### ${COLOR_RESET}"
     echo
@@ -144,10 +155,11 @@ function parallel::output_log_for_failed_job(){
 function parallel::print_job_summary_and_return_status_code() {
     local return_code="0"
     local job
-    for job_path in "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/"*
+    for job_path in "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="1"}/"*
     do
         job="$(basename "${job_path}")"
-        status=$(cat "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/status")
+        status_file="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="1"}/${job}/status"
+        status=$(cat "${status_file}")
         if [[ ${status} == "0" ]]; then
             parallel::output_log_for_successful_job "${job}"
         else

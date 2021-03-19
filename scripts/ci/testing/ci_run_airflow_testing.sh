@@ -162,6 +162,7 @@ function run_test_types_in_parallel() {
         export PARALLEL_JOB_STATUS="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE}/status"
         # shellcheck disable=SC2086
         parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
+            --joblog "${PARALLEL_JOB_LOG}"\
             --jobs "${MAX_PARALLEL_TEST_JOBS}" \
             "$( dirname "${BASH_SOURCE[0]}" )/ci_run_single_airflow_test_in_docker.sh" "${@}" >${JOB_LOG} 2>&1
     done

@@ -1068,7 +1068,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           # build image, in case we are pulling from registry rather than building.
           WAIT_FOR_PROD_BUILD_IMAGE: "true"
       - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_push_production_images.sh
+        run: ./scripts/ci/images/ci_push_prod_image.sh
 
   push-ci-images-to-github-registry:
     timeout-minutes: 10
@@ -1110,23 +1110,20 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Push CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_push_ci_images.sh
+        run: ./scripts/ci/images/ci_push_ci_image.sh
 
   constraints:
     timeout-minutes: 10
     name: "Constraints"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    strategy:
-      matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
-      fail-fast: false
     needs:
       - build-info
       - ci-images
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
+      CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
+        ${{needs.build-info.outputs.pythonVersionsListAsString}}
     # Only run it for direct pushes
     if: >
       github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
@@ -1139,28 +1136,28 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ github.sha }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Generate constraints with PyPI providers"
-        run: ./scripts/ci/constraints/ci_generate_constraints.sh
+      - name: "Prepare all CI images:${{ github.sha }}"
+        run: ./scripts/ci/images/ci_prepare_all_ci_images.sh
+      - name: "Generate all constraints with PyPI providers"
+        run: ./scripts/ci/constraints/ci_generate_all_ci_constraints.sh
         env:
           GENERATE_CONSTRAINTS_MODE: "pypi-providers"
       - name: "Generate constraints with source providers"
-        run: ./scripts/ci/constraints/ci_generate_constraints.sh
+        run: ./scripts/ci/constraints/ci_generate_all_ci_constraints.sh
         env:
           GENERATE_CONSTRAINTS_MODE: "source-providers"
       - name: "Generate constraints without providers"
-        run: ./scripts/ci/constraints/ci_generate_constraints.sh
+        run: ./scripts/ci/constraints/ci_generate_all_ci_constraints.sh
         env:
           GENERATE_CONSTRAINTS_MODE: "no-providers"
       - name: "Upload constraint artifacts"
         uses: actions/upload-artifact@v2
         with:
-          name: 'constraints-${{matrix.python-version}}'
-          path: './files/constraints-${{matrix.python-version}}/constraints-*${{matrix.python-version}}.txt'
+          name: 'constraints'
+          path: './files/constraints-*/constraints-*.txt'
           retention-days: 7
 
   constraints-push:

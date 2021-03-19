@@ -30,9 +30,9 @@ if [[ ${file} == *".sh" ]]; then
     res=$?
 elif [[ ${file} == *"Dockerfile" ]]; then
     cd "$(dirname "${file}")" || exit 1
-    docker build . --tag "${job_name}"
+    verbose_docker build . --tag "${job_name}"
     res=$?
-    docker rmi --force "${job_name}"
+    verbose_docker rmi --force "${job_name}"
 else
     echo "Bad file ${file}. Should be either a Dockerfile or script"
     exit 1

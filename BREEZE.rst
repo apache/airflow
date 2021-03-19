@@ -842,6 +842,18 @@ pushes changed to the constraint files, however you can also perform test run of
   done
 
 
+You can also run it in parallel using parallel scripts
+
+.. code-block:: bash
+  export FORCE_ANSWER_TO_QUESTIONS="yes"
+  export FORCE_BUILD_IMAGES="true"
+  export SKIP_CHECK_REMOTE_IMAGE="true"
+  export UPGRADE_TO_NEWER_DEPENDENCIES="true"
+  export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING="3.6 3.7 3.8"
+  GENERATE_CONSTRAINTS_MODE="source-providers" ./scripts/ci/images/ci_prepare_all_ci_images.sh
+  GENERATE_CONSTRAINTS_MODE="pypi-providers" ./scripts/ci/images/ci_prepare_all_ci_images.sh
+  GENERATE_CONSTRAINTS_MODE="no-providers" ./scripts/ci/images/ci_prepare_all_ci_images.sh
+
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
 of changes vs the previous constraint files is printed.

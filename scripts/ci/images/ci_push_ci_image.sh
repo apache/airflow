@@ -15,9 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+if [[ $# != "0" ]]; then
+    PYTHON_MAJOR_MINOR_VERSION=$1
+    export PYTHON_MAJOR_MINOR_VERSION
+fi
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-build_images::prepare_prod_build
+# shellcheck disable=SC2016
+traps::add_trap 'parallel::store_exit_code "${PYTHON_MAJOR_MINOR_VERSION}"' EXIT
 
-push_pull_remove_images::push_prod_images
+build_images::prepare_ci_build
+
+push_pull_remove_images::push_ci_images

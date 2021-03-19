@@ -34,8 +34,9 @@ if [[ -z "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING=}" ]]; then
     exit 1
 fi
 
+
 echo
-echo "Waiting for all PROD images to appear: ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}"
+echo "Prepare all CI images: ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}"
 echo
 
 docker_engine_resources::get_available_cpus_in_docker
@@ -47,9 +48,9 @@ parallel::initialize_monitoring
 parallel::monitor_progress
 
 # shellcheck disable=SC2086
-parallel --results "${PARALLEL_MONITORED_DIR}" --joblog "${PARALLEL_JOB_LOG}" --line-buffer\
+parallel --results "${PARALLEL_MONITORED_DIR}" --joblog "${PARALLEL_JOB_LOG}" --line-buffer \
     --jobs "${MAX_PARALLEL_BUILD_JOBS}" \
-    "$( dirname "${BASH_SOURCE[0]}" )/ci_wait_for_and_verify_prod_image.sh" ::: \
+    "$( dirname "${BASH_SOURCE[0]}" )/ci_prepare_ci_image_on_ci.sh" ::: \
     ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}
 
 parallel --wait

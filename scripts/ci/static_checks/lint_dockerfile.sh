@@ -25,7 +25,7 @@ function run_docker_lint() {
         echo "Running docker lint for all Dockerfiles"
         echo
         # shellcheck disable=SC2046
-        docker run \
+        verbose_docker run \
             -v "$(pwd):/root" \
             -w "/root" \
             --rm \
@@ -37,7 +37,7 @@ function run_docker_lint() {
         echo
         echo "Running docker lint for $*"
         echo
-        docker run \
+        verbose_docker run \
             -v "$(pwd):/root" \
             -w "/root" \
             --rm \

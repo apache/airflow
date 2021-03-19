@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 function verify_image::run_command_in_image() {
-    docker run --rm \
+    verbose_docker run --rm \
             -e COLUMNS=180 \
             --entrypoint /bin/bash "${DOCKER_IMAGE}" \
             -c "${@}"
@@ -83,7 +83,7 @@ function verify_image::verify_prod_image_has_airflow_and_providers() {
 function verify_image::verify_ci_image_dependencies() {
     start_end::group_start "Checking if Airflow dependencies are non-conflicting in ${DOCKER_IMAGE} image."
     set +e
-    docker run --rm --entrypoint /bin/bash "${DOCKER_IMAGE}" -c 'pip check'
+    verbose_docker run --rm --entrypoint /bin/bash "${DOCKER_IMAGE}" -c 'pip check'
     local res=$?
     if [[ ${res} != "0" ]]; then
         echo  "${COLOR_RED}ERROR: ^^^ Some dependencies are conflicting. See instructions below on how to deal with it.  ${COLOR_RESET}"

@@ -294,6 +294,11 @@ function initialization::initialize_force_variables() {
 
     # Should be set to true if you expect image frm GitHub to be present and downloaded
     export FAIL_ON_GITHUB_DOCKER_PULL_ERROR=${FAIL_ON_GITHUB_DOCKER_PULL_ERROR:="false"}
+
+    # By default we do not pull python base image. We should do that only when we run upgrade check in
+    # CI master and when we manually refresh the images to latest versions
+    export FORCE_PULL_BASE_PYTHON_IMAGE="false"
+
 }
 
 # Determine information about the host
@@ -555,13 +560,6 @@ function initialization::initialize_package_variables() {
     export PACKAGE_FORMAT=${PACKAGE_FORMAT:="wheel"}
 }
 
-
-function initialization::initialize_build_image_variables() {
-    REMOTE_IMAGE_CONTAINER_ID_FILE="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image"
-    LOCAL_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash"
-    REMOTE_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash"
-}
-
 function initialization::set_output_color_variables() {
     COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
@@ -594,7 +592,6 @@ function initialization::initialize_common_environment() {
     initialization::initialize_github_variables
     initialization::initialize_test_variables
     initialization::initialize_package_variables
-    initialization::initialize_build_image_variables
 }
 
 function initialization::set_default_python_version_if_empty() {
@@ -867,10 +864,6 @@ function initialization::make_constants_read_only() {
     readonly AIRFLOW_PROD_IMAGE_DEFAULT
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
-
-    readonly REMOTE_IMAGE_CONTAINER_ID_FILE
-    readonly LOCAL_IMAGE_BUILD_CACHE_HASH_FILE
-    readonly REMOTE_IMAGE_BUILD_CACHE_HASH_FILE
 
     readonly INSTALLED_EXTRAS
     readonly INSTALLED_PROVIDERS
