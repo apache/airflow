@@ -44,10 +44,10 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:FacebookAdsReportToGcsOperator`
 
-    :param bucket: The GCS bucket to upload to
-    :type bucket: str
-    :param obj: GCS path to save the object. Must be the full file path (ex. `path/to/file.txt`)
-    :type obj: str
+    :param bucket_name: The GCS bucket to upload to
+    :type bucket_name: str
+    :param object_name: GCS path to save the object. Must be the full file path (ex. `path/to/file.txt`)
+    :type object_name: str
     :param gcp_conn_id: Airflow Google Cloud connection ID
     :type gcp_conn_id: str
     :param facebook_conn_id: Airflow Facebook Ads connection ID
