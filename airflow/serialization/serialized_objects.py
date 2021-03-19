@@ -426,20 +426,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if cls._load_operator_extra_links:  # pylint: disable=too-many-nested-blocks
             from airflow import plugins_manager
 
-            plugins_manager.initialize_extra_operators_links_plugins()
-
-            if plugins_manager.operator_extra_links is None:
-                raise AirflowException("Can not load plugins")
-
-            for ope in plugins_manager.operator_extra_links:
-                for operator in ope.operators:
-                    if ((
-                        operator.__name__ == encoded_op["_task_type"]
-                        and operator.__module__ == encoded_op["_task_module"]
-                    ) if not isinstance(operator, str) else (
-                        operator == encoded_op['_task_type']
-                    )):
-                        op_extra_links_from_plugin.update({ope.name: ope})
+            plugins_manager.collect_operator_extra_links(
+                op_extra_links_from_plugin,
+                encoded_op["_task_module"],
+                encoded_op["_task_type"],
+            )
 
             # If OperatorLinks are defined in Plugins but not in the Operator that is being Serialized
             # set the Operator links attribute

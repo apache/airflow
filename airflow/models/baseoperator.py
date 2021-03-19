@@ -34,6 +34,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Pattern,
     Sequence,
     Set,
     Tuple,
@@ -769,22 +770,15 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     @cached_property
     def operator_extra_link_dict(self) -> Dict[str, Any]:
         """Returns dictionary of all extra links for the operator"""
-        op_extra_links_from_plugin: Dict[str, Any] = {}
         from airflow import plugins_manager
-
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        for ope in plugins_manager.operator_extra_links:
-            if ope.operators and (
-                self.__class__ in ope.operators
-                or self.task_type in ope.operators
-            ):
-                op_extra_links_from_plugin.update({ope.name: ope})
 
         operator_extra_links_all = {link.name: link for link in self.operator_extra_links}
         # Extra links defined in Plugins overrides operator links defined in operator
-        operator_extra_links_all.update(op_extra_links_from_plugin)
+        plugins_manager.collect_operator_extra_links(
+            operator_extra_links_all,
+            self.__class__.__module__,
+            self.task_type,
+        )
 
         return operator_extra_links_all
 
@@ -1500,7 +1494,7 @@ def cross_downstream(
 class BaseOperatorLink(metaclass=ABCMeta):
     """Abstract base class that defines how we get an operator link."""
 
-    operators: ClassVar[List[Union[Type[BaseOperator], str]]] = []
+    operators: ClassVar[List[Union[Type[BaseOperator], str, Pattern]]] = []
     """
     This property will be used by Airflow Plugins to find the Operators to which you want
     to assign this Operator Link

@@ -24,7 +24,7 @@ import logging
 import os
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Pattern, Type
 
 try:
     import importlib_metadata
@@ -32,6 +32,7 @@ except ImportError:
     from importlib import metadata as importlib_metadata
 
 from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 
@@ -375,6 +376,38 @@ def initialize_extra_operators_links_plugins():
                 for link in plugin.operator_extra_links
             }
         )
+
+
+def collect_operator_extra_links(op_extra_links_from_plugin: dict, task_module: str, task_type: str):
+    """Add/override extra links from plugins to the existing dict."""
+    # pylint: disable=global-statement
+    global operator_extra_links
+    # pylint: enable=global-statement
+
+    initialize_extra_operators_links_plugins()
+    if operator_extra_links is None:
+        raise AirflowException("Can not load plugins")
+
+    import_path = f"{task_module}.{task_type}"
+    for ope in operator_extra_links:
+        for operator in ope.operators:
+            if isinstance(operator, Pattern):
+                if not operator.fullmatch(import_path):
+                    continue
+            if isinstance(operator, str):
+                if operator != import_path:
+                    continue
+            else:  # Type[BaseOperator]
+                if not (
+                    operator.__module__ == task_module
+                    and operator.__name__ == task_type
+                ):
+                    continue
+
+            op_extra_links_from_plugin.update({ope.name: ope})
+            break  # Matched *ANY* of ope.operators, enough.
+
+    return op_extra_links_from_plugin
 
 
 def integrate_executor_plugins() -> None:
