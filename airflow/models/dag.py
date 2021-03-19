@@ -67,7 +67,7 @@ from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
-from airflow.utils.file import correct_maybe_zipped
+from airflow.utils.file import clean_dag_fileloc, correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -1874,12 +1874,12 @@ class DAG(LoggingMixin):
             dag = dag_by_ids[orm_dag.dag_id]
             if dag.is_subdag:
                 orm_dag.is_subdag = True
-                orm_dag.fileloc = dag.parent_dag.fileloc  # type: ignore
+                orm_dag.fileloc = clean_dag_fileloc(dag.parent_dag.fileloc)  # type: ignore
                 orm_dag.root_dag_id = dag.parent_dag.dag_id  # type: ignore
                 orm_dag.owners = dag.parent_dag.owner  # type: ignore
             else:
                 orm_dag.is_subdag = False
-                orm_dag.fileloc = dag.fileloc
+                orm_dag.fileloc = clean_dag_fileloc(dag.fileloc)
                 orm_dag.owners = dag.owner
             orm_dag.is_active = True
             orm_dag.last_parsed_time = timezone.utcnow()
@@ -2278,6 +2278,10 @@ class DagModel(Base):
             self.next_dagrun_create_after = None
 
         log.info("Setting next_dagrun for %s to %s", dag.dag_id, self.next_dagrun)
+
+    @property
+    def file_path(self):
+        return 'DAGS_FOLDER/' + self.fileloc if not os.path.isfile(self.fileloc) else self.fileloc
 
 
 def dag(*dag_args, **dag_kwargs):

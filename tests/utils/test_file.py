@@ -20,7 +20,8 @@ import os.path
 import unittest
 from unittest import mock
 
-from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
+from airflow.settings import DAGS_FOLDER
+from airflow.utils.file import clean_dag_fileloc, correct_maybe_zipped, expand_fileloc, open_maybe_zipped
 from tests.models import TEST_DAGS_FOLDER
 
 
@@ -75,3 +76,29 @@ class TestOpenMaybeZipped(unittest.TestCase):
         with open_maybe_zipped(test_file_path, 'r') as test_file:
             content = test_file.read()
         assert isinstance(content, str)
+
+
+class TestCleanDagFileloc(unittest.TestCase):
+    def test_dag_in_dags_folder(self):
+        path = DAGS_FOLDER + '/no_dags.py'
+        cleaned_path = clean_dag_fileloc(path)
+        assert cleaned_path == 'no_dags.py'
+
+    def test_dag_not_in_dags_folder(self):
+        # such as an example dag
+        path = '/path/to/fake/dag.py'
+        cleaned_path = clean_dag_fileloc(path)
+        assert cleaned_path == path
+
+
+class TestExpandDagFileloc(unittest.TestCase):
+    def test_dag_in_dags_folder(self):
+        path = DAGS_FOLDER + '/no_dags.py'
+        expanded_path = expand_fileloc('no_dags.py')
+        assert path == expanded_path
+
+    def test_dag_not_in_dags_folder(self):
+        # such as an example dag
+        path = '/path/to/fake/dag.py'
+        expanded_path = expand_fileloc(path)
+        assert expanded_path == path

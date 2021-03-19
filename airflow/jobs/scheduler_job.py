@@ -1100,7 +1100,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 ignore_task_deps=False,
                 ignore_ti_state=False,
                 pool=ti.pool,
-                file_path=ti.dag_model.fileloc,
+                file_path=ti.dag_model.file_path,
                 pickle_id=ti.dag_model.pickle_id,
             )
 

@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Dict, Generator, List, Optional, Pattern
 
 from airflow.configuration import conf
+from airflow.settings import DAGS_FOLDER
 
 log = logging.getLogger(__name__)
 
@@ -64,11 +65,26 @@ def mkdirs(path, mode):
 ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
 
 
+def clean_dag_fileloc(fileloc: str) -> str:
+    """Replaces dag_folder part of a dags file path with an empty string."""
+    dags_folder = DAGS_FOLDER
+    if not dags_folder.endswith('/'):
+        dags_folder += '/'
+    return fileloc.replace(dags_folder, '')
+
+
+def expand_fileloc(fileloc: str) -> str:
+    """Prefixes a file path with a dag_folder configuration variable."""
+    expanded_loc = os.path.join(DAGS_FOLDER, fileloc)
+    return expanded_loc if os.path.isfile(expanded_loc) else fileloc
+
+
 def correct_maybe_zipped(fileloc):
     """
     If the path contains a folder with a .zip suffix, then
     the folder is treated as a zip archive and path to zip is returned.
     """
+    fileloc = expand_fileloc(fileloc)
     _, archive, _ = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
         return archive
@@ -83,6 +99,7 @@ def open_maybe_zipped(fileloc, mode='r'):
 
     :return: a file object, as in `open`, or as in `ZipFile.open`.
     """
+    fileloc = expand_fileloc(fileloc)
     _, archive, filename = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
         return io.TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
