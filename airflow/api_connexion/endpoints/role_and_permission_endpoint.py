@@ -33,7 +33,6 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
 )
 from airflow.security import permissions
 
-
 def _check_action_and_resource(sm, perms):
     """
     Checks if the action or resource exists and raise 400 if not
@@ -47,7 +46,7 @@ def _check_action_and_resource(sm, perms):
             raise BadRequest(detail=f"The specified resource: '{item[1]}' was not found")
 
 
-@security.requires_access([(permissions.ACTION_CAN_SHOW, permissions.RESOURCE_ROLE_MODEL_VIEW)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE_MODEL_VIEW)])
 def get_role(role_name):
     """Get role"""
     ab_security_manager = current_app.appbuilder.sm
@@ -57,7 +56,7 @@ def get_role(role_name):
     return role_schema.dump(role)
 
 
-@security.requires_access([(permissions.ACTION_CAN_LIST, permissions.RESOURCE_ROLE_MODEL_VIEW)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE_MODEL_VIEW)])
 @format_parameters({'limit': check_limit})
 def get_roles(limit, order_by='name', offset=None):
     """Get roles"""
@@ -73,7 +72,7 @@ def get_roles(limit, order_by='name', offset=None):
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
 
-@security.requires_access([(permissions.ACTION_CAN_LIST, permissions.RESOURCE_PERMISSION_MODEL_VIEW)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_PERMISSION_MODEL_VIEW)])
 @format_parameters({'limit': check_limit})
 def get_permissions(limit=None, offset=None):
     """Get permissions"""
@@ -130,7 +129,7 @@ def patch_role(role_name, update_mask=None):
     return role_schema.dump(role)
 
 
-@security.requires_access([(permissions.ACTION_CAN_ADD, permissions.RESOURCE_ROLE_MODEL_VIEW)])
+@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE_MODEL_VIEW)])
 def post_role():
     """Create a new role"""
     appbuilder = current_app.appbuilder

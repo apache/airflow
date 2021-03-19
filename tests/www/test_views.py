@@ -475,6 +475,10 @@ class TestAirflowBaseViews(TestBase):
         clear_db_runs()
         self.prepare_dagruns()
 
+    def _delete_role_if_exists(self, role_name):
+        if self.appbuilder.sm.find_role(role_name):
+            self.appbuilder.sm.delete_role(role_name)
+
     def prepare_dagruns(self):
         self.bash_dag = self.dagbag.get_dag('example_bash_operator')
         self.sub_dag = self.dagbag.get_dag('example_subdag_operator')
@@ -616,9 +620,88 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('users/list', follow_redirects=True)
         self.check_content_in_response('List Users', resp)
 
-    def test_roles_list(self):
-        resp = self.client.get('roles/list', follow_redirects=True)
-        self.check_content_in_response('List Roles', resp)
+    @parameterized.expand(
+        [
+            ("roles/list", "List Roles"),
+            ("roles/show/1", "Show Role"),
+        ]
+    )
+    def test_roles_read(self, path, body_content):
+        resp = self.client.get(path, follow_redirects=True)
+        self.check_content_in_response(body_content, resp)
+
+    def test_roles_read_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get("roles/list", follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+
+    def test_roles_create(self):
+        role_name = "test_roles_create_role"
+        self._delete_role_if_exists(role_name)
+        if self.appbuilder.sm.find_role(role_name):
+            self.appbuilder.sm.delete_role(role_name)
+        self.client.post("roles/add", data={'name': role_name}, follow_redirects=True)
+        assert self.appbuilder.sm.find_role(role_name)
+        self._delete_role_if_exists(role_name)
+
+    def test_roles_create_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        role_name = "test_roles_create_role"
+        resp = self.client.post("roles/add", data={'name': role_name}, follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+        assert self.appbuilder.sm.find_role(role_name) is None
+
+    def test_roles_edit(self):
+        role_name = "test_roles_create_role"
+        role = self.appbuilder.sm.add_role(role_name)
+        updated_role_name = "test_roles_create_role_new"
+        self._delete_role_if_exists(updated_role_name)
+        self.client.post(f"roles/edit/{role.id}", data={'name': updated_role_name}, follow_redirects=True)
+        updated_role = self.appbuilder.sm.find_role(updated_role_name)
+        assert role.id == updated_role.id
+
+        self._delete_role_if_exists(updated_role_name)
+
+    def test_roles_edit_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+
+        role_name = "test_roles_create_role"
+        role = self.appbuilder.sm.add_role(role_name)
+
+        updated_role_name = "test_roles_create_role_new"
+        resp = self.client.post(
+            f"roles/edit/{role.id}", data={'name': updated_role_name}, follow_redirects=True
+        )
+
+        self.check_content_in_response('Access is Denied', resp)
+        assert self.appbuilder.sm.find_role(role_name)
+        assert self.appbuilder.sm.find_role(updated_role_name) is None
+
+        self._delete_role_if_exists(role_name)
+
+    def test_roles_delete(self):
+        role_name = "test_roles_create_role"
+        role = self.appbuilder.sm.add_role(role_name)
+
+        self.client.post(f"roles/delete/{role.id}", follow_redirects=True)
+        assert self.appbuilder.sm.find_role(role_name) is None
+        self._delete_role_if_exists(role_name)
+
+    def test_roles_delete_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+
+        role_name = "test_roles_create_role"
+        role = self.appbuilder.sm.add_role(role_name)
+
+        resp = self.client.post(f"roles/delete/{role.id}", follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+        assert self.appbuilder.sm.find_role(role_name)
+
+        self._delete_role_if_exists(role_name)
 
     def test_userstatschart_view(self):
         resp = self.client.get('userstatschartview/chart/', follow_redirects=True)
@@ -628,13 +711,87 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('permissions/list/', follow_redirects=True)
         self.check_content_in_response('List Base Permissions', resp)
 
+    def test_permissions_list_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get('permissions/list/', follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+
     def test_viewmenus_list(self):
         resp = self.client.get('viewmenus/list/', follow_redirects=True)
         self.check_content_in_response('List View Menus', resp)
 
+    def test_viewmenus_list_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get('viewmenus/list/', follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+
     def test_permissionsviews_list(self):
         resp = self.client.get('permissionviews/list/', follow_redirects=True)
         self.check_content_in_response('List Permissions on Views/Menus', resp)
+
+    def test_permissionsviews_list_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get('permissionviews/list/', follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+
+    def test_resetmypasswordview_read(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        # Tests with viewer as all roles should have access.
+        resp = self.client.get('resetmypassword/form', follow_redirects=True)
+        self.check_content_in_response('Reset Password Form', resp)
+
+    def test_resetmypasswordview_edit(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        # Tests with viewer as all roles should have access.
+        resp = self.client.post(
+            'resetmypassword/form', data={'password': 'blah', 'conf_password': 'blah'}, follow_redirects=True
+        )
+        self.check_content_in_response('Password Changed', resp)
+
+    def test_resetpasswordview_read(self):
+        resp = self.client.get('resetpassword/form?pk=1', follow_redirects=True)
+        self.check_content_in_response('Reset Password Form', resp)
+
+    def test_resetpasswordview_read_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get('resetpassword/form?pk=1', follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+
+    def test_resetpasswordview_edit(self):
+        resp = self.client.post(
+            'resetpassword/form?pk=1',
+            data={'password': 'blah', 'conf_password': 'blah'},
+            follow_redirects=True,
+        )
+        self.check_content_in_response('Password Changed', resp)
+
+    def test_resetpasswordview_edit_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        # Tests with viewer as all roles should have access.
+        resp = self.client.post(
+            'resetpassword/form?pk=1',
+            data={'password': 'blah', 'conf_password': 'blah'},
+            follow_redirects=True,
+        )
+        self.check_content_in_response('Access is Denied', resp)
+
+    # def test_get_myuserinfo(self):
+    #     assert True
+    #     # resp = self.client.get("users/userinfo/", follow_redirects=True)
+    #     # self.check_content_in_response('Your user information', resp)
+
+    # def test_edit_myuserinfo(self):
+    #     resp = self.client.post(
+    #    "userinfoeditview/form", data={'last_name': 'new_last_name'}, follow_redirects=True
+    # )
+    #     self.check_content_in_response('Your user information', resp)
 
     def test_home_filter_tags(self):
         from airflow.www.views import FILTER_TAGS_COOKIE
@@ -3253,6 +3410,25 @@ class TestDagRunModelView(TestBase):
         data = {"action": "clear", "rowid": ["0"]}
         resp = self.client.post("/dagrun/action_post", data=data, follow_redirects=True)
         self.check_content_in_response("Failed to clear state", resp)
+
+
+class TestCustomizedFABViews(TestBase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
+        cls.session.commit()
+        cls.clear_table(models.DagRun)
+        cls.clear_table(models.TaskInstance)
+
+    def tearDown(self):
+        self.clear_table(models.DagRun)
+        self.clear_table(models.TaskInstance)
+
+
+# class TestCustomPermissionModelView(TestCustomizedFABViews):
+#     def test_list_success(self):
+#         self.client.get('/dagrun/add', data=data, follow_redirects=True)
 
 
 class TestDecorators(TestBase):
