@@ -388,7 +388,7 @@ class TestGetDags(TestDagEndpoint):
     def test_should_respond_200(self):
         self._create_dag_models(2)
 
-        response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("api/v1/dags?sort=asc", environ_overrides={'REMOTE_USER': "test"})
         file_token = SERIALIZER.dumps("/tmp/dag_1.py")
         file_token2 = SERIALIZER.dumps("/tmp/dag_2.py")
         assert response.status_code == 200
@@ -427,6 +427,58 @@ class TestGetDags(TestDagEndpoint):
             ],
             "total_entries": 2,
         } == response.json
+
+    def test_order_by_id_descending(self):
+        self._create_dag_models(2)
+
+        response = self.client.get("api/v1/dags?order_by=dag_id", environ_overrides={'REMOTE_USER': "test"})
+        file_token = SERIALIZER.dumps("/tmp/dag_1.py")
+        file_token2 = SERIALIZER.dumps("/tmp/dag_2.py")
+        assert response.status_code == 200
+        assert {
+            "dags": [
+                {
+                    "dag_id": "TEST_DAG_2",
+                    "description": None,
+                    "fileloc": "/tmp/dag_2.py",
+                    "file_token": file_token2,
+                    "is_paused": False,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                },
+                {
+                    "dag_id": "TEST_DAG_1",
+                    "description": None,
+                    "fileloc": "/tmp/dag_1.py",
+                    "file_token": file_token,
+                    "is_paused": False,
+                    "is_subdag": False,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": {
+                        "__type": "CronExpression",
+                        "value": "2 2 * * *",
+                    },
+                    "tags": [],
+                },
+            ],
+            "total_entries": 2,
+        } == response.json
+
+    def test_invalid_order_by_raises_400(self):
+        self._create_dag_models(2)
+
+        response = self.client.get("api/v1/dags?order_by=invalid", environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 400
+        assert (
+            response.json['detail'] == "DagModel has no attribute 'invalid' specified in order_by parameter"
+        )
 
     def test_should_respond_200_with_granular_dag_access(self):
         self._create_dag_models(3)
@@ -468,7 +520,7 @@ class TestGetDags(TestDagEndpoint):
     def test_should_respond_200_and_handle_pagination(self, url, expected_dag_ids):
         self._create_dag_models(10)
 
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
 
