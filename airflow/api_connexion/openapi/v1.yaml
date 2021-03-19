@@ -648,6 +648,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
           description: Success.

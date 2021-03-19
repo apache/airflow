@@ -133,7 +133,6 @@ class TestGetEventLog(TestEventLogEndpoint):
 
 
 class TestGetEventLogs(TestEventLogEndpoint):
-    @provide_session
     def test_should_respond_200(self, session):
         log_model_1 = Log(
             event='TEST_EVENT_1',
@@ -149,7 +148,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         log_model_3.dttm = timezone.parse(self.default_time_2)
         session.add_all([log_model_1, log_model_2, log_model_3])
         session.commit()
-        response = self.client.get("/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/eventLogs?sort=asc", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json == {
             "event_logs": [
@@ -182,6 +181,58 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "owner": 'root',
                     "when": self.default_time_2,
                     "extra": '{"host_name": "e24b454f002a"}',
+                },
+            ],
+            "total_entries": 3,
+        }
+
+    def test_order_eventlogs_by_owner(self, session):
+        log_model_1 = Log(
+            event='TEST_EVENT_1',
+            task_instance=self._create_task_instance(),
+        )
+        log_model_2 = Log(event='TEST_EVENT_2', task_instance=self._create_task_instance(), owner="zsh")
+        log_model_3 = Log(event="cli_scheduler", owner='root', extra='{"host_name": "e24b454f002a"}')
+        log_model_1.dttm = timezone.parse(self.default_time)
+        log_model_2.dttm = timezone.parse(self.default_time_2)
+        log_model_3.dttm = timezone.parse(self.default_time_2)
+        session.add_all([log_model_1, log_model_2, log_model_3])
+        session.commit()
+        response = self.client.get(
+            "/api/v1/eventLogs?order_by=owner", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            "event_logs": [
+                {
+                    "event_log_id": log_model_2.id,
+                    "event": "TEST_EVENT_2",
+                    "dag_id": "TEST_DAG_ID",
+                    "task_id": "TEST_TASK_ID",
+                    "execution_date": self.default_time,
+                    "owner": 'zsh',  # Order by name, sort order is descending(default)
+                    "when": self.default_time_2,
+                    "extra": None,
+                },
+                {
+                    "event_log_id": log_model_3.id,
+                    "event": "cli_scheduler",
+                    "dag_id": None,
+                    "task_id": None,
+                    "execution_date": None,
+                    "owner": 'root',
+                    "when": self.default_time_2,
+                    "extra": '{"host_name": "e24b454f002a"}',
+                },
+                {
+                    "event_log_id": log_model_1.id,
+                    "event": "TEST_EVENT_1",
+                    "dag_id": "TEST_DAG_ID",
+                    "task_id": "TEST_TASK_ID",
+                    "execution_date": self.default_time,
+                    "owner": 'airflow',
+                    "when": self.default_time,
+                    "extra": None,
                 },
             ],
             "total_entries": 3,
@@ -251,7 +302,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.add_all(log_models)
         session.commit()
 
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
 
         assert response.json["total_entries"] == 10
