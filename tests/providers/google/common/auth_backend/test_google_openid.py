@@ -15,8 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from unittest import mock
+
+import pytest
 
 from flask_login import current_user
 from google.auth.exceptions import GoogleAuthError
@@ -27,29 +28,38 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 
 
-class TestGoogleOpenID(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        with conf_vars(
-            {
-                ("api", "auth_backend"): "airflow.providers.google.common.auth_backend.google_openid",
-                ('api', 'enable_experimental_api'): 'true',
-            }
-        ):
-            cls.app = create_app(testing=True)
+@pytest.fixture(scope="module")
+def google_openid_app():
+    confs = {
+        ("api", "auth_backend"): "airflow.providers.google.common.auth_backend.google_openid",
+        ('api', 'enable_experimental_api'): 'true',
+    }
+    with conf_vars(confs):
+        return create_app(testing=True)
 
-        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
-        role_admin = cls.appbuilder.sm.find_role("Admin")
-        tester = cls.appbuilder.sm.find_user(username="test")
-        if not tester:
-            cls.appbuilder.sm.add_user(
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+
+@pytest.fixture(scope="module")
+def admin_user(google_openid_app):
+    appbuilder = google_openid_app.appbuilder  # pylint: disable=no-member
+    role_admin = appbuilder.sm.find_role("Admin")
+    tester = appbuilder.sm.find_user(username="test")
+    if not tester:
+        appbuilder.sm.add_user(
+            username="test",
+            first_name="test",
+            last_name="test",
+            email="test@fab.org",
+            role=role_admin,
+            password="test",
+        )
+    return role_admin
+
+
+class TestGoogleOpenID:
+    @pytest.fixture(autouse=True)
+    def _set_attrs(self, google_openid_app, admin_user) -> None:
+        self.app = google_openid_app
+        self.admin_user = admin_user
 
     @mock.patch("google.oauth2.id_token.verify_token")
     def test_success(self, mock_verify_token):
