@@ -372,7 +372,7 @@ def initialize_extra_operators_links_plugins():
 
         registered_operator_link_classes.update(
             {
-                f"{link.__class__.__module__}.{link.__class__.__name__}": link.__class__
+                link.import_path(): link.__class__
                 for link in plugin.operator_extra_links
             }
         )

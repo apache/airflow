@@ -1520,3 +1520,7 @@ class BaseOperatorLink(metaclass=ABCMeta):
         :param dttm: datetime
         :return: link to external system
         """
+
+    @classmethod
+    def import_path(cls):
+        return f"{cls.__module__}.{cls.__name__}"
