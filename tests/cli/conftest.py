@@ -20,12 +20,6 @@ import pytest
 
 from airflow import models
 from airflow.cli import cli_parser
-from airflow.www import app as application
-
-
-@pytest.fixture(scope="session")
-def app():
-    return application.create_app(testing=True)
 
 
 @pytest.fixture(scope="session")

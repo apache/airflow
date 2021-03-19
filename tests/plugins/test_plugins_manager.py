@@ -18,8 +18,9 @@
 import importlib
 import logging
 import sys
-import unittest
 from unittest import mock
+
+import pytest
 
 from airflow.hooks.base import BaseHook
 from airflow.plugins_manager import AirflowPlugin
@@ -30,11 +31,11 @@ py39 = sys.version_info >= (3, 9)
 importlib_metadata = 'importlib.metadata' if py39 else 'importlib_metadata'
 
 
-class TestPluginsRBAC(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.app = application.create_app(testing=True)
-        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
+class TestPluginsRBAC:
+    @pytest.fixture(autouse=True)
+    def _set_attrs(self, app):
+        self.app = app
+        self.appbuilder = app.appbuilder  # pylint: disable=no-member
 
     def test_flaskappbuilder_views(self):
         from tests.plugins.test_plugin import v_appbuilder_package
@@ -289,7 +290,7 @@ class TestPluginsManager:
             assert hasattr(macros, MacroPlugin.name)
 
 
-class TestPluginsDirectorySource(unittest.TestCase):
+class TestPluginsDirectorySource:
     def test_should_return_correct_path_name(self):
         from airflow import plugins_manager
 

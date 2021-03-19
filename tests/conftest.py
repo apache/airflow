@@ -418,3 +418,10 @@ def frozen_sleep(monkeypatch):
 
     if freezegun_control is not None:
         freezegun_control.stop()
+
+
+@pytest.fixture(scope="session")
+def app():
+    from airflow.www import app
+
+    return app.create_app(testing=True)
