@@ -1123,6 +1123,21 @@ class TestDag(unittest.TestCase):
         dag.clear()
         self._clean_up(dag_id)
 
+    def test_disable_manual_dag_trigger(self):
+        """
+        Tests manually scheduling a dag with allow_manual set to False
+        """
+        dag_id = "test_disable_manual_dag_trigger"
+        dag = DAG(dag_id=dag_id, allow_manual=False)
+        dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
+
+        with pytest.raises(AirflowException):
+            dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                execution_date=TEST_DATE,
+                state=State.RUNNING,
+            )
+
     @patch('airflow.models.dag.Stats')
     def test_dag_handle_callback_crash(self, mock_stats):
         """

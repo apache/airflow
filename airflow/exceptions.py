@@ -298,3 +298,7 @@ class TaskDeferred(BaseException):
 
 class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
+
+
+class DAGDisallowManual(AirflowException):
+    """Raised when a user tries to trigger a manual run for a DAG that has allow_manual set to False."""

@@ -60,7 +60,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
+from airflow.exceptions import AirflowException, DAGDisallowManual, DuplicateTaskIdFound, TaskNotFound
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dagbag import DagBag
@@ -204,6 +204,8 @@ class DAG(LoggingMixin):
         execution_date to figure out the next schedule
     :param timetable: Specify which timetable to use (in which case schedule_interval
         must not be set). See :doc:`/howto/timetable` for more information
+    :param allow_manual: If set to False, will disallow manual trigger of this DAG.
+         Defaults to True.
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
     :param end_date: A date beyond which your DAG won't run, leave to None
@@ -305,6 +307,7 @@ class DAG(LoggingMixin):
     def __init__(
         self,
         dag_id: str,
+        allow_manual: bool = True,
         description: Optional[str] = None,
         schedule_interval: ScheduleIntervalArg = NOTSET,
         timetable: Optional[Timetable] = None,
@@ -379,6 +382,7 @@ class DAG(LoggingMixin):
         back = sys._getframe().f_back
         self.fileloc = back.f_code.co_filename if back else ""
         self.task_dict: Dict[str, Operator] = {}
+        self.allow_manual = allow_manual
 
         # set timezone from start_date
         tz = None
@@ -2280,6 +2284,12 @@ class DAG(LoggingMixin):
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
             )
 
+        if not self.allow_manual and run_type == DagRunType.MANUAL:
+            raise DAGDisallowManual(
+                f"Cannot manually trigger DAG {self.dag_id}, because 'allow_manual' is "
+                f"set to {self.allow_manual}"
+            )
+
         logical_date = timezone.coerce_datetime(execution_date)
         if data_interval is None and logical_date is not None:
             warnings.warn(
@@ -2310,6 +2320,7 @@ class DAG(LoggingMixin):
             creating_job_id=creating_job_id,
             data_interval=data_interval,
         )
+
         session.add(run)
         session.flush()
 
