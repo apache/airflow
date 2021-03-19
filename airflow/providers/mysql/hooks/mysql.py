@@ -52,7 +52,10 @@ class MySqlHook(DbApiHook):
 
     def set_autocommit(self, conn: Connection, autocommit: bool) -> None:  # noqa: D403
         """MySql connection sets autocommit in a different way."""
-        conn.autocommit(autocommit)
+        if isinstance(conn.__class__.autocommit, property):  # mysql-connector-python
+            conn.autocommit = autocommit
+        else:  # mysqlclient
+            conn.autocommit(autocommit)
 
     def get_autocommit(self, conn: Connection) -> bool:  # noqa: D403
         """
@@ -63,7 +66,10 @@ class MySqlHook(DbApiHook):
         :return: connection autocommit setting
         :rtype: bool
         """
-        return conn.get_autocommit()
+        if isinstance(conn.__class__.autocommit, property):  # mysql-connector-python
+            return conn.autocommit
+        else:  # mysqlclient
+            return conn.get_autocommit()
 
     def _get_conn_config_mysql_client(self, conn: Connection) -> Dict:
         conn_config = {
