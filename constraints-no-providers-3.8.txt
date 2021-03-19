@@ -8,7 +8,7 @@ Flask-JWT-Extended==3.25.1
 Flask-Login==0.4.1
 Flask-OAuthlib==0.9.5
 Flask-OpenID==1.2.5
-Flask-SQLAlchemy==2.4.4
+Flask-SQLAlchemy==2.5.1
 Flask-WTF==0.14.3
 Flask==1.1.2
 HeapDict==1.0.1
