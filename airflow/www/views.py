@@ -3988,11 +3988,23 @@ class CustomUserInfoEditView(UserInfoEditView):
     """Customize permission names for FAB's builtin UserInfoEditView."""
 
     class_permission_name = permissions.RESOURCE_MY_PROFILE
+    route_base = "/userinfoeditview"
     method_permission_name = {
         'this_form_get': 'edit',
         'this_form_post': 'edit',
     }
     base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
+
+class CustomUserStatsChartView(UserStatsChartView):
+    """Customize permission names for FAB's builtin UserStatsChartView."""
+
+    class_permission_name = permissions.RESOURCE_USER_STATS_CHART
+    route_base = "/userstatschartview"
+    method_permission_name = {
+        'chart': 'read',
+    }
+    base_permissions = [permissions.ACTION_CAN_READ]
 
 
 class CustomUserLDAPModelView(UserLDAPModelView):
@@ -4041,13 +4053,3 @@ class CustomUserRemoteUserModelView(UserRemoteUserModelView):
     base_permissions = [
         permissions.ACTION_CAN_READ,
     ]
-
-
-class CustomUserStatsChartView(UserStatsChartView):
-    """Customize permission names for FAB's builtin UserStatsChartView."""
-
-    class_permission_name = permissions.RESOURCE_USER_STATS_CHART
-    method_permission_name = {
-        'chart': 'read',
-    }
-    base_permissions = [permissions.ACTION_CAN_READ]

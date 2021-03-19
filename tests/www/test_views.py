@@ -707,6 +707,12 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('userstatschartview/chart/', follow_redirects=True)
         self.check_content_in_response('User Statistics', resp)
 
+    def test_userstatschart_view_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get('userstatschartview/chart/', follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+
     def test_permissions_list(self):
         resp = self.client.get('permissions/list/', follow_redirects=True)
         self.check_content_in_response('List Base Permissions', resp)
@@ -782,16 +788,107 @@ class TestAirflowBaseViews(TestBase):
         )
         self.check_content_in_response('Access is Denied', resp)
 
-    # def test_get_myuserinfo(self):
-    #     assert True
-    #     # resp = self.client.get("users/userinfo/", follow_redirects=True)
-    #     # self.check_content_in_response('Your user information', resp)
+    def test_get_myuserinfo(self):
+        resp = self.client.get("users/userinfo/", follow_redirects=True)
+        self.check_content_in_response('Your user information', resp)
 
-    # def test_edit_myuserinfo(self):
-    #     resp = self.client.post(
-    #    "userinfoeditview/form", data={'last_name': 'new_last_name'}, follow_redirects=True
-    # )
-    #     self.check_content_in_response('Your user information', resp)
+    def test_edit_myuserinfo(self):
+        resp = self.client.post(
+            "userinfoeditview/form",
+            data={'first_name': 'new_first_name', 'last_name': 'new_last_name'},
+            follow_redirects=True,
+        )
+        self.check_content_in_response("User information changed", resp)
+
+    def test_create_user(self):
+        resp = self.client.post(
+            "users/add",
+            data={
+                'first_name': 'fake_first_name',
+                'last_name': 'fake_last_name',
+                'username': 'fake_username',
+                'email': 'fake_email@email.com',
+                'password': 'test',
+                'conf_password': 'test',
+            },
+            follow_redirects=True,
+        )
+        self.check_content_in_response("Added Row", resp)
+        new_user = self.appbuilder.sm.find_user("fake_username")
+        self.appbuilder.sm.del_register_user(new_user)
+
+    def test_create_user_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.post("users/add", follow_redirects=True)
+        self.check_content_in_response("Access is Denied", resp)
+
+    def test_read_users(self):
+        resp = self.client.get("users/list/", follow_redirects=True)
+        self.check_content_in_response("List Users", resp)
+
+    def test_read_users_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get("users/list/", follow_redirects=True)
+        self.check_content_in_response("Access is Denied", resp)
+
+    def test_edit_user(self):
+        username = "test_edit_user_user"
+        self._delete_user_if_exists(username)
+        dag_tester_role = self.appbuilder.sm.add_role('dag_acl_tester')
+        new_user = self.appbuilder.sm.add_user(
+            "test_edit_user_user",
+            "first_name",
+            "last_name",
+            "email@email.com",
+            dag_tester_role,
+            password="password",
+        )
+        resp = self.client.post(
+            f"users/edit/{new_user.id}",
+            data={"first_name": "new_first_name"},
+            follow_redirects=True,
+        )
+        self.check_content_in_response("new_first_name", resp)
+        self._delete_user_if_exists(username)
+
+    def test_edit_users_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.post("users/edit/1", follow_redirects=True)
+        self.check_content_in_response("Access is Denied", resp)
+
+    def _delete_user_if_exists(self, username):
+        user = self.appbuilder.sm.find_user(username)
+        if user:
+            self.appbuilder.sm.del_register_user(user)
+
+    def test_delete_user(self):
+        username = "test_edit_user_user"
+        self._delete_user_if_exists(username)
+        dag_tester_role = self.appbuilder.sm.add_role('dag_acl_tester')
+        new_user = self.appbuilder.sm.add_user(
+            "test_edit_user_user",
+            "first_name",
+            "last_name",
+            "email@email.com",
+            dag_tester_role,
+            password="password",
+        )
+        resp = self.client.post(
+            f"users/delete/{new_user.id}",
+            follow_redirects=True,
+        )
+        self.check_content_in_response("Deleted Row", resp)
+        self._delete_user_if_exists(username)
+
+    def test_delete_users_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        dag_tester_role = self.appbuilder.sm.add_role('dag_acl_tester')
+        resp = self.client.post(f"users/delete/{dag_tester_role.id}", follow_redirects=True)
+        self.check_content_in_response("Access is Denied", resp)
 
     def test_home_filter_tags(self):
         from airflow.www.views import FILTER_TAGS_COOKIE
