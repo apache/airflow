@@ -330,7 +330,6 @@ class TestECSOperator(unittest.TestCase):
 
 
 class TestShouldRetry(unittest.TestCase):
-
     def test_return_true_on_valid_reason(self):
         self.assertTrue(should_retry(ECSOperatorError([{'reason': 'RESOURCE:MEMORY'}], 'Foo')))
 

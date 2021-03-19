@@ -512,7 +512,9 @@ class AwsBaseHook(BaseHook):
                     'after': tenacity_logger,
                 }
                 return tenacity.retry(**default_kwargs)(fun)(self)
+
             return decorator_f
+
         return retry_decorator
 
 

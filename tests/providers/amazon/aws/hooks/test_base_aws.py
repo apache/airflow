@@ -343,9 +343,6 @@ class TestRetryDecorator(unittest.TestCase):  # ptlint: disable=invalid-name
             _non_retryable_test(custom_fn)
 
     def test_raise_exception_when_no_retry_args(self):
-        custom_fn = ThrowErrorUntilCount(
-            count=2,
-            quota_retry=None
-        )
+        custom_fn = ThrowErrorUntilCount(count=2, quota_retry=None)
         with pytest.raises(Exception):
             _retryable_test(custom_fn)
