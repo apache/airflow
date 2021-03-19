@@ -1211,6 +1211,8 @@ paths:
   /dags/{dag_id}/tasks:
     parameters:
       - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/SortBy'
+      - $ref: '#/components/parameters/OrderBy'
 
     get:
       summary: Get tasks for DAG
