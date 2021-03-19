@@ -465,7 +465,9 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
         except Exception:  # pylint: disable=broad-except
             self.log.warning(
-                "Exception _mark_multi_state in smart sensor for hashcode %s", poke_hash, exc_info=True,
+                "Exception _mark_multi_state in smart sensor for hashcode %s",
+                str(poke_hash),  # cast to str in advance for highlighting
+                exc_info=True,
             )
         self.log.info("Marked %s tasks out of %s to state %s", count_marked, len(query_result), state)
 
