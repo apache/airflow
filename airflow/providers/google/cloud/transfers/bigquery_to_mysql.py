@@ -50,9 +50,6 @@ class BigQueryToMySqlOperator(BaseOperator):
 
     :param dataset_table: A dotted ``<dataset>.<table>``: the big query table of origin
     :type dataset_table: str
-    :param max_results: The maximum number of records (rows) to be fetched
-        from the table. (templated)
-    :type max_results: str
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :type selected_fields: str
