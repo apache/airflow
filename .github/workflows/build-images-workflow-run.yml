@@ -52,7 +52,7 @@ jobs:
   cancel-workflow-runs:
     timeout-minutes: 10
     name: "Cancel workflow runs"
-    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+    runs-on: ${{ github.repository == 'apache/airflow' && ['self-hosted'] || 'ubuntu-20.04' }}
     outputs:
       sourceHeadRepo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
       sourceHeadBranch: ${{ steps.source-run-info.outputs.sourceHeadBranch }}
