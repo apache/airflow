@@ -102,8 +102,7 @@ def get_dag_runs(
     # return early if order_by field do not exist
     if order_by and not hasattr(DagRun, order_by):
         raise BadRequest(
-            title="Orderby column not found",
-            detail=f"The column `{order_by}` specified by order_by in query does not exist",
+            detail=f"DagRun has no attribute '{order_by}' specified in order_by parameter",
         )
     query = session.query(DagRun)
 

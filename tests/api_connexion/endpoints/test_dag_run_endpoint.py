@@ -278,6 +278,15 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "total_entries": 2,
         }
 
+    def test_invalid_order_by_raises_400(self):
+        self._create_test_dag_run()
+
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 400
+        assert response.json['detail'] == "DagRun has no attribute 'invalid' specified in order_by parameter"
+
     def test_return_correct_results_with_order_by(self, session):
         self._create_test_dag_run()
         result = session.query(DagRun).all()
