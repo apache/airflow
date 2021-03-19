@@ -254,8 +254,12 @@ function initialization::initialize_mount_variables() {
 
 # Determine values of force settings
 function initialization::initialize_force_variables() {
-    # Whether necessary for airflow run local sources are mounted to docker
+    # By default we do not pull CI/PROD images. We can force-pull them when needed
     export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
+
+    # By default we do not pull python base image. We should do that only when we run upgrade check in
+    # CI master and when we manually refresh the images to latest versions
+    export FORCE_PULL_BASE_PYTHON_IMAGE="false"
 
     # Determines whether to force build without checking if it is needed
     # Can be overridden by '--force-build-images' flag.
