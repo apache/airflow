@@ -19,7 +19,7 @@ under the License.
 
 {% extends "airflow/main.html" %}
 
-{% block title %}Airflow - DAGs{% endblock %}
+{% block title %}Airflow - DAG Dependencies{% endblock %}
 
 {% block head_css %}
 {{ super() }}
@@ -37,10 +37,9 @@ under the License.
 <hr/>
 <div class="legend-row">
   <div>
-    <span class="legend-item" style="float:left; background-color: rgb(232, 247, 228)">dag</span>
-    <span class="legend-item" style="float:left; background-color: rgb(255, 239, 235)">trigger</span>
-    <span class="legend-item" style="float:left; background-color: rgb(230, 241, 242)">sensor</span>
-    <span class="legend-item" style="float:left; background-color: gold">implicit</span>
+    <span class="legend-item dag">dag</span>
+    <span class="legend-item trigger">trigger</span>
+    <span class="legend-item sensor">sensor</span>
   </div>
   <div style="float:right">Last refresh: {{ last_refresh }}</div>
 </div>

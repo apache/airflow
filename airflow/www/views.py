@@ -3817,11 +3817,13 @@ class DagDependenciesView(AirflowBaseView):
     """View to show dependencies between DAGs"""
 
     refresh_interval = conf.getint(
-        "dag_dependencies_plugin",
-        "refresh_interval",
+        "webserver",
+        "dag_dependencies_refresh_interval",
         fallback=conf.getint("scheduler", "dag_dir_list_interval"),
     )
     last_refresh = datetime.utcnow() - timedelta(seconds=refresh_interval)
+    trigger_task_types = conf.getlist("core", "dag_dependencies_trigger")
+    sensor_task_types = conf.getlist("core", "dag_dependencies_sensor")
     nodes = []
     edges = []
 
@@ -3861,14 +3863,12 @@ class DagDependenciesView(AirflowBaseView):
 
         for dag_id, dag in current_app.dag_bag.dags.items():
             dag_node_id = f"d:{dag_id}"
-            nodes[dag_node_id] = self._node_dict(dag_node_id, dag_id, "fill: rgb(232, 247, 228)")
+            nodes[dag_node_id] = self._node_dict(dag_node_id, dag_id, "dag")
 
             for task in dag.tasks:
                 task_node_id = f"t:{dag_id}:{task.task_id}"
-                if task.task_type in conf.getlist("core", "dag_dependencies_trigger"):
-                    nodes[task_node_id] = self._node_dict(
-                        task_node_id, task.task_id, "fill: rgb(255, 239, 235)"
-                    )
+                if task.task_type in self.trigger_task_types:
+                    nodes[task_node_id] = self._node_dict(task_node_id, task.task_id, "trigger")
 
                     edges.extend(
                         [
@@ -3876,10 +3876,8 @@ class DagDependenciesView(AirflowBaseView):
                             {"u": task_node_id, "v": f"d:{task.trigger_dag_id}"},
                         ]
                     )
-                elif task.task_type in conf.getlist("core", "dag_dependencies_sensor"):
-                    nodes[task_node_id] = self._node_dict(
-                        task_node_id, task.task_id, "fill: rgb(230, 241, 242)"
-                    )
+                elif task.task_type in self.sensor_task_types:
+                    nodes[task_node_id] = self._node_dict(task_node_id, task.task_id, "sensor")
 
                     edges.extend(
                         [
@@ -3888,25 +3886,12 @@ class DagDependenciesView(AirflowBaseView):
                         ]
                     )
 
-            implicit = getattr(dag, "implicit_dependencies", None)
-            if isinstance(implicit, list):
-                for dep in implicit:
-                    dep_node_id = f"i:{dag_id}:{dep}"
-                    nodes[dep_node_id] = self._node_dict(dep_node_id, "implicit", "fill: gold")
-
-                    edges.extend(
-                        [
-                            {"u": dep_node_id, "v": dag_node_id},
-                            {"u": f"d:{dep}", "v": dep_node_id},
-                        ]
-                    )
-
         self.nodes = list(nodes.values())
         self.edges = edges
 
     @staticmethod
-    def _node_dict(node_id, label, style):
+    def _node_dict(node_id, label, node_class):
         return {
             "id": node_id,
-            "value": {"label": label, "style": style, "rx": 5, "ry": 5},
+            "value": {"label": label, "rx": 5, "ry": 5, "class": node_class},
         }

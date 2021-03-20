@@ -810,8 +810,6 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('runme_1', resp)
 
     def test_dag_dependencies(self):
-        dag = self.dagbag.get_dag('example_complex')
-        dag.implicit_dependencies = ["tutorial", "test_utils"]
         url = 'dag-dependencies'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('child_task1', resp)
