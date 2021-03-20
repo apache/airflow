@@ -174,7 +174,8 @@ pip install apache-airflow[postgres,google]==2.0.1 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.1/constraints-3.7.txt"
 ```
 
-For information on installing backport providers check [backport-providers.rst](docs/apache-airflow/backport-providers.rst).
+For information on installing provider packages check
+[providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
 ## Official source code
 

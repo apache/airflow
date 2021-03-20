@@ -486,62 +486,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           github.event_name == 'push'
         run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
 
-  prepare-backport-provider-packages:
-    timeout-minutes: 40
-    name: "Backport packages: ${{ matrix.package-format }}"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs: [build-info, ci-images]
-    strategy:
-      matrix:
-        package-format: ['wheel', 'sdist']
-    env:
-      # In this case we want to install airflow from the latest released 1.10 version
-      # all provider packages are installed from wheels or .tar.gz files
-      INSTALL_AIRFLOW_VERSION: "1.10.14"
-      AIRFLOW_EXTRAS: "all"
-      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      BACKPORT_PACKAGES: "true"
-      VERSION_SUFFIX_FOR_PYPI: "dev"
-      VERSION_SUFFIX_FOR_SVN: "dev"
-      PACKAGE_FORMAT: ${{ matrix.package-format }}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
-    if: needs.build-info.outputs.image-build == 'true'
-    steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-      - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare provider documentation"
-        run: ./scripts/ci/provider_packages/ci_prepare_provider_documentation.sh
-      - name: "Prepare provider packages: ${{ matrix.package-format }}"
-        run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
-      - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
-        env:
-          INSTALL_PROVIDERS_FROM_SOURCES: "false"
-      - name: "Upload package artifacts"
-        uses: actions/upload-artifact@v2
-        if: always()
-        with:
-          name: airflow-backport-packages
-          path: "./dist/apache*"
-          retention-days: 7
-      - name: "Upload documentation artifacts"
-        uses: actions/upload-artifact@v2
-        if: always() && matrix.package-format == 'wheel'
-        with:
-          name: airflow-backport-readmes
-          path: "./files/airflow-readme-*"
-          retention-days: 7
-
   prepare-provider-packages:
     timeout-minutes: 40
     name: "Provider packages ${{ matrix.package-format }}"
@@ -1112,7 +1056,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-postgres
       - tests-mysql
       - tests-kubernetes
-      - prepare-backport-provider-packages
       - prepare-provider-packages
       - test-provider-packages-released-airflow
       - prod-images
@@ -1162,7 +1105,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-postgres
       - tests-mysql
       - tests-kubernetes
-      - prepare-backport-provider-packages
       - ci-images
       - verify-ci-images
       - docs

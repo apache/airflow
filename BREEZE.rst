@@ -545,9 +545,6 @@ There are several commands that you can run in Breeze to manage and build packag
 Preparing provider readme files is part of the release procedure by the release managers
 and it is described in detail in `dev <dev/README.md>`_ .
 
-You can prepare provider packages - by default regular provider packages are prepared, but with
-``--backport`` flag you can prepare backport packages.
-
 The packages are prepared in ``dist`` folder. Note, that this command cleans up the ``dist`` folder
 before running, so you should run it before generating airflow package below as it will be removed.
 
@@ -564,13 +561,6 @@ providers that you would like to build. By default ``both`` types of packages ar
 .. code-block:: bash
 
      ./breeze prepare-provider-packages google amazon
-
-You can also prepare backport provider packages, if you specify ``--backport`` flag. You can read more
-about backport packages in `dev <dev/README.md>`_
-
-.. code-block:: bash
-
-     ./breeze prepare-provider-packages --backports google amazon
 
 You can see all providers available by running this command:
 
@@ -1772,10 +1762,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: both
 
-  --backports
-
-          Prepares backport providers rather than regular ones.
-
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
           debugging - when you run breeze with --verbose flags you will be able to see the commands
@@ -2132,7 +2118,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Detailed usage for command: prepare-provider-documentation
 
 
-  breeze prepare-provider-documentation [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
+  breeze prepare-provider-documentation [FLAGS] [PACKAGE_ID ...]
 
         Prepares documentation files for provider packages.
 
@@ -2141,23 +2127,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
         If no packages are specified, readme for all packages are generated.
         If no date is specified, current date + 3 days is used (allowing for PMC votes to pass).
 
-        You can also specify --backport flag to prepare backport providers documentation and in this
-        case you can also optionally specify CALVER version as first parameter.
-
         Examples:
 
         'breeze prepare-provider-documentation' or
-        'breeze prepare-provider-documentation --version-suffix-for-pypi rc1' or
-        'breeze prepare-provider-documentation --backports 2020.05.10' or
-        'breeze prepare-provider-documentation --backports 2020.05.10 https google amazon'
+        'breeze prepare-provider-documentation --version-suffix-for-pypi rc1'
 
         General form:
 
-        'breeze prepare-provider-documentation YYYY.MM.DD <PACKAGE_ID> ...'
-
-        * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
-          cannot be earlier than the already released version (the script will fail if it
-          will be). It can be set in the future anticipating the future release date.
+        'breeze prepare-provider-documentation <PACKAGE_ID> ...'
 
         * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
           'google' but in several cases, it might be one level deeper separated with
@@ -2166,7 +2143,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Flags:
 
   -S, --version-suffix-for-pypi SUFFIX
-          Adds optional suffix to the version in the generated backport package. It can be used
+          Adds optional suffix to the version in the generated provider package. It can be used
           to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
 
   -N, --version-suffix-for-svn SUFFIX
@@ -2182,10 +2159,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  both,sdist,wheel
 
           Default: both
-
-  --backports
-
-          Prepares backport providers rather than regular ones.
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -2208,7 +2181,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   breeze prepare-provider-packages [FLAGS] [PACKAGE_ID ...]
 
-        Prepares backport packages. You can provide (after --) optional list of packages to prepare.
+        Prepares provider packages. You can provide (after --) optional list of packages to prepare.
         If no packages are specified, readme for all packages are generated. You can specify optional
         --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
         --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
@@ -2217,9 +2190,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
         so that you do not have accidental files there. This will delete airflow package if it is
         prepared there so make sure you run prepare-provider-packages first,
         and prepare-airflow-packages second.
-
-        You can also specify --backport flag to prepare backport providers or --package-format to
-        prepare one or both types of supported formats.
 
         Examples:
 
@@ -2233,7 +2203,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         General form:
 
-        'breeze prepare-provider-packages [--backports] [--package-format PACKAGE_FORMAT] \
+        'breeze prepare-provider-packages [--package-format PACKAGE_FORMAT] \
               [--version-suffix-for-svn|--version-suffix-for-pypi] <PACKAGE_ID> ...'
 
         * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
@@ -2252,12 +2222,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: both
 
-  --backports
-
-          Prepares backport providers rather than regular ones.
-
   -S, --version-suffix-for-pypi SUFFIX
-          Adds optional suffix to the version in the generated backport package. It can be used
+          Adds optional suffix to the version in the generated provider package. It can be used
           to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
 
   -N, --version-suffix-for-svn SUFFIX
@@ -2773,10 +2739,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Default: All
 
   ****************************************************************************************************
-   Flags for generation of the backport packages
+   Flags for generation of the provider packages
 
   -S, --version-suffix-for-pypi SUFFIX
-          Adds optional suffix to the version in the generated backport package. It can be used
+          Adds optional suffix to the version in the generated provider package. It can be used
           to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
 
   -N, --version-suffix-for-svn SUFFIX

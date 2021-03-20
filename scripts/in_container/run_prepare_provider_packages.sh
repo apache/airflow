@@ -19,20 +19,13 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 function copy_sources() {
-    if [[ ${BACKPORT_PACKAGES} == "true" ]]; then
-        group_start "Copy and refactor sources"
-        echo "==================================================================================="
-        echo " Copying sources and refactoring code for backport provider packages"
-        echo "==================================================================================="
-    else
-        group_start "Copy sources"
-        echo "==================================================================================="
-        echo " Copying sources for provider packages"
-        echo "==================================================================================="
-    fi
-
+    group_start "Copy sources"
+    echo "==================================================================================="
+    echo " Copying sources for provider packages"
+    echo "==================================================================================="
     pushd "${AIRFLOW_SOURCES}"
-    python3 "${PROVIDER_PACKAGES_DIR}/copy_provider_package_sources.py" "${OPTIONAL_BACKPORT_FLAG[@]}"
+    rm -rf "provider_packages/airflow"
+    cp -r airflow "provider_packages"
     popd
 
     group_end
@@ -50,6 +43,35 @@ function build_provider_packages() {
     local skipped_packages=()
     local error_packages=()
 
+    echo "-----------------------------------------------------------------------------------"
+    if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' && "${VERSION_SUFFIX_FOR_SVN}" == ''
+            && ${FILE_VERSION_SUFFIX} == '' ]]; then
+        echo
+        echo "Preparing official version of provider with no suffixes"
+        echo
+    elif [[ ${FILE_VERSION_SUFFIX} != '' ]]; then
+        echo
+        echo " Preparing release candidate of providers with file version suffix only (resulting file will be renamed): ${FILE_VERSION_SUFFIX}"
+        echo
+    elif [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' ]]; then
+        echo
+        echo " Package Version of providers of set for SVN version): ${TARGET_VERSION_SUFFIX}"
+        echo
+    elif [[ "${VERSION_SUFFIX_FOR_SVN}" == '' ]]; then
+        echo
+        echo " Package Version of providers suffix set for PyPI version: ${TARGET_VERSION_SUFFIX}"
+        echo
+    else
+        # Both SV/PYPI are set to the same version here!
+        echo
+        echo " Pre-release version (alpha beta) suffix set in both SVN/PyPI: ${TARGET_VERSION_SUFFIX}"
+        echo
+    fi
+    echo "-----------------------------------------------------------------------------------"
+
+    # Delete the remote, so that we fetch it and update it once, not once per package we build!
+    git remote rm apache-https-for-providers 2>/dev/null || :
+
     local provider_package
     for provider_package in "${PROVIDER_PACKAGES[@]}"
     do
@@ -57,9 +79,11 @@ function build_provider_packages() {
         local res
         set +e
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-            "${OPTIONAL_BACKPORT_FLAG[@]}" \
+            generate-setup-files \
+            "${OPTIONAL_VERBOSE_FLAG[@]}" \
+            --no-git-update \
             --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
-            generate-setup-files "${provider_package}"
+            "${provider_package}"
         res=$?
         set -e
         if [[ ${res} == "64" ]]; then
@@ -70,33 +94,6 @@ function build_provider_packages() {
             error_packages+=("${provider_package}")
             continue
         fi
-        group_start "Determine suffix of package for '${COLOR_GREEN}${provider_package}${COLOR_RESET}'"
-        echo "-----------------------------------------------------------------------------------"
-        if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' && "${VERSION_SUFFIX_FOR_SVN}" == ''
-                && ${FILE_VERSION_SUFFIX} == '' ]]; then
-            echo
-            echo "Preparing official version of ${provider_package} with no suffixes"
-            echo
-        elif [[ ${FILE_VERSION_SUFFIX} != '' ]]; then
-            echo
-            echo " Preparing release candidate of ${provider_package} with file version suffix only (ersulting file will be renamed): ${FILE_VERSION_SUFFIX}"
-            echo
-        elif [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' ]]; then
-            echo
-            echo " Package Version of ${provider_package} of set for SVN version): ${TARGET_VERSION_SUFFIX}"
-            echo
-        elif [[ "${VERSION_SUFFIX_FOR_SVN}" == '' ]]; then
-            echo
-            echo " Package Version of ${provider_package} suffix set for PyPI version: ${TARGET_VERSION_SUFFIX}"
-            echo
-        else
-            # Both SV/PYPI are set to the same version here!
-            echo
-            echo " Pre-release version (alpha beta) suffix set in both SVN/PyPI: ${TARGET_VERSION_SUFFIX}"
-            echo
-        fi
-        echo "-----------------------------------------------------------------------------------"
-        group_end
         set +e
         package_suffix=""
         if [[ -z "${VERSION_SUFFIX_FOR_SVN}" && -n ${VERSION_SUFFIX_FOR_PYPI} ||
@@ -107,10 +104,11 @@ function build_provider_packages() {
             package_suffix="${VERSION_SUFFIX_FOR_PYPI}"
         fi
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-            "${OPTIONAL_BACKPORT_FLAG[@]}" \
+            build-provider-packages \
+            "${OPTIONAL_VERBOSE_FLAG[@]}" \
+            --no-git-update \
             --version-suffix "${package_suffix}" \
             "${package_format_args[@]}" \
-            build-provider-packages \
             "${provider_package}"
         res=$?
         set -e
@@ -158,7 +156,7 @@ function rename_packages_if_needed() {
         if [[ "${PACKAGE_FORMAT}" == "sdist" || "${PACKAGE_FORMAT}" == "both" ]]; then
             for FILE in *.tar.gz
             do
-                mv "${FILE}" "${FILE//\.tar\.gz/${FILE_VERSION_SUFFIX}-bin.tar.gz}"
+                mv "${FILE}" "${FILE//\.tar\.gz/${FILE_VERSION_SUFFIX}.tar.gz}"
             done
         fi
         if [[ "${PACKAGE_FORMAT}" == "wheel" || "${PACKAGE_FORMAT}" == "both" ]]; then

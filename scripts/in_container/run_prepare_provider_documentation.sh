@@ -26,7 +26,6 @@ function import_all_provider_classes() {
 
 function verify_provider_packages_named_properly() {
     python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-        "${OPTIONAL_BACKPORT_FLAG[@]}" \
         verify-provider-classes
 }
 
@@ -35,6 +34,9 @@ function run_prepare_documentation() {
     local skipped_documentation=()
     local error_documentation=()
 
+    # Delete the remote, so that we fetch it and update it once, not once per package we build!
+    git remote rm apache-https-for-providers 2>/dev/null || :
+
     local provider_package
     for provider_package in "${PROVIDER_PACKAGES[@]}"
     do
@@ -42,10 +44,11 @@ function run_prepare_documentation() {
         local res
         # There is a separate group created in logs for each provider package
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-            --version-suffix "${TARGET_VERSION_SUFFIX}" \
-            "${OPTIONAL_BACKPORT_FLAG[@]}" \
-            "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \
             update-package-documentation \
+            --version-suffix "${TARGET_VERSION_SUFFIX}" \
+            --no-git-update \
+            "${OPTIONAL_VERBOSE_FLAG[@]}" \
+            "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \
             "${provider_package}"
         res=$?
         if [[ ${res} == "64" ]]; then
@@ -101,12 +104,9 @@ install_supported_pip_version
 # TODO: remove it when devel_all == devel_ci
 install_remaining_dependencies
 
-if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
-    import_all_provider_classes
-    verify_provider_packages_named_properly
-fi
+import_all_provider_classes
+verify_provider_packages_named_properly
 
-# We will be able to remove it when we get rid of BACKPORT_PACKAGES
 OPTIONAL_RELEASE_VERSION_ARGUMENT=()
 if [[ $# != "0" && ${1} =~ ^[0-9][0-9][0-9][0-9]\.[0-9][0-9]\.[0-9][0-9]$ ]]; then
     OPTIONAL_RELEASE_VERSION_ARGUMENT+=("--release-version" "${1}")

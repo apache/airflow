@@ -870,10 +870,6 @@ run Google Cloud system tests.
 
   RANDOM_POSTFIX=$(cat "${RANDOM_FILE}")
 
-  # install any packages from dist folder if they are available
-  if [[ ${RUN_AIRFLOW_1_10:=} == "true" ]]; then
-      pip install /dist/apache_airflow_backport_providers_{google,postgres,mysql}*.whl || true
-  fi
 
 To execute system tests, specify the ``--system SYSTEM``
 flag where ``SYSTEM`` is a system to run the system tests for. It can be repeated.
@@ -948,75 +944,19 @@ example, the below command will build google postgres and mysql wheel packages:
 Those packages will be prepared in ./dist folder. This folder is mapped to /dist folder
 when you enter Breeze, so it is easy to automate installing those packages for testing.
 
-
-Installing backported for Airflow 1.10.* series
------------------------------------------------
-
-The tests can be executed against the master version of Airflow, but they also work
-with older versions. This is especially useful to test back-ported operators
-from Airflow 2.0 to 1.10.* versions.
-
-To run the tests for Airflow 1.10.* series, you need to run Breeze with
-``--install-airflow-version=<VERSION>`` to install a different version of Airflow.
-If ``current`` is specified (default), then the current version of Airflow is used.
-Otherwise, the released version of Airflow is installed.
-
-The ``-install-airflow-version=<VERSION>`` command make sure that the current (from sources) version of
-Airflow is removed and the released version of Airflow from ``PyPI`` is installed. Note that tests sources
-are not removed and they can be used to run tests (unit tests and system tests) against the
-freshly installed version.
-
-You should automate installing of the provider packages in your own
-``./files/airflow-breeze-config/variables.env`` file. You should make it depend on
-``RUN_AIRFLOW_1_10`` variable value equals to "true" so that
-the installation of provider packages is only performed when you install airflow 1.10.*.
-The provider packages are available in ``/dist`` directory if they were prepared as described
-in the previous chapter.
-
-Typically the command in you variables.env file will be similar to:
-
-.. code-block:: bash
-
-  # install any packages from dist folder if they are available
-  if [[ ${RUN_AIRFLOW_1_10:=} == "true" ]]; then
-      pip install /dist/apache_airflow_backport_providers_{google,postgres,mysql}*.whl || true
-  fi
-
-The command above will automatically install backported google, postgres, and mysql packages if they
-were prepared before entering the breeze.
-
-
-Running system tests for backported packages in Airflow 1.10.* series
----------------------------------------------------------------------
-
-Once you installed 1.10.* Airflow version with ``--install-airflow-version`` and prepared and
-installed the required packages via ``variables.env`` it should be as easy as running
-``pytest --system=<SYSTEM_NAME> TEST_NAME``. Note that we have default timeout for running
-system tests set to 8 minutes and some system tests might take much longer to run and you might
-want to add ``-o faulthandler_timeout=2400`` (2400s = 40 minutes for example) to your
-pytest command.
-
 The typical system test session
 -------------------------------
 
 Here is the typical session that you need to do to run system tests:
 
-1. Prepare provider packages
+1. Enter breeze
 
 .. code-block:: bash
 
-  ./breeze prepare-provider-packages -- google postgres mysql
-
-2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
-   backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
-
-.. code-block:: bash
-
-   ./breeze --install-airflow-version 1.10.9 --python 3.6 --db-reset --forward-credentials restart
+   ./breeze --python 3.6 --db-reset --forward-credentials restart
 
 This will:
 
-* install Airflow 1.10.9
 * restarts the whole environment (i.e. recreates metadata database from the scratch)
 * run Breeze with python 3.6 version
 * reset the Airflow database
@@ -1064,61 +1004,26 @@ Breeze session. They are usually expensive to run.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Important !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Note that in case you have to update your backported operators or system tests (they are part of
-the provider packageS) you need to rebuild the packages outside of breeze and
-``pip remove/pip install`` those packages to get them installed. This is not needed
-if you run system tests with ``current`` Airflow version, so it is better to iterate with the
-system tests with the ``current`` version and fix all problems there and only afterwards run
-the tests with Airflow 1.10.*
-
-The typical session then looks as follows:
-
-1. Prepare provider packages
+1. Enter breeze
 
 .. code-block:: bash
 
-  ./breeze prepare-provider-packages -- google postgres mysql
+   ./breeze --python 3.6 --db-reset --forward-credentials restart
 
-2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
-   backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
-
-.. code-block:: bash
-
-   ./breeze --install-airflow-version 1.10.9 --python 3.6 --db-reset --forward-credentials restart
-
-3. Run create action in helper (to create slowly created resources):
+2. Run create action in helper (to create slowly created resources):
 
 .. code-block:: bash
 
     python tests/providers/google/cloud/operators/test_cloud_sql_system_helper.py --action create
 
-4. Run the tests:
+3. Run the tests:
 
 .. code-block:: bash
 
    pytest -o faulthandler_timeout=2400 \
       --system=google tests/providers/google/cloud/operators/test_compute_system.py
 
-5. In case you are running provider packages tests you need to rebuild and reinstall a package
-   every time you change the operators/hooks or example_dags. The example below shows reinstallation
-   of the google package:
-
-In the host:
-
-.. code-block:: bash
-
-  ./breeze prepare-provider-packages -- google
-
-In the container:
-
-.. code-block:: bash
-
-  pip uninstall apache-airflow-backport-providers-google
-  pip install /dist/apache_airflow_backport_providers_google-*.whl
-
-The points 4. and 5. can be repeated multiple times without leaving the container
-
-6. Run delete action in helper:
+4. Run delete action in helper:
 
 .. code-block:: bash
 
