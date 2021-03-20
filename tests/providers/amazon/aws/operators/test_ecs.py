@@ -146,7 +146,7 @@ class TestECSOperator(unittest.TestCase):
         resp_failures['failures'].append('dummy error')
         client_mock.run_task.return_value = resp_failures
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ECSOperatorError):
             self.ecs.execute(None)
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
