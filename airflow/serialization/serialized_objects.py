@@ -214,7 +214,7 @@ class BaseSerialization:
         elif isinstance(var, dict):
             return cls._encode({str(k): cls._serialize(v) for k, v in var.items()}, type_=DAT.DICT)
         elif isinstance(var, list):
-            return [cls._serialize(v) for v in var]
+            return sorted(cls._serialize(v) for v in var)
         elif HAS_KUBERNETES and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
@@ -240,10 +240,10 @@ class BaseSerialization:
             return str(get_python_source(var))
         elif isinstance(var, set):
             # FIXME: casts set to list in customized serialization in future.
-            return cls._encode([cls._serialize(v) for v in var], type_=DAT.SET)
+            return cls._encode(sorted(cls._serialize(v) for v in var), type_=DAT.SET)
         elif isinstance(var, tuple):
             # FIXME: casts tuple to list in customized serialization in future.
-            return cls._encode([cls._serialize(v) for v in var], type_=DAT.TUPLE)
+            return cls._encode(sorted(cls._serialize(v) for v in var), type_=DAT.TUPLE)
         elif isinstance(var, TaskGroup):
             return SerializedTaskGroup.serialize_task_group(var)
         else:
