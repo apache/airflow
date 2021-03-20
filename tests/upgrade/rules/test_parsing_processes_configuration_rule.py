@@ -57,4 +57,5 @@ class TestParsingProcessesConfigurationRule(TestCase):
 
         response = rule.check()
         assert response == \
-               ["Please rename the max_threads configuration in the [scheduler] section to parsing_processes."]
+               ["Please rename the max_threads configuration in the "
+                "[scheduler] section to parsing_processes."]

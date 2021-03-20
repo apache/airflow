@@ -36,5 +36,6 @@ class ParsingProcessesConfigurationRule(BaseRule):
             old_config_value = conf.get("scheduler", "max_threads")
             if old_config_value == default:
                 return None
-            return ["Please rename the max_threads configuration in the [scheduler] section to parsing_processes."]
+            return ["Please rename the max_threads configuration in the "
+                    "[scheduler] section to parsing_processes."]
         return None
