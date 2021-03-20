@@ -3314,6 +3314,7 @@ class DagRunModelView(AirflowModelView):
     method_permission_name = {
         'add': 'create',
         'list': 'read',
+        'action_clear': 'delete',
         'action_muldelete': 'delete',
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
