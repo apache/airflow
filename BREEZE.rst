@@ -173,17 +173,31 @@ Let's confirm that ``getopt`` and ``gstat`` utilities are successfully installed
 
     Written by Michael Meskes.
 
+Resources required
+==================
 
 Memory
 ------
 
-Minimum 4GB RAM is required to run the full Breeze environment.
+Minimum 4GB RAM for Docker Engine is required to run the full Breeze environment.
 
 On macOS, 2GB of RAM are available for your Docker containers by default, but more memory is recommended
 (4GB should be comfortable). For details see
 `Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
 
 On Windows WSL 2 expect the Linux Distro and Docker containers to use 7 - 8 GB of RAM.
+
+Disk
+----
+
+Minimum 40GB free disk space is required for your Docker Containers.
+
+On Mac OS This might deteriorate over time so you might need to increase it or run ``docker system --prune``
+periodically. For details see
+`Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
+
+On WSL2 you might want to increase your Virtual Hard Disk by following:
+`Expanding the size of your WSL 2 Virtual Hard Disk <https://docs.microsoft.com/en-us/windows/wsl/compare-versions#expanding-the-size-of-your-wsl-2-virtual-hard-disk>`_
 
 Cleaning the environment
 ------------------------

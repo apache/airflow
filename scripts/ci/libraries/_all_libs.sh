@@ -28,6 +28,8 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_traps.sh
 # shellcheck source=scripts/ci/libraries/_initialization.sh
 . "${LIBRARIES_DIR}"/_initialization.sh
+# shellcheck source=scripts/ci/libraries/_docker_engine_resources.sh
+. "${LIBRARIES_DIR}"/_docker_engine_resources.sh
 # shellcheck source=scripts/ci/libraries/_repeats.sh
 . "${LIBRARIES_DIR}"/_repeats.sh
 # shellcheck source=scripts/ci/libraries/_sanity_checks.sh
