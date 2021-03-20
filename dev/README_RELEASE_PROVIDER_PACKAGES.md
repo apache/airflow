@@ -51,7 +51,7 @@
 The prerequisites to release Apache Airflow are described in [README.md](README.md).
 
 You can read more about the command line tools used to generate the packages in the
-[Provider packages](PROVIDER_PACKAGES.md).
+[Provider packages](PROVIDER_PACKAGE_DETAILS.md).
 
 # Decide when to release
 
