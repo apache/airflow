@@ -3299,15 +3299,15 @@ class TestHelperFunctions(TestBase):
             ("36539'%3balert(1)%2f%2f166", "/home"),
             (
                 "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2",
-                "http://localhost:8080/trigger?dag_id=test&abc=2",
+                "/home",
             ),
             (
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag';alert(33)//",
-                "http://localhost:8080/trigger?dag_id=test_dag",
+                "/home",
             ),
             (
-                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag",
-                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%25test_dag",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%3Dtest_dag",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%3Dtest_dag",
             ),
         ]
     )

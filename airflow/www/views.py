@@ -129,18 +129,14 @@ def get_safe_url(url):
 
     parsed = urlparse(url)
 
-    # If the url is relative & it contains semicolon, redirect it to homepage to avoid
+    # If the url contains semicolon, redirect it to homepage to avoid
     # potential XSS. (Similar to https://github.com/python/cpython/pull/24297/files (bpo-42967))
-    if parsed.netloc == '' and parsed.scheme == '' and ';' in unquote(url):
+    if ';' in unquote(url):
         return url_for('Airflow.index')
 
     query = parse_qsl(parsed.query, keep_blank_values=True)
 
-    # Remove all the query elements containing semicolon
-    # As part of https://github.com/python/cpython/pull/24297/files (bpo-42967)
-    # semicolon was already removed as a separator for query arguments by default
-    sanitized_query = [query_arg for query_arg in query if ';' not in query_arg[1]]
-    url = parsed._replace(query=urlencode(sanitized_query)).geturl()
+    url = parsed._replace(query=urlencode(query)).geturl()
 
     if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
         return url
