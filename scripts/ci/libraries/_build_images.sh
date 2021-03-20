@@ -460,9 +460,9 @@ function build_images::get_docker_image_names() {
 # either GITHUB_TOKEN or CONTAINER_REGISTRY_TOKEN depending on the registry.
 # In case Personal Access token is not set, skip logging in
 # Also enable experimental features of docker (we need `docker manifest` command)
-function build_image::configure_github_docker_registry() {
+function build_image::configure_docker_registry() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        start_end::group_start "Determine GitHub Registry token used and login if needed"
+        start_end::group_start "Determine GitHub Registry token"
         local token=""
         if [[ "${GITHUB_REGISTRY}" == "ghcr.io" ]]; then
             # For now ghcr.io can only authenticate using Personal Access Token with package access scope.
@@ -482,6 +482,8 @@ function build_image::configure_github_docker_registry() {
             echo
             exit 1
         fi
+        start_end::group_end
+        start_end::group_start "Logging in to GitHub Registry"
         if [[ -z "${token}" ]] ; then
             verbosity::print_info
             verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
@@ -495,13 +497,14 @@ function build_image::configure_github_docker_registry() {
         else
             verbosity::print_info "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
         fi
-        verbosity::print_info "Make sure experimental docker features are enabled"
+        start_end::group_end
+
+        start_end::group_start "Make sure experimental docker features are enabled"
         local new_config
         new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json")
         echo "${new_config}" > "${HOME}/.docker/config.json"
-        verbosity::print_info "Docker config after change:"
-        verbosity::print_info "${new_config}"
         start_end::group_end
+
     fi
 }
 
@@ -521,7 +524,7 @@ function build_images::prepare_ci_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    build_image::configure_github_docker_registry
+    build_image::configure_docker_registry
     sanity_checks::go_to_airflow_sources
     permissions::fix_group_permissions
 }
@@ -844,7 +847,7 @@ function build_images::prepare_prod_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    build_image::configure_github_docker_registry
+    build_image::configure_docker_registry
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
     sanity_checks::go_to_airflow_sources
 }
