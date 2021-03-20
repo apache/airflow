@@ -140,6 +140,11 @@ build_images::rebuild_ci_image_if_needed_with_group
 prepare_tests_to_run
 
 
+docker_engine::get_available_memory_in_docker
+docker_engine::get_available_cpus_in_docker
+docker_engine::get_available_disk_space_in_docker
+
+
 for TEST_TYPE in ${TEST_TYPES}
 do
     start_end::group_start "Running tests ${TEST_TYPE}"
@@ -170,5 +175,10 @@ do
     echo "**********************************************************************************************"
 
     run_airflow_testing_in_docker "${@}"
+
+    docker_engine::get_available_memory_in_docker
+    docker_engine::get_available_cpus_in_docker
+    docker_engine::get_available_disk_space_in_docker
+
     start_end::group_end
 done

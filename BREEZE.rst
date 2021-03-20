@@ -157,16 +157,47 @@ If you use zsh, run this command and re-login:
     echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
     . ~/.zprofile
 
+
+Let's confirm that ``getopt`` and ``gstat`` utilities are successfully installed
+
+.. code-block:: bash
+
+    $ getopt --version
+    getopt from util-linux *
+    $ gstat --version
+    stat (GNU coreutils) *
+    Copyright (C) 2020 Free Software Foundation, Inc.
+    License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+    This is free software: you are free to change and redistribute it.
+    There is NO WARRANTY, to the extent permitted by law.
+
+    Written by Michael Meskes.
+
+Resources required
+==================
+
 Memory
 ------
 
-Minimum 4GB RAM is required to run the full Breeze environment.
+Minimum 4GB RAM for Docker Engine is required to run the full Breeze environment.
 
 On macOS, 2GB of RAM are available for your Docker containers by default, but more memory is recommended
 (4GB should be comfortable). For details see
 `Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
 
 On Windows WSL 2 expect the Linux Distro and Docker containers to use 7 - 8 GB of RAM.
+
+Disk
+----
+
+Minimum 40GB free disk space is required for your Docker Containers.
+
+On Mac OS This might deteriorate over time so you might need to increase it or run ``docker system --prune``
+periodically. For details see
+`Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
+
+On WSL2 you might want to increase your Virtual Hard Disk by following:
+`Expanding the size of your WSL 2 Virtual Hard Disk <https://docs.microsoft.com/en-us/windows/wsl/compare-versions#expanding-the-size-of-your-wsl-2-virtual-hard-disk>`_
 
 Cleaning the environment
 ------------------------
@@ -177,7 +208,7 @@ them, you may end up with some unused image data.
 
 To clean up the Docker environment:
 
-1. Stop Breeze with ``./breeze stop``.
+1. Stop Breeze with ``./breeze stop``. (If Breeze is already running)
 
 2. Run the ``docker system prune`` command.
 
@@ -333,7 +364,7 @@ Managing CI environment:
     * Generate constraints with ``breeze generate-constraints``
     * Execute arbitrary command in the test environment with ``breeze shell`` command
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
-    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
+    * Push docker images with ``breeze push-image`` command (require committers rights to push images)
 
 You can optionally reset the Airflow metada database if specified as extra ``--db-reset`` flag and for CI image
 you can also start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
@@ -356,7 +387,7 @@ Managing Prod environment (with ``--production-image`` flag):
     * Restart running interactive environment with ``breeze restart`` command
     * Execute arbitrary command in the test environment with ``breeze shell`` command
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
-    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
+    * Push docker images with ``breeze push-image`` command (require committers rights to push images)
 
 You can optionally reset database if specified as extra ``--db-reset`` flag. You can also
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
