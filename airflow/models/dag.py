@@ -2029,7 +2029,6 @@ class DAG(LoggingMixin):
                 'user_defined_filters',
                 'user_defined_macros',
                 'partial',
-                '_old_context_manager_dags',
                 '_pickle_id',
                 '_log',
                 'is_subdag',
