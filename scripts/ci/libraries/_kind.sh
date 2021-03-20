@@ -317,6 +317,24 @@ function kind::deploy_airflow_with_helm() {
     kubectl delete namespace "test-namespace" >/dev/null 2>&1 || true
     kubectl create namespace "${HELM_AIRFLOW_NAMESPACE}"
     kubectl create namespace "test-namespace"
+
+    # If on CI, "pass-through" the current docker credentials from the host to be default image pull-secrets in the namespace
+    if [[ ${CI:=} == "true" ]]; then
+      local regcred
+      regcred=$(jq -sRn '
+        .apiVersion="v1" |
+        .kind = "Secret" |
+        .type = "kubernetes.io/dockerconfigjson" |
+        .metadata.name="regcred" |
+        .data[".dockerconfigjson"] = @base64 "\(inputs)"
+      ' ~/.docker/config.json)
+      kubectl -n test-namespace apply -f - <<<"$regcred"
+      kubectl -n test-namespace patch serviceaccount default -p '{"imagePullSecrets": [{"name": "regcred"}]}'
+
+      kubectl -n "${HELM_AIRFLOW_NAMESPACE}" apply -f - <<<"$regcred"
+      kubectl -n "${HELM_AIRFLOW_NAMESPACE}" patch serviceaccount default -p '{"imagePullSecrets": [{"name": "regcred"}]}'
+    fi
+
     pushd "${AIRFLOW_SOURCES}/chart" >/dev/null 2>&1 || exit 1
     helm repo add stable https://charts.helm.sh/stable/
     helm dep update

@@ -199,6 +199,7 @@ Debugging can be done in exactly the same way as in case of [Regular providers](
 difference is that all scripts there should have ``--backports`` flag added. When updating
 documentation you can also specify ``--release-version`` manually.
 
+You can add `--verbose` flag in breeze command if you want to see commands executed.
 
 # Testing backport provider packages
 

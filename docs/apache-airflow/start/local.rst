@@ -52,11 +52,11 @@ constraint files to enable reproducible installation, so using ``pip`` and const
     # (optional)
     export AIRFLOW_HOME=~/airflow
 
-    AIRFLOW_VERSION=2.0.0
+    AIRFLOW_VERSION=2.0.1
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-2.0.1/constraints-3.6.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
     # initialize the database
@@ -86,7 +86,7 @@ the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
 in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``
 if started by systemd.
 
-Out of the box, Airflow uses a sqlite database, which you should outgrow
+Out of the box, Airflow uses a SQLite database, which you should outgrow
 fairly quickly since no parallelization is possible using this database
 backend. It works in conjunction with the
 :class:`~airflow.executors.sequential_executor.SequentialExecutor` which will

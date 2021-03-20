@@ -53,7 +53,7 @@ function setUpZoomSupport(g) {
   zoom.event(innerSvg);
 }
 
-function setUpNodeHighlighting(g) {
+function setUpNodeHighlighting(g, focus_item = null) {
   d3.selectAll("g.node").on("mouseover", function (d) {
     d3.select(this).selectAll("rect").style("stroke", highlight_color);
     highlight_nodes(g, g.predecessors(d), upstream_color, highlightStrokeWidth);
@@ -71,15 +71,18 @@ function setUpNodeHighlighting(g) {
   });
 
   d3.selectAll("g.node").on("mouseout", function (d) {
-    d3.select(this).selectAll("rect").style("stroke", null);
-    highlight_nodes(g.predecessors(d), null, initialStrokeWidth)
-    highlight_nodes(g.successors(d), null, initialStrokeWidth)
+    d3.select(this).selectAll("rect,circle").style("stroke", null);
+    highlight_nodes(g, g.predecessors(d), null, initialStrokeWidth)
+    highlight_nodes(g, g.successors(d), null, initialStrokeWidth)
     d3.selectAll("g.node")
       .style("opacity", 1);
     d3.selectAll("g.node rect")
       .style("stroke-width", initialStrokeWidth);
     d3.selectAll("g.edgePath")
       .style("opacity", 1);
+    if (focus_item) {
+      localStorage.removeItem(focus_item);
+    }
   });
 }
 

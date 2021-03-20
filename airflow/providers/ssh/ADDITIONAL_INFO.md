@@ -17,6 +17,12 @@
  under the License.
  -->
 
+## Release 2021.3.3
+
+### Features
+
+ * `Added support for DSS, ECDSA, and Ed25519 private keys in SSHHook (#12467)`
+
 ## Release 2021.2.5
 
 ### Features

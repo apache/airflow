@@ -194,10 +194,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         """Process status response"""
         if status == 'Pending':
             if event['type'] == 'DELETED':
-                self.log.info('Event: Failed to start pod %s, will reschedule', pod_id)
-                self.watcher_queue.put(
-                    (pod_id, namespace, State.UP_FOR_RESCHEDULE, annotations, resource_version)
-                )
+                self.log.info('Event: Failed to start pod %s', pod_id)
+                self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
             else:
                 self.log.info('Event: %s Pending', pod_id)
         elif status == 'Failed':
@@ -490,7 +488,13 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
     ) -> None:
         """Executes task asynchronously"""
         self.log.info('Add task %s with command %s with executor_config %s', key, command, executor_config)
-        kube_executor_config = PodGenerator.from_obj(executor_config)
+        try:
+            kube_executor_config = PodGenerator.from_obj(executor_config)
+        except Exception:  # pylint: disable=broad-except
+            self.log.error("Invalid executor_config for %s", key)
+            self.fail(key=key, info="Invalid executor_config passed")
+            return
+
         if executor_config:
             pod_template_file = executor_config.get("pod_template_override", None)
         else:
