@@ -26,9 +26,6 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 ARG AIRFLOW_VERSION="2.0.0.dev0"
 ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 
-ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
-ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
-
 # Print versions
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
@@ -241,10 +238,15 @@ RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
 ENV CONSTRAINTS_GITHUB_REPOSITORY=${CONSTRAINTS_GITHUB_REPOSITORY}
 
-ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${AIRFLOW_BRANCH}"
 ARG AIRFLOW_CONSTRAINTS="constraints"
-ARG AIRFLOW_CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${AIRFLOW_CONSTRAINTS_REFERENCE}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ENV AIRFLOW_CONSTRAINTS=${AIRFLOW_CONSTRAINTS}
+ARG AIRFLOW_CONSTRAINTS_REFERENCE=""
+ENV AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE}
+ARG AIRFLOW_CONSTRAINTS_LOCATION=""
 ENV AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION}
+
+ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-master"
+ENV DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}
 
 # By changing the CI build epoch we can force reinstalling Airflow and pip all dependencies
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
@@ -291,6 +293,9 @@ ARG PIP_PROGRESS_BAR="on"
 ENV PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR}
 
 RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+
+# Only copy common.sh to not invalidate further layers
+COPY scripts/docker/common.sh /scripts/docker/common.sh
 
 # Only copy install_airflow_from_branch_tip.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_airflow_from_branch_tip.sh /scripts/docker/install_airflow_from_branch_tip.sh

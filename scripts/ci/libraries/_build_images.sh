@@ -820,6 +820,7 @@ function build_images::prepare_prod_build() {
             "--build-arg" "AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION}"
         )
         export AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
+        export INSTALL_PROVIDERS_FROM_SOURCES="false"
         build_images::add_build_args_for_remote_install
     else
         # When no airflow version/reference is specified, production image is built either from the

@@ -20,6 +20,9 @@
 RUN_TESTS="true"
 export RUN_TESTS
 
+SKIPPED_FAILED_JOB="Quarantined"
+export SKIPPED_FAILED_JOB
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
@@ -167,58 +170,6 @@ function run_test_types_in_parallel() {
     start_end::group_end
 }
 
-# Outputs logs for successful test type
-# $1 test type
-function output_log_for_successful_test_type(){
-    local test_type=$1
-    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${test_type}"
-    start_end::group_start "${COLOR_GREEN}Output for successful ${test_type}${COLOR_RESET}"
-    echo "${COLOR_GREEN}##### Test type ${test_type} succeeded ##### ${COLOR_RESET}"
-    echo
-    cat "${log_dir}"/stdout
-    echo
-    echo "${COLOR_GREEN}##### Test type ${test_type} succeeded ##### ${COLOR_RESET}"
-    echo
-    start_end::group_end
-}
-
-# Outputs logs for failed test type
-# $1 test type
-function output_log_for_failed_test_type(){
-    local test_type=$1
-    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${test_type}"
-    start_end::group_start "${COLOR_RED}Output: for failed ${test_type}${COLOR_RESET}"
-    echo "${COLOR_RED}##### Test type ${test_type} failed ##### ${COLOR_RESET}"
-    echo
-    cat "${log_dir}"/stdout
-    echo
-    echo
-    echo "${COLOR_RED}##### Test type ${test_type} failed ##### ${COLOR_RESET}"
-    echo
-    start_end::group_end
-}
-
-# Prints summary of tests and returns status:
-# 0 - all test types succeeded (Quarantine is not counted)
-# >0 - number of failed test types (except Quarantine)
-function print_test_summary_and_return_test_status_code() {
-    local return_code="0"
-    local test_type
-    for test_type in ${TEST_TYPES}
-    do
-        status=$(cat "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${test_type}/status")
-        if [[ ${status} == "0" ]]; then
-            output_log_for_successful_test_type "${test_type}"
-        else
-            output_log_for_failed_test_type "${test_type}"
-            # Quarantined tests failure does not trigger whole test failure
-            if [[ ${TEST_TYPE} != "Quarantined" ]]; then
-                return_code=$((return_code + 1))
-            fi
-        fi
-    done
-    return "${return_code}"
-}
 
 export MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN=33000
 
@@ -236,8 +187,6 @@ export MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN=33000
 #   * MEMORY_AVAILABLE_FOR_DOCKER - memory that is available in docker (set by cleanup_runners)
 #
 function run_all_test_types_in_parallel() {
-    local test_type
-
     cleanup_runner
 
     start_end::group_start "Determine how to run the tests"
@@ -278,7 +227,7 @@ function run_all_test_types_in_parallel() {
     fi
     set -e
     # this will exit with error code in case some of the non-Quarantined tests failed
-    print_test_summary_and_return_test_status_code
+    parallel::print_job_summary_and_return_status_code
 }
 
 build_images::prepare_ci_build

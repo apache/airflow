@@ -881,11 +881,6 @@ function breeze::parse_arguments() {
             INSTALL_AIRFLOW_VERSION="${2}"
             # Reference is mutually exclusive with version
             INSTALL_AIRFLOW_REFERENCE=""
-            # Skip mounting local sources when airflow is installed from remote
-            if [[ ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]*$ ]]; then
-                echo "Install providers from PyPI"
-                INSTALL_PROVIDERS_FROM_SOURCES="false"
-            fi
             echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION}"
             echo
             shift 2

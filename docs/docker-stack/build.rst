@@ -22,6 +22,45 @@ Before you dive-deeply in the way how the Airflow Image is build, named and why 
 way we do, you might want to know very quickly how you can extend or customize the existing image
 for Apache Airflow. This chapter gives you a short answer to those questions.
 
+Extending vs. customizing the image
+-----------------------------------
+
+Here is the comparison of the two types of building images. Here is your guide if you want to choose
+how you want to build your image.
+
++----------------------------------------------------+-----------+-------------+
+|                                                    | Extending | Customizing |
++====================================================+===========+=============+
+| Can be built without airflow sources               | Yes       | No          |
++----------------------------------------------------+-----------+-------------+
+| Uses familiar 'FROM ' pattern of image building    | Yes       | No          |
++----------------------------------------------------+-----------+-------------+
+| Requires only basic knowledge about images         | Yes       | No          |
++----------------------------------------------------+-----------+-------------+
+| Builds quickly                                     | Yes       | No          |
++----------------------------------------------------+-----------+-------------+
+| Produces image heavily optimized for size          | No        | Yes         |
++----------------------------------------------------+-----------+-------------+
+| Can build from custom airflow sources (forks)      | No        | Yes         |
++----------------------------------------------------+-----------+-------------+
+| Can build on air-gaped system                      | No        | Yes         |
++----------------------------------------------------+-----------+-------------+
+
+TL;DR; If you have a need to build custom image, it is easier to start with "Extending" however if your
+dependencies require compilation step or when your require to build the image from security vetted
+packages, switching to "Customizing" the image provides much more optimized images. In the example further
+where we compare equivalent "Extending" and "Customizing" the image, similar images build by
+Extending vs. Customization had shown 1.1GB vs 874MB image sizes respectively - with 20% improvement in
+size of the Customized image.
+
+.. note::
+
+  You can also combine both - customizing & extending the image in one. You can build your
+  optimized base image first using ``customization`` method (for example by your admin team) with all
+  the heavy compilation required dependencies and you can publish it in your registry and let others
+  ``extend`` your image using ``FROM`` and add their own lightweight dependencies. This reflects well
+  the split where typically "Casual" users will Extend the image and "Power-users" will customize it.
+
 Airflow Summit 2020's `Production Docker Image <https://youtu.be/wDr3Y7q2XoI>`_ talk provides more
 details about the context, architecture and customization/extension methods for the Production Image.
 
@@ -41,210 +80,322 @@ Debian dependencies with ``apt`` or PyPI dependencies with ``pip install`` or an
 You should be aware, about a few things:
 
 * The production image of airflow uses "airflow" user, so if you want to add some of the tools
-  as ``root`` user, you need to switch to it with ``USER`` directive of the Dockerfile. Also you
-  should remember about following the
+  as ``root`` user, you need to switch to it with ``USER`` directive of the Dockerfile and switch back to
+  ``airflow`` user when you are done. Also you should remember about following the
   `best practises of Dockerfiles <https://docs.docker.com/develop/develop-images/dockerfile_best-practices/>`_
   to make sure your image is lean and small.
 
-  .. code-block:: dockerfile
+* The PyPI dependencies in Apache Airflow are installed in the user library, of the "airflow" user, so
+  PIP packages are installed to ``~/.local`` folder as if the ``--user`` flag was specified when running PIP.
+  Note also that using ``--no-cache-dir`` is a good idea that can help to make your image smaller.
 
-    FROM apache/airflow:2.0.1
-    USER root
-    RUN apt-get update \
-      && apt-get install -y --no-install-recommends \
-             my-awesome-apt-dependency-to-add \
-      && apt-get autoremove -yqq --purge \
-      && apt-get clean \
-      && rm -rf /var/lib/apt/lists/*
-    USER airflow
-
-
-* PyPI dependencies in Apache Airflow are installed in the user library, of the "airflow" user, so
-  you need to install them with the ``--user`` flag and WITHOUT switching to airflow user. Note also
-  that using --no-cache-dir is a good idea that can help to make your image smaller.
-
-  .. code-block:: dockerfile
-
-    FROM apache/airflow:2.0.1
-    RUN pip install --no-cache-dir --user my-awesome-pip-dependency-to-add
-
-* As of 2.0.1 image the ``--user`` flag is turned on by default by setting ``PIP_USER`` environment variable
-  to ``true``. This can be disabled by un-setting the variable or by setting it to ``false``.
-
-
-* If your apt, or PyPI dependencies require some of the build-essentials, then your best choice is
-  to follow the "Customize the image" route. However it requires to checkout sources of Apache Airflow,
-  so you might still want to choose to add build essentials to your image, even if your image will
-  be significantly bigger.
-
-  .. code-block:: dockerfile
-
-    FROM apache/airflow:2.0.1
-    USER root
-    RUN apt-get update \
-      && apt-get install -y --no-install-recommends \
-             build-essential my-awesome-apt-dependency-to-add \
-      && apt-get autoremove -yqq --purge \
-      && apt-get clean \
-      && rm -rf /var/lib/apt/lists/*
-    USER airflow
-    RUN pip install --no-cache-dir --user my-awesome-pip-dependency-to-add
+* If your apt, or PyPI dependencies require some of the ``build-essential`` or other packages that need
+  to compile your python dependencies, then your best choice is to follow the "Customize the image" route,
+  because you can build a highly-optimized (for size) image this way. However it requires to checkout sources
+  of Apache Airflow, so you might still want to choose to add ``build-essential`` to your image,
+  even if your image will be significantly bigger.
 
 * You can also embed your dags in the image by simply adding them with COPY directive of Airflow.
   The DAGs in production image are in ``/opt/airflow/dags`` folder.
 
+* You can build your image without any need for Airflow sources. It is enough that you place the
+  ``Dockerfile`` and any files that are referred to (such as Dag files) in a separate directory and run
+  a command ``docker build . --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
+  and ``my-tag`` is the tag you want to tag the image with.
+
+.. note::
+  As of 2.0.1 image the ``--user`` flag is turned on by default by setting ``PIP_USER`` environment variable
+  to ``true``. This can be disabled by un-setting the variable or by setting it to ``false``. In the
+  2.0.0 image you had to add the ``--user`` flag as ``pip install --user`` command.
+
+Examples of image extending
+---------------------------
+
+An ``apt`` package example
+..........................
+
+The following example adds ``vim`` to the airflow image.
+
+.. exampleinclude:: docker-examples/extending/add-apt-packages/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
+A ``PyPI`` package example
+..........................
+
+The following example adds ``lxml`` python package from PyPI to the image.
+
+.. exampleinclude:: docker-examples/extending/add-pypi-packages/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
+A ``build-essential`` requiring package example
+...............................................
+
+The following example adds ``mpi4py`` package which requires both ``build-essential`` and ``mpi compiler``.
+
+.. exampleinclude:: docker-examples/extending/add-build-essential-extend/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
+The size of this image is ~ 1.1 GB when build. As you will see further, you can achieve 20% reduction in
+size of the image in case you use "Customizing" rather than "Extending" the image.
+
+DAG embedding example
+.....................
+
+The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/dags`` folder.
+
+.. exampleinclude:: docker-examples/extending/embedding-dags/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
+
+.. exampleinclude:: docker-examples/extending/embedding-dags/test_dag.py
+    :language: Python
+    :start-after: [START dag]
+    :end-before: [END dag]
+
 Customizing the image
 ---------------------
 
-Customizing the image is an alternative way of adding your own dependencies to the image - better
-suited to prepare optimized production images.
+Customizing the image is an optimized way of adding your own dependencies to the image - better
+suited to prepare highly optimized (for size) production images, especially when you have dependencies
+that require to be compiled before installing (such as ``mpi4py``).
 
-The advantage of this method is that it produces optimized image even if you need some compile-time
-dependencies that are not needed in the final image. You need to use Airflow Sources to build such images
-from the `official distribution folder of Apache Airflow <https://downloads.apache.org/airflow/>`_ for the
-released versions, or checked out from the GitHub project if you happen to do it from git sources.
+It also allows more sophisticated usages, needed by "Power-users" - for example using forked version
+of Airflow, or building the images from security-vetted sources.
 
-The easiest way to build the image is to use ``breeze`` script, but you can also build such customized
-image by running appropriately crafted docker build in which you specify all the ``build-args``
-that you need to add to customize it. You can read about all the args and ways you can build the image
-in :doc:`build-arg-ref`.
+The big advantage of this method is that it produces optimized image even if you need some compile-time
+dependencies that are not needed in the final image.
 
-Here just a few examples are presented which should give you general understanding of what you can customize.
+The disadvantage is that you need to use Airflow Sources to build such images from the
+`official distribution repository of Apache Airflow <https://downloads.apache.org/airflow/>`_ for the
+released versions, or from the checked out sources (using release tags or main branches) in the
+`Airflow GitHub Project <https://github.com/apache/airflow>`_ or from your own fork
+if you happen to do maintain your own fork of Airflow.
 
-This builds production image in version 3.6 with default extras from the local sources (master version
-of 2.0 currently):
+Another disadvantage is that the pattern of building Docker images with ``--build-arg`` is less familiar
+to developers of such images. However it is quite well-known to "power-users". That's why the
+customizing flow is better suited for those users who have more familiarity and have more custom
+requirements.
 
-.. code-block:: bash
+The image also usually builds much longer than the equivalent "Extended" image because instead of
+extending the layers that are already coming from the base image, it rebuilds the layers needed
+to add extra dependencies needed at early stages of image building.
 
-  docker build .
+When customizing the image you can choose a number of options how you install Airflow:
 
-This builds the production image in version 3.7 with default extras from 2.0.1 tag and
-constraints taken from constraints-2-0 branch in GitHub.
+   * From the PyPI releases (default)
+   * From the custom installation sources - using additional/replacing the original apt or PyPI repositories
+   * From local sources. This is used mostly during development.
+   * From tag or branch, or specific commit from a GitHub Airflow repository (or fork). This is particularly
+     useful when you build image for a custom version of Airflow that you keep in your fork and you do not
+     want to release the custom Airflow version to PyPI.
+   * From locally stored binary packages for Airflow, Airflow Providers and other dependencies. This is
+     particularly useful if you want to build Airflow in a highly-secure environment where all such packages
+     must be vetted by your security team and stored in your private artifact registry. This also
+     allows to build airflow image in an air-gaped environment.
+   * Side note. Building ``Airflow`` in an ``air-gaped`` environment sounds pretty funny, doesn't it?
 
-.. code-block:: bash
+You can also add a range of customizations while building the image:
 
-  docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/2.0.1.tar.gz#egg=apache-airflow" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
-    --build-arg AIRFLOW_BRANCH="v1-10-test" \
-    --build-arg AIRFLOW_SOURCES_FROM="empty" \
-    --build-arg AIRFLOW_SOURCES_TO="/empty"
+   * base python image you use for Airflow
+   * version of Airflow to install
+   * extras to install for Airflow (or even removing some default extras)
+   * additional apt/python dependencies to use while building Airflow (DEV dependencies)
+   * additional apt/python dependencies to install for runtime version of Airflow (RUNTIME dependencies)
+   * additional commands and variables to set if needed during building or preparing Airflow runtime
+   * choosing constraint file to use when installing Airflow
 
-This builds the production image in version 3.7 with default extras from 2.0.1 PyPI package and
-constraints taken from 2.0.1 tag in GitHub and pre-installed pip dependencies from the top
-of ``v1-10-test`` branch.
+Additional explanation is needed for the last point. Airflow uses constraints to make sure
+that it can be predictably installed, even if some new versions of Airflow dependencies are
+released (or even dependencies of our dependencies!). The docker image and accompanying scripts
+usually determine automatically the right versions of constraints to be used based on the Airflow
+version installed and Python version. For example 2.0.1 version of Airflow installed from PyPI
+uses constraints from ``constraints-2.0.1`` tag). However in some cases - when installing airflow from
+GitHub for example - you have to manually specify the version of constraints used, otherwise
+it will default to the latest version of the constraints which might not be compatible with the
+version of Airflow you use.
 
-.. code-block:: bash
+You can also download any version of Airflow constraints and adapt it with your own set of
+constraints and manually set your own versions of dependencies in your own constraints and use the version
+of constraints that you manually prepared.
 
-  docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="2.0.1" \
-    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.1" \
-    --build-arg AIRFLOW_BRANCH="v1-10-test" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2.0.1" \
-    --build-arg AIRFLOW_SOURCES_FROM="empty" \
-    --build-arg AIRFLOW_SOURCES_TO="/empty"
+You can read more about constraints in the documentation of the
+`Installation <http://airflow.apache.org/docs/apache-airflow/stable/installation.html#constraints-files>`_
 
-This builds the production image in version 3.7 with additional airflow extras from 2.0.1 PyPI package and
-additional python dependencies and pre-installed pip dependencies from 2.0.1 tagged constraints.
+Examples of image customizing
+-----------------------------
 
-.. code-block:: bash
-
-  docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="2.0.1" \
-    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.1" \
-    --build-arg AIRFLOW_BRANCH="v1-10-test" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2.0.1" \
-    --build-arg AIRFLOW_SOURCES_FROM="empty" \
-    --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
-    --build-arg ADDITIONAL_PYTHON_DEPS="sshtunnel oauth2client"
-
-This builds the production image in version 3.7 with additional airflow extras from 2.0.1 PyPI package and
-additional apt dev and runtime dependencies.
-
-.. code-block:: bash
-
-  docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="2.0.1" \
-    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.1" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
-    --build-arg AIRFLOW_SOURCES_FROM="empty" \
-    --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
-    --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
-    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
-    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless" \
-    --tag my-image
+.. _image-build-pypi:
 
 
-The same image can be built using ``breeze`` (it supports auto-completion of the options):
+Building from PyPI packages
+...........................
 
-.. code-block:: bash
+This is the basic way of building the custom images from sources.
 
-  ./breeze build-image \
-      --production-image  --python 3.7 --install-airflow-version=2.0.1 \
-      --additional-extras=jdbc --additional-python-deps="pandas" \
-      --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
+The following example builds the production image in version ``3.6`` with latest PyPI-released Airflow,
+with default set of Airflow extras and dependencies. The ``2.0.1`` constraints are used automatically.
 
+.. exampleinclude:: docker-examples/customizing/stable-airflow.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+The following example builds the production image in version ``3.7`` with default extras from ``2.0.1`` PyPI
+package. The ``2.0.1`` constraints are used automatically.
+
+.. exampleinclude:: docker-examples/customizing/pypi-selected-version.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+The following example builds the production image in version ``3.8`` with additional airflow extras
+(``mssql,hdfs``) from ``2.0.1`` PyPI package, and additional dependency (``oauth2client``).
+
+.. exampleinclude:: docker-examples/customizing/pypi-extras-and-deps.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+
+The following example adds ``mpi4py`` package which requires both ``build-essential`` and ``mpi compiler``.
+
+.. exampleinclude:: docker-examples/customizing/add-build-essential-custom.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+The above image is equivalent of the "extended" image from previous chapter but it's size is only
+874 MB. Comparing to 1.1 GB of the "extended image" this is about 230 MB less, so you can achieve ~20%
+improvement in size of the image by using "customization" vs. extension. The saving can increase in case you
+have more complex dependencies to build.
+
+
+.. _image-build-optimized:
+
+Building optimized images
+.........................
+
+The following example the production image in version ``3.6`` with additional airflow extras from ``2.0.1``
+PyPI package but it includes additional apt dev and runtime dependencies.
+
+The dev dependencies are those that require ``build-essential`` and usually need to involve recompiling
+of some python dependencies so those packages might require some additional DEV dependencies to be
+present during recompilation. Those packages are not needed at runtime, so we only install them for the
+"build" time. They are not installed in the final image, thus producing much smaller images.
+In this case pandas requires recompilation so it also needs gcc and g++ as dev APT dependencies.
+The ``jre-headless`` does not require recompiling so it can be installed as the runtime APT dependency.
+
+.. exampleinclude:: docker-examples/customizing/pypi-dev-runtime-deps.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+.. _image-build-github:
+
+
+Building from GitHub
+....................
+
+This method is usually used for development purpose. But in case you have your own fork you can point
+it to your forked version of source code without having to release it to PyPI. It is enough to have
+a branch or tag in your repository and use the tag or branch in the URL that you point the installation to.
+
+In case of GitHyb builds you need to pass the constraints reference manually in case you want to use
+specific constraints, otherwise the default ``constraints-master`` is used.
+
+The following example builds the production image in version ``3.7`` with default extras from the latest master version and
+constraints are taken from latest version of the constraints-master branch in GitHub.
+
+.. exampleinclude:: docker-examples/customizing/github-master.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+The following example builds the production image with default extras from the
+latest ``v2-0-test`` version and constraints are taken from the latest version of
+the ``constraints-2-0`` branch in GitHub. Note that this command might fail occasionally as only
+the "released version" constraints when building a version and "master" constraints when building
+master are guaranteed to work.
+
+.. exampleinclude:: docker-examples/customizing/github-v2-0-test.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+You can also specify another repository to build from. If you also want to use different constraints
+repository source, you must specify it as additional ``CONSTRAINTS_GITHUB_REPOSITORY`` build arg.
+
+The following example builds the production image using ``potiuk/airflow`` fork of Airflow and constraints
+are also downloaded from that repository.
+
+.. exampleinclude:: docker-examples/customizing/github-different-repository.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+.. _image-build-custom:
+
+Using custom installation sources
+.................................
 
 You can customize more aspects of the image - such as additional commands executed before apt dependencies
 are installed, or adding extra sources to install your dependencies from. You can see all the arguments
 described below but here is an example of rather complex command to customize the image
 based on example in `this comment <https://github.com/apache/airflow/issues/8605#issuecomment-690065621>`_:
 
-.. code-block:: bash
+In case you need to use your custom PyPI package indexes, you can also customize PYPI sources used during
+image build by adding a ``docker-context-files``/``.pypirc`` file when building the image.
+This ``.pypirc`` will not be committed to the repository (it is added to ``.gitignore``) and it will not be
+present in the final production image. It is added and used only in the build segment of the image.
+Therefore this ``.pypirc`` file can safely contain list of package indexes you want to use,
+usernames and passwords used for authentication. More details about ``.pypirc`` file can be found in the
+`pypirc specification <https://packaging.python.org/specifications/pypirc/>`_.
 
-  docker build . -f Dockerfile \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="2.0.1" \
-    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.1" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
-    --build-arg AIRFLOW_SOURCES_FROM="empty" \
-    --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
-    --build-arg ADDITIONAL_PYTHON_DEPS=" \
-        apache-airflow-providers-odbc \
-        azure-storage-blob \
-        sshtunnel \
-        google-api-python-client \
-        oauth2client \
-        beautifulsoup4 \
-        dateparser \
-        rocketchat_API \
-        typeform" \
-    --build-arg ADDITIONAL_DEV_APT_DEPS="msodbcsql17 unixodbc-dev g++" \
-    --build-arg ADDITIONAL_DEV_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | \
-    apt-key add --no-tty - && \
-    curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
-    --build-arg ADDITIONAL_DEV_ENV_VARS="ACCEPT_EULA=Y" \
-    --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | \
-    apt-key add --no-tty - && \
-    curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
-    --build-arg ADDITIONAL_RUNTIME_APT_DEPS="msodbcsql17 unixodbc git procps vim" \
-    --build-arg ADDITIONAL_RUNTIME_ENV_VARS="ACCEPT_EULA=Y" \
-    --tag my-image
+Such customizations are independent of the way how airflow is installed.
 
-Customizing images in high security restricted environments
-...........................................................
+.. note::
+  Similar results could be achieved by modifying the Dockerfile manually (see below) and injecting the
+  commands needed, but by specifying the customizations via build-args, you avoid the need of
+  synchronizing the changes from future Airflow Dockerfiles. Those customizations should work with the
+  future version of Airflow's official ``Dockerfile`` at most with minimal modifications od parameter
+  names (if any), so using the build command for your customizations makes your custom image more
+  future-proof.
+
+The following - rather complex - example shows capabilities of:
+
+  * Adding airflow extras (slack, odbc)
+  * Adding PyPI dependencies (``azure-storage-blob, oauth2client, beautifulsoup4, dateparser, rocketchat_API,typeform``)
+  * Adding custom environment variables while installing ``apt`` dependencies - both DEV and RUNTIME
+    (``ACCEPT_EULA=Y'``)
+  * Adding custom curl command for adding keys and configuring additional apt sources needed to install
+    ``apt`` dependencies (both DEV and RUNTIME)
+  * Adding custom ``apt`` dependencies, both DEV (``msodbcsql17 unixodbc-dev g++) and runtime msodbcsql17 unixodbc git procps vim``)
+
+.. exampleinclude:: docker-examples/customizing/custom-sources.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
+
+.. _image-build-secure-environments:
+
+Build images in security restricted environments
+................................................
 
 You can also make sure your image is only build using local constraint file and locally downloaded
 wheel files. This is often useful in Enterprise environments where the binary files are verified and
-vetted by the security teams.
+vetted by the security teams. It is also the most complex way of building the image. You should be an
+expert of building and using Dockerfiles in order to use it and have to have specific needs of security if
+you want to follow that route.
 
-This builds below builds the production image in version 3.7 with packages and constraints used from the local
+This builds below builds the production image  with packages and constraints used from the local
 ``docker-context-files`` rather than installed from PyPI or GitHub. It also disables MySQL client
 installation as it is using external installation method.
 
@@ -262,119 +413,99 @@ The ``pip download`` might happen in a separate environment. The files can be co
 binary repository and vetted/verified by the security team and used subsequently to build images
 of Airflow when needed on an air-gaped system.
 
-Preparing the constraint files and wheel files:
+Example of preparing the constraint files and wheel files. Note that ``mysql`` dependency is removed
+as ``mysqlclient`` is installed from Oracle's ``apt`` repository and if you want to add it, you need
+to provide this library from you repository if you want to build Airflow image in an "air-gaped" system.
 
-.. code-block:: bash
+.. exampleinclude:: docker-examples/restricted/restricted_environments.sh
+    :language: bash
+    :start-after: [START download]
+    :end-before: [END download]
 
-  rm docker-context-files/*.whl docker-context-files/*.txt
+After this step is finished, your ``docker-context-files`` folder will contain all the packages that
+are needed to install Airflow from.
 
-  curl -Lo "docker-context-files/constraints-2-0.txt" \
-    https://raw.githubusercontent.com/apache/airflow/constraints-2-0/constraints-3.7.txt
+Those downloaded packages and constraint file can be pre-vetted by your security team before you attempt
+to install the image. You can also store those downloaded binary packages in your private artifact registry
+which allows for the flow where you will download the packages on one machine, submit only new packages for
+security vetting and only use the new packages when they were vetted.
 
-  pip download --dest docker-context-files \
-    --constraint docker-context-files/constraints-2-0.txt  \
-    apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv]==2.0.1
+On a separate (air-gaped) system, all the PyPI packages can be copied to ``docker-context-files``
+where you can build the image using the packages downloaded by passing those build args:
 
-Since apache-airflow .whl packages are treated differently by the docker image, you need to rename the
-downloaded apache-airflow* files, for example:
+  * ``INSTALL_FROM_DOCKER_CONTEXT_FILES="true"``  - to use packages present in ``docker-context-files``
+  * ``AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"``  - to not pre-cache packages from PyPI when building image
+  * ``AIRFLOW_CONSTRAINTS_LOCATION=/docker-context-files/YOUR_CONSTRAINT_FILE.txt`` - to downloaded constraint files
+  * (Optional) ``INSTALL_MYSQL_CLIENT="false"`` if you do not want to install ``MySQL``
+    client from the Oracle repositories. In this case also make sure that your
 
-.. code-block:: bash
+Note, that the solution we have for installing python packages from local packages, only solves the problem
+of "air-gaped" python installation. The Docker image also downloads ``apt`` dependencies and ``node-modules``.
+Those type of dependencies are however more likely to be available in your "air-gaped" system via transparent
+proxies and it should automatically reach out to your private registries, however in the future the
+solution might be applied to both of those installation steps.
 
-   pushd docker-context-files
-   for file in apache?airflow*
-   do
-     mv ${file} _${file}
-   done
-   popd
+You can also use techniques described in the previous chapter to make ``docker build`` use your private
+apt sources or private PyPI repositories (via ``.pypirc``) available which can be security-vetted.
 
-Building the image:
+If you fulfill all the criteria, you can build the image on an air-gaped system by running command similar
+to the below:
 
-.. code-block:: bash
+.. exampleinclude:: docker-examples/restricted/restricted_environments.sh
+    :language: bash
+    :start-after: [START build]
+    :end-before: [END build]
 
-  ./breeze build-image \
-      --production-image --python 3.7 --install-airflow-version=2.0.1 \
-      --disable-mysql-client-installation --disable-pip-cache --install-from-local-files-when-building \
-      --constraints-location="/docker-context-files/constraints-2-0.txt"
+Modifying the Dockerfile
+........................
 
-or
+The build arg approach is a convenience method if you do not want to manually modify the ``Dockerfile``.
+Our approach is flexible enough, to be able to accommodate most requirements and
+customizations out-of-the-box. When you use it, you do not need to worry about adapting the image every
+time new version of Airflow is released. However sometimes it is not enough if you have very
+specific needs and want to build a very custom image. In such case you can simply modify the
+``Dockerfile`` manually as you see fit and store it in your forked repository. However you will have to
+make sure to rebase your changes whenever new version of Airflow is released, because we might modify
+the approach of our Dockerfile builds in the future and you might need to resolve conflicts
+and rebase your changes.
 
-.. code-block:: bash
+There are a few things to remember when you modify the ``Dockerfile``:
 
-  docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="2.0.1" \
-    --build-arg AIRFLOW_VERSION_SPECIFICATION="==2.0.1" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
-    --build-arg AIRFLOW_SOURCES_FROM="empty" \
-    --build-arg AIRFLOW_SOURCES_TO="/empty" \
-    --build-arg INSTALL_MYSQL_CLIENT="false" \
-    --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
-    --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="true" \
-    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-2-0.txt"
+* We are using the widely recommended pattern of ``.dockerignore`` where everything is ignored by default
+  and only the required folders are added through exclusion (!). This allows to keep docker context small
+  because there are many binary artifacts generated in the sources of Airflow and if they are added to
+  the context, the time of building the image would increase significantly. If you want to add any new
+  folders to be available in the image you must add it here with leading ``!``.
 
+  .. code-block:: text
 
-Customizing & extending the image together
-..........................................
+      # Ignore everything
+      **
 
-You can combine both - customizing & extending the image. You can build the image first using
-``customize`` method (either with docker command or with ``breeze`` and then you can ``extend``
-the resulting image using ``FROM`` any dependencies you want.
-
-Customizing PYPI installation
-.............................
-
-You can customize PYPI sources used during image build by adding a ``docker-context-files``/``.pypirc`` file
-This ``.pypirc`` will never be committed to the repository and will not be present in the final production image.
-It is added and used only in the build segment of the image so it is never copied to the final image.
-
-External sources for dependencies
-.................................
-
-In corporate environments, there is often the need to build your Container images using
-other than default sources of dependencies. The docker file uses standard sources (such as
-Debian apt repositories or PyPI repository. However, in corporate environments, the dependencies
-are often only possible to be installed from internal, vetted repositories that are reviewed and
-approved by the internal security teams. In those cases, you might need to use those different
-sources.
-
-This is rather easy if you extend the image - you simply write your extension commands
-using the right sources - either by adding/replacing the sources in apt configuration or
-specifying the source repository in pip install command.
-
-It's a bit more involved in the case of customizing the image. We do not have yet (but we are working
-on it) a capability of changing the sources via build args. However, since the builds use
-Dockerfile that is a source file, you can rather easily simply modify the file manually and
-specify different sources to be used by either of the commands.
+      # Allow only these directories
+      !airflow
+      ...
 
 
-Comparing extending and customizing the image
----------------------------------------------
+* The ``docker-context-files`` folder is automatically added to the context of the image, so if you want
+  to add individual files, binaries, requirement files etc you can add them there. The
+  ``docker-context-files`` is copied to the ``/docker-context-files`` folder of the build segment of the
+  image, so it is not present in the final image - which makes the final image smaller in case you want
+  to use those files only in the ``build`` segment. You must copy any files from the directory manually,
+  using COPY command if you want to get the files in your final image (in the main image segment).
 
-Here is the comparison of the two types of building images.
 
-+----------------------------------------------------+---------------------+-----------------------+
-|                                                    | Extending the image | Customizing the image |
-+====================================================+=====================+=======================+
-| Produces optimized image                           | No                  | Yes                   |
-+----------------------------------------------------+---------------------+-----------------------+
-| Use Airflow Dockerfile sources to build the image  | No                  | Yes                   |
-+----------------------------------------------------+---------------------+-----------------------+
-| Requires Airflow sources                           | No                  | Yes                   |
-+----------------------------------------------------+---------------------+-----------------------+
-| You can build it with Breeze                       | No                  | Yes                   |
-+----------------------------------------------------+---------------------+-----------------------+
-| Allows to use non-default sources for dependencies | Yes                 | No [1]                |
-+----------------------------------------------------+---------------------+-----------------------+
+More details
+------------
 
-[1] When you combine customizing and extending the image, you can use external sources
-in the "extend" part. There are plans to add functionality to add external sources
-option to image customization. You can also modify Dockerfile manually if you want to
-use non-default sources for dependencies.
+Build Args reference
+....................
 
-More details about the images
------------------------------
+The detailed ``--build-arg`` reference can be found in :doc:`build-arg-ref`.
+
+
+The architecture of the images
+..............................
 
 You can read more details about the images - the context, their parameters and internal structure in the
 `IMAGES.rst <https://github.com/apache/airflow/blob/master/IMAGES.rst>`_ document.
