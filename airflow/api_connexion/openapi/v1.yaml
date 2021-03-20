@@ -1445,7 +1445,7 @@ components:
           type: string
           readOnly: true
           nullable: true
-          description: If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, nulll.
+          description: If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, null.
         is_paused:
           type: boolean
           nullable: true

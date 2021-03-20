@@ -87,7 +87,7 @@ Backport providers only work when they are installed in the same namespace as th
 This is majority of cases when you simply run pip install - it installs all packages in the same folder
 (usually in ``/usr/local/lib/pythonX.Y/site-packages``). But when you install the ``apache-airflow`` and
 ``apache-airflow-backport-package-*`` using different methods (for example using ``pip install -e .`` or
-``pip install --user`` they might be installed in different namespaces.
+``pip install --user``) they might be installed in different namespaces.
 
 If that's the case, the provider packages will not be importable (the error in such case is
 ``ModuleNotFoundError: No module named 'airflow.providers'``).
