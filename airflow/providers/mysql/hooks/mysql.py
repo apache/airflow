@@ -18,10 +18,16 @@
 
 """This module allows to connect to a MySQL database."""
 import json
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union, TYPE_CHECKING
 
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+
+if TYPE_CHECKING:
+    from MySQLdb.connections import Connection as MySQLdbConnection
+    from mysql.connector.abstracts import MySQLConnectionAbstract
+
+MySQLConnectionTypes = Union['MySQLdbConnection', 'MySQLConnectionAbstract']
 
 
 class MySqlHook(DbApiHook):
@@ -50,14 +56,14 @@ class MySqlHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.connection = kwargs.pop("connection", None)
 
-    def set_autocommit(self, conn: Connection, autocommit: bool) -> None:  # noqa: D403
+    def set_autocommit(self, conn: MySQLConnectionTypes, autocommit: bool) -> None:
         """MySql connection sets autocommit in a different way."""
         if isinstance(conn.__class__.autocommit, property):  # mysql-connector-python
             conn.autocommit = autocommit
         else:  # mysqlclient
             conn.autocommit(autocommit)
 
-    def get_autocommit(self, conn: Connection) -> bool:  # noqa: D403
+    def get_autocommit(self, conn: MySQLConnectionTypes) -> bool:
         """
         MySql connection gets autocommit in a different way.
 
@@ -128,7 +134,7 @@ class MySqlHook(DbApiHook):
 
         return conn_config
 
-    def get_conn(self):
+    def get_conn(self) -> MySQLConnectionTypes:
         """
         Establishes a connection to a mysql database
         by extracting the connection configuration from the Airflow connection.
