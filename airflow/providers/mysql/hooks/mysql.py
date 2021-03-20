@@ -67,7 +67,7 @@ class MySqlHook(DbApiHook):
         :type bool: True to enable autocommit, False to disable autocommit
         :rtype: None
         """
-        if isinstance(conn.__class__.autocommit, property):
+        if hasattr(conn.__class__, 'autocommit') and isinstance(conn.__class__.autocommit, property):
             conn.autocommit = autocommit
         else:
             conn.autocommit(autocommit)
@@ -82,7 +82,7 @@ class MySqlHook(DbApiHook):
         :return: connection autocommit setting
         :rtype: bool
         """
-        if isinstance(conn.__class__.autocommit, property):
+        if hasattr(conn.__class__, 'autocommit') and isinstance(conn.__class__.autocommit, property):
             return conn.autocommit
         else:
             return conn.get_autocommit()
