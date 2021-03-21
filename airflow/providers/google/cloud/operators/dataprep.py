@@ -110,7 +110,7 @@ class DataprepRunJobGroupOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataprepRunJobGroupOperator`
 
-    :param dataprep_conn_id: The connection ID for dataprep.
+    :param dataprep_conn_id: The Dataprep connection ID
     :type dataprep_conn_id: str
     :param body_request:  Passed as the body_request to GoogleDataprepHook's run_job_group,
         where it's the identifier for the recipe to run
