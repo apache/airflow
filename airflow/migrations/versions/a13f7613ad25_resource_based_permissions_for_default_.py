@@ -72,7 +72,7 @@ mapping = {
     ("RoleModelView", "can_add"): [
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
     ],
-    ("RoleModelView", "can_copy_role"): [
+    ("RoleModelView", "copyrole"): [
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
     ],
     ("ViewMenuModelView", "can_list"): [
@@ -96,13 +96,13 @@ mapping = {
     ("UserDBModelView", "can_edit"): [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VIEW_MENU),
     ],
-    ("UserDBModelView", "can_resetmypassword"): [
+    ("UserDBModelView", "resetmypassword"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
     ],
-    ("UserDBModelView", "can_resetpasswords"): [
+    ("UserDBModelView", "resetpasswords"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
     ],
-    ("UserDBModelView", "can_userinfoedit"): [
+    ("UserDBModelView", "userinfoedit"): [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
     ],
     ("UserDBModelView", "can_delete"): [
