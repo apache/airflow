@@ -205,18 +205,22 @@ def main():
         _promote_new_flags()
 
     with with_group("Available packages"):
-        for pkg in available_packages:
+        for pkg in sorted(available_packages):
             print(f" - {pkg}")
 
     if package_filters:
         print("Current package filters: ", package_filters)
     current_packages = process_package_filters(available_packages, package_filters)
+
+    with with_group("Fetching inventories"):
+        # Inventories that could not be retrieved should be retrieved first. This may mean this is a
+        # new package.
+        priority_packages = fetch_inventories()
+    current_packages = sorted(current_packages, key=lambda d: -1 if d in priority_packages else 1)
+
     with with_group(f"Documentation will be built for {len(current_packages)} package(s)"):
         for pkg_no, pkg in enumerate(current_packages, start=1):
             print(f"{pkg_no}. {pkg}")
-
-    with with_group("Fetching inventories"):
-        fetch_inventories()
 
     all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
     all_spelling_errors: Dict[Optional[str], List[SpellingError]] = {}

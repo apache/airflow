@@ -195,7 +195,7 @@ To stop and delete containers, delete volumes with database data and download im
 Notes
 =====
 
-By default, the Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need, you can :ref:`customize and extend it <docker_image>`.
+By default, the Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need, you can :doc:`customize and extend it <docker-stack:index>`.
 
 What's Next?
 ============
