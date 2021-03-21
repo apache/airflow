@@ -850,7 +850,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         <gcloud beta dataflow sql query>`__
         command reference
 
-    :param options: dict
+    :type options: dict
     :param location: The location of the Dataflow job (for example europe-west1)
     :type location: str
     :param project_id: The ID of the GCP project that owns the job.
