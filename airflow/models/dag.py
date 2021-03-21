@@ -2334,8 +2334,6 @@ def dag(*dag_args, **dag_kwargs):
 STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    # Let pylint know about these relationships, without introducing an import cycle
-    from sqlalchemy.orm import relationship
 
     from airflow.models.serialized_dag import SerializedDagModel
 
