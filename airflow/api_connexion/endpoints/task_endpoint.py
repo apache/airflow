@@ -51,7 +51,7 @@ def get_task(dag_id, task_id):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
     ]
 )
-def get_tasks(dag_id, sort: str, order_by=None):
+def get_tasks(dag_id, sort: str, order_by='task_id'):
     """Get tasks for DAG"""
     dag: DAG = current_app.dag_bag.get_dag(dag_id)
     if not dag:
@@ -59,12 +59,12 @@ def get_tasks(dag_id, sort: str, order_by=None):
     tasks = dag.tasks
     if sort == 'desc':
         try:
-            tasks = sorted(tasks, key=attrgetter(order_by or "task_id"), reverse=True)
+            tasks = sorted(tasks, key=attrgetter(order_by), reverse=True)
         except AttributeError as err:
             raise BadRequest(detail=str(err))
     else:
         try:
-            tasks = sorted(tasks, key=attrgetter(order_by or "task_id"))
+            tasks = sorted(tasks, key=attrgetter(order_by))
         except AttributeError as err:
             raise BadRequest(detail=str(err))
     task_collection = TaskCollection(tasks=tasks, total_entries=len(tasks))

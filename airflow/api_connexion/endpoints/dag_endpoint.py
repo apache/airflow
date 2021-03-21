@@ -60,17 +60,17 @@ def get_dag_details(dag_id):
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
-def get_dags(limit, sort, offset=0, order_by=None):
+def get_dags(limit, sort, offset=0, order_by='dag_id'):
     """Get all DAGs."""
-    if order_by and not hasattr(DagModel, order_by):
+    if not hasattr(DagModel, order_by):
         raise BadRequest(
             detail=f"DagModel has no attribute '{order_by}' specified in order_by parameter",
         )
     readable_dags = current_app.appbuilder.sm.get_readable_dags(g.user)
     if sort == "asc":
-        query = readable_dags.order_by(asc(order_by or DagModel.dag_id))
+        query = readable_dags.order_by(asc(order_by))
     else:
-        query = readable_dags.order_by(desc(order_by or DagModel.dag_id))
+        query = readable_dags.order_by(desc(order_by))
     dags = query.offset(offset).limit(limit).all()
     total_entries = readable_dags.count()
 
