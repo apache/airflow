@@ -321,6 +321,17 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         assert response.json["total_entries"] == 200
         assert len(response.json["event_logs"]) == 100  # default 100
 
+    def test_should_raise_400_for_invalid_order_by_name(self, session):
+        log_models = self._create_event_logs(200)
+        session.add_all(log_models)
+        session.commit()
+
+        response = self.client.get(
+            "/api/v1/eventLogs?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 400
+        assert response.json['detail'] == "Log has no attribute 'invalid' specified in order_by parameter"
+
     @provide_session
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):

@@ -96,7 +96,7 @@ def get_dag_runs(
     offset=None,
     limit=None,
     sort=None,
-    order_by=None,
+    order_by='id',
 ):  # pylint: disable=too-many-arguments
     """Get all DAG Runs."""
     # return early if order_by field do not exist
@@ -156,9 +156,9 @@ def _fetch_dag_runs(
     total_entries = query.count()
     # sort
     if sort == 'asc':
-        query = query.order_by(asc(order_by or DagRun.id))
+        query = query.order_by(asc(order_by))
     elif sort == 'desc':
-        query = query.order_by(desc(order_by or DagRun.id))
+        query = query.order_by(desc(order_by))
     else:
         query = query.order_by(DagRun.id)
     # apply offset and limit
