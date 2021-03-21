@@ -1426,9 +1426,7 @@ class TestDataflowJob(unittest.TestCase):
         (DataflowJobStatus.JOB_STATE_PENDING, False, True),
     ])
     # fmt: on
-    def test_check_dataflow_job_state_without_job_type(
-        self, job_state, wait_until_finished, expected_result
-    ):
+    def test_check_dataflow_job_state_without_job_type(self, job_state, wait_until_finished, expected_result):
         job = {"id": "id-2", "name": "name-2", "currentState": job_state}
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
