@@ -36,10 +36,6 @@ depends_on = None
 
 
 mapping = {
-    # ("Airflow", "can_blocked"): [
-    #     (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-    #     (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-    # ],
     ("PermissionModelView", "can_list"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PERMISSION),
     ],
@@ -81,6 +77,57 @@ mapping = {
     ],
     ("ViewMenuModelView", "can_list"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_VIEW_MENU),
+    ],
+    ("UserDBModelView", "can_add"): [
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VIEW_MENU),
+    ],
+    ("UserDBModelView", "can_userinfo"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+    ],
+    ("UserDBModelView", "can_download"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_VIEW_MENU),
+    ],
+    ("UserDBModelView", "can_show"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_VIEW_MENU),
+    ],
+    ("UserDBModelView", "can_list"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_VIEW_MENU),
+    ],
+    ("UserDBModelView", "can_edit"): [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VIEW_MENU),
+    ],
+    ("UserDBModelView", "can_resetmypassword"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
+    ],
+    ("UserDBModelView", "can_resetpasswords"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
+    ],
+    ("UserDBModelView", "can_userinfoedit"): [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
+    ],
+    ("UserDBModelView", "can_delete"): [
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VIEW_MENU),
+    ],
+    ("UserInfoEditView", "can_this_form_get"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+    ],
+    ("UserInfoEditView", "can_this_form_post"): [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
+    ],
+    ("UserStatsChartView", "can_chart"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER_STATS_CHART),
+    ],
+    ("UserLDAPModelView", "can_userinfo"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+    ],
+    ("UserOAuthModelView", "can_userinfo"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+    ],
+    ("UserOIDModelView", "can_userinfo"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+    ],
+    ("UserRemoteUserModelView", "can_userinfo"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
     ],
 }
 

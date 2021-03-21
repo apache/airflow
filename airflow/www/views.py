@@ -3991,7 +3991,7 @@ class CustomUserInfoEditView(UserInfoEditView):
     class_permission_name = permissions.RESOURCE_MY_PROFILE
     route_base = "/userinfoeditview"
     method_permission_name = {
-        'this_form_get': 'edit',
+        'this_form_get': 'read',
         'this_form_post': 'edit',
     }
     base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
