@@ -72,7 +72,7 @@ mapping = {
     ("RoleModelView", "can_add"): [
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
     ],
-    ("RoleModelView", "copyrole"): [
+    ("RoleModelView", "can_copyrole"): [
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
     ],
     ("ViewMenuModelView", "can_list"): [
@@ -128,6 +128,10 @@ mapping = {
     ],
     ("UserRemoteUserModelView", "can_userinfo"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+    ],
+    ("DagRunModelView", "can_clear"): [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
     ],
 }
 
