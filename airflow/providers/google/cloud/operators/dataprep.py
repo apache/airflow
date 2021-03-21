@@ -112,7 +112,8 @@ class DataprepRunJobGroupOperator(BaseOperator):
 
     :param dataprep_conn_id: The connection ID for dataprep.
     :type dataprep_conn_id: str
-    :param body_request:  Passed as the body_request to GoogleDataprepHook's run_job_group, where it's the identifier for the recipe to run
+    :param body_request:  Passed as the body_request to GoogleDataprepHook's run_job_group,
+        where it's the identifier for the recipe to run
     :type body_request: dict
     """
 
