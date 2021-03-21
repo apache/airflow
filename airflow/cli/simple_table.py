@@ -127,5 +127,5 @@ class SimpleTable(Table):
 
     def add_column(self, *args, **kwargs) -> None:  # pylint: disable=signature-differs
         """Add a column to the table. We use different default"""
-        kwargs["overflow"] = kwargs.get("overflow", None)  # to avoid truncating
+        kwargs["overflow"] = kwargs.get("overflow")  # to avoid truncating
         super().add_column(*args, **kwargs)
