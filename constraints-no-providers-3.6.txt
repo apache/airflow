@@ -68,7 +68,7 @@ google-auth==1.28.0
 graphviz==0.16
 greenlet==1.0.0
 gunicorn==19.10.0
-humanize==3.2.0
+humanize==3.3.0
 idna==2.10
 immutables==0.15
 importlib-metadata==1.7.0
@@ -145,4 +145,4 @@ websocket-client==0.58.0
 zict==2.0.0
 zipp==3.4.1
 zope.event==4.5.0
-zope.interface==5.2.0
+zope.interface==5.3.0
