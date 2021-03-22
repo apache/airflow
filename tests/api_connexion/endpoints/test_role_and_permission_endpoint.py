@@ -40,7 +40,7 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_LIST, permissions.RESOURCE_ROLE_MODEL_VIEW),
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE_MODEL_VIEW),
+            (permissions.ACTION_CAN_ADD, permissions.RESOURCE_ROLE_MODEL_VIEW),
             (permissions.ACTION_CAN_SHOW, permissions.RESOURCE_ROLE_MODEL_VIEW),
             (permissions.ACTION_CAN_LIST, permissions.RESOURCE_PERMISSION_MODEL_VIEW),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE_MODEL_VIEW),
