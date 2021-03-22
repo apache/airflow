@@ -310,7 +310,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 src_fmt_configs=self.src_fmt_configs,
                 encryption_configuration=self.encryption_configuration,
                 labels=self.labels,
-                description=self.description
+                description=self.description,
             )
         else:
             cursor.run_load(
@@ -335,7 +335,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 cluster_fields=self.cluster_fields,
                 encryption_configuration=self.encryption_configuration,
                 labels=self.labels,
-                description=self.description
+                description=self.description,
             )
 
         if cursor.use_legacy_sql:

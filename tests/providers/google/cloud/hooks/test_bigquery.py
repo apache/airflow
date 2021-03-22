@@ -1780,6 +1780,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         mocked_func.assert_called_once_with(*args, **kwargs)
         assert re.search(f".*{new_path}.*", func.__doc__)
 
+
 class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_load_labels(self, mock_insert):
@@ -1789,7 +1790,7 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
             destination_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
             source_uris=[],
-            labels=labels
+            labels=labels,
         )
 
         _, kwargs = mock_insert.call_args
@@ -1803,7 +1804,7 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
             destination_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
             source_uris=[],
-            description=description
+            description=description,
         )
 
         _, kwargs = mock_insert.call_args
@@ -1817,7 +1818,7 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
             external_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
             source_uris=[],
-            labels=labels
+            labels=labels,
         )
 
         _, kwargs = mock_create.call_args
@@ -1831,8 +1832,8 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
             external_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
             source_uris=[],
-            description=description
+            description=description,
         )
 
         _, kwargs = mock_create.call_args
-        assert kwargs['table_resource']['description'] is  description
+        assert kwargs['table_resource']['description'] is description

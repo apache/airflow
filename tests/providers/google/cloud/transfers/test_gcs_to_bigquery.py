@@ -77,34 +77,34 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
             bucket=TEST_BUCKET,
             source_objects=TEST_SOURCE_OBJECTS,
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            labels=LABELS
+            labels=LABELS,
         )
 
         operator.execute(None)
 
         bq_hook.return_value.get_conn.return_value.cursor.return_value.run_load.assert_called_once_with(
-                destination_project_dataset_table=mock.ANY,
-                schema_fields=mock.ANY,
-                source_uris=mock.ANY,
-                source_format=mock.ANY,
-                autodetect=mock.ANY,
-                create_disposition=mock.ANY,
-                skip_leading_rows=mock.ANY,
-                write_disposition=mock.ANY,
-                field_delimiter=mock.ANY,
-                max_bad_records=mock.ANY,
-                quote_character=mock.ANY,
-                ignore_unknown_values=mock.ANY,
-                allow_quoted_newlines=mock.ANY,
-                allow_jagged_rows=mock.ANY,
-                encoding=mock.ANY,
-                schema_update_options=mock.ANY,
-                src_fmt_configs=mock.ANY,
-                time_partitioning=mock.ANY,
-                cluster_fields=mock.ANY,
-                encryption_configuration=mock.ANY,
-                labels=LABELS,
-                description=mock.ANY
+            destination_project_dataset_table=mock.ANY,
+            schema_fields=mock.ANY,
+            source_uris=mock.ANY,
+            source_format=mock.ANY,
+            autodetect=mock.ANY,
+            create_disposition=mock.ANY,
+            skip_leading_rows=mock.ANY,
+            write_disposition=mock.ANY,
+            field_delimiter=mock.ANY,
+            max_bad_records=mock.ANY,
+            quote_character=mock.ANY,
+            ignore_unknown_values=mock.ANY,
+            allow_quoted_newlines=mock.ANY,
+            allow_jagged_rows=mock.ANY,
+            encoding=mock.ANY,
+            schema_update_options=mock.ANY,
+            src_fmt_configs=mock.ANY,
+            time_partitioning=mock.ANY,
+            cluster_fields=mock.ANY,
+            encryption_configuration=mock.ANY,
+            labels=LABELS,
+            description=mock.ANY,
         )
 
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
@@ -142,7 +142,7 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
             cluster_fields=mock.ANY,
             encryption_configuration=mock.ANY,
             labels=mock.ANY,
-            description=DESCRIPTION
+            description=DESCRIPTION,
         )
 
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
@@ -154,29 +154,29 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
             source_objects=TEST_SOURCE_OBJECTS,
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
             labels=LABELS,
-            external_table=True
+            external_table=True,
         )
 
         operator.execute(None)
 
         bq_hook.return_value.get_conn.return_value.cursor.return_value.create_external_table.assert_called_once_with(
-                external_project_dataset_table=mock.ANY,
-                schema_fields=mock.ANY,
-                source_uris=mock.ANY,
-                source_format=mock.ANY,
-                compression=mock.ANY,
-                skip_leading_rows=mock.ANY,
-                field_delimiter=mock.ANY,
-                max_bad_records=mock.ANY,
-                quote_character=mock.ANY,
-                ignore_unknown_values=mock.ANY,
-                allow_quoted_newlines=mock.ANY,
-                allow_jagged_rows=mock.ANY,
-                encoding=mock.ANY,
-                src_fmt_configs=mock.ANY,
-                encryption_configuration=mock.ANY,
-                labels=LABELS,
-                description=mock.ANY
+            external_project_dataset_table=mock.ANY,
+            schema_fields=mock.ANY,
+            source_uris=mock.ANY,
+            source_format=mock.ANY,
+            compression=mock.ANY,
+            skip_leading_rows=mock.ANY,
+            field_delimiter=mock.ANY,
+            max_bad_records=mock.ANY,
+            quote_character=mock.ANY,
+            ignore_unknown_values=mock.ANY,
+            allow_quoted_newlines=mock.ANY,
+            allow_jagged_rows=mock.ANY,
+            encoding=mock.ANY,
+            src_fmt_configs=mock.ANY,
+            encryption_configuration=mock.ANY,
+            labels=LABELS,
+            description=mock.ANY,
         )
 
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
@@ -188,7 +188,7 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
             source_objects=TEST_SOURCE_OBJECTS,
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
             description=DESCRIPTION,
-            external_table=True
+            external_table=True,
         )
 
         operator.execute(None)
@@ -210,5 +210,5 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
             src_fmt_configs=mock.ANY,
             encryption_configuration=mock.ANY,
             labels=mock.ANY,
-            description=DESCRIPTION
+            description=DESCRIPTION,
         )

@@ -1567,7 +1567,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         autodetect: bool = False,
         encryption_configuration: Optional[Dict] = None,
         labels: Optional[Dict] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
     ) -> str:
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
@@ -1762,7 +1762,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
             if description:
                 configuration['load']['destinationTableProperties']['description'] = description
-
 
         src_fmt_to_configs_mapping = {
             'CSV': [
