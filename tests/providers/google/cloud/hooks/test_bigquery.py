@@ -1813,7 +1813,6 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
     def test_create_external_table_labels(self, mock_create):
 
         labels = {'label1': 'test1', 'label2': 'test2'}
-        
         self.hook.create_external_table(
             external_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
@@ -1828,7 +1827,6 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
     def test_create_external_table_description(self, mock_create):
 
         description = "Test Description"
-        
         self.hook.create_external_table(
             external_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
