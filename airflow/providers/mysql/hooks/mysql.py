@@ -57,24 +57,34 @@ class MySqlHook(DbApiHook):
         self.connection = kwargs.pop("connection", None)
 
     def set_autocommit(self, conn: MySQLConnectionTypes, autocommit: bool) -> None:
-        """MySql connection sets autocommit in a different way."""
-        if isinstance(conn.__class__.autocommit, property):  # mysql-connector-python
+        """
+        The MySQLdb (mysqlclient) client uses an `autocommit` method rather
+        than an `autocommit` property to set the autocommit setting
+
+        :param conn: connection to set autocommit setting
+        :type MySQLConnectionTypes: connection object.
+        :param autocommit: autocommit setting
+        :type bool: True to enable autocommit, False to disable autocommit
+        :rtype: None
+        """
+        if isinstance(conn.__class__.autocommit, property):
             conn.autocommit = autocommit
-        else:  # mysqlclient
+        else:
             conn.autocommit(autocommit)
 
     def get_autocommit(self, conn: MySQLConnectionTypes) -> bool:
         """
-        MySql connection gets autocommit in a different way.
+        The MySQLdb (mysqlclient) client uses a `get_autocommit` method
+        rather than an `autocommit` property to get the autocommit setting
 
         :param conn: connection to get autocommit setting from.
-        :type conn: connection object.
+        :type MySQLConnectionTypes: connection object.
         :return: connection autocommit setting
         :rtype: bool
         """
-        if isinstance(conn.__class__.autocommit, property):  # mysql-connector-python
+        if isinstance(conn.__class__.autocommit, property):
             return conn.autocommit
-        else:  # mysqlclient
+        else:
             return conn.get_autocommit()
 
     def _get_conn_config_mysql_client(self, conn: Connection) -> Dict:
