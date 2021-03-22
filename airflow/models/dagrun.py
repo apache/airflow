@@ -619,7 +619,7 @@ class DagRun(Base, LoggingMixin):
             return
 
         duration = self.end_date - self.start_date
-        if self.state is State.SUCCESS:
+        if self.state == State.SUCCESS:
             Stats.timing(f'dagrun.duration.success.{self.dag_id}', duration)
         elif self.state == State.FAILED:
             Stats.timing(f'dagrun.duration.failed.{self.dag_id}', duration)
@@ -647,7 +647,7 @@ class DagRun(Base, LoggingMixin):
             except AirflowException:
                 if ti.state == State.REMOVED:
                     pass  # ti has already been removed, just ignore it
-                elif self.state is not State.RUNNING and not dag.partial:
+                elif self.state != State.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
                     Stats.incr(f"task_removed_from_dag.{dag.dag_id}", 1, 1)
                     ti.state = State.REMOVED
