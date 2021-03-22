@@ -46,7 +46,8 @@ def get_event_log(event_log_id, session):
 @provide_session
 def get_event_logs(session, sort, limit, offset=None, order_by='id'):
     """Get all log entries from event log"""
-    if not hasattr(Log, order_by):
+    columns = [i.name for i in Log.__table__.columns]  # pylint: disable=no-member
+    if order_by not in columns:
         raise BadRequest(
             detail=f"Log has no attribute '{order_by}' specified in order_by parameter",
         )
