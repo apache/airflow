@@ -260,6 +260,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
           description: Success.
@@ -696,6 +698,9 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/OrderBy'
+
       responses:
         '200':
           description: Success.
@@ -711,7 +716,6 @@ paths:
   /importErrors/{import_error_id}:
     parameters:
       - $ref: '#/components/parameters/ImportErrorID'
-
     get:
       summary: Get an import error
       x-openapi-router-controller: airflow.api_connexion.endpoints.import_error_endpoint
