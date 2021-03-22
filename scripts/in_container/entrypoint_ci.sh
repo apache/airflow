@@ -210,44 +210,39 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result.xml"
+export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE}.xml"
 
-if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
-    EXTRA_PYTEST_ARGS=(
-        "--verbosity=0"
-        "--strict-markers"
-        "--durations=100"
-        "--cov=airflow/"
-        "--cov-config=.coveragerc"
-        "--cov-report=xml:/files/coverage.xml"
-        "--color=yes"
-        "--maxfail=50"
-        "--pythonwarnings=ignore::DeprecationWarning"
-        "--pythonwarnings=ignore::PendingDeprecationWarning"
-        "--junitxml=${RESULT_LOG_FILE}"
-        # timeouts in seconds for individual tests
-        "--setup-timeout=20"
-        "--execution-timeout=60"
-        "--teardown-timeout=20"
-        # Only display summary for non-expected case
-        # f - failed
-        # E - error
-        # X - xpassed (passed even if expected to fail)
-        # The following cases are not displayed:
-        # s - skipped
-        # x - xfailed (expected to fail and failed)
-        # p - passed
-        # P - passed with output
-        "-rfEX"
-    )
-    if [[ "${TEST_TYPE}" != "Helm" ]]; then
-        EXTRA_PYTEST_ARGS+=(
-        "--with-db-init"
-        )
-    fi
-else
-    EXTRA_PYTEST_ARGS=(
-        "-rfEX"
+EXTRA_PYTEST_ARGS=(
+    "--verbosity=0"
+    "--strict-markers"
+    "--durations=100"
+    "--cov=airflow/"
+    "--cov-config=.coveragerc"
+    "--cov-report=xml:/files/coverage.xml"
+    "--color=yes"
+    "--maxfail=50"
+    "--pythonwarnings=ignore::DeprecationWarning"
+    "--pythonwarnings=ignore::PendingDeprecationWarning"
+    "--junitxml=${RESULT_LOG_FILE}"
+    # timeouts in seconds for individual tests
+    "--setup-timeout=20"
+    "--execution-timeout=60"
+    "--teardown-timeout=20"
+    # Only display summary for non-expected case
+    # f - failed
+    # E - error
+    # X - xpassed (passed even if expected to fail)
+    # The following cases are not displayed:
+    # s - skipped
+    # x - xfailed (expected to fail and failed)
+    # p - passed
+    # P - passed with output
+    "-rfEX"
+)
+
+if [[ "${TEST_TYPE}" != "Helm" ]]; then
+    EXTRA_PYTEST_ARGS+=(
+    "--with-db-init"
     )
 fi
 

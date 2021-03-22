@@ -43,7 +43,7 @@ from werkzeug.wrappers import BaseResponse
 
 from airflow import models, settings, version
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.configuration import conf
+from airflow.configuration import conf, initialize_config
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, Connection, DagRun, TaskInstance
@@ -1145,6 +1145,11 @@ class TestAirflowBaseViews(TestBase):
 
 
 class TestConfigurationView(TestBase):
+    def setUp(self):
+        super().setUp()
+        with mock.patch.dict(os.environ, {"AIRFLOW__CORE__UNIT_TEST_MODE": "False"}):
+            initialize_config()
+
     def test_configuration_do_not_expose_config(self):
         self.logout()
         self.login()

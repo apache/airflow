@@ -272,6 +272,7 @@ jobs:
       needs.build-info.outputs.image-build == 'true' &&
       needs.cancel-workflow-runs.outputs.buildImages == 'true'
     env:
+      RUNS_ON: ${{ fromJson(needs.cancel-workflow-runs.outputs.runsOn)[0] }}
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.workflow_run.id }}
@@ -399,6 +400,7 @@ jobs:
       needs.build-info.outputs.image-build == 'true' &&
       needs.cancel-workflow-runs.outputs.buildImages == 'true'
     env:
+      RUNS_ON: ${{ fromJson(needs.cancel-workflow-runs.outputs.runsOn)[0] }}
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.workflow_run.id }}

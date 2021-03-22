@@ -418,6 +418,86 @@ Those tests are marked with ``@pytest.mark.quarantined`` annotation.
 Those tests are skipped by default. You can enable them with ``--include-quarantined`` flag. You
 can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
 
+
+Airflow test types
+==================
+
+Airflow tests in the CI environment are split into several test types:
+
+* Always - those are tests that should be always executed (always folder)
+* Core - for the core Airflow functionality (core folder)
+* API - Tests for the Airflow API (api and api_connexion folders)
+* CLI - Tests for the Airflow CLI (cli folder)
+* WWW - Tests for the Airflow webserver (www and www_rbac in 1.10 folders)
+* Providers - Tests for all Providers of Airflow (providers folder)
+* Other - all other tests (all other folders that are not part of any of the above)
+
+This is done for three reasons:
+
+1. in order to selectively run only subset of the test types for some PRs
+2. in order to allow parallel execution of the tests on Self-Hosted runners
+
+For case 1. see `Pull Request Workflow <PULL_REQUEST_WORKFLOW.rst#selective-ci-checks>`_  for details.
+
+For case 2. We can utilise memory and CPUs available on both CI and local development machines to run
+test in parallel. This way we can decrease the time of running all tests in self-hosted runners from
+60 minutes to ~15 minutes.
+
+.. note::
+
+  We need to split tests manually into separate suites rather than utilise
+  ``pytest-xdist`` or ``pytest-parallel`` which could ba a simpler and much more "native" parallelization
+  mechanism. Unfortunately, we cannot utilise those tools because our tests are not truly ``unit`` tests that
+  can run in parallel. A lot of our tests rely on shared databases - and they update/reset/cleanup the
+  databases while they are executing. They are also exercising features of the Database such as locking which
+  further increases cross-dependency between tests. Until we make all our tests truly unit tests (and not
+  touching the database or until we isolate all such tests to a separate test type, we cannot really rely on
+  frameworks that run tests in parallel. In our solution each of the test types is run in parallel with its
+  own database (!) so when we have 8 test types running in parallel, there are in fact 8 databases run
+  behind the scenes to support them and each of the test types executes its own tests sequentially.
+
+
+Running full Airflow test suite in parallel
+===========================================
+
+If you run ``./scripts/ci/testing/ci_run_airflow_testing.sh`` tests run in parallel
+on your development machine - maxing out the number of parallel runs at the number of cores you
+have available in your Docker engine.
+
+In case you do not have enough memory available to your Docker (~32 GB), the ``Integration`` test type
+is always run sequentially - after all tests are completed (docker cleanup is performed in-between).
+
+This allows for massive speedup in full test execution. On 8 CPU machine with 16 cores and 64 GB memory
+and fast SSD disk, the whole suite of tests completes in about 5 minutes (!). Same suite of tests takes
+more than 30 minutes on the same machine when tests are run sequentially.
+
+.. note::
+
+  On MacOS you might have less CPUs and less memory available to run the tests than you have in the host,
+  simply because your Docker engine runs in a Linux Virtual Machine under-the-hood. If you want to make
+  use of the paralllelism and memory usage for the CI tests you might want to increase the resources available
+  to your docker engine. See the `Resources <https://docs.docker.com/docker-for-mac/#resources>`_ chapter
+  in the ``Docker for Mac`` documentation on how to do it.
+
+You can also limit the parallelism by specifying the maximum number of parallel jobs via
+MAX_PARALLEL_TEST_JOBS variable. If you set it to "1", all the test types will be run sequentially.
+
+.. code-block:: bash
+
+    MAX_PARALLEL_TEST_JOBS="1" ./scripts/ci/testing/ci_run_airflow_testing.sh
+
+.. note::
+
+  In case you would like to cleanup after execution of such tests you might have to cleanup
+  some of the docker containers running in case you use ctrl-c to stop execution. You can easily do it by
+  running this command (it will kill all docker containers running so do not use it if you want to keep some
+  docker containers running):
+
+  .. code-block:: bash
+
+      docker kill $(docker ps -q)
+
+
 Running Tests with provider packages
 ====================================
 

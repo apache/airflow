@@ -665,6 +665,7 @@ function breeze::prepare_command_files() {
     local main_ci_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     local main_prod_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
+    local backend_port_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}-port.yml
     local local_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local.yml
     local local_all_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local-all-sources.yml
     local files_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/files.yml
@@ -676,13 +677,13 @@ function breeze::prepare_command_files() {
     local compose_prod_file=${main_prod_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
 
     if [[ "${MOUNT_SELECTED_LOCAL_SOURCES}" != "false" ]]; then
-        compose_ci_file=${compose_ci_file}:${local_docker_compose_file}
-        compose_prod_file=${compose_prod_file}:${local_prod_docker_compose_file}
+        compose_ci_file=${compose_ci_file}:${local_docker_compose_file}:${backend_port_docker_compose_file}
+        compose_prod_file=${compose_prod_file}:${local_prod_docker_compose_file}:${backend_port_docker_compose_file}
     fi
 
     if [[ "${MOUNT_ALL_LOCAL_SOURCES}" != "false" ]]; then
-        compose_ci_file=${compose_ci_file}:${local_all_sources_docker_compose_file}
-        compose_prod_file=${compose_prod_file}:${local_all_sources_docker_compose_file}
+        compose_ci_file=${compose_ci_file}:${local_all_sources_docker_compose_file}:${backend_port_docker_compose_file}
+        compose_prod_file=${compose_prod_file}:${local_all_sources_docker_compose_file}:${backend_port_docker_compose_file}
     fi
 
     if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
@@ -3433,7 +3434,7 @@ function breeze::run_breeze_command() {
 
     case "${command_to_run}" in
     enter_breeze)
-        docker_engine::check_all_resources
+        docker_engine_resources::check_all_resources
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
             ${run_command} "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
@@ -3442,7 +3443,7 @@ function breeze::run_breeze_command() {
         fi
         ;;
     run_exec)
-        docker_engine::check_all_resources
+        docker_engine_resources::check_all_resources
         # Unfortunately `docker-compose exec` does not support exec'ing into containers started with run :(
         # so we have to find it manually
         set +e
@@ -3454,19 +3455,19 @@ function breeze::run_breeze_command() {
             "/opt/airflow/scripts/in_container/entrypoint_exec.sh" "${@}"
         ;;
     run_tests)
-        docker_engine::check_all_resources
+        docker_engine_resources::check_all_resources
         export RUN_TESTS="true"
         readonly RUN_TESTS
         ${run_command} "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" run --service-ports --rm airflow "$@"
         ;;
     run_docker_compose)
-        docker_engine::check_all_resources
+        docker_engine_resources::check_all_resources
         set +u
         ${run_command} "${dc_run_file}" "${docker_compose_command}" "${EXTRA_DC_OPTIONS[@]}" "$@"
         set -u
         ;;
     perform_static_checks)
-        docker_engine::check_all_resources
+        docker_engine_resources::check_all_resources
         breeze::make_sure_precommit_is_installed
         breeze::run_static_checks "${@}"
         ;;
@@ -3476,19 +3477,19 @@ function breeze::run_breeze_command() {
         breeze::remove_images
         ;;
     perform_generate_constraints)
-        docker_engine::check_all_resources
+        docker_engine_resources::check_all_resources
         runs::run_generate_constraints
         ;;
     perform_prepare_airflow_packages)
-        docker_engine::check_all_resources
+        docker_engine_resources::check_all_resources
         build_airflow_packages::build_airflow_packages
         ;;
     perform_prepare_provider_packages)
-        docker_engine::check_all_resources
+        docker_engine_resources::check_all_resources
         runs::run_prepare_provider_packages "${@}"
         ;;
     perform_prepare_provider_documentation)
-        docker_engine::check_all_resources
+        docker_engine_resources::check_all_resources
         runs::run_prepare_provider_documentation "${@}"
         ;;
     perform_push_image)
@@ -3505,13 +3506,13 @@ function breeze::run_breeze_command() {
         breeze::setup_autocomplete
         ;;
     manage_kind_cluster)
-        docker_engine::check_all_resources
+        docker_engine_resources::check_all_resources
         kind::make_sure_kubernetes_tools_are_installed
         kind::get_kind_cluster_name
         kind::perform_kind_cluster_operation "${KIND_CLUSTER_OPERATION}"
         ;;
     build_docs)
-        docker_engine::check_all_resources
+        docker_engine_resources::check_all_resources
         runs::run_docs "${@}"
         ;;
     toggle_suppress_cheatsheet)
