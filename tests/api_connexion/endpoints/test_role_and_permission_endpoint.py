@@ -40,7 +40,7 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_LIST, permissions.RESOURCE_ROLE_MODEL_VIEW),
-            (permissions.ACTION_CAN_ADD, permissions.RESOURCE_ROLE_MODEL_VIEW),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE_MODEL_VIEW),
             (permissions.ACTION_CAN_SHOW, permissions.RESOURCE_ROLE_MODEL_VIEW),
             (permissions.ACTION_CAN_LIST, permissions.RESOURCE_PERMISSION_MODEL_VIEW),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE_MODEL_VIEW),
@@ -189,14 +189,75 @@ class TestPostRole(TestRoleEndpoint):
         role = self.app.appbuilder.sm.find_role('Test2')
         assert role is not None
 
-    def test_post_should_respond_400_for_invalid_payload(self):
-        payload = {
-            'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
-        }
+    @parameterized.expand(
+        [
+            (
+                {
+                    'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+                },
+                "{'name': ['Missing data for required field.']}",
+            ),
+            (
+                {
+                    'name': "TestRole",
+                    'actionss': [
+                        {
+                            'resource': {'name': 'Connections'},  # actionss not correct
+                            'action': {'name': 'can_create'},
+                        }
+                    ],
+                },
+                "{'actionss': ['Unknown field.']}",
+            ),
+            (
+                {
+                    'name': "TestRole",
+                    'actions': [
+                        {
+                            'resources': {'name': 'Connections'},  # resources is invalid, should be resource
+                            'action': {'name': 'can_create'},
+                        }
+                    ],
+                },
+                "{'actions': {0: {'resources': ['Unknown field.']}}}",
+            ),
+            (
+                {
+                    'name': "TestRole",
+                    'actions': [
+                        {'resource': {'name': 'Connections'}, 'actions': {'name': 'can_create'}}
+                    ],  # actions is invalid, should be action
+                },
+                "{'actions': {0: {'actions': ['Unknown field.']}}}",
+            ),
+            (
+                {
+                    'name': "TestRole",
+                    'actions': [
+                        {
+                            'resource': {'name': 'FooBars'},  # FooBars is not a resource
+                            'action': {'name': 'can_create'},
+                        }
+                    ],
+                },
+                "The specified resource: 'FooBars' was not found",
+            ),
+            (
+                {
+                    'name': "TestRole",
+                    'actions': [
+                        {'resource': {'name': 'Connections'}, 'action': {'name': 'can_amend'}}
+                    ],  # can_amend is not an action
+                },
+                "The specified action: 'can_amend' was not found",
+            ),
+        ]
+    )
+    def test_post_should_respond_400_for_invalid_payload(self, payload, error_message):
         response = self.client.post("/api/v1/roles", json=payload, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 400
         assert response.json == {
-            'detail': "{'name': ['Missing data for required field.']}",
+            'detail': error_message,
             'status': 400,
             'title': 'Bad Request',
             'type': EXCEPTIONS_LINK_MAP[400],
@@ -363,6 +424,30 @@ class TestPatchRole(TestRoleEndpoint):
                     ],
                 },
                 "{'actions': {0: {'view_menu': ['Unknown field.']}}}",
+            ),
+            (
+                {
+                    "name": "testme",
+                    "actions": [
+                        {
+                            "resource": {"name": "FooBars"},  # Using wrong resource name
+                            "action": {"name": "can_create"},
+                        }
+                    ],
+                },
+                "The specified resource: 'FooBars' was not found",
+            ),
+            (
+                {
+                    "name": "testme",
+                    "actions": [
+                        {
+                            "resource": {"name": "Connections"},  # Using wrong action name
+                            "action": {"name": "can_invalid"},
+                        }
+                    ],
+                },
+                "The specified action: 'can_invalid' was not found",
             ),
         ]
     )

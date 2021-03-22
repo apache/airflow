@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from connexion import NoContent
 from flask import current_app, request
 from flask_appbuilder.security.sqla.models import Permission, Role
@@ -31,6 +32,19 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
     role_schema,
 )
 from airflow.security import permissions
+
+
+def _check_action_and_resource(sm, perms):
+    """
+    Checks if the action or resource exists and raise 400 if not
+
+    This function is intended for use in the REST API because it raise 400
+    """
+    for item in perms:
+        if not sm.find_permission(item[0]):
+            raise BadRequest(detail=f"The specified action: '{item[0]}' was not found")
+        if not sm.find_view_menu(item[1]):
+            raise BadRequest(detail=f"The specified resource: '{item[1]}' was not found")
 
 
 @security.requires_access([(permissions.ACTION_CAN_SHOW, permissions.RESOURCE_ROLE_MODEL_VIEW)])
@@ -110,6 +124,7 @@ def patch_role(role_name, update_mask=None):
         perms = [
             (item['permission']['name'], item['view_menu']['name']) for item in data['permissions'] if item
         ]
+        _check_action_and_resource(security_manager, perms)
     security_manager.update_role(pk=role.id, name=data['name'])
     security_manager.init_role(role_name=data['name'], perms=perms or role.permissions)
     return role_schema.dump(role)
@@ -130,6 +145,7 @@ def post_role():
         perms = [
             (item['permission']['name'], item['view_menu']['name']) for item in data['permissions'] if item
         ]
+        _check_action_and_resource(security_manager, perms)
         security_manager.init_role(role_name=data['name'], perms=perms)
         return role_schema.dump(role)
     raise AlreadyExists(
