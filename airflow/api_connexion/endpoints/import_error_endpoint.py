@@ -51,7 +51,8 @@ def get_import_errors(session, limit, sort, offset=None, order_by='id'):
     """Get all import errors"""
     if order_by == 'import_error_id':
         order_by = 'id'
-    if not hasattr(ImportError, order_by):
+    columns = [i.name for i in ImportError.__table__.columns]  # pylint: disable=no-member
+    if order_by not in columns:
         raise BadRequest(
             detail=f"ImportError has no attribute '{order_by}' specified in order_by parameter",
         )
