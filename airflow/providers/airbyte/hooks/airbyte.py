@@ -93,7 +93,6 @@ class AirbyteHook(HttpHook):
             endpoint=f"api/{self.api_version}/connections/sync",
             json={"connectionId": connection_id},
             headers={"accept": "application/json"},
-            extra_options={'allow_redirects': False}
         )
 
     def get_job(self, job_id: int) -> Any:
