@@ -47,6 +47,8 @@ def get_users(limit, sort, order_by='id', offset=None):
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
     columns = [i.name for i in User.__table__.columns]  # pylint: disable=no-member
+    if order_by == 'user_id':
+        order_by = 'id'
     if order_by not in columns:
         raise BadRequest(
             detail=f"User model has no attribute '{order_by}' specified in order_by parameter",
