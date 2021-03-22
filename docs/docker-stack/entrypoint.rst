@@ -130,7 +130,7 @@ Creating admin user
 The entrypoint can also create webserver user automatically when you enter it. you need to set
 ``_AIRFLOW_WWW_USER_CREATE`` to a non-empty value in order to do that. This is not intended for
 production, it is only useful if you would like to run a quick test with the production image.
-You need to pass at least password to create such user via ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` or
+You need to pass at least password to create such user via ``_AIRFLOW_WWW_USER_PASSWORD`` or
 ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` similarly like for other ``*_CMD`` variables, the content of
 the ``*_CMD`` will be evaluated as shell command and it's output will be set as password.
 
