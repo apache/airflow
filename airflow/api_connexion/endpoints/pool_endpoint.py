@@ -16,7 +16,7 @@
 # under the License.
 from flask import Response, request
 from marshmallow import ValidationError
-from sqlalchemy import func
+from sqlalchemy import asc, desc, func
 from sqlalchemy.exc import IntegrityError
 
 from airflow.api_connexion import security
@@ -53,10 +53,20 @@ def get_pool(pool_name, session):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_pools(session, limit, offset=None):
+def get_pools(session, limit, sort, order_by='id', offset=None):
     """Get all pools"""
+    columns = [i.name for i in Pool.__table__.columns]  # pylint: disable=no-member
+    if order_by not in columns:
+        raise BadRequest(
+            detail=f"Pool model has no attribute '{order_by}' specified in order_by parameter",
+        )
     total_entries = session.query(func.count(Pool.id)).scalar()
-    pools = session.query(Pool).order_by(Pool.id).offset(offset).limit(limit).all()
+    query = session.query(Pool)
+    if sort == 'asc':
+        query = query.order_by(asc(order_by))
+    else:
+        query = query.order_by(desc(order_by))
+    pools = query.offset(offset).limit(limit).all()
     return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
 
 

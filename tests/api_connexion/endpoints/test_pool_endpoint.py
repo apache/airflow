@@ -68,7 +68,7 @@ class TestGetPools(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).all()
         assert len(result) == 2  # accounts for the default pool as well
-        response = self.client.get("/api/v1/pools", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools?sort=asc", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert {
             "pools": [
@@ -87,6 +87,38 @@ class TestGetPools(TestBasePoolEndpoints):
                     "running_slots": 0,
                     "queued_slots": 0,
                     "open_slots": 3,
+                },
+            ],
+            "total_entries": 2,
+        } == response.json
+
+    def test_response_200_with_order_by(self, session):
+        pool_model = Pool(pool="test_pool_a", slots=3)
+        session.add(pool_model)
+        session.commit()
+        result = session.query(Pool).all()
+        assert len(result) == 2  # accounts for the default pool as well
+        response = self.client.get(
+            "/api/v1/pools?order_by=slots&sort=asc", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        assert {
+            "pools": [
+                {
+                    "name": "test_pool_a",
+                    "slots": 3,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "open_slots": 3,
+                },
+                {
+                    "name": "default_pool",
+                    "slots": 128,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "open_slots": 128,
                 },
             ],
             "total_entries": 2,
@@ -130,7 +162,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).count()
         assert result == 121  # accounts for default pool as well
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         pool_ids = [pool["name"] for pool in response.json["pools"]]
         assert pool_ids == expected_pool_ids
@@ -144,6 +176,21 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         response = self.client.get("/api/v1/pools", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert len(response.json['pools']) == 100
+
+    def test_should_raise_400_for_invalid_orderby(self, session):
+        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
+        session.add_all(pools)
+        session.commit()
+        result = session.query(Pool).count()
+        assert result == 121
+        response = self.client.get(
+            "/api/v1/pools?order_by=open_slots", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 400
+        assert (
+            response.json['detail']
+            == "Pool model has no attribute 'open_slots' specified in order_by parameter"
+        )
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
