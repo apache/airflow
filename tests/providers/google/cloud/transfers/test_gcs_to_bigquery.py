@@ -158,26 +158,28 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
         )
 
         operator.execute(None)
-
-        bq_hook.return_value.get_conn.return_value.cursor.return_value.create_external_table.assert_called_once_with(
-            external_project_dataset_table=mock.ANY,
-            schema_fields=mock.ANY,
-            source_uris=mock.ANY,
-            source_format=mock.ANY,
-            compression=mock.ANY,
-            skip_leading_rows=mock.ANY,
-            field_delimiter=mock.ANY,
-            max_bad_records=mock.ANY,
-            quote_character=mock.ANY,
-            ignore_unknown_values=mock.ANY,
-            allow_quoted_newlines=mock.ANY,
-            allow_jagged_rows=mock.ANY,
-            encoding=mock.ANY,
-            src_fmt_configs=mock.ANY,
-            encryption_configuration=mock.ANY,
-            labels=LABELS,
-            description=mock.ANY,
-        )
+        # fmt: off
+        bq_hook.return_value.get_conn.return_value.cursor.return_value.create_external_table. \
+            assert_called_once_with(
+                external_project_dataset_table=mock.ANY,
+                schema_fields=mock.ANY,
+                source_uris=mock.ANY,
+                source_format=mock.ANY,
+                compression=mock.ANY,
+                skip_leading_rows=mock.ANY,
+                field_delimiter=mock.ANY,
+                max_bad_records=mock.ANY,
+                quote_character=mock.ANY,
+                ignore_unknown_values=mock.ANY,
+                allow_quoted_newlines=mock.ANY,
+                allow_jagged_rows=mock.ANY,
+                encoding=mock.ANY,
+                src_fmt_configs=mock.ANY,
+                encryption_configuration=mock.ANY,
+                labels=LABELS,
+                description=mock.ANY,
+            )
+        # fmt: on
 
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
     def test_description_external_table(self, bq_hook):
@@ -192,23 +194,25 @@ class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
         )
 
         operator.execute(None)
-
-        bq_hook.return_value.get_conn.return_value.cursor.return_value.create_external_table.assert_called_once_with(
-            external_project_dataset_table=mock.ANY,
-            schema_fields=mock.ANY,
-            source_uris=mock.ANY,
-            source_format=mock.ANY,
-            compression=mock.ANY,
-            skip_leading_rows=mock.ANY,
-            field_delimiter=mock.ANY,
-            max_bad_records=mock.ANY,
-            quote_character=mock.ANY,
-            ignore_unknown_values=mock.ANY,
-            allow_quoted_newlines=mock.ANY,
-            allow_jagged_rows=mock.ANY,
-            encoding=mock.ANY,
-            src_fmt_configs=mock.ANY,
-            encryption_configuration=mock.ANY,
-            labels=mock.ANY,
-            description=DESCRIPTION,
-        )
+        # fmt: off
+        bq_hook.return_value.get_conn.return_value.cursor.return_value.create_external_table. \
+            assert_called_once_with(
+                external_project_dataset_table=mock.ANY,
+                schema_fields=mock.ANY,
+                source_uris=mock.ANY,
+                source_format=mock.ANY,
+                compression=mock.ANY,
+                skip_leading_rows=mock.ANY,
+                field_delimiter=mock.ANY,
+                max_bad_records=mock.ANY,
+                quote_character=mock.ANY,
+                ignore_unknown_values=mock.ANY,
+                allow_quoted_newlines=mock.ANY,
+                allow_jagged_rows=mock.ANY,
+                encoding=mock.ANY,
+                src_fmt_configs=mock.ANY,
+                encryption_configuration=mock.ANY,
+                labels=mock.ANY,
+                description=DESCRIPTION,
+            )
+        # fmt: on
