@@ -101,7 +101,9 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     DR = DagRun
     query = session.query(DR).filter(DR.dag_id == dag_id)
     if not include_externally_triggered:
-        query = query.filter(DR.external_trigger == False)  # noqa pylint: disable=singleton-comparison
+        query = query.filter(
+            DR.external_trigger == expression.false()
+        )  # noqa pylint: disable=singleton-comparison
     query = query.order_by(DR.execution_date.desc())
     return query.first()
 
@@ -898,7 +900,7 @@ class DAG(LoggingMixin):
         )
 
         if external_trigger is not None:
-            query = query.filter(DagRun.external_trigger == external_trigger)
+            query = query.filter(DagRun.external_trigger == expression.literal(external_trigger))
 
         return query.scalar()
 
