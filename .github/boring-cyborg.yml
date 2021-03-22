@@ -44,6 +44,15 @@ labelPRBasedOnFilePath:
     - docs/howto/operator/snowflake/*
     - tests/providers/snowflake/**/*
 
+  area:providers:
+    - airflow/providers/**/*
+    - docs/apache-airflow-providers-*/**/*
+    - tests/providers/**/*
+    - scripts/docker-compose/ci/integration-*.yml
+    - tests/core/test_providers_manager.py
+    - scripts/in_container/run_install_and_test_provider_packages.sh
+    - scripts/in_container/run_prepare_provider_documentation.sh
+
   area:kubernetes:
     - airflow/**/kubernetes_*.py
     - airflow/example_dags/example_kubernetes_executor.py
