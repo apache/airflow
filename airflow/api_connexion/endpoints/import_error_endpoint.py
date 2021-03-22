@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import func
+from sqlalchemy import asc, desc, func
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.error_schema import (
     ImportErrorCollection,
@@ -47,10 +47,21 @@ def get_import_error(import_error_id, session):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_import_errors(session, limit, offset=None):
+def get_import_errors(session, limit, sort, offset=None, order_by='id'):
     """Get all import errors"""
+    if order_by == 'import_error_id':
+        order_by = 'id'
+    if not hasattr(ImportError, order_by):
+        raise BadRequest(
+            detail=f"ImportError has no attribute '{order_by}' specified in order_by parameter",
+        )
     total_entries = session.query(func.count(ImportError.id)).scalar()
-    import_errors = session.query(ImportError).order_by(ImportError.id).offset(offset).limit(limit).all()
+    query = session.query(ImportError)
+    if sort == 'asc':
+        query = query.order_by(asc(order_by))
+    else:
+        query = query.order_by(desc(order_by))
+    import_errors = query.offset(offset).limit(limit).all()
     return import_error_collection_schema.dump(
         ImportErrorCollection(import_errors=import_errors, total_entries=total_entries)
     )

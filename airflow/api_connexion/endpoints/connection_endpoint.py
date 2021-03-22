@@ -18,7 +18,7 @@
 from connexion import NoContent
 from flask import request
 from marshmallow import ValidationError
-from sqlalchemy import func
+from sqlalchemy import asc, desc, func
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
@@ -63,11 +63,21 @@ def get_connection(connection_id, session):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_connections(session, limit, offset=0):
+def get_connections(session, limit, sort, offset=0, order_by="id"):
     """Get all connection entries"""
+    if order_by == "connection_id":
+        order_by = 'id'
+    if not hasattr(Connection, order_by):
+        raise BadRequest(
+            detail=f"Connection has no attribute '{order_by}' specified in order_by parameter",
+        )
     total_entries = session.query(func.count(Connection.id)).scalar()
     query = session.query(Connection)
-    connections = query.order_by(Connection.id).offset(offset).limit(limit).all()
+    if sort == 'asc':
+        query = query.order_by(asc(order_by))
+    else:
+        query = query.order_by(desc(order_by))
+    connections = query.offset(offset).limit(limit).all()
     return connection_collection_schema.dump(
         ConnectionCollection(connections=connections, total_entries=total_entries)
     )
