@@ -67,7 +67,8 @@ def get_connections(session, limit, sort, offset=0, order_by="id"):
     """Get all connection entries"""
     if order_by == "connection_id":
         order_by = 'id'
-    if not hasattr(Connection, order_by):
+    columns = [i.name for i in Connection.__table__.columns]  # pylint: disable=no-member
+    if order_by not in columns:
         raise BadRequest(
             detail=f"Connection has no attribute '{order_by}' specified in order_by parameter",
         )
