@@ -32,8 +32,23 @@ python_config=(
 validate_input "$@"
 
 gen_client python \
-    --package-name airflow_client \
-    --git-repo-id airflow-client-python/airflow \
+    --package-name client \
+    --git-repo-id airflow-client-python \
     --additional-properties "${python_config[*]}"
+
+echo "--- Patching generated code..."
+
+# Post-processing of the generated Python wrapper.
+touch "${OUTPUT_DIR}/__init__.py"
+find "${OUTPUT_DIR}/test" -type f -name \*.py -exec sed -i '' -e 's/client/airflow_client.client/g' {} +
+find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed -i '' -e 's/# client/# Apache Airflow Python Client/g' {} +
+find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed -i '' -e 's/import client/import airflow_client.client/g' {} +
+find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed -i '' -e 's/from client/from airflow_client.client/g' {} +
+find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed -i '' -e 's/getattr(client\.models/getattr(airflow_client.client.models/g' {} +
+
+# fix imports
+find "${OUTPUT_DIR}/client/" -type f -name \*.py -exec sed -i '' -e 's/import client\./import airflow_client.client./g' {} +
+find "${OUTPUT_DIR}/client/" -type f -name \*.py -exec sed -i '' -e 's/from client/from airflow_client.client/g' {} +
+find "${OUTPUT_DIR}/client/" -type f -name \*.py -exec sed -i '' -e 's/getattr(client\.models/getattr(airflow_client.client.models/g' {} +
 
 run_pre_commit
