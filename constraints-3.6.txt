@@ -168,7 +168,7 @@ clickclick==20.10.2
 cloudant==2.14.0
 cloudpickle==1.4.1
 colorama==0.4.4
-colorlog==4.7.2
+colorlog==4.8.0
 commonmark==0.9.1
 connexion==2.7.0
 contextvars==2.4
@@ -223,14 +223,14 @@ google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.4.3
 google-auth==1.28.0
 google-cloud-automl==2.2.0
-google-cloud-bigquery-datatransfer==3.0.1
+google-cloud-bigquery-datatransfer==3.1.0
 google-cloud-bigquery-storage==2.3.0
 google-cloud-bigquery==1.28.0
 google-cloud-bigtable==1.7.0
 google-cloud-build==2.0.0
 google-cloud-container==1.0.1
 google-cloud-core==1.6.0
-google-cloud-datacatalog==3.0.0
+google-cloud-datacatalog==3.1.0
 google-cloud-dataproc==2.3.0
 google-cloud-datastore==1.15.3
 google-cloud-dlp==1.0.0
@@ -363,7 +363,7 @@ pre-commit==2.11.1
 presto-python-client==0.7.0
 prison==0.1.3
 prometheus-client==0.8.0
-prompt-toolkit==3.0.17
+prompt-toolkit==3.0.18
 proto-plus==1.18.1
 protobuf==3.15.6
 psutil==5.8.0
@@ -500,7 +500,7 @@ websocket-client==0.58.0
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.26.0
-yandexcloud==0.76.0
+yandexcloud==0.77.0
 yarl==1.6.3
 zdesk==2.7.1
 zict==2.0.0
