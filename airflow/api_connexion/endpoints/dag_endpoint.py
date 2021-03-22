@@ -62,7 +62,8 @@ def get_dag_details(dag_id):
 @format_parameters({'limit': check_limit})
 def get_dags(limit, sort, offset=0, order_by='dag_id'):
     """Get all DAGs."""
-    if not hasattr(DagModel, order_by):
+    columns = [i.name for i in DagModel.__table__.columns]  # pylint: disable=no-member
+    if order_by not in columns:
         raise BadRequest(
             detail=f"DagModel has no attribute '{order_by}' specified in order_by parameter",
         )

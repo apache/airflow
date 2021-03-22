@@ -100,7 +100,8 @@ def get_dag_runs(
 ):  # pylint: disable=too-many-arguments
     """Get all DAG Runs."""
     # return early if order_by field do not exist
-    if order_by and not hasattr(DagRun, order_by):
+    columns = [i.name for i in DagRun.__table__.columns]  # pylint: disable=no-member
+    if order_by not in columns:
         raise BadRequest(
             detail=f"DagRun has no attribute '{order_by}' specified in order_by parameter",
         )
