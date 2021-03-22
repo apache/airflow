@@ -260,7 +260,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
@@ -378,7 +377,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
@@ -530,7 +528,6 @@ paths:
         - $ref: '#/components/parameters/FilterStartDateLTE'
         - $ref: '#/components/parameters/FilterEndDateGTE'
         - $ref: '#/components/parameters/FilterEndDateLTE'
-        - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
@@ -652,7 +649,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
@@ -698,7 +694,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/OrderBy'
 
       responses:
@@ -744,7 +739,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
@@ -960,7 +954,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
@@ -1223,7 +1216,6 @@ paths:
   /dags/{dag_id}/tasks:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/SortBy'
       - $ref: '#/components/parameters/OrderBy'
 
     get:
@@ -1407,7 +1399,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
@@ -1474,7 +1465,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
-        - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
@@ -3186,19 +3176,6 @@ components:
       description:
         The value can be repeated to retrieve multiple matching values (OR condition).
 
-    # Sort/Order parameters
-    SortBy:
-      in: query
-      name: sort
-      schema:
-        type: string
-        enum:
-          - asc
-          - desc
-        default: desc
-      required: false
-      description: The direction to order results
-
     OrderBy:
       in: query
       name: order_by
@@ -3208,6 +3185,7 @@ components:
       description: The name of the field to order results
 
     # Other parameters
+
     FileToken:
       in: path
       name: file_token

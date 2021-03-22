@@ -191,33 +191,6 @@ class TestGetTasks(TestTaskEndpoint):
                         "module_path": "airflow.operators.dummy",
                     },
                     "depends_on_past": False,
-                    "downstream_task_ids": [],
-                    "end_date": None,
-                    "execution_timeout": None,
-                    "extra_links": [],
-                    "owner": "airflow",
-                    "pool": "default_pool",
-                    "pool_slots": 1.0,
-                    "priority_weight": 1.0,
-                    "queue": "default",
-                    "retries": 0.0,
-                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
-                    "retry_exponential_backoff": False,
-                    "start_date": "2020-06-16T00:00:00+00:00",
-                    "task_id": self.task_id2,
-                    "template_fields": [],
-                    "trigger_rule": "all_success",
-                    "ui_color": "#e8f7e4",
-                    "ui_fgcolor": "#000",
-                    "wait_for_downstream": False,
-                    "weight_rule": "downstream",
-                },
-                {
-                    "class_ref": {
-                        "class_name": "DummyOperator",
-                        "module_path": "airflow.operators.dummy",
-                    },
-                    "depends_on_past": False,
                     "downstream_task_ids": [self.task_id2],
                     "end_date": None,
                     "execution_timeout": None,
@@ -239,6 +212,33 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                 },
+                {
+                    "class_ref": {
+                        "class_name": "DummyOperator",
+                        "module_path": "airflow.operators.dummy",
+                    },
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "owner": "airflow",
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-16T00:00:00+00:00",
+                    "task_id": self.task_id2,
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                },
             ],
             "total_entries": 2,
         }
@@ -250,7 +250,7 @@ class TestGetTasks(TestTaskEndpoint):
 
     def test_should_respond_200_ascending_order_by_start_date(self):
         response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/tasks?sort=asc&order_by=start_date",
+            f"/api/v1/dags/{self.dag_id}/tasks?order_by=start_date",
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
@@ -260,10 +260,11 @@ class TestGetTasks(TestTaskEndpoint):
 
     def test_should_respond_200_descending_order_by_start_date(self):
         response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/tasks?order_by=start_date", environ_overrides={'REMOTE_USER': "test"}
+            f"/api/v1/dags/{self.dag_id}/tasks?order_by=-start_date",
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
-        # Default sort order is descending
+        # - means is descending
         assert self.task1_start_date < self.task2_start_date
         assert response.json['tasks'][0]['task_id'] == self.task_id2
         assert response.json['tasks'][1]['task_id'] == self.task_id

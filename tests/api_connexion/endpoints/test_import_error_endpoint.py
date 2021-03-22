@@ -132,7 +132,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         session.add_all(import_error)
         session.commit()
 
-        response = self.client.get("/api/v1/importErrors?sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
         response_data = response.json
@@ -168,7 +168,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         session.commit()
 
         response = self.client.get(
-            "/api/v1/importErrors?order_by=timestamp&sort=asc", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/importErrors?order_by=-timestamp", environ_overrides={'REMOTE_USER': "test"}
         )
 
         assert response.status_code == 200
@@ -177,16 +177,16 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         assert {
             "import_errors": [
                 {
-                    "filename": "Lorem_ipsum2.py",
+                    "filename": "Lorem_ipsum1.py",
                     "import_error_id": 1,  # id normalized with self._normalize_import_errors
                     "stack_trace": "Lorem ipsum",
-                    "timestamp": "2020-06-08T12:00:00+00:00",
+                    "timestamp": "2020-06-09T12:00:00+00:00",
                 },
                 {
-                    "filename": "Lorem_ipsum1.py",
+                    "filename": "Lorem_ipsum2.py",
                     "import_error_id": 2,
                     "stack_trace": "Lorem ipsum",
-                    "timestamp": "2020-06-09T12:00:00+00:00",
+                    "timestamp": "2020-06-08T12:00:00+00:00",
                 },
             ],
             "total_entries": 2,
@@ -210,7 +210,8 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
 
         assert response.status_code == 400
         assert (
-            response.json['detail'] == "ImportError has no attribute 'timest' specified in order_by parameter"
+            response.json['detail']
+            == "ImportError model has no attribute 'timest' specified in order_by parameter"
         )
 
     def test_should_raises_401_unauthenticated(self, session):
@@ -256,7 +257,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         session.add_all(import_errors)
         session.commit()
 
-        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
         import_ids = [pool["filename"] for pool in response.json["import_errors"]]

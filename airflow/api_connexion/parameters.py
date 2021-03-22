@@ -18,6 +18,7 @@ from functools import wraps
 from typing import Callable, Dict, TypeVar, cast
 
 from pendulum.parsing import ParserError
+from sqlalchemy import asc, desc
 
 from airflow.api_connexion.exceptions import BadRequest
 from airflow.configuration import conf
@@ -86,3 +87,32 @@ def format_parameters(params_formatters: Dict[str, Callable[..., bool]]) -> Call
         return cast(T, wrapped_function)
 
     return format_parameters_decorator
+
+
+def apply_sorting(model, query, order_by, to_replace=None):
+    """Apply sorting to query"""
+    if to_replace:
+        for key, value in to_replace.items():
+            if key == order_by:
+                order_by = value
+    if order_by.strip('-') not in (i.name for i in model.__table__.columns):
+        modelname = model.__tablename__.capitalize()
+        model_mapping = {
+            "Ab_user": 'User',
+            "Slot_pool": "Pool",
+            "Dag_run": "DagRun",
+            "Dag": "DagModel",
+            "Ab_role": "Role",
+            "Import_error": "ImportError",
+        }
+        if model_mapping.get(modelname, None):
+            modelname = model_mapping[modelname]
+        raise BadRequest(
+            detail=f"{modelname} model has no attribute '{order_by.strip('-')}' "
+            f"specified in order_by parameter",
+        )
+
+    if '-' in order_by:
+        return query.order_by(desc(order_by.strip('-')))
+    else:
+        return query.order_by(asc(order_by))

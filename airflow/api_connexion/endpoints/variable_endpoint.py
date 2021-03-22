@@ -18,11 +18,11 @@ from typing import List, Optional
 
 from flask import Response, request
 from marshmallow import ValidationError
-from sqlalchemy import asc, desc, func
+from sqlalchemy import func
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
-from airflow.api_connexion.parameters import check_limit, format_parameters
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
 from airflow.models import Variable
 from airflow.security import permissions
@@ -51,22 +51,13 @@ def get_variable(variable_key: str) -> Response:
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_variables(
-    session, limit: Optional[int], sort: Optional[str], order_by: str = "id", offset: Optional[int] = None
+    session, limit: Optional[int], order_by: str = "id", offset: Optional[int] = None
 ) -> Response:
     """Get all variable values"""
     total_entries = session.query(func.count(Variable.id)).scalar()
-    if order_by == "value":
-        order_by = 'val'
-    columns = [i.name for i in Variable.__table__.columns]  # pylint: disable=no-member
-    if order_by not in columns:
-        raise BadRequest(
-            detail=f"Variable model has no attribute '{order_by}' specified in order_by parameter",
-        )
+    to_replace = {"value": "val", "-value": "-val"}
     query = session.query(Variable)
-    if sort == 'asc':
-        query = query.order_by(asc(order_by))
-    else:
-        query = query.order_by(desc(order_by))
+    query = apply_sorting(Variable, query, order_by, to_replace)
     variables = query.offset(offset).limit(limit).all()
     return variable_collection_schema.dump(
         {

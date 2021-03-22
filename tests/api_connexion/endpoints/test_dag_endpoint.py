@@ -388,7 +388,7 @@ class TestGetDags(TestDagEndpoint):
     def test_should_respond_200(self):
         self._create_dag_models(2)
 
-        response = self.client.get("api/v1/dags?sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test"})
         file_token = SERIALIZER.dumps("/tmp/dag_1.py")
         file_token2 = SERIALIZER.dumps("/tmp/dag_2.py")
         assert response.status_code == 200
@@ -431,7 +431,7 @@ class TestGetDags(TestDagEndpoint):
     def test_order_by_id_descending(self):
         self._create_dag_models(2)
 
-        response = self.client.get("api/v1/dags?order_by=dag_id", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("api/v1/dags?order_by=-dag_id", environ_overrides={'REMOTE_USER': "test"})
         file_token = SERIALIZER.dumps("/tmp/dag_1.py")
         file_token2 = SERIALIZER.dumps("/tmp/dag_2.py")
         assert response.status_code == 200
@@ -477,7 +477,8 @@ class TestGetDags(TestDagEndpoint):
         response = self.client.get("api/v1/dags?order_by=invalid", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 400
         assert (
-            response.json['detail'] == "DagModel has no attribute 'invalid' specified in order_by parameter"
+            response.json['detail']
+            == "DagModel model has no attribute 'invalid' specified in order_by parameter"
         )
 
     def test_should_respond_200_with_granular_dag_access(self):
@@ -520,7 +521,7 @@ class TestGetDags(TestDagEndpoint):
     def test_should_respond_200_and_handle_pagination(self, url, expected_dag_ids):
         self._create_dag_models(10)
 
-        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
 

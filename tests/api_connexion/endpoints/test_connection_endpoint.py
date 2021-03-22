@@ -161,7 +161,7 @@ class TestGetConnections(TestConnectionEndpoint):
         session.commit()
         result = session.query(Connection).all()
         assert len(result) == 2
-        response = self.client.get("/api/v1/connections?sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/connections", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json == {
             'connections': [
@@ -194,10 +194,10 @@ class TestGetConnections(TestConnectionEndpoint):
         result = session.query(Connection).all()
         assert len(result) == 2
         response = self.client.get(
-            "/api/v1/connections?order_by=connection_id", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/connections?order_by=-connection_id", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
-        # This also tests desc since sort is descending by default
+        # Using - means descending
         assert response.json == {
             'connections': [
                 {
@@ -269,7 +269,7 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         connections = self._create_connections(10)
         session.add_all(connections)
         session.commit()
-        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == 10
         conn_ids = [conn["connection_id"] for conn in response.json["connections"] if conn]
@@ -296,7 +296,8 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         )
         assert response.status_code == 400
         assert (
-            response.json['detail'] == "Connection has no attribute 'invalid' specified in order_by parameter"
+            response.json['detail']
+            == "Connection model has no attribute 'invalid' specified in order_by parameter"
         )
 
     def test_limit_of_zero_should_return_default(self, session):

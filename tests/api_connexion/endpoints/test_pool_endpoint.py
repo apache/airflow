@@ -68,7 +68,7 @@ class TestGetPools(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).all()
         assert len(result) == 2  # accounts for the default pool as well
-        response = self.client.get("/api/v1/pools?sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/pools", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert {
             "pools": [
@@ -98,9 +98,7 @@ class TestGetPools(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).all()
         assert len(result) == 2  # accounts for the default pool as well
-        response = self.client.get(
-            "/api/v1/pools?order_by=slots&sort=asc", environ_overrides={'REMOTE_USER': "test"}
-        )
+        response = self.client.get("/api/v1/pools?order_by=slots", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert {
             "pools": [
@@ -162,7 +160,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         session.commit()
         result = session.query(Pool).count()
         assert result == 121  # accounts for default pool as well
-        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         pool_ids = [pool["name"] for pool in response.json["pools"]]
         assert pool_ids == expected_pool_ids

@@ -17,11 +17,10 @@
 from connexion import NoContent
 from flask import current_app, g, request
 from marshmallow import ValidationError
-from sqlalchemy import asc, desc
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     dagrun_collection_schema,
@@ -95,16 +94,9 @@ def get_dag_runs(
     end_date_lte=None,
     offset=None,
     limit=None,
-    sort=None,
     order_by='id',
 ):  # pylint: disable=too-many-arguments
     """Get all DAG Runs."""
-    # return early if order_by field do not exist
-    columns = [i.name for i in DagRun.__table__.columns]  # pylint: disable=no-member
-    if order_by not in columns:
-        raise BadRequest(
-            detail=f"DagRun has no attribute '{order_by}' specified in order_by parameter",
-        )
     query = session.query(DagRun)
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
@@ -124,7 +116,6 @@ def get_dag_runs(
         start_date_lte,
         limit,
         offset,
-        sort,
         order_by,
     )
 
@@ -141,8 +132,7 @@ def _fetch_dag_runs(
     start_date_lte,
     limit,
     offset,
-    sort=None,
-    order_by=None,
+    order_by='id',
 ):  # pylint: disable=too-many-arguments
     query = _apply_date_filters_to_query(
         query,
@@ -156,12 +146,7 @@ def _fetch_dag_runs(
     # Count items
     total_entries = query.count()
     # sort
-    if sort == 'asc':
-        query = query.order_by(asc(order_by))
-    elif sort == 'desc':
-        query = query.order_by(desc(order_by))
-    else:
-        query = query.order_by(DagRun.id)
+    query = apply_sorting(DagRun, query, order_by)
     # apply offset and limit
     dag_run = query.offset(offset).limit(limit).all()
     return dag_run, total_entries

@@ -148,7 +148,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         log_model_3.dttm = timezone.parse(self.default_time_2)
         session.add_all([log_model_1, log_model_2, log_model_3])
         session.commit()
-        response = self.client.get("/api/v1/eventLogs?sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json == {
             "event_logs": [
@@ -199,7 +199,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         session.add_all([log_model_1, log_model_2, log_model_3])
         session.commit()
         response = self.client.get(
-            "/api/v1/eventLogs?order_by=owner", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/eventLogs?order_by=-owner", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
         assert response.json == {
@@ -210,7 +210,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
                     "execution_date": self.default_time,
-                    "owner": 'zsh',  # Order by name, sort order is descending(default)
+                    "owner": 'zsh',  # Order by name, sort order is descending(-)
                     "when": self.default_time_2,
                     "extra": None,
                 },
@@ -302,7 +302,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.add_all(log_models)
         session.commit()
 
-        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
 
         assert response.json["total_entries"] == 10
@@ -330,7 +330,9 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
             "/api/v1/eventLogs?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 400
-        assert response.json['detail'] == "Log has no attribute 'invalid' specified in order_by parameter"
+        assert (
+            response.json['detail'] == "Log model has no attribute 'invalid' specified in order_by parameter"
+        )
 
     @provide_session
     @conf_vars({("api", "maximum_page_limit"): "150"})

@@ -125,7 +125,7 @@ class TestGetUser(TestUserEndpoint):
 
 class TestGetUsers(TestUserEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/api/v1/users?sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/users", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == 2
         usernames = [user["username"] for user in response.json["users"] if user]
@@ -186,7 +186,7 @@ class TestGetUsersPagination(TestUserEndpoint):
         users = self._create_users(10)
         self.session.add_all(users)
         self.session.commit()
-        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == 12
         usernames = [user["username"] for user in response.json["users"] if user]

@@ -18,11 +18,11 @@
 from connexion import NoContent
 from flask import request
 from marshmallow import ValidationError
-from sqlalchemy import asc, desc, func
+from sqlalchemy import func
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import check_limit, format_parameters
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection,
     connection_collection_schema,
@@ -63,21 +63,13 @@ def get_connection(connection_id, session):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_connections(session, limit, sort, offset=0, order_by="id"):
+def get_connections(session, limit, offset=0, order_by="id"):
     """Get all connection entries"""
-    if order_by == "connection_id":
-        order_by = 'id'
-    columns = [i.name for i in Connection.__table__.columns]  # pylint: disable=no-member
-    if order_by not in columns:
-        raise BadRequest(
-            detail=f"Connection has no attribute '{order_by}' specified in order_by parameter",
-        )
+    to_replace = {"connection_id": "id", "-connection_id": "-id"}
+
     total_entries = session.query(func.count(Connection.id)).scalar()
     query = session.query(Connection)
-    if sort == 'asc':
-        query = query.order_by(asc(order_by))
-    else:
-        query = query.order_by(desc(order_by))
+    query = apply_sorting(Connection, query, order_by, to_replace)
     connections = query.offset(offset).limit(limit).all()
     return connection_collection_schema.dump(
         ConnectionCollection(connections=connections, total_entries=total_entries)

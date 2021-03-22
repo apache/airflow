@@ -129,7 +129,7 @@ class TestGetVariables(TestVariableEndpoint):
     @parameterized.expand(
         [
             (
-                "/api/v1/variables?limit=2&offset=0&sort=asc",
+                "/api/v1/variables?limit=2&offset=0",
                 {
                     "variables": [
                         {"key": "var1", "value": "1"},
@@ -139,7 +139,7 @@ class TestGetVariables(TestVariableEndpoint):
                 },
             ),
             (
-                "/api/v1/variables?limit=2&offset=1&sort=asc",
+                "/api/v1/variables?limit=2&offset=1",
                 {
                     "variables": [
                         {"key": "var2", "value": "foo"},
@@ -149,7 +149,7 @@ class TestGetVariables(TestVariableEndpoint):
                 },
             ),
             (
-                "/api/v1/variables?limit=1&offset=2&sort=asc",
+                "/api/v1/variables?limit=1&offset=2",
                 {
                     "variables": [
                         {"key": "var3", "value": "[100, 101]"},

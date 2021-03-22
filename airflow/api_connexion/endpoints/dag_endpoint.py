@@ -16,12 +16,11 @@
 # under the License.
 from flask import current_app, g, request
 from marshmallow import ValidationError
-from sqlalchemy import asc, desc
 
 from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
-from airflow.api_connexion.parameters import check_limit, format_parameters
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
     dag_detail_schema,
@@ -60,18 +59,10 @@ def get_dag_details(dag_id):
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
-def get_dags(limit, sort, offset=0, order_by='dag_id'):
+def get_dags(limit, offset=0, order_by='dag_id'):
     """Get all DAGs."""
-    columns = [i.name for i in DagModel.__table__.columns]  # pylint: disable=no-member
-    if order_by not in columns:
-        raise BadRequest(
-            detail=f"DagModel has no attribute '{order_by}' specified in order_by parameter",
-        )
     readable_dags = current_app.appbuilder.sm.get_readable_dags(g.user)
-    if sort == "asc":
-        query = readable_dags.order_by(asc(order_by))
-    else:
-        query = readable_dags.order_by(desc(order_by))
+    query = apply_sorting(DagModel, readable_dags, order_by)
     dags = query.offset(offset).limit(limit).all()
     total_entries = readable_dags.count()
 

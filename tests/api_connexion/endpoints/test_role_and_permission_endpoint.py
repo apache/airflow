@@ -128,7 +128,7 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
         ]
     )
     def test_can_handle_limit_and_offset(self, url, expected_roles):
-        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         existing_roles = set(EXISTING_ROLES)
         existing_roles.update(['Test', 'TestNoPermissions'])
