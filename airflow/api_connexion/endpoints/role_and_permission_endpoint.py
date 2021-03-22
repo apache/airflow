@@ -48,6 +48,8 @@ def get_roles(limit, sort, order_by='name', offset=None):
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(Role.id)).scalar()
+    if order_by == 'role_id':
+        order_by = 'id'
     columns = [i.name for i in Role.__table__.columns]  # pylint: disable=no-member
     if order_by not in columns:
         raise BadRequest(
