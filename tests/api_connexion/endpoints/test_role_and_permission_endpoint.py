@@ -92,6 +92,15 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
         response = self.client.get("/api/v1/roles")
         assert_401(response)
 
+    def test_should_raises_400_for_invalid_order_by(self):
+        response = self.client.get(
+            "/api/v1/roles?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 400
+        assert (
+            response.json['detail'] == "Role model has no attribute 'invalid' specified in order_by parameter"
+        )
+
     def test_should_raise_403_forbidden(self):
         response = self.client.get("/api/v1/roles", environ_overrides={'REMOTE_USER': "test_no_permissions"})
         assert response.status_code == 403
@@ -119,7 +128,7 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
         ]
     )
     def test_can_handle_limit_and_offset(self, url, expected_roles):
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         existing_roles = set(EXISTING_ROLES)
         existing_roles.update(['Test', 'TestNoPermissions'])

@@ -125,7 +125,7 @@ class TestGetUser(TestUserEndpoint):
 
 class TestGetUsers(TestUserEndpoint):
     def test_should_response_200(self):
-        response = self.client.get("/api/v1/users", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/users?sort=asc", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == 2
         usernames = [user["username"] for user in response.json["users"] if user]
@@ -186,7 +186,7 @@ class TestGetUsersPagination(TestUserEndpoint):
         users = self._create_users(10)
         self.session.add_all(users)
         self.session.commit()
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url + "&sort=asc", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert response.json["total_entries"] == 12
         usernames = [user["username"] for user in response.json["users"] if user]
@@ -202,6 +202,16 @@ class TestGetUsersPagination(TestUserEndpoint):
         # Explicitly add the 2 users on setUp
         assert response.json["total_entries"] == 200 + len(['test', 'test_no_permissions'])
         assert len(response.json["users"]) == 100
+
+    def test_should_response_400_with_invalid_order_by(self):
+        users = self._create_users(2)
+        self.session.add_all(users)
+        self.session.commit()
+        response = self.client.get("/api/v1/users?order_by=myname", environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 400
+        assert (
+            response.json['detail'] == "User model has no attribute 'myname' specified in order_by parameter"
+        )
 
     def test_limit_of_zero_should_return_default(self):
         users = self._create_users(200)

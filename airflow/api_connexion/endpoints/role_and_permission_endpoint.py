@@ -16,10 +16,10 @@
 # under the License.
 from flask import current_app
 from flask_appbuilder.security.sqla.models import Permission, Role
-from sqlalchemy import func
+from sqlalchemy import asc, desc, func
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.role_and_permission_schema import (
     ActionCollection,
@@ -43,14 +43,22 @@ def get_role(role_name):
 
 @security.requires_access([(permissions.ACTION_CAN_LIST, permissions.RESOURCE_ROLE_MODEL_VIEW)])
 @format_parameters({'limit': check_limit})
-def get_roles(limit=None, offset=None):
+def get_roles(limit, sort, order_by='name', offset=None):
     """Get roles"""
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(Role.id)).scalar()
+    columns = [i.name for i in Role.__table__.columns]  # pylint: disable=no-member
+    if order_by not in columns:
+        raise BadRequest(
+            detail=f"Role model has no attribute '{order_by}' specified in order_by parameter",
+        )
     query = session.query(Role)
-
-    roles = query.order_by(Role.name).offset(offset).limit(limit).all()
+    if sort == 'asc':
+        query = query.order_by(asc(order_by))
+    else:
+        query = query.order_by(desc(order_by))
+    roles = query.offset(offset).limit(limit).all()
 
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 

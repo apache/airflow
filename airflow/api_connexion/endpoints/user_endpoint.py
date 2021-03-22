@@ -16,10 +16,10 @@
 # under the License.
 from flask import current_app
 from flask_appbuilder.security.sqla.models import User
-from sqlalchemy import func
+from sqlalchemy import asc, desc, func
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
     UserCollection,
@@ -41,11 +41,21 @@ def get_user(username):
 
 @security.requires_access([(permissions.ACTION_CAN_LIST, permissions.RESOURCE_USER_DB_MODELVIEW)])
 @format_parameters({'limit': check_limit})
-def get_users(limit=None, offset=None):
+def get_users(limit, sort, order_by='id', offset=None):
     """Get users"""
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
-    users = session.query(User).order_by(User.id).offset(offset).limit(limit).all()
+    columns = [i.name for i in User.__table__.columns]  # pylint: disable=no-member
+    if order_by not in columns:
+        raise BadRequest(
+            detail=f"User model has no attribute '{order_by}' specified in order_by parameter",
+        )
+    query = session.query(User)
+    if sort == 'asc':
+        query = query.order_by(asc(order_by))
+    else:
+        query = query.order_by(desc(order_by))
+    users = query.offset(offset).limit(limit).all()
 
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))
