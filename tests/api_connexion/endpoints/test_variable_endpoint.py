@@ -129,7 +129,7 @@ class TestGetVariables(TestVariableEndpoint):
     @parameterized.expand(
         [
             (
-                "/api/v1/variables?limit=2&offset=0",
+                "/api/v1/variables?limit=2&offset=0&sort=asc",
                 {
                     "variables": [
                         {"key": "var1", "value": "1"},
@@ -139,7 +139,7 @@ class TestGetVariables(TestVariableEndpoint):
                 },
             ),
             (
-                "/api/v1/variables?limit=2&offset=1",
+                "/api/v1/variables?limit=2&offset=1&sort=asc",
                 {
                     "variables": [
                         {"key": "var2", "value": "foo"},
@@ -149,7 +149,7 @@ class TestGetVariables(TestVariableEndpoint):
                 },
             ),
             (
-                "/api/v1/variables?limit=1&offset=2",
+                "/api/v1/variables?limit=1&offset=2&sort=asc",
                 {
                     "variables": [
                         {"key": "var3", "value": "[100, 101]"},
@@ -174,6 +174,18 @@ class TestGetVariables(TestVariableEndpoint):
         assert response.status_code == 200
         assert response.json["total_entries"] == 101
         assert len(response.json["variables"]) == 100
+
+    def test_should_raise_400_for_invalid_order_by(self):
+        for i in range(101):
+            Variable.set(f"var{i}", i)
+        response = self.client.get(
+            "/api/v1/variables?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 400
+        assert (
+            response.json["detail"]
+            == "Variable model has no attribute 'invalid' specified in order_by parameter"
+        )
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self):
