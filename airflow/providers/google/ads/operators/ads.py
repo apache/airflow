@@ -35,7 +35,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
     not necessarily include all accounts within the account hierarchy; rather, it will only include
     accounts where your authenticated user has been added with admin or other rights in the account.
 
-    ..seealso::
+    .. seealso::
         https://developers.google.com/google-ads/api/reference/rpc
 
 
