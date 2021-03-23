@@ -1158,7 +1158,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """@property: type of the task"""
         return self.__class__.__name__
 
-    def add_only_new(self, item_set: Set[str], item: str, dag_info: str) -> None:
+    def add_only_new(self, item_set: Set[str], item: str, dag_id: str) -> None:
         """Adds only new items to item set"""
         if item in item_set:
             self.log.warning('Dependency %s, %s already registered for DAG: %s', self, item, dag_info)
