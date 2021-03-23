@@ -17,8 +17,6 @@
 """Client for kubernetes communication"""
 from typing import Optional
 
-from kubernetes.client import configuration
-
 from airflow.configuration import conf
 
 try:
