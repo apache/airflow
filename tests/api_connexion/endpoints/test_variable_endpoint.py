@@ -182,10 +182,8 @@ class TestGetVariables(TestVariableEndpoint):
             "/api/v1/variables?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 400
-        assert (
-            response.json["detail"]
-            == "Variable model has no attribute 'invalid' specified in order_by parameter"
-        )
+        msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on Variable model"
+        assert response.json["detail"] == msg
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self):

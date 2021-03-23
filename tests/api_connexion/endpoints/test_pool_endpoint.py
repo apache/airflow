@@ -185,10 +185,8 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
             "/api/v1/pools?order_by=open_slots", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 400
-        assert (
-            response.json['detail']
-            == "Pool model has no attribute 'open_slots' specified in order_by parameter"
-        )
+        msg = "Ordering with 'open_slots' is disallowed or the attribute does not exist on Pool model"
+        assert response.json['detail'] == msg
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):

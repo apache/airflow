@@ -49,8 +49,9 @@ def get_roles(limit, order_by='name', offset=None):
     session = appbuilder.get_session
     total_entries = session.query(func.count(Role.id)).scalar()
     to_replace = {"role_id": "id", "-role_id": "-id"}
+    allowed_filter_attrs = ['role_id', 'name']
     query = session.query(Role)
-    query = apply_sorting(Role, query, order_by, to_replace)
+    query = apply_sorting(Role, query, order_by, to_replace, allowed_filter_attrs)
     roles = query.offset(offset).limit(limit).all()
 
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))

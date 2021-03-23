@@ -97,9 +97,8 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
             "/api/v1/roles?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 400
-        assert (
-            response.json['detail'] == "Role model has no attribute 'invalid' specified in order_by parameter"
-        )
+        msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on Role model"
+        assert response.json['detail'] == msg
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get("/api/v1/roles", environ_overrides={'REMOTE_USER': "test_no_permissions"})

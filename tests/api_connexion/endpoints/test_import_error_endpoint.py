@@ -209,10 +209,8 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         )
 
         assert response.status_code == 400
-        assert (
-            response.json['detail']
-            == "ImportError model has no attribute 'timest' specified in order_by parameter"
-        )
+        msg = "Ordering with 'timest' is disallowed or the attribute does not exist on ImportError model"
+        assert response.json['detail'] == msg
 
     def test_should_raises_401_unauthenticated(self, session):
         import_error = [

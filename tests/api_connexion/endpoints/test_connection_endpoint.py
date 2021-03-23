@@ -296,8 +296,8 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         )
         assert response.status_code == 400
         assert (
-            response.json['detail']
-            == "Connection model has no attribute 'invalid' specified in order_by parameter"
+            response.json['detail'] == "Ordering with 'invalid' is disallowed or"
+            " the attribute does not exist on Connection model"
         )
 
     def test_limit_of_zero_should_return_default(self, session):

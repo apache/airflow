@@ -55,9 +55,11 @@ def get_pool(pool_name, session):
 @provide_session
 def get_pools(session, limit, order_by='id', offset=None):
     """Get all pools"""
+    to_replace = {"name": "pool", "-name": "-pool"}
+    allowed_filter_attrs = ['name', 'slots', "id"]
     total_entries = session.query(func.count(Pool.id)).scalar()
     query = session.query(Pool)
-    query = apply_sorting(Pool, query, order_by)
+    query = apply_sorting(Pool, query, order_by, to_replace, allowed_filter_attrs)
     pools = query.offset(offset).limit(limit).all()
     return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
 

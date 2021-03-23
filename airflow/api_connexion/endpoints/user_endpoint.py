@@ -41,14 +41,15 @@ def get_user(username):
 
 @security.requires_access([(permissions.ACTION_CAN_LIST, permissions.RESOURCE_USER_DB_MODELVIEW)])
 @format_parameters({'limit': check_limit})
-def get_users(limit, order_by='id', offset=None):
+def get_users(limit, order_by='user_id', offset=None):
     """Get users"""
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
     to_replace = {"user_id": "id", "-user_id": "-id"}
+    allowed_filter_attrs = ["user_id", "first_name", "last_name", "user_name", "email", "is_active", "role"]
     query = session.query(User)
-    query = apply_sorting(User, query, order_by, to_replace)
+    query = apply_sorting(User, query, order_by, to_replace, allowed_filter_attrs)
     users = query.offset(offset).limit(limit).all()
 
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))

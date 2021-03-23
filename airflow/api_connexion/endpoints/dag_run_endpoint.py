@@ -147,7 +147,8 @@ def _fetch_dag_runs(
     total_entries = query.count()
     # sort
     to_replace = {"dag_run_id": "run_id", "-dag_run_id": "dag_run_id"}
-    allowed_attrs = [
+    allowed_filter_attrs = [
+        "id",
         "state",
         "dag_id",
         "execution_date",
@@ -157,7 +158,7 @@ def _fetch_dag_runs(
         "external_trigger",
         "conf",
     ]
-    query = apply_sorting(DagRun, query, order_by, to_replace, allowed_attrs)
+    query = apply_sorting(DagRun, query, order_by, to_replace, allowed_filter_attrs)
     # apply offset and limit
     dag_run = query.offset(offset).limit(limit).all()
     return dag_run, total_entries

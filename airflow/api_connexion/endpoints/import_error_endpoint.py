@@ -47,13 +47,13 @@ def get_import_error(import_error_id, session):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_import_errors(session, limit, offset=None, order_by='id'):
+def get_import_errors(session, limit, offset=None, order_by='import_error_id'):
     """Get all import errors"""
     to_replace = {"import_error_id": 'id', "-import_error_id": "-id"}
-
+    allowed_filter_attrs = ['import_error_id', "timestamp", "filename"]
     total_entries = session.query(func.count(ImportErrorModel.id)).scalar()
     query = session.query(ImportErrorModel)
-    query = apply_sorting(ImportErrorModel, query, order_by, to_replace)
+    query = apply_sorting(ImportErrorModel, query, order_by, to_replace, allowed_filter_attrs)
     import_errors = query.offset(offset).limit(limit).all()
     return import_error_collection_schema.dump(
         ImportErrorCollection(import_errors=import_errors, total_entries=total_entries)

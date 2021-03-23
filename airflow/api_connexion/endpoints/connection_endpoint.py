@@ -66,11 +66,11 @@ def get_connection(connection_id, session):
 def get_connections(session, limit, offset=0, order_by="id"):
     """Get all connection entries"""
     to_replace = {"connection_id": "conn_id", "-connection_id": "-conn_id"}
-    allowed_attrs = ['connection_id', 'conn_type', 'description', 'host', 'port']
+    allowed_filter_attrs = ['connection_id', 'conn_type', 'description', 'host', 'port', 'id']
 
     total_entries = session.query(func.count(Connection.id)).scalar()
     query = session.query(Connection)
-    query = apply_sorting(Connection, query, order_by, to_replace, allowed_attrs)
+    query = apply_sorting(Connection, query, order_by, to_replace, allowed_filter_attrs)
     connections = query.offset(offset).limit(limit).all()
     return connection_collection_schema.dump(
         ConnectionCollection(connections=connections, total_entries=total_entries)

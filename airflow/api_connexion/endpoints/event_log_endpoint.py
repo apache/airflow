@@ -44,13 +44,22 @@ def get_event_log(event_log_id, session):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_event_logs(session, limit, offset=None, order_by='id'):
+def get_event_logs(session, limit, offset=None, order_by='event_log_id'):
     """Get all log entries from event log"""
     to_replace = {"event_log_id": "id", "-event_log_id": "-id", "when": "dttm", "-when": "-dttm"}
-    allowed_attrs = ['event_log_id', "when", "dag_id", "task_id", "event", "execution_date", "owner", "extra"]
+    allowed_filter_attrs = [
+        'event_log_id',
+        "when",
+        "dag_id",
+        "task_id",
+        "event",
+        "execution_date",
+        "owner",
+        "extra",
+    ]
     total_entries = session.query(func.count(Log.id)).scalar()
     query = session.query(Log)
-    query = apply_sorting(Log, query, order_by, to_replace, allowed_attrs)
+    query = apply_sorting(Log, query, order_by, to_replace, allowed_filter_attrs)
     event_logs = query.offset(offset).limit(limit).all()
     return event_log_collection_schema.dump(
         EventLogCollection(event_logs=event_logs, total_entries=total_entries)

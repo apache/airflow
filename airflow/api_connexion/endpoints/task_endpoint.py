@@ -57,15 +57,10 @@ def get_tasks(dag_id, order_by='task_id'):
     if not dag:
         raise NotFound("DAG not found")
     tasks = dag.tasks
-    if '-' in order_by:
-        try:
-            tasks = sorted(tasks, key=attrgetter(order_by.strip('-')), reverse=True)
-        except AttributeError as err:
-            raise BadRequest(detail=str(err))
-    else:
-        try:
-            tasks = sorted(tasks, key=attrgetter(order_by))
-        except AttributeError as err:
-            raise BadRequest(detail=str(err))
+
+    try:
+        tasks = sorted(tasks, key=attrgetter(order_by.lstrip('-')), reverse=(order_by[0] == '-'))
+    except AttributeError as err:
+        raise BadRequest(detail=str(err))
     task_collection = TaskCollection(tasks=tasks, total_entries=len(tasks))
     return task_collection_schema.dump(task_collection)

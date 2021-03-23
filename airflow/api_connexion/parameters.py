@@ -93,12 +93,6 @@ def apply_sorting(model, query, order_by, to_replace=None, allowed_attrs=None):
     """Apply sorting to query"""
     lstriped_orderby = order_by.lstrip('-')
     if allowed_attrs and lstriped_orderby not in allowed_attrs:
-        raise BadRequest(detail=f"Filtering with this attribute '{lstriped_orderby}' is disallowed")
-    if to_replace:
-        for key, value in to_replace.items():
-            if key == order_by:
-                order_by = value
-    if lstriped_orderby not in (i.name for i in model.__table__.columns):
         modelname = model.__tablename__.capitalize()
         model_mapping = {
             "Ab_user": 'User',
@@ -111,10 +105,13 @@ def apply_sorting(model, query, order_by, to_replace=None, allowed_attrs=None):
         if model_mapping.get(modelname, None):
             modelname = model_mapping[modelname]
         raise BadRequest(
-            detail=f"{modelname} model has no attribute '{lstriped_orderby}' "
-            f"specified in order_by parameter",
+            detail=f"Ordering with '{lstriped_orderby}' is disallowed or "
+            f"the attribute does not exist on {modelname} model"
         )
-
+    if to_replace:
+        for key, value in to_replace.items():
+            if key == order_by:
+                order_by = value
     if '-' in order_by:
         return query.order_by(desc(lstriped_orderby))
     else:
