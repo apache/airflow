@@ -15,45 +15,34 @@
 # specific language governing permissions and limitations
 # under the License.
 from unittest import TestCase
+from unittest.mock import patch
 
-from airflow.configuration import conf
 from airflow.upgrade.rules.parsing_processes_configuration_rule import ParsingProcessesConfigurationRule
-from tests.test_utils.config import conf_vars
 
 
 class TestParsingProcessesConfigurationRule(TestCase):
-    @conf_vars(
-        {
-            ("scheduler", "parsing_processes"): "DUMMY",
-        }
-    )
-    def test_check_new_config(self):
+    @patch('airflow.configuration.conf.has_option')
+    def test_check_new_config(self, conf_has_option):
         rule = ParsingProcessesConfigurationRule()
 
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
 
-        # Remove the fallback option
-        conf.deprecated_options.get("scheduler", {}).pop("parsing_processes", "")
-        conf.remove_option("scheduler", "parsing_processes")
+        conf_has_option.side_effect = [False, True]
 
         response = rule.check()
         assert response is None
 
-    @conf_vars(
-        {
-            ("scheduler", "max_threads"): "DUMMY",
-        }
-    )
-    def test_check_old_config(self):
+    @patch('airflow.configuration.conf.get')
+    @patch('airflow.configuration.conf.has_option')
+    def test_check_old_config(self, conf_has_option, conf_get):
         rule = ParsingProcessesConfigurationRule()
 
         assert isinstance(rule.description, str)
         assert isinstance(rule.title, str)
 
-        # Remove the fallback option
-        conf.deprecated_options.get("scheduler", {}).pop("parsing_processes", "")
-        conf.remove_option("scheduler", "parsing_processes")
+        conf_has_option.side_effect = [True, False]
+        conf_get.side_effect = ["DUMMY"]
 
         response = rule.check()
         assert response == \
