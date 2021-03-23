@@ -21,7 +21,7 @@ from tests.test_utils.config import conf_vars
 
 
 class TestLegacyUIDeprecated(TestCase):
-    @conf_vars({("webserver", "rbac"): "false"})
+    @conf_vars({("webserver", "rbac"): "False"})
     def test_invalid_check(self):
         rule = LegacyUIDeprecated()
 
