@@ -1987,6 +1987,8 @@
       description: |
         If False (and delete_worker_pods is True),
         failed worker pods will not be deleted so users can investigate them.
+        This only prevents removal of worker pods where the worker itself failed,
+        not when the task it ran failed.
       version_added: 1.10.11
       type: string
       example: ~
