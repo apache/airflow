@@ -193,6 +193,7 @@ function initialization::initialize_files_for_rebuild_check() {
         "Dockerfile.ci"
         ".dockerignore"
         "scripts/docker/compile_www_assets.sh"
+        "scripts/docker/common.sh"
         "scripts/docker/install_additional_dependencies.sh"
         "scripts/docker/install_airflow.sh"
         "scripts/docker/install_airflow_from_branch_tip.sh"

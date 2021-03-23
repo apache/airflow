@@ -16,12 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
+# Require SEMAPHORE_NAME
+
 function parallel::initialize_monitoring() {
     PARALLEL_MONITORED_DIR="$(mktemp -d)"
     export PARALLEL_MONITORED_DIR
-
-    PARALLEL_JOBLOG="$(mktemp)"
-    export PARALLEL_JOBLOG
 }
 
 function parallel::make_sure_gnu_parallel_is_installed() {
@@ -53,6 +53,7 @@ function parallel::kill_stale_semaphore_locks() {
 
 # Periodical loop to print summary of all the processes run by parallel
 function parallel::monitor_loop() {
+    trap 'exit 0' TERM
     echo
     echo "Start monitoring of parallel execution in ${PARALLEL_MONITORED_DIR} directory."
     echo
@@ -79,16 +80,13 @@ function parallel::monitor_loop() {
             echo
         done
         echo
-        echo "${COLOR_YELLOW}########### Monitoring progress end: ${progress_report_number} #################${COLOR_RESET}}"
+        echo "${COLOR_YELLOW}########### Monitoring progress end: ${progress_report_number} #################${COLOR_RESET}"
         echo
         end_time=${SECONDS}
         echo "${COLOR_YELLOW}############## $((end_time - start_time)) seconds passed since start ####################### ${COLOR_RESET}"
         sleep 10
         progress_report_number=$((progress_report_number + 1))
     done
-    echo "${COLOR_BLUE}########### STATISTICS #################"
-    docker_engine_resources::print_overall_stats
-    echo "########### STATISTICS #################${COLOR_RESET}"
 }
 
 # Monitors progress of parallel execution and periodically summarizes stdout entries created by
@@ -96,8 +94,6 @@ function parallel::monitor_loop() {
 # parameter to GNU parallel execution.
 function parallel::monitor_progress() {
     echo "Parallel results are stored in: ${PARALLEL_MONITORED_DIR}"
-    echo "Parallel joblog is stored in: ${PARALLEL_JOBLOG}"
-
     parallel::monitor_loop 2>/dev/null &
 
     # shellcheck disable=SC2034
@@ -108,5 +104,59 @@ function parallel::monitor_progress() {
 
 
 function parallel::kill_monitor() {
-    kill -9 ${PARALLEL_MONITORING_PID} >/dev/null 2>&1 || true
+    kill ${PARALLEL_MONITORING_PID} >/dev/null 2>&1 || true
+}
+
+# Outputs logs for successful test type
+# $1 test type
+function parallel::output_log_for_successful_job(){
+    local job=$1
+    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
+    start_end::group_start "${COLOR_GREEN}Output for successful ${job}${COLOR_RESET}"
+    echo "${COLOR_GREEN}##### The ${job} succeeded ##### ${COLOR_RESET}"
+    echo
+    cat "${log_dir}"/stdout
+    echo
+    echo "${COLOR_GREEN}##### The ${job} succeeded ##### ${COLOR_RESET}"
+    echo
+    start_end::group_end
+}
+
+# Outputs logs for failed test type
+# $1 test type
+function parallel::output_log_for_failed_job(){
+    local job=$1
+    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
+    start_end::group_start "${COLOR_RED}Output: for failed ${job}${COLOR_RESET}"
+    echo "${COLOR_RED}##### The ${job} failed ##### ${COLOR_RESET}"
+    echo
+    cat "${log_dir}"/stdout
+    echo
+    echo
+    echo "${COLOR_RED}##### The ${job} failed ##### ${COLOR_RESET}"
+    echo
+    start_end::group_end
+}
+
+# Prints summary of jobs and returns status:
+# 0 - all jobs succeeded (SKIPPED_FAILED_JOBS is not counted)
+# >0 - number of failed jobs (except Quarantine)
+function parallel::print_job_summary_and_return_status_code() {
+    local return_code="0"
+    local job
+    for job_path in "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/"*
+    do
+        job="$(basename "${job_path}")"
+        status=$(cat "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/status")
+        if [[ ${status} == "0" ]]; then
+            parallel::output_log_for_successful_job "${job}"
+        else
+            parallel::output_log_for_failed_job "${job}"
+            # SKIPPED_FAILED_JOB failure does not trigger whole test failure
+            if [[ ${SKIPPED_FAILED_JOB=} != "${job}" ]]; then
+                return_code=$((return_code + 1))
+            fi
+        fi
+    done
+    return "${return_code}"
 }
