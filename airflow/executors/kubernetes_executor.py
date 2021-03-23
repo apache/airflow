@@ -576,7 +576,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             if self.kube_config.delete_worker_pods:
                 if not self.kube_scheduler:
                     raise AirflowException(NOT_STARTED_MESSAGE)
-                if state is not State.FAILED or self.kube_config.delete_worker_pods_on_failure:
+                if state != State.FAILED or self.kube_config.delete_worker_pods_on_failure:
                     self.kube_scheduler.delete_pod(pod_id, namespace)
                     self.log.info('Deleted pod: %s in namespace %s', str(key), str(namespace))
             try:
