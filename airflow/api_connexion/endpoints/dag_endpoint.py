@@ -20,7 +20,7 @@ from marshmallow import ValidationError
 from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
     dag_detail_schema,
@@ -59,11 +59,10 @@ def get_dag_details(dag_id):
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
-def get_dags(limit, offset=0, order_by='dag_id'):
+def get_dags(limit, offset=0):
     """Get all DAGs."""
     readable_dags = current_app.appbuilder.sm.get_readable_dags(g.user)
-    query = apply_sorting(DagModel, readable_dags, order_by)
-    dags = query.offset(offset).limit(limit).all()
+    dags = readable_dags.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
     total_entries = readable_dags.count()
 
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
