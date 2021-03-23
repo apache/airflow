@@ -19,7 +19,7 @@ import socket
 import unittest
 from unittest import mock
 
-from kubernetes.client import Configuration, configuration
+from kubernetes.client import Configuration
 from urllib3.connection import HTTPConnection, HTTPSConnection
 
 from airflow.kubernetes.kube_client import (
