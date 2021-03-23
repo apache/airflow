@@ -550,10 +550,11 @@ class BulkStateFetcher(LoggingMixin):
         elif isinstance(app.backend, DatabaseBackend):
             result = self._get_many_from_db_backend(async_results)
         else:
-            async_results = list(async_results)
+            async_results = list(async_results) if isinstance(async_results, map) else async_results
             result = self._get_many_using_multiprocessing(async_results)
-        async_results = list(async_results) if isinstance(async_results, map) else async_results
-        self.log.debug("Fetched %d states for %d task", len(result), len(async_results))
+        if isinstance(async_results, map) and self.log.level == "DEBUG":
+            async_results = list(async_results)
+            self.log.debug("Fetched %d states for %d task", len(result), len(async_results))
         return result
 
     def _get_many_from_kv_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
