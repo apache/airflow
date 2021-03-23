@@ -37,18 +37,18 @@ class DatadogSensor(BaseSensorOperator):
     :type datadog_conn_id: str
     :param from_seconds_ago: POSIX timestamp start (default 3600).
     :type from_seconds_ago: int
-    :param up_to_seconds_from_now: POSIX timestamp end (default 0). 
+    :param up_to_seconds_from_now: POSIX timestamp end (default 0).
     :type up_to_seconds_from_now: int
     :param priority: Priority of your events, either low or normal.
     :type priority: Optional[str]
-    :param sources: A comma separated list indicating what tags, if any, 
+    :param sources: A comma separated list indicating what tags, if any,
         should be used to filter the list of monitors by scope
     :type sources: Optional[str]
     :param tags: Get datadog events from specifc sources.
     :type tags: Optional[List[str]]
-    :param response_check: A check against the ‘requests’ response object. The callable takes 
-        the response object as the first positional argument and optionally any number of 
-        keyword arguments available in the context dictionary. It should return True for 
+    :param response_check: A check against the ‘requests’ response object. The callable takes
+        the response object as the first positional argument and optionally any number of
+        keyword arguments available in the context dictionary. It should return True for
         ‘pass’ and False otherwise.
     :param response_check: Optional[Callable[[Dict[str, Any]], bool]]
     """
