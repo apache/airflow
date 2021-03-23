@@ -19,6 +19,9 @@
 CLIENTS_GEN_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 readonly CLIENTS_GEN_DIR
 
+CLEANUP_DIRS=(client docs test README.md)
+readonly CLEANUP_DIRS
+
 # shellcheck source=./clients/gen/common.sh
 source "${CLIENTS_GEN_DIR}/common.sh"
 
@@ -39,6 +42,7 @@ gen_client python \
 echo "--- Patching generated code..."
 
 # Post-processing of the generated Python wrapper.
+
 touch "${OUTPUT_DIR}/__init__.py"
 find "${OUTPUT_DIR}/test" -type f -name \*.py -exec sed -i '' -e 's/client/airflow_client.client/g' {} +
 find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed -i '' -e 's/# client/# Apache Airflow Python Client/g' {} +
