@@ -485,6 +485,8 @@ WORKDIR ${AIRFLOW_HOME}
 
 EXPOSE 8080
 
+RUN usermod -g 0 airflow
+
 USER ${AIRFLOW_UID}
 
 # Having the variable in final image allows to disable providers manager warnings when
