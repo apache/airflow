@@ -165,7 +165,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         client_class_mock.return_value = client_mock
 
         operator = DockerSwarmOperator(image='', auto_remove=False, task_id='unittest', enable_logging=False)
-        msg = "Service failed: {'ID': 'some_id'}"
+        msg = "Service did not complete: {'ID': 'some_id'}"
         with pytest.raises(AirflowException) as ctx:
             operator.execute(None)
         assert str(ctx.value) == msg
