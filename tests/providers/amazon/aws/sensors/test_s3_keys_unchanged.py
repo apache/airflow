@@ -107,5 +107,4 @@ class TestS3KeysUnchangedSensor(TestCase):
     def test_poke_succeeds_on_upload_complete(self, mock_hook):
         mock_hook.return_value.list_keys.return_value = {'a'}
         assert not self.sensor.poke(dict())
-        assert not self.sensor.poke(dict())
         assert self.sensor.poke(dict())
