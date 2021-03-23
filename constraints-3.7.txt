@@ -457,7 +457,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.4
 sphinxcontrib-spelling==5.2.1
-spython==0.1.1
+spython==0.1.11
 sshpubkeys==3.3.1
 sshtunnel==0.1.5
 starkbank-ecdsa==1.1.0
