@@ -15,13 +15,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+set -euo pipefail
+
+# We cannot perform full initialization because it will be done later in the "single run" scripts
+# And some readonly variables are set there, therefore we only selectively reuse parallel lib needed
+LIBRARIES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../libraries/" && pwd)
+# shellcheck source=scripts/ci/libraries/_all_libs.sh
+source "${LIBRARIES_DIR}/_all_libs.sh"
+
+initialization::set_output_color_variables
+
+parallel::make_sure_gnu_parallel_is_installed
 
 echo
 echo "Waiting for all PROD images to appear: ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}"
 echo
 
-for PYTHON_MAJOR_MINOR_VERSION in ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}
-do
-    export PYTHON_MAJOR_MINOR_VERSION
-    "$( dirname "${BASH_SOURCE[0]}" )/ci_wait_for_prod_image.sh"
-done
+parallel::initialize_monitoring
+
+parallel::monitor_progress
+
+# shellcheck disable=SC2086
+parallel --results "${PARALLEL_MONITORED_DIR}" \
+    "$( dirname "${BASH_SOURCE[0]}" )/ci_wait_for_and_verify_prod_image.sh" ::: \
+    ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}

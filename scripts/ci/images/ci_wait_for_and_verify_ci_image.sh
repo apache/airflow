@@ -15,8 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+if [[ $1 == "" ]]; then
+  >&2 echo "Requires python MAJOR/MINOR version as first parameter"
+  exit 1
+fi
+
+export PYTHON_MAJOR_MINOR_VERSION=$1
+shift
+
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$(dirname "${BASH_SOURCE[0]}")/../libraries/_script_init.sh"
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 function pull_ci_image() {
     local image_name_with_tag="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
@@ -27,9 +37,21 @@ function pull_ci_image() {
 
 }
 
+push_pull_remove_images::check_if_github_registry_wait_for_image_enabled
+
+build_image::configure_docker_registry
+
+export AIRFLOW_CI_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
+
+start_end::group_start "Waiting for ${AIRFLOW_CI_IMAGE_NAME} image to appear"
+
+push_pull_remove_images::wait_for_github_registry_image \
+    "${AIRFLOW_CI_IMAGE_NAME}${GITHUB_REGISTRY_IMAGE_SUFFIX}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
 
 build_images::prepare_ci_build
 
 pull_ci_image
 
 verify_image::verify_ci_image "${AIRFLOW_CI_IMAGE}"
+
+start_end::group_end
