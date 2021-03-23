@@ -48,8 +48,9 @@ function validate_input {
     # cleanup the existing generated code, otherwise generator would skip them
     for dir in "${CLEANUP_DIRS[@]}"
     do
-        echo "Cleaning up ${OUTPUT_DIR}/${dir}"
-        rm -rf "${OUTPUT_DIR}/${dir}"
+        local dirToClean="${OUTPUT_DIR}/${dir}"
+        echo "Cleaning up ${dirToClean}"
+        rm -rf "${dirToClean:?}"
     done
 
     # create openapi ignore file to keep generated code clean
