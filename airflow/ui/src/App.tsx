@@ -48,8 +48,8 @@ const App = () => (
     <Route exact path="/access" component={Access} />
     <Route exact path="/access/users" component={Users} />
     <Route exact path="/access/users/new" component={Users} />
-    <Route exact path="/access/users/:id" component={Users} />
-    <Route exact path="/access/users/:id/edit" component={Users} />
+    <Route exact path="/access/users/:username" component={Users} />
+    <Route exact path="/access/users/:username/edit" component={Users} />
     <Route exact path="/access/roles" component={Roles} />
 
     <Route exact path="/docs" component={Docs} />
