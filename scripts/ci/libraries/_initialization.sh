@@ -202,6 +202,8 @@ function initialization::initialize_files_for_rebuild_check() {
         "airflow/www/package.json"
         "airflow/www/yarn.lock"
         "airflow/www/webpack.config.js"
+        "airflow/ui/package.json"
+        "airflow/ui/yarn.lock"
     )
 }
 
