@@ -62,6 +62,7 @@ class TestCliTasks(unittest.TestCase):
         cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
 
+    @pytest.mark.skip(reason="This test hangs in v2-0-test branch")
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:
             args = self.parser.parse_args(['tasks', 'list', dag_id])
