@@ -608,8 +608,8 @@ class Airflow(AirflowBaseView):
         arg_search_query = request.args.get('search')
         arg_tags_filter = request.args.getlist('tags')
         arg_status_filter = request.args.get('status')
-        arg_sorting_key = request.args.get('sortBy')
-        arg_orderby_key = request.args.get('orderBy')
+        arg_sorting_key = request.args.get('orderBy')
+        arg_orderby_key = request.args.get('orderDir')
 
         if request.args.get('reset_tags') is not None:
             flask_session[FILTER_TAGS_COOKIE] = None

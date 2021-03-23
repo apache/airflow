@@ -152,8 +152,8 @@ def generate_pages(current_page,
                 search=search,
                 status=status,
                 tags=tags,
-                sortBy=sorting_key,
-                orderBy=sorting_order,
+                orderBy=sorting_key,
+                orderDir=sorting_order,
             )
         )
 
@@ -193,8 +193,8 @@ def generate_pages(current_page,
                 search=search,
                 status=status,
                 tags=tags,
-                sortBy=sorting_key,
-                orderBy=sorting_order
+                orderBy=sorting_key,
+                orderDir=sorting_order
             )
         )
     )
@@ -210,7 +210,7 @@ def generate_pages(current_page,
         last_node.format(
             href_link="?{}".format(  # noqa
                 get_params(
-                    page=last_page, search=search, status=status, sortBy=sorting_key, orderBy=sorting_order
+                    page=last_page, search=search, status=status, orderBy=sorting_key, orderDir=sorting_order
                 )
             ),
             disabled=is_disabled,

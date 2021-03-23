@@ -25,15 +25,15 @@
 {%- endmacro -%}
 
 {%- macro sorted_th_link(name, attr_name) -%}
-   {% set request_ordering = (request.args.get('orderBy', 'unsorted')) %}
-   {% set curr_ordering = ('unsorted' if request.args.get('sortBy') != attr_name else request_ordering ) %}
-   {% set new_ordering = ('asc' if request.args.get('sortBy') != attr_name or curr_ordering != 'asc' else 'desc' ) %}
+   {% set request_ordering = (request.args.get('orderDir', 'unsorted')) %}
+   {% set curr_ordering = ('unsorted' if request.args.get('orderDir') != attr_name else request_ordering ) %}
+   {% set new_ordering = ('asc' if request.args.get('orderDir') != attr_name or curr_ordering != 'asc' else 'desc' ) %}
    <a href="{{ url_for('Airflow.index',
                        status=request.args.get('status', 'all'),
                        search=request.args.get('search', None),
                        tags=request.args.get('tags', None),
-                       sortBy=attr_name,
-                       orderBy=new_ordering
+                       orderBy=attr_name,
+                       orderDir=new_ordering
                        ) }}"
    class="js-tooltip"
    role="tooltip"
@@ -42,9 +42,9 @@
     {{ name }}
 
     <span class="material-icons" aria-hidden="true" aria-describedby="sorting-tip-{{ name }}">
-      {% if request.args.get('orderBy', 'none') == 'desc' and request.args.get('sortBy') == attr_name %}
+      {% if request.args.get('orderDir', 'none') == 'desc' and request.args.get('orderBy') == attr_name %}
         expand_less
-      {% elif request.args.get('orderBy', 'none') == 'asc' and request.args.get('sortBy') == attr_name %}
+      {% elif request.args.get('orderDir', 'none') == 'asc' and request.args.get('orderBy') == attr_name %}
         expand_more
       {% else %}
         unfold_more
