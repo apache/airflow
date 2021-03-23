@@ -1504,7 +1504,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
 
 
 class CloudDataCatalogLookupEntryOperator(BaseOperator):
-    r"""
+    """
     Get an entry by target resource name.
 
     This method allows clients to use the resource name from the source Google Cloud service
