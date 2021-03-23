@@ -19,13 +19,14 @@ import socket
 import unittest
 from unittest import mock
 
-from kubernetes.client import Configuration
+from kubernetes.client import Configuration, configuration
 from urllib3.connection import HTTPConnection, HTTPSConnection
 
 from airflow.kubernetes.kube_client import (
     RefreshConfiguration,
     _disable_verify_ssl,
     _enable_tcp_keepalive,
+    _set_proxy,
     get_kube_client,
 )
 
@@ -58,6 +59,8 @@ class TestClient(unittest.TestCase):
         assert HTTPSConnection.default_socket_options == expected_https_connection_options
 
     def test_disable_verify_ssl(self):
+
+        # Warning: Test has side effects.
         configuration = Configuration()
         self.assertTrue(configuration.verify_ssl)
 
@@ -65,3 +68,15 @@ class TestClient(unittest.TestCase):
 
         configuration = Configuration()
         self.assertFalse(configuration.verify_ssl)
+
+    def test_proxy_url(self):
+
+        # Configuration parameters are done through Configuration.set_default(),
+        # so configuration in this case will still have verify_ssl==False from the above test.
+        configuration = Configuration()
+        self.assertIsNone(configuration.proxy)
+
+        test_url = 'http://10.245.35.252:8118'
+        _set_proxy(test_url)
+        configuration = Configuration()
+        self.assertEqual(configuration.proxy, test_url)

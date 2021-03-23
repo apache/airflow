@@ -17,6 +17,8 @@
 """Client for kubernetes communication"""
 from typing import Optional
 
+from kubernetes.client import configuration
+
 from airflow.configuration import conf
 
 try:
@@ -61,6 +63,11 @@ try:
     def _disable_verify_ssl() -> None:
         configuration = Configuration()
         configuration.verify_ssl = False
+        Configuration.set_default(configuration)
+
+    def _set_proxy(proxy_url) -> None:
+        configuration = Configuration()
+        configuration.proxy = proxy_url
         Configuration.set_default(configuration)
 
 
@@ -130,6 +137,8 @@ def get_kube_client(
 
     if not conf.getboolean('kubernetes', 'verify_ssl', fallback=True):
         _disable_verify_ssl()
+
+    _set_proxy(conf.get('kubernetes', 'proxy_url', fallback=None))
 
     client_conf = _get_kube_config(in_cluster, cluster_context, config_file)
     return _get_client_with_patched_configuration(client_conf)

@@ -2130,6 +2130,14 @@
       type: boolean
       example: ~
       default: "True"
+    - name: proxy_url
+      description: |
+        Configure the Kubernetes Python client configuration proxy parameter. Useful
+        if the Kubernetes API is sitting behind something like privoxy or a load balancer.
+      version_added: ~
+      type: string
+      example: "http://10.245.35.252:8118"
+      default: ""
 - name: smart_sensor
   description: ~
   options:
