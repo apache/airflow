@@ -123,8 +123,8 @@ def fetch_inventories():
             (path for _, _, path in to_download),
         )
     failed, success = partition(lambda d: d[1], download_results)
-    failed, success = list(failed), list(failed)
-    print(f"Result: {len(success)}, success {len(failed)} failed")
+    failed, success = list(failed), list(success)
+    print(f"Result: {len(success)} success, {len(failed)} failed")
     if failed:
         print("Failed packages:")
         for pkg_no, (pkg_name, _) in enumerate(failed, start=1):
