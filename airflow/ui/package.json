@@ -31,6 +31,8 @@
     "@types/react-router-dom": "^5.1.7",
     "eslint": "^7",
     "eslint-config-airbnb-typescript": "^12.3.1",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-jsx-a11y": "^6.4.1",
     "history": "^5.0.0",
     "jest": "^26",
     "neutrino": "^9.5.0",
