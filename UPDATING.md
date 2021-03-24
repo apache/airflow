@@ -70,6 +70,16 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Default `[webserver] worker_refresh_interval` is changed to `6000` seconds
+
+The default value for `[webserver] worker_refresh_interval` was `30` seconds for
+Airflow <=2.0.1. However, since Airflow 2.0 DAG Serialization is a hard requirement
+and the Webserver used the serialized DAGs, there is no need to kill an existing
+worker and create a new one as frequently as `30` seconds.
+
+This setting can be raised to an even higher value, currently it is
+set to `6000` seconds (10 minutes) to
+serve as a DagBag cache burst time.
 
 ## Airflow 2.0.1
 
