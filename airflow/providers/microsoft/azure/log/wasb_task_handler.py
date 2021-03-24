@@ -181,11 +181,10 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             the new log is appended to any existing logs.
         :type append: bool
         """
-        if append and self.wasb_log_exists(remote_log_location):
-            old_log = self.wasb_read(remote_log_location)
-            log = '\n'.join([old_log, log]) if old_log else log
-
         try:
+            if append and self.wasb_log_exists(remote_log_location):
+                old_log = self.wasb_read(remote_log_location)
+                log = '\n'.join([old_log.decode("utf-8"), log]) if old_log else log
             self.hook.load_string(
                 log,
                 self.wasb_container,
