@@ -858,6 +858,9 @@ class DataprocJobBaseOperator(BaseOperator):
     :type job_name: str
     :param cluster_name: The name of the DataProc cluster.
     :type cluster_name: str
+    :param project_id: The ID of the Google Cloud project the cluster belongs to,
+        if not specified the project will be inferred from the provided GCP connection.
+    :type project_id: str
     :param dataproc_properties: Map for the Hive properties. Ideal to put in
         default arguments (templated)
     :type dataproc_properties: dict
@@ -912,6 +915,7 @@ class DataprocJobBaseOperator(BaseOperator):
         *,
         job_name: str = '{{task.task_id}}_{{ds_nodash}}',
         cluster_name: str = "cluster-1",
+        project_id: Optional[str] = None,
         dataproc_properties: Optional[Dict] = None,
         dataproc_jars: Optional[List[str]] = None,
         gcp_conn_id: str = 'google_cloud_default',
@@ -943,9 +947,8 @@ class DataprocJobBaseOperator(BaseOperator):
 
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
         self.impersonation_chain = impersonation_chain
-
         self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
-        self.project_id = self.hook.project_id
+        self.project_id = self.hook.project_id if project_id is None else project_id
         self.job_template = None
         self.job = None
         self.dataproc_job_id = None
