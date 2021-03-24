@@ -684,10 +684,6 @@
                     "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
                     "type": "boolean"
                 },
-                "serviceAccountAnnotations": {
-                  "description": "Annotations to add to the worker kubernetes service account.",
-                  "type": "object"
-                },
                 "extraContainers": {
                     "description": "Launch additional containers into workers.",
                     "type": "array"
@@ -806,10 +802,6 @@
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
                     "type": "boolean"
-                },
-                "serviceAccountAnnotations": {
-                  "description": "Annotations to add to the scheduler kubernetes service account.",
-                  "type": "object"
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into scheduler.",

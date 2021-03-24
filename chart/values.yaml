@@ -381,8 +381,6 @@ workers:
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
-  # Annotations to add to worker kubernetes service account.
-  serviceAccountAnnotations: {}
 
   # Launch additional containers into worker.
   extraContainers: []
@@ -453,9 +451,6 @@ scheduler:
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
-
-  # Annotations to add to scheduler kubernetes service account.
-  serviceAccountAnnotations: {}
 
   # Launch additional containers into scheduler.
   extraContainers: []
