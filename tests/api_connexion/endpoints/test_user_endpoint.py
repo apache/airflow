@@ -209,7 +209,7 @@ class TestGetUsersPagination(TestUserEndpoint):
         self.session.commit()
         response = self.client.get("/api/v1/users?order_by=myname", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 400
-        msg = "Ordering with 'myname' is disallowed or the attribute does not exist on User model"
+        msg = "Ordering with 'myname' is disallowed or the attribute does not exist on the model"
         assert response.json['detail'] == msg
 
     def test_limit_of_zero_should_return_default(self):

@@ -285,7 +285,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "api/v1/dags/TEST_DAG_ID/dagRuns?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 400
-        msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on DagRun model"
+        msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
         assert response.json['detail'] == msg
 
     def test_return_correct_results_with_order_by(self, session):

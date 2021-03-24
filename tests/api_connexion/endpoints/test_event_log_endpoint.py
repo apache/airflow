@@ -330,7 +330,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
             "/api/v1/eventLogs?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 400
-        msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on Log model"
+        msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
         assert response.json['detail'] == msg
 
     @provide_session

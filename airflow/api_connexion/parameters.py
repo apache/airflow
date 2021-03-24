@@ -89,30 +89,19 @@ def format_parameters(params_formatters: Dict[str, Callable[..., bool]]) -> Call
     return format_parameters_decorator
 
 
-def apply_sorting(model, query, order_by, to_replace=None, allowed_attrs=None):
+def apply_sorting(query, order_by, to_replace=None, allowed_attrs=None):
     """Apply sorting to query"""
     lstriped_orderby = order_by.lstrip('-')
     if allowed_attrs and lstriped_orderby not in allowed_attrs:
-        modelname = model.__tablename__.capitalize()
-        model_mapping = {
-            "Ab_user": 'User',
-            "Slot_pool": "Pool",
-            "Dag_run": "DagRun",
-            "Dag": "DagModel",
-            "Ab_role": "Role",
-            "Import_error": "ImportError",
-        }
-        if model_mapping.get(modelname, None):
-            modelname = model_mapping[modelname]
         raise BadRequest(
             detail=f"Ordering with '{lstriped_orderby}' is disallowed or "
-            f"the attribute does not exist on {modelname} model"
+            f"the attribute does not exist on the model"
         )
-    if to_replace:
-        for key, value in to_replace.items():
-            if key == order_by:
-                order_by = value
-    if '-' in order_by:
-        return query.order_by(desc(lstriped_orderby))
+    if order_by[0] == "-":
+        func = desc
+        order_by = lstriped_orderby
     else:
-        return query.order_by(asc(order_by))
+        func = asc
+    if to_replace:
+        order_by = to_replace.get(order_by, order_by)
+    return query.order_by(func(order_by))

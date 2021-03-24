@@ -46,7 +46,7 @@ def get_event_log(event_log_id, session):
 @provide_session
 def get_event_logs(session, limit, offset=None, order_by='event_log_id'):
     """Get all log entries from event log"""
-    to_replace = {"event_log_id": "id", "-event_log_id": "-id", "when": "dttm", "-when": "-dttm"}
+    to_replace = {"event_log_id": "id", "when": "dttm"}
     allowed_filter_attrs = [
         'event_log_id',
         "when",
@@ -59,7 +59,7 @@ def get_event_logs(session, limit, offset=None, order_by='event_log_id'):
     ]
     total_entries = session.query(func.count(Log.id)).scalar()
     query = session.query(Log)
-    query = apply_sorting(Log, query, order_by, to_replace, allowed_filter_attrs)
+    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
     event_logs = query.offset(offset).limit(limit).all()
     return event_log_collection_schema.dump(
         EventLogCollection(event_logs=event_logs, total_entries=total_entries)
