@@ -37,7 +37,7 @@ Werkzeug==1.0.1
 adal==1.2.6
 aiohttp==3.7.4.post0
 alabaster==0.7.12
-alembic==1.5.7
+alembic==1.5.8
 amqp==2.6.1
 analytics-python==1.2.9
 ansiwrap==0.8.4
@@ -214,7 +214,7 @@ gevent==21.1.2
 gitdb==4.0.5
 github3.py==2.0.0
 google-ads==7.0.0
-google-api-core==1.26.1
+google-api-core==1.26.2
 google-api-python-client==1.12.8
 google-apitools==0.5.31
 google-auth-httplib2==0.1.0

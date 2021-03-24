@@ -24,7 +24,7 @@ SQLAlchemy-Utils==0.36.8
 SQLAlchemy==1.3.23
 WTForms==2.3.3
 Werkzeug==1.0.1
-alembic==1.5.7
+alembic==1.5.8
 amqp==2.6.1
 apispec==3.3.2
 appdirs==1.4.4
