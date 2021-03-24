@@ -28,22 +28,20 @@ function compile_www_assets() {
     md5sum_file="static/dist/sum.md5"
     readonly md5sum_file
     local airflow_site_package
-    airflow_site_package="$(python -m site --user-site)"
+    airflow_site_package="$(python -m site --user-site)/airflow"
     local www_dir=""
     if [[ -f "${airflow_site_package}/www_rbac/package.json" ]]; then
         www_dir="${airflow_site_package}/www_rbac"
     elif [[ -f "${airflow_site_package}/www/package.json" ]]; then
         www_dir="${airflow_site_package}/www"
     fi
-    if [[ -n "${www_dir}" ]]; then
-        pushd ${www_dir} || exit 1
-        yarn install --frozen-lockfile --no-cache
-        yarn run prod
-        find package.json yarn.lock static/css static/js -type f | sort | xargs md5sum > "${md5sum_file}"
-        rm -rf "${www_dir}/node_modules"
-        rm -vf "${www_dir}"/{package.json,yarn.lock,.eslintignore,.eslintrc,.stylelintignore,.stylelintrc,compile_assets.sh,webpack.config.js}
-        popd || exit 1
-    fi
+    pushd ${www_dir} || exit 1
+    yarn install --frozen-lockfile --no-cache
+    yarn run prod
+    find package.json yarn.lock static/css static/js -type f | sort | xargs md5sum > "${md5sum_file}"
+    rm -rf "${www_dir}/node_modules"
+    rm -vf "${www_dir}"/{package.json,yarn.lock,.eslintignore,.eslintrc,.stylelintignore,.stylelintrc,compile_assets.sh,webpack.config.js}
+    popd || exit 1
 }
 
 compile_www_assets
