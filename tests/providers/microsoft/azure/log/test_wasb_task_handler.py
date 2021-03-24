@@ -145,7 +145,8 @@ class TestWasbTaskHandler(unittest.TestCase):
     @mock.patch.object(WasbTaskHandler, "wasb_log_exists")
     def test_write_on_existing_log(self, mock_log_exists, mock_wasb_read, mock_hook):
         mock_log_exists.return_value = True
-        mock_wasb_read.return_value = "old log"
+        mock_wasb_read.return_value = b"old log"
+
         self.wasb_task_handler.wasb_write('text', self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
             "old log\ntext", self.container_name, self.remote_log_location
