@@ -38,13 +38,13 @@ regarding its security model.
 Default Roles
 '''''''''''''
 
-Airflow uses roles to manage all permissions across your environment. Each role has permissions which provide varying levels of access to Airflow's key resources (DAGs, Connections, etc).
+By default, Airlfow 2.0+ uses role-based access control (RBAC) to manage all permissions across your environment. Each role has permissions which provide varying levels of access to Airflow's key resources (DAGs, Connections, etc).
 
 An environment's roles can be found under the **Security** tab:
 
 .. image:: /img/list-roles.png
 
-Airflow ships with a set of roles by default:
+Airflow ships with a default set of roles:
 
 Admin
 ^^^^^
@@ -88,7 +88,7 @@ Op
 
 
 Custom Roles
-'''''''''''''
+''''''''''''
 
 Creating custom roles is the recommended way to customize your environment access. To do so:
 
