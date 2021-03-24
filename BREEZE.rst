@@ -2298,8 +2298,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  pre-commit-hook-names provide-create-sessions providers-init-file provider-yamls
                  pydevd pydocstyle pylint pylint-tests python-no-log-warn pyupgrade
                  restrict-start_date rst-backticks setup-order setup-extra-packages shellcheck
-                 sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace ui-lint
-                 ui-test update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
+                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
                  version-sync yamllint
 
         You can pass extra arguments including options to the pre-commit framework as
