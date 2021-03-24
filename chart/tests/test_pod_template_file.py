@@ -268,3 +268,20 @@ class PodTemplateFileTest(unittest.TestCase):
         )
 
         self.assertEqual(5000, jmespath.search("spec.securityContext.fsGroup", docs[0]))
+
+    def test_should_create_valid_volume_mount_and_volume(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {
+                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
+                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                }
+            },
+            show_only=["templates/pod-template-file.yaml"],
+        )
+
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+        )
