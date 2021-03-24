@@ -3182,7 +3182,7 @@ components:
       schema:
         type: string
       required: false
-      description: The name of the field to order results
+      description: The name of the field to order the results by. Prefix a field name with `-` to reverse the sort order.
 
     # Other parameters
 
