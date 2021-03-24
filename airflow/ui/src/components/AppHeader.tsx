@@ -18,15 +18,40 @@
  */
 
 import React from 'react';
-import { Center, Heading } from '@chakra-ui/react';
-import AppHeader from 'components/AppHeader';
+import {
+  Button,
+  Flex,
+  Box,
+  Icon,
+} from '@chakra-ui/react';
+import { MdExitToApp } from 'react-icons/md';
+import { useAuthContext } from 'auth/context';
 
-const Pipelines: React.FC = () => (
-  <AppHeader>
-    <Center height="100%" width="100%">
-      <Heading>Pipelines</Heading>
-    </Center>
-  </AppHeader>
-);
+const AppHeader: React.FC = ({ children }) => {
+  const { logout } = useAuthContext();
 
-export default Pipelines;
+  return (
+    <Flex width="100vw" height="100vh">
+      <Flex
+        as="header"
+        position="fixed"
+        width="100vw"
+        zIndex={2}
+        align="center"
+        justifyContent="space-between"
+        py="2"
+        px="4"
+        borderBottomWidth="1px"
+      >
+        <Box />
+        <Button onClick={logout}>
+          <Icon as={MdExitToApp} mr="2" />
+          Logout
+        </Button>
+      </Flex>
+      {children}
+    </Flex>
+  );
+};
+
+export default AppHeader;
