@@ -457,17 +457,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
         self.get_session.commit()
 
-    def get_all_permissions(self):
+    def get_all_permissions(self) -> Set[Tuple[str, str]]:
         """Returns all permissions as a set of tuples with the perm name and view menu name"""
-        perms = set()
-        for permission_view in self.get_session.query(self.permissionview_model).all():
-            if permission_view.permission and permission_view.view_menu:
-                perms.add((permission_view.permission.name, permission_view.view_menu.name))
+        return set(
+            self.get_session.query(self.permissionview_model)
+            .join(self.permission_model)
+            .join(self.viewmenu_model)
+            .with_entities(self.permission_model.name, self.viewmenu_model.name)
+            .all()
+        )
 
-        return perms
-
-    @provide_session
-    def create_dag_specific_permissions(self, session=None):
+    def create_dag_specific_permissions(self) -> None:
         """
         Creates 'can_read' and 'can_edit' permissions for all active and paused DAGs.
 
@@ -475,7 +475,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """
         perms = self.get_all_permissions()
         rows = (
-            session.query(models.DagModel.dag_id)
+            self.get_session.query(models.DagModel.dag_id)
             .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))
             .all()
         )
@@ -484,7 +484,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             dag_id = row[0]
             for perm_name in self.DAG_PERMS:
                 dag_resource_name = self.prefixed_dag_id(dag_id)
-                if dag_resource_name and perm_name and (dag_resource_name, perm_name) not in perms:
+                if (perm_name, dag_resource_name) not in perms:
                     self._merge_perm(perm_name, dag_resource_name)
 
     def update_admin_perm_view(self):
