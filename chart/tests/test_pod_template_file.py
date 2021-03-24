@@ -281,7 +281,7 @@ class PodTemplateFileTest(unittest.TestCase):
             show_only=["templates/pod-template-file.yaml"],
         )
 
-        assert "test-volume" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[3].name", docs[0])
         assert "test-volume" == jmespath.search(
-            "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+            "spec.template.spec.containers[0].volumeMounts[3].name", docs[0]
         )
