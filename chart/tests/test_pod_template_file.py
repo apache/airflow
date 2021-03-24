@@ -272,7 +272,6 @@ class PodTemplateFileTest(unittest.TestCase):
     def test_should_create_valid_volume_mount_and_volume(self):
         docs = render_chart(
             values={
-                "executor": "KubernetesExecutor",
                 "workers": {
                     "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
                     "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
@@ -281,7 +280,7 @@ class PodTemplateFileTest(unittest.TestCase):
             show_only=["templates/pod-template-file.yaml"],
         )
 
-        assert "test-volume" == jmespath.search("spec.template.spec.volumes[3].name", docs[0])
+        assert "test-volume" == jmespath.search("spec.volumes[2].name", docs[0])
         assert "test-volume" == jmespath.search(
-            "spec.template.spec.containers[0].volumeMounts[3].name", docs[0]
+            "spec.containers[0].volumeMounts[2].name", docs[0]
         )
