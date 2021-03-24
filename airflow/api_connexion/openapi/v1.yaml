@@ -2574,6 +2574,11 @@ components:
     ListDagRunsForm:
       type: object
       properties:
+        order_by:
+          type: string
+          description: |
+            The name of the field to order the results by. Prefix a field name
+            with `-` to reverse the sort order.
         page_offset:
           type: integer
           minimum: 0
@@ -3182,7 +3187,9 @@ components:
       schema:
         type: string
       required: false
-      description: The name of the field to order the results by. Prefix a field name with `-` to reverse the sort order.
+      description: |
+        The name of the field to order the results by.
+        Prefix a field name with `-` to reverse the sort order.
 
     # Other parameters
 

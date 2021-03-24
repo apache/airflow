@@ -132,7 +132,7 @@ def _fetch_dag_runs(
     start_date_lte,
     limit,
     offset,
-    order_by='id',
+    order_by,
 ):  # pylint: disable=too-many-arguments
     query = _apply_date_filters_to_query(
         query,
@@ -219,6 +219,7 @@ def get_dag_runs_batch(session):
         data["start_date_lte"],
         data["page_limit"],
         data["page_offset"],
+        order_by=data.get('order_by', "id"),
     )
 
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
