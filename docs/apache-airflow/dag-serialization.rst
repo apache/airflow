@@ -60,7 +60,7 @@ To limit the excessive growth of the database, only the most recent entries are 
 are purged.
 
 .. note::
-  Since Airflow 2.0 DAG Serialization is strictly required and can not be turned off.
+  DAG Serialization is strictly required and can not be turned off from Airflow 2.0 onwards.
 
 
 Dag Serialization Settings
