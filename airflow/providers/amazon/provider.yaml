@@ -63,6 +63,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/ecs/
     logo: /integration-logos/aws/Amazon-Elastic-Container-Service_light-bg@4x.png
     tags: [aws]
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    external-doc-url: https://aws.amazon.com/eks/
+    logo: /integration-logos/aws/Amazon-Elastic-Kubernetes-Service_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/eks.rst
+    tags: [aws]
   - integration-name: Amazon ElastiCache
     external-doc-url: https://aws.amazon.com/elasticache/redis//
     logo: /integration-logos/aws/Amazon-ElastiCache_light-bg@4x.png
@@ -173,6 +179,9 @@ operators:
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.operators.ecs
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    python-modules:
+      - airflow.providers.amazon.aws.operators.eks
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.operators.emr_add_steps
@@ -228,6 +237,9 @@ sensors:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2_instance_state
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.eks
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.sensors.emr_base
@@ -293,6 +305,9 @@ hooks:
   - integration-name: Amazon ElastiCache
     python-modules:
       - airflow.providers.amazon.aws.hooks.elasticache_replication_group
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.eks
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.hooks.emr
