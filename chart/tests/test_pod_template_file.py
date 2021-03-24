@@ -55,7 +55,7 @@ class PodTemplateFileTest(unittest.TestCase):
                     "gitSync": {
                         "repository": "test-registry/test-repo",
                         "tag": "test-tag",
-                        "pullPolicy": "Allways",
+                        "pullPolicy": "Always",
                     }
                 },
                 "dags": {
@@ -85,7 +85,7 @@ class PodTemplateFileTest(unittest.TestCase):
             "name": "git-sync-test",
             "securityContext": {"runAsUser": 65533},
             "image": "test-registry/test-repo:test-tag",
-            "imagePullPolicy": "Allways",
+            "imagePullPolicy": "Always",
             "env": [
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
