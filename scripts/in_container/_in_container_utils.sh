@@ -16,9 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Can be used to add extra parameters when generating providers
-# We will be able to remove it after we drop backport providers
-OPTIONAL_BACKPORT_FLAG=()
 OPTIONAL_VERBOSE_FLAG=()
 PROVIDER_PACKAGES_DIR="${AIRFLOW_SOURCES}/dev/provider_packages"
 
@@ -110,6 +107,7 @@ function in_container_cleanup_pyc() {
     sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/www_rbac/node_modules" -prune -o \
+        -path "./airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
@@ -125,6 +123,7 @@ function in_container_cleanup_pycache() {
     find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/www_rbac/node_modules" -prune -o \
+        -path "./airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
@@ -186,6 +185,7 @@ function in_container_refresh_pylint_todo() {
     find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/www_rbac/node_modules" -prune -o \
+        -path "./airflow/ui/node_modules" -prune -o \
         -path "./airflow/migrations/versions" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
@@ -390,18 +390,10 @@ function install_all_provider_packages_from_sdist() {
 }
 
 function setup_provider_packages() {
-    if [[ ${BACKPORT_PACKAGES:=} == "true" ]]; then
-        export PACKAGE_TYPE="backport"
-        export PACKAGE_PREFIX_UPPERCASE="BACKPORT_"
-        export PACKAGE_PREFIX_LOWERCASE="backport_"
-        export PACKAGE_PREFIX_HYPHEN="backport-"
-        OPTIONAL_BACKPORT_FLAG+=("--backports")
-    else
-        export PACKAGE_TYPE="regular"
-        export PACKAGE_PREFIX_UPPERCASE=""
-        export PACKAGE_PREFIX_LOWERCASE=""
-        export PACKAGE_PREFIX_HYPHEN=""
-    fi
+    export PACKAGE_TYPE="regular"
+    export PACKAGE_PREFIX_UPPERCASE=""
+    export PACKAGE_PREFIX_LOWERCASE=""
+    export PACKAGE_PREFIX_HYPHEN=""
     if [[ ${VERBOSE} == "true" ]]; then
         OPTIONAL_VERBOSE_FLAG+=("--verbose")
     fi
@@ -409,9 +401,6 @@ function setup_provider_packages() {
     readonly PACKAGE_PREFIX_UPPERCASE
     readonly PACKAGE_PREFIX_LOWERCASE
     readonly PACKAGE_PREFIX_HYPHEN
-
-    readonly BACKPORT_PACKAGES
-    export BACKPORT_PACKAGES
 }
 
 function verify_suffix_versions_for_package_preparation() {
@@ -610,14 +599,8 @@ function get_providers_to_act_on() {
     if [[ -z "$*" ]]; then
         while IFS='' read -r line; do PROVIDER_PACKAGES+=("$line"); done < <(
             python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-                list-providers-packages \
-                "${OPTIONAL_BACKPORT_FLAG[@]}"
+                list-providers-packages
         )
-        if [[ "$BACKPORT_PACKAGES" != "true" ]]; then
-            # Don't check for missing packages when we are building backports -- we have filtered some out,
-            # and the non-backport build will check for any missing.
-            check_missing_providers
-        fi
     else
         if [[ "${1}" == "--help" ]]; then
             echo
@@ -627,7 +610,6 @@ function get_providers_to_act_on() {
             echo
             python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
                 list-providers-packages \
-                "${OPTIONAL_BACKPORT_FLAG[@]}" \
                 | tr '\n ' ' ' | fold -w 100 -s
             echo
             echo

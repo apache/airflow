@@ -20,10 +20,10 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Regular provider packages](#regular-provider-packages)
+- [Provider packages](#provider-packages)
 - [Decide when to release](#decide-when-to-release)
-- [Regular provider packages versioning](#regular-provider-packages-versioning)
-- [Prepare Regular Providers (RC)](#prepare-regular-providers-rc)
+- [Provider packages versioning](#provider-packages-versioning)
+- [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Generate release notes](#generate-release-notes)
   - [Build regular provider packages for SVN apache upload](#build-regular-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
@@ -36,6 +36,7 @@
   - [Verify by Contributors](#verify-by-contributors)
 - [Publish release](#publish-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
+  - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi-1)
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
@@ -45,12 +46,12 @@
 
 ------------------------------------------------------------------------------------------------------------
 
-# Regular provider packages
+# Provider packages
 
 The prerequisites to release Apache Airflow are described in [README.md](README.md).
 
-You can read more about the command line tools used to generate the packages and the two types of
-packages we have (Backport and Regular Provider Packages) in [Provider packages](PROVIDER_PACKAGES.md).
+You can read more about the command line tools used to generate the packages in the
+[Provider packages](PROVIDER_PACKAGE_DETAILS.md).
 
 # Decide when to release
 
@@ -59,16 +60,16 @@ a given provider needs to be released - due to new features or due to bug fixes.
 You can release each provider package separately, but due to voting and release overhead we try to group
 releases of provider packages together.
 
-# Regular provider packages versioning
+# Provider packages versioning
 
-We are using the [SEMVER](https://semver.org/) versioning scheme for the regular packages. This is in order
+We are using the [SEMVER](https://semver.org/) versioning scheme for the provider packages. This is in order
 to give the users confidence about maintaining backwards compatibility in the new releases of those
 packages.
 
 Details about maintaining the SEMVER version are going to be discussed and implemented in
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
-# Prepare Regular Providers (RC)
+# Prepare Regular Provider packages (RC)
 
 ## Generate release notes
 
@@ -255,7 +256,7 @@ export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 ./breeze build-docs -- \
-  --for-production
+  --for-production \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-*'
 ```
@@ -323,7 +324,7 @@ git push --set-upstream origin "${branch}"
 
 ## Prepare voting email for Providers release candidate
 
-Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/backport-providers/
+Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/providers/
 
 Send out a vote to the dev@airflow.apache.org mailing list. Here you can prepare text of the
 email.
@@ -576,7 +577,7 @@ First copy all the provider packages .whl files to the `dist` folder.
 ### Building your own docker image
 
 If you prefer to build your own image, you can also use the official image and PyPI packages to test
-backport packages. This is especially helpful when you want to test integrations, but you need to install
+provider packages. This is especially helpful when you want to test integrations, but you need to install
 additional tools. Below is an example Dockerfile, which installs providers for Google/
 
 ```dockerfile
@@ -642,7 +643,7 @@ Cheers,
 
 
 
-### Publish release to SVN
+## Publish release to SVN
 
 The best way of doing this is to svn cp  between the two repos (this avoids having to upload the binaries
 again, and gives a clearer history in the svn commit logs.
@@ -699,61 +700,16 @@ svn commit -m "Release Airflow Providers on $(date)"
 ```
 
 Verify that the packages appear in
-[backport-providers](https://dist.apache.org/repos/dist/release/airflow/providers)
-
-### Publish the final version convenience package to PyPI
-
-Checkout the RC Version for the RC Version released (there is a batch of providers - one of them is enough):
-
-```shell script
-git checkout providers-<PROVIDER_NAME>/<VERSION_RC>
-```
-
-In order to publish to PyPI you just need to build and release packages.
-
-* Generate the packages.
-
-```shell script
-./breeze --backports prepare-provider-packages both
-```
-
-if you ony build few packages, run:
-
-```shell script
-./breeze prepare-provider-packages <PACKAGE> ...
-```
-
-In case you decided to remove some of the packages. remove them from dist folder now:
-
-```shell script
-ls dist/*<provider>*
-rm dist/*<provider>*
-```
-
-
-* Verify the artifacts that would be uploaded:
-
-```shell script
-twine check dist/*
-```
-
-* Upload the package to PyPi's test environment:
-
-```shell script
-twine upload -r pypitest dist/*
-```
-
-* Verify that the test packages look good by downloading it and installing them into a virtual environment.
-  Twine prints the package links as output - separately for each package.
-
-* Upload the package to PyPi's production environment:
-
-```shell script
-twine upload -r pypi dist/*
-```
+[providers](https://dist.apache.org/repos/dist/release/airflow/providers)
 
 
 ## Publish the Regular convenience package to PyPI
+
+* Checkout the RC Version for the RC Version released (there is a batch of providers - one of them is enough):
+
+    ```shell script
+    git checkout providers-<PROVIDER_NAME>/<VERSION_RC>
+    ```
 
 * Generate the packages with final version. Note that
   this will clean up dist folder before generating the packages, so you will only have the right packages there.

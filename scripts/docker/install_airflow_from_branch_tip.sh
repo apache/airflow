@@ -26,16 +26,9 @@
 #
 # If INSTALL_MYSQL_CLIENT is set to false, mysql extra is removed
 #
-set -euo pipefail
+# shellcheck source=scripts/docker/common.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
-test -v INSTALL_MYSQL_CLIENT
-test -v AIRFLOW_INSTALL_USER_FLAG
-test -v AIRFLOW_REPO
-test -v AIRFLOW_BRANCH
-test -v AIRFLOW_CONSTRAINTS_LOCATION
-test -v AIRFLOW_PIP_VERSION
-
-set -x
 
 function install_airflow_from_branch_tip() {
     echo
@@ -56,5 +49,7 @@ function install_airflow_from_branch_tip() {
     echo
     pip uninstall --yes apache-airflow
 }
+
+common::get_constraints_location
 
 install_airflow_from_branch_tip

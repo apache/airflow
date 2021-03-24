@@ -28,6 +28,21 @@ The recommended way to update your DAGs with this chart is to build a new docker
 .. code-block:: bash
 
     docker build --tag "my-company/airflow:8a0da78" . -f - <<EOF
+    FROM apache/airflow
+
+    COPY ./dags/ \${AIRFLOW_HOME}/dags/
+
+    EOF
+
+.. note::
+
+   In airflow images prior to version 2.0.2, there was a bug that required you to use
+   a bit longer Dockerfile, to make sure the image remains OpenShift-compatible (i.e dag
+   has root group similarly as other files). In 2.0.2 this has been fixed.
+
+.. code-block:: bash
+
+    docker build --tag "my-company/airflow:8a0da78" . -f - <<EOF
     FROM apache/airflow:2.0.1
 
     USER root
@@ -37,6 +52,7 @@ The recommended way to update your DAGs with this chart is to build a new docker
     USER airflow
 
     EOF
+
 
 Then publish it in the accessible registry:
 

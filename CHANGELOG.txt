@@ -150,6 +150,45 @@ The full changelog is about 3,000 lines long (already excluding everything backp
 so please check `Airflow 2.0.0 Highligths Blog Post <https://airflow.apache.org/blog/airflow-two-point-oh-is-here/>`_
 instead.
 
+Airflow 1.10.15, 2021-03-17
+----------------------------
+
+Bug Fixes
+"""""""""
+
+- Fix ``airflow db upgrade`` to upgrade db as intended (#13267)
+- Moved boto3 limitation to snowflake (#13286)
+- ``KubernetesExecutor`` should accept images from ``executor_config`` (#13074)
+- Scheduler should acknowledge active runs properly (#13803)
+- Bugfix: Unable to import Airflow plugins on Python 3.8 (#12859)
+- Include ``airflow/contrib/executors`` in the dist package
+- Pin Click version for Python 2.7 users
+- Ensure all statsd timers use millisecond values. (#10633)
+- [``kubernetes_generate_dag_yaml``] - Fix dag yaml generate function (#13816)
+- Fix ``airflow tasks clear` cli command with ``--yes`` (#14188)
+- Fix permission error on non-POSIX filesystem (#13121) (#14383)
+- Fixed deprecation message for "variables" command (#14457)
+- BugFix: fix the ``delete_dag`` function of json_client (#14441)
+- Fix merging of secrets and configmaps for ``KubernetesExecutor`` (#14090)
+- Fix webserver exiting when gunicorn master crashes (#13470)
+- Bump ``ini`` from 1.3.5 to 1.3.8 in ``airflow/www_rbac``
+- Bump ``datatables.net`` from 1.10.21 to 1.10.23 in ``airflow/www_rbac``
+- Webserver: Sanitize string passed to origin param (#14738)
+- Make ``rbac_app``'s ``db.session`` use the same timezone with ``@provide_session`` (#14025)
+
+Improvements
+""""""""""""
+
+- Adds airflow as viable docker command in official image (#12878)
+- ``StreamLogWriter``: Provide (no-op) close method (#10885)
+- Add 'airflow variables list' command for 1.10.x transition version (#14462)
+
+Doc only changes
+""""""""""""""""
+
+- Update URL for Airflow docs (#13561)
+- Clarifies version args for installing 1.10 in Docker (#12875)
+
 Airflow 1.10.14, 2020-12-10
 ----------------------------
 

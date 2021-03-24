@@ -276,6 +276,9 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``workers.tolerations``
      - Toleration labels for pod assignment
      - ``1``
+   * - ``workers.hostAliases``
+     - HostAliases to use in Celery workers
+     - ``[]``
    * - ``scheduler.podDisruptionBudget.enabled``
      - Enable PDB on Airflow scheduler
      - ``1``

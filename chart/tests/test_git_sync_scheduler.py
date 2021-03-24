@@ -188,3 +188,30 @@ class GitSyncSchedulerTest(unittest.TestCase):
         assert {"name": "test-volume", "mountPath": "/opt/test"} in jmespath.search(
             "spec.template.spec.containers[0].volumeMounts", docs[0]
         )
+
+    def test_extra_volume_and_git_sync_extra_volume_mount(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "scheduler": {
+                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
+                },
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "extraVolumeMounts": [{"mountPath": "/opt/test", "name": "test-volume"}],
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {"name": "test-volume", "emptyDir": {}} in jmespath.search(
+            "spec.template.spec.volumes", docs[0]
+        )
+        assert {'mountPath': '/git', 'name': 'dags'} in jmespath.search(
+            "spec.template.spec.containers[1].volumeMounts", docs[0]
+        )
+        assert {"name": "test-volume", "mountPath": "/opt/test"} in jmespath.search(
+            "spec.template.spec.containers[1].volumeMounts", docs[0]
+        )

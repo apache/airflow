@@ -353,9 +353,10 @@ class TestStringifiedDAGs(unittest.TestCase):
             "_task_group",
         }
         for field in fields_to_check:
-            assert getattr(serialized_dag, field) == getattr(
-                dag, field
-            ), f'{dag.dag_id}.{field} does not match'
+            dag_field = getattr(dag, field)
+            if isinstance(dag_field, list):
+                dag_field = sorted(dag_field)
+            assert getattr(serialized_dag, field) == dag_field, f'{dag.dag_id}.{field} does not match'
 
         if dag.default_args:
             for k, v in dag.default_args.items():
@@ -1026,6 +1027,33 @@ class TestStringifiedDAGs(unittest.TestCase):
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
 
         assert deserialized_dag.has_on_failure_callback is expected_value
+
+    @parameterized.expand(
+        [
+            (
+                ['task_1', 'task_5', 'task_2', 'task_4'],
+                ['task_1', 'task_2', 'task_4', 'task_5'],
+            ),
+            (
+                {'task_1', 'task_5', 'task_2', 'task_4'},
+                ['task_1', 'task_2', 'task_4', 'task_5'],
+            ),
+            (
+                ('task_1', 'task_5', 'task_2', 'task_4'),
+                ['task_1', 'task_2', 'task_4', 'task_5'],
+            ),
+            (
+                {"task3": "test3", "task2": "test2", "task1": "test1"},
+                {"task1": "test1", "task2": "test2", "task3": "test3"},
+            ),
+        ]
+    )
+    def test_serialized_objects_are_sorted(self, object_to_serialized, expected_output):
+        """Test Serialized Lists, Sets and Tuples are sorted"""
+        serialized_obj = SerializedDAG._serialize(object_to_serialized)
+        if isinstance(serialized_obj, dict) and "__type" in serialized_obj:
+            serialized_obj = serialized_obj["__var"]
+        assert serialized_obj == expected_output
 
 
 def test_kubernetes_optional():

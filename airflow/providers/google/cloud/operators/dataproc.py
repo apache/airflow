@@ -1630,9 +1630,6 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         ``Job`` created and stored in the backend is returned.
         It is recommended to always set this value to a UUID.
     :type request_id: str
-    :param parameters: Optional. Map from parameter names to values that should be used for those
-        parameters. Values may not exceed 100 characters.
-    :type parameters: Dict[str, str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -1733,9 +1730,6 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         ``Job`` created and stored in the backend is returned.
         It is recommended to always set this value to a UUID.
     :type request_id: str
-    :param parameters: Optional. Map from parameter names to values that should be used for those
-        parameters. Values may not exceed 100 characters.
-    :type parameters: Dict[str, str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry

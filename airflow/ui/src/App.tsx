@@ -50,8 +50,8 @@ const App = () => (
     <PrivateRoute exact path="/access" component={Access} />
     <PrivateRoute exact path="/access/users" component={Users} />
     <PrivateRoute exact path="/access/users/new" component={Users} />
-    <PrivateRoute exact path="/access/users/:id" component={Users} />
-    <PrivateRoute exact path="/access/users/:id/edit" component={Users} />
+    <PrivateRoute exact path="/access/users/:username" component={Users} />
+    <PrivateRoute exact path="/access/users/:username/edit" component={Users} />
     <PrivateRoute exact path="/access/roles" component={Roles} />
 
     <Route exact path="/docs" component={Docs} />

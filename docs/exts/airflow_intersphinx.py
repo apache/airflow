@@ -77,7 +77,7 @@ def _generate_provider_intersphinx_mapping():
         doc_inventory = f'{DOCS_DIR}/_build/docs/{pkg_name}/objects.inv'
         cache_inventory = f'{DOCS_DIR}/_inventory_cache/{pkg_name}/objects.inv'
 
-        airflow_mapping['apache-airflow-providers'] = (
+        airflow_mapping[pkg_name] = (
             # base URI
             f'/docs/{pkg_name}/',
             (doc_inventory if os.path.exists(doc_inventory) else cache_inventory,),

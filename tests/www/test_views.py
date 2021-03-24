@@ -43,7 +43,7 @@ from werkzeug.wrappers import BaseResponse
 
 from airflow import models, settings, version
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.configuration import conf
+from airflow.configuration import conf, initialize_config
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, Connection, DagRun, TaskInstance
@@ -1178,6 +1178,11 @@ class TestAirflowBaseViews(TestBase):
 
 
 class TestConfigurationView(TestBase):
+    def setUp(self):
+        super().setUp()
+        with mock.patch.dict(os.environ, {"AIRFLOW__CORE__UNIT_TEST_MODE": "False"}):
+            initialize_config()
+
     def test_configuration_do_not_expose_config(self):
         self.logout()
         self.login()
@@ -3353,15 +3358,15 @@ class TestHelperFunctions(TestBase):
             ("36539'%3balert(1)%2f%2f166", "/home"),
             (
                 "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2",
-                "http://localhost:8080/trigger?dag_id=test&abc=2",
+                "/home",
             ),
             (
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag';alert(33)//",
-                "http://localhost:8080/trigger?dag_id=test_dag",
+                "/home",
             ),
             (
-                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag",
-                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%25test_dag",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%3Dtest_dag",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%3Dtest_dag",
             ),
         ]
     )

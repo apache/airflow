@@ -2155,8 +2155,6 @@ class SimpleTaskInstance:
 STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    # Let pylint know about these relationships, without introducing an import cycle
-    from sqlalchemy.orm import relationship
 
     from airflow.job.base_job import BaseJob
     from airflow.models.dagrun import DagRun

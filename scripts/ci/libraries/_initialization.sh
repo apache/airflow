@@ -193,6 +193,7 @@ function initialization::initialize_files_for_rebuild_check() {
         "Dockerfile.ci"
         ".dockerignore"
         "scripts/docker/compile_www_assets.sh"
+        "scripts/docker/common.sh"
         "scripts/docker/install_additional_dependencies.sh"
         "scripts/docker/install_airflow.sh"
         "scripts/docker/install_airflow_from_branch_tip.sh"
@@ -201,6 +202,8 @@ function initialization::initialize_files_for_rebuild_check() {
         "airflow/www/package.json"
         "airflow/www/yarn.lock"
         "airflow/www/webpack.config.js"
+        "airflow/ui/package.json"
+        "airflow/ui/yarn.lock"
     )
 }
 
@@ -254,8 +257,12 @@ function initialization::initialize_mount_variables() {
 
 # Determine values of force settings
 function initialization::initialize_force_variables() {
-    # Whether necessary for airflow run local sources are mounted to docker
+    # By default we do not pull CI/PROD images. We can force-pull them when needed
     export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
+
+    # By default we do not pull python base image. We should do that only when we run upgrade check in
+    # CI master and when we manually refresh the images to latest versions
+    export FORCE_PULL_BASE_PYTHON_IMAGE="false"
 
     # Determines whether to force build without checking if it is needed
     # Can be overridden by '--force-build-images' flag.
@@ -452,8 +459,6 @@ function initialization::initialize_provider_package_building() {
     export VERSION_SUFFIX_FOR_PYPI="${VERSION_SUFFIX_FOR_PYPI=}"
     # Artifact name suffix for SVN packaging
     export VERSION_SUFFIX_FOR_SVN="${VERSION_SUFFIX_FOR_SVN=}"
-    # If set to true, the backport provider packages will be built (false will build regular provider packages)
-    export BACKPORT_PACKAGES=${BACKPORT_PACKAGES:="false"}
 
 }
 
@@ -527,7 +532,10 @@ function initialization::initialize_github_variables() {
 }
 
 function initialization::initialize_test_variables() {
-    export TEST_TYPE=${TEST_TYPE:=""}
+
+    # In case we want to force certain test type to run, this variable should be set to this type
+    # Otherwise TEST_TYPEs to run will be derived from TEST_TYPES space-separated string
+    export FORCE_TEST_TYPE=${FORCE_TEST_TYPE:=""}
 }
 
 function initialization::initialize_package_variables() {
@@ -743,10 +751,6 @@ function initialization::get_environment_for_builds_on_ci() {
 function initialization::make_constants_read_only() {
     # Set the arguments as read-only
     readonly PYTHON_MAJOR_MINOR_VERSION
-
-    readonly WEBSERVER_HOST_PORT
-    readonly POSTGRES_HOST_PORT
-    readonly MYSQL_HOST_PORT
 
     readonly HOST_USER_ID
     readonly HOST_GROUP_ID
