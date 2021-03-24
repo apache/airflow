@@ -1350,6 +1350,12 @@ Here is what it may look like:
       :start-after: [START example_dag_cluster_policy]
       :end-before: [END example_dag_cluster_policy]
 
+
+.. note::
+
+    To avoid import cycles, if using ``DAG`` in type annotations in your cluster policy, be sure to import from ``airflow.models`` and not from ``airflow``.
+
+
 Task level cluster policy
 -----------------------------
 For example, this function could apply a specific queue property when
