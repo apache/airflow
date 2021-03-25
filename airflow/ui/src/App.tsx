@@ -27,12 +27,22 @@ import Pipelines from 'views/Pipelines';
 import Pipeline from 'views/Pipeline';
 
 import EventLogs from 'views/Activity/EventLogs';
+import Runs from 'views/Activity/Runs';
+import Jobs from 'views/Activity/Jobs';
+import TaskInstances from 'views/Activity/TaskInstances';
+import TaskReschedules from 'views/Activity/TaskReschedules';
+import SLAMisses from 'views/Activity/SlaMisses';
+import XComs from 'views/Activity/XComs';
 
 import Config from 'views/Config';
+import Variables from 'views/Config/Variables';
+import Connections from 'views/Config/Connections';
+import Pools from 'views/Config/Pools';
 
 import Access from 'views/Access';
 import Users from 'views/Access/Users';
 import Roles from 'views/Access/Roles';
+import Permissions from 'views/Access/Permissions';
 
 import Docs from 'views/Docs';
 import NotFound from 'views/NotFound';
@@ -44,8 +54,17 @@ const App = () => (
     <PrivateRoute exact path="/pipelines/:dagId" component={Pipeline} />
 
     <PrivateRoute exact path="/activity/event-logs" component={EventLogs} />
+    <PrivateRoute exact path="/activity/runs" component={Runs} />
+    <PrivateRoute exact path="/activity/jobs" component={Jobs} />
+    <PrivateRoute exact path="/activity/task-instances" component={TaskInstances} />
+    <PrivateRoute exact path="/activity/task-reschedules" component={TaskReschedules} />
+    <PrivateRoute exact path="/activity/sla-misses" component={SLAMisses} />
+    <PrivateRoute exact path="/activity/xcoms" component={XComs} />
 
     <PrivateRoute exact path="/config" component={Config} />
+    <PrivateRoute exact path="/config/variables" component={Variables} />
+    <PrivateRoute exact path="/config/connections" component={Connections} />
+    <PrivateRoute exact path="/config/pools" component={Pools} />
 
     <PrivateRoute exact path="/access" component={Access} />
     <PrivateRoute exact path="/access/users" component={Users} />
@@ -53,6 +72,7 @@ const App = () => (
     <PrivateRoute exact path="/access/users/:username" component={Users} />
     <PrivateRoute exact path="/access/users/:username/edit" component={Users} />
     <PrivateRoute exact path="/access/roles" component={Roles} />
+    <PrivateRoute exact path="/access/permissions" component={Permissions} />
 
     <Route exact path="/docs" component={Docs} />
 

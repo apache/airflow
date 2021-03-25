@@ -18,14 +18,44 @@
  */
 
 import React from 'react';
-import { Heading } from '@chakra-ui/react';
 
-import ConfigContainer from 'containers/ConfigContainer';
+import SectionWrapper from 'components/SectionWrapper';
 
-const Config: React.FC = () => (
-  <ConfigContainer current="airflow.cfg">
-    <Heading>airflow.cfg</Heading>
-  </ConfigContainer>
-);
+interface Props {
+  current: string;
+  toolBar?: React.ReactNode;
+}
 
-export default Config;
+const ConfigContainer: React.FC<Props> = ({ children, current, toolBar }) => {
+  const navItems = [
+    {
+      label: 'airflow.cfg',
+      path: '/config',
+    },
+    {
+      label: 'Variables',
+      path: '/config/variables',
+    },
+    {
+      label: 'Connections',
+      path: '/config/connections',
+    },
+    {
+      label: 'Pools',
+      path: '/config/pools',
+    },
+  ];
+
+  return (
+    <SectionWrapper
+      currentSection="Config"
+      currentView={current}
+      navItems={navItems}
+      toolBar={toolBar}
+    >
+      {children}
+    </SectionWrapper>
+  );
+};
+
+export default ConfigContainer;

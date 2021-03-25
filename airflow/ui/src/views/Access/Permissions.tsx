@@ -20,12 +20,12 @@
 import React from 'react';
 import { Heading } from '@chakra-ui/react';
 
-import ConfigContainer from 'containers/ConfigContainer';
+import AccessContainer from 'containers/AccessContainer';
 
-const Config: React.FC = () => (
-  <ConfigContainer current="airflow.cfg">
-    <Heading>airflow.cfg</Heading>
-  </ConfigContainer>
+const Permissions: React.FC = () => (
+  <AccessContainer current="Permissions">
+    <Heading>Permissions</Heading>
+  </AccessContainer>
 );
 
-export default Config;
+export default Permissions;

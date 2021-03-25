@@ -20,12 +20,12 @@
 import React from 'react';
 import { Heading } from '@chakra-ui/react';
 
-import ConfigContainer from 'containers/ConfigContainer';
+import ActivityContainer from 'containers/ActivityContainer';
 
-const Config: React.FC = () => (
-  <ConfigContainer current="airflow.cfg">
-    <Heading>airflow.cfg</Heading>
-  </ConfigContainer>
+const SLAMisses: React.FC = () => (
+  <ActivityContainer current="SLA Misses">
+    <Heading>SLA Misses</Heading>
+  </ActivityContainer>
 );
 
-export default Config;
+export default SLAMisses;

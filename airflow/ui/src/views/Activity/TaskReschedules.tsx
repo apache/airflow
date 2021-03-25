@@ -20,12 +20,12 @@
 import React from 'react';
 import { Heading } from '@chakra-ui/react';
 
-import ConfigContainer from 'containers/ConfigContainer';
+import ActivityContainer from 'containers/ActivityContainer';
 
-const Config: React.FC = () => (
-  <ConfigContainer current="airflow.cfg">
-    <Heading>airflow.cfg</Heading>
-  </ConfigContainer>
+const TaskReschedules: React.FC = () => (
+  <ActivityContainer current="Task Reschedules">
+    <Heading>Task Reschedules</Heading>
+  </ActivityContainer>
 );
 
-export default Config;
+export default TaskReschedules;

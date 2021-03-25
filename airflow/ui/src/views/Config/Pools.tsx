@@ -22,10 +22,10 @@ import { Heading } from '@chakra-ui/react';
 
 import ConfigContainer from 'containers/ConfigContainer';
 
-const Config: React.FC = () => (
-  <ConfigContainer current="airflow.cfg">
-    <Heading>airflow.cfg</Heading>
+const Pools: React.FC = () => (
+  <ConfigContainer current="Pools">
+    <Heading>Pools</Heading>
   </ConfigContainer>
 );
 
-export default Config;
+export default Pools;

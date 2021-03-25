@@ -18,12 +18,14 @@
  */
 
 import React from 'react';
-import { Center, Heading } from '@chakra-ui/react';
+import { Heading } from '@chakra-ui/react';
+
+import AccessContainer from 'containers/AccessContainer';
 
 const Users: React.FC = () => (
-  <Center height="100vh">
+  <AccessContainer current="Users">
     <Heading>Users</Heading>
-  </Center>
+  </AccessContainer>
 );
 
 export default Users;

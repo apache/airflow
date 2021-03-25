@@ -18,14 +18,15 @@
  */
 
 import React from 'react';
-import { Heading } from '@chakra-ui/react';
+import { Center, Heading } from '@chakra-ui/react';
+import ActivityContainer from 'containers/ActivityContainer';
 
-import ConfigContainer from 'containers/ConfigContainer';
-
-const Config: React.FC = () => (
-  <ConfigContainer current="airflow.cfg">
-    <Heading>airflow.cfg</Heading>
-  </ConfigContainer>
+const Jobs: React.FC = () => (
+  <ActivityContainer current="Jobs">
+    <Center height="100vh">
+      <Heading>Jobs</Heading>
+    </Center>
+  </ActivityContainer>
 );
 
-export default Config;
+export default Jobs;

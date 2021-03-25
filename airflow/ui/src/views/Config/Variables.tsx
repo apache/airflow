@@ -22,10 +22,10 @@ import { Heading } from '@chakra-ui/react';
 
 import ConfigContainer from 'containers/ConfigContainer';
 
-const Config: React.FC = () => (
-  <ConfigContainer current="airflow.cfg">
-    <Heading>airflow.cfg</Heading>
+const Variables: React.FC = () => (
+  <ConfigContainer current="Variables">
+    <Heading>Variables</Heading>
   </ConfigContainer>
 );
 
-export default Config;
+export default Variables;

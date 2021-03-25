@@ -18,14 +18,31 @@
  */
 
 import React from 'react';
-import { Heading } from '@chakra-ui/react';
+import { Link } from 'react-router-dom';
+import { Button } from '@chakra-ui/react';
 
-import ConfigContainer from 'containers/ConfigContainer';
+interface Props {
+  item: {
+    label: string;
+    path: string;
+  };
+  currentLabel: string;
+}
 
-const Config: React.FC = () => (
-  <ConfigContainer current="airflow.cfg">
-    <Heading>airflow.cfg</Heading>
-  </ConfigContainer>
-);
+const SectionNavBtn: React.FC<Props> = ({ item, currentLabel }) => {
+  const { label, path } = item;
+  return (
+    <Button
+      as={Link}
+      to={path}
+      variant={currentLabel === label ? 'solid' : 'ghost'}
+      colorScheme="blue"
+      size="sm"
+      mr="2"
+    >
+      {label}
+    </Button>
+  );
+};
 
-export default Config;
+export default SectionNavBtn;
