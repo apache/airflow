@@ -108,8 +108,7 @@ You can also create roles via the CLI using the following command:
 
   airflow roles create <Role1> <Role2>
 
-You can then assign the given role to a new user using the ``airflow
-users add-role`` CLI command. Note that adding and removing permissions for a role can only be completed in the UI.
+You can then assign the given role to a new user using the ``airflow users add-role`` CLI command. Note that adding and removing permissions for a role can only be completed in the UI.
 
 Resource-Based permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -130,23 +129,19 @@ DAG-level permissions differ from resource-level permissions in a few key ways:
 - DAG-based permissions control only``can_read`` and ``can_edit`` actions (``can_dag_read`` and ``can_dag_edit`` were deprecated in 2.0.0).
 - You have to specify an existing DAG in the name of a DAG-based permission. The specific naming convention is ``DAG:<dag-name>.can_read`` or ``DAG:<dag-name>.can_edit``.
 
-For example, the following images show how you would create a role which can only write to
-``example_python_operator``. Once you create the role, the permission appears in the **List Roles** menu.
+For example, the following images show how you would create a role which can only write to ``example_python_operator``. Once you create the role, the permission appears in the **List Roles** menu.
 
 .. image:: /img/add-role.png
 .. image:: /img/new-role.png
 
-If an endpoint for a specific DAG requires a permission based on the DAG resource (for example, ``DAGs.can_create``),
-a role will have access if it has either the resource-based permission or a DAG-based permission.
+If an endpoint for a specific DAG requires a permission based on the DAG resource (for example, ``DAGs.can_create``), a role will have access if it has either the resource-based permission or a DAG-based permission.
 
-For example, if an endpoint for the ``example_python_operator`` DAG requires the resource-based ``DAGS.can_read`` permission,
-a role with the DAG-based permission ``DAG:example_python_operator.can_read`` can still access that endpoint even without ``DAGS.can_read``.
+For example, if an endpoint for the ``example_python_operator`` DAG requires the resource-based ``DAGS.can_read`` permission, a role with the DAG-based permission ``DAG:example_python_operator.can_read`` can still access that endpoint even without ``DAGS.can_read``.
 
 Reference: Action and Endpoint Permissions
 ''''''''''''''''''''''''''''''''''''''''''
 
-The following tables list all of the necessary permissions required for access to various Airflow endpoints and actions. Note that the ``Minimum Role`` table only applies
-if you haven't edited your default roles.
+The following tables list all of the necessary permissions required for access to various Airflow endpoints and actions. Note that the ``Minimum Role`` table only applies if you haven't edited your default roles.
 
 ================================================================================== ====== ================================================================= ============
 Stable API Permissions
