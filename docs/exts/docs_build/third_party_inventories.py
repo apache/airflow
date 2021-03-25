@@ -24,7 +24,7 @@ THIRD_PARTY_INDEXES = {
     'pandas': 'https://pandas.pydata.org/pandas-docs/stable',
     'python': 'https://docs.python.org/3',
     'requests': 'https://requests.readthedocs.io/en/master',
-    'sqlalchemy': 'https://docs.sqlalchemy.org/en/latest',
+    'sqlalchemy': 'https://docs.sqlalchemy.org/en/stable',
     'google-api-core': 'https://googleapis.dev/python/google-api-core/latest',
     'google-cloud-automl': 'https://googleapis.dev/python/automl/latest',
     'google-cloud-bigquery': 'https://googleapis.dev/python/bigquery/latest',
