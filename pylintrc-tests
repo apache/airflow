@@ -54,6 +54,8 @@ suggestion-mode=yes
 # active Python interpreter and may run arbitrary code.
 unsafe-load-any-extension=no
 
+# Pylint 2.8 changes this to `extension-pkg-allow-list`
+extension-pkg-whitelist=cassandra
 
 [MESSAGES CONTROL]
 

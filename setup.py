@@ -224,7 +224,7 @@ azure = [
     'azure-storage-file>=2.1.0',
 ]
 cassandra = [
-    'cassandra-driver>=3.13.0,<3.21.0',
+    'cassandra-driver>=3.13.0,<4',
 ]
 celery = [
     'celery~=4.4.2',
