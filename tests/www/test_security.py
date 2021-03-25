@@ -33,6 +33,7 @@ from airflow.security import permissions
 from airflow.www import app as application
 from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils import fab_utils
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
 
@@ -542,3 +543,34 @@ class TestSecurity(unittest.TestCase):
                     f"{role.name} should not have {permissions.ACTION_CAN_READ} "
                     f"on {permissions.RESOURCE_CONFIG}"
                 )
+
+    def test_create_dag_specific_permissions(self):
+        dag_id = 'some_dag_id'
+        dag_permission_name = self.security_manager.prefixed_dag_id(dag_id)
+        assert ('can_read', dag_permission_name) not in self.security_manager.get_all_permissions()
+
+        dag_model = DagModel(
+            dag_id=dag_id, fileloc='/tmp/dag_.py', schedule_interval='2 2 * * *', is_paused=True
+        )
+        self.session.add(dag_model)
+        self.session.commit()
+
+        self.security_manager.create_dag_specific_permissions()
+        self.session.commit()
+
+        assert ('can_read', dag_permission_name) in self.security_manager.get_all_permissions()
+
+        # Make sure we short circuit when the perms already exist
+        with assert_queries_count(2):  # One query to get DagModels, one query to get all perms
+            self.security_manager.create_dag_specific_permissions()
+
+    def test_get_all_permissions(self):
+        with assert_queries_count(1):
+            perms = self.security_manager.get_all_permissions()
+
+        assert isinstance(perms, set)
+        for perm in perms:
+            assert isinstance(perm, tuple)
+            assert len(perm) == 2
+
+        assert ('can_read', 'Connections') in perms
