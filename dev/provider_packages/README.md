@@ -42,7 +42,7 @@
 
 # What the provider packages are
 
-The Prvider Provider packages are separate packages (one package per provider) that implement
+The Provider packages are separate packages (one package per provider) that implement
 integrations with external services for Airflow in the form of installable Python packages.
 
 The Release Manager prepares packages separately from the main Airflow Release, using
@@ -182,6 +182,7 @@ also do not container the leading 0s.
 
 * You can install the .whl packages with `pip install <PACKAGE_FILE>`
 
+You can add `--verbose` flag if you want to see detailed commands executed by the script.
 
 # Testing and debugging provider preparation
 
@@ -243,6 +244,9 @@ You can see for example list of all provider packages:
 ```shell script
 ./dev/provider_packages/prepare_provider_packages.py list-providers-packages
 ```
+
+
+You can add `--verbose` flag in breeze command if you want to see commands executed.
 
 ## Debugging import check
 
@@ -328,8 +332,9 @@ pip install -e ".[devel_all]"
 3) Run update documentation (version suffix might be empty):
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py --version-suffix <SUFFIX> \
-    update-package-documentation <PACKAGE>
+./dev/provider_packages/prepare_provider_packages.py update-package-documentation \
+    --version-suffix <SUFFIX> \
+    <PACKAGE>
 ```
 
 This script will fetch the latest version of airflow from Airflow's repo (it will automatically add
@@ -338,6 +343,8 @@ to setup any credentials for it.
 
 In case version being prepared is already tagged in the repo documentation preparation returns immediately
 and prints warning.
+
+You can add `--verbose` flag if you want to see detailed commands executed by the script.
 
 ## Debugging preparing setup files
 
@@ -373,9 +380,12 @@ last time it was generated. In the CI we always add 'dev' suffix, and we never c
 TAG for it, so in the CI the setup.py is generated and should never fail.
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py --version-suffix "<SUFFIX>" \
-  generate-setup-files <PACKAGE>
+./dev/provider_packages/prepare_provider_packages.py generate-setup-files \
+    --version-suffix "<SUFFIX>" \
+    <PACKAGE>
 ```
+
+You can add `--verbose` flag if you want to see detailed commands executed by the script.
 
 ## Debugging preparing the packages
 
@@ -403,8 +413,9 @@ pip install -e ".[devel_all]"
 3) Run update documentation (version suffix might be empty):
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py --version-suffix <SUFFIX> \
-    build-provider-packages <PACKAGE>
+./dev/provider_packages/prepare_provider_packages.py build-provider-packages \
+    --version-suffix <SUFFIX> \
+    <PACKAGE>
 ```
 
 In case version being prepared is already tagged in the repo documentation preparation returns immediately

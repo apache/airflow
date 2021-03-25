@@ -20,69 +20,64 @@
  OVERWRITTEN WHEN PREPARING PACKAGES.
 
  IF YOU WANT TO MODIFY IT, YOU SHOULD MODIFY THE TEMPLATE
- `PROVIDER_README_TEMPLATE.md.jinja2` IN the `dev/provider_packages` DIRECTORY
+ `PROVIDER_INDEX_TEMPLATE.rst.jinja2` IN the `dev/provider_packages` DIRECTORY
 
 #}
 
-# Package {{ PACKAGE_PIP_NAME }}
+Package ``{{ PACKAGE_PIP_NAME }}``
+
+Release: ``{{ RELEASE }}{{ VERSION_SUFFIX }}``
+
 
 {{  PROVIDER_DESCRIPTION | safe }}
 
-Release: {{ RELEASE }}{{ VERSION_SUFFIX }}
+Provider package
+================
 
-**Table of contents**
-
-- [Provider package](#provider-package)
-- [Installation](#installation)
-{%- if PIP_REQUIREMENTS %}
-- [PIP requirements](#pip-requirements)
-{%- endif %}
-{%- if CROSS_PROVIDERS_DEPENDENCIES %}
-- [Cross provider package dependencies](#cross-provider-package-dependencies)
-{%- endif %}
-
-## Provider package
-
-This is a provider package for `{{PROVIDER_PACKAGE_ID}}` provider. All classes for this provider package
-are in `{{FULL_PACKAGE_NAME}}` python package.
+This is a provider package for ``{{PROVIDER_PACKAGE_ID}}`` provider. All classes for this provider package
+are in ``{{FULL_PACKAGE_NAME}}`` python package.
 
 You can find package information and changelog for the provider
-in [documentation](https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}/index.html).
+in the `documentation <https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}/>`_.
 
 
-## Installation
+Installation
+============
 
 NOTE!
 
 On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
 does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
 of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-`pip install --upgrade pip==20.2.4` or, in case you use Pip 20.3, you need to add option
-`--use-deprecated legacy-resolver` to your pip install command.
+``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
+``--use-deprecated legacy-resolver`` to your pip install command.
 
 You can install this package on top of an existing airflow 2.* installation via
-`pip install {{PACKAGE_PIP_NAME}}`
+``pip install {{PACKAGE_PIP_NAME}}``
 
 {%- if PIP_REQUIREMENTS %}
 
-## PIP requirements
+PIP requirements
+================
 
-{{  PIP_REQUIREMENTS_TABLE | safe }}
+{{  PIP_REQUIREMENTS_TABLE_RST | safe }}
 
 {%- endif %}
 {%- if CROSS_PROVIDERS_DEPENDENCIES %}
 
-## Cross provider package dependencies
+Cross provider package dependencies
+===================================
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider packages in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
-```bash
-pip install {{ PACKAGE_PIP_NAME }}[{{ CROSS_PROVIDERS_DEPENDENCIES[0] }}]
-```
+.. code-block:: bash
 
-{{ CROSS_PROVIDERS_DEPENDENCIES_TABLE | safe }}
+    pip install {{ PACKAGE_PIP_NAME }}[{{ CROSS_PROVIDERS_DEPENDENCIES[0] }}]
+
+
+{{ CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST | safe }}
 
 {%- endif %}

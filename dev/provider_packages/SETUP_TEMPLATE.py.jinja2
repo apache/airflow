@@ -37,7 +37,7 @@ version = '{{ RELEASE_NO_LEADING_ZEROS }}{{ VERSION_SUFFIX }}'
 my_dir = dirname(__file__)
 
 try:
-    with open(os.path.join(my_dir, '{{ PROVIDER_PATH }}/{{ README_FILE }}'), encoding='utf-8') as f:
+    with open(os.path.join(my_dir, '{{ README_FILE }}'), encoding='utf-8') as f:
         long_description = f.read()
 except FileNotFoundError:
     long_description = ''
@@ -50,7 +50,7 @@ def do_setup():
         description='{{ PROVIDER_TYPE }} package '
             '{{ PACKAGE_PIP_NAME }} for Apache Airflow',
         long_description=long_description,
-        long_description_content_type='text/markdown',
+        long_description_content_type='text/x-rst',
         license='Apache License 2.0',
         version=version,
         packages=find_namespace_packages(
@@ -79,7 +79,7 @@ def do_setup():
         download_url='https://archive.apache.org/dist/airflow/{{ PROVIDERS_FOLDER }}',
         python_requires='~=3.6',
         project_urls={
-            'Documentation': 'https://airflow.apache.org/docs/',
+            'Documentation': 'https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}/',
             'Bug Tracker': 'https://github.com/apache/airflow/issues',
             'Source Code': 'https://github.com/apache/airflow',
         },
