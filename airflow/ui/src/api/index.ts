@@ -17,21 +17,32 @@
  * under the License.
  */
 
-/*
-*  Linting config
-*/
-module.exports = {
-  env: {
-    jest: true,
-  },
-  extends: ['airbnb-typescript', 'plugin:react-hooks/recommended'],
-  parserOptions: {
-    project: './tsconfig.json',
-  },
-  rules: {
-    'react/prop-types': 0,
-    'react/jsx-props-no-spreading': 0,
-    'arrow-body-style': 1,
-    'react/jsx-one-expression-per-line': 1,
-  },
-};
+import axios, { AxiosResponse } from 'axios';
+import { useQuery } from 'react-query';
+import humps from 'humps';
+
+import type { Dag } from 'interfaces';
+import type { DagsResponse } from 'interfaces/api';
+
+axios.defaults.baseURL = process.env.API_URL;
+axios.interceptors.response.use(
+  (res) => (res.data ? humps.camelizeKeys(res.data) as unknown as AxiosResponse : res),
+);
+
+const refetchInterval = 1000;
+
+export function useDags() {
+  return useQuery<DagsResponse, Error>(
+    'dags',
+    (): Promise<DagsResponse> => axios.get('/dags'),
+    { refetchInterval },
+  );
+}
+
+export function useDag(dagId: Dag['dagId']) {
+  return useQuery<Dag, Error>(
+    ['dag', dagId],
+    (): Promise<Dag> => axios.get(`dags/${dagId}/details`),
+    { refetchInterval },
+  );
+}

@@ -17,16 +17,12 @@
  * under the License.
  */
 
-import React from 'react';
-import { Center, Heading } from '@chakra-ui/react';
-import AppHeader from 'components/AppHeader';
+import type { Dag } from './index';
 
-const Pipelines: React.FC = () => (
-  <AppHeader>
-    <Center height="100%" width="100%">
-      <Heading>Pipelines</Heading>
-    </Center>
-  </AppHeader>
-);
+interface Entries {
+  totalEntries: number;
+}
 
-export default Pipelines;
+export interface DagsResponse extends Entries {
+  dags: Dag[];
+}

@@ -17,21 +17,6 @@
  * under the License.
  */
 
-/*
-*  Linting config
-*/
-module.exports = {
-  env: {
-    jest: true,
-  },
-  extends: ['airbnb-typescript', 'plugin:react-hooks/recommended'],
-  parserOptions: {
-    project: './tsconfig.json',
-  },
-  rules: {
-    'react/prop-types': 0,
-    'react/jsx-props-no-spreading': 0,
-    'arrow-body-style': 1,
-    'react/jsx-one-expression-per-line': 1,
-  },
-};
+export const defaultVersion = { version: '', gitVersion: '' };
+
+export const defaultDags = { dags: [], totalEntries: 0 };

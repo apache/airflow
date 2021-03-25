@@ -17,21 +17,31 @@
  * under the License.
  */
 
-/*
-*  Linting config
-*/
-module.exports = {
-  env: {
-    jest: true,
-  },
-  extends: ['airbnb-typescript', 'plugin:react-hooks/recommended'],
-  parserOptions: {
-    project: './tsconfig.json',
-  },
-  rules: {
-    'react/prop-types': 0,
-    'react/jsx-props-no-spreading': 0,
-    'arrow-body-style': 1,
-    'react/jsx-one-expression-per-line': 1,
-  },
-};
+export interface DagTag {
+  name: string,
+}
+
+export interface TimeDelta {
+  days: number,
+  microseconds: number,
+  seconds: number,
+  type: string,
+}
+
+export interface CronExpression {
+  type: string,
+  value: string,
+}
+
+export interface Dag {
+  dagId: string,
+  rootDagId: string,
+  isPaused: boolean,
+  isSubdag: boolean,
+  fileloc: string,
+  fileToken: string,
+  owners: Array<string>,
+  description: string,
+  scheduleInterval?: TimeDelta | CronExpression,
+  tags: DagTag[],
+}
