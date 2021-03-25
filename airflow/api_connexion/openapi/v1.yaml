@@ -1572,6 +1572,58 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /auth_info:
+    get:
+      summary: Get authentication information
+      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
+      operationId: get_info
+      tags: [Auth]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthInfo'
+
+  /auth_dblogin:
+    post:
+      summary: Login user
+      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
+      operationId: auth_dblogin
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthDBLoginForm'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwtToken'
+
+  /auth_oauth/{provider}:
+    parameters:
+      - $ref: '#/components/parameters/OauthProvider'
+    get:
+      summary: Login user using oauth
+      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
+      operationId: auth_oauthlogin
+      tags: [Auth]
+      parameters:
+        - $ref: '#/components/parameters/ShouldRegister'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwtToken'
+
 components:
   # Reusable schemas (data models)
   schemas:
@@ -2508,6 +2560,45 @@ components:
           type: object
           $ref: '#/components/schemas/Resource'
           description: The permission resource
+    # Auth
+    AuthInfo:
+      type: object
+      description: Information about the authentication method in use
+      properties:
+        auth_type:
+          type: string
+          description: Authentication type in use
+        oauth_providers:
+          type: array
+          items:
+            type: object
+          nullable: true
+        openid_providers:
+          type: array
+          items:
+            type: object
+          nullable: true
+
+    AuthDBLoginForm:
+      type: object
+      properties:
+        username:
+          description: The username for authentication
+          example: admin
+          type: string
+        password:
+          description: The password for authentication
+          example: complex-password
+          type: string
+
+    JwtToken:
+      description: Response object after successful authentication
+      type: object
+      properties:
+        token:
+          type: string
+        refresh_token:
+          type: string
 
     # Configuration
     ConfigOption:
@@ -3267,6 +3358,21 @@ components:
         Prefix a field name with `-` to reverse the sort order.
 
     # Other parameters
+    OauthProvider:
+      in: path
+      name: provider
+      schema:
+        type: string
+      required: true
+      description: The name of the provider to authenticate
+
+    ShouldRegister:
+      in: query
+      name: register
+      schema:
+        type: string
+      required: false
+      description: Whether to register user
 
     FileToken:
       in: path
