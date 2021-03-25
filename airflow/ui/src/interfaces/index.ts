@@ -45,3 +45,8 @@ export interface Dag {
   scheduleInterval?: TimeDelta | CronExpression,
   tags: DagTag[],
 }
+
+export interface Version {
+  version: string,
+  gitVersion: string,
+}

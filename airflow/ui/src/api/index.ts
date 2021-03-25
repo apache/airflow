@@ -21,10 +21,10 @@ import axios, { AxiosResponse } from 'axios';
 import { useQuery } from 'react-query';
 import humps from 'humps';
 
-import type { Dag } from 'interfaces';
+import type { Dag, Version } from 'interfaces';
 import type { DagsResponse } from 'interfaces/api';
 
-axios.defaults.baseURL = process.env.API_URL;
+axios.defaults.baseURL = `${process.env.WEBSERVER_URL}/api/v1`;
 axios.interceptors.response.use(
   (res) => (res.data ? humps.camelizeKeys(res.data) as unknown as AxiosResponse : res),
 );
@@ -42,7 +42,14 @@ export function useDags() {
 export function useDag(dagId: Dag['dagId']) {
   return useQuery<Dag, Error>(
     ['dag', dagId],
-    (): Promise<Dag> => axios.get(`dags/${dagId}/details`),
+    (): Promise<Dag> => axios.get(`/dags/${dagId}/details`),
     { refetchInterval },
+  );
+}
+
+export function useVersion() {
+  return useQuery<Version, Error>(
+    'version',
+    (): Promise<Version> => axios.get('/version'),
   );
 }

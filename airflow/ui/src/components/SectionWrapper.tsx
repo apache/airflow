@@ -40,41 +40,46 @@ interface Props {
 
 const SectionWrapper: React.FC<Props> = ({
   children, currentSection, currentView, navItems, toolBar,
-}) => (
-  <AppContainer
-    breadcrumb={(
-      <Heading as="h1" size="md">
-        <Box
-          as="span"
-          color={useColorModeValue('gray.400', 'gray.500')}
-        >
-          {currentSection}
-          /
-        </Box>
-        {currentView}
-      </Heading>
+}) => {
+  const heading = useColorModeValue('gray.400', 'gray.500');
+  const bg = useColorModeValue('gray.100', 'gray.700');
+  const border = useColorModeValue('gray.100', 'gray.700');
+  const toolbarBg = useColorModeValue('white', 'gray.800');
+  return (
+    <AppContainer
+      breadcrumb={(
+        <Heading as="h1" size="md">
+          <Box
+            as="span"
+            color={heading}
+          >
+            {currentSection}
+            /
+          </Box>
+          {currentView}
+        </Heading>
     )}
-  >
-    <Box
-      pt={2}
-      mx={-4}
-      px={4}
-      pb="2"
-      bg={useColorModeValue('gray.100', 'gray.700')}
     >
       <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
+        pt={2}
+        mx={-4}
+        px={4}
+        pb="2"
+        bg={bg}
       >
-        <Box as="nav">
-          {navItems.map((item) => (
-            <SectionNavBtn key={item.label} item={item} currentLabel={currentView} />
-          ))}
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="space-between"
+        >
+          <Box as="nav">
+            {navItems.map((item) => (
+              <SectionNavBtn key={item.label} item={item} currentLabel={currentView} />
+            ))}
+          </Box>
         </Box>
       </Box>
-    </Box>
-    {toolBar && (
+      {toolBar && (
       <Box
         position="sticky"
         top="0"
@@ -87,14 +92,15 @@ const SectionWrapper: React.FC<Props> = ({
         py={2}
         px={4}
         borderBottomWidth="2px"
-        borderBottomColor={useColorModeValue('gray.100', 'gray.700')}
-        backgroundColor={useColorModeValue('white', 'gray.800')}
+        borderBottomColor={border}
+        backgroundColor={toolbarBg}
       >
         {toolBar}
       </Box>
-    )}
-    <Box py="4">{children}</Box>
-  </AppContainer>
-);
+      )}
+      <Box py="4">{children}</Box>
+    </AppContainer>
+  );
+};
 
 export default SectionWrapper;

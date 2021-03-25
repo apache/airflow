@@ -33,18 +33,18 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react';
 
-import AppHeader from 'components/AppHeader';
+import AppContainer from 'components/AppContainer';
 import { defaultDags } from 'api/defaults';
 import { useDags } from 'api';
 import type { Dag } from 'interfaces';
 
-const Pipelines: React.FC = () => {
+export const PipelinesTable: React.FC = () => {
   const { data: { dags } = defaultDags, isLoading, error } = useDags();
   const oddColor = useColorModeValue('gray.50', 'gray.900');
   const evenColor = useColorModeValue('gray.100', 'gray.700');
 
   return (
-    <AppHeader>
+    <>
       {error && (
         <Alert status="error" my="4" key={error.message}>
           <AlertIcon />
@@ -57,9 +57,7 @@ const Pipelines: React.FC = () => {
             borderBottomWidth="1px"
             textAlign="left"
           >
-            <Th />
             <Th>DAG ID</Th>
-            <Th />
           </Tr>
         </Thead>
         <Tbody>
@@ -98,8 +96,14 @@ const Pipelines: React.FC = () => {
           ))}
         </Tbody>
       </Table>
-    </AppHeader>
+    </>
   );
 };
+
+const Pipelines: React.FC = () => (
+  <AppContainer>
+    <PipelinesTable />
+  </AppContainer>
+);
 
 export default Pipelines;

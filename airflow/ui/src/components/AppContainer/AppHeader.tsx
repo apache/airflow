@@ -57,6 +57,8 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
   const now = dayjs();
   const headerHeight = '56px';
   const { hasValidAuthToken, logout } = useAuthContext();
+  const darkLightIcon = useColorModeValue(MdBrightness2, MdWbSunny);
+  const darkLightText = useColorModeValue(' Dark ', ' Light ');
 
   const handleOpenTZ = () => window.alert('This will open time zone select modal!');
 
@@ -108,9 +110,9 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
                 Your Profile
               </MenuItem>
               <MenuItem onClick={toggleColorMode}>
-                <Icon as={useColorModeValue(MdBrightness2, MdWbSunny)} mr="2" />
+                <Icon as={darkLightIcon} mr="2" />
                 Set
-                {useColorModeValue(' Dark ', ' Light ')}
+                {darkLightText}
                 Mode
               </MenuItem>
               <MenuDivider />

@@ -17,13 +17,15 @@
  * under the License.
  */
 
+import { createMemoryHistory } from 'history';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import { Router } from 'react-router-dom';
 
 export const url: string = `${process.env.WEBSERVER_URL}/api/v1/` || '';
 
 export const defaultHeaders = {
-  'access-control-allow-origin': url,
+  'access-control-allow-origin': '*',
   'access-control-allow-credentials': 'true',
   'access-control-allow-headers': '*',
   'access-control-allow-methods': '*',
@@ -36,4 +38,9 @@ export const QueryWrapper: React.FC<{}> = ({ children }) => {
       {children}
     </QueryClientProvider>
   );
+};
+
+export const RouterWrapper: React.FC<{}> = ({ children }) => {
+  const history = createMemoryHistory();
+  return <Router history={history}>{children}</Router>;
 };
