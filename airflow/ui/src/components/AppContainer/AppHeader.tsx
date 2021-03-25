@@ -41,8 +41,10 @@ import {
   MdAccountCircle,
   MdExitToApp,
 } from 'react-icons/md';
+
 import { useAuthContext } from 'auth/context';
-import { ApacheAirflowIcon } from 'utils/icons';
+
+import ApacheAirflowLogo from 'components/icons/ApacheAirflowLogo';
 
 interface Props {
   bodyBg: string;
@@ -79,14 +81,14 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
       {breadcrumb}
       {!breadcrumb && (
         <Link to="/" aria-label="Back to home">
-          <ApacheAirflowIcon />
+          <ApacheAirflowLogo />
         </Link>
       )}
       {hasValidAuthToken && (
         <Flex align="center">
           <Tooltip label="Change time zone" hasArrow>
             {/* TODO: open modal for time zone update */}
-            <Button variant="ghost" mr="4" onClick={() => handleOpenTZ()}>
+            <Button variant="ghost" mr="4" onClick={handleOpenTZ}>
               <Box
                 as="time"
                 dateTime={now.toString()}
@@ -101,13 +103,11 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
               <Avatar name="Ryan Hamilton" size="sm" color="blue.900" bg="blue.200" />
             </MenuButton>
             <MenuList placement="top-end">
-              <MenuItem onClick={() => handleOpenProfile()}>
+              <MenuItem onClick={handleOpenProfile}>
                 <Icon as={MdAccountCircle} mr="2" />
                 Your Profile
               </MenuItem>
-              <MenuItem
-                onClick={toggleColorMode}
-              >
+              <MenuItem onClick={toggleColorMode}>
                 <Icon as={useColorModeValue(MdBrightness2, MdWbSunny)} mr="2" />
                 Set
                 {useColorModeValue(' Dark ', ' Light ')}
