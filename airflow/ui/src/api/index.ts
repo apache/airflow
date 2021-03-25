@@ -21,7 +21,7 @@ import axios, { AxiosResponse } from 'axios';
 import { useQuery } from 'react-query';
 import humps from 'humps';
 
-import type { Dag, Version } from 'interfaces';
+import type { Version } from 'interfaces';
 import type { DagsResponse } from 'interfaces/api';
 
 axios.defaults.baseURL = `${process.env.WEBSERVER_URL}/api/v1`;
@@ -35,14 +35,6 @@ export function useDags() {
   return useQuery<DagsResponse, Error>(
     'dags',
     (): Promise<DagsResponse> => axios.get('/dags'),
-    { refetchInterval },
-  );
-}
-
-export function useDag(dagId: Dag['dagId']) {
-  return useQuery<Dag, Error>(
-    ['dag', dagId],
-    (): Promise<Dag> => axios.get(`/dags/${dagId}/details`),
     { refetchInterval },
   );
 }
