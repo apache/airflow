@@ -45,7 +45,9 @@ test('App shows Login screen by default', () => {
 describe('test login component', () => {
   test('Button is disabled when there is no username or password', () => {
     const { getByTestId } = render(
-      <Login />,
+      <BrowserRouter>
+        <Login />
+      </BrowserRouter>,
     );
     const button = getByTestId('submit');
 
@@ -54,7 +56,9 @@ describe('test login component', () => {
 
   test('Button is clickable only when username and password exist', () => {
     const { getByTestId } = render(
-      <Login />,
+      <BrowserRouter>
+        <Login />
+      </BrowserRouter>,
     );
 
     const button = getByTestId('submit');
@@ -69,7 +73,9 @@ describe('test login component', () => {
 
   test('Login page shows loading after submit', async () => {
     const { getByTestId, getByText } = render(
-      <Login />,
+      <BrowserRouter>
+        <Login />
+      </BrowserRouter>,
     );
 
     const button = getByTestId('submit');
@@ -90,7 +96,11 @@ describe('test login component', () => {
       .replyWithError('Unauthorized');
 
     const { getByTestId, getByText } = render(
-      <AuthProvider><Login /></AuthProvider>,
+      <BrowserRouter>
+        <AuthProvider>
+          <Login />
+        </AuthProvider>
+      </BrowserRouter>,
       { wrapper: QueryWrapper },
     );
 
