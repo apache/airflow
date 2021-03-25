@@ -46,8 +46,12 @@ function start_end::group_end {
 # Also prints some useful diagnostics information at start of the script if VERBOSE is set to true
 #
 function start_end::script_start {
-    verbosity::print_info
+    START_SCRIPT_TIME=$(date +%s)
     verbosity::print_info "Running '${COLOR_GREEN}$(basename "$0")${COLOR_RESET}'"
+    if [[ "${GITHUB_ACTIONS=}" == "true" &&  ${VERBOSE_COMMANDS:="false"} == "false" ]]; then
+      return
+    fi
+
     verbosity::print_info
     verbosity::print_info "${COLOR_BLUE}Log is redirected to '${OUTPUT_LOG}'${COLOR_RESET}"
     verbosity::print_info
@@ -65,7 +69,6 @@ function start_end::script_start {
         verbosity::print_info
         set +x
     fi
-    START_SCRIPT_TIME=$(date +%s)
 }
 
 function start_end::dump_container_logs() {
