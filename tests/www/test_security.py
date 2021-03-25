@@ -103,7 +103,7 @@ class TestSecurity(unittest.TestCase):
             fab_utils.delete_role(cls.app, role_name)
 
     def expect_user_is_in_role(self, user, rolename):
-        self.security_manager.init_role(rolename, [])
+        self.security_manager.bulk_sync_roles([{'role': rolename, 'perms': []}])
         role = self.security_manager.find_role(rolename)
         if not role:
             self.security_manager.add_role(rolename)
@@ -141,14 +141,28 @@ class TestSecurity(unittest.TestCase):
         log.debug("Complete teardown!")
 
     def test_init_role_baseview(self):
-        role_name = 'MyRole3'
-        role_perms = [('can_some_action', 'SomeBaseView')]
-        self.security_manager.init_role(role_name, perms=role_perms)
+        role_name = 'MyRole7'
+        role_perms = [('can_some_other_action', 'AnotherBaseView')]
+        with pytest.warns(
+            DeprecationWarning,
+            match="`init_role` has been deprecated\\. Please use `bulk_sync_roles` instead\\.",
+        ):
+            self.security_manager.init_role(role_name, role_perms)
+
         role = self.appbuilder.sm.find_role(role_name)
         assert role is not None
         assert len(role_perms) == len(role.permissions)
 
-    def test_init_role_modelview(self):
+    def test_bulk_sync_roles_baseview(self):
+        role_name = 'MyRole3'
+        role_perms = [('can_some_action', 'SomeBaseView')]
+        self.security_manager.bulk_sync_roles([{'role': role_name, 'perms': role_perms}])
+
+        role = self.appbuilder.sm.find_role(role_name)
+        assert role is not None
+        assert len(role_perms) == len(role.permissions)
+
+    def test_bulk_sync_roles_modelview(self):
         role_name = 'MyRole2'
         role_perms = [
             ('can_list', 'SomeModelView'),
@@ -157,24 +171,33 @@ class TestSecurity(unittest.TestCase):
             (permissions.ACTION_CAN_EDIT, 'SomeModelView'),
             (permissions.ACTION_CAN_DELETE, 'SomeModelView'),
         ]
-        self.security_manager.init_role(role_name, role_perms)
+        mock_roles = [{'role': role_name, 'perms': role_perms}]
+        self.security_manager.bulk_sync_roles(mock_roles)
+
         role = self.appbuilder.sm.find_role(role_name)
         assert role is not None
         assert len(role_perms) == len(role.permissions)
 
+        # Check short circuit works
+        with assert_queries_count(2):  # One for permissionview, one for roles
+            self.security_manager.bulk_sync_roles(mock_roles)
+
     def test_update_and_verify_permission_role(self):
         role_name = 'Test_Role'
-        self.security_manager.init_role(role_name, [])
+        role_perms = []
+        mock_roles = [{'role': role_name, 'perms': role_perms}]
+        self.security_manager.bulk_sync_roles(mock_roles)
         role = self.security_manager.find_role(role_name)
 
         perm = self.security_manager.find_permission_view_menu(permissions.ACTION_CAN_EDIT, 'RoleModelView')
         self.security_manager.add_permission_role(role, perm)
         role_perms_len = len(role.permissions)
 
-        self.security_manager.init_role(role_name, [])
+        self.security_manager.bulk_sync_roles(mock_roles)
         new_role_perms_len = len(role.permissions)
 
         assert role_perms_len == new_role_perms_len
+        assert new_role_perms_len == 1
 
     def test_verify_public_role_has_no_permissions(self):
         public = self.appbuilder.sm.find_role("Public")
@@ -574,3 +597,26 @@ class TestSecurity(unittest.TestCase):
             assert len(perm) == 2
 
         assert ('can_read', 'Connections') in perms
+
+    def test_get_all_non_dag_permissionviews(self):
+        with assert_queries_count(1):
+            pvs = self.security_manager._get_all_non_dag_permissionviews()
+
+        assert isinstance(pvs, dict)
+        for (perm_name, viewmodel_name), perm_view in pvs.items():
+            assert isinstance(perm_name, str)
+            assert isinstance(viewmodel_name, str)
+            assert isinstance(perm_view, self.security_manager.permissionview_model)
+
+        assert ('can_read', 'Connections') in pvs
+
+    def test_get_all_roles_with_permissions(self):
+        with assert_queries_count(1):
+            roles = self.security_manager._get_all_roles_with_permissions()
+
+        assert isinstance(roles, dict)
+        for role_name, role in roles.items():
+            assert isinstance(role_name, str)
+            assert isinstance(role, self.security_manager.role_model)
+
+        assert 'Admin' in roles
