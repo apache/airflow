@@ -51,6 +51,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.remote_base = wasb_log_folder
         self.log_relative_path = ''
         self._hook = None
+        self.encoding = "UTF-8"
         self.closed = False
         self.upload_on_close = True
         self.delete_local_copy = delete_local_copy
@@ -159,7 +160,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         :type return_error: bool
         """
         try:
-            return self.hook.read_file(self.wasb_container, remote_log_location)
+            return self.hook.read_file(self.wasb_container, remote_log_location).decode(self.encoding)
         except AzureHttpError as e:
             msg = f'Could not read logs from {remote_log_location}'
             self.log.exception("Message: '%s', exception '%s'", msg, e)

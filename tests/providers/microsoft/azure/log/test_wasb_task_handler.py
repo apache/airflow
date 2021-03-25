@@ -98,7 +98,7 @@ class TestWasbTaskHandler(unittest.TestCase):
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_read(self, mock_hook):
-        mock_hook.return_value.read_file.return_value = 'Log line'
+        mock_hook.return_value.read_file.return_value = b'Log line'
         assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
         assert self.wasb_task_handler.read(self.ti) == (
             [
