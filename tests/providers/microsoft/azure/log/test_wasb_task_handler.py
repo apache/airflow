@@ -98,7 +98,7 @@ class TestWasbTaskHandler(unittest.TestCase):
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_wasb_read(self, mock_hook):
-        mock_hook.return_value.read_file.return_value = 'Log line'
+        mock_hook.return_value.read_file.return_value = b'Log line'
         assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
         assert self.wasb_task_handler.read(self.ti) == (
             [
@@ -145,7 +145,7 @@ class TestWasbTaskHandler(unittest.TestCase):
     @mock.patch.object(WasbTaskHandler, "wasb_log_exists")
     def test_write_on_existing_log(self, mock_log_exists, mock_wasb_read, mock_hook):
         mock_log_exists.return_value = True
-        mock_wasb_read.return_value = b"old log"
+        mock_wasb_read.return_value = "old log"
 
         self.wasb_task_handler.wasb_write('text', self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(

@@ -160,7 +160,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         :type return_error: bool
         """
         try:
-            return self.hook.read_file(self.wasb_container, remote_log_location)
+            return self.hook.read_file(self.wasb_container, remote_log_location).decode(self.encoding)
         except AzureHttpError as e:
             msg = f'Could not read logs from {remote_log_location}'
             self.log.exception("Message: '%s', exception '%s'", msg, e)
@@ -185,7 +185,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             if append and self.wasb_log_exists(remote_log_location):
                 old_log = self.wasb_read(remote_log_location)
-                log = '\n'.join([old_log.decode(self.encoding), log]) if old_log else log
+                log = '\n'.join([old_log, log]) if old_log else log
             self.hook.load_string(
                 log,
                 self.wasb_container,
