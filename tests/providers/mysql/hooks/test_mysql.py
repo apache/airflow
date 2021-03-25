@@ -242,7 +242,7 @@ class TestMySqlHook(unittest.TestCase):
     def test_get_autocommit(self):
         self.conn.get_autocommit.return_value = False
         return_value = self.db_hook.get_autocommit(self.conn)
-        assert return_value == False
+        assert return_value is False
         self.conn.get_autocommit.assert_called_once_with()
 
     def test_run_without_autocommit(self):
@@ -321,7 +321,7 @@ class TestMySqlHookMySqlConnectorPython(unittest.TestCase):
     def test_get_autocommit(self):
         self.conn._autocommit.return_value = False
         return_value = self.db_hook.get_autocommit(self.conn)
-        assert return_value == False
+        assert return_value is False
         self.conn._autocommit.assert_called_once_with()
 
     def test_run_without_autocommit(self):
