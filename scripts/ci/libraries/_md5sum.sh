@@ -28,9 +28,9 @@ function md5sum::calculate_file_md5sum {
     mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM=$(md5sum "${FILE}")
     local MD5SUM_FILE
-    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
+    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
-    MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "${FILE}").md5sum.new
+    MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum.new
     echo "${MD5SUM}" > "${MD5SUM_FILE_NEW}"
     local RET_CODE=0
     if [[ ! -f "${MD5SUM_FILE}" ]]; then
@@ -62,9 +62,9 @@ function md5sum::move_file_md5sum {
     local MD5SUM_FILE
     local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${BRANCH_NAME}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
     mkdir -pv "${MD5SUM_CACHE_DIR}"
-    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
+    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
-    MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "${FILE}").md5sum.new
+    MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum.new
     if [[ -f "${MD5SUM_FILE_NEW}" ]]; then
         mv "${MD5SUM_FILE_NEW}" "${MD5SUM_FILE}"
         verbosity::print_info "Updated md5sum file ${MD5SUM_FILE} for ${FILE}: $(cat "${MD5SUM_FILE}")"

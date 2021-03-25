@@ -186,6 +186,19 @@ function initialization::initialize_available_integrations() {
 FILES_FOR_REBUILD_CHECK=()
 
 # Determine which files trigger rebuild check
+#
+# !!!!!!!!!! IMPORTANT NOTE !!!!!!!!!!
+#  When you add files here, please make sure to not add files
+#  with the same name. And if you do - make sure that files with the
+#  same name are stored in directories with different name. For
+#  example we have two package.json files here, but they are in
+#  directories with different names (`www` and `ui`).
+#  The problem is that md5 hashes of those files are stored in
+#  `./build/directory` in the same directory as <PARENT_DIR>-<FILE>.md5sum.
+#  For example md5sum of the `airflow/www/package.json` file is stored
+#  as `www-package.json` and `airflow/ui/package.json` as `ui-package.json`,
+#  The file list here changes extremely rarely.
+# !!!!!!!!!! IMPORTANT NOTE !!!!!!!!!!
 function initialization::initialize_files_for_rebuild_check() {
     FILES_FOR_REBUILD_CHECK+=(
         "setup.py"
