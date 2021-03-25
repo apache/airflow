@@ -48,6 +48,7 @@ const Login: React.FC = () => {
   };
 
   return (
+    <AppContainer>
       <Box display="flex" alignItems="center" justifyContent="center" height="80vh">
         <Box as="form" width="100%" maxWidth="400px" mx="auto" onSubmit={onSubmit}>
           <FormControl>
@@ -102,6 +103,7 @@ const Login: React.FC = () => {
           )}
         </Box>
       </Box>
+    </AppContainer>
   );
 };
 

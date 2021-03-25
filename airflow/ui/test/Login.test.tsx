@@ -32,11 +32,18 @@ import { url, defaultHeaders, QueryWrapper } from './utils';
 
 axios.defaults.adapter = require('axios/lib/adapters/http');
 
+nock(url)
+  .defaultReplyHeaders(defaultHeaders)
+  .persist()
+  .get('/version')
+  .reply(200, { version: '', gitVersion: '' });
+
 test('App shows Login screen by default', () => {
   const { getByText } = render(
     <BrowserRouter>
       <App />
     </BrowserRouter>,
+    { wrapper: QueryWrapper },
   );
 
   expect(getByText('Password')).toBeInTheDocument();
@@ -48,6 +55,7 @@ describe('test login component', () => {
       <BrowserRouter>
         <Login />
       </BrowserRouter>,
+      { wrapper: QueryWrapper },
     );
     const button = getByTestId('submit');
 
@@ -59,6 +67,7 @@ describe('test login component', () => {
       <BrowserRouter>
         <Login />
       </BrowserRouter>,
+      { wrapper: QueryWrapper },
     );
 
     const button = getByTestId('submit');
@@ -76,6 +85,7 @@ describe('test login component', () => {
       <BrowserRouter>
         <Login />
       </BrowserRouter>,
+      { wrapper: QueryWrapper },
     );
 
     const button = getByTestId('submit');

@@ -22,7 +22,7 @@ import '@testing-library/jest-dom';
 import { render, waitFor } from '@testing-library/react';
 import nock from 'nock';
 
-import { PipelinesTable as Pipelines } from 'views/Pipelines';
+import Pipelines from 'views/Pipelines';
 import {
   defaultHeaders, QueryWrapper, RouterWrapper, url,
 } from './utils';
