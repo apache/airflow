@@ -18,14 +18,14 @@
 
 """This module allows to connect to a MySQL database."""
 import json
-from typing import Dict, Optional, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Optional, Tuple, Union
 
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
 
 if TYPE_CHECKING:
-    from MySQLdb.connections import Connection as MySQLdbConnection
     from mysql.connector.abstracts import MySQLConnectionAbstract
+    from MySQLdb.connections import Connection as MySQLdbConnection
 
 MySQLConnectionTypes = Union['MySQLdbConnection', 'MySQLConnectionAbstract']
 
