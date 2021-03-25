@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
+
 import jwt
 from flask import current_app, g, request, session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
@@ -25,6 +27,8 @@ from jsonschema import ValidationError
 from airflow.api_connexion.exceptions import BadRequest, NotFound, Unauthenticated
 from airflow.api_connexion.schemas.auth_schema import info_schema, jwt_token_schema, login_form_schema
 from airflow.configuration import conf
+
+log = logging.getLogger(__name__)
 
 
 def get_info():
@@ -85,28 +89,63 @@ def refresh():
 def auth_oauthlogin(provider, register=None):
     """Handle Oauth login"""
     api_base_path = "/api/v1/"
-    base_url = conf.get("webserver", "base_url") + api_base_path
+
     appbuilder = current_app.appbuilder
+    base_url = conf.get("webserver", "base_url") + api_base_path
+    redirect_uri = base_url + "oauth-authorized/" + provider
     if g.user is not None and g.user.is_authenticated:
-        raise Unauthenticated(detail="Client already authenticated")
+        pass  # raise Unauthenticated(detail="Client already authenticated")
+    if appbuilder.sm.auth_type != AUTH_OAUTH:
+        raise BadRequest(detail="Authentication type do not match")
     state = jwt.encode(
         request.args.to_dict(flat=False),
         appbuilder.app.config["SECRET_KEY"],
         algorithm="HS256",
     )
-    redirect_uri = base_url + f"authorized?provider={provider}"
     try:
+        auth_provider = appbuilder.sm.oauth_remotes[provider]
         if register:
             session["register"] = True
         if provider == "twitter":
-            return appbuilder.sm.oauth_remotes[provider].authorize_redirect(
-                redirect_uri=redirect_uri + f"&state={state}"
-            )
+            return auth_provider.authorize_redirect(redirect_uri=redirect_uri + f"&state={state}")
         else:
-            return appbuilder.sm.oauth_remotes[provider].authorize_redirect(
+            return auth_provider.authorize_redirect(
                 redirect_uri=redirect_uri,
                 state=state.decode("ascii") if isinstance(state, bytes) else state,
             )
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
+        raise NotFound(detail="Invalid login")
 
-        return
+
+def authorize_oauth(provider):
+    """Callback to authorize Oauth"""
+    appbuilder = current_app.appbuilder
+    resp = appbuilder.sm.oauth_remotes[provider].authorize_access_token()
+    if resp is None:
+        raise BadRequest(detail="You denied the request to sign in")
+    log.debug("OAUTH Authorized resp: %s", resp)
+    # Verify state
+    try:
+        jwt.decode(
+            request.args["state"],
+            appbuilder.app.config["SECRET_KEY"],
+            algorithms=["HS256"],
+        )
+    except jwt.InvalidTokenError:
+        raise BadRequest(detail="State signature is not valid!")
+    # Retrieves specific user info from the provider
+    try:
+        userinfo = appbuilder.sm.oauth_user_info(provider, resp)
+    except Exception as e:  # pylint: disable=broad-except
+        log.error("Error returning OAuth user info: %s", e)
+        user = None
+    else:
+        log.debug("User info retrieved from %s: %s", provider, userinfo)
+        user = appbuilder.sm.auth_user_oauth(userinfo)
+
+    if user is None:
+        return NotFound(detail="Invalid login")
+    login_user(user)
+    token = create_access_token(user.id, fresh=True)
+    refresh_token = create_refresh_token(user.id)
+    return dict(token=token, refresh_token=refresh_token)
