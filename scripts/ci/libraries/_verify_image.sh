@@ -99,6 +99,15 @@ function verify_image::verify_ci_image_dependencies() {
     start_end::group_end
 }
 
+function verify_image::verify_ci_image_has_dist_folder() {
+    start_end::group_start "Verify CI image dist folder (compiled www assets): ${DOCKER_IMAGE}"
+
+    verify_image::check_command "Dist folder" '[ -f /opt/airflow/airflow/www/static/dist/manifest.json ] || exit 1'
+
+    start_end::group_end
+}
+
+
 function verify_image::verify_prod_image_dependencies() {
     start_end::group_start "Checking if Airflow dependencies are non-conflicting in ${DOCKER_IMAGE} image."
 
@@ -241,6 +250,14 @@ function verify_image::verify_prod_image_as_root() {
     set -e
 }
 
+function verify_image::verify_production_image_has_dist_folder() {
+    start_end::group_start "Verify prod image has dist folder (compiled www assets): ${DOCKER_IMAGE}"
+    # shellcheck disable=SC2016
+    verify_image::check_command "Dist folder" '[ -f $(python -m site --user-site)/airflow/www/static/dist/manifest.json ] || exit 1'
+
+    start_end::group_end
+}
+
 function verify_image::display_result {
     if [[ ${IMAGE_VALID} == "true" ]]; then
         echo
@@ -265,6 +282,8 @@ function verify_image::verify_prod_image {
 
     verify_image::verify_prod_image_as_root
 
+    verify_image::verify_production_image_has_dist_folder
+
     verify_image::display_result
 }
 
@@ -272,6 +291,8 @@ function verify_image::verify_ci_image {
     IMAGE_VALID="true"
     DOCKER_IMAGE="${1}"
     verify_image::verify_ci_image_dependencies
+
+    verify_image::verify_ci_image_has_dist_folder
 
     verify_image::display_result
 }
