@@ -620,6 +620,13 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
         files: \.py$
         pass_filenames: true
+      - id: ui-lint
+        name: ESLint against airflow/ui
+        language: node
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/ui/
+        entry: "scripts/ci/static_checks/eslint.sh"
+        pass_filenames: false
       - id: bats-in-container-tests
         name: Run in container bats tests
         language: system

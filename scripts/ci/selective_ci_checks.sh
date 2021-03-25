@@ -45,7 +45,7 @@ fi
 function check_upgrade_to_newer_dependencies_needed() {
     # shellcheck disable=SC2153
     if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ||
-            ${GITHUB_EVENT_NAME} == 'push' || ${GITHUB_EVENT_NAME} == "scheduled" ]]; then
+            ${GITHUB_EVENT_NAME=} == 'push' || ${GITHUB_EVENT_NAME=} == "scheduled" ]]; then
         # Trigger upgrading to latest constraints where label is set or when
         # SHA of the merge commit triggers rebuilding layer in the docker image
         # Each build that upgrades to latest constraints will get truly latest constraints, not those
@@ -203,6 +203,10 @@ function set_upgrade_to_newer_dependencies() {
     initialization::ga_output upgrade-to-newer-dependencies "${@}"
 }
 
+function needs_ui_tests() {
+    initialization::ga_output run-ui-tests "${@}"
+}
+
 if [[ ${DEFAULT_BRANCH} == "master" ]]; then
     ALL_TESTS="Always API Core Other CLI Providers WWW Integration"
 else
@@ -224,6 +228,7 @@ function set_outputs_run_everything_and_exit() {
     set_docs_build "true"
     set_image_build "true"
     set_upgrade_to_newer_dependencies "${upgrade_to_newer_dependencies}"
+    needs_ui_tests "true"
     exit
 }
 
@@ -233,6 +238,7 @@ function set_outputs_run_all_tests() {
     set_test_types "${ALL_TESTS}"
     set_basic_checks_only "false"
     set_image_build "true"
+    needs_ui_tests "true"
     kubernetes_tests_needed="true"
 }
 
@@ -249,6 +255,7 @@ function set_output_skip_all_tests_and_docs_and_exit() {
     set_docs_build "false"
     set_image_build "false"
     set_upgrade_to_newer_dependencies "false"
+    needs_ui_tests "false"
     exit
 }
 
@@ -265,6 +272,7 @@ function set_output_skip_tests_but_build_images_and_exit() {
     set_docs_build "true"
     set_image_build "true"
     set_upgrade_to_newer_dependencies "${upgrade_to_newer_dependencies}"
+    needs_ui_tests "false"
     exit
 }
 
@@ -338,7 +346,7 @@ function check_if_setup_files_changed() {
 function check_if_javascript_security_scans_should_be_run() {
     start_end::group_start "Check Javascript security scans"
     local pattern_array=(
-        "^airflow/.*\.js"
+        "^airflow/.*\.[jt]sx?"
         "^airflow/.*\.lock"
     )
     show_changed_files
@@ -412,6 +420,24 @@ function check_if_docs_should_be_generated() {
     else
         image_build_needed="true"
         docs_build_needed="true"
+    fi
+    start_end::group_end
+}
+
+function check_if_ui_tests_should_be_run() {
+    start_end::group_start "Check UI"
+    local pattern_array=(
+        "^airflow/ui/.*\.[tj]sx?$"
+        # tsconfig.json, package.json, etc.
+        "^airflow/ui/[^/]+\.json$"
+        "^airflow/ui/.*\.lock$"
+    )
+    show_changed_files
+
+    if [[ $(count_changed_files) == "0" ]]; then
+        needs_ui_tests "false"
+    else
+        needs_ui_tests "true"
     fi
     start_end::group_end
 }
@@ -548,6 +574,18 @@ function get_count_www_files() {
     start_end::group_end
 }
 
+function get_count_ui_files() {
+    start_end::group_start "Count ui files"
+    local pattern_array=(
+        "^airflow/ui/"
+    )
+    show_changed_files
+    COUNT_UI_CHANGED_FILES=$(count_changed_files)
+    echo "Files count: ${COUNT_UI_CHANGED_FILES}"
+    readonly COUNT_UI_CHANGED_FILES
+    start_end::group_end
+}
+
 function get_count_kubernetes_files() {
     start_end::group_start "Count kubernetes files"
     local pattern_array=(
@@ -565,7 +603,7 @@ function get_count_kubernetes_files() {
 
 function calculate_test_types_to_run() {
     start_end::group_start "Count core/other files"
-    COUNT_CORE_OTHER_CHANGED_FILES=$((COUNT_ALL_CHANGED_FILES - COUNT_WWW_CHANGED_FILES - COUNT_PROVIDERS_CHANGED_FILES - COUNT_CLI_CHANGED_FILES - COUNT_API_CHANGED_FILES - COUNT_KUBERNETES_CHANGED_FILES))
+    COUNT_CORE_OTHER_CHANGED_FILES=$((COUNT_ALL_CHANGED_FILES - COUNT_WWW_CHANGED_FILES - COUNT_UI_CHANGED_FILES - COUNT_PROVIDERS_CHANGED_FILES - COUNT_CLI_CHANGED_FILES - COUNT_API_CHANGED_FILES - COUNT_KUBERNETES_CHANGED_FILES))
 
     readonly COUNT_CORE_OTHER_CHANGED_FILES
     echo
@@ -664,12 +702,14 @@ check_if_api_tests_should_be_run
 check_if_api_codegen_should_be_run
 check_if_javascript_security_scans_should_be_run
 check_if_python_security_scans_should_be_run
+check_if_ui_tests_should_be_run
 check_if_tests_are_needed_at_all
 get_count_all_files
 get_count_api_files
 get_count_cli_files
 get_count_providers_files
 get_count_www_files
+get_count_ui_files
 get_count_kubernetes_files
 calculate_test_types_to_run
 

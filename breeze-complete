@@ -137,6 +137,7 @@ sort-in-the-wild
 sort-spelling-wordlist
 stylelint
 trailing-whitespace
+ui-lint
 update-breeze-file
 update-extras
 update-local-yml-file

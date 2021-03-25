@@ -147,6 +147,7 @@ jobs:
       sqliteExclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       kubernetesExclude: ${{ steps.selective-checks.outputs.kubernetes-exclude }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
+      run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       image-build: ${{ steps.selective-checks.outputs.image-build }}
@@ -344,6 +345,12 @@ pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-v
           key: "pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}-\
 ${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}
+
+      - name: "Cache eslint"
+        uses: actions/cache@v2
+        with:
+          path: 'airflow/ui/node_modules'
+          key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - name: "Static checks: except pylint"
         run: ./scripts/ci/static_checks/run_static_checks.sh
         env:
@@ -1264,3 +1271,33 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           tags: true
           force: true
           branch: master
+
+  tests-ui:
+    timeout-minutes: 10
+    name: React UI tests
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info, ci-images]
+    env:
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
+    if: needs.build-info.outputs.run-ui-tests == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: "Setup node"
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Cache eslint"
+        uses: actions/cache@v2
+        with:
+          path: 'airflow/ui/node_modules'
+          key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
+      - run: yarn --cwd airflow/ui/ install --frozen-lockfile --non-interactive
+      - run: yarn --cwd airflow/ui/ run test
