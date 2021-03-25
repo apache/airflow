@@ -18,12 +18,14 @@
  */
 
 import React from 'react';
-import { Center, Heading } from '@chakra-ui/react';
+import { Heading } from '@chakra-ui/react';
+
+import ActivityContainer from './ActivityContainer';
 
 const EventLogs: React.FC = () => (
-  <Center height="100vh">
+  <ActivityContainer current="Event Logs">
     <Heading>Event Logs</Heading>
-  </Center>
+  </ActivityContainer>
 );
 
 export default EventLogs;

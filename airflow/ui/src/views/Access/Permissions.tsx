@@ -22,10 +22,10 @@ import { Heading } from '@chakra-ui/react';
 
 import AccessContainer from './AccessContainer';
 
-const Users: React.FC = () => (
-  <AccessContainer current="Users">
-    <Heading>Users</Heading>
+const Permissions: React.FC = () => (
+  <AccessContainer current="Permissions">
+    <Heading>Permissions</Heading>
   </AccessContainer>
 );
 
-export default Users;
+export default Permissions;

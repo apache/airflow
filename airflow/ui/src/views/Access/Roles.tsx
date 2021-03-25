@@ -18,12 +18,14 @@
  */
 
 import React from 'react';
-import { Center, Heading } from '@chakra-ui/react';
+import { Heading } from '@chakra-ui/react';
+
+import AccessContainer from './AccessContainer';
 
 const Roles: React.FC = () => (
-  <Center height="100vh">
+  <AccessContainer current="Roles">
     <Heading>Roles</Heading>
-  </Center>
+  </AccessContainer>
 );
 
 export default Roles;

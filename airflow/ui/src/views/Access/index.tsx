@@ -18,12 +18,14 @@
  */
 
 import React from 'react';
-import { Center, Heading } from '@chakra-ui/react';
+import { Heading } from '@chakra-ui/react';
+
+import AccessContainer from './AccessContainer';
 
 const Access: React.FC = () => (
-  <Center height="100vh">
+  <AccessContainer current="Overview">
     <Heading>Access</Heading>
-  </Center>
+  </AccessContainer>
 );
 
 export default Access;

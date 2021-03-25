@@ -18,14 +18,44 @@
  */
 
 import React from 'react';
-import { Heading } from '@chakra-ui/react';
 
-import AccessContainer from './AccessContainer';
+import SectionWrapper from 'components/SectionWrapper';
 
-const Users: React.FC = () => (
-  <AccessContainer current="Users">
-    <Heading>Users</Heading>
-  </AccessContainer>
-);
+interface Props {
+  current: string;
+  toolBar?: React.ReactNode;
+}
 
-export default Users;
+const AccessContainer: React.FC<Props> = ({ children, current, toolBar }) => {
+  const navItems = [
+    {
+      label: 'Overview',
+      path: '/access',
+    },
+    {
+      label: 'Users',
+      path: '/access/users',
+    },
+    {
+      label: 'Roles',
+      path: '/access/roles',
+    },
+    {
+      label: 'Permissions',
+      path: '/access/permissions',
+    },
+  ];
+
+  return (
+    <SectionWrapper
+      currentSection="Access"
+      currentView={current}
+      navItems={navItems}
+      toolBar={toolBar}
+    >
+      {children}
+    </SectionWrapper>
+  );
+};
+
+export default AccessContainer;

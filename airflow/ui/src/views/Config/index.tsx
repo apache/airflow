@@ -18,12 +18,14 @@
  */
 
 import React from 'react';
-import { Center, Heading } from '@chakra-ui/react';
+import { Heading } from '@chakra-ui/react';
+
+import ConfigContainer from './ConfigContainer';
 
 const Config: React.FC = () => (
-  <Center height="100vh">
-    <Heading>Config</Heading>
-  </Center>
+  <ConfigContainer current="airflow.cfg">
+    <Heading>airflow.cfg</Heading>
+  </ConfigContainer>
 );
 
 export default Config;

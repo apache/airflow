@@ -20,12 +20,12 @@
 import React from 'react';
 import { Heading } from '@chakra-ui/react';
 
-import AccessContainer from './AccessContainer';
+import ActivityContainer from './ActivityContainer';
 
-const Users: React.FC = () => (
-  <AccessContainer current="Users">
-    <Heading>Users</Heading>
-  </AccessContainer>
+const TaskInstances: React.FC = () => (
+  <ActivityContainer current="Task Instances">
+    <Heading>Task Instances</Heading>
+  </ActivityContainer>
 );
 
-export default Users;
+export default TaskInstances;

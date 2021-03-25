@@ -20,7 +20,7 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
-export const url: string = process.env.API_URL || '';
+export const url: string = `${process.env.WEBSERVER_URL}/api/v1/` || '';
 
 export const defaultHeaders = {
   'access-control-allow-origin': url,

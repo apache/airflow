@@ -18,40 +18,14 @@
  */
 
 import React from 'react';
-import {
-  Button,
-  Flex,
-  Box,
-  Icon,
-} from '@chakra-ui/react';
-import { MdExitToApp } from 'react-icons/md';
-import { useAuthContext } from 'auth/context';
+import { Heading } from '@chakra-ui/react';
 
-const AppHeader: React.FC = ({ children }) => {
-  const { logout } = useAuthContext();
+import ConfigContainer from './ConfigContainer';
 
-  return (
-    <Flex width="100vw" height="100vh">
-      <Flex
-        as="header"
-        position="fixed"
-        width="100vw"
-        zIndex={2}
-        align="center"
-        justifyContent="space-between"
-        py="2"
-        px="4"
-        borderBottomWidth="1px"
-      >
-        <Box />
-        <Button onClick={logout}>
-          <Icon as={MdExitToApp} mr="2" />
-          Logout
-        </Button>
-      </Flex>
-      {children}
-    </Flex>
-  );
-};
+const Variables: React.FC = () => (
+  <ConfigContainer current="Variables">
+    <Heading>Variables</Heading>
+  </ConfigContainer>
+);
 
-export default AppHeader;
+export default Variables;

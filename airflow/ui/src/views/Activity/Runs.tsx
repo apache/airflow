@@ -20,12 +20,12 @@
 import React from 'react';
 import { Heading } from '@chakra-ui/react';
 
-import AccessContainer from './AccessContainer';
+import ActivityContainer from './ActivityContainer';
 
-const Users: React.FC = () => (
-  <AccessContainer current="Users">
-    <Heading>Users</Heading>
-  </AccessContainer>
+const Runs: React.FC = () => (
+  <ActivityContainer current="Runs">
+    <Heading>Runs</Heading>
+  </ActivityContainer>
 );
 
-export default Users;
+export default Runs;

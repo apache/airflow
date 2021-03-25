@@ -18,14 +18,31 @@
  */
 
 import React from 'react';
-import { Heading } from '@chakra-ui/react';
+import { Link } from 'react-router-dom';
+import { Button } from '@chakra-ui/react';
 
-import AccessContainer from './AccessContainer';
+interface Props {
+  item: {
+    label: string;
+    path: string;
+  };
+  currentLabel: string;
+}
 
-const Users: React.FC = () => (
-  <AccessContainer current="Users">
-    <Heading>Users</Heading>
-  </AccessContainer>
-);
+const SectionNavBtn: React.FC<Props> = ({ item, currentLabel }) => {
+  const { label, path } = item;
+  return (
+    <Button
+      as={Link}
+      to={path}
+      variant={currentLabel === label ? 'solid' : 'ghost'}
+      colorScheme="blue"
+      size="sm"
+      mr="2"
+    >
+      {label}
+    </Button>
+  );
+};
 
-export default Users;
+export default SectionNavBtn;
