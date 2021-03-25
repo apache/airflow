@@ -68,6 +68,7 @@ class PostgresOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Executing: %s', self.sql)
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
-        self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
+        result = self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
         for output in self.hook.conn.notices:
             self.log.info(output)
+        return result
