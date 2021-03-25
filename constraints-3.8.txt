@@ -173,7 +173,7 @@ connexion==2.7.0
 coverage==5.5
 crcmod==1.7
 croniter==0.3.37
-cryptography==3.4.6
+cryptography==3.4.7
 curlify==2.2.1
 cx-Oracle==8.1.0
 dask==2021.3.0
@@ -242,7 +242,7 @@ google-cloud-redis==2.1.0
 google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.19.1
 google-cloud-speech==1.3.2
-google-cloud-storage==1.36.2
+google-cloud-storage==1.37.0
 google-cloud-tasks==2.2.0
 google-cloud-texttospeech==1.0.1
 google-cloud-translate==1.7.0

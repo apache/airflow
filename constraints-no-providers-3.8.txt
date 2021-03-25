@@ -48,7 +48,7 @@ colorlog==4.8.0
 commonmark==0.9.1
 connexion==2.7.0
 croniter==0.3.37
-cryptography==3.4.6
+cryptography==3.4.7
 dask==2021.3.0
 defusedxml==0.7.1
 dill==0.3.3
