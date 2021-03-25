@@ -31,7 +31,7 @@ import Runs from 'views/Activity/Runs';
 import Jobs from 'views/Activity/Jobs';
 import TaskInstances from 'views/Activity/TaskInstances';
 import TaskReschedules from 'views/Activity/TaskReschedules';
-import SLAMisses from 'views/Activity/SlaMisses';
+import SLAMisses from 'views/Activity/SLAMisses';
 import XComs from 'views/Activity/XComs';
 
 import Config from 'views/Config';
