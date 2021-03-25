@@ -154,6 +154,7 @@ jobs:
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
       needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
+      default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
       runsOn: ${{ steps.set-runs-on.outputs.runsOn }}
@@ -504,12 +505,13 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     strategy:
       matrix:
         package-format: ['wheel', 'sdist']
-    if: needs.build-info.outputs.image-build == 'true'
+    if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
           persist-credentials: false
+        if: needs.build-info.outputs.default-branch == 'master'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -551,7 +553,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     strategy:
       matrix:
         package-format: ['wheel', 'sdist']
-    if: needs.build-info.outputs.image-build == 'true'
+    if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1033,8 +1035,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-postgres
       - tests-mysql
       - tests-kubernetes
-      - prepare-provider-packages
-      - test-provider-packages-released-airflow
       - prod-images
       - docs
     if: >

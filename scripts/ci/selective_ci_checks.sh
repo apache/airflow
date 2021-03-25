@@ -122,7 +122,12 @@ function output_all_basic_variables() {
         initialization::ga_output sqlite-exclude '[]'
     fi
 
+
+    initialization::ga_output default-helm-version "${HELM_VERSION}"
     initialization::ga_output kubernetes-exclude '[]'
+
+    initialization::ga_output default-branch "${DEFAULT_BRANCH}"
+
 }
 
 function get_changed_files() {
@@ -198,8 +203,12 @@ function set_upgrade_to_newer_dependencies() {
     initialization::ga_output upgrade-to-newer-dependencies "${@}"
 }
 
-
-ALL_TESTS="Always API Core Other CLI Providers WWW Integration"
+if [[ ${DEFAULT_BRANCH} == "master" ]]; then
+    ALL_TESTS="Always API Core Other CLI Providers WWW Integration"
+else
+    # Skips Provider tests in case current default branch is not master
+    ALL_TESTS="Always API Core Other CLI WWW Integration"
+fi
 readonly ALL_TESTS
 
 function set_outputs_run_everything_and_exit() {
@@ -588,11 +597,18 @@ function calculate_test_types_to_run() {
             SELECTED_TESTS="${SELECTED_TESTS} CLI"
             kubernetes_tests_needed="true"
         fi
-        if [[ ${COUNT_PROVIDERS_CHANGED_FILES} != "0" ]]; then
+
+        if [[ ${DEFAULT_BRANCH} == "master" ]]; then
+            if [[ ${COUNT_PROVIDERS_CHANGED_FILES} != "0" ]]; then
+                echo
+                echo "Adding Providers to selected files as ${COUNT_PROVIDERS_CHANGED_FILES} Provider files changed"
+                echo
+                SELECTED_TESTS="${SELECTED_TESTS} Providers"
+            fi
+        else
             echo
-            echo "Adding Providers to selected files as ${COUNT_PROVIDERS_CHANGED_FILES} Provider files changed"
+            echo "Providers tests are not added because they are only run in case of master branch."
             echo
-            SELECTED_TESTS="${SELECTED_TESTS} Providers"
         fi
         if [[ ${COUNT_WWW_CHANGED_FILES} != "0" ]]; then
             echo
