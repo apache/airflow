@@ -26,7 +26,7 @@ import {
 
 import SectionNavBtn from 'components/SectionNavBtn';
 
-import AppContainer from 'containers/AppContainer';
+import AppContainer from 'components/AppContainer';
 
 interface Props {
   currentSection: string;

@@ -33,7 +33,7 @@ import {
 import { FaGithub } from 'react-icons/fa';
 import { FiExternalLink, FiGlobe } from 'react-icons/fi';
 
-import AppContainer from 'containers/AppContainer';
+import AppContainer from 'components/AppContainer';
 
 const Docs: React.FC = () => (
   <AppContainer>

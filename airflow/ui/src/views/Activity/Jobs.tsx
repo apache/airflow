@@ -18,14 +18,13 @@
  */
 
 import React from 'react';
-import { Center, Heading } from '@chakra-ui/react';
-import ActivityContainer from 'containers/ActivityContainer';
+import { Heading } from '@chakra-ui/react';
+
+import ActivityContainer from './ActivityContainer';
 
 const Jobs: React.FC = () => (
   <ActivityContainer current="Jobs">
-    <Center height="100vh">
-      <Heading>Jobs</Heading>
-    </Center>
+    <Heading>Jobs</Heading>
   </ActivityContainer>
 );
 

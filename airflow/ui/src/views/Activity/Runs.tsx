@@ -20,7 +20,7 @@
 import React from 'react';
 import { Heading } from '@chakra-ui/react';
 
-import ActivityContainer from 'containers/ActivityContainer';
+import ActivityContainer from './ActivityContainer';
 
 const Runs: React.FC = () => (
   <ActivityContainer current="Runs">

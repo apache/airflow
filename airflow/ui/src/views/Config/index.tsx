@@ -20,7 +20,7 @@
 import React from 'react';
 import { Heading } from '@chakra-ui/react';
 
-import ConfigContainer from 'containers/ConfigContainer';
+import ConfigContainer from './ConfigContainer';
 
 const Config: React.FC = () => (
   <ConfigContainer current="airflow.cfg">

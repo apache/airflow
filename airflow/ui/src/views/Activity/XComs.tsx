@@ -20,12 +20,12 @@
 import React from 'react';
 import { Heading } from '@chakra-ui/react';
 
-import ActivityContainer from 'containers/ActivityContainer';
+import ActivityContainer from './ActivityContainer';
 
-const xcoms: React.FC = () => (
+const XComs: React.FC = () => (
   <ActivityContainer current="XComs">
     <Heading>XComs</Heading>
   </ActivityContainer>
 );
 
-export default xcoms;
+export default XComs;

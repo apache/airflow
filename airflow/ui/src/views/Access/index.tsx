@@ -20,7 +20,7 @@
 import React from 'react';
 import { Heading } from '@chakra-ui/react';
 
-import AccessContainer from 'containers/AccessContainer';
+import AccessContainer from './AccessContainer';
 
 const Access: React.FC = () => (
   <AccessContainer current="Overview">

@@ -42,7 +42,6 @@ module.exports = {
       neutrino.config.resolve.alias.set('utils', resolve(__dirname, 'src/utils'));
       neutrino.config.resolve.alias.set('auth', resolve(__dirname, 'src/auth'));
       neutrino.config.resolve.alias.set('components', resolve(__dirname, 'src/components'));
-      neutrino.config.resolve.alias.set('containers', resolve(__dirname, 'src/containers'));
     },
     typescript(),
     // Modify typescript config in .tsconfig.json

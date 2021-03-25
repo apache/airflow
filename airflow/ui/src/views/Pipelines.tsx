@@ -19,7 +19,7 @@
 
 import React from 'react';
 import { Center, Heading } from '@chakra-ui/react';
-import AppContainer from 'containers/AppContainer';
+import AppContainer from 'components/AppContainer';
 
 const Pipelines: React.FC = () => (
   <AppContainer>
