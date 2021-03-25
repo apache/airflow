@@ -103,6 +103,8 @@ const Docs: React.FC = () => {
     { path: 'zendesk', name: 'Zendesk' },
   ];
 
+  const webURL = process.env.WEBSERVER_URL;
+
   return (
     <AppContainer>
       <Box mx="auto" my={8} maxWidth="900px">
@@ -148,7 +150,9 @@ const Docs: React.FC = () => {
           <Flex mt={4}>
             <Button
               as="a"
-              href="http://127.0.0.1:28080/api/v1/ui/"
+              href={`${webURL}/api/v1/ui/`}
+              target="_blank"
+              rel="noopener noreferrer"
               variant="outline"
               rightIcon={<FiExternalLink />}
               mr={2}
@@ -157,7 +161,9 @@ const Docs: React.FC = () => {
             </Button>
             <Button
               as="a"
-              href="http://127.0.0.1:28080/redoc"
+              href={`${webURL}/redoc`}
+              target="_blank"
+              rel="noopener noreferrer"
               variant="outline"
               rightIcon={<FiExternalLink />}
             >
@@ -175,7 +181,13 @@ const Docs: React.FC = () => {
           <List spacing={2} mt={4} style={{ columns: 3 }}>
             {providers.map((p) => (
               <ListItem key={p.path}>
-                <Link href={`https://airflow.apache.org/docs/apache-airflow-providers-${p.path}/stable/index.html`} isExternal color="teal.500">{p.name}</Link>
+                <Link
+                  href={`https://airflow.apache.org/docs/apache-airflow-providers-${p.path}/stable/index.html`}
+                  isExternal
+                  color="teal.500"
+                >
+                  {p.name}
+                </Link>
               </ListItem>
             ))}
           </List>

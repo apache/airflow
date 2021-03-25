@@ -57,7 +57,7 @@ module.exports = {
     }),
     react({
       env: [
-        'API_URL'
+        'WEBSERVER_URL'
       ],
       html: {
         title: 'Apache Airflow',
