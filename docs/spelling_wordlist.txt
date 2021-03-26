@@ -1318,7 +1318,7 @@ tagKey
 tagValue
 tao
 taskflow
-taskgroup
+task_group
 taskinstance
 tblproperties
 tcp
