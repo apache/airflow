@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from unittest import mock
+
 import pytest
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH
 
@@ -37,10 +39,13 @@ class TestLoginEndpoint:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
 
+    def auth_type(self, auth):
+        self.app.config['AUTH_TYPE'] = auth
+
 
 class TestDBLoginEndpoint(TestLoginEndpoint):
     def test_user_can_login(self):
-        self.app.config['AUTH_TYPE'] = AUTH_DB
+        self.auth_type(AUTH_DB)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.json['username'] == 'test'
@@ -51,7 +56,7 @@ class TestDBLoginEndpoint(TestLoginEndpoint):
         assert isinstance(cookie.value, str)
 
     def test_logged_in_user_cant_relogin(self):
-        self.app.config['AUTH_TYPE'] = AUTH_DB
+        self.auth_type(AUTH_DB)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.json['username'] == 'test'
@@ -60,21 +65,21 @@ class TestDBLoginEndpoint(TestLoginEndpoint):
         assert response.json['detail'] == "Client already authenticated"
 
     def test_incorrect_username_raises(self):
-        self.app.config['AUTH_TYPE'] = AUTH_DB
+        self.auth_type(AUTH_DB)
         payload = {"username": "tests", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.status_code == 404
         assert response.json['detail'] == 'Invalid login'
 
     def test_post_body_conforms(self):
-        self.app.config['AUTH_TYPE'] = AUTH_DB
+        self.auth_type(AUTH_DB)
         payload = {"username": "tests"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.status_code == 400
         assert response.json['detail'] == "{'password': ['Missing data for required field.']}"
 
     def test_auth_type_must_be_db(self):
-        self.app.config['AUTH_TYPE'] = AUTH_OAUTH
+        self.auth_type(AUTH_OAUTH)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.status_code == 400
@@ -83,7 +88,7 @@ class TestDBLoginEndpoint(TestLoginEndpoint):
 
 class TestLDAPLoginEndpoint(TestLoginEndpoint):
     def test_user_can_login(self):
-        self.app.config['AUTH_TYPE'] = AUTH_LDAP
+        self.auth_type(AUTH_LDAP)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.json['username'] == 'test'
@@ -94,7 +99,7 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
         assert isinstance(cookie.value, str)
 
     def test_logged_in_user_cant_relogin(self):
-        self.app.config['AUTH_TYPE'] = AUTH_LDAP
+        self.auth_type(AUTH_LDAP)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.json['username'] == 'test'
@@ -103,21 +108,21 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
         assert response.json['detail'] == "Client already authenticated"
 
     def test_incorrect_username_raises(self):
-        self.app.config['AUTH_TYPE'] = AUTH_LDAP
+        self.auth_type(AUTH_LDAP)
         payload = {"username": "tests", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.status_code == 404
         assert response.json['detail'] == 'Invalid login'
 
     def test_post_body_conforms(self):
-        self.app.config['AUTH_TYPE'] = AUTH_LDAP
+        self.auth_type(AUTH_LDAP)
         payload = {"username": "tests"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.status_code == 400
         assert response.json['detail'] == "{'password': ['Missing data for required field.']}"
 
     def test_auth_type_must_be_db(self):
-        self.app.config['AUTH_TYPE'] = AUTH_OAUTH
+        self.auth_type(AUTH_OAUTH)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.status_code == 400
@@ -125,8 +130,21 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
 
 
 class TestOauthAuthorizationURLEndpoint(TestLoginEndpoint):
-    def test_can_generate_authorization_url(self):
-        pass
+    @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt")
+    def test_can_generate_authorization_url(self, mock_jwt):
+        mock_state = mock.MagicMock()
+        self.app.appbuilder.sm.oauth_remotes = {"google": mock.MagicMock()}
+        self.app.appbuilder.sm.oauth_remotes['google'] = mock.MagicMock()
+        self.app.appbuilder.sm.oauth_remotes['google'].create_authorization_url.return_value = {
+            "state": "state",
+            "url": "authurl",
+        }
+        redirect_url = "http://localhost:8080"
+        mock_jwt.encode.return_value = mock_state
+        resp = self.client.get('api/v1/auth-oauth/google?register=True' f'&redirect_url={redirect_url}')
+        assert self.app.appbuilder.sm.oauth_remotes['google'].create_authorization_url.assert_called_with(
+            redirect_uri=redirect_url, state=mock_state
+        )
 
     def test_already_logged_in_user_cant_get_auth_url(self):
         pass

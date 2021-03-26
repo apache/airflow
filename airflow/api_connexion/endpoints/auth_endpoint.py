@@ -82,7 +82,7 @@ def auth_dblogin():
     return security_manager.create_access_token_and_dump_user()
 
 
-def auth_oauthlogin(provider, register=None, redirect_uri=None):
+def auth_oauthlogin(provider, register=None, redirect_url=None):
     """Handle Oauth login"""
     appbuilder = current_app.appbuilder
     if g.user is not None and g.user.is_authenticated:
@@ -99,17 +99,17 @@ def auth_oauthlogin(provider, register=None, redirect_uri=None):
         if register:
             session["register"] = True
         if provider == "twitter":
-            redirect_uri = redirect_uri + f"&state={state}"
+            redirect_uri = redirect_url + f"&state={state}"
             auth_data = auth_provider.create_authorization_url(redirect_uri=redirect_uri)
             auth_provider.save_authorize_data(request, redirect_uri=redirect_uri, **auth_data)
             return dict(auth_url=auth_data['url'])
         else:
             state = state.decode("ascii") if isinstance(state, bytes) else state
             auth_data = auth_provider.create_authorization_url(
-                redirect_uri=redirect_uri,
+                redirect_uri=redirect_url,
                 state=state,
             )
-            auth_provider.save_authorize_data(request, redirect_uri=redirect_uri, **auth_data)
+            auth_provider.save_authorize_data(request, redirect_uri=redirect_url, **auth_data)
             return dict(auth_url=auth_data['url'])
     except Exception as err:  # pylint: disable=broad-except
         raise NotFound(detail=str(err))
