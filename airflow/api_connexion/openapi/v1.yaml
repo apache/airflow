@@ -1620,7 +1620,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/ShouldRegister'
         - $ref: '#/components/parameters/OauthProvider'
-        - $ref: '#/components/parameters/RedirectUrL'
+        - $ref: '#/components/parameters/RedirectUrl'
       responses:
         '200':
           description: Success.
@@ -3428,7 +3428,7 @@ components:
       required: true
       description: The auth state from provider
 
-    RedirectUrL:
+    RedirectUrl:
       in: query
       name: redirect_url
       schema:

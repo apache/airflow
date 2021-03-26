@@ -130,21 +130,19 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
 
 
 class TestOauthAuthorizationURLEndpoint(TestLoginEndpoint):
-    @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt")
-    def test_can_generate_authorization_url(self, mock_jwt):
-        mock_state = mock.MagicMock()
-        self.app.appbuilder.sm.oauth_remotes = {"google": mock.MagicMock()}
-        self.app.appbuilder.sm.oauth_remotes['google'] = mock.MagicMock()
-        self.app.appbuilder.sm.oauth_remotes['google'].create_authorization_url.return_value = {
-            "state": "state",
-            "url": "authurl",
+    @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt.encode")
+    def test_can_generate_authorization_url(self, mock_jwt_encode):
+        self.auth_type(AUTH_OAUTH)
+        mock_jwt_encode.return_value = "state"
+        mock_google_auth_provider = mock.Mock()
+        self.app.appbuilder.sm.oauth_remotes = {
+            "google": mock_google_auth_provider,
         }
+        mock_auth = mock.MagicMock(return_value={"state": "state", "url": "authurl"})
+        mock_google_auth_provider.create_authorization_url = mock_auth
         redirect_url = "http://localhost:8080"
-        mock_jwt.encode.return_value = mock_state
-        resp = self.client.get('api/v1/auth-oauth/google?register=True' f'&redirect_url={redirect_url}')
-        assert self.app.appbuilder.sm.oauth_remotes['google'].create_authorization_url.assert_called_with(
-            redirect_uri=redirect_url, state=mock_state
-        )
+        self.client.get(f'api/v1/auth-oauth/google?register=True&redirect_url={redirect_url}')
+        mock_auth.assert_called_once_with(redirect_uri=redirect_url, state="state")
 
     def test_already_logged_in_user_cant_get_auth_url(self):
         pass
