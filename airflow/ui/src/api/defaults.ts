@@ -20,3 +20,7 @@
 export const defaultVersion = { version: '', gitVersion: '' };
 
 export const defaultDags = { dags: [], totalEntries: 0 };
+
+export const defaultDagRuns = { dagRuns: [], totalEntries: 0 };
+
+export const defaultTaskInstances = { taskInstances: [], totalEntries: 0 };

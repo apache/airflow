@@ -21,8 +21,8 @@ import axios, { AxiosResponse } from 'axios';
 import { useQuery } from 'react-query';
 import humps from 'humps';
 
-import type { Version } from 'interfaces';
-import type { DagsResponse } from 'interfaces/api';
+import type { Dag, DagRun, Version } from 'interfaces';
+import type { DagsResponse, DagRunsResponse, TaskInstancesResponse } from 'interfaces/api';
 
 axios.defaults.baseURL = `${process.env.WEBSERVER_URL}/api/v1`;
 axios.interceptors.response.use(
@@ -36,6 +36,23 @@ export function useDags() {
     'dags',
     (): Promise<DagsResponse> => axios.get('/dags'),
     { refetchInterval },
+  );
+}
+
+export function useDagRuns(dagId: Dag['dagId'], dateMin?: string) {
+  return useQuery<DagRunsResponse, Error>(
+    ['dagRun', dagId],
+    (): Promise<DagRunsResponse> => axios.get(`dags/${dagId}/dagRuns${dateMin ? `?start_date_gte=${dateMin}` : ''}`),
+    { refetchInterval },
+  );
+}
+
+export function useTaskInstances(dagId: Dag['dagId'], dagRunId: DagRun['dagRunId'], dateMin?: string) {
+  return useQuery<TaskInstancesResponse, Error>(
+    ['taskInstance', dagRunId],
+    (): Promise<TaskInstancesResponse> => (
+      axios.get(`dags/${dagId}/dagRuns/${dagRunId}/taskInstances${dateMin ? `?start_date_gte=${dateMin}` : ''}`)
+    ),
   );
 }
 

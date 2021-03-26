@@ -18,31 +18,44 @@
  */
 
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@chakra-ui/react';
+import {
+  Box,
+  useColorModeValue,
+} from '@chakra-ui/react';
+
+import SectionNavBtn from 'components/SectionNavBtn';
 
 interface Props {
-  item: {
+  currentView: string;
+  navItems: {
     label: string;
     path: string;
-  };
-  currentView: string;
+  }[]
 }
 
-const SectionNavBtn: React.FC<Props> = ({ item, currentView }) => {
-  const { label, path } = item;
+const SectionNav: React.FC<Props> = ({ currentView, navItems }) => {
+  const bg = useColorModeValue('gray.100', 'gray.700');
   return (
-    <Button
-      as={Link}
-      to={path}
-      variant={currentView === label ? 'solid' : 'ghost'}
-      colorScheme="blue"
-      size="sm"
-      mr="2"
+    <Box
+      pt={2}
+      mx={-4}
+      px={4}
+      pb={2}
+      bg={bg}
     >
-      {label}
-    </Button>
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+      >
+        <Box as="nav">
+          {navItems.map((item) => (
+            <SectionNavBtn key={item.label} item={item} currentView={currentView} />
+          ))}
+        </Box>
+      </Box>
+    </Box>
   );
 };
 
-export default SectionNavBtn;
+export default SectionNav;

@@ -24,7 +24,21 @@ import { Route, Redirect, Switch } from 'react-router-dom';
 import PrivateRoute from 'auth/PrivateRoute';
 
 import Pipelines from 'views/Pipelines';
-import Pipeline from 'views/Pipeline';
+
+import Details from 'views/Pipeline/runs/Details';
+import Code from 'views/Pipeline/runs/Code';
+import TaskTries from 'views/Pipeline/runs/TaskTries';
+import TaskDuration from 'views/Pipeline/runs/TaskDuration';
+import LandingTimes from 'views/Pipeline/runs/LandingTimes';
+
+import Graph from 'views/Pipeline/run/Graph';
+import Gantt from 'views/Pipeline/run/Gantt';
+
+import TIDetails from 'views/Pipeline/ti/Details';
+import RenderedTemplate from 'views/Pipeline/ti/RenderedTemplate';
+import RenderedK8s from 'views/Pipeline/ti/RenderedK8s';
+import Log from 'views/Pipeline/ti/Log';
+import XCom from 'views/Pipeline/ti/XCom';
 
 import EventLogs from 'views/Activity/EventLogs';
 import Runs from 'views/Activity/Runs';
@@ -51,7 +65,24 @@ const App = () => (
   <Switch>
     <Redirect exact path="/" to="/pipelines" />
     <PrivateRoute exact path="/pipelines" component={Pipelines} />
-    <PrivateRoute exact path="/pipelines/:dagId" component={Pipeline} />
+
+    <Redirect exact path="/pipelines/:dagId" to="/pipelines/:dagId/details" />
+    <PrivateRoute exact path="/pipelines/:dagId/details" component={Details} />
+    <PrivateRoute exact path="/pipelines/:dagId/code" component={Code} />
+    <PrivateRoute exact path="/pipelines/:dagId/task-tries" component={TaskTries} />
+    <PrivateRoute exact path="/pipelines/:dagId/task-duration" component={TaskDuration} />
+    <PrivateRoute exact path="/pipelines/:dagId/landing-times" component={LandingTimes} />
+
+    <Redirect exact path="/pipelines/:dagId/:dagRunId" to="/pipelines/:dagId/:dagRunId/graph" />
+    <PrivateRoute exact path="/pipelines/:dagId/:dagRunId/graph" component={Graph} />
+    <PrivateRoute exact path="/pipelines/:dagId/:dagRunId/gantt" component={Gantt} />
+
+    <Redirect exact path="/pipelines/:dagId/:dagRunId/:taskId" to="/pipelines/:dagId/:dagRunId/:taskId/details" />
+    <PrivateRoute exact path="/pipelines/:dagId/:dagRunId/:taskId/details" component={TIDetails} />
+    <PrivateRoute exact path="/pipelines/:dagId/:dagRunId/:taskId/rendered-template" component={RenderedTemplate} />
+    <PrivateRoute exact path="/pipelines/:dagId/:dagRunId/:taskId/rendered-k8s" component={RenderedK8s} />
+    <PrivateRoute exact path="/pipelines/:dagId/:dagRunId/:taskId/log" component={Log} />
+    <PrivateRoute exact path="/pipelines/:dagId/:dagRunId/:taskId/xcom" component={XCom} />
 
     <PrivateRoute exact path="/activity/event-logs" component={EventLogs} />
     <PrivateRoute exact path="/activity/runs" component={Runs} />

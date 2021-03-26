@@ -18,31 +18,14 @@
  */
 
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@chakra-ui/react';
+import { Heading } from '@chakra-ui/react';
 
-interface Props {
-  item: {
-    label: string;
-    path: string;
-  };
-  currentView: string;
-}
+import RunsContainer from './RunsContainer';
 
-const SectionNavBtn: React.FC<Props> = ({ item, currentView }) => {
-  const { label, path } = item;
-  return (
-    <Button
-      as={Link}
-      to={path}
-      variant={currentView === label ? 'solid' : 'ghost'}
-      colorScheme="blue"
-      size="sm"
-      mr="2"
-    >
-      {label}
-    </Button>
-  );
-};
+const Details: React.FC = () => (
+  <RunsContainer currentView="Details">
+    <Heading>Details</Heading>
+  </RunsContainer>
+);
 
-export default SectionNavBtn;
+export default Details;

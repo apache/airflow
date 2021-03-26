@@ -18,12 +18,14 @@
  */
 
 import React from 'react';
-import { Center, Heading } from '@chakra-ui/react';
+import { Heading } from '@chakra-ui/react';
 
-const Pipeline: React.FC = () => (
-  <Center height="100vh">
-    <Heading>Pipeline</Heading>
-  </Center>
+import RunsContainer from './RunsContainer';
+
+const TaskDuration: React.FC = () => (
+  <RunsContainer currentView="Task Duration">
+    <Heading>Task Duration</Heading>
+  </RunsContainer>
 );
 
-export default Pipeline;
+export default TaskDuration;

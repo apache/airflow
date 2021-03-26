@@ -24,9 +24,8 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react';
 
-import SectionNavBtn from 'components/SectionNavBtn';
-
 import AppContainer from 'components/AppContainer';
+import SectionNav from 'components/SectionNav';
 
 interface Props {
   currentSection: string;
@@ -42,7 +41,6 @@ const SectionWrapper: React.FC<Props> = ({
   children, currentSection, currentView, navItems, toolBar,
 }) => {
   const heading = useColorModeValue('gray.400', 'gray.500');
-  const bg = useColorModeValue('gray.100', 'gray.700');
   const border = useColorModeValue('gray.100', 'gray.700');
   const toolbarBg = useColorModeValue('white', 'gray.800');
   return (
@@ -60,25 +58,7 @@ const SectionWrapper: React.FC<Props> = ({
         </Heading>
     )}
     >
-      <Box
-        pt={2}
-        mx={-4}
-        px={4}
-        pb="2"
-        bg={bg}
-      >
-        <Box
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-        >
-          <Box as="nav">
-            {navItems.map((item) => (
-              <SectionNavBtn key={item.label} item={item} currentLabel={currentView} />
-            ))}
-          </Box>
-        </Box>
-      </Box>
+      <SectionNav navItems={navItems} currentView={currentView} />
       {toolBar && (
       <Box
         position="sticky"

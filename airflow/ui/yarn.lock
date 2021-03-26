@@ -9939,6 +9939,18 @@ use-callback-ref@^1.2.1, use-callback-ref@^1.2.3:
   resolved "https://registry.yarnpkg.com/use-callback-ref/-/use-callback-ref-1.2.5.tgz#6115ed242cfbaed5915499c0a9842ca2912f38a5"
   integrity sha512-gN3vgMISAgacF7sqsLPByqoePooY3n2emTH59Ur5d/M8eg4WTWu1xp8i8DHjohftIyEx0S08RiYxbffr4j8Peg==
 
+use-force-update@^1.0.5:
+  version "1.0.7"
+  resolved "https://registry.yarnpkg.com/use-force-update/-/use-force-update-1.0.7.tgz#f5e672633f5a398b25c33b2287150918bcb3526b"
+  integrity sha512-k5dppYhO+I5X/cd7ildbrzeMZJkWwdAh5adaIk0qKN2euh7J0h2GBGBcB4QZ385eyHHnp7LIygvebdRx3XKdwA==
+
+use-react-router@^1.0.7:
+  version "1.0.7"
+  resolved "https://registry.yarnpkg.com/use-react-router/-/use-react-router-1.0.7.tgz#04216066d87e45040309f24d2fd5e9f28308b3e2"
+  integrity sha512-gdqIHEO28E+qDJQ+tOMGQPthPib7mhLI/4MY7wtxJuaVUkosbP+FAYcHmmE7/FjYoMsuzL/bvY/25st7QHodpw==
+  dependencies:
+    use-force-update "^1.0.5"
+
 use-sidecar@^1.0.1:
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/use-sidecar/-/use-sidecar-1.0.5.tgz#ffff2a17c1df42e348624b699ba6e5c220527f2b"

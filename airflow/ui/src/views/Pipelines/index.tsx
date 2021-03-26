@@ -85,7 +85,7 @@ const Pipelines: React.FC = () => {
                 <Flex alignItems="center">
                   <Link
                     as={RouterLink}
-                    to={`/pipeline/${dag.dagId}`}
+                    to={`/pipelines/${dag.dagId}`}
                     fontWeight="bold"
                   >
                     {dag.dagId}
