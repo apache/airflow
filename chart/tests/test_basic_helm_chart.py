@@ -19,6 +19,7 @@ from subprocess import CalledProcessError
 from typing import Any, Dict, List, Union
 
 import jmespath
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
@@ -145,4 +146,42 @@ class TestBaseChartTest(unittest.TestCase):
         assert (
             'executor must be one of the following: "LocalExecutor", "CeleryExecutor", '
             '"KubernetesExecutor", "CeleryKubernetesExecutor"' in ex_ctx.exception.stderr.decode()
+        )
+
+    @parameterized.expand(
+        [
+            ("airflow",),
+            ("pod_template",),
+            ("flower",),
+            ("statsd",),
+            ("redis",),
+            ("pgbouncer",),
+            ("pgbouncerExporter",),
+            ("gitSync",),
+        ]
+    )
+    def test_invalid_pull_policy(self, image):
+        with self.assertRaises(CalledProcessError) as ex_ctx:
+            render_chart(
+                "TEST-BASIC",
+                {
+                    "images": {image: {"pullPolicy": "InvalidPolicy"}},
+                },
+            )
+        assert (
+            'pullPolicy must be one of the following: "Always", "Never", "IfNotPresent"'
+            in ex_ctx.exception.stderr.decode()
+        )
+
+    def test_invalid_dags_access_mode(self):
+        with self.assertRaises(CalledProcessError) as ex_ctx:
+            render_chart(
+                "TEST-BASIC",
+                {
+                    "dags": {"persistence": {"accessMode": "InvalidMode"}},
+                },
+            )
+        assert (
+            'accessMode must be one of the following: "ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"'
+            in ex_ctx.exception.stderr.decode()
         )
