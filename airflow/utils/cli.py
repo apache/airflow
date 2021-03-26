@@ -158,7 +158,8 @@ def should_use_colors(args):
 def get_terminal_size(fallback=(80, 20)):
     """Return a tuple of (terminal height, terminal width)."""
     try:
-        return struct.unpack('hhhh', ioctl(sys.__stdout__, TIOCGWINSZ, '\000' * 8))[0:2]
+        width, height = struct.unpack('hhhh', ioctl(sys.__stdout__, TIOCGWINSZ, '\000' * 8))[0:2]
+        return width or fallback[0], height or fallback[1]
     except IOError:
         # when the output stream or init descriptor is not a tty, such
         # as when when stdout is piped to another program
