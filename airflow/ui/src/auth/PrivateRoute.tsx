@@ -17,31 +17,17 @@
  * under the License.
  */
 
-import React from 'react';
-import { render } from 'react-dom';
-import { BrowserRouter } from 'react-router-dom';
-import { ChakraProvider } from '@chakra-ui/react';
-import {
-  QueryClient,
-  QueryClientProvider,
-} from 'react-query';
+import React, {
+  FC,
+} from 'react';
+import { Route, RouteProps } from 'react-router-dom';
 
-import AuthProvider from 'auth/AuthProvider';
+import Login from 'views/Login';
+import { useAuthContext } from './context';
 
-import App from './App';
-import theme from './theme';
+const PrivateRoute: FC<RouteProps> = (props) => {
+  const { hasValidAuthToken } = useAuthContext();
+  return hasValidAuthToken ? <Route {...props} /> : <Login />;
+};
 
-const queryClient = new QueryClient();
-
-render(
-  <BrowserRouter basename="/">
-    <ChakraProvider theme={theme}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </QueryClientProvider>
-    </ChakraProvider>
-  </BrowserRouter>,
-  document.getElementById('root'),
-);
+export default PrivateRoute;

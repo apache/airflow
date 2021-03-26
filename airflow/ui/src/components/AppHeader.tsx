@@ -18,30 +18,40 @@
  */
 
 import React from 'react';
-import { render } from 'react-dom';
-import { BrowserRouter } from 'react-router-dom';
-import { ChakraProvider } from '@chakra-ui/react';
 import {
-  QueryClient,
-  QueryClientProvider,
-} from 'react-query';
+  Button,
+  Flex,
+  Box,
+  Icon,
+} from '@chakra-ui/react';
+import { MdExitToApp } from 'react-icons/md';
+import { useAuthContext } from 'auth/context';
 
-import AuthProvider from 'auth/AuthProvider';
+const AppHeader: React.FC = ({ children }) => {
+  const { logout } = useAuthContext();
 
-import App from './App';
-import theme from './theme';
+  return (
+    <Flex width="100vw" height="100vh">
+      <Flex
+        as="header"
+        position="fixed"
+        width="100vw"
+        zIndex={2}
+        align="center"
+        justifyContent="space-between"
+        py="2"
+        px="4"
+        borderBottomWidth="1px"
+      >
+        <Box />
+        <Button onClick={logout}>
+          <Icon as={MdExitToApp} mr="2" />
+          Logout
+        </Button>
+      </Flex>
+      {children}
+    </Flex>
+  );
+};
 
-const queryClient = new QueryClient();
-
-render(
-  <BrowserRouter basename="/">
-    <ChakraProvider theme={theme}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </QueryClientProvider>
-    </ChakraProvider>
-  </BrowserRouter>,
-  document.getElementById('root'),
-);
+export default AppHeader;

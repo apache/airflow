@@ -75,6 +75,10 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+{{- if .Values.workers.hostAliases }}
+      hostAliases:
+{{ toYaml .Values.workers.hostAliases | indent 8 }}
+{{- end }}
       terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ .Release.Name }}-worker

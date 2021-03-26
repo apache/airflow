@@ -19,12 +19,45 @@
 
 import { hot } from 'react-hot-loader';
 import React from 'react';
-import { Center, Heading } from '@chakra-ui/react';
+import { Route, Redirect, Switch } from 'react-router-dom';
+
+import PrivateRoute from 'auth/PrivateRoute';
+
+import Pipelines from 'views/Pipelines';
+import Pipeline from 'views/Pipeline';
+
+import EventLogs from 'views/Activity/EventLogs';
+
+import Config from 'views/Config';
+
+import Access from 'views/Access';
+import Users from 'views/Access/Users';
+import Roles from 'views/Access/Roles';
+
+import Docs from 'views/Docs';
+import NotFound from 'views/NotFound';
 
 const App = () => (
-  <Center height="100vh">
-    <Heading>Apache Airflow new UI</Heading>
-  </Center>
+  <Switch>
+    <Redirect exact path="/" to="/pipelines" />
+    <PrivateRoute exact path="/pipelines" component={Pipelines} />
+    <PrivateRoute exact path="/pipelines/:dagId" component={Pipeline} />
+
+    <PrivateRoute exact path="/activity/event-logs" component={EventLogs} />
+
+    <PrivateRoute exact path="/config" component={Config} />
+
+    <PrivateRoute exact path="/access" component={Access} />
+    <PrivateRoute exact path="/access/users" component={Users} />
+    <PrivateRoute exact path="/access/users/new" component={Users} />
+    <PrivateRoute exact path="/access/users/:username" component={Users} />
+    <PrivateRoute exact path="/access/users/:username/edit" component={Users} />
+    <PrivateRoute exact path="/access/roles" component={Roles} />
+
+    <Route exact path="/docs" component={Docs} />
+
+    <Route component={NotFound} />
+  </Switch>
 );
 
 export default hot(module)(App);

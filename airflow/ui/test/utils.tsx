@@ -18,30 +18,22 @@
  */
 
 import React from 'react';
-import { render } from 'react-dom';
-import { BrowserRouter } from 'react-router-dom';
-import { ChakraProvider } from '@chakra-ui/react';
-import {
-  QueryClient,
-  QueryClientProvider,
-} from 'react-query';
+import { QueryClient, QueryClientProvider } from 'react-query';
 
-import AuthProvider from 'auth/AuthProvider';
+export const url: string = process.env.API_URL || '';
 
-import App from './App';
-import theme from './theme';
+export const defaultHeaders = {
+  'access-control-allow-origin': url,
+  'access-control-allow-credentials': 'true',
+  'access-control-allow-headers': '*',
+  'access-control-allow-methods': '*',
+};
 
-const queryClient = new QueryClient();
-
-render(
-  <BrowserRouter basename="/">
-    <ChakraProvider theme={theme}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </QueryClientProvider>
-    </ChakraProvider>
-  </BrowserRouter>,
-  document.getElementById('root'),
-);
+export const QueryWrapper: React.FC<{}> = ({ children }) => {
+  const queryClient = new QueryClient();
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+};

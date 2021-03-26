@@ -78,7 +78,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|              | Master version (dev)      | Stable version (2.0.1)   | Previous version (1.10.14) |
+|              | Master version (dev)      | Stable version (2.0.1)   | Previous version (1.10.15) |
 | ------------ | ------------------------- | ------------------------ | -------------------------  |
 | Python       | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |

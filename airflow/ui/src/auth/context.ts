@@ -17,31 +17,27 @@
  * under the License.
  */
 
-import React from 'react';
-import { render } from 'react-dom';
-import { BrowserRouter } from 'react-router-dom';
-import { ChakraProvider } from '@chakra-ui/react';
 import {
-  QueryClient,
-  QueryClientProvider,
-} from 'react-query';
+  createContext, useContext,
+} from 'react';
 
-import AuthProvider from 'auth/AuthProvider';
+// todo: eventually replace hasValidAuthToken with a user object
+interface AuthContextData {
+  hasValidAuthToken: boolean;
+  login: (username: string, password: string) => void;
+  logout: () => void;
+  loading: boolean;
+  error: Error | null;
+}
 
-import App from './App';
-import theme from './theme';
+export const authContextDefaultValue: AuthContextData = {
+  hasValidAuthToken: false,
+  login: () => null,
+  logout: () => null,
+  loading: true,
+  error: null,
+};
 
-const queryClient = new QueryClient();
+export const AuthContext = createContext<AuthContextData>(authContextDefaultValue);
 
-render(
-  <BrowserRouter basename="/">
-    <ChakraProvider theme={theme}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </QueryClientProvider>
-    </ChakraProvider>
-  </BrowserRouter>,
-  document.getElementById('root'),
-);
+export const useAuthContext = () => useContext(AuthContext);

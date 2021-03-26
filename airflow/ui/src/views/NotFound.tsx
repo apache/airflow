@@ -18,30 +18,27 @@
  */
 
 import React from 'react';
-import { render } from 'react-dom';
-import { BrowserRouter } from 'react-router-dom';
-import { ChakraProvider } from '@chakra-ui/react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
-  QueryClient,
-  QueryClientProvider,
-} from 'react-query';
+  Center,
+  Box,
+  Heading,
+  Link,
+} from '@chakra-ui/react';
 
-import AuthProvider from 'auth/AuthProvider';
-
-import App from './App';
-import theme from './theme';
-
-const queryClient = new QueryClient();
-
-render(
-  <BrowserRouter basename="/">
-    <ChakraProvider theme={theme}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </QueryClientProvider>
-    </ChakraProvider>
-  </BrowserRouter>,
-  document.getElementById('root'),
+const NotFound: React.FC = () => (
+  <Center mt="50px">
+    <Box textAlign="center">
+      <Heading>Page not found</Heading>
+      <Link
+        as={RouterLink}
+        to="/"
+        color="teal.500"
+      >
+        Return to the main page
+      </Link>
+    </Box>
+  </Center>
 );
+
+export default NotFound;
