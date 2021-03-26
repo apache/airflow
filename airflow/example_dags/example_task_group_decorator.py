@@ -56,16 +56,18 @@ def task_end():
 
 
 # Creating TaskGroups
-@taskgroup
-def section_1(value):
+@task_group
+def task_group_function(value):
     """ TaskGroup for grouping related Tasks"""
     return task_3(task_2(task_1(value)))
 
 
 # Executing Tasks and TaskGroups
 with DAG(dag_id="example_task_group_decorator", start_date=days_ago(2), tags=["example"]) as dag:
-    t1 = task_start()
+    start_task = task_start()
+    end_task = task_end()
+    for i in range(5):
+        current_task_group = task_group_function(i)
+        start_task >> current_task_group >> end_task
 
-    s1 = section_1(t1)
-    s1.set_downstream(task_end())
 # [END howto_task_group_decorator]

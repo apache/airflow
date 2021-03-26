@@ -19,22 +19,8 @@
 A TaskGroup is a collection of closely related tasks on the same DAG that should be grouped
 together when the DAG is displayed graphically.
 """
-import functools
 import re
-from inspect import signature
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import TaskMixin
@@ -320,13 +306,13 @@ class TaskGroup(TaskMixin):
         """Returns a flat dictionary of group_id: TaskGroup"""
         task_group_map = {}
 
-        def build_map(taskgroup):
-            if not isinstance(taskgroup, TaskGroup):
+        def build_map(task_group):
+            if not isinstance(task_group, TaskGroup):
                 return
 
-            task_group_map[taskgroup.group_id] = task_group
+            task_group_map[task_group.group_id] = task_group
 
-            for child in taskgroup.children.values():
+            for child in task_group.children.values():
                 build_map(child)
 
         build_map(self)
@@ -372,53 +358,3 @@ class TaskGroupContext:
                 return dag.task_group
 
         return cls._context_managed_task_group
-
-
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
-
-
-def task_group(python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs) -> Callable[[T], T]:
-    """
-    Python TaskGroup decorator. Wraps a function into an Airflow TaskGroup.
-    Accepts kwargs for operator TaskGroup. Can be used to parametrize TaskGroup.
-
-    :param python_callable: Function to decorate
-    :param tg_args: Arguments for TaskGroup object
-    :type tg_args: list
-    :param tg_kwargs: Kwargs for TaskGroup object.
-    :type tg_kwargs: dict
-    """
-
-    def wrapper(f: T):
-
-        # Setting group_id as function name if not given in kwarg group_id
-        if len(tg_args) == 0 and 'group_id' not in tg_kwargs.keys():
-            tg_kwargs['group_id'] = f.__name__
-
-        # Get dag initializer signature and bind it to validate that task_group_args,
-        # and task_group_kwargs are correct
-        task_group_sig = signature(TaskGroup.__init__)
-        task_group_bound_args = task_group_sig.bind_partial(*tg_args, **tg_kwargs)
-
-        @functools.wraps(f)
-        def factory(*args, **kwargs):
-            # Generate signature for decorated function and bind the arguments when called
-            # we do this to extract parameters so we can annotate them on the DAG object.
-            # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
-            f_sig = signature(f).bind(*args, **kwargs)
-            # Apply defaults to capture default values if set.
-            f_sig.apply_defaults()
-
-            # Initialize TaskGroup with bound arguments
-            with TaskGroup(*task_group_bound_args.args, **task_group_bound_args.kwargs) as tg_obj:
-                # Invoke function to run Tasks inside the TaskGroup
-                f(**f_sig.arguments)
-
-            # Return task_group object such that it's accessible in Globals.
-            return tg_obj
-
-        return cast(T, factory)
-
-    if callable(python_callable):
-        return wrapper(python_callable)
-    return wrapper

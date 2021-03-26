@@ -18,6 +18,7 @@
 from typing import Callable, Optional
 
 from airflow.decorators.python import python_task
+from airflow.decorators.task_group import task_group  # noqa # pylint: disable=unused-import
 from airflow.models.dag import dag  # noqa # pylint: disable=unused-import
 
 

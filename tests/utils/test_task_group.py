@@ -18,11 +18,12 @@
 
 import pendulum
 
+from airflow.decorators import task_group as task_group_decorator
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
-from airflow.utils.task_group import TaskGroup, task_group as task_group_decorator
+from airflow.utils.task_group import TaskGroup
 from airflow.www.views import dag_edges, task_group_to_dict
 
 EXPECTED_JSON = {
