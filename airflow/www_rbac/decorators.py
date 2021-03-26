@@ -22,7 +22,9 @@ import functools
 import pendulum
 from io import BytesIO as IO
 from flask import after_this_request, flash, redirect, request, url_for, g
-from airflow.models import Log
+from typing import Union, List
+
+from airflow.models import Log, TaskInstance, DagRun
 from airflow.utils.db import create_session
 
 
@@ -126,7 +128,8 @@ def has_dag_access(**dag_kwargs):
         return wrapper
     return decorator
 
-def has_dag_access_ti(**dag_kwargs):
+
+def has_dag_access_ti_or_dagrun(**dag_kwargs):
     """
     Decorator to check whether the user has read / write permission on the dag.
     """
@@ -134,12 +137,18 @@ def has_dag_access_ti(**dag_kwargs):
         @functools.wraps(f)
         def wrapper(self, *args, **kwargs):
             has_access = self.appbuilder.sm.has_access
-            tis = args[0]
+            items = args[0]  # type: Union[List[TaskInstance], List[DagRun]]
             # if it is false, we need to check whether user has write access on the dag
             can_dag_edit = dag_kwargs.get('can_dag_edit', False)
             dag_ids = []
-            for ti in tis:
-                dag_ids.append(ti.dag_id)
+            for item in items:
+                if not isinstance(item, (TaskInstance, DagRun)):
+                    raise ValueError(
+                        'Unknown element type: {}. Only TaskInstance or DagRun is allowed'.format(
+                            type(item)),
+                    )
+
+                dag_ids.append(item.dag_id)
 
             # 1. check whether the user has can_dag_edit permissions on all_dags
             # 2. if 1 false, check whether the user
