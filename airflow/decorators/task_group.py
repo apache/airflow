@@ -42,17 +42,16 @@ def task_group(python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs
     :param tg_kwargs: Kwargs for TaskGroup object.
     :type tg_kwargs: dict
     """
+    # Setting group_id as function name if not given in kwarg group_id
+
+    # Get dag initializer signature and bind it to validate that task_group_args,
+    # and task_group_kwargs are correct
+    task_group_sig = signature(TaskGroup.__init__)
+    task_group_bound_args = task_group_sig.bind_partial(*tg_args, **tg_kwargs)
 
     def wrapper(f: T):
-
-        # Setting group_id as function name if not given in kwarg group_id
         if len(tg_args) == 0 and 'group_id' not in tg_kwargs.keys():
             tg_kwargs['group_id'] = f.__name__
-
-        # Get dag initializer signature and bind it to validate that task_group_args,
-        # and task_group_kwargs are correct
-        task_group_sig = signature(TaskGroup.__init__)
-        task_group_bound_args = task_group_sig.bind_partial(*tg_args, **tg_kwargs)
 
         @functools.wraps(f)
         def factory(*args, **kwargs):
