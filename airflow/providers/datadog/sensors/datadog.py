@@ -44,7 +44,7 @@ class DatadogSensor(BaseSensorOperator):
     :param sources: A comma separated list indicating what tags, if any,
         should be used to filter the list of monitors by scope
     :type sources: Optional[str]
-    :param tags: Get datadog events from specifc sources.
+    :param tags: Get datadog events from specific sources.
     :type tags: Optional[List[str]]
     :param response_check: A check against the ‘requests’ response object. The callable takes
         the response object as the first positional argument and optionally any number of

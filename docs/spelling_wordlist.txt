@@ -1444,3 +1444,5 @@ zendesk
 zhongjiajie
 zope
 zsh
+somedatabase
+somecollection
