@@ -22,7 +22,7 @@ from airflow.models import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
-from airflow.utils.task_group import TaskGroup, taskgroup
+from airflow.utils.task_group import TaskGroup, task_group as task_group_decorator
 from airflow.www.views import dag_edges, task_group_to_dict
 
 EXPECTED_JSON = {
@@ -589,11 +589,11 @@ def test_build_task_group_deco_context_manager():
         print(f'[ Task4 {value} ]')
 
     # Creating TaskGroups
-    @taskgroup
+    @task_group_decorator
     def section_1(value):
         """ TaskGroup for grouping related Tasks"""
 
-        @taskgroup()
+        @task_group_decorator()
         def section_2(value2):
             """ TaskGroup for grouping related Tasks"""
             return task_4(task_3(value2))
@@ -679,7 +679,7 @@ def test_build_task_group_with_operators():
         print(f'[ Task3 {value} ]')
 
     # Creating TaskGroups
-    @taskgroup(group_id='section_1')
+    @task_group_decorator(group_id='section_1')
     def section_a(value):
         """ TaskGroup for grouping related Tasks"""
         return task_3(task_2(task_1(value)))
@@ -734,7 +734,7 @@ def test_task_group_context_mix():
         print(f'[ Task3 {value} ]')
 
     # Creating TaskGroups
-    @taskgroup
+    @task_group_decorator
     def section_2(value):
         """ TaskGroup for grouping related Tasks"""
         return task_3(task_2(task_1(value)))
@@ -816,17 +816,17 @@ def test_duplicate_task_group_id():
         """ Dummy Task3"""
         print('[Task3]')
 
-    @taskgroup(group_id='task_group1')
+    @task_group_decorator(group_id='task_group1')
     def task_group1():
         task_start()
         task_1()
         task_2()
 
-    @taskgroup(group_id='task_group1')
+    @task_group_decorator(group_id='task_group1')
     def task_group2():
         task_3()
 
-    @taskgroup(group_id='task_group1')
+    @task_group_decorator(group_id='task_group1')
     def task_group3():
         task_end()
 
@@ -875,7 +875,7 @@ def test_call_taskgroup_twice():
         """ Dummy Task1"""
         print('[Task1]')
 
-    @taskgroup
+    @task_group_decorator
     def task_group1(name: str):
         print(f'Starting taskgroup {name}')
         task_start()

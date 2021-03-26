@@ -21,6 +21,7 @@ together when the DAG is displayed graphically.
 """
 import functools
 import re
+from inspect import signature
 from typing import (
     TYPE_CHECKING,
     Callable,
@@ -37,7 +38,6 @@ from typing import (
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import TaskMixin
-from inspect import signature
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -320,13 +320,13 @@ class TaskGroup(TaskMixin):
         """Returns a flat dictionary of group_id: TaskGroup"""
         task_group_map = {}
 
-        def build_map(task_group):
-            if not isinstance(task_group, TaskGroup):
+        def build_map(taskgroup):
+            if not isinstance(taskgroup, TaskGroup):
                 return
 
-            task_group_map[task_group.group_id] = task_group
+            task_group_map[taskgroup.group_id] = task_group
 
-            for child in task_group.children.values():
+            for child in taskgroup.children.values():
                 build_map(child)
 
         build_map(self)
@@ -344,7 +344,7 @@ class TaskGroupContext:
     _previous_context_managed_task_groups: List[TaskGroup] = []
 
     @classmethod
-    def push_context_managed_task_group(cls, task_group: TaskGroup):
+    def push_context_managed_task_group(cls, task_group: TaskGroup):  # pylint: disable=redefined-outer-name
         """Push a TaskGroup into the list of managed TaskGroups."""
         if cls._context_managed_task_group:
             cls._previous_context_managed_task_groups.append(cls._context_managed_task_group)
@@ -377,7 +377,7 @@ class TaskGroupContext:
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def taskgroup(python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs) -> Callable[[T], T]:
+def task_group(python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs) -> Callable[[T], T]:
     """
     Python TaskGroup decorator. Wraps a function into an Airflow TaskGroup.
     Accepts kwargs for operator TaskGroup. Can be used to parametrize TaskGroup.
