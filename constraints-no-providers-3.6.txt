@@ -1,14 +1,14 @@
-# Editable install with no version control (apache-airflow==2.1.0.dev0)
+# Editable install with no version control (apache-airflow==2.0.1)
 Babel==2.9.0
-Flask-AppBuilder==3.2.0
+Flask-AppBuilder==3.2.1
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
-Flask-Caching==1.10.0
+Flask-Caching==1.10.1
 Flask-JWT-Extended==3.25.1
 Flask-Login==0.4.1
 Flask-OAuthlib==0.9.5
 Flask-OpenID==1.2.5
-Flask-SQLAlchemy==2.4.4
+Flask-SQLAlchemy==2.5.1
 Flask-WTF==0.14.3
 Flask==1.1.2
 HeapDict==1.0.1
@@ -24,7 +24,7 @@ SQLAlchemy-Utils==0.36.8
 SQLAlchemy==1.3.23
 WTForms==2.3.3
 Werkzeug==1.0.1
-alembic==1.5.7
+alembic==1.5.8
 amqp==2.6.1
 apispec==3.3.2
 appdirs==1.4.4
@@ -45,12 +45,12 @@ click==7.1.2
 clickclick==20.10.2
 cloudpickle==1.4.1
 colorama==0.4.4
-colorlog==4.7.2
+colorlog==4.8.0
 commonmark==0.9.1
 connexion==2.7.0
 contextvars==2.4
 croniter==0.3.37
-cryptography==3.4.6
+cryptography==3.4.7
 dask==2021.3.0
 dataclasses==0.7
 defusedxml==0.7.1
@@ -64,11 +64,11 @@ eventlet==0.30.2
 filelock==3.0.12
 flower==0.9.7
 gevent==21.1.2
-google-auth==1.27.1
+google-auth==1.28.0
 graphviz==0.16
 greenlet==1.0.0
 gunicorn==19.10.0
-humanize==3.2.0
+humanize==3.3.0
 idna==2.10
 immutables==0.15
 importlib-metadata==1.7.0
@@ -91,7 +91,7 @@ msgpack==1.0.2
 natsort==7.1.1
 numpy==1.19.5
 oauthlib==2.1.0
-openapi-schema-validator==0.1.4
+openapi-schema-validator==0.1.5
 openapi-spec-validator==0.3.0
 pandas==1.1.5
 pendulum==2.1.2
@@ -140,9 +140,9 @@ typing==3.7.4.3
 unicodecsv==0.14.1
 urllib3==1.25.11
 vine==1.3.0
-virtualenv==20.4.2
+virtualenv==20.4.3
 websocket-client==0.58.0
 zict==2.0.0
 zipp==3.4.1
 zope.event==4.5.0
-zope.interface==5.2.0
+zope.interface==5.3.0
