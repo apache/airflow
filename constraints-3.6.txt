@@ -238,7 +238,7 @@ google-cloud-kms==2.2.0
 google-cloud-language==1.3.0
 google-cloud-logging==2.3.1
 google-cloud-memcache==0.3.0
-google-cloud-monitoring==2.1.0
+google-cloud-monitoring==2.2.0
 google-cloud-os-login==2.1.0
 google-cloud-pubsub==2.3.0
 google-cloud-redis==2.1.0
@@ -336,7 +336,7 @@ ntlm-auth==1.5.0
 numpy==1.19.5
 oauth2client==4.1.3
 oauthlib==3.1.0
-openapi-schema-validator==0.1.4
+openapi-schema-validator==0.1.5
 openapi-spec-validator==0.3.0
 oscrypto==1.2.1
 packaging==20.9
@@ -500,7 +500,7 @@ websocket-client==0.58.0
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.26.0
-yandexcloud==0.77.0
+yandexcloud==0.78.0
 yarl==1.6.3
 zdesk==2.7.1
 zict==2.0.0

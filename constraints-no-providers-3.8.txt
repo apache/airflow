@@ -87,7 +87,7 @@ msgpack==1.0.2
 natsort==7.1.1
 numpy==1.20.1
 oauthlib==2.1.0
-openapi-schema-validator==0.1.4
+openapi-schema-validator==0.1.5
 openapi-spec-validator==0.3.0
 pandas==1.2.3
 pendulum==2.1.2
