@@ -68,7 +68,7 @@ const PipelineContainer: React.FC = ({ children }) => {
       <Flex height="100%">
         <Box flex="1" borderRightWidth="2px" borderColor={dividerColor}>
           <Heading mb={2}>Runs</Heading>
-          {!!dagRuns.length && dagRuns.map((dagRun: DagRunType) => (
+          {dagRuns.map((dagRun: DagRunType) => (
             <Box key={dagRun.dagRunId}>
               <Link to={`/pipelines/${dagId}/${dagRun.dagRunId}`}>{dagRun.dagRunId}</Link>
             </Box>
@@ -76,7 +76,7 @@ const PipelineContainer: React.FC = ({ children }) => {
           {dagRunId && (
             <>
               <Heading mb={2} size="md" mt={8}>Task Instances:</Heading>
-              {!!taskInstances.length && taskInstances.map((ti: TaskInstanceType) => (
+              {taskInstances.map((ti: TaskInstanceType) => (
                 <Box key={ti.taskId}>
                   <Link to={`/pipelines/${dagId}/${dagRunId}/${ti.taskId}`}>{ti.taskId}</Link>
                 </Box>
