@@ -144,16 +144,39 @@ class TestOauthAuthorizationURLEndpoint(TestLoginEndpoint):
         self.client.get(f'api/v1/auth-oauth/google?register=True&redirect_url={redirect_url}')
         mock_auth.assert_called_once_with(redirect_uri=redirect_url, state="state")
 
-    def test_already_logged_in_user_cant_get_auth_url(self):
-        pass
+    @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt.encode")
+    def test_can_generate_authorization_url_for_twitter(self, mock_jwt_encode):
+        self.auth_type(AUTH_OAUTH)
+        mock_jwt_encode.return_value = "state"
+        mock_twitter_auth_provider = mock.Mock()
+        self.app.appbuilder.sm.oauth_remotes = {
+            "twitter": mock_twitter_auth_provider,
+        }
+        mock_auth = mock.MagicMock(return_value={"state": "state", "url": "authurl"})
+        mock_twitter_auth_provider.create_authorization_url = mock_auth
+        redirect_url = "http://localhost:8080"
+        self.client.get(f'api/v1/auth-oauth/twitter?register=True&redirect_url={redirect_url}')
+        mock_auth.assert_called_once_with(redirect_uri=redirect_url + "&state=state")
 
     def test_incorrect_auth_type_raises(self):
-        pass
+        self.auth_type(AUTH_DB)
+        redirect_url = "http://localhost:8080"
+        resp = self.client.get(f'api/v1/auth-oauth/google?register=True&redirect_url={redirect_url}')
+        assert resp.status_code == 400
+        assert resp.json['detail'] == "Authentication type do not match"
 
 
 class TestAuthorizeOauth(TestLoginEndpoint):
     def test_user_refused_sign_in_request(self):
-        pass
+        self.auth_type(AUTH_OAUTH)
+        mock_twitter_auth_provider = mock.Mock()
+        self.app.appbuilder.sm.oauth_remotes = {
+            "twitter": mock_twitter_auth_provider,
+        }
+        mock_twitter_auth_provider.authorize_access_token.return_value = None
+        response = self.client.get('api/v1/oauth-authorized/twitter?state=state')
+        assert response.status_code == 400
+        assert response.json['detail'] == "You denied the request to sign in"
 
     def test_wrong_state_signature_raises(self):
         pass
