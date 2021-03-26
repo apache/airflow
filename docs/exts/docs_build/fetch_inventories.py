@@ -70,42 +70,47 @@ def _is_outdated(path: str):
     return delta > datetime.timedelta(hours=12)
 
 
-def fetch_inventories():
+def fetch_inventories(
+    skips_airflow: bool = False,
+    skips_third_party: bool = False,
+):
     """Fetch all inventories for Airflow documentation packages and store in cache."""
     os.makedirs(os.path.dirname(CACHE_DIR), exist_ok=True)
     to_download: List[Tuple[str, str, str]] = []
 
-    for pkg_name in get_available_providers_packages():
+    if not skips_airflow:
+        for pkg_name in get_available_providers_packages():
+            to_download.append(
+                (
+                    pkg_name,
+                    S3_DOC_URL_VERSIONED.format(package_name=pkg_name),
+                    f'{CACHE_DIR}/{pkg_name}/objects.inv',
+                )
+            )
         to_download.append(
             (
-                pkg_name,
-                S3_DOC_URL_VERSIONED.format(package_name=pkg_name),
-                f'{CACHE_DIR}/{pkg_name}/objects.inv',
+                "apache-airflow",
+                S3_DOC_URL_VERSIONED.format(package_name='apache-airflow'),
+                f'{CACHE_DIR}/apache-airflow/objects.inv',
             )
         )
-    to_download.append(
-        (
-            "apache-airflow",
-            S3_DOC_URL_VERSIONED.format(package_name='apache-airflow'),
-            f'{CACHE_DIR}/apache-airflow/objects.inv',
-        )
-    )
-    for pkg_name in ['apache-airflow-providers', 'docker-stack']:
-        to_download.append(
+        for pkg_name in ['apache-airflow-providers', 'docker-stack']:
+            to_download.append(
+                (
+                    pkg_name,
+                    S3_DOC_URL_NON_VERSIONED.format(package_name=pkg_name),
+                    f'{CACHE_DIR}/{pkg_name}/objects.inv',
+                )
+            )
+    if not skips_third_party:
+        to_download.extend(
             (
                 pkg_name,
-                S3_DOC_URL_NON_VERSIONED.format(package_name=pkg_name),
+                f"{doc_url}/objects.inv",
                 f'{CACHE_DIR}/{pkg_name}/objects.inv',
             )
+            for pkg_name, doc_url in THIRD_PARTY_INDEXES.items()
         )
-    to_download.extend(
-        (
-            pkg_name,
-            f"{doc_url}/objects.inv",
-            f'{CACHE_DIR}/{pkg_name}/objects.inv',
-        )
-        for pkg_name, doc_url in THIRD_PARTY_INDEXES.items()
-    )
 
     to_download = [(pkg_name, url, path) for pkg_name, url, path in to_download if _is_outdated(path)]
     if not to_download:

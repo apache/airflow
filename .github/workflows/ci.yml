@@ -1250,3 +1250,28 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           tags: true
           force: true
           branch: master
+
+  intersphinx-inventory-mirror:
+    timeout-minutes: 10
+    name: "Update Intersphinx inventory mirror"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    if: github.event_name == 'schedule' && github.repository == 'apache/airflow'
+    needs: [ci-images]
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Fetch third-party module inventories"
+        run: ./scripts/ci/docs/ci_inventories.sh
+      - name: Configure AWS credentials
+        uses: ./.github/actions/configure-aws-credentials
+        with:
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+      - name: "Upload inventories to AWS S3"
+        run: aws s3 sync --delete ./files/inventory s3://apache-airflow-docs/_inventory
