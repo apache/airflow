@@ -18,7 +18,7 @@
 
 """Example DAG demonstrating the usage of the @taskgroup decorator."""
 
-from airflow.decorators import task, taskgroup
+from airflow.decorators import task, task_group
 from airflow.models.dag import DAG
 from airflow.utils.dates import days_ago
 
