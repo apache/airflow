@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,7 +19,7 @@
  */
 
 import axios, { AxiosResponse } from 'axios';
-import { useQuery } from 'react-query';
+import { useQuery, setLogger } from 'react-query';
 import humps from 'humps';
 
 import type { Version } from 'interfaces';
@@ -29,13 +30,25 @@ axios.interceptors.response.use(
   (res) => (res.data ? humps.camelizeKeys(res.data) as unknown as AxiosResponse : res),
 );
 
-const refetchInterval = 1000;
+// turn off logging, retry and refetch on tests
+const isTest = process.env.NODE_ENV === 'test';
+
+setLogger({
+  log: isTest ? () => {} : console.log,
+  warn: isTest ? () => {} : console.warn,
+  error: isTest ? () => {} : console.warn,
+});
+
+const refetchInterval = isTest ? false : 1000;
 
 export function useDags() {
   return useQuery<DagsResponse, Error>(
     'dags',
     (): Promise<DagsResponse> => axios.get('/dags'),
-    { refetchInterval },
+    {
+      refetchInterval,
+      retry: !isTest,
+    },
   );
 }
 

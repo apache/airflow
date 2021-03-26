@@ -45,14 +45,20 @@ const sampleDag = {
   ],
 };
 
-nock(url)
-  .defaultReplyHeaders(defaultHeaders)
-  .persist()
-  .get('/version')
-  .reply(200, { version: '', gitVersion: '' });
-
 describe('Test Pipelines Table', () => {
-  test('Show a loading indicator and have a DAG count of 0 before data loads', async () => {
+  beforeEach(() => {
+    nock(url)
+      .defaultReplyHeaders(defaultHeaders)
+      .persist()
+      .get('/version')
+      .reply(200, { version: '', gitVersion: '' });
+  });
+
+  afterAll(() => {
+    nock.cleanAll();
+  });
+
+  test('Show a loading indicator before data loads', async () => {
     nock(url)
       .defaultReplyHeaders(defaultHeaders)
       .get('/dags')
@@ -71,11 +77,14 @@ describe('Test Pipelines Table', () => {
     await waitFor(() => expect(getByText(sampleDag.dagId)).toBeInTheDocument());
   });
 
-  test('Show Empty State text if there are no dags', () => {
+  test('Show Empty State text if there are no dags', async () => {
     nock(url)
       .defaultReplyHeaders(defaultHeaders)
       .get('/dags')
-      .reply(404, undefined);
+      .reply(404, {
+        dags: [],
+        totalEntries: 0,
+      });
 
     const { getByText } = render(
       <QueryWrapper><Pipelines /></QueryWrapper>,
@@ -83,6 +92,6 @@ describe('Test Pipelines Table', () => {
         wrapper: RouterWrapper,
       },
     );
-    waitFor(() => expect(getByText('No DAGs found.')).toBeInTheDocument());
+    await waitFor(() => expect(getByText('No Pipelines found.')).toBeInTheDocument());
   });
 });
