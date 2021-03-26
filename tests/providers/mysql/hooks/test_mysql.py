@@ -216,6 +216,21 @@ class TestMySqlHookConnMySqlConnectorPython(unittest.TestCase):
         assert kwargs['allow_local_infile'] == 1
 
 
+class MockMySQLConnectorConnection:
+    DEFAULT_AUTOCOMMIT = 'default'
+
+    def __init__(self):
+        self._autocommit = self.DEFAULT_AUTOCOMMIT
+
+    @property
+    def autocommit(self):
+        return self._autocommit
+
+    @autocommit.setter
+    def autocommit(self, autocommit):
+        self._autocommit = autocommit
+
+
 class TestMySqlHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
@@ -233,11 +248,24 @@ class TestMySqlHook(unittest.TestCase):
 
         self.db_hook = SubMySqlHook()
 
-    def test_set_autocommit(self):
-        autocommit = True
-        self.db_hook.set_autocommit(self.conn, autocommit)
+    @parameterized.expand([(True,), (False,)])
+    def test_set_autocommit_mysql_connector(self, autocommit):
+        conn = MockMySQLConnectorConnection()
+        self.db_hook.set_autocommit(conn, autocommit)
+        assert conn.autocommit is autocommit
 
+    def test_get_autocommit_mysql_connector(self):
+        conn = MockMySQLConnectorConnection()
+        assert self.db_hook.get_autocommit(conn) == MockMySQLConnectorConnection.DEFAULT_AUTOCOMMIT
+
+    def test_set_autocommit_mysqldb(self):
+        autocommit = False
+        self.db_hook.set_autocommit(self.conn, autocommit)
         self.conn.autocommit.assert_called_once_with(autocommit)
+
+    def test_get_autocommit_mysqldb(self):
+        self.db_hook.get_autocommit(self.conn)
+        self.conn.get_autocommit.assert_called_once()
 
     def test_run_without_autocommit(self):
         sql = 'SQL'
@@ -277,97 +305,6 @@ class TestMySqlHook(unittest.TestCase):
         calls = [mock.call(sql[0]), mock.call(sql[1])]
         self.cur.execute.assert_has_calls(calls, any_order=True)
         self.conn.commit.assert_not_called()
-
-
-class TestMySqlHookMySqlConnectorPython(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
-        class MockMySQLConnection(mock.MagicMock):
-            @property
-            def autocommit(self):
-                return self._autocommit()
-
-            @autocommit.setter
-            def autocommit(self, autocommit):
-                self._autocommit(autocommit)
-                self._autocommit.return_value = autocommit
-
-        self.cur = mock.MagicMock()
-        self.conn = MockMySQLConnection()
-        self.conn._autocommit.return_value = False
-        self.conn.cursor.return_value = self.cur
-        conn = self.conn
-
-        class SubMySqlHook(MySqlHook):
-            conn_name_attr = 'test_conn_id'
-
-            def get_conn(self):
-                return conn
-
-        self.db_hook = SubMySqlHook()
-
-    def test_set_autocommit(self):
-        autocommit = True
-        self.db_hook.set_autocommit(self.conn, autocommit)
-        self.conn._autocommit.assert_called_once_with(autocommit)
-
-    def test_run_without_autocommit(self):
-        sql = 'SQL'
-        self.conn._autocommit.return_value = False
-
-        # Default autocommit setting should be False.
-        # Testing default autocommit value as well as run() behavior.
-        self.db_hook.run(sql, autocommit=False)
-        self.conn._autocommit.assert_has_calls([mock.call(False), mock.call()], any_order=False)
-        self.cur.execute.assert_called_once_with(sql)
-        assert self.conn.commit.call_count == 1
-
-    def test_run_with_autocommit(self):
-        sql = 'SQL'
-        self.db_hook.run(sql, autocommit=True)
-        self.conn._autocommit.assert_has_calls([mock.call(True), mock.call()], any_order=False)
-        self.cur.execute.assert_called_once_with(sql)
-        self.conn.commit.assert_not_called()
-
-    def test_run_with_parameters(self):
-        sql = 'SQL'
-        parameters = ('param1', 'param2')
-        self.db_hook.run(sql, autocommit=True, parameters=parameters)
-        self.conn._autocommit.assert_has_calls([mock.call(True), mock.call()], any_order=False)
-        self.cur.execute.assert_called_once_with(sql, parameters)
-        self.conn.commit.assert_not_called()
-
-    def test_run_multi_queries(self):
-        sql = ['SQL1', 'SQL2']
-        self.db_hook.run(sql, autocommit=True)
-        self.conn._autocommit.assert_has_calls([mock.call(True), mock.call()], any_order=False)
-        for i in range(len(self.cur.execute.call_args_list)):
-            args, kwargs = self.cur.execute.call_args_list[i]
-            assert len(args) == 1
-            assert args[0] == sql[i]
-            assert kwargs == {}
-        calls = [mock.call(sql[0]), mock.call(sql[1])]
-        self.cur.execute.assert_has_calls(calls, any_order=True)
-        self.conn.commit.assert_not_called()
-
-
-class TestMySqlHookBulk(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
-        self.cur = mock.MagicMock()
-        self.conn = mock.MagicMock()
-        self.conn.cursor.return_value = self.cur
-        conn = self.conn
-
-        class SubMySqlHook(MySqlHook):
-            conn_name_attr = 'test_conn_id'
-
-            def get_conn(self):
-                return conn
-
-        self.db_hook = SubMySqlHook()
 
     def test_bulk_load(self):
         self.db_hook.bulk_load('table', '/tmp/file')
