@@ -70,7 +70,7 @@ def init_api_experimental_auth(app):
 def init_jwt_auth(app):
     """Initialize Jwt manager"""
     app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-    app.config.setdefault('JWT_ACCESS_TOKEN_EXPIRES', timedelta(minutes=5))
+    app.config.setdefault('JWT_ACCESS_TOKEN_EXPIRES', timedelta(minutes=5))  # Change this
     app.config['JWT_CSRF_IN_COOKIES'] = True
     app.config['JWT_COOKIE_CSRF_PROTECT'] = True
     app.config.setdefault('JWT_COOKIE_SECURE', False)
@@ -82,13 +82,13 @@ def init_jwt_auth(app):
         try:
             exp_timestamp = get_raw_jwt()["exp"]
             now = datetime.now(timezone.utc)
-            target_timestamp = datetime.timestamp(now + timedelta(minutes=3))
+            target_timestamp = datetime.timestamp(now + timedelta(minutes=3))  # Change this when ready
             if target_timestamp > exp_timestamp:
                 access_token = create_access_token(identity=get_jwt_identity())
                 set_access_cookies(response, access_token)
             return response
         except (RuntimeError, KeyError):
-            # Case where there is not a valid JWT. Just return the original respone
+            # Case where there is not a valid JWT. Just return the original response
             return response
 
     app.after_request(refresh_expiring_jwts)

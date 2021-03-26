@@ -733,7 +733,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         return True
 
     def create_access_token_and_dump_user(self):
-        """Creates access token, set token in session and return user"""
+        """Creates access token, set token in session and return user data"""
         user = self.current_user
         token = create_access_token(user.id)
         resp = jsonify(user_collection_item_schema.dump(user))

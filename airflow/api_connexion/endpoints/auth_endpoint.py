@@ -21,7 +21,7 @@ import jwt
 from flask import current_app, g, request, session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
 from flask_login import login_user
-from jsonschema import ValidationError
+from marshmallow import ValidationError
 
 from airflow.api_connexion.exceptions import BadRequest, NotFound, Unauthenticated
 from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_schema
@@ -72,7 +72,7 @@ def auth_dblogin():
     try:
         data = login_form_schema.load(body)
     except ValidationError as err:
-        raise BadRequest(detail=str(err))
+        raise BadRequest(detail=str(err.messages))
     user = security_manager.auth_user_db(data['username'], data['password'])
     if not user:
         user = security_manager.auth_user_ldap(data['username'], data['password'])
@@ -86,7 +86,7 @@ def auth_oauthlogin(provider, register=None, redirect_uri=None):
     """Handle Oauth login"""
     appbuilder = current_app.appbuilder
     if g.user is not None and g.user.is_authenticated:
-        pass  # raise Unauthenticated(detail="Client already authenticated")
+        raise Unauthenticated(detail="Client already authenticated")
     if appbuilder.sm.auth_type != AUTH_OAUTH:
         raise BadRequest(detail="Authentication type do not match")
     state = jwt.encode(
@@ -153,7 +153,7 @@ def auth_remoteuser():
     appbuilder = current_app.appbuilder
     username = request.environ.get("REMOTE_USER")
     if g.user is not None and g.user.is_authenticated:
-        pass  # raise Unauthenticated(detail="Client already authenticated")
+        raise Unauthenticated(detail="Client already authenticated")
     if appbuilder.sm.auth_type != AUTH_REMOTE_USER:
         raise BadRequest(detail="Authentication type do not match")
     if username:
