@@ -42,10 +42,18 @@ class InfoSchema(Schema):
 
 
 class LoginForm(Schema):
-    """Use to load credentials"""
+    """Used to load credentials"""
 
     username = fields.String(required=True)
     password = fields.String(required=True)
+
+
+class LoginOpenIDForm(Schema):
+    """Used to load credentials"""
+
+    username = fields.String()
+    openid = fields.String(required=True)
+    remember_me = fields.Boolean(default=False)
 
 
 class JwtTokenSchema(Schema):
@@ -57,4 +65,5 @@ class JwtTokenSchema(Schema):
 
 info_schema = InfoSchema()
 login_form_schema = LoginForm()
+login_openid_form = LoginOpenIDForm()
 jwt_token_schema = JwtTokenSchema()

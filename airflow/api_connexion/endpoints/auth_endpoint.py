@@ -20,19 +20,21 @@ import logging
 import jwt
 from flask import current_app, g, request, session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
-from flask_jwt_extended import create_access_token, create_refresh_token
 from flask_login import login_user
 from jsonschema import ValidationError
 
 from airflow.api_connexion.exceptions import BadRequest, NotFound, Unauthenticated
-from airflow.api_connexion.schemas.auth_schema import info_schema, jwt_token_schema, login_form_schema
-from airflow.configuration import conf
+from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_schema
 
 log = logging.getLogger(__name__)
 
 
-def get_info():
-    """Get information about site including auth methods"""
+def refresh():
+    """Refresh token"""
+
+
+def get_auth_info():
+    """Get site authentication info"""
     security_manager = current_app.appbuilder.sm
     oauth_providers = None
     openid_providers = None
@@ -64,7 +66,7 @@ def auth_dblogin():
     auth_type = security_manager.auth_type
     if g.user is not None and g.user.is_authenticated:
         raise Unauthenticated(detail="Client already authenticated")  # For security
-    if auth_type != AUTH_DB or auth_type != AUTH_LDAP:
+    if auth_type not in (AUTH_DB, AUTH_LDAP):
         raise BadRequest(detail="Authentication type do not match")
     body = request.json
     try:
@@ -77,22 +79,12 @@ def auth_dblogin():
     if not user:
         raise NotFound(detail="Invalid login")
     login_user(user, remember=False)
-    token = create_access_token(identity=user.id, fresh=True)
-    refresh_token = create_refresh_token(user.id)
-    return jwt_token_schema.dump(dict(token=token, refresh_token=refresh_token))
+    return security_manager.create_access_token_and_dump_user()
 
 
-def refresh():
-    """Refresh token"""
-
-
-def auth_oauthlogin(provider, register=None):
+def auth_oauthlogin(provider, register=None, redirect_uri=None):
     """Handle Oauth login"""
-    api_base_path = "/api/v1/"
-
     appbuilder = current_app.appbuilder
-    base_url = conf.get("webserver", "base_url") + api_base_path
-    redirect_uri = base_url + "oauth-authorized/" + provider
     if g.user is not None and g.user.is_authenticated:
         pass  # raise Unauthenticated(detail="Client already authenticated")
     if appbuilder.sm.auth_type != AUTH_OAUTH:
@@ -107,18 +99,24 @@ def auth_oauthlogin(provider, register=None):
         if register:
             session["register"] = True
         if provider == "twitter":
-            return auth_provider.authorize_redirect(redirect_uri=redirect_uri + f"&state={state}")
+            redirect_uri = redirect_uri + f"&state={state}"
+            auth_data = auth_provider.create_authorization_url(redirect_uri=redirect_uri)
+            auth_provider.save_authorize_data(request, redirect_uri=redirect_uri, **auth_data)
+            return dict(auth_url=auth_data['url'])
         else:
-            return auth_provider.authorize_redirect(
+            state = state.decode("ascii") if isinstance(state, bytes) else state
+            auth_data = auth_provider.create_authorization_url(
                 redirect_uri=redirect_uri,
-                state=state.decode("ascii") if isinstance(state, bytes) else state,
+                state=state,
             )
-    except Exception:  # pylint: disable=broad-except
-        raise NotFound(detail="Invalid login")
+            auth_provider.save_authorize_data(request, redirect_uri=redirect_uri, **auth_data)
+            return dict(auth_url=auth_data['url'])
+    except Exception as err:  # pylint: disable=broad-except
+        raise NotFound(detail=str(err))
 
 
-def authorize_oauth(provider):
-    """Callback to authorize Oauth"""
+def authorize_oauth(provider, state):
+    """Callback to authorize Oauth."""
     appbuilder = current_app.appbuilder
     resp = appbuilder.sm.oauth_remotes[provider].authorize_access_token()
     if resp is None:
@@ -127,7 +125,7 @@ def authorize_oauth(provider):
     # Verify state
     try:
         jwt.decode(
-            request.args["state"],
+            state,
             appbuilder.app.config["SECRET_KEY"],
             algorithms=["HS256"],
         )
@@ -135,6 +133,7 @@ def authorize_oauth(provider):
         raise BadRequest(detail="State signature is not valid!")
     # Retrieves specific user info from the provider
     try:
+        appbuilder.sm.set_oauth_session(provider, resp)
         userinfo = appbuilder.sm.oauth_user_info(provider, resp)
     except Exception as e:  # pylint: disable=broad-except
         log.error("Error returning OAuth user info: %s", e)
@@ -144,8 +143,25 @@ def authorize_oauth(provider):
         user = appbuilder.sm.auth_user_oauth(userinfo)
 
     if user is None:
-        return NotFound(detail="Invalid login")
+        raise NotFound(detail="Invalid login")
     login_user(user)
-    token = create_access_token(user.id, fresh=True)
-    refresh_token = create_refresh_token(user.id)
-    return dict(token=token, refresh_token=refresh_token)
+    return appbuilder.sm.create_access_token_and_dump_user()
+
+
+def auth_remoteuser():
+    """Handle remote user auth"""
+    appbuilder = current_app.appbuilder
+    username = request.environ.get("REMOTE_USER")
+    if g.user is not None and g.user.is_authenticated:
+        pass  # raise Unauthenticated(detail="Client already authenticated")
+    if appbuilder.sm.auth_type != AUTH_REMOTE_USER:
+        raise BadRequest(detail="Authentication type do not match")
+    if username:
+        user = appbuilder.sm.auth_user_remote_user(username)
+        if user is None:
+            raise NotFound(detail="Invalid login")
+        else:
+            login_user(user)
+    else:
+        raise NotFound(detail="Invalid login")
+    return appbuilder.sm.create_access_token_and_dump_user()

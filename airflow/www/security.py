@@ -20,13 +20,15 @@
 import warnings
 from typing import Dict, Optional, Sequence, Set, Tuple
 
-from flask import current_app, g
+from flask import current_app, g, jsonify
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
+from flask_jwt_extended import create_access_token, set_access_cookies
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
+from airflow.api_connexion.schemas.user_schema import user_collection_item_schema
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
@@ -729,6 +731,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
                 return False
 
         return True
+
+    def create_access_token_and_dump_user(self):
+        """Creates access token, set token in session and return user"""
+        user = self.current_user
+        token = create_access_token(user.id)
+        resp = jsonify(user_collection_item_schema.dump(user))
+        set_access_cookies(resp, token)
+        return resp
 
 
 class ApplessAirflowSecurityManager(AirflowSecurityManager):

@@ -1572,12 +1572,12 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /auth_info:
+  /auth-info:
     get:
-      summary: Get authentication information
+      summary: Get site authentication information
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
-      operationId: get_info
-      tags: [Auth]
+      operationId: get_auth_info
+      tags: [Authentication]
       responses:
         '200':
           description: Success.
@@ -1586,12 +1586,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthInfo'
 
-  /auth_dblogin:
+  /auth-dblogin:
     post:
       summary: Login user
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
       operationId: auth_dblogin
-      tags: [Auth]
+      tags: [Authentication]
       requestBody:
         required: true
         content:
@@ -1604,48 +1604,72 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JwtToken'
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
-  /auth_oauth/{provider}:
+
+  /auth-oauth/{provider}:
     get:
-      summary: Login user using oauth
+      summary: OAUTH user login
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
       operationId: auth_oauthlogin
-      tags: [Auth]
+      tags: [Authentication]
       parameters:
         - $ref: '#/components/parameters/ShouldRegister'
         - $ref: '#/components/parameters/OauthProvider'
+        - $ref: '#/components/parameters/RedirectUri'
       responses:
         '200':
           description: Success.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  auth_url:
-                    type: string
+                $ref: '#/components/schemas/AuthorizationUrl'
+
   /oauth-authorized/{provider}:
     parameters:
       - $ref: '#/components/parameters/OauthProvider'
     get:
-      summary: Oauth authorization redirect
+      summary: Oauth authentication
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
       operationId: authorize_oauth
-      tags: [Auth]
+      tags: [Authentication]
       parameters:
-        - $ref: '#/components/parameters/AuthScope'
         - $ref: '#/components/parameters/AuthState'
-        - $ref: '#/components/parameters/AuthPrompt'
-        - $ref: '#/components/parameters/AuthUser'
-        - $ref: '#/components/parameters/AuthCode'
       responses:
         '200':
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JwtToken'
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+
+  /auth-remoteuser:
+    get:
+      summary: Authenticate using remote user auth
+      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
+      operationId: auth_remoteuser
+      tags: [Authentication]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
 
 components:
   # Reusable schemas (data models)
@@ -2623,6 +2647,13 @@ components:
         refresh_token:
           type: string
 
+    AuthorizationUrl:
+      description: Oauth authorization URl
+      type: object
+      properties:
+        auth_url:
+          type: string
+
     # Configuration
     ConfigOption:
       type: object
@@ -3388,27 +3419,7 @@ components:
         type: string
       required: true
       description: The name of the provider to authenticate
-    AuthUser:
-      in: query
-      name: authuser
-      schema:
-        type: string
-      required: true
-      description: The authuser from provider
-    AuthScope:
-      in: query
-      name: scope
-      schema:
-        type: string
-      required: true
-      description: The auth scope from provider
-    AuthPrompt:
-      in: query
-      name: prompt
-      schema:
-        type: string
-      required: true
-      description: The auth prompt from provider
+
     AuthState:
       in: query
       name: state
@@ -3416,13 +3427,16 @@ components:
         type: string
       required: true
       description: The auth state from provider
-    AuthCode:
+
+    RedirectUri:
       in: query
-      name: code
+      name: redirect_uri
       schema:
         type: string
+        format: url
       required: true
-      description: The auth code from provider
+      description: The oauth redirect uri from the frontend
+
     ShouldRegister:
       in: query
       name: register
@@ -3540,6 +3554,10 @@ components:
     Kerberos:
       type: http
       scheme: negotiate
+    JwtCookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token_cookie
 
 # The API will provide support for plugins to support various authorization mechanisms.
 # Detailed information will be available in the plugin specification.
@@ -3561,6 +3579,7 @@ tags:
   - name: Role
   - name: Permission
   - name: User
+  - name: Authentication
 
 externalDocs:
   url: https://airflow.apache.org/docs/apache-airflow/stable/
