@@ -72,6 +72,8 @@ TI = models.TaskInstance
 DR = models.DagRun
 DM = models.DagModel
 
+CALLBACK_SEND_BATCH_SIZE = 100
+
 
 class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, MultiprocessingStartMethodMixin):
     """Runs DAG processing in a separate process using DagFileProcessor
@@ -1219,7 +1221,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         tis: List[TI] = session.query(TI).filter(filter_for_tis).options(selectinload('dag_model')).all()
-        for ti in tis:
+
+        # Send tasks in batches of 100, and call the agent's heartbeat()
+        # to process the multiprocessing pipe. This keep the pipe from
+        # being full, which would block pipe.send() and cause deadlocking
+        # when we have a lot of tasks to send.
+        for i, ti in enumerate(tis, 1):
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
             state, info = event_buffer.pop(buffer_key)
@@ -1244,6 +1251,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 )
 
                 self.processor_agent.send_callback_to_execute(request)
+
+            if i % CALLBACK_SEND_BATCH_SIZE == 0:
+                self.processor_agent.heartbeat()
 
         return len(event_buffer)
 
@@ -1514,7 +1524,11 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             for dag_id, execution_date in query:
                 active_runs_by_dag_id[dag_id].add(execution_date)
 
-            for dag_run in dag_runs:
+            # Send dag_runs in batches of 100, and call the agent's heartbeat()
+            # to process the multiprocessing pipe. This keep the pipe from
+            # being full, which would block pipe.send() and cause deadlocking
+            # when we have a lot of dags to send.
+            for i, dag_run in enumerate(dag_runs, 1):
                 # Use try_except to not stop the Scheduler when a Serialized DAG is not found
                 # This takes care of Dynamic DAGs especially
                 # SerializedDagNotFound should not happen here in the same loop because the DagRun would
@@ -1526,6 +1540,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 except SerializedDagNotFound:
                     self.log.exception("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                     continue
+                if i % CALLBACK_SEND_BATCH_SIZE == 0:
+                    self.processor_agent.heartbeat()
 
             guard.commit()
 
