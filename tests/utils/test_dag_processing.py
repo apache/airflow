@@ -18,6 +18,7 @@
 
 import multiprocessing
 import os
+import random
 import sys
 import unittest
 from datetime import datetime, timedelta
@@ -42,6 +43,7 @@ from airflow.utils.dag_processing import (
     DagParsingSignal,
     DagParsingStat,
 )
+from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
@@ -222,6 +224,101 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
         manager.set_file_paths(['abc.txt'])
         assert manager._processors == {'abc.txt': mock_processor}
+
+    @conf_vars({("scheduler", "file_parsing_sort_mode"): "alphabetical"})
+    @mock.patch("zipfile.is_zipfile", return_value=True)
+    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
+    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
+    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
+    def test_file_paths_in_queue_sorted_alphabetically(
+        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
+    ):
+        """Test dag files are sorted alphabetically"""
+        dag_files = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
+        mock_find_path.return_value = dag_files
+
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        manager.set_file_paths(dag_files)
+        assert manager._file_path_queue == []
+        manager.prepare_file_path_queue()
+        assert manager._file_path_queue == ['file_1.py', 'file_2.py', 'file_3.py', 'file_4.py']
+
+    @conf_vars({("scheduler", "file_parsing_sort_mode"): "random_seeded_by_host"})
+    @mock.patch("zipfile.is_zipfile", return_value=True)
+    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
+    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
+    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
+    def test_file_paths_in_queue_sorted_random_seeded_by_host(
+        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
+    ):
+        """Test files are randomly sorted and seeded by host name"""
+        dag_files = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
+        mock_find_path.return_value = dag_files
+
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        manager.set_file_paths(dag_files)
+        assert manager._file_path_queue == []
+        manager.prepare_file_path_queue()
+
+        expected_order = dag_files
+        random.Random(get_hostname()).shuffle(expected_order)
+        assert manager._file_path_queue == expected_order
+
+        # Verify running it again produces same order
+        manager._file_paths = []
+        manager.prepare_file_path_queue()
+        assert manager._file_path_queue == expected_order
+
+    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("zipfile.is_zipfile", return_value=True)
+    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
+    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
+    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
+    @mock.patch("airflow.utils.file.os.path.getmtime")
+    def test_file_paths_in_queue_sorted_by_modified_time(
+        self, mock_getmtime, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
+    ):
+        """Test files are sorted by modified time"""
+        paths_with_mtime = {"file_3.py": 3.0, "file_2.py": 2.0, "file_4.py": 5.0, "file_1.py": 4.0}
+        dag_files = list(paths_with_mtime.keys())
+        mock_getmtime.side_effect = list(paths_with_mtime.values())
+        mock_find_path.return_value = dag_files
+
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_factory=MagicMock().return_value,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        manager.set_file_paths(dag_files)
+        assert manager._file_path_queue == []
+        manager.prepare_file_path_queue()
+        assert manager._file_path_queue == ['file_4.py', 'file_1.py', 'file_3.py', 'file_2.py']
 
     def test_find_zombies(self):
         manager = DagFileProcessorManager(

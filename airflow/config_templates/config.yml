@@ -1834,6 +1834,22 @@
       type: string
       example: ~
       default: "2"
+    - name: file_parsing_sort_mode
+      description: |
+        One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.
+        The scheduler will list and sort the dag files to decide the parsing order.
+
+        * ``modified_time``: Sort by modified time of the files. This is useful on large scale to parse the
+          recently modified DAGs first.
+        * ``random_seeded_by_host``: Sort randomly across multiple Schedulers but with same order on the
+          same host. This is useful when running with Scheduler in HA mode where each scheduler can
+          parse different DAG files.
+        * ``alphabetical``: Sort by filename
+
+      version_added: 2.1.0
+      type: string
+      example: ~
+      default: "modified_time"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.

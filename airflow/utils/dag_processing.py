@@ -22,6 +22,7 @@ import inspect
 import logging
 import multiprocessing
 import os
+import random
 import signal
 import sys
 import time
@@ -48,6 +49,7 @@ from airflow.utils.callback_requests import CallbackRequest, SlaCallbackRequest,
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
+from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -1017,8 +1019,23 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # processed recently, wait until the next batch
         file_paths_in_progress = self._processors.keys()
         now = timezone.utcnow()
+
+        # Sort the file paths by the parsing order mode
+        list_mode = conf.get("scheduler", "file_parsing_sort_mode")
+
+        files_with_mtime = {}
+        file_paths = []
+        is_mtime_mode = list_mode == "modified_time"
+
         file_paths_recently_processed = []
         for file_path in self._file_paths:
+
+            if is_mtime_mode:
+                files_with_mtime[file_path] = os.path.getmtime(file_path)
+            else:
+                file_paths.append(file_path)
+
+            # Find file paths that were recently processed
             last_finish_time = self.get_last_finish_time(file_path)
             if (
                 last_finish_time is not None
@@ -1026,16 +1043,29 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             ):
                 file_paths_recently_processed.append(file_path)
 
+        # Sort file paths via last modified time
+        if is_mtime_mode:
+            file_paths = sorted(files_with_mtime, key=files_with_mtime.get, reverse=True)
+        elif list_mode == "alphabetical":
+            file_paths = sorted(file_paths)
+        elif list_mode == "random_seeded_by_host":
+            # Shuffle the list seeded by hostname so multiple schedulers can work on different
+            # set of files. Since we set the seed, the sort order will remain same per host
+            random.Random(get_hostname()).shuffle(file_paths)
+
         files_paths_at_run_limit = [
             file_path for file_path, stat in self._file_stats.items() if stat.run_count == self._max_runs
         ]
 
-        files_paths_to_queue = list(
-            set(self._file_paths)
-            - set(file_paths_in_progress)
-            - set(file_paths_recently_processed)
-            - set(files_paths_at_run_limit)
+        file_paths_to_exclude = set(file_paths_in_progress).union(
+            file_paths_recently_processed, files_paths_at_run_limit
         )
+
+        # Do not convert the following list to set as set does not preserve the order
+        # and we need to maintain the order of file_paths for `[scheduler] file_parsing_sort_mode`
+        files_paths_to_queue = [
+            file_path for file_path in file_paths if file_path not in file_paths_to_exclude
+        ]
 
         for file_path, processor in self._processors.items():
             self.log.debug(

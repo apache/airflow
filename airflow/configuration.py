@@ -253,6 +253,16 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
                     + ", ".join(start_method_options)
                 )
 
+        if self.has_option("scheduler", "file_parsing_sort_mode"):
+            list_mode = self.get("scheduler", "file_parsing_sort_mode")
+            file_parser_modes = {"modified_time", "random_seeded_by_host", "alphabetical"}
+
+            if list_mode not in file_parser_modes:
+                raise AirflowConfigException(
+                    "`[scheduler] file_parsing_sort_mode` should not be "
+                    + f"{list_mode}. Possible values are {', '.join(file_parser_modes)}."
+                )
+
     def _using_old_value(self, old, current_value):  # noqa
         return old.search(current_value) is not None
 
