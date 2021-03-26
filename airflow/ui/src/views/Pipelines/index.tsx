@@ -52,7 +52,9 @@ const Pipelines: React.FC = () => {
             borderBottomWidth="1px"
             textAlign="left"
           >
+            <Th />
             <Th>DAG ID</Th>
+            <Th />
           </Tr>
         </Thead>
         <Tbody>

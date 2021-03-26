@@ -149,7 +149,7 @@ export function useSaveDag(dagId: Dag['dagId']) {
           queryClient.setQueryData(['dag', dagId], previousDag);
           queryClient.setQueryData('dags', previousDags);
           toast({
-            title: 'Error updating DAG',
+            title: 'Error updating pipeline',
             description: (error as Error).message,
             status: 'error',
             duration: 3000,
@@ -167,7 +167,7 @@ export function useSaveDag(dagId: Dag['dagId']) {
             });
           }
           toast({
-            title: 'DAG Updated',
+            title: 'Pipeline Updated',
             status: 'success',
             duration: 3000,
             isClosable: true,
