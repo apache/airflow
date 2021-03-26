@@ -71,4 +71,5 @@ class PostgresOperator(BaseOperator):
         result = self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
         for output in self.hook.conn.notices:
             self.log.info(output)
-        return result
+        if self.do_xcom_push:
+            return result
