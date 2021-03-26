@@ -1235,6 +1235,8 @@ slack_sdk
 slackclient
 slas
 smtp
+somedatabase
+somecollection
 sortable
 sourceArchiveUrl
 sourceRepository
@@ -1444,5 +1446,3 @@ zendesk
 zhongjiajie
 zope
 zsh
-somedatabase
-somecollection
