@@ -368,10 +368,6 @@ class PodGenerator:
         except Exception:  # pylint: disable=W0703
             image = kube_image
 
-        task_id = make_safe_label_value(task_id)
-        dag_id = make_safe_label_value(dag_id)
-        scheduler_job_id = make_safe_label_value(str(scheduler_job_id))
-
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
@@ -383,9 +379,9 @@ class PodGenerator:
                 },
                 name=PodGenerator.make_unique_pod_id(pod_id),
                 labels={
-                    'airflow-worker': scheduler_job_id,
-                    'dag_id': dag_id,
-                    'task_id': task_id,
+                    'airflow-worker': make_safe_label_value(str(scheduler_job_id)),
+                    'dag_id': make_safe_label_value(dag_id),
+                    'task_id': make_safe_label_value(task_id),
                     'execution_date': datetime_to_label_safe_datestring(date),
                     'try_number': str(try_number),
                     'airflow_version': airflow_version.replace('+', '-'),
