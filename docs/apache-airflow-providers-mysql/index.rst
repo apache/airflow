@@ -93,7 +93,7 @@ PIP requirements
 PIP package                 Version required
 ==========================  ======================
 ``mysql-connector-python``  ``>=8.0.11, <=8.0.22``
-``mysqlclient``             ``>=1.3.6,<1.5``
+``mysqlclient``             ``>=1.3.6,<3``
 ==========================  ======================
 
 Cross provider package dependencies

@@ -365,7 +365,7 @@ mssql = [
 ]
 mysql = [
     'mysql-connector-python>=8.0.11, <=8.0.22',
-    'mysqlclient>=1.3.6,<1.5',
+    'mysqlclient>=1.3.6,<3',
 ]
 neo4j = ['neo4j>=4.2.1']
 odbc = [
