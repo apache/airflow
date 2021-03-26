@@ -18,30 +18,25 @@
  */
 
 import React from 'react';
-import { Link as RouterLink } from 'react-router-dom';
 import {
-  Link,
   Alert,
   AlertIcon,
-  Flex,
   Table,
   Thead,
   Tbody,
   Tr,
   Th,
   Td,
-  useColorModeValue,
 } from '@chakra-ui/react';
 
 import AppContainer from 'components/AppContainer';
 import { defaultDags } from 'api/defaults';
 import { useDags } from 'api';
 import type { Dag } from 'interfaces';
+import Row from './Row';
 
 const Pipelines: React.FC = () => {
   const { data: { dags } = defaultDags, isLoading, error } = useDags();
-  const oddColor = useColorModeValue('gray.50', 'gray.900');
-  const evenColor = useColorModeValue('gray.100', 'gray.700');
 
   return (
     <AppContainer>
@@ -71,29 +66,7 @@ const Pipelines: React.FC = () => {
             <Td colSpan={2}>No Pipelines found.</Td>
           </Tr>
           )}
-          {dags.map((dag: Dag) => (
-            <Tr
-              key={dag.dagId}
-              _odd={{
-                backgroundColor: oddColor,
-              }}
-              _hover={{
-                backgroundColor: evenColor,
-              }}
-            >
-              <Td>
-                <Flex alignItems="center">
-                  <Link
-                    as={RouterLink}
-                    to={`/pipelines/${dag.dagId}`}
-                    fontWeight="bold"
-                  >
-                    {dag.dagId}
-                  </Link>
-                </Flex>
-              </Td>
-            </Tr>
-          ))}
+          {dags.map((dag: Dag) => <Row key={dag.dagId} dag={dag} />)}
         </Tbody>
       </Table>
     </AppContainer>

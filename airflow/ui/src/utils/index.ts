@@ -17,27 +17,18 @@
  * under the License.
  */
 
-import type { Dag, DagRun, TaskInstance } from './index';
+export const isObject = (obj: any) => Object.prototype.toString.call(obj) === '[object Object]';
 
-interface Entries {
-  totalEntries: number;
-}
-
-export interface DagsResponse extends Entries {
-  dags: Dag[];
-}
-
-export interface DagRunsResponse extends Entries {
-  dagRuns: DagRun[];
-}
-
-export interface TaskInstancesResponse extends Entries {
-  taskInstances: TaskInstance[];
-}
-
-export interface TriggerRunRequest {
-  conf: Record<string, any>;
-  dagRunId?: string;
-  executionDate: Date;
-  state?: 'success' | 'running' | 'failed';
-}
+export const camelToSnakeCase = (obj: Record<string, any>) => {
+  const newObj: Record<string, any> = {};
+  Object.keys(obj).forEach((key) => {
+    const newKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    const value = obj[key];
+    if (isObject(value)) {
+      newObj[newKey] = camelToSnakeCase(value);
+    } else {
+      newObj[newKey] = value;
+    }
+  });
+  return newObj;
+};

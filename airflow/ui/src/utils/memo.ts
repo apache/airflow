@@ -17,27 +17,13 @@
  * under the License.
  */
 
-import type { Dag, DagRun, TaskInstance } from './index';
+import type { PropsWithChildren } from 'react';
 
-interface Entries {
-  totalEntries: number;
-}
+const compareObjectProps = (
+  prevProps: PropsWithChildren<any>,
+  nextProps: PropsWithChildren<any>,
+) => (
+  JSON.stringify(prevProps) === JSON.stringify(nextProps)
+);
 
-export interface DagsResponse extends Entries {
-  dags: Dag[];
-}
-
-export interface DagRunsResponse extends Entries {
-  dagRuns: DagRun[];
-}
-
-export interface TaskInstancesResponse extends Entries {
-  taskInstances: TaskInstance[];
-}
-
-export interface TriggerRunRequest {
-  conf: Record<string, any>;
-  dagRunId?: string;
-  executionDate: Date;
-  state?: 'success' | 'running' | 'failed';
-}
+export default compareObjectProps;

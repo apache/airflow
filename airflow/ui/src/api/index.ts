@@ -18,11 +18,18 @@
  */
 
 import axios, { AxiosResponse } from 'axios';
-import { useQuery } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import humps from 'humps';
+import { useToast } from '@chakra-ui/react';
 
 import type { Dag, DagRun, Version } from 'interfaces';
-import type { DagsResponse, DagRunsResponse, TaskInstancesResponse } from 'interfaces/api';
+import type {
+  DagsResponse,
+  DagRunsResponse,
+  TaskInstancesResponse,
+  TriggerRunRequest,
+} from 'interfaces/api';
+import { camelToSnakeCase } from 'utils';
 
 axios.defaults.baseURL = `${process.env.WEBSERVER_URL}/api/v1`;
 axios.interceptors.response.use(
@@ -60,5 +67,114 @@ export function useVersion() {
   return useQuery<Version, Error>(
     'version',
     (): Promise<Version> => axios.get('/version'),
+  );
+}
+
+export function useTriggerRun(dagId: Dag['dagId']) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation(
+    (trigger: TriggerRunRequest) => axios.post(`dags/${dagId}/dagRuns`, camelToSnakeCase(trigger)),
+    {
+      onSettled: (res, error) => {
+        if (error) {
+          toast({
+            title: 'Error triggering DAG',
+            description: (error as Error).message,
+            status: 'error',
+            duration: 3000,
+            isClosable: true,
+          });
+        } else {
+          toast({
+            title: 'DAG Triggered',
+            status: 'success',
+            duration: 3000,
+            isClosable: true,
+          });
+          const dagRunData = queryClient.getQueryData(['dagRun', dagId]) as unknown as DagRunsResponse;
+          if (dagRunData) {
+            queryClient.setQueryData(['dagRun', dagId], {
+              dagRuns: [...dagRunData.dagRuns, res],
+              totalEntries: dagRunData.totalEntries += 1,
+            });
+          } else {
+            queryClient.setQueryData(['dagRun', dagId], {
+              dagRuns: [res],
+              totalEntries: 1,
+            });
+          }
+        }
+        queryClient.invalidateQueries(['dagRun', dagId]);
+      },
+    },
+  );
+}
+
+export function useSaveDag(dagId: Dag['dagId']) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation(
+    (updatedValues: Record<string, any>) => axios.patch(`dags/${dagId}`, camelToSnakeCase(updatedValues)),
+    {
+      onMutate: async (updatedValues: Record<string, any>) => {
+        await queryClient.cancelQueries(['dag', dagId]);
+        const previousDag = queryClient.getQueryData(['dag', dagId]) as Dag;
+        const previousDags = queryClient.getQueryData('dags') as DagsResponse;
+
+        const newDags = previousDags.dags.map((dag) => (
+          dag.dagId === dagId ? { ...dag, ...updatedValues } : dag
+        ));
+        const newDag = {
+          ...previousDag,
+          ...updatedValues,
+        };
+
+        // optimistically set the dag before the async request
+        queryClient.setQueryData(['dag', dagId], () => newDag);
+        queryClient.setQueryData('dags', (old) => ({
+          ...(old as Dag[]),
+          ...{
+            dags: newDags,
+            totalEntries: previousDags.totalEntries,
+          },
+        }));
+        return { [dagId]: previousDag, dags: previousDags };
+      },
+      onSettled: (res, error, variables, context) => {
+        const previousDag = (context as any)[dagId] as Dag;
+        const previousDags = (context as any).dags as DagsResponse;
+        // rollback to previous cache on error
+        if (error) {
+          queryClient.setQueryData(['dag', dagId], previousDag);
+          queryClient.setQueryData('dags', previousDags);
+          toast({
+            title: 'Error updating DAG',
+            description: (error as Error).message,
+            status: 'error',
+            duration: 3000,
+            isClosable: true,
+          });
+        } else {
+          // check if server response is different from our optimistic update
+          if (JSON.stringify(res) !== JSON.stringify(previousDag)) {
+            queryClient.setQueryData(['dag', dagId], res);
+            queryClient.setQueryData('dags', {
+              dags: previousDags.dags.map((dag) => (
+                dag.dagId === dagId ? res : dag
+              )),
+              totalEntries: previousDags.totalEntries,
+            });
+          }
+          toast({
+            title: 'DAG Updated',
+            status: 'success',
+            duration: 3000,
+            isClosable: true,
+          });
+        }
+        queryClient.invalidateQueries(['dag', dagId]);
+      },
+    },
   );
 }
