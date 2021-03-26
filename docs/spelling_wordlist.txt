@@ -1235,8 +1235,8 @@ slack_sdk
 slackclient
 slas
 smtp
-somedatabase
 somecollection
+somedatabase
 sortable
 sourceArchiveUrl
 sourceRepository
