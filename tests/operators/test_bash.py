@@ -123,25 +123,17 @@ class TestBashOperator(unittest.TestCase):
         ):
             BashOperator(task_id='abc', bash_command='set -e; something-that-isnt-on-path').execute({})
 
-    def test_skip(self):
-        with pytest.raises(AirflowSkipException, match="Bash command returned exit code 99\\. Skipping\\."):
-            BashOperator(task_id='abc', bash_command='set -e; echo "hello world"; exit 99;').execute({})
-
-        with pytest.raises(AirflowSkipException, match="Bash command returned exit code 100\\. Skipping\\."):
-            BashOperator(
-                task_id='abc2', bash_command='set -e; echo "hello world"; exit 100;', skip_exit_code=100
-            ).execute({})
-
-        with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
-        ):
-            BashOperator(
-                task_id='abc3', bash_command='set -e; echo "hello world"; exit 101;', skip_exit_code=100
-            ).execute({})
-
-        with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
-        ):
-            BashOperator(
-                task_id='abc4', bash_command='set -e; echo "hello world"; exit 99;', skip_exit_code=None
-            ).execute({})
+    @parameterized.expand(
+        [
+            (None, 99, AirflowSkipException),
+            ({'skip_exit_code': 100}, 100, AirflowSkipException),
+            ({'skip_exit_code': 100}, 101, AirflowException),
+            ({'skip_exit_code': None}, 99, AirflowException),
+        ]
+    )
+    def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
+        kwargs = dict(task_id='abc', bash_command=f'set -e; echo "hello world"; exit {actual_exit_code};')
+        if extra_kwargs:
+            kwargs.update(**extra_kwargs)
+        with pytest.raises(expected_exc):
+            BashOperator(**kwargs).execute({})
