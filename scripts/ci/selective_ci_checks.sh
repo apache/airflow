@@ -321,7 +321,7 @@ function check_if_python_security_scans_should_be_run() {
 }
 
 function check_if_setup_files_changed() {
-    start_end::group_start "Check Python security scans"
+    start_end::group_start "Check setup.py/cfg changed"
     local pattern_array=(
         "^setup.cfg"
         "^setup.py"
@@ -655,8 +655,8 @@ tests_needed="false"
 kubernetes_tests_needed="false"
 
 get_changed_files
-run_all_tests_if_environment_files_changed
 check_if_setup_files_changed
+run_all_tests_if_environment_files_changed
 check_if_any_py_files_changed
 check_if_docs_should_be_generated
 check_if_helm_tests_should_be_run
