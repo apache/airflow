@@ -1203,7 +1203,8 @@ class DagFileProcessorManager(LoggingMixin):
             else:
                 for simple_dag in processor.result[0]:
                     simple_dags.append(simple_dag)
-
+                self.log.info("Processor for %s exited with return code %s.", processor.file_path, processor.exit_code)
+                processor.terminate()
         return simple_dags
 
     def heartbeat(self):
