@@ -458,7 +458,9 @@ class TestConnection(unittest.TestCase):
                 ),
             ),
             (
-                "mongodb://mongodb0.example.com:27017,mongodb1.example.com:27017,mongodb2.example.com:27017/?replicaSet=myRepl",
+                "mongodb://mongodb0.example.com:27017,"
+                "mongodb1.example.com:27017,mongodb2.example.com:27017"
+                "/?replicaSet=myRepl",
                 ConnectionParts(
                     conn_type="mongodb",
                     login=None,
