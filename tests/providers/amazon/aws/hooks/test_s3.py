@@ -36,6 +36,18 @@ except ImportError:
     mock_s3 = None
 
 
+# This class needs to be separated out because if there are earlier mocks in the same class
+# the tests will fail on teardown.
+class TestAwsS3HookNoMock:
+    def test_check_for_bucket_raises_error_with_invalid_conn_id(self, monkeypatch):
+        monkeypatch.delenv('AWS_PROFILE', raising=False)
+        monkeypatch.delenv('AWS_ACCESS_KEY_ID', raising=False)
+        monkeypatch.delenv('AWS_SECRET_ACCESS_KEY', raising=False)
+        hook = S3Hook(aws_conn_id="does_not_exist")
+        with pytest.raises(NoCredentialsError):
+            hook.check_for_bucket("test-non-existing-bucket")
+
+
 @pytest.mark.skipif(mock_s3 is None, reason='moto package not present')
 class TestAwsS3Hook:
     @mock_s3
@@ -51,14 +63,6 @@ class TestAwsS3Hook:
         hook = S3Hook()
         assert hook.check_for_bucket(s3_bucket) is True
         assert hook.check_for_bucket('not-a-bucket') is False
-
-    def test_check_for_bucket_raises_error_with_invalid_conn_id(self, s3_bucket, monkeypatch):
-        monkeypatch.delenv('AWS_PROFILE', raising=False)
-        monkeypatch.delenv('AWS_ACCESS_KEY_ID', raising=False)
-        monkeypatch.delenv('AWS_SECRET_ACCESS_KEY', raising=False)
-        hook = S3Hook(aws_conn_id="does_not_exist")
-        with pytest.raises(NoCredentialsError):
-            hook.check_for_bucket(s3_bucket)
 
     @mock_s3
     def test_get_bucket(self):
@@ -155,14 +159,6 @@ class TestAwsS3Hook:
         assert hook.check_for_key(f's3://{s3_bucket}//a') is True
         assert hook.check_for_key('b', s3_bucket) is False
         assert hook.check_for_key(f's3://{s3_bucket}//b') is False
-
-    def test_check_for_key_raises_error_with_invalid_conn_id(self, monkeypatch, s3_bucket):
-        monkeypatch.delenv('AWS_PROFILE', raising=False)
-        monkeypatch.delenv('AWS_ACCESS_KEY_ID', raising=False)
-        monkeypatch.delenv('AWS_SECRET_ACCESS_KEY', raising=False)
-        hook = S3Hook(aws_conn_id="does_not_exist")
-        with pytest.raises(NoCredentialsError):
-            hook.check_for_key('a', s3_bucket)
 
     def test_get_key(self, s3_bucket):
         hook = S3Hook()

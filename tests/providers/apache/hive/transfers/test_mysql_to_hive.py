@@ -18,6 +18,7 @@
 
 import unittest
 from collections import OrderedDict
+from contextlib import closing
 from os import path
 from unittest import mock
 
@@ -129,24 +130,25 @@ class TestTransfer(unittest.TestCase):
             'AIRFLOW_CTX_DAG_EMAIL': 'test@airflow.com',
         }
 
-        with MySqlHook().get_conn() as cur:
-            cur.execute(
+        with closing(MySqlHook().get_conn()) as conn:
+            with closing(conn.cursor()) as cur:
+                cur.execute(
+                    '''
+                CREATE TABLE IF NOT EXISTS baby_names (
+                  org_year integer(4),
+                  baby_name VARCHAR(25),
+                  rate FLOAT(7,6),
+                  sex VARCHAR(4)
+                )
                 '''
-            CREATE TABLE IF NOT EXISTS baby_names (
-              org_year integer(4),
-              baby_name VARCHAR(25),
-              rate FLOAT(7,6),
-              sex VARCHAR(4)
-            )
-            '''
-            )
-
-        for row in rows:
-            cur.execute("INSERT INTO baby_names VALUES(%s, %s, %s, %s);", row)
+                )
+                for row in rows:
+                    cur.execute("INSERT INTO baby_names VALUES(%s, %s, %s, %s);", row)
 
     def tearDown(self):
-        with MySqlHook().get_conn() as cur:
-            cur.execute("DROP TABLE IF EXISTS baby_names CASCADE;")
+        with closing(MySqlHook().get_conn()) as conn:
+            with closing(conn.cursor()) as cur:
+                cur.execute("DROP TABLE IF EXISTS baby_names CASCADE;")
 
     @mock.patch('subprocess.Popen')
     def test_mysql_to_hive(self, mock_popen):
@@ -314,11 +316,12 @@ class TestTransfer(unittest.TestCase):
         hook = MySqlHook()
 
         try:
-            with hook.get_conn() as conn:
-                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
-                conn.execute(
-                    """
-                    CREATE TABLE {} (
+            with closing(hook.get_conn()) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(f"DROP TABLE IF EXISTS {mysql_table}")
+                    cursor.execute(
+                        """
+                        CREATE TABLE {} (
                         c0 TINYINT,
                         c1 SMALLINT,
                         c2 MEDIUMINT,
@@ -327,9 +330,9 @@ class TestTransfer(unittest.TestCase):
                         c5 TIMESTAMP
                     )
                 """.format(
-                        mysql_table
+                            mysql_table
+                        )
                     )
-                )
 
             op = MySqlToHiveOperator(
                 task_id='test_m2h',
@@ -350,8 +353,9 @@ class TestTransfer(unittest.TestCase):
             ordered_dict["c5"] = "TIMESTAMP"
             assert mock_load_file.call_args[1]["field_dict"] == ordered_dict
         finally:
-            with hook.get_conn() as conn:
-                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
+            with closing(hook.get_conn()) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(f"DROP TABLE IF EXISTS {mysql_table}")
 
     @mock.patch('subprocess.Popen')
     def test_mysql_to_hive_verify_csv_special_char(self, mock_popen):
@@ -365,27 +369,28 @@ class TestTransfer(unittest.TestCase):
 
         try:
             db_record = ('c0', '["true"]')
-            with hook.get_conn() as conn:
-                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
-                conn.execute(
-                    """
-                    CREATE TABLE {} (
+            with closing(hook.get_conn()) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(f"DROP TABLE IF EXISTS {mysql_table}")
+                    cursor.execute(
+                        """
+                        CREATE TABLE {} (
                         c0 VARCHAR(25),
                         c1 VARCHAR(25)
                     )
                 """.format(
-                        mysql_table
+                            mysql_table
+                        )
                     )
-                )
-                conn.execute(
-                    """
-                    INSERT INTO {} VALUES (
-                        '{}', '{}'
+                    cursor.execute(
+                        """
+                        INSERT INTO {} VALUES (
+                            '{}', '{}'
+                        )
+                    """.format(
+                            mysql_table, *db_record
+                        )
                     )
-                """.format(
-                        mysql_table, *db_record
-                    )
-                )
 
             with mock.patch.dict('os.environ', self.env_vars):
                 import unicodecsv as csv
@@ -445,8 +450,9 @@ class TestTransfer(unittest.TestCase):
                 close_fds=True,
             )
         finally:
-            with hook.get_conn() as conn:
-                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
+            with closing(hook.get_conn()) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(f"DROP TABLE IF EXISTS {mysql_table}")
 
     @mock.patch('subprocess.Popen')
     def test_mysql_to_hive_verify_loaded_values(self, mock_popen):
@@ -472,11 +478,12 @@ class TestTransfer(unittest.TestCase):
                 -9223372036854775808,
             )
 
-            with hook.get_conn() as conn:
-                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
-                conn.execute(
-                    """
-                    CREATE TABLE {} (
+            with closing(hook.get_conn()) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(f"DROP TABLE IF EXISTS {mysql_table}")
+                    cursor.execute(
+                        """
+                        CREATE TABLE {} (
                         c0 TINYINT   UNSIGNED,
                         c1 SMALLINT  UNSIGNED,
                         c2 MEDIUMINT UNSIGNED,
@@ -489,18 +496,18 @@ class TestTransfer(unittest.TestCase):
                         c9 BIGINT
                     )
                 """.format(
-                        mysql_table
+                            mysql_table
+                        )
                     )
-                )
-                conn.execute(
-                    """
-                    INSERT INTO {} VALUES (
-                        {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
+                    cursor.execute(
+                        """
+                        INSERT INTO {} VALUES (
+                            {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
+                        )
+                    """.format(
+                            mysql_table, *minmax
+                        )
                     )
-                """.format(
-                        mysql_table, *minmax
-                    )
-                )
 
             with mock.patch.dict('os.environ', self.env_vars):
                 op = MySqlToHiveOperator(
@@ -556,5 +563,6 @@ class TestTransfer(unittest.TestCase):
                 )
 
         finally:
-            with hook.get_conn() as conn:
-                conn.execute(f"DROP TABLE IF EXISTS {mysql_table}")
+            with closing(hook.get_conn()) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(f"DROP TABLE IF EXISTS {mysql_table}")

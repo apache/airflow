@@ -194,8 +194,7 @@ def get_sphinx_theme_version() -> str:
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 amazon = [
-    'boto3>=1.15.0,<1.16.0',
-    'botocore>=1.18.0,<1.19.0',
+    'boto3>=1.15.0,<1.18.0',
     'watchtower~=0.7.3',
 ]
 apache_beam = [
@@ -217,7 +216,7 @@ azure = [
     'azure-keyvault>=4.1.0',
     'azure-kusto-data>=0.0.43,<0.1',
     'azure-mgmt-containerinstance>=1.5.0,<2.0',
-    'azure-mgmt-datafactory>=0.13.0',
+    'azure-mgmt-datafactory>=1.0.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
     'azure-storage-blob>=12.7.0',
@@ -315,6 +314,7 @@ google = [
     'grpcio-gcp>=0.2.2',
     'json-merge-patch~=0.2',
     'pandas-gbq',
+    'plyvel',
 ]
 grpc = [
     'google-auth>=1.0.0, <2.0.0dev',
@@ -364,7 +364,7 @@ mssql = [
 ]
 mysql = [
     'mysql-connector-python>=8.0.11, <=8.0.22',
-    'mysqlclient>=1.3.6,<1.4',
+    'mysqlclient>=1.3.6,<3',
 ]
 neo4j = ['neo4j>=4.2.1']
 odbc = [
@@ -390,7 +390,7 @@ pinot = [
     'pinotdb>0.1.2,<1.0.0',
 ]
 plexus = [
-    'arrow>=0.16.0',
+    'arrow>=0.16.0,<1.0.0',
 ]
 postgres = [
     'psycopg2-binary>=2.7.4',
@@ -468,6 +468,7 @@ zendesk = [
 # End dependencies group
 
 devel = [
+    'aws_xray_sdk',
     'beautifulsoup4~=4.7.1',
     'black',
     'blinker',
@@ -485,17 +486,15 @@ devel = [
     'ipdb',
     'jira',
     'jsonpath-ng',
-    # HACK: Moto is not compatible with newer versions
-    # See: https://github.com/spulec/moto/issues/3535
-    'mock<4.0.3',
+    'jsondiff',
     'mongomock',
-    'moto<2',
+    'moto~=2.0',
     'mypy==0.770',
     'parameterized',
     'paramiko',
     'pipdeptree',
     'pre-commit',
-    'pylint',
+    'pylint>=2.7.0',
     'pysftp',
     'pytest~=6.0',
     'pytest-cov',
@@ -503,6 +502,7 @@ devel = [
     'pytest-rerunfailures~=9.1',
     'pytest-timeouts',
     'pytest-xdist',
+    'python-jose',
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
