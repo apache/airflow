@@ -114,7 +114,7 @@ dataclasses==0.7
 datadog==0.40.1
 decorator==4.4.2
 defusedxml==0.7.1
-dill==0.3.3
+dill==0.3.2
 distlib==0.3.1
 distributed==2.19.0
 dnspython==1.16.0

@@ -51,7 +51,7 @@ croniter==0.3.37
 cryptography==3.4.7
 dask==2021.3.1
 defusedxml==0.7.1
-dill==0.3.3
+dill==0.3.2
 distlib==0.3.1
 distributed==2.19.0
 dnspython==1.16.0
@@ -87,7 +87,7 @@ marshmallow-sqlalchemy==0.23.1
 marshmallow==3.10.0
 msgpack==1.0.2
 natsort==7.1.1
-numpy==1.20.1
+numpy==1.20.2
 oauthlib==2.1.0
 openapi-schema-validator==0.1.5
 openapi-spec-validator==0.3.0
