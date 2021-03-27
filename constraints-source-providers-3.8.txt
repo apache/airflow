@@ -111,7 +111,7 @@ dask==2021.3.1
 datadog==0.40.1
 decorator==4.4.2
 defusedxml==0.7.1
-dill==0.3.2
+dill==0.3.3
 distlib==0.3.1
 distributed==2.19.0
 dnspython==1.16.0
@@ -251,7 +251,7 @@ nest-asyncio==1.5.1
 nodeenv==1.5.0
 nteract-scrapbook==0.4.2
 ntlm-auth==1.5.0
-numpy==1.20.2
+numpy==1.20.1
 oauthlib==2.1.0
 openapi-schema-validator==0.1.5
 openapi-spec-validator==0.3.0
