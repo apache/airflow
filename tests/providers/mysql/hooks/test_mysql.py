@@ -21,6 +21,7 @@ import json
 import os
 import unittest
 import uuid
+from contextlib import closing
 from unittest import mock
 
 import MySQLdb.cursors
@@ -348,9 +349,10 @@ class TestMySql(unittest.TestCase):
 
     def tearDown(self):
         drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
-        with MySqlHook().get_conn() as conn:
-            for table in drop_tables:
-                conn.execute(f"DROP TABLE IF EXISTS {table}")
+        with closing(MySqlHook().get_conn()) as conn:
+            with closing(conn.cursor()) as cursor:
+                for table in drop_tables:
+                    cursor.execute(f"DROP TABLE IF EXISTS {table}")
 
     @parameterized.expand(
         [
@@ -375,19 +377,20 @@ class TestMySql(unittest.TestCase):
                 f.flush()
 
                 hook = MySqlHook('airflow_db')
-                with hook.get_conn() as conn:
-                    conn.execute(
+                with closing(hook.get_conn()) as conn:
+                    with closing(conn.cursor()) as cursor:
+                        cursor.execute(
+                            """
+                            CREATE TABLE IF NOT EXISTS test_airflow (
+                                dummy VARCHAR(50)
+                            )
                         """
-                        CREATE TABLE IF NOT EXISTS test_airflow (
-                            dummy VARCHAR(50)
                         )
-                    """
-                    )
-                    conn.execute("TRUNCATE TABLE test_airflow")
-                    hook.bulk_load("test_airflow", f.name)
-                    conn.execute("SELECT dummy FROM test_airflow")
-                    results = tuple(result[0] for result in conn.fetchall())
-                    assert sorted(results) == sorted(records)
+                        cursor.execute("TRUNCATE TABLE test_airflow")
+                        hook.bulk_load("test_airflow", f.name)
+                        cursor.execute("SELECT dummy FROM test_airflow")
+                        results = tuple(result[0] for result in cursor.fetchall())
+                        assert sorted(results) == sorted(records)
 
     @parameterized.expand(
         [
