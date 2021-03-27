@@ -192,7 +192,8 @@
                         },
                         "pullPolicy": {
                             "description": "The airflow image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -216,7 +217,8 @@
                         },
                         "pullPolicy": {
                             "description": "The pod_template image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -240,7 +242,8 @@
                         },
                         "pullPolicy": {
                             "description": "The flower image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -258,7 +261,8 @@
                         },
                         "pullPolicy": {
                             "description": "The statsd image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -276,7 +280,8 @@
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -294,7 +299,8 @@
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -312,7 +318,8 @@
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -330,7 +337,8 @@
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 }
@@ -1386,7 +1394,8 @@
                         },
                         "accessMode": {
                             "description": "Access mode of the persistent volume.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",

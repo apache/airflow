@@ -28,6 +28,8 @@ import {
   defaultHeaders, QueryWrapper, RouterWrapper, url,
 } from './utils';
 
+axios.defaults.adapter = require('axios/lib/adapters/http');
+
 const sampleDag = {
   dagId: 'dagId1',
   description: 'string',
@@ -46,16 +48,20 @@ const sampleDag = {
   ],
 };
 
-axios.defaults.adapter = require('axios/lib/adapters/http');
-
-nock(url)
-  .defaultReplyHeaders(defaultHeaders)
-  .persist()
-  .get('/version')
-  .reply(200, { version: '', gitVersion: '' });
-
 describe('Test Pipelines Table', () => {
-  test('Show a loading indicator and have a DAG count of 0 before data loads', async () => {
+  beforeEach(() => {
+    nock(url)
+      .defaultReplyHeaders(defaultHeaders)
+      .persist()
+      .get('/version')
+      .reply(200, { version: '', gitVersion: '' });
+  });
+
+  afterAll(() => {
+    nock.cleanAll();
+  });
+
+  test('Show a loading indicator before data loads', async () => {
     nock(url)
       .defaultReplyHeaders(defaultHeaders)
       .get('/dags')
@@ -74,22 +80,32 @@ describe('Test Pipelines Table', () => {
     await waitFor(() => expect(getByText(sampleDag.dagId)).toBeInTheDocument());
   });
 
-  // test('Show Empty State text if there are no dags', async () => {
-  //   nock(url)
-  //     .defaultReplyHeaders(defaultHeaders)
-  //     .get('/dags')
-  //     .reply(404, undefined);
+  test('Show Empty State text if there are no dags', async () => {
+    nock(url)
+      .defaultReplyHeaders(defaultHeaders)
+      .get('/dags')
+      .reply(404, {
+        dags: [],
+        totalEntries: 0,
+      });
 
-  //   const { getByText } = render(
-  //     <QueryWrapper><Pipelines /></QueryWrapper>,
-  //     {
-  //       wrapper: RouterWrapper,
-  //     },
-  //   );
-  //   await waitFor(() => expect(getByText('No Pipelines found.')).toBeInTheDocument());
-  // });
+    nock(url)
+      .defaultReplyHeaders(defaultHeaders)
+      .persist()
+      .intercept(`/dags/${sampleDag.dagId}`, 'PATCH')
+      .reply(200, { ...sampleDag, ...{ isPaused: !sampleDag.isPaused } });
 
-  test('Clicking on a toggle will successfully pause/unpause a DAG', async () => {
+    const { getByText } = render(
+      <QueryWrapper><Pipelines /></QueryWrapper>,
+      {
+        wrapper: RouterWrapper,
+      },
+    );
+
+    await waitFor(() => expect(getByText('No Pipelines found.')).toBeInTheDocument());
+  });
+
+  test('Toggle a pipeline on/off', async () => {
     nock(url)
       .defaultReplyHeaders(defaultHeaders)
       .get('/dags')
@@ -110,6 +126,7 @@ describe('Test Pipelines Table', () => {
         wrapper: RouterWrapper,
       },
     );
+
     await waitFor(() => expect(getByText(sampleDag.dagId)).toBeInTheDocument());
     const toggle = getByRole('switch');
     expect(toggle.firstChild?.checked).toBeTruthy();
