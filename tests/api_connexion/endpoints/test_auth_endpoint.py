@@ -192,4 +192,35 @@ class TestAuthorizeOauth(TestLoginEndpoint):
         assert response.json['detail'] == "You denied the request to sign in"
 
     def test_wrong_state_signature_raises(self):
-        pass
+        self.auth_type(AUTH_OAUTH)
+        mock_twitter_auth_provider = mock.Mock()
+        self.app.appbuilder.sm.oauth_remotes = {
+            "twitter": mock_twitter_auth_provider,
+        }
+        mock_twitter_auth_provider.authorize_access_token.return_value = mock.MagicMock()
+        response = self.client.get('api/v1/oauth-authorized/twitter?state=state')
+        assert response.status_code == 400
+        assert response.json['detail'] == "State signature is not valid!"
+
+    @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt.decode")
+    def test_successful_authorization(self, mock_jwt_decode):
+        self.auth_type(AUTH_OAUTH)
+        mock_jwt_decode.return_value = {'some': 'payload'}
+        mock_twitter_auth_provider = mock.Mock()
+        mock_oauth_session = mock.MagicMock()
+        mock_user_info = mock.MagicMock()
+        mock_user_oauth = mock.MagicMock()
+        self.app.appbuilder.sm.set_oauth_session = mock_oauth_session
+        self.app.appbuilder.sm.oauth_user_info = mock_user_info
+        self.app.appbuilder.sm.auth_user_oauth = mock_user_oauth
+        user = self.app.appbuilder.sm.find_user(username='test')
+        self.app.appbuilder.sm.auth_user_oauth.return_value = user
+        self.app.appbuilder.sm.oauth_remotes = {
+            "twitter": mock_twitter_auth_provider,
+        }
+        mock_authorized = mock.MagicMock()
+        mock_twitter_auth_provider.authorize_access_token.return_value = mock_authorized
+        self.client.get('api/v1/oauth-authorized/twitter?state=state')
+        mock_oauth_session.assert_called_once_with('twitter', mock_authorized)
+        mock_user_info.assert_called_once_with('twitter', mock_authorized)
+        mock_user_oauth.assert_called_once_with(mock_user_info.return_value)

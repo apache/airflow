@@ -495,7 +495,6 @@ devel = [
     'jira',
     'jsonpath-ng',
     'jsondiff',
-    'mockldap>=0.3.0',
     'mongomock',
     'moto~=2.0',
     'mypy==0.770',
