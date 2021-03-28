@@ -18,6 +18,7 @@ from unittest import mock
 
 import pytest
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH
+from mockldap import MockLdap
 
 from tests.test_utils.api_connexion_utils import delete_user
 from tests.test_utils.fab_utils import create_user
@@ -89,6 +90,7 @@ class TestDBLoginEndpoint(TestLoginEndpoint):
 class TestLDAPLoginEndpoint(TestLoginEndpoint):
     def test_user_can_login(self):
         self.auth_type(AUTH_LDAP)
+        self.app.config["AUTH_LDAP_ALLOW_SELF_SIGNED"] = False
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.json['username'] == 'test'
@@ -121,7 +123,7 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
         assert response.status_code == 400
         assert response.json['detail'] == "{'password': ['Missing data for required field.']}"
 
-    def test_auth_type_must_be_db(self):
+    def test_auth_type_must_be_ldap(self):
         self.auth_type(AUTH_OAUTH)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)

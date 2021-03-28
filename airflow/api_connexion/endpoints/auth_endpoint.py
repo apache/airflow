@@ -73,8 +73,9 @@ def auth_dblogin():
         data = login_form_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    user = security_manager.auth_user_db(data['username'], data['password'])
-    if not user:
+    if auth_type == AUTH_DB:
+        user = security_manager.auth_user_db(data['username'], data['password'])
+    else:
         user = security_manager.auth_user_ldap(data['username'], data['password'])
     if not user:
         raise NotFound(detail="Invalid login")
