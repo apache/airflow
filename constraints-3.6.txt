@@ -300,7 +300,7 @@ lockfile==0.12.2
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==2.1.0
 marshmallow-sqlalchemy==0.23.1
-marshmallow==3.10.0
+marshmallow==3.11.0
 mccabe==0.6.1
 mock==2.0.0
 mongomock==3.22.1
