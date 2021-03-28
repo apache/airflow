@@ -204,10 +204,10 @@ function set_upgrade_to_newer_dependencies() {
 }
 
 if [[ ${DEFAULT_BRANCH} == "master" ]]; then
-    ALL_TESTS="Always API Core Other CLI Providers WWW Integration"
+    ALL_TESTS="Always API Core Other CLI Providers WWW Integration Quarantined"
 else
     # Skips Provider tests in case current default branch is not master
-    ALL_TESTS="Always API Core Other CLI WWW Integration"
+    ALL_TESTS="Always API Core Other CLI WWW Integration Quarantined"
 fi
 readonly ALL_TESTS
 

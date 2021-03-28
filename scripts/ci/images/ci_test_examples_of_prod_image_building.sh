@@ -88,4 +88,4 @@ test_images
 parallel --semaphore --semaphorename "${SEMAPHORE_NAME}" --wait
 start_end::group_end
 
-parallel::print_job_summary_and_return_status_code
+parallel::print_job_summary_and_return_status_code ""

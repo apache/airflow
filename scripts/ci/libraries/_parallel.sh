@@ -139,7 +139,8 @@ function parallel::output_log_for_failed_job(){
 }
 
 # Prints summary of jobs and returns status:
-# 0 - all jobs succeeded (SKIPPED_FAILED_JOBS is not counted)
+# $1 - (optional) skip failure if the job name is equal to this parameter
+# 0 - all jobs succeeded (Quarantined tests not counted)
 # >0 - number of failed jobs (except Quarantine)
 function parallel::print_job_summary_and_return_status_code() {
     local return_code="0"
@@ -152,8 +153,7 @@ function parallel::print_job_summary_and_return_status_code() {
             parallel::output_log_for_successful_job "${job}"
         else
             parallel::output_log_for_failed_job "${job}"
-            # SKIPPED_FAILED_JOB failure does not trigger whole test failure
-            if [[ ${SKIPPED_FAILED_JOB=} != "${job}" ]]; then
+            if [[ $# == "0" || ${job} != "$1" ]]; then
                 return_code=$((return_code + 1))
             fi
         fi

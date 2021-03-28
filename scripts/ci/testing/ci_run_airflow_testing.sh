@@ -20,9 +20,6 @@
 RUN_TESTS="true"
 export RUN_TESTS
 
-SKIPPED_FAILED_JOB="Quarantined"
-export SKIPPED_FAILED_JOB
-
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
@@ -171,47 +168,56 @@ function run_test_types_in_parallel() {
 }
 
 
-export MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN=33000
+export MEMORY_REQUIRED_FOR_MOUNT_SELECTED_TEST_PARALLEL_RUN=33000
+
+function print_deferred_tests() {
+    local test_type=$1
+    # In case of some tests - they need more resources (Memory) thus we only run them in
+    # parallel if we have more than 32 GB memory available. Otherwise we run them sequentially
+    # after cleaning up the memory and stopping all docker instances
+    echo ""
+    echo "${COLOR_YELLOW}There is not enough memory to run ${test_type} test in parallel${COLOR_RESET}"
+    echo "${COLOR_YELLOW}   Available memory: ${MEMORY_AVAILABLE_FOR_DOCKER}${COLOR_RESET}"
+    echo "${COLOR_YELLOW}   Required memory: ${MEMORY_REQUIRED_FOR_MOUNT_SELECTED_TEST_PARALLEL_RUN}${COLOR_RESET}"
+    echo ""
+    echo "${COLOR_YELLOW}test_type tests will be run separately at the end after cleaning up docker${COLOR_RESET}"
+    echo ""
+
+}
 
 # Runs all test types in parallel depending on the number of CPUs available
 # We monitors their progress, display the progress  and summarize the result when finished.
 #
-# In case there is not enough memory (MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN) available for
+# In case there is not enough memory (MEMORY_REQUIRED_FOR_MOUNT_SELECTED_TEST_PARALLEL_RUN) available for
 # the docker engine, the integration tests (which take a lot of memory for all the integrations)
 # are run sequentially after all other tests were run in parallel.
 #
 # Input:
 #   * TEST_TYPES  - contains all test types that should be executed
-#   * MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN - memory in bytes required to run integration tests
+#   * MEMORY_REQUIRED_FOR_MOUNT_SELECTED_TEST_PARALLEL_RUN - memory in bytes required to run integration tests
 #             in parallel to other tests
 #   * MEMORY_AVAILABLE_FOR_DOCKER - memory that is available in docker (set by cleanup_runners)
 #
 function run_all_test_types_in_parallel() {
     cleanup_runner
-
     start_end::group_start "Determine how to run the tests"
     echo
     echo "${COLOR_YELLOW}Running maximum ${MAX_PARALLEL_TEST_JOBS} test types in parallel${COLOR_RESET}"
     echo
 
     local run_integration_tests_separately="false"
+    local run_quarantined_tests_separately="false"
     local test_types_to_run=${TEST_TYPES}
-
-    if [[ ${test_types_to_run} == *"Integration"* ]]; then
-        if (( MEMORY_AVAILABLE_FOR_DOCKER < MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN )) ; then
-            # In case of Integration tests - they need more resources (Memory) thus we only run them in
-            # parallel if we have more than 32 GB memory available. Otherwise we run them sequentially
-            # after cleaning up the memory and stopping all docker instances
-            echo ""
-            echo "${COLOR_YELLOW}There is not enough memory to run Integration test in parallel${COLOR_RESET}"
-            echo "${COLOR_YELLOW}   Available memory: ${MEMORY_AVAILABLE_FOR_DOCKER}${COLOR_RESET}"
-            echo "${COLOR_YELLOW}   Required memory: ${MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN}${COLOR_RESET}"
-            echo ""
-            echo "${COLOR_YELLOW}Integration tests will be run separately at the end after cleaning up docker${COLOR_RESET}"
-            echo ""
-            # Remove Integration from list of tests to run in parallel
+    if (( MEMORY_AVAILABLE_FOR_DOCKER < MEMORY_REQUIRED_FOR_MOUNT_SELECTED_TEST_PARALLEL_RUN )) ; then
+        if [[ ${test_types_to_run} == *"Integration"* ]]; then
+            print_deferred_tests "Integration"
             test_types_to_run="${test_types_to_run//Integration/}"
             run_integration_tests_separately="true"
+        fi
+        if [[ ${test_types_to_run} == *"Quarantined"* ]]; then
+            print_deferred_tests "Quarantined"
+            test_types_to_run="${test_types_to_run//Quarantined/}"
+            run_quarantined_tests_separately="true"
         fi
     fi
     set +e
@@ -225,9 +231,13 @@ function run_all_test_types_in_parallel() {
         test_types_to_run="Integration"
         run_test_types_in_parallel "${@}"
     fi
+    if [[ ${run_quarantined_tests_separately} == "true" ]]; then
+        cleanup_runner
+        test_types_to_run="Quarantined"
+        run_test_types_in_parallel "${@}"
+    fi
     set -e
-    # this will exit with error code in case some of the non-Quarantined tests failed
-    parallel::print_job_summary_and_return_status_code
+    parallel::print_job_summary_and_return_status_code "Quarantined"
 }
 
 build_images::prepare_ci_build
