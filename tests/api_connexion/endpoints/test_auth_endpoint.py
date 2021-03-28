@@ -18,7 +18,6 @@ from unittest import mock
 
 import pytest
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH
-from mockldap import MockLdap
 
 from tests.test_utils.api_connexion_utils import delete_user
 from tests.test_utils.fab_utils import create_user
@@ -42,6 +41,10 @@ class TestLoginEndpoint:
 
     def auth_type(self, auth):
         self.app.config['AUTH_TYPE'] = auth
+
+
+def auth_type(self, auth):
+    self.app.config['AUTH_TYPE'] = auth
 
 
 class TestDBLoginEndpoint(TestLoginEndpoint):
@@ -90,9 +93,12 @@ class TestDBLoginEndpoint(TestLoginEndpoint):
 class TestLDAPLoginEndpoint(TestLoginEndpoint):
     def test_user_can_login(self):
         self.auth_type(AUTH_LDAP)
-        self.app.config["AUTH_LDAP_ALLOW_SELF_SIGNED"] = False
+        self.app.appbuilder.sm.auth_user_ldap = mock.Mock()
+        user = self.app.appbuilder.sm.find_user(username='test')
+        self.app.appbuilder.sm.auth_user_ldap.return_value = user
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
+
         assert response.json['username'] == 'test'
         cookie = next(
             (cookie for cookie in self.client.cookie_jar if cookie.name == "access_token_cookie"), None
@@ -102,6 +108,9 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
 
     def test_logged_in_user_cant_relogin(self):
         self.auth_type(AUTH_LDAP)
+        self.app.appbuilder.sm.auth_user_ldap = mock.Mock()
+        user = self.app.appbuilder.sm.find_user(username='test')
+        self.app.appbuilder.sm.auth_user_ldap.return_value = user
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.json['username'] == 'test'
@@ -111,6 +120,8 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
 
     def test_incorrect_username_raises(self):
         self.auth_type(AUTH_LDAP)
+        self.app.appbuilder.sm.auth_user_ldap = mock.Mock()
+        self.app.appbuilder.sm.auth_user_ldap.return_value = None
         payload = {"username": "tests", "password": "test"}
         response = self.client.post('api/v1/auth-dblogin', json=payload)
         assert response.status_code == 404
