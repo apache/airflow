@@ -299,11 +299,11 @@ def pool_get(args):
 
 
 def pool_set(args):
-    _pool_wrapper(args, set=(args.name, args.slots, args.description))
+    _pool_wrapper(args, set=(args.pool, args.slots, args.description))
 
 
 def pool_delete(args):
-    _pool_wrapper(args, delete=pool.name)
+    _pool_wrapper(args, delete=args.pool)
 
 
 def pool_import(args):
