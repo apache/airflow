@@ -1041,7 +1041,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         return_value = f()
 
         task = PythonVirtualenvOperator(task_id='task', python_callable=f, dag=self.dag)
-        assert task.execute({}) == return_value
+        assert task.execute(unittest.mock.MagicMock()) == return_value
 
 
 DEFAULT_ARGS = {
