@@ -54,6 +54,11 @@ provider packages are automatically documented in the release notes of every pro
     Those are the same providers as for 2.0 but automatically back-ported to work for Airflow 1.10. The
     last release of backport providers was done on March 17, 2021.
 
+Creating and maintaining community providers
+""""""""""""""""""""""""""""""""""""""""""""
+
+See :doc:`apache-airflow-providers:howto/create-update-providers`
+
 
 Provider packages functionality
 '''''''''''''''''''''''''''''''
@@ -245,7 +250,7 @@ Example ``myproviderpackage/somemodule.py``:
 
 **How do provider packages work under the hood?**
 
-When running airflow with your provider package, there will be (at least) three components to your airflow installation:
+When running Airflow with your provider package, there will be (at least) three components to your airflow installation:
 
 * The installation itself (for example, a ``venv`` where you installed airflow with ``pip install apache-airflow``)
   together with the related files (e.g. ``dags`` folder)
@@ -298,6 +303,10 @@ the Community, before investing time to make the provider compliant with communi
 The Community only accepts providers that are generic enough, are well documented, fully covered by tests
 and with capabilities of being tested by people in the community. So we might not always be in the
 position to accept such contributions.
+
+After you decided that your provider match the expected values said above you can read
+:doc:`apache-airflow-providers:howto/create-update-providers` to check all requisites for a new
+community Provider.
 
 However, in case you have your own, specific provider, which you can maintain on your own or by your
 team, you are free to publish the providers in whatever form you find appropriate. The custom and
