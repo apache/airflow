@@ -203,6 +203,7 @@ In the ``CONTRIBUTING.rst`` adds:
 
 
 In the ``INSTALL`` file adds:
+
 - your provider to the **Extras** section list.
 
 In the ``docs/apache-airflow-providers-new_provider/connections.rst``:
