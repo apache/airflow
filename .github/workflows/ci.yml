@@ -463,12 +463,26 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
+      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
           persist-credentials: false
           submodules: recursive
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+      - uses: actions/cache@v2
+        id: cache-venv-docs
+        with:
+          path: ./.docs-venv/
+          key: ${{ runner.os }}-docs-venv-${{ hashFiles('setup.py', 'setup.cfg') }}
+          restore-keys: |
+            ${{ runner.os }}-docs-venv-
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"

@@ -216,6 +216,8 @@ pip-wheel-metadata
 
 .pypirc
 
+/.docs-venv
+
 # Dev files
 /dev/packages.txt
 /dev/Dockerfile.pmc
