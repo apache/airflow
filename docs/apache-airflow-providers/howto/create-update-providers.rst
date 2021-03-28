@@ -114,8 +114,9 @@ There are some tests that Airflow performs to ensure consistency that is related
 Change expected number of providers, hooks and connections if needed in ``run_install_and_test_provider_packages.sh`` file.
 
 Add your provider information in the following variables in ``test_providers_manager.py``:
-  * add your provider to ``ALL_PROVIDERS`` list;
-  * add your provider into ``CONNECTIONS_LIST`` if your provider create a new connection type.
+
+  - add your provider to ``ALL_PROVIDERS`` list;
+  - add your provider into ``CONNECTIONS_LIST`` if your provider create a new connection type.
 
 
 Integration tests
@@ -197,18 +198,22 @@ any dependency add a empty list.
           }
 
 In the ``CONTRIBUTING.rst`` adds:
-  * your provider name in the list in the **Extras** section
-  * your provider dependencies in the **Provider Packages** section table, only if your provider has external dependencies.
+
+  - your provider name in the list in the **Extras** section
+  - your provider dependencies in the **Provider Packages** section table, only if your provider has external dependencies.
 
 
 In the ``INSTALL`` file adds:
-  * your provider to the **Extras** section list.
+
+  - your provider to the **Extras** section list.
 
 In the ``docs/apache-airflow-providers-new_provider/connections.rst``:
-  * add information how to connect to your providers.
+
+  - add information how to connect to your providers.
 
 In the ``docs/apache-airflow-providers-new_provider/operators/new_provider.rst``:
-  * add information how to use the Operator. It's important to add examples and additional information if your Operator has extra-parameters.
+
+- add information how to use the Operator. It's important to add examples and additional information if your Operator has extra-parameters.
 
   .. code-block:: RST
 
@@ -233,7 +238,8 @@ In the ``docs/apache-airflow-providers-new_provider/operators/new_provider.rst``
 
 
 In the ``docs/apache-airflow-providers-new_provider/commits.rst``:
-  * add the initial information of your providers. This file is updated automatically by Airflow. Below is shown an example.
+
+  - add the initial information of your providers. This file is updated automatically by Airflow. Below is shown an example.
 
   .. code-block:: RST
 
@@ -247,7 +253,8 @@ In the ``docs/apache-airflow-providers-new_provider/commits.rst``:
       For high-level changelog, see :doc:`package information including changelog <index>`.
 
 In the ``docs/apache-airflow-providers-new_provider/index.rst``:
-  * add all information of the purpose of your provider. It is recommended to check with another provider to help you complete this document as best as possible.
+
+  - add all information of the purpose of your provider. It is recommended to check with another provider to help you complete this document as best as possible.
 
 
 In the ``/airflow/providers/new_provider/CHANGELOG`` add the initial information. Providers start with 1.0.0 version.
@@ -262,7 +269,8 @@ In the ``/airflow/providers/new_provider/CHANGELOG`` add the initial information
 
       Initial version of the provider.
 
-In the ``airflow/providers/new_provider/provider.yaml`` add the information of your provider:
+In the ``airflow/providers/new_provider/provider.yaml`` add information of your provider:
+
   .. code-block:: yaml
 
       package-name: apache-airflow-providers-new_provider
