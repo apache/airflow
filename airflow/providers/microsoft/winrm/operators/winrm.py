@@ -27,7 +27,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 
-
 # Hide the following error message in urllib3 when making WinRM connections:
 # requests.packages.urllib3.exceptions.HeaderParsingError: [StartBoundaryNotFoundDefect(),
 #   MultipartInvariantViolationDefect()], unparsed data: ''

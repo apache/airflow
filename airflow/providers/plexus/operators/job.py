@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.plexus.hooks.plexus import PlexusHook
 
-
 logger = logging.getLogger(__name__)
 
 

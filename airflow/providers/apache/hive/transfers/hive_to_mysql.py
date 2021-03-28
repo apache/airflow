@@ -23,7 +23,6 @@ from typing import Dict, Optional
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 

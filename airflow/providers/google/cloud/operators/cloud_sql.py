@@ -28,7 +28,6 @@ from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldVal
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
-
 SETTINGS = 'settings'
 SETTINGS_VERSION = 'settingsVersion'
 
@@ -487,25 +486,6 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_delete_template_fields]
-
-    def __init__(
-        self,
-        *,
-        instance: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            project_id=project_id,
-            instance=instance,
-            gcp_conn_id=gcp_conn_id,
-            api_version=api_version,
-            impersonation_chain=impersonation_chain,
-            **kwargs,
-        )
 
     def execute(self, context) -> Optional[bool]:
         hook = CloudSQLHook(

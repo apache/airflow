@@ -69,6 +69,7 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
 ### ``apply_default`` decorator isn't longer necessary
 
 This decorator is now automatically added to all operators.

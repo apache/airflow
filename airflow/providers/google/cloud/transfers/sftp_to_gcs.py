@@ -25,7 +25,6 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 
-
 WILDCARD = "*"
 
 

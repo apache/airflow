@@ -24,7 +24,6 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook
 
-
 LOAD_CHECK_INTERVAL = 5
 DEFAULT_TARGET_PARTITION_SIZE = 5000000
 

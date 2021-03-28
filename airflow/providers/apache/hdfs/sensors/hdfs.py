@@ -24,7 +24,6 @@ from airflow import settings
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
 from airflow.sensors.base import BaseSensorOperator
 
-
 log = logging.getLogger(__name__)
 
 

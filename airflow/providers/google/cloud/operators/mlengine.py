@@ -26,7 +26,6 @@ from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 
-
 log = logging.getLogger(__name__)
 
 

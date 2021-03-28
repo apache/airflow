@@ -24,7 +24,6 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 
-
 WILDCARD = "*"
 
 

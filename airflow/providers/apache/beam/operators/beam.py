@@ -29,7 +29,6 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
-
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.version import version
 

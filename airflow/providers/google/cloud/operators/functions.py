@@ -29,7 +29,6 @@ from airflow.providers.google.cloud.utils.field_validator import (
     GcpBodyFieldValidator,
     GcpFieldValidationException,
 )
-
 from airflow.version import version
 
 

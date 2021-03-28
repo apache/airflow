@@ -34,7 +34,6 @@ from google.cloud.vision_v1.types import (
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
 
-
 MetaData = Sequence[Tuple[str, str]]
 
 

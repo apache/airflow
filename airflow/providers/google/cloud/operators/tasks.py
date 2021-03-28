@@ -31,7 +31,6 @@ from google.protobuf.field_mask_pb2 import FieldMask
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 
-
 MetaData = Sequence[Tuple[str, str]]
 
 

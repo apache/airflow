@@ -38,7 +38,6 @@ from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQ
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 
-
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
 
 _DEPRECATION_MSG = (

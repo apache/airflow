@@ -31,7 +31,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
-
 JenkinsRequest = Mapping[str, Any]
 ParamType = Optional[Union[str, Dict, List]]
 

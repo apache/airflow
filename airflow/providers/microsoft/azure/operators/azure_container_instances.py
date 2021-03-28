@@ -39,7 +39,6 @@ from airflow.providers.microsoft.azure.hooks.azure_container_instance import Azu
 from airflow.providers.microsoft.azure.hooks.azure_container_registry import AzureContainerRegistryHook
 from airflow.providers.microsoft.azure.hooks.azure_container_volume import AzureContainerVolumeHook
 
-
 Volume = namedtuple(
     'Volume',
     ['conn_id', 'account_name', 'share_name', 'mount_path', 'read_only'],

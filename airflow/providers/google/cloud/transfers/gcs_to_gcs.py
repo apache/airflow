@@ -23,7 +23,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
-
 WILDCARD = '*'
 
 

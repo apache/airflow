@@ -34,7 +34,6 @@ from google.cloud.automl_v1beta1 import (
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 
-
 MetaData = Sequence[Tuple[str, str]]
 
 

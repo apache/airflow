@@ -23,7 +23,6 @@ from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils import operator_helpers
-
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
