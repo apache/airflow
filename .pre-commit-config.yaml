@@ -563,7 +563,7 @@ repos:
         entry: flynt
         language: python
         language_version: python3
-        additional_dependencies: ['flynt']
+        additional_dependencies: ['flynt==0.63']
         files: \.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
