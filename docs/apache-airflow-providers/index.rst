@@ -304,9 +304,11 @@ The Community only accepts providers that are generic enough, are well documente
 and with capabilities of being tested by people in the community. So we might not always be in the
 position to accept such contributions.
 
-After you decided that your provider match the expected values said above you can read
-:doc:`apache-airflow-providers:howto/create-update-providers` to check all requisites for a new
-community Provider.
+
+After you think that your provider matches the expected values above,  you can read
+:doc:`apache-airflow-providers:howto/create-update-providers` to check all prerequisites for a new
+community Provider and discuss it at the `Devlist <http://airflow.apache.org/community/>`_.
+
 
 However, in case you have your own, specific provider, which you can maintain on your own or by your
 team, you are free to publish the providers in whatever form you find appropriate. The custom and
@@ -335,3 +337,4 @@ Content
 
     Packages <packages-ref>
     Operators and hooks <operators-and-hooks-ref/index>
+    Howto create and update community providers <howto/create-update-providers>

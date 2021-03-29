@@ -25,7 +25,7 @@ How-to creating a new community provider
 ----------------------------------------
 
 This document gathers the necessary steps to create a new community provider and also guidelines for updating
-the existing ones. You should be aware that providers may have distinct distinctions that may not be covered in
+the existing ones. You should be aware that providers may have distinctions that may not be covered in
 this guide. The sequence described was designed to meet the most linear flow possible in order to develop a
 new provider.
 
@@ -33,9 +33,8 @@ Another recommendation that will help you is to look for a provider that works s
 help you to set up tests and other dependencies.
 
 First, you need to set up your local development environment. See `Contribution Quick Start <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`_
-if you didn't set up your local environment yet. We recommend using the set up through ``breeze``. This way you
-will easily be able to have an environment more similar to the one executed by the validation code of Github CI
-workflow.
+if you did not set up your local environment yet. We recommend using ``breeze`` to develop locally. This way you
+easily be able to have an environment more similar to the one executed by Github CI workflow.
 
   .. code-block:: bash
 
@@ -44,6 +43,9 @@ workflow.
 Using the code above you will set up Docker containers. These containers your local code to internal volumes.
 In this way, the changes made in your IDE are already applied to the code inside the container and tests can
 be carried out quickly.
+
+In this how-to guide our example provider name will be ``<<NEW_PROVIDER>>``.
+When you see this placeholder you must change for your provider name.
 
 
 Initial Code and Unit Tests
@@ -58,38 +60,38 @@ open a issue on Github so the community can help you.
   .. code-block:: bash
 
       airflow/
-      ├── providers/new_provider/
+      ├── providers/<NEW_PROVIDER>/
       │   ├── __init__.py
       │   ├── example_dags/
       │   │   ├── __init__.py
-      │   │   └── example_new_provider.py
+      │   │   └── example_<<NEW_PROVIDER>>.py
       │   ├── hooks/
       │   │   ├── __init__.py
-      │   │   └── new_provider.py
+      │   │   └── <NEW_PROVIDER>.py
       │   ├── operators/
       │   │   ├── __init__.py
-      │   │   └── new_provider.py
+      │   │   └── <NEW_PROVIDER>.py
       │   ├── sensors/
       │   │   ├── __init__.py
-      │   │   └── new_provider.py
+      │   │   └── <NEW_PROVIDER>.py
       │   └── transfers/
       │       ├── __init__.py
-      │       └── new_provider.py
-      └── tests/providers/new_provider/
+      │       └── <NEW_PROVIDER>.py
+      └── tests/providers/<NEW_PROVIDER>/
           ├── __init__.py
           ├── hooks/
           │   ├── __init__.py
-          │   └── test_new_provider.py
+          │   └── test_<NEW_PROVIDER>.py
           ├── operators/
           │   ├── __init__.py
-          │   ├── test_new_provider.py
-          │   └── test_new_provider_system.py
+          │   ├── test_<NEW_PROVIDER>.py
+          │   └── test_<NEW_PROVIDER>_system.py
           ├── sensors/
           │   ├── __init__.py
-          │   └── test_new_provider.py
+          │   └── test_<NEW_PROVIDER>.py
           └── transfers/
               ├── __init__.py
-              └── test_new_provider.py
+              └── test_<NEW_PROVIDER>.py
 
 Considering that you have already transferred your provider's code to the above structure, it will now be necessary
 to create unit tests for each component you created. The example below I have already set up an environment using
@@ -97,7 +99,7 @@ breeze and I'll run unit tests for my Hook.
 
   .. code-block:: bash
 
-      root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/new_provider/hook/new_provider.py
+      root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/<NEW_PROVIDER>.py
 
 Update Airflow validation tests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -122,7 +124,6 @@ Add your provider information in the following variables in ``test_providers_man
 Integration tests
 ^^^^^^^^^^^^^^^^^
 
-[to do]
 See `Airflow Integration Tests <https://github.com/apache/airflow/blob/master/TESTING.rst#airflow-integration-tests>`_
 
 
@@ -130,6 +131,7 @@ Documentation
 ^^^^^^^^^^^^^
 
 An important part of building a new provider is the documentation.
+Some steps for documentation occurs automatically by ``pre-commit`` see `Installing pre-commit guide <https://github.com/apache/airflow/blob/master/CONTRIBUTORS_QUICK_START.rst#pre-commit>`_
 
   .. code-block:: bash
 
@@ -141,25 +143,33 @@ An important part of building a new provider is the documentation.
       │   ├── spelling_wordlist.txt
       │   ├── apache-airflow/
       │   │   └── extra-packages-ref.rst
-      │   ├── integration-logos/new_provider/
-      │   │   └── New_Provider.png
-      │   └── apache-airflow-providers-new_provider/
+      │   ├── integration-logos/<NEW_PROVIDER>/
+      │   │   └── <NEW_PROVIDER>.png
+      │   └── apache-airflow-providers-<NEW_PROVIDER>/
       │       ├── index.rst
       │       ├── commits.rst
       │       ├── connections.rst
       │       └── operators/
-      │           └── new_provider.rst
+      │           └── <NEW_PROVIDER>.rst
       └── providers/
           ├── dependencies.json
-          └── new_provider/
+          └── <NEW_PROVIDER>/
               ├── provider.yaml
               └── CHANGELOG.rst
 
 
-The ``airflow/providers/dependencies.json`` is automatically updated by pre-commit.
+Files automatically updated by pre-commit:
 
-There is a chance that your provider's name is not an common English word.
-In this case is necessary to add it to the file ``docs/spelling_wordlist.txt``. This file begin with capitalize words and
+- ``airflow/providers/dependencies.json``
+- ``INSTALL``
+
+Files automatically created when the provider is released:
+
+- ``docs/apache-airflow-providers-<NEW_PROVIDER>/commits.rst``
+- ``/airflow/providers/<NEW_PROVIDER>/CHANGELOG``
+
+There is a chance that your provider's name is not a common English word.
+In this case is necessary to add it to the file ``docs/spelling_wordlist.txt``. This file begin with capitalized words and
 lowercase in the second block.
 
   .. code-block:: bash
@@ -167,7 +177,7 @@ lowercase in the second block.
     Namespace
     Neo4j
     Nextdoor
-    New_Provider (new line)
+    <NEW_PROVIDER> (new line)
     Nones
     NotFound
     Nullable
@@ -175,7 +185,7 @@ lowercase in the second block.
     neo4j
     neq
     networkUri
-    new_provider (new line)
+    <NEW_PROVIDER> (new line)
     nginx
     nobr
     nodash
@@ -191,7 +201,7 @@ any dependency add a empty list.
           'mongo': mongo,
           'mysql': mysql,
           'neo4j': neo4j,
-          'new_provider': [],
+          '<NEW_PROVIDER>': [],
           'odbc': odbc,
           ...
           }
@@ -201,16 +211,11 @@ In the ``CONTRIBUTING.rst`` adds:
 - your provider name in the list in the **Extras** section
 - your provider dependencies in the **Provider Packages** section table, only if your provider has external dependencies.
 
+In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/connections.rst``:
 
-In the ``INSTALL`` file adds:
+- add information how to configure connection for your provider.
 
-- your provider to the **Extras** section list.
-
-In the ``docs/apache-airflow-providers-new_provider/connections.rst``:
-
-- add information how to connect to your providers.
-
-In the ``docs/apache-airflow-providers-new_provider/operators/new_provider.rst``:
+In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/operators/<NEW_PROVIDER>.rst``:
 
 - add information how to use the Operator. It's important to add examples and additional information if your Operator has extra-parameters.
 
@@ -221,7 +226,7 @@ In the ``docs/apache-airflow-providers-new_provider/operators/new_provider.rst``
       NewProviderOperator
       ===================
 
-      Use the :class:`~airflow.providers.new_provider.operators.NewProviderOperator` to do something
+      Use the :class:`~airflow.providers.<NEW_PROVIDER>.operators.NewProviderOperator` to do something
       amazing with Airflow!
 
       Using the Operator
@@ -230,80 +235,56 @@ In the ``docs/apache-airflow-providers-new_provider/operators/new_provider.rst``
       The NewProviderOperator requires a ``connection_id`` and this other awesome parameter.
       You can see an example below:
 
-      .. exampleinclude:: /../../airflow/providers/new_provider/example_dags/example_new_provider.py
+      .. exampleinclude:: /../../airflow/providers/<NEW_PROVIDER>/example_dags/example_<NEW_PROVIDER>.py
           :language: python
-          :start-after: [START howto_operator_new_provider]
-          :end-before: [END howto_operator_new_provider]
+          :start-after: [START howto_operator_<NEW_PROVIDER>]
+          :end-before: [END howto_operator_<NEW_PROVIDER>]
 
-
-In the ``docs/apache-airflow-providers-new_provider/commits.rst``:
-
-- add the initial information of your providers. This file is updated automatically by Airflow. Below is shown an example.
-
-  .. code-block:: RST
-
-      package apache-airflow-providers-new_provider
-      ---------------------------------------------
-
-      `New_Provider <https://example.io/>`__
-
-
-      This is detailed commit list of changes for versions provider package: ``new_provider``.
-      For high-level changelog, see :doc:`package information including changelog <index>`.
 
 In the ``docs/apache-airflow-providers-new_provider/index.rst``:
 
 - add all information of the purpose of your provider. It is recommended to check with another provider to help you complete this document as best as possible.
 
-
-In the ``/airflow/providers/new_provider/CHANGELOG`` add the initial information. Providers start with 1.0.0 version.
-
-  .. code-block:: RST
-
-      Changelog
-      ---------
-
-      1.0.0
-      .....
-
-      Initial version of the provider.
-
-In the ``airflow/providers/new_provider/provider.yaml`` add information of your provider:
+In the ``airflow/providers/<NEW_PROVIDER>/provider.yaml`` add information of your provider:
 
   .. code-block:: yaml
 
-      package-name: apache-airflow-providers-new_provider
-      name: New_Provider
+      package-name: apache-airflow-providers-<NEW_PROVIDER>
+      name: <NEW_PROVIDER>
       description: |
-        `New_Provider <https://example.io/>`__
+        `<NEW_PROVIDER> <https://example.io/>`__
       versions:
         - 1.0.0
 
       integrations:
-        - integration-name: New_Provider
+        - integration-name: <NEW_PROVIDER>
           external-doc-url: https://www.example.io/
-          logo: /integration-logos/new_provider/New_Provider.png
+          logo: /integration-logos/<NEW_PROVIDER>/<NEW_PROVIDER>.png
           how-to-guide:
-            - /docs/apache-airflow-providers-new_provider/operators/new_provider.rst
+            - /docs/apache-airflow-providers-<NEW_PROVIDER>/operators/<NEW_PROVIDER>.rst
           tags: [service]
 
       operators:
-        - integration-name: New_Provider
+        - integration-name: <NEW_PROVIDER>
           python-modules:
-            - airflow.providers.new_provider.operators.new_provider
+            - airflow.providers.<NEW_PROVIDER>.operators.<NEW_PROVIDER>
 
       hooks:
-        - integration-name: New_Provider
+        - integration-name: <NEW_PROVIDER>
           python-modules:
-            - airflow.providers.new_provider.hooks.new_provider
+            - airflow.providers.<NEW_PROVIDER>.hooks.<NEW_PROVIDER>
 
       sensors:
-        - integration-name: New_Provider
+        - integration-name: <NEW_PROVIDER>
           python-modules:
-            - airflow.providers.new_provider.sensors.new_provider
+            - airflow.providers.<NEW_PROVIDER>.sensors.<NEW_PROVIDER>
 
       hook-class-names:
-        - airflow.providers.new_provider.hooks.new_provider.NewProviderHook
+        - airflow.providers.<NEW_PROVIDER>.hooks.<NEW_PROVIDER>.NewProviderHook
+
+You only need to add `hook-class-names` in case you have some hooks that have customized UI behavior.
+For more information see `Custom connection types <http://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#custom-connection-types>`_
+
 
 After changing and creating these files you can build the documentation locally. The two commands below will
 serve to accomplish this. The first will build your provider's documentation. The second will ensure that the
@@ -311,13 +292,10 @@ main Airflow documentation that involves some steps with the providers is also w
 
   .. code-block:: bash
 
-    ./breeze build-docs -- --package-filter apache-airflow-providers-new_provider
+    ./breeze build-docs -- --package-filter apache-airflow-providers-<NEW_PROVIDER>
     ./breeze build-docs -- --package-filter apache-airflow
 
 How-to Update a community provider
 ----------------------------------
 
-[to do]
-
-Airflow follows the `SEMVER <https://semver.org/>`_ standard for versioning.
-When making a modification, please check which increment should be performed.
+See `Provider packages versioning <https://github.com/apache/airflow/blob/master/dev/README_RELEASE_PROVIDER_PACKAGES.md#provider-packages-versioning>`_
