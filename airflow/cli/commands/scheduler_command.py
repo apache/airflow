@@ -37,6 +37,7 @@ def scheduler(args):
     print(settings.HEADER)
     skip_serve_logs = args.skip_serve_logs
     is_local_executor = conf.get("core", "executor") in ["LocalExecutor", "SequentialExecutor"]
+    sub_proc = None
     job = SchedulerJob(
         subdir=process_subdir(args.subdir),
         num_runs=args.num_runs,
@@ -68,7 +69,8 @@ def scheduler(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
         signal.signal(signal.SIGQUIT, sigquit_handler)
-        sub_proc = _serve_logs(skip_serve_logs)
+        if is_local_executor:
+            sub_proc = _serve_logs(skip_serve_logs)
         job.run()
     if sub_proc:
         sub_proc.terminate()
