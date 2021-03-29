@@ -20,8 +20,7 @@
 Kubernetes cluster Connection
 =============================
 
-The Kubernetes cluster Connection type enables connection to Kubernetes cluster by SparkOperator only.
-This has nothing to do with KubernetesPodOperator.
+The Kubernetes cluster Connection type enables connection to a Kubernetes cluster by ``SparkKubernetesOperator`` tasks. They are not used by ``KubernetesPodOperator`` tasks.
 
 
 Authenticating to Kubernetes cluster
