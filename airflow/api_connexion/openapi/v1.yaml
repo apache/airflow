@@ -2658,15 +2658,6 @@ components:
           example: complex-password
           type: string
 
-    JwtToken:
-      description: Response object after successful authentication
-      type: object
-      properties:
-        token:
-          type: string
-        refresh_token:
-          type: string
-
     AuthorizationUrl:
       description: Oauth authorization URl
       type: object
