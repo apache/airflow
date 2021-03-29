@@ -32,7 +32,6 @@ import type {
   TaskInstancesResponse,
   TriggerRunRequest,
 } from 'interfaces/api';
-import { camelToSnakeCase } from 'utils';
 
 axios.defaults.baseURL = `${process.env.WEBSERVER_URL}/api/v1`;
 axios.interceptors.response.use(
@@ -48,6 +47,7 @@ setLogger({
   error: isTest ? () => {} : console.warn,
 });
 
+const toastDuration = 3000;
 const refetchInterval = isTest ? false : 1000;
 
 export function useDags() {
@@ -89,7 +89,7 @@ export function useTriggerRun(dagId: Dag['dagId']) {
   const queryClient = useQueryClient();
   const toast = useToast();
   return useMutation(
-    (trigger: TriggerRunRequest) => axios.post(`dags/${dagId}/dagRuns`, camelToSnakeCase(trigger)),
+    (trigger: TriggerRunRequest) => axios.post(`dags/${dagId}/dagRuns`, humps.decamelizeKeys(trigger)),
     {
       onSettled: (res, error) => {
         if (error) {
@@ -104,7 +104,7 @@ export function useTriggerRun(dagId: Dag['dagId']) {
           toast({
             title: 'DAG Triggered',
             status: 'success',
-            duration: 3000,
+            duration: toastDuration,
             isClosable: true,
           });
           const dagRunData = queryClient.getQueryData(['dagRun', dagId]) as unknown as DagRunsResponse;
@@ -130,7 +130,7 @@ export function useSaveDag(dagId: Dag['dagId']) {
   const queryClient = useQueryClient();
   const toast = useToast();
   return useMutation(
-    (updatedValues: Record<string, any>) => axios.patch(`dags/${dagId}`, camelToSnakeCase(updatedValues)),
+    (updatedValues: Record<string, any>) => axios.patch(`dags/${dagId}`, humps.decamelizeKeys(updatedValues)),
     {
       onMutate: async (updatedValues: Record<string, any>) => {
         await queryClient.cancelQueries(['dag', dagId]);
@@ -167,7 +167,7 @@ export function useSaveDag(dagId: Dag['dagId']) {
             title: 'Error updating pipeline',
             description: (error as Error).message,
             status: 'error',
-            duration: 3000,
+            duration: toastDuration,
             isClosable: true,
           });
         } else {
