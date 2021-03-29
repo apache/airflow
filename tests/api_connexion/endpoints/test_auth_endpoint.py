@@ -252,3 +252,22 @@ class TestRemoteUserLoginEndpoint(TestLoginEndpoint):
         resp = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
         assert resp.status_code == 400
         assert resp.json['detail'] == "Authentication type do not match"
+
+
+class TestLogoutEndpoint(TestLoginEndpoint):
+    def test_logout(self):
+        self.auth_type(AUTH_DB)
+        payload = {"username": "test", "password": "test"}
+        response = self.client.post('api/v1/auth-dblogin', json=payload)
+        assert response.json['username'] == 'test'
+        cookie = next(
+            (cookie for cookie in self.client.cookie_jar if cookie.name == "access_token_cookie"), None
+        )
+        assert cookie is not None
+        assert isinstance(cookie.value, str)
+        response = self.client.get('api/v1/logout')
+        assert response.json == {"logged_out": True}
+        cookie = next(
+            (cookie for cookie in self.client.cookie_jar if cookie.name == "access_token_cookie"), None
+        )
+        assert cookie is None
