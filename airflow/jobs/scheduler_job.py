@@ -907,8 +907,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
         pool_slots_free = max(0, sum(pool['open'] for pool in pools.values()))
 
-        starved_pools = [pool_name for pool_name, stats in pools.items() if stats['open'] == 0]
-
         if pool_slots_free == 0:
             self.log.debug("All pools are full!")
             return executable_tis
@@ -925,10 +923,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .join(TI.dag_model)
             .filter(not_(DM.is_paused))
             .filter(TI.state == State.SCHEDULED)
-            .filter(not_(TI.pool.in_(starved_pools)))
             .options(selectinload('dag_model'))
-            .limit(max_tis)
         )
+        starved_pools = [pool_name for pool_name, stats in pools.items() if stats['open'] <= 0]
+        if starved_pools:
+            query = query.filter(not_(TI.pool.in_(starved_pools)))
+
+        query = query.limit(max_tis)
 
         task_instances_to_examine: List[TI] = with_row_locks(
             query,
