@@ -59,8 +59,8 @@ function getControlsContainer() {
 $(document).ready(function () {
   const fieldBehavioursElem = document.getElementById('field_behaviours');
   const config = JSON.parse(decode(fieldBehavioursElem.textContent));
-  const passwordInput = document.getElementById('password');
-  if (passwordInput) passwordInput.setAttribute('autocomplete', 'off');
+  const form = document.getElementById('model_form');
+  if (form) form.setAttribute('autocomplete', 'off');
 
   // Save all DOM elements into a map on load.
   const controlsContainer = getControlsContainer();
