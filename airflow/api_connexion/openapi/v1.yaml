@@ -1670,6 +1670,26 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
+  /logout:
+    get:
+      summary: Webserver logout
+      description: Logout user by unsetting cookies
+      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
+      operationId: logout
+      tags: [Authentication]
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  logged_out:
+                    type: boolean
+                    description: Indicate user is logged out
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
 
 components:
   # Reusable schemas (data models)

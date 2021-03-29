@@ -18,8 +18,9 @@
 import logging
 
 import jwt
-from flask import current_app, g, request, session
+from flask import current_app, g, jsonify, request, session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
+from flask_jwt_extended import unset_jwt_cookies
 from flask_login import login_user
 from marshmallow import ValidationError
 
@@ -162,3 +163,10 @@ def auth_remoteuser():
     else:
         raise NotFound(detail="Invalid login")
     return appbuilder.sm.create_access_token_and_dump_user()
+
+
+def logout():
+    """Sign out"""
+    resp = jsonify({'logged_out': True})
+    unset_jwt_cookies(resp)
+    return resp, 200

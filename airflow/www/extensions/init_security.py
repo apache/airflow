@@ -76,13 +76,15 @@ def init_jwt_auth(app):
     app.config.setdefault('JWT_COOKIE_SECURE', False)
     jwt_manager = JWTManager()
     jwt_manager.init_app(app)
-    jwt_manager.user_loader_callback_loader(app.appbuilder.sm.load_user_jwt)
 
     def refresh_expiring_jwts(response):
         try:
             exp_timestamp = get_raw_jwt()["exp"]
+            print(exp_timestamp)
             now = datetime.now(timezone.utc)
             target_timestamp = datetime.timestamp(now + timedelta(minutes=3))  # Change this when ready
+            print(target_timestamp)
+            print(target_timestamp > exp_timestamp)
             if target_timestamp > exp_timestamp:
                 access_token = create_access_token(identity=get_jwt_identity())
                 set_access_cookies(response, access_token)
