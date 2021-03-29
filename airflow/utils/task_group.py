@@ -54,6 +54,8 @@ class TaskGroup(TaskMixin):
     :type ui_color: str
     :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
     :type ui_fgcolor: str
+    :param from_decorator: was this taskgroup created by a taskgroup decorator (should only be set by Airflow)
+    :type from_decorator: bool
     """
 
     def __init__(
@@ -65,6 +67,7 @@ class TaskGroup(TaskMixin):
         tooltip: str = "",
         ui_color: str = "CornflowerBlue",
         ui_fgcolor: str = "#000",
+        from_decorator: bool = False,
     ):
         from airflow.models.dag import DagContext
 
@@ -98,6 +101,8 @@ class TaskGroup(TaskMixin):
         # if given group_id already used assign suffix by incrementing largest used suffix integer
         # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
         if group_id in self.used_group_ids:
+            if not from_decorator:
+                raise DuplicateTaskIdFound(f"group_id '{self.group_id}' has already been added to the DAG")
             base = re.split(r'__\d+$', group_id)[0]
             suffixes = sorted(
                 [
@@ -318,7 +323,7 @@ class TaskGroup(TaskMixin):
         build_map(self)
         return task_group_map
 
-    def get_child_by_label(self, label: str) -> Union["BaseOperator", "TaskGroup"]:
+    def get_child_by_label(self, label: str) -> Union["BaseOperator", "TaskGroup" ""]:
         """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
         return self.children[self.child_id(label)]
 

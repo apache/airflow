@@ -52,20 +52,21 @@ def task_group(python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs
     def wrapper(f: T):
         if len(tg_args) == 0 and 'group_id' not in tg_kwargs.keys():
             tg_kwargs['group_id'] = f.__name__
+        f_sig = signature(f)
 
         @functools.wraps(f)
         def factory(*args, **kwargs):
             # Generate signature for decorated function and bind the arguments when called
             # we do this to extract parameters so we can annotate them on the DAG object.
             # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
-            f_sig = signature(f).bind(*args, **kwargs)
             # Apply defaults to capture default values if set.
-            f_sig.apply_defaults()
+            current_f_sig = f_sig.bind(*args, **kwargs)
+            current_f_sig.apply_defaults()
 
             # Initialize TaskGroup with bound arguments
             with TaskGroup(*task_group_bound_args.args, **task_group_bound_args.kwargs) as tg_obj:
                 # Invoke function to run Tasks inside the TaskGroup
-                f(**f_sig.arguments)
+                f(**current_f_sig.arguments)
 
             # Return task_group object such that it's accessible in Globals.
             return tg_obj
