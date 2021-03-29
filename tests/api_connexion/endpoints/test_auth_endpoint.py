@@ -17,7 +17,7 @@
 from unittest import mock
 
 import pytest
-from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
 
 from tests.test_utils.api_connexion_utils import delete_user
 from tests.test_utils.fab_utils import create_user
@@ -224,3 +224,31 @@ class TestAuthorizeOauth(TestLoginEndpoint):
         mock_oauth_session.assert_called_once_with('twitter', mock_authorized)
         mock_user_info.assert_called_once_with('twitter', mock_authorized)
         mock_user_oauth.assert_called_once_with(mock_user_info.return_value)
+
+
+class TestRemoteUserLoginEndpoint(TestLoginEndpoint):
+    def test_remote_user_can_login(self):
+        self.auth_type(AUTH_REMOTE_USER)
+        response = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
+        assert response.status_code == 200
+        assert response.json['username'] == 'test'
+
+    def test_remote_user_cant_relogin(self):
+        self.auth_type(AUTH_REMOTE_USER)
+        response = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
+        assert response.status_code == 200
+        response = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
+        assert response.status_code == 401
+        assert response.json['detail'] == "Client already authenticated"
+
+    def test_incorrect_username_raises(self):
+        self.auth_type(AUTH_REMOTE_USER)
+        response = self.client.post('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "tes"})
+        assert response.status_code == 404
+        assert response.json['detail'] == 'Invalid login'
+
+    def test_incorrect_auth_type_raises(self):
+        self.auth_type(AUTH_DB)
+        resp = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
+        assert resp.status_code == 400
+        assert resp.json['detail'] == "Authentication type do not match"
