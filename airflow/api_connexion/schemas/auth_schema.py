@@ -48,22 +48,5 @@ class LoginForm(Schema):
     password = fields.String(required=True)
 
 
-class LoginOpenIDForm(Schema):
-    """Used to load credentials"""
-
-    username = fields.String()
-    openid = fields.String(required=True)
-    remember_me = fields.Boolean(default=False)
-
-
-class JwtTokenSchema(Schema):
-    """Response object after successful authentication"""
-
-    token = fields.String()
-    refresh_token = fields.String()
-
-
 info_schema = InfoSchema()
 login_form_schema = LoginForm()
-login_openid_form = LoginOpenIDForm()
-jwt_token_schema = JwtTokenSchema()

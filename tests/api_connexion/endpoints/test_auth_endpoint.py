@@ -243,7 +243,7 @@ class TestRemoteUserLoginEndpoint(TestLoginEndpoint):
 
     def test_incorrect_username_raises(self):
         self.auth_type(AUTH_REMOTE_USER)
-        response = self.client.post('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "tes"})
+        response = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "tes"})
         assert response.status_code == 404
         assert response.json['detail'] == 'Invalid login'
 

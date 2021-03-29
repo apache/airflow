@@ -29,10 +29,6 @@ from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_sc
 log = logging.getLogger(__name__)
 
 
-def refresh():
-    """Refresh token"""
-
-
 def get_auth_info():
     """Get site authentication info"""
     security_manager = current_app.appbuilder.sm
