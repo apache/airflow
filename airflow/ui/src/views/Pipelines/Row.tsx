@@ -75,7 +75,7 @@ const Row: React.FC<Props> = ({ dag }) => {
         <Flex alignItems="center">
           <Link
             as={RouterLink}
-            to={`/dags/${dag.dagId}`}
+            to={`/pipelines/${dag.dagId}`}
             fontWeight="bold"
           >
             {dag.dagId}
