@@ -97,7 +97,7 @@ export function useTriggerRun(dagId: Dag['dagId']) {
             title: 'Error triggering DAG',
             description: (error as Error).message,
             status: 'error',
-            duration: 3000,
+            duration: toastDuration,
             isClosable: true,
           });
         } else {
@@ -184,7 +184,7 @@ export function useSaveDag(dagId: Dag['dagId']) {
           toast({
             title: 'Pipeline Updated',
             status: 'success',
-            duration: 3000,
+            duration: toastDuration,
             isClosable: true,
           });
         }
