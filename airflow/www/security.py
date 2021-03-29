@@ -17,7 +17,8 @@
 # under the License.
 #
 
-from typing import Optional, Sequence, Set, Tuple
+import warnings
+from typing import Dict, Optional, Sequence, Set, Tuple
 
 from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
@@ -174,16 +175,34 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     def init_role(self, role_name, perms):
         """
         Initialize the role with the permissions and related view-menus.
-
         :param role_name:
         :param perms:
         :return:
         """
-        role = self.find_role(role_name)
-        if not role:
-            role = self.add_role(role_name)
+        warnings.warn(
+            "`init_role` has been deprecated. Please use `bulk_sync_roles` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.bulk_sync_roles([{'role': role_name, 'perms': perms}])
 
-        self.add_permissions(role, set(perms))
+    def bulk_sync_roles(self, roles):
+        """Sync the provided roles and permissions."""
+        existing_roles = self._get_all_roles_with_permissions()
+        pvs = self._get_all_non_dag_permissionviews()
+
+        for config in roles:
+            role_name = config['role']
+            perms = config['perms']
+            role = existing_roles.get(role_name) or self.add_role(role_name)
+
+            for perm_name, view_name in perms:
+                perm_view = pvs.get((perm_name, view_name)) or self.add_permission_view_menu(
+                    perm_name, view_name
+                )
+
+                if perm_view not in role.permissions:
+                    self.add_permission_role(role, perm_view)
 
     def add_permissions(self, role, perms):
         """Adds resource permissions to a given role."""
@@ -467,6 +486,34 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             .all()
         )
 
+    def _get_all_non_dag_permissionviews(self) -> Dict[Tuple[str, str], PermissionView]:
+        """
+        Returns a dict with a key of (perm name, view menu name) and value of perm view
+        with all perm views except those that are for specific DAGs.
+        """
+        return {
+            (perm_name, viewmodel_name): viewmodel
+            for perm_name, viewmodel_name, viewmodel in (
+                self.get_session.query(self.permissionview_model)
+                .join(self.permission_model)
+                .join(self.viewmenu_model)
+                .filter(~self.viewmenu_model.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+                .with_entities(
+                    self.permission_model.name, self.viewmenu_model.name, self.permissionview_model
+                )
+                .all()
+            )
+        }
+
+    def _get_all_roles_with_permissions(self) -> Dict[str, Role]:
+        """Returns a dict with a key of role name and value of role with eagrly loaded permissions"""
+        return {
+            r.name: r
+            for r in (
+                self.get_session.query(self.role_model).options(joinedload(self.role_model.permissions)).all()
+            )
+        }
+
     def create_dag_specific_permissions(self) -> None:
         """
         Creates 'can_read' and 'can_edit' permissions for all active and paused DAGs.
@@ -526,11 +573,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         self.create_perm_vm_for_all_dag()
         self.create_dag_specific_permissions()
 
-        # Create default user role.
-        for config in self.ROLE_CONFIGS:
-            role = config['role']
-            perms = config['perms']
-            self.init_role(role, perms)
+        # Sync the default roles (Admin, Viewer, User, Op, public) with related permissions
+        self.bulk_sync_roles(self.ROLE_CONFIGS)
+
         self.add_homepage_access_to_custom_roles()
         # init existing roles, the rest role could be created through UI.
         self.update_admin_perm_view()
