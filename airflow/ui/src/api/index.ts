@@ -19,7 +19,9 @@
  */
 
 import axios, { AxiosResponse } from 'axios';
-import { useMutation, useQuery, useQueryClient, setLogger } from 'react-query';
+import {
+  useMutation, useQuery, useQueryClient, setLogger,
+} from 'react-query';
 import humps from 'humps';
 import { useToast } from '@chakra-ui/react';
 
