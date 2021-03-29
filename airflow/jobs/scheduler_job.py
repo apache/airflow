@@ -920,8 +920,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .filter(not_(DM.is_paused))
             .filter(TI.state == State.SCHEDULED)
             .options(selectinload('dag_model'))
-            .limit(max_tis)
         )
+        starved_pools = [pool_name for pool_name, stats in pools.items() if stats['open'] <= 0]
+        if starved_pools:
+            query = query.filter(not_(TI.pool.in_(starved_pools)))
+
+        query = query.limit(max_tis)
 
         task_instances_to_examine: List[TI] = with_row_locks(
             query,
