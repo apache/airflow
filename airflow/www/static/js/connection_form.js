@@ -59,6 +59,8 @@ function getControlsContainer() {
 $(document).ready(function () {
   const fieldBehavioursElem = document.getElementById('field_behaviours');
   const config = JSON.parse(decode(fieldBehavioursElem.textContent));
+
+  // Prevent login/password fields from triggering browser auth extensions
   const form = document.getElementById('model_form');
   if (form) form.setAttribute('autocomplete', 'off');
 
