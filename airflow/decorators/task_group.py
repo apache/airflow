@@ -30,6 +30,8 @@ if TYPE_CHECKING:
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
+task_group_sig = signature(TaskGroup.__init__)
+
 
 def task_group(python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs) -> Callable[[T], T]:
     """
@@ -46,12 +48,11 @@ def task_group(python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs
 
     # Get dag initializer signature and bind it to validate that task_group_args,
     # and task_group_kwargs are correct
-    task_group_sig = signature(TaskGroup.__init__)
-    task_group_bound_args = task_group_sig.bind_partial(*tg_args, **tg_kwargs)
 
     def wrapper(f: T):
         if len(tg_args) == 0 and 'group_id' not in tg_kwargs.keys():
             tg_kwargs['group_id'] = f.__name__
+        task_group_bound_args = task_group_sig.bind_partial(*tg_args, **tg_kwargs)
         f_sig = signature(f)
 
         @functools.wraps(f)
@@ -64,7 +65,9 @@ def task_group(python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs
             current_f_sig.apply_defaults()
 
             # Initialize TaskGroup with bound arguments
-            with TaskGroup(*task_group_bound_args.args, **task_group_bound_args.kwargs) as tg_obj:
+            with TaskGroup(
+                *task_group_bound_args.args, from_decorator=True, **task_group_bound_args.kwargs
+            ) as tg_obj:
                 # Invoke function to run Tasks inside the TaskGroup
                 f(**current_f_sig.arguments)
 
