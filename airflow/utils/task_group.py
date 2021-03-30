@@ -323,7 +323,7 @@ class TaskGroup(TaskMixin):
         build_map(self)
         return task_group_map
 
-    def get_child_by_label(self, label: str) -> Union["BaseOperator", "TaskGroup" ""]:
+    def get_child_by_label(self, label: str) -> Union["BaseOperator", "TaskGroup"]:
         """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
         return self.children[self.child_id(label)]
 
