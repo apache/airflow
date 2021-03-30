@@ -252,7 +252,7 @@ function kind::check_cluster_ready_for_airflow() {
 function kind::build_image_for_kubernetes_tests() {
     start_end::group_start "Build image for kubernetes tests ${AIRFLOW_PROD_IMAGE_KUBERNETES}"
     cd "${AIRFLOW_SOURCES}" || exit 1
-    docker build --tag "${AIRFLOW_PROD_IMAGE_KUBERNETES}" . -f - <<EOF
+    docker_v build --tag "${AIRFLOW_PROD_IMAGE_KUBERNETES}" . -f - <<EOF
 FROM ${AIRFLOW_PROD_IMAGE}
 
 COPY airflow/example_dags/ \${AIRFLOW_HOME}/dags/

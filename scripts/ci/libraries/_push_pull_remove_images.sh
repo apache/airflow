@@ -25,7 +25,7 @@ function push_pull_remove_images::push_image_with_retries() {
         set +e
         echo
         echo "Trying to push the image ${1}. Number of try: ${try_num}"
-        docker push "${1}"
+        docker_v push "${1}"
         local res=$?
         set -e
         if [[ ${res} != "0" ]]; then
@@ -61,7 +61,7 @@ function push_pull_remove_images::pull_image_if_not_present_or_forced() {
         echo
         echo "Pulling the image ${IMAGE_TO_PULL}"
         echo
-        docker pull "${IMAGE_TO_PULL}"
+        docker_v pull "${IMAGE_TO_PULL}"
         EXIT_VALUE="$?"
         if [[ ${EXIT_VALUE} != "0" && ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR} == "true" ]]; then
             echo
@@ -97,7 +97,7 @@ function push_pull_remove_images::pull_image_github_dockerhub() {
     set +e
     if push_pull_remove_images::pull_image_if_not_present_or_forced "${GITHUB_IMAGE}"; then
         # Tag the image to be the DockerHub one
-        docker tag "${GITHUB_IMAGE}" "${DOCKERHUB_IMAGE}"
+        docker_v tag "${GITHUB_IMAGE}" "${DOCKERHUB_IMAGE}"
     else
         push_pull_remove_images::pull_image_if_not_present_or_forced "${DOCKERHUB_IMAGE}"
     fi
@@ -109,9 +109,9 @@ function push_pull_remove_images::rebuild_python_base_image() {
    echo
    echo "Rebuilding ${AIRFLOW_PYTHON_BASE_IMAGE} from latest ${PYTHON_BASE_IMAGE}"
    echo
-   docker pull "${PYTHON_BASE_IMAGE}"
+   docker_v pull "${PYTHON_BASE_IMAGE}"
    echo "FROM ${PYTHON_BASE_IMAGE}" | \
-        docker build \
+        docker_v build \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             -t "${AIRFLOW_PYTHON_BASE_IMAGE}" -
 }
@@ -144,7 +144,7 @@ function push_pull_remove_images::pull_base_python_image() {
         push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PYTHON_BASE_IMAGE}" \
             "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
     else
-        docker pull "${AIRFLOW_PYTHON_BASE_IMAGE}"
+        docker_v pull "${AIRFLOW_PYTHON_BASE_IMAGE}"
     fi
 }
 
@@ -194,7 +194,7 @@ function push_pull_remove_images::pull_prod_images_if_needed() {
 function push_pull_remove_images::push_ci_images_to_dockerhub() {
     push_pull_remove_images::push_image_with_retries "${AIRFLOW_PYTHON_BASE_IMAGE}"
     push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_IMAGE}"
-    docker tag "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+    docker_v tag "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     if [[ -n ${DEFAULT_CI_IMAGE=} ]]; then
         # Only push default image to DockerHub registry if it is defined
@@ -214,7 +214,7 @@ function push_pull_remove_images::push_python_image_to_github() {
     if [[ ${GITHUB_REGISTRY_PUSH_IMAGE_TAG} != "latest" ]]; then
         PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     fi
-    docker tag "${AIRFLOW_PYTHON_BASE_IMAGE}" \
+    docker_v tag "${AIRFLOW_PYTHON_BASE_IMAGE}" \
         "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
     push_pull_remove_images::push_image_with_retries \
         "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
@@ -224,12 +224,12 @@ function push_pull_remove_images::push_python_image_to_github() {
 function push_pull_remove_images::push_ci_images_to_github() {
     push_pull_remove_images::push_python_image_to_github
     AIRFLOW_CI_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
-    docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_TAGGED_IMAGE}"
+    docker_v tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_TAGGED_IMAGE}"
     push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_TAGGED_IMAGE}"
     if [[ -n ${GITHUB_SHA=} ]]; then
         # Also push image to GitHub registry with commit SHA
         AIRFLOW_CI_SHA_IMAGE="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${COMMIT_SHA}"
-        docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_SHA_IMAGE}"
+        docker_v tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_SHA_IMAGE}"
         push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_SHA_IMAGE}"
     fi
 }
@@ -265,17 +265,17 @@ function push_pull_remove_images::push_prod_images_to_dockerhub () {
 function push_pull_remove_images::push_prod_images_to_github () {
     push_pull_remove_images::push_python_image_to_github
     AIRFLOW_PROD_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
-    docker tag "${AIRFLOW_PROD_IMAGE}" "${AIRFLOW_PROD_TAGGED_IMAGE}"
+    docker_v tag "${AIRFLOW_PROD_IMAGE}" "${AIRFLOW_PROD_TAGGED_IMAGE}"
     push_pull_remove_images::push_image_with_retries "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     if [[ -n ${COMMIT_SHA=} ]]; then
         # Also push image to GitHub registry with commit SHA
         AIRFLOW_PROD_SHA_IMAGE="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${COMMIT_SHA}"
-        docker tag "${AIRFLOW_PROD_IMAGE}" "${AIRFLOW_PROD_SHA_IMAGE}"
+        docker_v tag "${AIRFLOW_PROD_IMAGE}" "${AIRFLOW_PROD_SHA_IMAGE}"
         push_pull_remove_images::push_image_with_retries "${AIRFLOW_PROD_SHA_IMAGE}"
     fi
     # Also push prod build image
     AIRFLOW_PROD_BUILD_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
-    docker tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${AIRFLOW_PROD_BUILD_TAGGED_IMAGE}"
+    docker_v tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${AIRFLOW_PROD_BUILD_TAGGED_IMAGE}"
     push_pull_remove_images::push_image_with_retries "${AIRFLOW_PROD_BUILD_TAGGED_IMAGE}"
 }
 
@@ -327,7 +327,7 @@ function push_pull_remove_images::check_for_image_in_github_container_registry()
 
     local image_to_wait_for="ghcr.io/${GITHUB_REPOSITORY}-${image_name_in_github_registry}:${image_tag_in_github_registry}"
     echo "GitHub Container Registry: checking for ${image_to_wait_for} via docker manifest inspect!"
-    docker manifest inspect "${image_to_wait_for}"
+    docker_v manifest inspect "${image_to_wait_for}"
     local res=$?
     if [[ ${res} == "0" ]]; then
         echo  "Image: ${image_to_wait_for} found in Container Registry: ${COLOR_GREEN}OK.${COLOR_RESET}"
