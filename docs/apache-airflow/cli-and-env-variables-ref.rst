@@ -39,6 +39,8 @@ development and testing.
    :func: get_parser
    :prog: airflow
 
+.. _env_variables:
+
 Environment Variables
 '''''''''''''''''''''
 

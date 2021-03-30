@@ -27,6 +27,14 @@ gid: 50000
 # Used for mount paths
 airflowHome: "/opt/airflow"
 
+# Pools that will be added to Airflow (Keys are pools names and values are pools settings)
+airflowPools: {}
+# eg:
+# airflowPools:
+#   my-pool-name:
+#     description: My description
+#     slots: 1
+
 # Default airflow repository -- overrides all the specific images below
 defaultAirflowRepository: apache/airflow
 

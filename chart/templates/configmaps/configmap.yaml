@@ -42,6 +42,8 @@ data:
     {{- end }}
     {{ end }}
 
+  pools.json: {{ .Values.airflowPools | toJson | quote }}
+
   airflow_local_settings.py: |
 {{- if .Values.scheduler.airflowLocalSettings }}
     {{ .Values.scheduler.airflowLocalSettings | nindent 4 }}

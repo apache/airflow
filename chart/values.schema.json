@@ -15,6 +15,25 @@
             "description": "Airflow home directory. Used for mount paths.",
             "type": "string"
         },
+        "airflowPools": {
+            "description": "Pools that will be added to Airflow (Keys are pools names and values are pools settings)",
+            "type": ["object"],
+            "additionalProperties": {
+              "type" : "object",
+              "properties": {
+                "description" : {
+                  "type" : "string",
+                  "description": "Pool's description"
+                },
+                "slots" : {
+                  "type" : "integer",
+                  "description": "Number of slots for the pool"
+                }
+              },
+              "required" : ["description","slots"],
+              "additionalProperties": false
+            }
+          },
         "defaultAirflowRepository": {
             "description": "Default airflow repository. Overrides all the specific images below.",
             "type": "string"

@@ -66,6 +66,9 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``airflowHome``
      - Location of airflow home directory
      - ``1``
+   * - ``airflowPools``
+     - Pools that will be added to Airflow
+     - ``{}``
    * - ``rbacEnabled``
      - Deploy pods with Kubernetes RBAC enabled
      - ``1``

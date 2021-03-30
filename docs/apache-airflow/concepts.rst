@@ -773,6 +773,8 @@ like iPython or Jupyter Notebook.
 .. seealso::
     :ref:`List Airflow hooks <pythonapi:hooks>`
 
+.. _concepts:pools:
+
 Pools
 =====
 

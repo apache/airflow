@@ -16,7 +16,10 @@
     under the License.
 
 Configuring Airflow
--------------------
+===================
+
+General Airflow configuration
+-----------------------------
 
 All Airflow configuration parameters (equivalent of ``airflow.cfg``) are
 stored in
@@ -68,3 +71,23 @@ configuration prior to installing and deploying the service.
   The recommended way to load example DAGs using the official Docker image and chart is to configure the ``AIRFLOW__CORE__LOAD_EXAMPLES`` environment variable
   in ``extraEnv`` (see :doc:`Parameters reference <parameters-ref>`). Because the official Docker image has ``AIRFLOW__CORE__LOAD_EXAMPLES=False``
   set within the image, so you need to override it when deploying the chart.
+
+..
+   Uncomment before merge
+
+   Airflow Variables, Connections and Pools
+   ----------------------------------------
+
+   Airflow variables and connections may be set directly with environment variables (see :ref:`apache-airflow:cli-and-env-variables-ref:_env_variables`). You can set them by using the chart values ``extraEnv``, or a combination of ``extraConfigMaps``/``extraSecrets`` and ``extraEnvFrom`` (see :doc:`Parameters reference <parameters-ref>`). You may also use a secret backend (**TODO, before merge. Need clarification: I am not familiar with this.**)
+
+   Regarding Airflow :ref:`pools <apache-airflow:concepts:_concepts:pools>`, you can also have them handled with "infrastructure as code" directly through this chart values:
+
+   .. code-block:: yaml
+
+     airflowPools:
+       my-pool-name:
+         description: My description
+         slots: 1
+       another-pool-name:
+         description: A second description
+         slots: 10
