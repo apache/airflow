@@ -366,7 +366,8 @@ using ``@task`` decorator.
 
 .. code-block:: python
 
-    from airflow.operators.python import task, get_current_context
+    from airflow.decorators import task
+    from airflow.operators.python import get_current_context
 
     @task
     def my_task():
