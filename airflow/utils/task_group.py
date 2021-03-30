@@ -54,7 +54,8 @@ class TaskGroup(TaskMixin):
     :type ui_color: str
     :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
     :type ui_fgcolor: str
-    :param add_suffix_on_collision: If this task group name already exists, automatically add `__1` etc suffixes
+    :param add_suffix_on_collision: If this task group name already exists,
+        automatically add `__1` etc suffixes
     :type from_decorator: add_suffix_on_collision
     """
 
@@ -67,7 +68,7 @@ class TaskGroup(TaskMixin):
         tooltip: str = "",
         ui_color: str = "CornflowerBlue",
         ui_fgcolor: str = "#000",
-        from_decorator: bool = False,
+        add_suffix_on_collision: bool = False,
     ):
         from airflow.models.dag import DagContext
 
@@ -101,7 +102,7 @@ class TaskGroup(TaskMixin):
         # if given group_id already used assign suffix by incrementing largest used suffix integer
         # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
         if group_id in self.used_group_ids:
-            if not from_decorator:
+            if not add_suffix_on_collision:
                 raise DuplicateTaskIdFound(f"group_id '{self.group_id}' has already been added to the DAG")
             base = re.split(r'__\d+$', group_id)[0]
             suffixes = sorted(
