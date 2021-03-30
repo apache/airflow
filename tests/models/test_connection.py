@@ -138,6 +138,48 @@ class TestConnection(unittest.TestCase):
             description='with extras',
         ),
         UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
+            '__extra__=InNpbmdsZSB2YWx1ZSI%3D',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra_dejson='single value',
+            ),
+            description='with extras single value',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
+            '__extra__=WyJsaXN0IiwgIm9mIiwgInZhbHVlcyJd',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra_dejson=['list', 'of', 'values'],
+            ),
+            description='with extras list',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
+            '__extra__=eyJteV92YWwiOiBbImxpc3QiLCAib2YiLCAidmFsdWVzIl0sICJleHRyYSI6IHsibmVzdGVkIjogeyJqc29uIjogInZhbCJ9fX0%3D',  # noqa: E501 # pylint: disable=C0301
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra_dejson={'my_val': ['list', 'of', 'values'], 'extra': {'nested': {'json': 'val'}}},
+            ),
+            description='with nested json',
+        ),
+        UriTestCaseConfig(
             test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?extra1=a%20value&extra2=',
             test_conn_attributes=dict(
                 conn_type='scheme',
@@ -351,11 +393,9 @@ class TestConnection(unittest.TestCase):
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
             actual_val = getattr(new_conn, conn_attr)
             if expected_val is None:
-                assert expected_val is None
-            if isinstance(expected_val, dict):
-                assert expected_val == actual_val
+                assert actual_val is None
             else:
-                assert expected_val == actual_val
+                assert actual_val == expected_val
 
     @parameterized.expand(
         [

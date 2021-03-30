@@ -18,6 +18,7 @@
 
 import json
 import warnings
+from base64 import urlsafe_b64decode, urlsafe_b64encode
 from json import JSONDecodeError
 from typing import Dict, Optional
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
@@ -88,6 +89,8 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     :param uri: URI address describing connection parameters.
     :type uri: str
     """
+
+    EXTRA_BASE64_KEY = '__extra__'
 
     __tablename__ = "connection"
 
@@ -161,7 +164,11 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         self.password = unquote(uri_parts.password) if uri_parts.password else uri_parts.password
         self.port = uri_parts.port
         if uri_parts.query:
-            self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
+            query = dict(parse_qsl(uri_parts.query, keep_blank_values=True))
+            if self.EXTRA_BASE64_KEY in query:
+                self.extra = urlsafe_b64decode(query[self.EXTRA_BASE64_KEY]).decode('utf-8')
+            else:
+                self.extra = json.dumps(query)
 
     def get_uri(self) -> str:
         """Return connection in URI format"""
@@ -195,7 +202,14 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         uri += host_block
 
         if self.extra_dejson:
-            uri += f'?{urlencode(self.extra_dejson)}'
+            try:
+                query = urlencode(self.extra_dejson)
+            except TypeError:
+                query = None
+            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+                uri += '?' + query
+            else:
+                uri += '?' + urlencode({self.EXTRA_BASE64_KEY: urlsafe_b64encode(self.extra.encode('utf-8'))})
 
         return uri
 
