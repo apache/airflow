@@ -129,10 +129,11 @@ describe('Test Pipelines Table', () => {
 
     await waitFor(() => expect(getByText(sampleDag.dagId)).toBeInTheDocument());
     const toggle = getByRole('switch');
-    expect(toggle.firstChild?.checked).toBeTruthy();
+    const input = toggle.querySelector('input') as HTMLInputElement;
+    expect(input.checked).toBeTruthy();
     fireEvent.click(toggle);
     // 'Dag Updated' is the toast confirming the change happened
     await waitFor(() => expect(getByText('Pipeline Updated')).toBeInTheDocument());
-    await waitFor(() => expect(toggle.firstChild?.checked).toBeFalsy());
+    await waitFor(() => expect(input.checked).toBeFalsy());
   });
 });
