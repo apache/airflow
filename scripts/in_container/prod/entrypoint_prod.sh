@@ -91,10 +91,10 @@ function wait_for_connection {
     # Auto-detect DB parameters
     # Examples:
     #  postgres://YourUserName:password@YourHostname:5432/YourDatabaseName
-    #  postgres://YourUserName:password@YourHostname:5432/YourDatabaseName
+    #  postgres://YourUserName@YourDatbaseName:password@YourHostname:5432/YourDatabaseName
     #  postgres://YourUserName:@YourHostname:/YourDatabaseName
     #  postgres://YourUserName@YourHostname/YourDatabaseName
-    [[ ${connection_url} =~ ([^:]*)://([^:@]*):?([^@]*)@?([^/:]*):?([0-9]*)/([^\?]*)\??(.*) ]] && \
+    [[ ${connection_url} =~ ([^:]*)://([^:@]*[@.*]?):?([^@]*)@?([^/:]*):?([0-9]*)/([^\?]*)\??(.*) ]] && \
         detected_backend=${BASH_REMATCH[1]} &&
         # Not used USER match
         # Not used PASSWORD match
