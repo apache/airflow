@@ -278,7 +278,7 @@ Encoding arbitrary json
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 Some json structures cannot be urlencoded without loss.  For such jsons, ``get_uri``
-will encode the json as base64 and store under the url query param ``__extra__``.
+will store the entire string under the url query param ``__extra__``.
 
 For example:
 
@@ -296,7 +296,7 @@ For example:
     >>> )
     >>> uri = c.get_uri()
     >>> uri
-    'scheme://user:password@host%2Flocation:1234/schema?__extra__=eyJteV92YWwiOiBbImxpc3QiLCAib2YiLCAidmFsdWVzIl0sICJleHRyYSI6IHsibmVzdGVkIjogeyJqc29uIjogInZhbCJ9fX0%3D'
+    'scheme://user:password@host%2Flocation:1234/schema?__extra__=%7B%22my_val%22%3A+%5B%22list%22%2C+%22of%22%2C+%22values%22%5D%2C+%22extra%22%3A+%7B%22nested%22%3A+%7B%22json%22%3A+%22val%22%7D%7D%7D'
 
 
 And we can verify that it returns the same dictionary:
