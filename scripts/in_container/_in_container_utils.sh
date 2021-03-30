@@ -137,17 +137,16 @@ function in_container_cleanup_pycache() {
 function in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "Linux" ]]; then
         DIRECTORIES_TO_FIX=(
-            "/tmp"
             "/files"
             "/root/.aws"
             "/root/.azure"
             "/root/.config/gcloud"
             "/root/.docker"
-            "${AIRFLOW_SOURCES}"
+            "/opt/airflow/logs"
+            "/opt/airflow/docs"
         )
-        sudo find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
-            sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference ||
-            true >/dev/null 2>&1
+        find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
+            xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
     fi
 }
 

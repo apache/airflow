@@ -33,6 +33,7 @@ def with_group(title):
         yield
         return
     print(f"::group::{title}")
+    print()
     yield
     print("\033[0m")
     print("::endgroup::")
