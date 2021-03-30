@@ -153,6 +153,20 @@ class TestConnection(unittest.TestCase):
         ),
         UriTestCaseConfig(
             test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
+            '__extra__=YXJiaXRyYXJ5IHN0cmluZyAqKSok',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra='arbitrary string *)*$',
+            ),
+            description='with extra non-json',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
             '__extra__=WyJsaXN0IiwgIm9mIiwgInZhbHVlcyJd',
             test_conn_attributes=dict(
                 conn_type='scheme',

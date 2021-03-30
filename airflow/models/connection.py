@@ -201,7 +201,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
         uri += host_block
 
-        if self.extra_dejson:
+        if self.extra:
             try:
                 query = urlencode(self.extra_dejson)
             except TypeError:
