@@ -239,8 +239,7 @@ class TestCliUsers:
 
         def find_by_username(username):
             matches = [u for u in retrieved_users if u['username'] == username]
-            if not matches:
-                self.fail(f"Couldn't find user with username {username}")
+            assert matches, f"Couldn't find user with username {username}"
             matches[0].pop('id')  # this key not required for import
             return matches[0]
 

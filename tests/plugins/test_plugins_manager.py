@@ -108,9 +108,7 @@ def test_flaskappbuilder_nomenu_views():
     with mock_plugin_manager(plugins=[AirflowNoMenuViewsPlugin()]):
         appbuilder = application.create_app(testing=True).appbuilder  # pylint: disable=no-member
 
-        plugin_views = [
-            view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name
-        ]
+        plugin_views = [view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name]
 
         assert len(plugin_views) == 1
 

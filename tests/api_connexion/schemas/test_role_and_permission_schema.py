@@ -83,7 +83,7 @@ class TestRoleCollectionSchema:
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             ],
         )
-        delete_role(minimal_app_for_api, 'Test2')        
+        delete_role(minimal_app_for_api, 'Test2')
 
     def test_serialize(self, role1, role2):
         instance = RoleCollection([role1, role2], total_entries=2)

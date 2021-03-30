@@ -21,7 +21,6 @@ from contextlib import redirect_stdout
 
 import pytest
 
-
 from airflow.cli.commands import role_command
 
 TEST_USER1_EMAIL = 'test-user1@example.com'

@@ -18,7 +18,6 @@
 from unittest import mock
 
 import pytest
-
 from flask_login import current_user
 from google.auth.exceptions import GoogleAuthError
 from parameterized import parameterized

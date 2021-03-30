@@ -31,10 +31,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
 from airflow.version import version
-from airflow.www import app as application
-from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir, os.pardir)
