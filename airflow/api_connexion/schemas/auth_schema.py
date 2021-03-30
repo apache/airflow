@@ -26,7 +26,7 @@ class OAUTHSchema(Schema):
     icon = fields.String()
 
 
-class OPENIDSchema(Schema):
+class OpenIDSchema(Schema):
     """A little information needed for the UI"""
 
     name = fields.String()

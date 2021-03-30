@@ -1586,7 +1586,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthInfo'
 
-  /auth-dblogin:
+  /auth/login:
     post:
       summary: Login user
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
