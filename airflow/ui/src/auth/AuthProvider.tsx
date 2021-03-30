@@ -57,6 +57,7 @@ const AuthProvider = ({ children }: Props): ReactElement => {
       return Promise.reject(err);
     },
   );
+  axios.defaults.headers.common.Accept = 'application/json';
 
   useEffect(() => {
     const token = get('token');

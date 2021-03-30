@@ -19,7 +19,6 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import dayjs from 'dayjs';
 import {
   Avatar,
   Box,
@@ -41,10 +40,14 @@ import {
   MdAccountCircle,
   MdExitToApp,
 } from 'react-icons/md';
+import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
 
 import { useAuthContext } from 'auth/context';
 
 import ApacheAirflowLogo from 'components/icons/ApacheAirflowLogo';
+
+dayjs.extend(timezone);
 
 interface Props {
   bodyBg: string;
@@ -54,7 +57,7 @@ interface Props {
 
 const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
   const { toggleColorMode } = useColorMode();
-  const now = dayjs();
+  const now = dayjs().tz();
   const headerHeight = '56px';
   const { hasValidAuthToken, logout } = useAuthContext();
   const darkLightIcon = useColorModeValue(MdBrightness2, MdWbSunny);

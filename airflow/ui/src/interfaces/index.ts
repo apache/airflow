@@ -99,3 +99,12 @@ export interface Version {
   version: string,
   gitVersion: string,
 }
+
+export interface ConfigSection {
+  name: string;
+  options: Record<string, string>[];
+}
+
+export interface Config {
+  sections: ConfigSection[];
+}

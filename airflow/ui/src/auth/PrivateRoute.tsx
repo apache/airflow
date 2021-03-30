@@ -23,11 +23,13 @@ import React, {
 import { Route, RouteProps } from 'react-router-dom';
 
 import Login from 'views/Login';
+// TimezoneProvider has to be used after authentication
+import TimezoneProvider from '../TimezoneProvider';
 import { useAuthContext } from './context';
 
 const PrivateRoute: FC<RouteProps> = (props) => {
   const { hasValidAuthToken } = useAuthContext();
-  return hasValidAuthToken ? <Route {...props} /> : <Login />;
+  return hasValidAuthToken ? <TimezoneProvider><Route {...props} /></TimezoneProvider> : <Login />;
 };
 
 export default PrivateRoute;

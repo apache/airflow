@@ -25,7 +25,7 @@ import {
 import humps from 'humps';
 import { useToast } from '@chakra-ui/react';
 
-import type { Dag, DagRun, Version } from 'interfaces';
+import type { Config, Dag, DagRun, Version } from 'interfaces';
 import type {
   DagsResponse,
   DagRunsResponse,
@@ -83,6 +83,10 @@ export function useVersion() {
     'version',
     (): Promise<Version> => axios.get('/version'),
   );
+}
+
+export function useConfig() {
+  return useQuery<Config, Error>('config', (): Promise<Config> => axios.get('/config'));
 }
 
 export function useTriggerRun(dagId: Dag['dagId']) {

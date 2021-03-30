@@ -30,14 +30,12 @@ interface AuthContextData {
   error: Error | null;
 }
 
-export const authContextDefaultValue: AuthContextData = {
+export const AuthContext = createContext<AuthContextData>({
   hasValidAuthToken: false,
   login: () => null,
   logout: () => null,
   loading: true,
   error: null,
-};
-
-export const AuthContext = createContext<AuthContextData>(authContextDefaultValue);
+});
 
 export const useAuthContext = () => useContext(AuthContext);
