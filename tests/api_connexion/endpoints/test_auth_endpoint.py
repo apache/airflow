@@ -51,41 +51,38 @@ class TestDBLoginEndpoint(TestLoginEndpoint):
     def test_user_can_login(self):
         self.auth_type(AUTH_DB)
         payload = {"username": "test", "password": "test"}
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
-        assert response.json['username'] == 'test'
-        cookie = next(
-            (cookie for cookie in self.client.cookie_jar if cookie.name == "access_token_cookie"), None
-        )
-        assert cookie is not None
-        assert isinstance(cookie.value, str)
+        response = self.client.post('api/v1/auth/login', json=payload)
+        assert response.json['user']['username'] == 'test'
+        assert isinstance(response.json['token'], str)
+        assert isinstance(response.json['refresh_token'], str)
 
     def test_logged_in_user_cant_relogin(self):
         self.auth_type(AUTH_DB)
         payload = {"username": "test", "password": "test"}
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
-        assert response.json['username'] == 'test'
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
+        response = self.client.post('api/v1/auth/login', json=payload)
+        assert response.json['user']['username'] == 'test'
+        response = self.client.post('api/v1/auth/login', json=payload)
         assert response.status_code == 401
         assert response.json['detail'] == "Client already authenticated"
 
     def test_incorrect_username_raises(self):
         self.auth_type(AUTH_DB)
         payload = {"username": "tests", "password": "test"}
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
+        response = self.client.post('api/v1/auth/login', json=payload)
         assert response.status_code == 404
         assert response.json['detail'] == 'Invalid login'
 
     def test_post_body_conforms(self):
         self.auth_type(AUTH_DB)
         payload = {"username": "tests"}
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
+        response = self.client.post('api/v1/auth/login', json=payload)
         assert response.status_code == 400
         assert response.json['detail'] == "{'password': ['Missing data for required field.']}"
 
     def test_auth_type_must_be_db(self):
         self.auth_type(AUTH_OAUTH)
         payload = {"username": "test", "password": "test"}
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
+        response = self.client.post('api/v1/auth/login', json=payload)
         assert response.status_code == 400
         assert response.json['detail'] == 'Authentication type do not match'
 
@@ -97,14 +94,10 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
         user = self.app.appbuilder.sm.find_user(username='test')
         self.app.appbuilder.sm.auth_user_ldap.return_value = user
         payload = {"username": "test", "password": "test"}
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
-
-        assert response.json['username'] == 'test'
-        cookie = next(
-            (cookie for cookie in self.client.cookie_jar if cookie.name == "access_token_cookie"), None
-        )
-        assert cookie is not None
-        assert isinstance(cookie.value, str)
+        response = self.client.post('api/v1/auth/login', json=payload)
+        assert response.json['user']['username'] == 'test'
+        assert isinstance(response.json['token'], str)
+        assert isinstance(response.json['refresh_token'], str)
 
     def test_logged_in_user_cant_relogin(self):
         self.auth_type(AUTH_LDAP)
@@ -112,9 +105,9 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
         user = self.app.appbuilder.sm.find_user(username='test')
         self.app.appbuilder.sm.auth_user_ldap.return_value = user
         payload = {"username": "test", "password": "test"}
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
-        assert response.json['username'] == 'test'
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
+        response = self.client.post('api/v1/auth/login', json=payload)
+        assert response.json['user']['username'] == 'test'
+        response = self.client.post('api/v1/auth/login', json=payload)
         assert response.status_code == 401
         assert response.json['detail'] == "Client already authenticated"
 
@@ -123,21 +116,21 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
         self.app.appbuilder.sm.auth_user_ldap = mock.Mock()
         self.app.appbuilder.sm.auth_user_ldap.return_value = None
         payload = {"username": "tests", "password": "test"}
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
+        response = self.client.post('api/v1/auth/login', json=payload)
         assert response.status_code == 404
         assert response.json['detail'] == 'Invalid login'
 
     def test_post_body_conforms(self):
         self.auth_type(AUTH_LDAP)
         payload = {"username": "tests"}
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
+        response = self.client.post('api/v1/auth/login', json=payload)
         assert response.status_code == 400
         assert response.json['detail'] == "{'password': ['Missing data for required field.']}"
 
     def test_auth_type_must_be_ldap(self):
         self.auth_type(AUTH_OAUTH)
         payload = {"username": "test", "password": "test"}
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
+        response = self.client.post('api/v1/auth/login', json=payload)
         assert response.status_code == 400
         assert response.json['detail'] == 'Authentication type do not match'
 
@@ -231,7 +224,7 @@ class TestRemoteUserLoginEndpoint(TestLoginEndpoint):
         self.auth_type(AUTH_REMOTE_USER)
         response = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json['username'] == 'test'
+        assert response.json['user']['username'] == 'test'
 
     def test_remote_user_cant_relogin(self):
         self.auth_type(AUTH_REMOTE_USER)
@@ -258,16 +251,7 @@ class TestLogoutEndpoint(TestLoginEndpoint):
     def test_logout(self):
         self.auth_type(AUTH_DB)
         payload = {"username": "test", "password": "test"}
-        response = self.client.post('api/v1/auth-dblogin', json=payload)
-        assert response.json['username'] == 'test'
-        cookie = next(
-            (cookie for cookie in self.client.cookie_jar if cookie.name == "access_token_cookie"), None
-        )
-        assert cookie is not None
-        assert isinstance(cookie.value, str)
+        response = self.client.post('api/v1/auth/login', json=payload)
+        assert response.json['user']['username'] == 'test'
         response = self.client.get('api/v1/logout')
         assert response.json == {"logged_out": True}
-        cookie = next(
-            (cookie for cookie in self.client.cookie_jar if cookie.name == "access_token_cookie"), None
-        )
-        assert cookie is None

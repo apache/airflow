@@ -20,7 +20,7 @@ import logging
 import jwt
 from flask import current_app, g, jsonify, request, session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
-from flask_jwt_extended import unset_jwt_cookies
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_refresh_token_required
 from flask_login import login_user
 from marshmallow import ValidationError
 
@@ -57,7 +57,7 @@ def get_auth_info():
     )
 
 
-def auth_dblogin():
+def auth_login():
     """Handle DB login"""
     security_manager = current_app.appbuilder.sm
     auth_type = security_manager.auth_type
@@ -77,7 +77,7 @@ def auth_dblogin():
     if not user:
         raise NotFound(detail="Invalid login")
     login_user(user, remember=False)
-    return security_manager.create_access_token_and_dump_user()
+    return security_manager.create_tokens_and_dump(user)
 
 
 def auth_oauthlogin(provider, register=None, redirect_url=None):
@@ -143,7 +143,7 @@ def authorize_oauth(provider, state):
     if user is None:
         raise NotFound(detail="Invalid login")
     login_user(user)
-    return appbuilder.sm.create_access_token_and_dump_user()
+    return appbuilder.sm.create_tokens_and_dump(user)
 
 
 def auth_remoteuser():
@@ -162,11 +162,19 @@ def auth_remoteuser():
             login_user(user)
     else:
         raise NotFound(detail="Invalid login")
-    return appbuilder.sm.create_access_token_and_dump_user()
+    return appbuilder.sm.create_tokens_and_dump(user)
+
+
+@jwt_refresh_token_required
+def refresh_token():
+    """Refresh token"""
+    current_user = get_jwt_identity()
+    ret = {'access_token': create_access_token(identity=current_user)}
+    return jsonify(ret), 200
 
 
 def logout():
     """Sign out"""
     resp = jsonify({'logged_out': True})
-    unset_jwt_cookies(resp)
+    # TODO: logout user
     return resp, 200

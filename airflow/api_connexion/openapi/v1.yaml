@@ -1590,7 +1590,7 @@ paths:
     post:
       summary: Login user
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
-      operationId: auth_dblogin
+      operationId: auth_login
       tags: [Authentication]
       requestBody:
         required: true
@@ -1604,7 +1604,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/JwtAuthAndUser'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1645,7 +1645,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/JwtAuthAndUser'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1664,11 +1664,28 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/JwtAuthAndUser'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+
+  /refresh:
+    post:
+      summary: Refresh a token
+      description: Accepts fresh token and creates access token
+      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
+      operationId: refresh_token
+      tags: [Authentication]
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /logout:
     get:
@@ -2664,6 +2681,28 @@ components:
       properties:
         auth_url:
           type: string
+
+    JwtAuthAndUser:
+      description: Data returned after user authentication
+      type: object
+      allOf:
+        - type: object
+          properties:
+            token:
+              type: string
+              description: Authentication token
+            refresh_token:
+              type: string
+              description: Authentication refresh token
+        - $ref: '#/components/schemas/UserCollectionItem'
+
+    AccessToken:
+      description: AccessToken
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: authentication token
 
     # Configuration
     ConfigOption:

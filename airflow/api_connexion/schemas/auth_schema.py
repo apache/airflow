@@ -18,6 +18,8 @@
 from marshmallow import fields
 from marshmallow.schema import Schema
 
+from airflow.api_connexion.schemas.user_schema import UserCollectionItemSchema
+
 
 class OAUTHSchema(Schema):
     """A little information needed for UI"""
@@ -38,7 +40,7 @@ class InfoSchema(Schema):
 
     auth_type = fields.String()
     oauth_providers = fields.List(fields.Nested(OAUTHSchema))
-    openid_providers = fields.List(fields.Nested(OPENIDSchema))
+    openid_providers = fields.List(fields.Nested(OpenIDSchema))
 
 
 class LoginForm(Schema):
@@ -48,5 +50,14 @@ class LoginForm(Schema):
     password = fields.String(required=True)
 
 
+class AuthSchema(Schema):
+    """Schema for data returned after successful authentication"""
+
+    token = fields.String()
+    refresh_token = fields.String()
+    user = fields.Nested(UserCollectionItemSchema)
+
+
 info_schema = InfoSchema()
 login_form_schema = LoginForm()
+auth_schema = AuthSchema()

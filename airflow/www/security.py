@@ -18,17 +18,18 @@
 #
 
 import warnings
+from datetime import timedelta
 from typing import Dict, Optional, Sequence, Set, Tuple
 
-from flask import current_app, g, jsonify
+from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
-from flask_jwt_extended import create_access_token, set_access_cookies
+from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
-from airflow.api_connexion.schemas.user_schema import user_collection_item_schema
+from airflow.api_connexion.schemas.auth_schema import auth_schema
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
@@ -732,13 +733,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
         return True
 
-    def create_access_token_and_dump_user(self):
-        """Creates access token, set token in session and return user data"""
-        user = self.current_user
+    def create_jwt_manager(self, app) -> JWTManager:
+        """JWT Manager"""
+        jwt_manager = JWTManager()
+        app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
+        app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
+        jwt_manager.init_app(app)
+        jwt_manager.user_loader_callback_loader(self.load_user_jwt)
+        return jwt_manager
+
+    def create_tokens_and_dump(self, user):
+        """Creates access token, return user data alongside tokens"""
         token = create_access_token(user.id)
-        resp = jsonify(user_collection_item_schema.dump(user))
-        set_access_cookies(resp, token)
-        return resp
+        refresh_token = create_refresh_token(user.id)
+        return auth_schema.dump({'user': user, 'token': token, 'refresh_token': refresh_token})
 
 
 class ApplessAirflowSecurityManager(AirflowSecurityManager):
