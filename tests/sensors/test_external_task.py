@@ -152,6 +152,8 @@ class TestExternalTaskSensor:
 
     def test_external_dag_sensor(self):
         other_dag = DAG('other_dag', default_args=self.args, end_date=DEFAULT_DATE, schedule_interval='@once')
+
+        clear_db_runs()
         other_dag.create_dagrun(
             run_id='test', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.SUCCESS
         )
