@@ -25,7 +25,9 @@ import {
 import humps from 'humps';
 import { useToast } from '@chakra-ui/react';
 
-import type { Config, Dag, DagRun, Version } from 'interfaces';
+import type {
+  Config, Dag, DagRun, Version,
+} from 'interfaces';
 import type {
   DagsResponse,
   DagRunsResponse,

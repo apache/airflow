@@ -26,7 +26,7 @@ import {
   QueryClientProvider,
 } from 'react-query';
 
-import AuthProvider from 'auth/AuthProvider';
+import AuthProvider from 'providers/auth/AuthProvider';
 
 import App from './App';
 import theme from './theme';

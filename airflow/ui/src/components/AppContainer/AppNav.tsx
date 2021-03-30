@@ -27,7 +27,7 @@ import {
   FiUsers,
 } from 'react-icons/fi';
 
-import { useAuthContext } from 'auth/context';
+import { useAuthContext } from 'providers/auth/context';
 
 import PinwheelLogo from 'components/icons/PinwheelLogo';
 import PipelineIcon from 'components/icons/PipelineIcon';

@@ -35,7 +35,7 @@ import { FiLock, FiUser } from 'react-icons/fi';
 
 import AppContainer from 'components/AppContainer';
 
-import { useAuthContext } from 'auth/context';
+import { useAuthContext } from 'providers/auth/context';
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');

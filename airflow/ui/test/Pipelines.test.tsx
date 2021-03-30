@@ -22,12 +22,17 @@ import '@testing-library/jest-dom';
 import { render, waitFor, fireEvent } from '@testing-library/react';
 import nock from 'nock';
 import axios from 'axios';
+import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
 
 import Pipelines from 'views/Pipelines';
 import {
   defaultHeaders, QueryWrapper, RouterWrapper, url,
 } from './utils';
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
 axios.defaults.adapter = require('axios/lib/adapters/http');
 
 const sampleDag = {
@@ -49,6 +54,10 @@ const sampleDag = {
 };
 
 describe('Test Pipelines Table', () => {
+  beforeAll(() => {
+    dayjs.tz.setDefault('UTC');
+  });
+
   beforeEach(() => {
     nock(url)
       .defaultReplyHeaders(defaultHeaders)

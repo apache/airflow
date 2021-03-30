@@ -21,7 +21,7 @@ import { hot } from 'react-hot-loader';
 import React from 'react';
 import { Route, Redirect, Switch } from 'react-router-dom';
 
-import PrivateRoute from 'auth/PrivateRoute';
+import PrivateRoute from 'providers/auth/PrivateRoute';
 
 import Pipelines from 'views/Pipelines';
 

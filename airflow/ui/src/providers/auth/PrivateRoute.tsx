@@ -24,7 +24,7 @@ import { Route, RouteProps } from 'react-router-dom';
 
 import Login from 'views/Login';
 // TimezoneProvider has to be used after authentication
-import TimezoneProvider from '../TimezoneProvider';
+import TimezoneProvider from 'providers/TimezoneProvider';
 import { useAuthContext } from './context';
 
 const PrivateRoute: FC<RouteProps> = (props) => {

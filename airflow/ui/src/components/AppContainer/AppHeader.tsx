@@ -43,7 +43,7 @@ import {
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 
-import { useAuthContext } from 'auth/context';
+import { useAuthContext } from 'providers/auth/context';
 
 import ApacheAirflowLogo from 'components/icons/ApacheAirflowLogo';
 
