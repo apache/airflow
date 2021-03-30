@@ -38,7 +38,7 @@ regarding its security model.
 Default Roles
 '''''''''''''
 
-By default, Airlfow 2.0+ uses role-based access control (RBAC) to manage all permissions across your environment. Each role has permissions which provide varying levels of access to Airflow's key resources (DAGs, Connections, etc).
+By default, Airflow 2.0+ uses role-based access control (RBAC) to manage all permissions across your environment. Each role has permissions which provide varying levels of access to Airflow's key resources (DAGs, Connections, etc).
 
 An environment's roles can be found under the **Security** tab:
 
