@@ -24,9 +24,6 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import dayjsTz from 'dayjs/plugin/timezone';
 
-import { useConfig } from 'api';
-import { defaultConfig } from 'api/defaults';
-
 dayjs.extend(utc);
 dayjs.extend(dayjsTz);
 
@@ -47,17 +44,9 @@ type Props = {
 };
 
 const TimezoneProvider = ({ children }: Props): ReactElement => {
-  const { data: config = defaultConfig } = useConfig();
-
+  // TODO: add in default_timezone when GET /ui-metadata is available
   // guess timezone on browser or default to utc
   const [timezone, setTimezone] = useState(dayjs.tz.guess() || 'UTC');
-
-  // get default timezone from config
-  useEffect(() => {
-    const coreSection = config.sections.find((s) => s.name === 'core');
-    const defaultTimezone = coreSection?.options.find((o) => o.key === 'default_timezone')?.value;
-    if (defaultTimezone) setTimezone(defaultTimezone);
-  }, [config.sections]);
 
   useEffect(() => {
     dayjs.tz.setDefault(timezone);
