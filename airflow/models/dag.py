@@ -831,7 +831,7 @@ class DAG(LoggingMixin):
 
     @property
     def task_group_dict(self) -> Dict[str, "TaskGroup"]:
-        return {k: v for k, v in self._task_group.get_task_group_dict().items() if k is not None}
+        return {k: v for k, v in self.task_group.get_task_group_dict().items() if k is not None}
 
     @property
     def task_group(self) -> "TaskGroup":
