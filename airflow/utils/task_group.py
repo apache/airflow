@@ -54,8 +54,8 @@ class TaskGroup(TaskMixin):
     :type ui_color: str
     :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
     :type ui_fgcolor: str
-    :param from_decorator: was this taskgroup created by a taskgroup decorator (should only be set by Airflow)
-    :type from_decorator: bool
+    :param add_suffix_on_collision: If this task group name already exists, automatically add `__1` etc suffixes
+    :type from_decorator: add_suffix_on_collision
     """
 
     def __init__(
