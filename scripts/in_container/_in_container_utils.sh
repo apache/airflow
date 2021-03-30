@@ -106,7 +106,6 @@ function in_container_cleanup_pyc() {
     set +o pipefail
     sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/www_rbac/node_modules" -prune -o \
         -path "./airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
@@ -122,7 +121,6 @@ function in_container_cleanup_pycache() {
     set +o pipefail
     find . \
         -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/www_rbac/node_modules" -prune -o \
         -path "./airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
@@ -184,7 +182,6 @@ function in_container_refresh_pylint_todo() {
     # the directory and only excludes it after all of it is scanned
     find . \
         -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/www_rbac/node_modules" -prune -o \
         -path "./airflow/ui/node_modules" -prune -o \
         -path "./airflow/migrations/versions" -prune -o \
         -path "./.eggs" -prune -o \

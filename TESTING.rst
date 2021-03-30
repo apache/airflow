@@ -428,7 +428,7 @@ Airflow tests in the CI environment are split into several test types:
 * Core - for the core Airflow functionality (core folder)
 * API - Tests for the Airflow API (api and api_connexion folders)
 * CLI - Tests for the Airflow CLI (cli folder)
-* WWW - Tests for the Airflow webserver (www and www_rbac in 1.10 folders)
+* WWW - Tests for the Airflow webserver (www folder)
 * Providers - Tests for all Providers of Airflow (providers folder)
 * Other - all other tests (all other folders that are not part of any of the above)
 

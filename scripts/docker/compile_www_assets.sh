@@ -27,14 +27,8 @@ function compile_www_assets() {
     local md5sum_file
     md5sum_file="static/dist/sum.md5"
     readonly md5sum_file
-    local airflow_site_package
-    airflow_site_package="$(python -m site --user-site)/airflow"
-    local www_dir=""
-    if [[ -f "${airflow_site_package}/www_rbac/package.json" ]]; then
-        www_dir="${airflow_site_package}/www_rbac"
-    elif [[ -f "${airflow_site_package}/www/package.json" ]]; then
-        www_dir="${airflow_site_package}/www"
-    fi
+    local www_dir
+    www_dir="$(python -m site --user-site)/airflow/www"
     pushd ${www_dir} || exit 1
     yarn install --frozen-lockfile --no-cache
     yarn run prod

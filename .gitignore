@@ -14,8 +14,6 @@ unittests.db
 airflow/git_version
 airflow/www/static/coverage/
 airflow/www/static/dist
-airflow/www_rbac/static/coverage/
-airflow/www_rbac/static/dist/
 
 /logs/
 airflow-webserver.pid

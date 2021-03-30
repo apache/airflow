@@ -110,10 +110,8 @@ labelPRBasedOnFilePath:
   area:Webserver:
     - airflow/cli/commands/webserver_command.py
     - airflow/www/**/*
-    - airflow/www_rbac/**/*
     - tests/cli/commands/test_webserver_command.py
     - tests/www/**/*
-    - tests/www_rbac/**/*
 
   area:UI:
     - airflow/www/static/**/*
