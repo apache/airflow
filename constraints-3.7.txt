@@ -212,11 +212,11 @@ gevent==21.1.2
 gitdb==4.0.7
 github3.py==2.0.0
 google-ads==7.0.0
-google-api-core==1.26.2
+google-api-core==1.26.3
 google-api-python-client==1.12.8
 google-apitools==0.5.31
 google-auth-httplib2==0.1.0
-google-auth-oauthlib==0.4.3
+google-auth-oauthlib==0.4.4
 google-auth==1.28.0
 google-cloud-automl==2.2.0
 google-cloud-bigquery-datatransfer==3.1.0
@@ -226,7 +226,7 @@ google-cloud-bigtable==1.7.0
 google-cloud-build==2.0.0
 google-cloud-container==1.0.1
 google-cloud-core==1.6.0
-google-cloud-datacatalog==3.1.0
+google-cloud-datacatalog==3.1.1
 google-cloud-dataproc==2.3.0
 google-cloud-datastore==1.15.3
 google-cloud-dlp==1.0.0
@@ -297,7 +297,7 @@ lockfile==0.12.2
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==2.1.0
 marshmallow-sqlalchemy==0.23.1
-marshmallow==3.11.0
+marshmallow==3.11.1
 mccabe==0.6.1
 mock==2.0.0
 mongomock==3.22.1

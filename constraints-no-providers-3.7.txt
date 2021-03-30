@@ -85,7 +85,7 @@ lockfile==0.12.2
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==2.1.0
 marshmallow-sqlalchemy==0.23.1
-marshmallow==3.11.0
+marshmallow==3.11.1
 msgpack==1.0.2
 natsort==7.1.1
 numpy==1.20.2
