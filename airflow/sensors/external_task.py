@@ -55,14 +55,12 @@ class ExternalTaskSensor(BaseSensorOperator):
     specific execution_date
 
     If both `external_task_group_id` and `external_task_id` are ``None`` (default), the sensor
-        waits for the DAG.
+    waits for the DAG.
+
     Values for `external_task_group_id` and `external_task_id` can't be set at the same time.
 
     :param external_dag_id: The dag_id that contains the task you want to wait for
     :type external_dag_id: str
-    :param external_task_group_id The task group_id that contains the tasks you want to
-        wait for.
-    :type external_task_group_id: str or None
     :param external_task_id: The task_id that contains the task you want to
         wait for.
     :type external_task_id: str or None
@@ -71,6 +69,9 @@ class ExternalTaskSensor(BaseSensorOperator):
         external_task_id or external_task_ids can be passed to
         ExternalTaskSensor, but not both.
     :type external_task_ids: Iterable of task_ids or None, default is None
+    :param external_task_group_id: The task group_id that contains the tasks you want to
+        wait for.
+    :type external_task_group_id: str or None
     :param allowed_states: Iterable of allowed states, default is ``['success']``
     :type allowed_states: Iterable
     :param failed_states: Iterable of failed or dis-allowed states, default is ``None``
@@ -106,9 +107,9 @@ class ExternalTaskSensor(BaseSensorOperator):
         self,
         *,
         external_dag_id: str,
-        external_task_group_id: Optional[str] = None,
         external_task_id: Optional[str] = None,
         external_task_ids: Optional[Iterable[str]] = None,
+        external_task_group_id: Optional[str] = None,
         allowed_states: Optional[Iterable[str]] = None,
         failed_states: Optional[Iterable[str]] = None,
         execution_delta: Optional[datetime.timedelta] = None,
@@ -214,7 +215,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             elif self.external_task_group_id:
                 raise AirflowException(
                     f"f'The external task group {self.external_task_group_id} "
-                    "in DAG {self.external_dag_id} failed.'"
+                    f"in DAG {self.external_dag_id} failed.'"
                 )
             else:
                 raise AirflowException(f'The external DAG {self.external_dag_id} failed.')
@@ -286,14 +287,14 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     def get_external_task_group_task_ids(self, session):
         """Return task ids for the external TaskGroup"""
-        refreshed_dag_info = DagBag().get_dag(self.external_dag_id, session)
+        refreshed_dag_info = DagBag(read_dags_from_db=True).get_dag(self.external_dag_id, session)
         task_group: Optional["TaskGroup"] = refreshed_dag_info.task_group_dict.get(
             self.external_task_group_id
         )
-        if task_group is None:
+        if not task_group:
             raise AirflowException(
-                f'The external task group {self.external_task_group_id} in '
-                f'DAG {self.external_dag_id} does not exist.'
+                f"The external task group {self.external_task_group_id} in "
+                f"DAG {self.external_dag_id} does not exist."
             )
         task_ids = [task.task_id for task in task_group]
         return task_ids

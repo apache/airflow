@@ -23,12 +23,14 @@ from airflow import exceptions, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import DagBag, TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.state import State
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import datetime
 from tests.test_utils.db import clear_db_runs
 
@@ -36,21 +38,35 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
 TEST_TASK_ID = 'time_sensor_check'
 TEST_TASK_ID_ALTERNATE = 'time_sensor_check_alternate'
+TEST_TASK_GROUP_ID = 'dummy_task_group'
 DEV_NULL = '/dev/null'
 
 
 class TestExternalTaskSensor:
     def setup_method(self):
-        self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)
+        SerializedDagModel.write_dag(self.dag)
 
-    def test_time_sensor(self, task_id=TEST_TASK_ID):
-        op = TimeSensor(task_id=task_id, target_time=time(0), dag=self.dag)
+    def run_time_sensor(self):
+        op = TimeSensor(task_id=TEST_TASK_ID, target_time=time(0), dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def run_task_group(self, target_states=None):
+        target_states = [State.SUCCESS] * 3 if target_states is None else target_states
+
+        with self.dag as dag:
+            with TaskGroup(TEST_TASK_GROUP_ID) as task_group:
+                _ = [DummyOperator(task_id=f"task{i}") for i in range(len(target_states))]
+            SerializedDagModel.write_dag(dag)
+
+        for idx, task in enumerate(task_group):
+            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+            ti.run(ignore_ti_state=True, mark_success=True)
+            ti.set_state(target_states[idx])
+
     def test_external_task_sensor(self):
-        self.test_time_sensor()
+        self.run_time_sensor()
         op = ExternalTaskSensor(
             task_id='test_external_task_sensor_check',
             external_dag_id=TEST_DAG_ID,
@@ -92,7 +108,7 @@ class TestExternalTaskSensor:
             )
 
     def test_external_task_sensor_failed_states(self):
-        self.test_time_sensor()
+        self.run_time_sensor()
         op = ExternalTaskSensor(
             task_id='test_external_task_sensor_check',
             external_dag_id=TEST_DAG_ID,
@@ -103,7 +119,7 @@ class TestExternalTaskSensor:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor_failed_states_as_success(self):
-        self.test_time_sensor()
+        self.run_time_sensor()
         op = ExternalTaskSensor(
             task_id='test_external_task_sensor_check',
             external_dag_id=TEST_DAG_ID,
@@ -149,6 +165,88 @@ class TestExternalTaskSensor:
                 "['time_sensor_check', 'time_sensor_check_alternate'] in DAG "
                 "unit_test_dag failed."
             )
+
+    def test_raise_with_external_task_id_and_external_task_group_id(self):
+        with pytest.raises(
+            AirflowException,
+            match=r"`external_task_group_id` and `external_task_id` can't be set at the same time",
+        ):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=TEST_TASK_ID,
+                external_task_group_id=TEST_TASK_GROUP_ID,
+                dag=self.dag,
+            )
+
+    def test_external_task_group_not_exists(self):
+        with pytest.raises(AirflowException, match=r"The external task group .* does not exist"):
+            op = ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_group_id='fake-task-group',
+                dag=self.dag,
+            )
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_external_task_group_sensor_success(self):
+        self.run_task_group()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_group_id=TEST_TASK_GROUP_ID,
+            failed_states=[State.FAILED],
+            dag=self.dag,
+        )
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    @pytest.mark.parametrize(
+        "ti_states",
+        [
+            (State.SUCCESS, State.FAILED, State.SUCCESS),
+            (State.FAILED, State.SKIPPED, State.FAILED),
+        ],
+    )
+    def test_external_task_group_sensor_failed_states(self, ti_states):
+        self.run_task_group(ti_states)
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_group_id=TEST_TASK_GROUP_ID,
+            failed_states=[State.FAILED],
+            dag=self.dag,
+        )
+        with pytest.raises(AirflowException, match=r"The external task group .* failed."):
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_external_task_group_sensor_multiple_execution_dates(self):
+        dag_external_id = TEST_DAG_ID + '_external'
+        dag_external = DAG(dag_external_id, default_args=self.args, schedule_interval=timedelta(seconds=1))
+        with dag_external:
+            with TaskGroup(TEST_TASK_GROUP_ID) as task_group:
+                _ = [DummyOperator(task_id=f"task{i}") for i in range(3)]
+
+            SerializedDagModel.write_dag(dag_external)
+
+        for task in task_group:
+            task.run(
+                start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + timedelta(seconds=2), ignore_ti_state=True
+            )
+
+        dag_id = TEST_DAG_ID
+        dag = DAG(dag_id, default_args=self.args, schedule_interval=timedelta(minutes=1))
+        task_group_sensor = ExternalTaskSensor(
+            task_id='task_group_external',
+            external_dag_id=dag_external_id,
+            external_task_group_id=TEST_TASK_GROUP_ID,
+            execution_date_fn=lambda dt: [dt + timedelta(seconds=i) for i in range(3)],
+            retries=0,
+            timeout=1,
+            poke_interval=1,
+            dag=dag,
+        )
+
+        task_group_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_dag_sensor(self):
         other_dag = DAG('other_dag', default_args=self.args, end_date=DEFAULT_DATE, schedule_interval='@once')
@@ -255,7 +353,7 @@ exit 0
             task_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor_delta(self):
-        self.test_time_sensor()
+        self.run_time_sensor()
         op = ExternalTaskSensor(
             task_id='test_external_task_sensor_check_delta',
             external_dag_id=TEST_DAG_ID,
@@ -267,7 +365,7 @@ exit 0
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor_fn(self):
-        self.test_time_sensor()
+        self.run_time_sensor()
         # check that the execution_fn works
         op1 = ExternalTaskSensor(
             task_id='test_external_task_sensor_check_delta_1',
@@ -294,7 +392,7 @@ exit 0
 
     def test_external_task_sensor_fn_multiple_args(self):
         """Check this task sensor passes multiple args with full context. If no failure, means clean run."""
-        self.test_time_sensor()
+        self.run_time_sensor()
 
         def my_func(dt, context):
             assert context['execution_date'] == dt
@@ -312,7 +410,7 @@ exit 0
 
     def test_external_task_sensor_fn_kwargs(self):
         """Check this task sensor passes multiple args with full context. If no failure, means clean run."""
-        self.test_time_sensor()
+        self.run_time_sensor()
 
         def my_func(dt, ds_nodash, tomorrow_ds_nodash):
             assert ds_nodash == dt.strftime("%Y%m%d")
@@ -330,7 +428,7 @@ exit 0
         op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor_error_delta_and_fn(self):
-        self.test_time_sensor()
+        self.run_time_sensor()
         # Test that providing execution_delta and a function raises an error
         with pytest.raises(ValueError):
             ExternalTaskSensor(
