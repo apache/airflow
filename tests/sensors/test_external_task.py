@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import logging
-import unittest
 from datetime import time, timedelta
 
 import pytest
@@ -41,13 +39,8 @@ TEST_TASK_ID_ALTERNATE = 'time_sensor_check_alternate'
 DEV_NULL = '/dev/null'
 
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    clear_db_runs()
-
-
-class TestExternalTaskSensor(unittest.TestCase):
-    def setUp(self):
+class TestExternalTaskSensor:
+    def setup_method(self):
         self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)
@@ -417,7 +410,7 @@ exit 0
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
-class TestExternalTaskMarker(unittest.TestCase):
+class TestExternalTaskMarker:
     def test_serialized_fields(self):
         assert {"recursion_depth"}.issubset(ExternalTaskMarker.get_serialized_fields())
 
