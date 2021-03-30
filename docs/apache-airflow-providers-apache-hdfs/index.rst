@@ -64,7 +64,7 @@ are in ``airflow.providers.apache.hdfs`` python package.
 Installation
 ------------
 
-.. note::
+.. noterrrorhere::
 
     On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
     does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice

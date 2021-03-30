@@ -26,7 +26,7 @@ Content
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/zendesk/index>
+    Python API <_api/airflow/providers/zendesk/indx>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-zendesk/>
 
 .. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
