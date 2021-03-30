@@ -17,6 +17,7 @@
 # under the License.
 
 import pendulum
+import pytest
 
 from airflow.decorators import task_group as task_group_decorator
 from airflow.models import DAG
@@ -525,6 +526,42 @@ def test_dag_edges():
         ('group_d.upstream_join_id', 'group_d.task11'),
         ('task1', 'group_a.upstream_join_id'),
     ]
+
+
+def test_duplicate_group_id():
+    from airflow.exceptions import DuplicateTaskIdFound
+
+    execution_date = pendulum.parse("20200101")
+
+    with pytest.raises(DuplicateTaskIdFound, match=r".* 'task1' .*"):
+        with DAG("test_duplicate_group_id", start_date=execution_date):
+            _ = DummyOperator(task_id="task1")
+            with TaskGroup("task1"):
+                pass
+
+    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
+        with DAG("test_duplicate_group_id", start_date=execution_date):
+            _ = DummyOperator(task_id="task1")
+            with TaskGroup("group1", prefix_group_id=False):
+                with TaskGroup("group1"):
+                    pass
+
+    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
+        with DAG("test_duplicate_group_id", start_date=execution_date):
+            with TaskGroup("group1", prefix_group_id=False):
+                _ = DummyOperator(task_id="group1")
+
+    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.downstream_join_id' .*"):
+        with DAG("test_duplicate_group_id", start_date=execution_date):
+            _ = DummyOperator(task_id="task1")
+            with TaskGroup("group1"):
+                _ = DummyOperator(task_id="downstream_join_id")
+
+    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.upstream_join_id' .*"):
+        with DAG("test_duplicate_group_id", start_date=execution_date):
+            _ = DummyOperator(task_id="task1")
+            with TaskGroup("group1"):
+                _ = DummyOperator(task_id="upstream_join_id")
 
 
 def test_task_without_dag():
