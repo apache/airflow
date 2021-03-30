@@ -21,12 +21,9 @@ together when the DAG is displayed graphically.
 """
 import functools
 from inspect import signature
-from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
+from typing import Callable, Optional, TypeVar, cast
 
 from airflow.utils.task_group import TaskGroup
-
-if TYPE_CHECKING:
-    pass
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
