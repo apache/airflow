@@ -24,8 +24,6 @@ from typing import Dict, List, Optional
 
 from airflow.hooks.base import BaseHook
 
-EXIT_CODE_SKIP = 127
-
 SubprocessResult = namedtuple('SubprocessResult', ['exit_code', 'output'])
 
 
