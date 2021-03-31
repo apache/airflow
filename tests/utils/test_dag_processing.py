@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import multiprocessing
 import logging
+import multiprocessing
 import os
 import pathlib
 import random
