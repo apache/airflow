@@ -19,10 +19,10 @@
 import json
 from typing import Any, Dict, List, Optional
 
+from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.utils.decorators import apply_defaults
-
 
 class SlackAPIOperator(BaseOperator):
     """
@@ -160,24 +160,24 @@ class SlackAPIFileOperator(SlackAPIOperator):
     """
     Send a file to a slack channel
     Examples:
-
     .. code-block:: python
-
         slack = SlackAPIFileOperator(
             task_id="slack_file_upload",
             dag=dag,
             slack_conn_id="slack",
             channel="#general",
             initial_comment="Hello World!",
+            file="hello_world.csv",
             filename="hello_world.csv",
             filetype="csv",
             content="hello,world,csv,file",
         )
-
     :param channel: channel in which to sent file on slack name (templated)
     :type channel: str
     :param initial_comment: message to send to slack. (templated)
     :type initial_comment: str
+    :param file: the file (templated)
+    :type file: str
     :param filename: name of the file (templated)
     :type filename: str
     :param filetype: slack filetype. (templated)
@@ -187,32 +187,44 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :type content: str
     """
 
-    template_fields = ('channel', 'initial_comment', 'filename', 'filetype', 'content')
+    template_fields = ('channel', 'initial_comment', 'file', 'filename', 'filetype', 'content')
     ui_color = '#44BEDF'
 
     @apply_defaults
     def __init__(
-        self,
-        channel: str = '#general',
-        initial_comment: str = 'No message has been set!',
-        filename: str = 'default_name.csv',
-        filetype: str = 'csv',
-        content: str = 'default,content,csv,file',
-        **kwargs,
+            self,
+            channel: str = '#general',
+            initial_comment: str = 'No message has been set!',
+            file: Optional[str] = None,
+            filename: str = 'default_name.csv',
+            filetype: str = 'csv',
+            content: Optional[str] = None,
+            **kwargs,
     ) -> None:
+        if (content is None) and (file is None):
+            raise AirflowException('At least one of "content" or "file" should be defined.')
         self.method = 'files.upload'
         self.channel = channel
         self.initial_comment = initial_comment
+        self.file = file
         self.filename = filename
         self.filetype = filetype
         self.content = content
         super().__init__(method=self.method, **kwargs)
 
+    def execute(self, **kwargs):
+        slack = SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
+        args = dict(
+            channels=self.channel,
+            filename=self.filename,
+            filetype=self.filetype,
+            initial_comment=self.initial_comment
+        )
+        if self.content is not None:
+            args['content'] = self.content
+        elif self.file is not None:
+            args['file'] = self.content
+        slack.call(self.method, data=args)
+
     def construct_api_call_params(self) -> Any:
-        self.api_params = {
-            'channels': self.channel,
-            'content': self.content,
-            'filename': self.filename,
-            'filetype': self.filetype,
-            'initial_comment': self.initial_comment,
-        }
+        pass
