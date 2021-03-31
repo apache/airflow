@@ -1499,10 +1499,6 @@ components:
         A user object
       type: object
       properties:
-        user_id:
-          type: integer
-          description: The user id
-          readOnly: true
         first_name:
           type: string
           description: The user firstname
