@@ -17,6 +17,7 @@
 # under the License.
 
 import multiprocessing
+import logging
 import os
 import pathlib
 import random
@@ -537,6 +538,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
     @conf_vars({('core', 'load_examples'): 'False'})
     @pytest.mark.backend("mysql", "postgres")
+    @pytest.mark.timeout(60)
     def test_pipe_full_deadlock(self):
         dag_filepath = TEST_DAG_FOLDER / "test_scheduler_dags.py"
 
@@ -554,8 +556,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
         # To test this behaviour we need something that continually fills the
         # parent pipe's bufffer (and keeps it full).
         def keep_pipe_full(pipe, exit_event):
-            import logging
-
             n = 0
             while True:
                 if exit_event.is_set():
@@ -603,8 +603,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
             manager._run_parsing_loop()
             exit_event.set()
         finally:
-            import logging
-
             logging.info("Closing pipes")
             parent_pipe.close()
             child_pipe.close()
