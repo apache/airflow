@@ -16,6 +16,7 @@
 # under the License.
 from unittest import TestCase
 
+from airflow.upgrade.problem import RuleStatus
 from airflow.upgrade.rules.postgres_mysql_sqlite_version_upgrade_check import DatabaseVersionCheckRule
 from tests.compat import patch
 from tests.test_utils.config import conf_vars
@@ -113,3 +114,17 @@ class TestDatabaseVersionCheckRule(TestCase):
 
         msg = rule.check(session=session)
         assert msg == expected
+
+    @conf_vars({("core", "sql_alchemy_conn"): MYSQL_CONN})
+    def test_invalid_version(self, mock_session):
+        session = mock_session()
+        session.execute().scalar.return_value = '12.2 (Debian 12.2-2.pgdg100+1)'
+
+        rule = DatabaseVersionCheckRule()
+
+        assert isinstance(rule.title, str)
+        assert isinstance(rule.description, str)
+
+        msg = RuleStatus.from_rule(rule=rule)
+        assert msg.skipped
+        assert msg.messages == ['Unable to parse DB version, skipped!']
