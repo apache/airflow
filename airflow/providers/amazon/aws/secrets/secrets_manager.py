@@ -79,15 +79,15 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     ):
         super().__init__()
         if connections_prefix is not None:
-            self.connections_prefix = connections_prefix.rstrip("/")
+            self.connections_prefix = connections_prefix.rstrip(sep)
         else:
             self.connections_prefix = connections_prefix
         if variables_prefix is not None:
-            self.variables_prefix = variables_prefix.rstrip('/')
+            self.variables_prefix = variables_prefix.rstrip(sep)
         else:
             self.variables_prefix = variables_prefix
         if config_prefix is not None:
-            self.config_prefix = config_prefix.rstrip('/')
+            self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix
         self.profile_name = profile_name
