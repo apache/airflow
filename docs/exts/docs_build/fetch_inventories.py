@@ -20,10 +20,13 @@ import concurrent.futures
 import datetime
 import os
 import shutil
+import sys
+import traceback
 from itertools import repeat
 from typing import Iterator, List, Tuple
 
 import requests
+import urllib3.exceptions
 from requests.adapters import DEFAULT_POOLSIZE
 
 from airflow.utils.helpers import partition
@@ -50,9 +53,15 @@ def _fetch_file(session: requests.Session, package_name: str, url: str, path: st
     Download a file and returns status information as a tuple with package
     name and success status(bool value).
     """
-    response = session.get(url, allow_redirects=True, stream=True)
+    try:
+        response = session.get(url, allow_redirects=True, stream=True)
+    except (requests.RequestException, urllib3.exceptions.HTTPError):
+        print(f"Failed to fetch inventory: {url}")
+        traceback.print_exc(file=sys.stderr)
+        return package_name, False
     if not response.ok:
         print(f"Failed to fetch inventory: {url}")
+        print(f"Failed with status: {response.status_code}", file=sys.stderr)
         return package_name, False
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
