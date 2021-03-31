@@ -313,7 +313,7 @@ google = [
     'google-cloud-workflows>=0.1.0,<2.0.0',
     'grpcio-gcp>=0.2.2',
     'json-merge-patch~=0.2',
-    'pandas-gbq',
+    'pandas-gbq<0.15.0',
     'plyvel',
 ]
 grpc = [
