@@ -864,7 +864,7 @@ def test_duplicate_task_group_id():
     def task_group2():
         task_3()
 
-    @task_group_decorator(group_id='task_group1')
+    @task_group_decorator('task_group1')
     def task_group3():
         task_end()
 
