@@ -854,7 +854,7 @@ def test_duplicate_task_group_id():
         """ Dummy Task3"""
         print('[Task3]')
 
-    @task_group_decorator(group_id='task_group1')
+    @task_group_decorator('task_group1')
     def task_group1():
         task_start()
         task_1()
@@ -864,7 +864,7 @@ def test_duplicate_task_group_id():
     def task_group2():
         task_3()
 
-    @task_group_decorator('task_group1')
+    @task_group_decorator(group_id='task_group1')
     def task_group3():
         task_end()
 
@@ -873,7 +873,6 @@ def test_duplicate_task_group_id():
         task_group1()
         task_group2()
         task_group3()
-
     node_ids = {
         'id': None,
         'children': [
