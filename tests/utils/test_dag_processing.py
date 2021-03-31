@@ -36,7 +36,7 @@ from airflow.models import DagBag, DagModel, TaskInstance as TI
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
-from airflow.utils.callback_requests import TaskCallbackRequest
+from airflow.utils.callback_requests import CallbackRequest, TaskCallbackRequest
 from airflow.utils.dag_processing import (
     DagFileProcessorAgent,
     DagFileProcessorManager,
@@ -521,16 +521,96 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
         manager._run_parsing_loop()
 
+        result = None
         while parent_pipe.poll(timeout=None):
             result = parent_pipe.recv()
             if isinstance(result, DagParsingStat) and result.done:
                 break
 
         # Three files in folder should be processed
-        assert len(result.file_paths) == 3
+        assert result.num_file_paths == 3
 
         with create_session() as session:
             assert session.query(DagModel).get(dag_id) is not None
+
+    @conf_vars({('core', 'load_examples'): 'False'})
+    @pytest.mark.backend("mysql", "postgres")
+    def test_pipe_full_deadlock(self):
+        import threading
+
+        dag_filepath = TEST_DAG_FOLDER / "test_scheduler_dags.py"
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+
+        import socket
+
+        # Shrink the buffers to exacerbate the problem!
+        for fd in (parent_pipe.fileno(),):
+            sock = socket.socket(fileno=fd)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024)
+            sock.detach()
+
+        exit_event = threading.Event()
+
+        # To test this behaviour we need something that continually fills the
+        # parent pipe's bufffer (and keeps it full).
+        def keep_pipe_full(pipe, exit_event):
+            import logging
+
+            n = 0
+            while True:
+                if exit_event.is_set():
+                    break
+
+                req = CallbackRequest(str(dag_filepath))
+                try:
+                    logging.debug("Sending CallbackRequests %d", n + 1)
+                    pipe.send(req)
+                except TypeError:
+                    # This is actually the error you get when the parent pipe
+                    # is closed! Nicely handled, eh?
+                    break
+                except OSError:
+                    break
+                n += 1
+                logging.debug("   Sent %d CallbackRequests", n)
+
+        thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
+
+        fake_processors = []
+
+        def fake_processor_factory(*args, **kwargs):
+            nonlocal fake_processors
+            processor = FakeDagFileProcessorRunner._fake_dag_processor_factory(*args, **kwargs)
+            fake_processors.append(processor)
+            return processor
+
+        manager = DagFileProcessorManager(
+            dag_directory=dag_filepath,
+            dag_ids=[],
+            # A reasonable large number to ensure that we trigger the deadlock
+            max_runs=100,
+            processor_factory=fake_processor_factory,
+            processor_timeout=timedelta(seconds=5),
+            signal_conn=child_pipe,
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        try:
+            thread.start()
+
+            # If this completes without hanging, then the test is good!
+            manager._run_parsing_loop()
+            exit_event.set()
+        finally:
+            import logging
+
+            logging.info("Closing pipes")
+            parent_pipe.close()
+            child_pipe.close()
+            thread.join(timeout=1.0)
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):
