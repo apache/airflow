@@ -44,7 +44,7 @@ def task_group(python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs
 
     def wrapper(f: T):
         # Setting group_id as function name if not given in kwarg group_id
-        if len(tg_args) == 0 and 'group_id' not in tg_kwargs.keys():
+        if not tg_args and 'group_id' not in tg_kwargs:
             tg_kwargs['group_id'] = f.__name__
         task_group_bound_args = task_group_sig.bind_partial(*tg_args, **tg_kwargs)
 
