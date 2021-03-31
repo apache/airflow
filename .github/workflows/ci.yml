@@ -485,6 +485,16 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Fetch inventory versions"
+        run: ./scripts/ci/docs/ci_docs_prepare.sh
+      - uses: actions/cache@v2
+        id: cache-doc-inventories
+        with:
+          path: ./docs/_inventory_cache/
+          key: docs-inventory-v1-${{ hashFiles('constraints.txt') }}
+          restore-keys: |
+            docs-inventory-${{ hashFiles('constraints.txt') }}
+            docs-inventory-
       - name: "Build docs"
         run: ./scripts/ci/docs/ci_docs.sh
       - name: Configure AWS credentials
