@@ -314,16 +314,17 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         """Waits until DAG parsing is finished."""
         if not self._parent_signal_conn:
             raise ValueError("Process not started.")
+        if self._async_mode:
+            raise RuntimeError("wait_until_finished should only be called in sync_mode")
         while self._parent_signal_conn.poll(timeout=None):
             try:
                 result = self._parent_signal_conn.recv()
             except EOFError:
-                break
+                return
             self._process_message(result)
             if isinstance(result, DagParsingStat):
-                # In sync mode we don't send this message from the Manager
-                # until all the running processors have finished
-                self._sync_metadata(result)
+                # In sync mode (which is the only time we call this function) we don't send this message from
+                # the Manager until all the running processors have finished
                 return
 
     @staticmethod
