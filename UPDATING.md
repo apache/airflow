@@ -81,6 +81,10 @@ This setting can be raised to an even higher value, currently it is
 set to `6000` seconds (10 minutes) to
 serve as a DagBag cache burst time.
 
+### `default_queue` configuration has been moved to the `operators` section.
+
+The `default_queue` configuration option has been moved from `[celery]` section to `[operators]` section to allow for re-use between different executors.
+
 ## Airflow 2.0.1
 
 ### Permission to view Airflow Configurations has been removed from `User` and `Viewer` role
