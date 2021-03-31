@@ -272,7 +272,7 @@ def test_build_task_group_with_task_decorator():
     """
     Test that TaskGroup can be used with the @task decorator.
     """
-    from airflow.operators.python import task
+    from airflow.decorators import task
 
     @task
     def task_1():
@@ -593,7 +593,7 @@ def test_build_task_group_deco_context_manager():
     3. Node Ids of dags created with taskgroup decorator.
     """
 
-    from airflow.operators.python import task
+    from airflow.decorators import task
 
     # Creating Tasks
     @task
@@ -690,7 +690,7 @@ def test_build_task_group_deco_context_manager():
 def test_build_task_group_with_operators():
     """  Tests DAG with Tasks created with *Operators and TaskGroup created with taskgroup decorator """
 
-    from airflow.operators.python import task
+    from airflow.decorators import task
 
     def task_start():
         """Dummy Task which is First Task of Dag """
@@ -745,7 +745,7 @@ def test_build_task_group_with_operators():
 def test_task_group_context_mix():
     """ Test cases to check nested TaskGroup context manager with taskgroup decorator"""
 
-    from airflow.operators.python import task
+    from airflow.decorators import task
 
     def task_start():
         """Dummy Task which is First Task of Dag """
@@ -826,7 +826,7 @@ def test_task_group_context_mix():
 def test_duplicate_task_group_id():
     """ Testing automatic suffix assignment for duplicate group_id"""
 
-    from airflow.operators.python import task
+    from airflow.decorators import task
 
     @task(task_id='start_task')
     def task_start():
