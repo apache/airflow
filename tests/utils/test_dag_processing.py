@@ -554,7 +554,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         exit_event = threading.Event()
 
         # To test this behaviour we need something that continually fills the
-        # parent pipe's bufffer (and keeps it full).
+        # parent pipe's buffer (and keeps it full).
         def keep_pipe_full(pipe, exit_event):
             n = 0
             while True:
