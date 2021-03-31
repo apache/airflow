@@ -57,7 +57,7 @@ provider packages are automatically documented in the release notes of every pro
 Creating and maintaining community providers
 """"""""""""""""""""""""""""""""""""""""""""
 
-See :doc:`apache-airflow-providers:howto/create-update-providers`
+See :doc:`howto/create-update-providers` for more information.
 
 
 Provider packages functionality
@@ -306,7 +306,7 @@ position to accept such contributions.
 
 
 After you think that your provider matches the expected values above,  you can read
-:doc:`apache-airflow-providers:howto/create-update-providers` to check all prerequisites for a new
+:doc:`howto/create-update-providers` to check all prerequisites for a new
 community Provider and discuss it at the `Devlist <http://airflow.apache.org/community/>`_.
 
 
