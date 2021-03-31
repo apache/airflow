@@ -30,6 +30,7 @@ from zipfile import ZipFile
 
 import psutil
 import pytest
+from freezegun import freeze_time
 from parameterized import parameterized
 from sqlalchemy import func
 
@@ -3643,8 +3644,16 @@ class TestSchedulerJob(unittest.TestCase):
                 full_filepath=dag.fileloc, dag_id=dag_id
             )
 
-    def test_scheduler_sets_job_id_on_dag_run(self):
-        dag = DAG(dag_id='test_scheduler_sets_job_id_on_dag_run', start_date=DEFAULT_DATE)
+    @freeze_time(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9))
+    @mock.patch('airflow.jobs.scheduler_job.Stats.timing')
+    def test_create_dag_runs(self, stats_timing):
+        """
+        Test various invariants of _create_dag_runs.
+
+        - That the run created has the creating_job_id set
+        - That we emit the right DagRun metrics
+        """
+        dag = DAG(dag_id='test_create_dag_runs', start_date=DEFAULT_DATE)
 
         DummyOperator(
             task_id='dummy',
@@ -3652,7 +3661,7 @@ class TestSchedulerJob(unittest.TestCase):
         )
 
         dagbag = DagBag(
-            dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"),
+            dag_folder=os.devnull,
             include_examples=False,
             read_dags_from_db=True,
         )
@@ -3665,6 +3674,10 @@ class TestSchedulerJob(unittest.TestCase):
 
         with create_session() as session:
             self.scheduler_job._create_dag_runs([dag_model], session)
+
+        stats_timing.assert_called_once_with(
+            "dagrun.schedule_delay.test_create_dag_runs", datetime.timedelta(seconds=9)
+        )
 
         assert dag.get_last_dagrun().creating_job_id == self.scheduler_job.id
 
