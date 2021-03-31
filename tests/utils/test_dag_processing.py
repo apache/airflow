@@ -20,7 +20,9 @@ import multiprocessing
 import os
 import pathlib
 import random
+import socket
 import sys
+import threading
 import unittest
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
@@ -536,13 +538,9 @@ class TestDagFileProcessorManager(unittest.TestCase):
     @conf_vars({('core', 'load_examples'): 'False'})
     @pytest.mark.backend("mysql", "postgres")
     def test_pipe_full_deadlock(self):
-        import threading
-
         dag_filepath = TEST_DAG_FOLDER / "test_scheduler_dags.py"
 
         child_pipe, parent_pipe = multiprocessing.Pipe()
-
-        import socket
 
         # Shrink the buffers to exacerbate the problem!
         for fd in (parent_pipe.fileno(),):
