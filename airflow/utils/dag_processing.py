@@ -141,7 +141,6 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
 class DagParsingStat(NamedTuple):
     """Information on processing progress"""
 
-    num_file_paths: int
     done: bool
     all_files_processed: bool
 
@@ -705,13 +704,13 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             all_files_processed = all(self.get_last_finish_time(x) is not None for x in self.file_paths)
             max_runs_reached = self.max_runs_reached()
 
-            dag_parsing_stat = DagParsingStat(
-                len(self._file_paths),
-                max_runs_reached,
-                all_files_processed,
-            )
             try:
-                self._signal_conn.send(dag_parsing_stat)
+                self._signal_conn.send(
+                    DagParsingStat(
+                        max_runs_reached,
+                        all_files_processed,
+                    )
+                )
             except BlockingIOError:
                 # Try again next time around the loop!
 
