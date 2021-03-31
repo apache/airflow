@@ -895,7 +895,7 @@ def test_duplicate_task_group_id():
 
 def test_call_taskgroup_twice():
     """Test for using same taskgroup decorated function twice"""
-    from airflow.operators.python import task
+    from airflow.decorators import task
 
     @task(task_id='start_task')
     def task_start():

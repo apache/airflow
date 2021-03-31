@@ -63,7 +63,7 @@ def task_group(python_callable: Optional[Callable] = None, *tg_args, **tg_kwargs
 
             # Initialize TaskGroup with bound arguments
             with TaskGroup(
-                *task_group_bound_args.args, from_decorator=True, **task_group_bound_args.kwargs
+                *task_group_bound_args.args, add_suffix_on_collision=True, **task_group_bound_args.kwargs
             ) as tg_obj:
                 # Invoke function to run Tasks inside the TaskGroup
                 f(**current_f_sig.arguments)
