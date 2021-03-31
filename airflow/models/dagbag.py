@@ -27,7 +27,7 @@ import traceback
 import warnings
 import zipfile
 from datetime import datetime, timedelta
-from typing import Dict, List, NamedTuple, Optional
+from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Union
 
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from sqlalchemy.exc import OperationalError
@@ -45,6 +45,9 @@ from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_c
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
+
+if TYPE_CHECKING:
+    import pathlib
 
 
 class FileLoadStat(NamedTuple):
@@ -89,7 +92,7 @@ class DagBag(LoggingMixin):
 
     def __init__(
         self,
-        dag_folder: Optional[str] = None,
+        dag_folder: Union[str, "pathlib.Path", None] = None,
         include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
         include_smart_sensor: bool = conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
         safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
@@ -424,11 +427,11 @@ class DagBag(LoggingMixin):
 
     def collect_dags(
         self,
-        dag_folder=None,
-        only_if_updated=True,
-        include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
-        include_smart_sensor=conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
-        safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+        dag_folder: Union[str, "pathlib.Path", None] = None,
+        only_if_updated: bool = True,
+        include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
+        include_smart_sensor: bool = conf.getboolean('smart_sensor', 'USE_SMART_SENSOR'),
+        safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
     ):
         """
         Given a file path or a folder, this method looks for python modules,
@@ -450,7 +453,8 @@ class DagBag(LoggingMixin):
         # Used to store stats around DagBag processing
         stats = []
 
-        dag_folder = correct_maybe_zipped(dag_folder)
+        # Ensure dag_folder is a str -- it may have been a pathlib.Path
+        dag_folder = correct_maybe_zipped(str(dag_folder))
         for filepath in list_py_file_paths(
             dag_folder,
             safe_mode=safe_mode,

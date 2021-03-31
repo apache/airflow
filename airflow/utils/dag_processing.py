@@ -30,7 +30,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Union, cast
 
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 from sqlalchemy import or_
@@ -51,6 +51,9 @@ from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    import pathlib
 
 
 class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
@@ -489,7 +492,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
     def __init__(
         self,
-        dag_directory: str,
+        dag_directory: Union[str, "pathlib.Path"],
         max_runs: int,
         processor_factory: Callable[[str, List[CallbackRequest]], AbstractDagFileProcessorProcess],
         processor_timeout: timedelta,
