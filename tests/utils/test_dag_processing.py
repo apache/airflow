@@ -18,6 +18,7 @@
 
 import multiprocessing
 import os
+import pathlib
 import random
 import sys
 import unittest
@@ -50,7 +51,7 @@ from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-TEST_DAG_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags')
+TEST_DAG_FOLDER = pathlib.Path(__file__).parent.parent / 'dags'
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -332,7 +333,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             async_mode=True,
         )
 
-        dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
+        dagbag = DagBag(str(TEST_DAG_FOLDER), read_dags_from_db=False)
         with create_session() as session:
             session.query(LJ).delete()
             dag = dagbag.get_dag('example_branch_operator')
@@ -372,7 +373,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         Check that the same set of failure callback with zombies are passed to the dag
         file processors until the next zombie detection logic is invoked.
         """
-        test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py')
+        test_dag_path = str(TEST_DAG_FOLDER / 'test_example_bash_operator.py')
         with conf_vars({('scheduler', 'parsing_processes'): '1', ('core', 'load_examples'): 'False'}):
             dagbag = DagBag(test_dag_path, read_dags_from_db=False)
             with create_session() as session:
@@ -401,7 +402,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
                     )
                 ]
 
-            test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py')
+            test_dag_path = str(TEST_DAG_FOLDER / 'test_example_bash_operator.py')
 
             child_pipe, parent_pipe = multiprocessing.Pipe()
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
@@ -499,7 +500,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         from airflow.jobs.scheduler_job import SchedulerJob
 
         dag_id = 'exit_test_dag'
-        dag_directory = os.path.normpath(os.path.join(TEST_DAG_FOLDER, os.pardir, "dags_with_system_exit"))
+        dag_directory = str(TEST_DAG_FOLDER.parent / 'dags_with_system_exit')
 
         # Delete the one valid DAG/SerializedDAG, and check that it gets re-created
         clear_db_dags()
@@ -561,7 +562,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         with settings_context(SETTINGS_FILE_VALID):
             # Launch a process through DagFileProcessorAgent, which will try
             # reload the logging module.
-            test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
+            test_dag_path = str(TEST_DAG_FOLDER / 'test_scheduler_dags.py')
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
             log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
 
@@ -589,7 +590,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         clear_db_serialized_dags()
         clear_db_dags()
 
-        test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
+        test_dag_path = str(TEST_DAG_FOLDER / 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
         processor_agent = DagFileProcessorAgent(
             test_dag_path, 1, type(self)._processor_factory, timedelta.max, [], False, async_mode
@@ -613,7 +614,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             assert dag_ids == [('test_start_date_scheduling',), ('test_task_start_date_scheduling',)]
 
     def test_launch_process(self):
-        test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
+        test_dag_path = str(TEST_DAG_FOLDER / 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
 
         log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
