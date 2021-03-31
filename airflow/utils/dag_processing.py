@@ -139,7 +139,6 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
 class DagParsingStat(NamedTuple):
     """Information on processing progress"""
 
-    file_paths: List[str]
     done: bool
     all_files_processed: bool
 
@@ -513,6 +512,15 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._async_mode = async_mode
         self._parsing_start_time: Optional[int] = None
 
+        # Set the signal conn in to non-blocking mode, so that attempting to
+        # send when the buffer is full errors, rather than hangs for-ever
+        # attempting to send (this is to avoid deadlocks!)
+        #
+        # Don't do this in sync_mode, as we _need_ the DagParsingStat sent to
+        # continue the scheduler
+        if self._async_mode:
+            os.set_blocking(self._signal_conn.fileno(), False)
+
         self._parallelism = conf.getint('scheduler', 'parsing_processes')
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn') and self._parallelism > 1:
             self.log.warning(
@@ -621,6 +629,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
             if self._signal_conn in ready:
                 agent_signal = self._signal_conn.recv()
+
                 self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
                 if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
                     self.terminate()
@@ -693,12 +702,21 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             all_files_processed = all(self.get_last_finish_time(x) is not None for x in self.file_paths)
             max_runs_reached = self.max_runs_reached()
 
-            dag_parsing_stat = DagParsingStat(
-                self._file_paths,
-                max_runs_reached,
-                all_files_processed,
-            )
-            self._signal_conn.send(dag_parsing_stat)
+            try:
+                self._signal_conn.send(
+                    DagParsingStat(
+                        max_runs_reached,
+                        all_files_processed,
+                    )
+                )
+            except BlockingIOError:
+                # Try again next time around the loop!
+
+                # It is better to fail, than it is deadlock. This should
+                # "almost never happen" since the DagParsingStat object is
+                # small, and in async mode this stat is not actually _required_
+                # for normal operation (It only drives "max runs")
+                self.log.debug("BlockingIOError recived trying to send DagParsingStat, ignoring")
 
             if max_runs_reached:
                 self.log.info(

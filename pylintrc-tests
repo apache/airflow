@@ -439,6 +439,7 @@ good-names=e,
            i,
            j,
            k,
+           n,
            v, # Commonly used when iterating dict.items()
            _,
            ti,  # Commonly used in Airflow as shorthand for taskinstance
@@ -450,7 +451,8 @@ good-names=e,
            cm,  # Commonly used as shorthand for context manager
            ds,  # Used in Airflow templates
            ts,  # Used in Airflow templates
-           id   # Commonly used as shorthand for identifier
+           id,  # Commonly used as shorthand for identifier
+           fd,  # aka "file-descriptor" -- common in socket code
 
 # Include a hint for the correct naming format with invalid-name.
 include-naming-hint=no
