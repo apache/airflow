@@ -38,6 +38,7 @@ from parameterized import parameterized
 
 from airflow import models, settings
 from airflow.configuration import conf
+from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
@@ -45,7 +46,6 @@ from airflow.models.dag import dag as dag_decorator
 from airflow.models.dagparam import DagParam
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
-from airflow.operators.python import task as task_decorator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
 from airflow.utils import timezone
