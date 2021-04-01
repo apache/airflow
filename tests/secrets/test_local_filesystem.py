@@ -222,9 +222,9 @@ class TestLoadConnection(unittest.TestCase):
                 {
                     "conn_a": "mysql://hosta",
                     "conn_b": ''.join(
-                        """scheme://Login:None@host:1234/lschema?
-                        extra__google_cloud_platform__keyfile_dict=%7B%27a%27%3A+%27b%27%7D
-                        &extra__google_cloud_platform__keyfile_path=asaa""".split()
+                        """scheme://Login:None@host:1234/lschema?__extra__=%7B
+                        %22extra__google_cloud_platform__keyfile_dict%22%3A+%7B%22a%22%3A+%22b%22%7D%2C
+                        +%22extra__google_cloud_platform__keyfile_path%22%3A+%22asaa%22%7D""".split()
                     ),
                 },
             ),
