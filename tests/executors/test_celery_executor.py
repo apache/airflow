@@ -17,7 +17,6 @@
 # under the License.
 import contextlib
 import json
-import operator
 import os
 import sys
 import unittest
@@ -482,31 +481,6 @@ class TestBulkStateFetcher(unittest.TestCase):
                 )
 
         assert result == {'123': ('SUCCESS', None), '456': ("PENDING", None)}
-        assert [
-            'DEBUG:airflow.executors.celery_executor.BulkStateFetcher:Fetched 2 state(s) for 2 task(s)'
-        ] == cm.output
-
-    @pytest.mark.integration("redis")
-    @pytest.mark.integration("rabbitmq")
-    @pytest.mark.backend("mysql", "postgres")
-    def test_should_support_base_backend_from_try_adopt_task_instances(self):
-
-        celery_tasks = {
-            123: (ClassWithCustomAttributes(task_id="123", state='SUCCESS'), None),
-            456: (ClassWithCustomAttributes(task_id="456", state="PENDING"), None),
-        }
-        with _prepare_app():
-            mock_backend = mock.MagicMock(autospec=BaseBackend)
-
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
-                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
-            ) as cm:
-                fetcher = BulkStateFetcher(1)
-                states_by_celery_task_id = fetcher.get_many(
-                    map(operator.itemgetter(0), celery_tasks.values())
-                )
-
-        assert states_by_celery_task_id == {'123': ('SUCCESS', None), '456': ("PENDING", None)}
         assert [
             'DEBUG:airflow.executors.celery_executor.BulkStateFetcher:Fetched 2 state(s) for 2 task(s)'
         ] == cm.output
