@@ -348,10 +348,16 @@ def dag_edges(dag):
     for root in dag.roots:
         get_downstream(root)
 
-    return [
-        {'source_id': source_id, 'target_id': target_id}
-        for source_id, target_id in sorted(edges.union(edges_to_add) - edges_to_skip)
-    ]
+    result = []
+    # Build result dicts with the two ends of the edge, plus any extra metadata
+    # if we have it.
+    for source_id, target_id in sorted(edges.union(edges_to_add) - edges_to_skip):
+        record = {"source_id": source_id, "target_id": target_id}
+        label = dag.get_edge_info(source_id, target_id).get("label")
+        if label:
+            record["label"] = label
+        result.append(record)
+    return result
 
 
 ######################################################################################

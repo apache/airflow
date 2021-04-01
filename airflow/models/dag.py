@@ -73,7 +73,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
 from airflow.utils.state import State
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
@@ -348,6 +348,11 @@ class DAG(LoggingMixin):
         self.partial = False
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
+
+        # Keeps track of any extra edge metadata (sparse; will not contain all
+        # edges, so do not iterate over it for that). Outer key is upstream
+        # task ID, inner key is downstream task ID.
+        self.edge_info: Dict[str, Dict[str, EdgeInfoType]] = {}
 
         # To keep it in parity with Serialized DAGs
         # and identify if DAG has on_*_callback without actually storing them in Serialized JSON
@@ -2049,6 +2054,24 @@ class DAG(LoggingMixin):
                 'has_on_failure_callback',
             }
         return cls.__serialized_fields
+
+    def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
+        """
+        Returns edge information for the given pair of tasks if present, and
+        None if there is no information.
+        """
+        # Note - older serialized DAGs may not have edge_info being a dict at all
+        if self.edge_info:
+            return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, {})
+        else:
+            return {}
+
+    def set_edge_info(self, upstream_task_id: str, downstream_task_id: str, info: EdgeInfoType):
+        """
+        Sets the given edge information on the DAG. Note that this will overwrite,
+        rather than merge with, existing info.
+        """
+        self.edge_info.setdefault(upstream_task_id, {})[downstream_task_id] = info
 
 
 class DagTag(Base):
