@@ -278,23 +278,19 @@ def dag_list_dags(args):
     dagbag = DagBag(process_subdir(args.subdir))
     data = []
     for dag in dagbag.dags.values():
-        data.append({
-            "dag_id": dag.dag_id,
-            "filepath": dag.filepath,
-            "owner": dag.owner,
-            "paused": dag.get_is_paused(),
-            "error": ""
-        })
+        data.append(
+            {
+                "dag_id": dag.dag_id,
+                "filepath": dag.filepath,
+                "owner": dag.owner,
+                "paused": dag.get_is_paused(),
+                "error": "",
+            }
+        )
 
     # Add errors
     for filepath, err in dagbag.import_errors.items():
-        data.append({
-            "dag_id": "",
-            "filepath": filepath,
-            "owner": "",
-            "paused": "",
-            "error": f"{err}"
-        })
+        data.append({"dag_id": "", "filepath": filepath, "owner": "", "paused": "", "error": f"{err}"})
 
     AirflowConsole().print_as(
         data=sorted(data, key=lambda d: d["dag_id"]),
