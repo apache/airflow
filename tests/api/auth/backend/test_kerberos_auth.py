@@ -19,7 +19,6 @@
 import json
 import os
 import socket
-import unittest
 from datetime import datetime
 from unittest import mock
 
@@ -27,34 +26,39 @@ import pytest
 
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
 from airflow.models import DagBag
-from airflow.www import app as application
+from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags
 
 KRB5_KTNAME = os.environ.get("KRB5_KTNAME")
 
 
-@pytest.mark.integration("kerberos")
-class TestApiKerberos(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        dagbag = DagBag(include_examples=True)
-        for dag in dagbag.dags.values():
-            dag.sync_to_db()
-
-    @conf_vars(
+@pytest.fixture(scope="module")
+def app_for_kerberos():
+    with conf_vars(
         {
             ("api", "auth_backend"): "airflow.api.auth.backend.kerberos_auth",
             ("kerberos", "keytab"): KRB5_KTNAME,
             ('api', 'enable_experimental_api'): 'true',
         }
-    )
-    def setUp(self):
-        self.app = application.create_app(testing=True)
+    ):
+        yield app.create_app(testing=True)
 
-    @classmethod
-    def tearDownClass(cls) -> None:
-        clear_db_dags()
+
+@pytest.fixture(scope="module", autouse=True)
+def dagbag_to_db():
+    dagbag = DagBag(include_examples=True)
+    for dag in dagbag.dags.values():
+        dag.sync_to_db()
+    yield
+    clear_db_dags()
+
+
+@pytest.mark.integration("kerberos")
+class TestApiKerberos:
+    @pytest.fixture(autouse=True)
+    def _set_attrs(self, app_for_kerberos):
+        self.app = app_for_kerberos
 
     def test_trigger_dag(self):
         with self.app.test_client() as client:
