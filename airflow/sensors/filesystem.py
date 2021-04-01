@@ -17,6 +17,7 @@
 # under the License.
 #
 
+import datetime
 import os
 from glob import glob
 
@@ -57,6 +58,9 @@ class FileSensor(BaseSensorOperator):
 
         for path in glob(full_path):
             if os.path.isfile(path):
+                mod_time = os.path.getmtime(path)
+                mod_time = datetime.fromtimestamp(mod_time).strftime('%Y%m%d%H%M%S')
+                self.log.info(f'Ftp found File {full_path} last modified: {mod_time}')
                 return True
 
             for _, _, files in os.walk(full_path):

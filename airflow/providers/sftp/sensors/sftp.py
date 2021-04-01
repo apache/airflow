@@ -48,7 +48,8 @@ class SFTPSensor(BaseSensorOperator):
         self.hook = SFTPHook(self.sftp_conn_id)
         self.log.info('Poking for %s', self.path)
         try:
-            self.hook.get_mod_time(self.path)
+            mod_time = self.hook.get_mod_time(self.path)
+            self.log.info(f'Ftp found File {self.path} last modified: {mod_time}')
         except OSError as e:
             if e.errno != SFTP_NO_SUCH_FILE:
                 raise e
