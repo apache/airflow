@@ -365,6 +365,7 @@ def get_attr_renderer():
         'jinja': lambda x: render(x, lexers.DjangoLexer),
         'json': lambda x: json_render(x, lexers.JsonLexer),
         'md': wrapped_markdown,
+        'powershell': lambda x: render(x, lexers.PowerShellLexer),
         'py': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'rst': lambda x: render(x, lexers.RstLexer),
