@@ -307,13 +307,42 @@ As with the callable for ``BranchPythonOperator``, this method should return the
 Latest Only
 ~~~~~~~~~~~
 
-Airflow's DAG Runs are often run for a date that is not the same as the current date - for example, running one copy of a DAG for every day in the last month to backfill some data.
+In some cases it is not desirable for your task to run during a backfill or
+in catchup dag runs.  In other words, for some tasks, we only want them to
+run if the task's dag run is the "latest" run.
 
-There are situations, though, where you *don't* want to let some (or all) parts of a DAG run for a previous date; in this case, you can use the ``LatestOnlyOperator``.
+.. note::
 
-This special Operator skips all tasks downstream of itself if you are not on the "latest" DAG run (if the wall-clock time right now is between its execution_time and the next scheduled execution_time, and it was not an externally-triggered run).
+    To be more precise, a dag run is the "latest run" if the current moment in time
+    is between its ``execution_date`` and its next ``execution_date``, according to
+    its schedule interval.
 
-Here's an example:
+Airflow provides two ways to skip tasks in this scenario.
+
+Latest only parameter
+---------------------
+
+For this scenario you can set ``latest_only=True`` in your operator. Just prior
+to executing its workflow, it will check whether its dag run is the latest dag
+run, and if not it will skip itself.
+
+.. exampleinclude:: /../../airflow/example_dags/example_latest_only.py
+    :language: python
+    :start-after: [START latest_only_param]
+    :end-before: [END latest_only_param]
+
+Tasks downstream of the skipped task may or may not run depending on the
+:doc:`trigger rule <concepts/trigger_rule>` they are configured to use.
+
+
+Latest only operator
+--------------------
+
+Airflow also provides a ``LatestOnlyOperator`` which serves a similar function.
+If the dag run is not the latest dag run, ``LatestOnlyOperator`` will not skip
+itself but will set its downstream relatives to skip.
+
+For example, consider the following DAG:
 
 .. exampleinclude:: /../../airflow/example_dags/example_latest_only_with_trigger.py
     :language: python

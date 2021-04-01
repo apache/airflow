@@ -30,8 +30,19 @@ with DAG(
     start_date=dt.datetime(2021, 1, 1),
     catchup=False,
     tags=['example2', 'example3'],
-) as dag:
+) as dag1:
     latest_only = LatestOnlyOperator(task_id='latest_only')
     task1 = DummyOperator(task_id='task1')
 
     latest_only >> task1
+
+
+# [START latest_only_param]
+with DAG(
+    dag_id='latest_only_param',
+    schedule_interval='0 0 * * *',
+    start_date=dt.datetime(2021, 1, 1),
+) as dag2:
+    will_skip = DummyOperator(task_id='will_skip', latest_only=True)
+    wont_skip = DummyOperator(task_id='wont_skip', latest_only=False)
+# [END latest_only_param]
