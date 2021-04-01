@@ -69,6 +69,7 @@ class SnowflakeToSlackOperator(BaseOperator):
 
     template_fields = ['sql', 'slack_message']
     template_ext = ['.sql', '.jinja', '.j2']
+    template_fields_renderers = {"slack_message": "jinja"}
     times_rendered = 0
 
     @apply_defaults

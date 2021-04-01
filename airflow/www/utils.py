@@ -362,6 +362,7 @@ def get_attr_renderer():
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
+        'jinja': lambda x: render(x, lexers.DjangoLexer),
         'json': lambda x: json_render(x, lexers.JsonLexer),
         'md': wrapped_markdown,
         'py': lambda x: render(get_python_source(x), lexers.PythonLexer),
