@@ -274,7 +274,7 @@ Additionally, if you have created a connection, you can use ``airflow connection
 
 .. _manage-connections-connection-types:
 
-Encoding arbitrary json
+Encoding arbitrary JSON
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 Some json structures cannot be urlencoded without loss.  For such json, ``get_uri``
