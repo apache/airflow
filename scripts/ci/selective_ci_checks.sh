@@ -232,13 +232,12 @@ function set_outputs_run_everything_and_exit() {
     exit
 }
 
-function set_outputs_run_all_tests() {
+function set_outputs_run_all_python_tests() {
     run_tests "true"
     run_kubernetes_tests "true"
     set_test_types "${ALL_TESTS}"
     set_basic_checks_only "false"
     set_image_build "true"
-    needs_ui_tests "true"
     kubernetes_tests_needed="true"
 }
 
@@ -613,9 +612,9 @@ function calculate_test_types_to_run() {
         # Running all tests because some core or other files changed
         echo
         echo "Looks like ${COUNT_CORE_OTHER_CHANGED_FILES} files changed in the core/other area and"
-        echo "We have to run all tests. This will take longer than usual"
+        echo "We have to run all python tests. This will take longer than usual"
         echo
-        set_outputs_run_all_tests
+        set_outputs_run_all_python_tests
     else
         if [[ ${COUNT_KUBERNETES_CHANGED_FILES} != "0" ]]; then
             kubernetes_tests_needed="true"
