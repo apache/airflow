@@ -248,6 +248,9 @@ class SnowflakeHook(DbApiHook):
         return getattr(conn, 'autocommit_mode', False)
 
     def run(self, sql, autocommit=True, parameters=None):
+        """The snowflake python connector library doesn't allow to execute multiple statements from a single string or
+        file and doesn't return any information about the execution. This method will override DBApiHook run method to
+        enable this features using snowflake connector methods"""
         if isinstance(sql, str):
             sql = [item[0] for item in split_statements(io.StringIO(sql))]
 
