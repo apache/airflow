@@ -112,6 +112,14 @@ class TestCliUtil(unittest.TestCase):
                 "airflow connections add dsfs --conn-login asd --conn-password test --conn-type google",
                 "airflow connections add dsfs --conn-login asd --conn-password ******** --conn-type google",
             ),
+            (
+                "airflow scheduler -p",
+                "airflow scheduler -p",
+            ),
+            (
+                "airflow celery flower -p 8888",
+                "airflow celery flower -p 8888",
+            ),
         ]
     )
     def test_cli_create_user_supplied_password_is_masked(self, given_command, expected_masked_command):
