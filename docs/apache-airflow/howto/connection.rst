@@ -308,7 +308,7 @@ And we can verify that it returns the same dictionary:
     True
 
 
-But for the most common case of storing only key-value pairs, plain urlencoding is used.
+But for the most common case of storing only key-value pairs, plain url encoding is used.
 
 You can verify a URI is parsed correctly like so:
 
