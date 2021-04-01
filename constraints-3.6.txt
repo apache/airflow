@@ -229,7 +229,7 @@ google-cloud-build==2.0.0
 google-cloud-container==1.0.1
 google-cloud-core==1.6.0
 google-cloud-datacatalog==3.1.1
-google-cloud-dataproc==2.3.0
+google-cloud-dataproc==2.3.1
 google-cloud-datastore==1.15.3
 google-cloud-dlp==1.0.0
 google-cloud-kms==2.2.0
@@ -434,7 +434,7 @@ slack-sdk==3.4.2
 smmap==4.0.0
 snakebite-py3==3.0.5
 snowballstemmer==2.1.0
-snowflake-connector-python==2.4.1
+snowflake-connector-python==2.4.2
 snowflake-sqlalchemy==1.2.4
 sortedcontainers==2.3.0
 soupsieve==2.2.1
