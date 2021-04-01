@@ -138,3 +138,11 @@ class TestSnowflakeHook(unittest.TestCase):
         self.conn.password = None
         params = self.db_hook._get_conn_params()
         assert 'private_key' in params
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
+    def test_query_executions(self, mock_run):
+        single_query = "SELECT * FROM TABLE"
+        multiple_query = "SELECT * FROM TABLE; DROP TABLE"
+
+        mock_run.assert_called_once()
+        assert mock_run.call_args[0][0] == single_query
