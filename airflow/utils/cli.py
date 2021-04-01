@@ -110,17 +110,19 @@ def _build_metrics(func_name, namespace):
     """
     from airflow.models import Log
 
+    sub_commands_to_check = {'users', 'connections'}
     sensitive_fields = {'-p', '--password', '--conn-password'}
     full_command = list(sys.argv)
-    for idx, command in enumerate(full_command):  # pylint: disable=too-many-nested-blocks
-        if command in sensitive_fields:
-            # For cases when password is passed as "--password xyz" (with space between key and value)
-            full_command[idx + 1] = "*" * 8
-        else:
-            # For cases when password is passed as "--password=xyz" (with '=' between key and value)
-            for sensitive_field in sensitive_fields:
-                if command.startswith(f'{sensitive_field}='):
-                    full_command[idx] = f'{sensitive_field}={"*" * 8}'
+    if full_command[1] in sub_commands_to_check:  # pylint: disable=too-many-nested-blocks
+        for idx, command in enumerate(full_command):
+            if command in sensitive_fields:
+                # For cases when password is passed as "--password xyz" (with space between key and value)
+                full_command[idx + 1] = "*" * 8
+            else:
+                # For cases when password is passed as "--password=xyz" (with '=' between key and value)
+                for sensitive_field in sensitive_fields:
+                    if command.startswith(f'{sensitive_field}='):
+                        full_command[idx] = f'{sensitive_field}={"*" * 8}'
 
     metrics = {
         'sub_command': func_name,
