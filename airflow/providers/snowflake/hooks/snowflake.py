@@ -15,16 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import io
+from contextlib import closing
 from typing import Any, Dict, Optional, Tuple
 
+from airflow.hooks.dbapi import DbApiHook
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-
 # pylint: disable=no-name-in-module
 from snowflake import connector
+from snowflake.connector import DictCursor
 from snowflake.connector import SnowflakeConnection
-
-from airflow.hooks.dbapi import DbApiHook
+from snowflake.connector.util_text import split_statements
 
 
 class SnowflakeHook(DbApiHook):
@@ -242,3 +244,28 @@ class SnowflakeHook(DbApiHook):
 
     def get_autocommit(self, conn):
         return getattr(conn, 'autocommit_mode', False)
+
+    def run(self, sql, autocommit=True, parameters=None):
+        if isinstance(sql, str):
+            sql = [item[0] for item in split_statements(io.StringIO(sql))]
+
+        with closing(self.get_conn()) as conn:
+            self.set_autocommit(conn, autocommit)
+
+            with closing(conn.cursor(DictCursor)) as cur:
+                for query in sql:
+                    if parameters is not None:
+                        self.log.info(f"{query} with parameters {parameters}")
+                        cur.execute(query, parameters)
+                        for row in cur.fetchall():
+                            self.log.info(f'Statement Execution Info - {row}')
+                    else:
+                        self.log.info(query)
+                        cur.execute(query)
+                        for row in cur.fetchall():
+                            self.log.info(f'Statement Execution Info - {row}')
+
+            # If autocommit was set to False for db that supports autocommit,
+            # or if db does not supports autocommit, we do a manual commit.
+            if not self.get_autocommit(conn):
+                conn.commit()
