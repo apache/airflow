@@ -281,6 +281,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
+    template_fields_renderers = {"sql1": "sql", "sql2": "sql"}
     ui_color = "#fff7e6"
 
     ratio_formulas = {

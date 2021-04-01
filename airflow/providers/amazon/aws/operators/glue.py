@@ -57,6 +57,7 @@ class AwsGlueJobOperator(BaseOperator):
 
     template_fields = ('script_args',)
     template_ext = ()
+    template_fields_renderers = {"script_args": "py"}
     ui_color = '#ededed'
 
     @apply_defaults

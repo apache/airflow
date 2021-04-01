@@ -70,6 +70,7 @@ class SingularityOperator(BaseOperator):
         '.sh',
         '.bash',
     )
+    template_fields_renderers = {"command": "bash", "environment": "json"}
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments

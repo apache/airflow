@@ -43,6 +43,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
 
     template_fields = ['job_flow_overrides']
     template_ext = ('.json',)
+    template_fields_renderers = {"job_flow_overrides": "json"}
     ui_color = '#f9c915'
 
     @apply_defaults

@@ -143,6 +143,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
     ui_color = '#f0ede4'
     template_fields = ('overrides',)
+    template_fields_renderers = {"overrides": "py"}
 
     @apply_defaults
     def __init__(

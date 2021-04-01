@@ -71,6 +71,7 @@ class TriggerDagRunOperator(BaseOperator):
     """
 
     template_fields = ("trigger_dag_id", "execution_date", "conf")
+    template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
 
     @property
