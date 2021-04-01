@@ -277,7 +277,7 @@ Additionally, if you have created a connection, you can use ``airflow connection
 Encoding arbitrary JSON
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Some json structures cannot be urlencoded without loss.  For such json, ``get_uri``
+Some JSON structures cannot be urlencoded without loss.  For such JSON, ``get_uri``
 will store the entire string under the url query param ``__extra__``.
 
 For example:
