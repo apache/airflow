@@ -135,12 +135,14 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         # These lines will check if we have with some denomination stored an username, password and host
         if secret:
-            possible_words_for_conn_fields = {'user': ['user', 'username', 'login', 'user_name'],
-                                              'password': ['password', 'pass', 'key'],
-                                              'host': ['host', 'remote_host', 'server'],
-                                              'port': ['port'],
-                                              'schema': ['database', 'schema'],
-                                              'conn_type': ['conn_type', 'conn_id', 'connection_type', 'engine']}
+            possible_words_for_conn_fields = {
+                'user': ['user', 'username', 'login', 'user_name'],
+                'password': ['password', 'pass', 'key'],
+                'host': ['host', 'remote_host', 'server'],
+                'port': ['port'],
+                'schema': ['database', 'schema'],
+                'conn_type': ['conn_type', 'conn_id', 'connection_type', 'engine']
+            }
 
             conn_d = {}
             for conn_field, possible_words in possible_words_for_conn_fields.items():
