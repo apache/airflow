@@ -43,7 +43,7 @@ Create namespace and Install the chart
 .. code-block:: bash
 
    kubectl create namespace airflow
-   helm install airflow --n airflow .
+   helm install airflow -n airflow .
 
 It may take a few minutes. Confirm the pods are up:
 
