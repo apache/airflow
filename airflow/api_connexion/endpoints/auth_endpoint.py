@@ -33,8 +33,7 @@ log = logging.getLogger(__name__)
 def get_auth_info():
     """Get site authentication info"""
     security_manager = current_app.appbuilder.sm
-    oauth_providers = None
-    openid_providers = None
+    config = current_app.config
     auth_type = security_manager.auth_type
     type_mapping = {
         AUTH_DB: "auth_db",
@@ -43,11 +42,8 @@ def get_auth_info():
         AUTH_OAUTH: "auth_oauth",
         AUTH_REMOTE_USER: "auth_remote_user",
     }
-
-    if auth_type == AUTH_OAUTH:
-        oauth_providers = security_manager.oauth_providers
-    if auth_type == AUTH_OID:
-        openid_providers = security_manager.openid_providers
+    oauth_providers = config.get("OAUTH_PROVIDERS", None)
+    openid_providers = config.get("OPENID_PROVIDERS", None)
     return info_schema.dump(
         {
             "auth_type": type_mapping[auth_type],

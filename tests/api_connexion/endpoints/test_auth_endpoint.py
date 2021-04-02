@@ -17,10 +17,32 @@
 from unittest import mock
 
 import pytest
-from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
 
 from tests.test_utils.api_connexion_utils import delete_user
 from tests.test_utils.fab_utils import create_user
+
+OAUTH_PROVIDERS = [
+    {
+        'name': 'google',
+        'token_key': 'access_token',
+        'icon': 'fa-google',
+        'remote_app': {
+            'api_base_url': 'https://www.googleapis.com/oauth2/v2/',
+            'client_kwargs': {'scope': 'email profile'},
+            'access_token_url': 'https://accounts.google.com/o/oauth2/token',
+            'authorize_url': 'https://accounts.google.com/o/oauth2/auth',
+            'request_token_url': None,
+            'client_id': "GOOGLE_KEY",
+            'client_secret': "GOOGLE_SECRET_KEY",
+        },
+    }
+]
+
+OPENID_PROVIDERS = [
+    {'name': 'Yahoo', 'url': 'https://me.yahoo.com'},
+    {'name': 'AOL', 'url': 'http://openid.aol.com/<username>'},
+]
 
 
 @pytest.fixture(scope="module")
@@ -41,10 +63,50 @@ class TestLoginEndpoint:
 
     def auth_type(self, auth):
         self.app.config['AUTH_TYPE'] = auth
+        if auth == AUTH_OAUTH:
+            self.app.config['OAUTH_PROVIDERS'] = OAUTH_PROVIDERS
+            self.app.config['OPENID_PROVIDERS'] = None
+        elif auth == AUTH_OID:
+            self.app.config['OPENID_PROVIDERS'] = OPENID_PROVIDERS
+            self.app.config['OAUTH_PROVIDERS'] = None
+        else:
+            self.app.config['OPENID_PROVIDERS'] = None
+            self.app.config['OAUTH_PROVIDERS'] = None
 
 
-def auth_type(self, auth):
-    self.app.config['AUTH_TYPE'] = auth
+class TestAuthInfo(TestLoginEndpoint):
+    def test_auth_db_info(self):
+        self.auth_type(AUTH_DB)
+        response = self.client.get("api/v1/auth-info")
+        assert response.json == {"auth_type": "auth_db", "oauth_providers": None, "openid_providers": None}
+
+    def test_auth_ldap_info(self):
+        self.auth_type(AUTH_LDAP)
+        response = self.client.get("api/v1/auth-info")
+        assert response.json == {"auth_type": "auth_ldap", "oauth_providers": None, "openid_providers": None}
+
+    def test_auth_oath_info(self):
+        self.auth_type(AUTH_OAUTH)
+        response = self.client.get("api/v1/auth-info")
+        assert response.json == {
+            'auth_type': 'auth_oauth',
+            'oauth_providers': [  # Only data necessary to build forms are returned
+                {'icon': 'fa-google', 'name': 'google'}
+            ],
+            'openid_providers': None,
+        }
+
+    def test_auth_oid_info(self):
+        self.auth_type(AUTH_OID)
+        response = self.client.get("api/v1/auth-info")
+        assert response.json == {
+            'auth_type': 'auth_oid',
+            'oauth_providers': None,
+            'openid_providers': [
+                {'name': 'Yahoo', 'url': 'https://me.yahoo.com'},
+                {'name': 'AOL', 'url': 'http://openid.aol.com/<username>'},
+            ],
+        }
 
 
 class TestDBLoginEndpoint(TestLoginEndpoint):
