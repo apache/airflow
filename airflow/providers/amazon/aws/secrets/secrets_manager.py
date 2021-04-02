@@ -154,10 +154,5 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             )
             return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
-            self.log.debug(
-                "An error occurred (ResourceNotFoundException) when calling the "
-                "get_secret_value operation: "
-                "Secret %s not found.",
-                secrets_path,
-            )
+            self.log.debug("Secret %s not found.", secrets_path)
             return None
