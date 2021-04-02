@@ -156,6 +156,8 @@ CONNECTIONS_LIST = [
 ]
 
 CONNECTION_FORM_WIDGETS = [
+    'extra__azure__subscriptionId',
+    'extra__azure__tenantId',
     'extra__google_cloud_platform__key_path',
     'extra__google_cloud_platform__keyfile_dict',
     'extra__google_cloud_platform__num_retries',
@@ -184,6 +186,7 @@ CONNECTION_FORM_WIDGETS = [
 ]
 
 CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
+    'azure',
     'cloudant',
     'docker',
     'gcpssh',
