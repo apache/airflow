@@ -970,14 +970,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         title = "Rendered Template"
         renderers = wwwutils.get_attr_renderer()
-        can_view_template_fields = current_app.appbuilder.sm.has_access(
+        always_render = current_app.appbuilder.sm.has_access(
             permission=permissions.ACTION_CAN_READ,
             resource=permissions.RESOURCE_TEMPLATE_FIELD,
         )
 
         def _render_field(field: str) -> str:
-            if not can_view_template_fields:
-                return Markup("<em>(value hidden)</em>")
+            if not always_render and wwwutils.should_hide_value_for_key(field):
+                return "*" * 8
             content = getattr(task, field)
             renderer = task.template_fields_renderers.get(field, field)
             if renderer in renderers:
