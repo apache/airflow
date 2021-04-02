@@ -177,6 +177,16 @@ labelPRBasedOnFilePath:
     - tests/models/test_serialized_dag.py
     - docs/apache-airflow/dag-serialization.rst
 
+  area:core-operators:
+    - airflow/operators/**/*
+    - airflow/hooks/**/*
+    - airflow/sensors/**/*
+    - tests/operators/**/*
+    - tests/hooks/**/*
+    - tests/sensors/**/*
+    - docs/apache-airflow/operators-and-hooks-ref.rst
+    - docs/apache-airflow/howto/operator/*
+
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:
   # If this flag is changed to 'false', labels would only be added when the PR is first created
