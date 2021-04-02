@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 
 from airflow.configuration import conf
 from airflow.upgrade.rules.base_rule import BaseRule
@@ -34,6 +34,17 @@ SQLite - 3.15+
 
     @provide_session
     def check(self, session=None):
+        return self._check(session=session)
+
+    def should_skip(self):
+        try:
+            self._check()
+        except InvalidVersion:
+            return "Unable to parse DB version, skipped!"
+
+    @staticmethod
+    @provide_session
+    def _check(session=None):
 
         more_info = "See link below for more details: https://github.com/apache/airflow#requirements"
 
