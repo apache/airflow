@@ -64,7 +64,7 @@ open a issue on Github so the community can help you.
       │   ├── __init__.py
       │   ├── example_dags/
       │   │   ├── __init__.py
-      │   │   └── example_<<NEW_PROVIDER>>.py
+      │   │   └── example_<NEW_PROVIDER>.py
       │   ├── hooks/
       │   │   ├── __init__.py
       │   │   └── <NEW_PROVIDER>.py
