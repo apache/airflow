@@ -2485,17 +2485,17 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v1.18.6 v1.17.5 v1.16.9
+                 v1.20.2 v1.19.7 v1.18.15
 
-          Default: v1.18.6
+          Default: v1.20.2
 
   --kind-version KIND_VERSION
           Kind version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v0.8.0
+                 v0.10.0
 
-          Default: v0.8.0
+          Default: v0.10.0
 
   --helm-version HELM_VERSION
           Helm version - only used in case one of kind-cluster commands is used.

@@ -16,9 +16,10 @@
 # under the License.
 ---
 kind: Cluster
-apiVersion: kind.sigs.k8s.io/v1alpha3
+apiVersion: kind.x-k8s.io/v1alpha4
 networking:
-  apiServerAddress: 0.0.0.0
+  ipFamily: ipv4
+  apiServerAddress: "127.0.0.1"
   apiServerPort: 19090
 nodes:
   - role: control-plane
@@ -26,13 +27,5 @@ nodes:
     extraPortMappings:
       - containerPort: 30007
         hostPort: 8080
-        listenAddress: "0.0.0.0"
+        listenAddress: "127.0.0.1"
         protocol: TCP
-kubeadmConfigPatchesJson6902:
-  - group: kubeadm.k8s.io
-    version: v1beta2
-    kind: ClusterConfiguration
-    patch: |
-      - op: add
-        path: /apiServer/certSANs/-
-        value: docker
