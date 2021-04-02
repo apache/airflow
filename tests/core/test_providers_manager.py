@@ -187,6 +187,7 @@ CONNECTION_FORM_WIDGETS = [
 
 CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
     'azure',
+    'azure_container_instances',
     'cloudant',
     'docker',
     'gcpssh',
