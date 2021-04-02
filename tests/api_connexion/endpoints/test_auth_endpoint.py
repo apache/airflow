@@ -131,21 +131,21 @@ class TestDBLoginEndpoint(TestLoginEndpoint):
         self.auth_type(AUTH_DB)
         payload = {"username": "tests", "password": "test"}
         response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.status_code == 404
+        assert response.status_code == 401
         assert response.json['detail'] == 'Invalid login'
 
     def test_post_body_conforms(self):
         self.auth_type(AUTH_DB)
         payload = {"username": "tests"}
         response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.status_code == 400
+        assert response.status_code == 401
         assert response.json['detail'] == "{'password': ['Missing data for required field.']}"
 
     def test_auth_type_must_be_db(self):
         self.auth_type(AUTH_OAUTH)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.status_code == 400
+        assert response.status_code == 401
         assert response.json['detail'] == 'Authentication type do not match'
 
 
@@ -179,21 +179,21 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
         self.app.appbuilder.sm.auth_user_ldap.return_value = None
         payload = {"username": "tests", "password": "test"}
         response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.status_code == 404
+        assert response.status_code == 401
         assert response.json['detail'] == 'Invalid login'
 
     def test_post_body_conforms(self):
         self.auth_type(AUTH_LDAP)
         payload = {"username": "tests"}
         response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.status_code == 400
+        assert response.status_code == 401
         assert response.json['detail'] == "{'password': ['Missing data for required field.']}"
 
     def test_auth_type_must_be_ldap(self):
         self.auth_type(AUTH_OAUTH)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.status_code == 400
+        assert response.status_code == 401
         assert response.json['detail'] == 'Authentication type do not match'
 
 
@@ -230,7 +230,7 @@ class TestOauthAuthorizationURLEndpoint(TestLoginEndpoint):
         self.auth_type(AUTH_DB)
         redirect_url = "http://localhost:8080"
         resp = self.client.get(f'api/v1/auth-oauth/google?register=True&redirect_url={redirect_url}')
-        assert resp.status_code == 400
+        assert resp.status_code == 401
         assert resp.json['detail'] == "Authentication type do not match"
 
 
@@ -243,7 +243,7 @@ class TestAuthorizeOauth(TestLoginEndpoint):
         }
         mock_twitter_auth_provider.authorize_access_token.return_value = None
         response = self.client.get('api/v1/oauth-authorized/twitter?state=state')
-        assert response.status_code == 400
+        assert response.status_code == 401
         assert response.json['detail'] == "You denied the request to sign in"
 
     def test_wrong_state_signature_raises(self):
@@ -254,7 +254,7 @@ class TestAuthorizeOauth(TestLoginEndpoint):
         }
         mock_twitter_auth_provider.authorize_access_token.return_value = mock.MagicMock()
         response = self.client.get('api/v1/oauth-authorized/twitter?state=state')
-        assert response.status_code == 400
+        assert response.status_code == 401
         assert response.json['detail'] == "State signature is not valid!"
 
     @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt.decode")
@@ -299,13 +299,13 @@ class TestRemoteUserLoginEndpoint(TestLoginEndpoint):
     def test_incorrect_username_raises(self):
         self.auth_type(AUTH_REMOTE_USER)
         response = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "tes"})
-        assert response.status_code == 404
+        assert response.status_code == 401
         assert response.json['detail'] == 'Invalid login'
 
     def test_incorrect_auth_type_raises(self):
         self.auth_type(AUTH_DB)
         resp = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
-        assert resp.status_code == 400
+        assert resp.status_code == 401
         assert resp.json['detail'] == "Authentication type do not match"
 
 

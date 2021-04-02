@@ -24,7 +24,7 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_refres
 from flask_login import login_user
 from marshmallow import ValidationError
 
-from airflow.api_connexion.exceptions import BadRequest, NotFound, Unauthenticated
+from airflow.api_connexion.exceptions import Unauthenticated
 from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_schema
 
 log = logging.getLogger(__name__)
@@ -60,18 +60,18 @@ def auth_login():
     if g.user is not None and g.user.is_authenticated:
         raise Unauthenticated(detail="Client already authenticated")  # For security
     if auth_type not in (AUTH_DB, AUTH_LDAP):
-        raise BadRequest(detail="Authentication type do not match")
+        raise Unauthenticated(detail="Authentication type do not match")
     body = request.json
     try:
         data = login_form_schema.load(body)
     except ValidationError as err:
-        raise BadRequest(detail=str(err.messages))
+        raise Unauthenticated(detail=str(err.messages))
     if auth_type == AUTH_DB:
         user = security_manager.auth_user_db(data['username'], data['password'])
     else:
         user = security_manager.auth_user_ldap(data['username'], data['password'])
     if not user:
-        raise NotFound(detail="Invalid login")
+        raise Unauthenticated(detail="Invalid login")
     login_user(user, remember=False)
     return security_manager.create_tokens_and_dump(user)
 
@@ -82,7 +82,7 @@ def auth_oauthlogin(provider, register=None, redirect_url=None):
     if g.user is not None and g.user.is_authenticated:
         raise Unauthenticated(detail="Client already authenticated")
     if appbuilder.sm.auth_type != AUTH_OAUTH:
-        raise BadRequest(detail="Authentication type do not match")
+        raise Unauthenticated(detail="Authentication type do not match")
     state = jwt.encode(
         request.args.to_dict(flat=False),
         appbuilder.app.config["SECRET_KEY"],
@@ -106,7 +106,7 @@ def auth_oauthlogin(provider, register=None, redirect_url=None):
             auth_provider.save_authorize_data(request, redirect_uri=redirect_url, **auth_data)
             return dict(auth_url=auth_data['url'])
     except Exception as err:  # pylint: disable=broad-except
-        raise NotFound(detail=str(err))
+        raise Unauthenticated(detail=str(err))
 
 
 def authorize_oauth(provider, state):
@@ -114,7 +114,7 @@ def authorize_oauth(provider, state):
     appbuilder = current_app.appbuilder
     resp = appbuilder.sm.oauth_remotes[provider].authorize_access_token()
     if resp is None:
-        raise BadRequest(detail="You denied the request to sign in")
+        raise Unauthenticated(detail="You denied the request to sign in")
     log.debug("OAUTH Authorized resp: %s", resp)
     # Verify state
     try:
@@ -124,7 +124,7 @@ def authorize_oauth(provider, state):
             algorithms=["HS256"],
         )
     except jwt.InvalidTokenError:
-        raise BadRequest(detail="State signature is not valid!")
+        raise Unauthenticated(detail="State signature is not valid!")
     # Retrieves specific user info from the provider
     try:
         appbuilder.sm.set_oauth_session(provider, resp)
@@ -137,7 +137,7 @@ def authorize_oauth(provider, state):
         user = appbuilder.sm.auth_user_oauth(userinfo)
 
     if user is None:
-        raise NotFound(detail="Invalid login")
+        raise Unauthenticated(detail="Invalid login")
     login_user(user)
     return appbuilder.sm.create_tokens_and_dump(user)
 
@@ -149,15 +149,15 @@ def auth_remoteuser():
     if g.user is not None and g.user.is_authenticated:
         raise Unauthenticated(detail="Client already authenticated")
     if appbuilder.sm.auth_type != AUTH_REMOTE_USER:
-        raise BadRequest(detail="Authentication type do not match")
+        raise Unauthenticated(detail="Authentication type do not match")
     if username:
         user = appbuilder.sm.auth_user_remote_user(username)
         if user is None:
-            raise NotFound(detail="Invalid login")
+            raise Unauthenticated(detail="Invalid login")
         else:
             login_user(user)
     else:
-        raise NotFound(detail="Invalid login")
+        raise Unauthenticated(detail="Invalid login")
     return appbuilder.sm.create_tokens_and_dump(user)
 
 
