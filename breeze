@@ -609,7 +609,7 @@ if [[ \${VERBOSE} == "true" ]]; then
   echo
   echo "Executing script:"
   echo
-  echo "${file} \${@}"
+  echo "${COLOR_CYAN}${file} \${@}${COLOR_RESET}"
   echo
   set -x
 fi

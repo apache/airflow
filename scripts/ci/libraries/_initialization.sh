@@ -566,11 +566,13 @@ function initialization::set_output_color_variables() {
     COLOR_RED=$'\e[31m'
     COLOR_RESET=$'\e[0m'
     COLOR_YELLOW=$'\e[33m'
+    COLOR_CYAN=$'\e[36m'
     export COLOR_BLUE
     export COLOR_GREEN
     export COLOR_RED
     export COLOR_RESET
     export COLOR_YELLOW
+    export COLOR_CYAN
 }
 
 # Common environment that is initialized by both Breeze and CI scripts

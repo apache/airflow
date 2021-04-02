@@ -89,7 +89,7 @@ function build_images::add_build_args_for_remote_install() {
 # Retrieves version of airflow stored in the production image (used to display the actual
 # Version we use if it was build from PyPI or GitHub
 function build_images::get_airflow_version_from_production_image() {
-    VERBOSE="false" docker run --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'echo "${AIRFLOW_VERSION}"'
+    docker run --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'echo "${AIRFLOW_VERSION}"'
 }
 
 # Removes the "Forced answer" (yes/no/quit) given previously, unless you specifically want to remember it.
@@ -252,7 +252,7 @@ function build_images::confirm_non-empty-docker-context-files() {
 # We cannot use docker registry APIs as they are available only with authorisation
 # But this image can be pulled without authentication
 function build_images::build_ci_image_manifest() {
-    docker build \
+    docker_v build \
         --tag="${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" \
         -f- . <<EOF
 FROM scratch
@@ -270,8 +270,8 @@ function build_images::get_local_build_cache_hash() {
 
     set +e
     # Remove the container just in case
-    docker rm --force "local-airflow-ci-container" 2>/dev/null >/dev/null
-    if ! docker inspect "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null; then
+    docker_v rm --force "local-airflow-ci-container" 2>/dev/null >/dev/null
+    if ! docker_v inspect "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null; then
         verbosity::print_info
         verbosity::print_info "Local airflow CI image not available"
         verbosity::print_info
@@ -281,8 +281,8 @@ function build_images::get_local_build_cache_hash() {
         return
 
     fi
-    docker create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null
-    docker cp "local-airflow-ci-container:/build-cache-hash" \
+    docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null
+    docker_v cp "local-airflow-ci-container:/build-cache-hash" \
         "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}" 2>/dev/null ||
         touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
     set -e
@@ -305,7 +305,7 @@ function build_images::get_local_build_cache_hash() {
 function build_images::get_remote_image_build_cache_hash() {
     set +e
     # Pull remote manifest image
-    if ! docker pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null; then
+    if ! docker_v pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null; then
         verbosity::print_info
         verbosity::print_info "Remote docker registry unreachable"
         verbosity::print_info
@@ -317,11 +317,11 @@ function build_images::get_remote_image_build_cache_hash() {
     set -e
     rm -f "${REMOTE_IMAGE_CONTAINER_ID_FILE}"
     # Create container dump out of the manifest image without actually running it
-    docker create --cidfile "${REMOTE_IMAGE_CONTAINER_ID_FILE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+    docker_v create --cidfile "${REMOTE_IMAGE_CONTAINER_ID_FILE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     # Extract manifest and store it in local file
-    docker cp "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}"):/build-cache-hash" \
+    docker_v cp "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}"):/build-cache-hash" \
         "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}"
-    docker rm --force "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}")"
+    docker_v rm --force "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}")"
     rm -f "${REMOTE_IMAGE_CONTAINER_ID_FILE}"
     verbosity::print_info
     verbosity::print_info "Remote build cache hash: '$(cat "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}")'"
@@ -490,7 +490,7 @@ function build_image::configure_docker_registry() {
             verbosity::print_info
         fi
         if [[ -n "${token}" ]]; then
-            echo "${token}" | docker login \
+            echo "${token}" | docker_v login \
                 --username "${GITHUB_USERNAME:-apache}" \
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
@@ -745,7 +745,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     if [[ -n "${RUNTIME_APT_COMMAND}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
-    docker build \
+    docker_v build \
         "${EXTRA_DOCKER_CI_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
@@ -781,11 +781,11 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     set -u
     if [[ -n "${DEFAULT_CI_IMAGE=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${DEFAULT_CI_IMAGE}"
-        docker tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_CI_IMAGE}"
+        docker_v tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_CI_IMAGE}"
     fi
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
-        docker tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
+        docker_v tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
     fi
     if [[ -n ${SPIN_PID=} ]]; then
         kill -HUP "${SPIN_PID}" || true
@@ -898,7 +898,7 @@ function build_images::build_prod_images() {
     if [[ -n "${DEV_APT_COMMAND}" ]]; then
         additional_dev_args+=("--build-arg" "DEV_APT_COMMAND=\"${DEV_APT_COMMAND}\"")
     fi
-    docker build \
+    docker_v build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
@@ -934,7 +934,7 @@ function build_images::build_prod_images() {
     if [[ -n "${RUNTIME_APT_COMMAND}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
-    docker build \
+    docker_v build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
@@ -970,11 +970,11 @@ function build_images::build_prod_images() {
     set -u
     if [[ -n "${DEFAULT_PROD_IMAGE:=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${DEFAULT_PROD_IMAGE}"
-        docker tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_PROD_IMAGE}"
+        docker_v tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_PROD_IMAGE}"
     fi
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${IMAGE_TAG}"
-        docker tag "${AIRFLOW_PROD_IMAGE}" "${IMAGE_TAG}"
+        docker_v tag "${AIRFLOW_PROD_IMAGE}" "${IMAGE_TAG}"
     fi
 }
 
@@ -1000,7 +1000,7 @@ function build_images::wait_for_image_tag() {
     while true; do
         set +e
         echo "${COLOR_BLUE}Docker pull ${IMAGE_TO_WAIT_FOR} ${COLOR_RESET}" >"${OUTPUT_LOG}"
-        docker pull "${IMAGE_TO_WAIT_FOR}" >>"${OUTPUT_LOG}" 2>&1
+        docker_v pull "${IMAGE_TO_WAIT_FOR}" >>"${OUTPUT_LOG}" 2>&1
         set -e
         local image_hash
         echo "${COLOR_BLUE} Docker images -q ${IMAGE_TO_WAIT_FOR}${COLOR_RESET}" >>"${OUTPUT_LOG}"
@@ -1020,12 +1020,12 @@ function build_images::wait_for_image_tag() {
             echo
             echo "Tagging ${IMAGE_TO_WAIT_FOR} as ${IMAGE_NAME}."
             echo
-            docker tag "${IMAGE_TO_WAIT_FOR}" "${IMAGE_NAME}"
+            docker_v tag "${IMAGE_TO_WAIT_FOR}" "${IMAGE_NAME}"
             for TARGET_TAG in "${@}"; do
                 echo
                 echo "Tagging ${IMAGE_TO_WAIT_FOR} as ${TARGET_TAG}."
                 echo
-                docker tag "${IMAGE_TO_WAIT_FOR}" "${TARGET_TAG}"
+                docker_v tag "${IMAGE_TO_WAIT_FOR}" "${TARGET_TAG}"
             done
             break
         fi

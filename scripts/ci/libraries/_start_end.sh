@@ -76,7 +76,7 @@ function start_end::dump_container_logs() {
     echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
     echo "                   Dumping logs from ${container} container"
     echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
-    docker logs "${container}" > "${dump_file}"
+    docker_v logs "${container}" > "${dump_file}"
     echo "                   Container ${container} logs dumped to ${dump_file}"
     echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
     start_end::group_end

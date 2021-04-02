@@ -26,7 +26,7 @@ echo "${COLOR_BLUE}Cleaning apt${COLOR_RESET}"
 sudo apt clean
 
 echo "${COLOR_BLUE}Pruning docker${COLOR_RESET}"
-docker system prune --all --force --volumes
+docker_v system prune --all --force --volumes
 
 echo "${COLOR_BLUE}Free disk space  ${COLOR_RESET}"
 df -h

@@ -110,7 +110,7 @@ function system_prune_docker() {
     echo
     echo "${COLOR_BLUE}System-prune docker${COLOR_RESET}"
     echo
-    docker system prune --force --volumes
+    docker_v system prune --force --volumes
     echo
 }
 
