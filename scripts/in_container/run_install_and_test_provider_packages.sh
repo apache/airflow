@@ -176,7 +176,11 @@ function discover_all_field_behaviours() {
     group_start "Listing connections with custom behaviours via 'airflow providers behaviours'"
     COLUMNS=180 airflow providers behaviours
 
+<<<<<<< HEAD
     local expected_number_of_connections_with_behaviours=20
+=======
+    local expected_number_of_connections_with_behaviours=14
+>>>>>>> add dynamic fields to AzureContainerInstanceHook
     local actual_number_of_connections_with_behaviours
     actual_number_of_connections_with_behaviours=$(airflow providers behaviours --output table | grep -v "===" | \
         grep -v field_behaviours | grep -cv "^ " | xargs)
