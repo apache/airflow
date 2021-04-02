@@ -121,9 +121,9 @@ avro-python3==1.9.2.1
 aws-xray-sdk==2.7.0
 azure-batch==10.0.0
 azure-common==1.1.27
-azure-core==1.12.0
+azure-core==1.13.0
 azure-cosmos==3.2.0
-azure-datalake-store==0.0.51
+azure-datalake-store==0.0.52
 azure-identity==1.5.0
 azure-keyvault-certificates==4.2.1
 azure-keyvault-keys==4.3.1
@@ -179,7 +179,7 @@ cx-Oracle==8.1.0
 dask==2021.3.0
 dataclasses==0.7
 datadog==0.40.1
-decorator==4.4.2
+decorator==5.0.3
 defusedxml==0.7.1
 dill==0.3.2
 distlib==0.3.1
@@ -263,7 +263,7 @@ hdfs==2.6.0
 hmsclient==0.1.1
 httplib2==0.17.4
 humanize==3.3.0
-hvac==0.10.8
+hvac==0.10.9
 identify==2.2.1
 idna-ssl==1.1.0
 idna==2.10
@@ -320,7 +320,7 @@ mysql-connector-python==8.0.22
 mysqlclient==1.3.14
 natsort==7.1.1
 nbclient==0.5.3
-nbformat==5.1.2
+nbformat==5.1.3
 neo4j==4.2.1
 nest-asyncio==1.5.1
 nodeenv==1.5.0
@@ -358,7 +358,7 @@ prison==0.1.3
 prometheus-client==0.8.0
 prompt-toolkit==3.0.18
 proto-plus==1.18.1
-protobuf==3.15.6
+protobuf==3.15.7
 psutil==5.8.0
 psycopg2-binary==2.8.6
 ptyprocess==0.7.0
@@ -455,7 +455,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.4
 sphinxcontrib-spelling==5.2.1
-spython==0.1.11
+spython==0.1.12
 sshtunnel==0.1.5
 starkbank-ecdsa==1.1.0
 statsd==3.3.0
