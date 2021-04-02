@@ -62,7 +62,7 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
             assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
 
-        self.assert_remote_logs("INFO - Task exited with return code 0", ti)
+        self.assert_remote_logs("terminated with exit code 0", ti)
 
     @provide_session
     def test_should_support_adc(self, session):
@@ -78,7 +78,7 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
             assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
 
-        self.assert_remote_logs("INFO - Task exited with return code 0", ti)
+        self.assert_remote_logs("terminated with exit code 0", ti)
 
     def assert_remote_logs(self, expected_message, ti):
         with provide_gcp_context(GCP_STACKDRIVER), conf_vars(
@@ -94,4 +94,8 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
 
             task_log_reader = TaskLogReader()
             logs = "\n".join(task_log_reader.read_log_stream(ti, try_number=None, metadata={}))
+            # Preview content
+            print("=" * 80)
+            print(logs)
+            print("=" * 80)
             assert expected_message in logs

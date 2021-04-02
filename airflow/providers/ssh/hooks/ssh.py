@@ -58,6 +58,14 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
     :type keepalive_interval: int
     """
 
+    # key type name to paramiko PKey class
+    _default_pkey_mappings = {
+        'dsa': paramiko.DSSKey,
+        'ecdsa': paramiko.ECDSAKey,
+        'ed25519': paramiko.Ed25519Key,
+        'rsa': paramiko.RSAKey,
+    }
+
     conn_name_attr = 'ssh_conn_id'
     default_conn_name = 'ssh_default'
     conn_type = 'ssh'
@@ -124,13 +132,8 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
 
                 private_key = extra_options.get('private_key')
                 private_key_passphrase = extra_options.get('private_key_passphrase')
-                if private_key and private_key_passphrase:
-                    self.pkey = paramiko.RSAKey.from_private_key(
-                        StringIO(private_key), password=private_key_passphrase
-                    )
-                elif private_key and not private_key_passphrase:
-                    self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
-
+                if private_key:
+                    self.pkey = self._pkey_from_private_key(private_key, passphrase=private_key_passphrase)
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
 
@@ -320,3 +323,24 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         )
 
         return self.get_tunnel(remote_port, remote_host, local_port)
+
+    def _pkey_from_private_key(self, private_key: str, passphrase: Optional[str] = None) -> paramiko.PKey:
+        """
+        Creates appropriate paramiko key for given private key
+
+        :param private_key: string containing private key
+        :return: `paramiko.PKey` appropriate for given key
+        :raises AirflowException: if key cannot be read
+        """
+        allowed_pkey_types = self._default_pkey_mappings.values()
+        for pkey_type in allowed_pkey_types:
+            try:
+                key = pkey_type.from_private_key(StringIO(private_key), password=passphrase)
+                return key
+            except paramiko.ssh_exception.SSHException:
+                continue
+        raise AirflowException(
+            'Private key provided cannot be read by paramiko.'
+            'Ensure key provided is valid for one of the following'
+            'key formats: RSA, DSS, ECDSA, or Ed25519'
+        )

@@ -161,7 +161,7 @@ mapping = {
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
     ],
     ("Airflow", "can_trigger"): [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
     ],
     ("Airflow", "can_xcom"): [

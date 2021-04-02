@@ -53,7 +53,7 @@ function run_bats_tests() {
     # deduplicate
     FS=" " read -r -a bats_arguments <<< "$(tr ' ' '\n' <<< "${bats_arguments[@]}" | sort -u | tr '\n' ' ' )"
     if [[ ${#@} == "0" ]]; then
-        # Run all tests
+        # Run al tests
         docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
             apache/airflow:bats-2020.09.05-1.2.1 --tap /airflow/tests/bats/
     elif [[ ${#bats_arguments} == "0" ]]; then

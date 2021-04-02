@@ -21,6 +21,8 @@ import stat
 from typing import Dict, List, Optional, Tuple
 
 import pysftp
+import tenacity
+from paramiko import SSHException
 
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
@@ -109,6 +111,12 @@ class SFTPHook(SSHHook):
                     )
                     self.key_file = extra_options.get('private_key')
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_delay(10),
+        wait=tenacity.wait_exponential(multiplier=1, max=10),
+        retry=tenacity.retry_if_exception_type(SSHException),
+        reraise=True,
+    )
     def get_conn(self) -> pysftp.Connection:
         """Returns an SFTP connection object"""
         if self.conn is None:

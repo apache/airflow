@@ -252,16 +252,12 @@ function kind::check_cluster_ready_for_airflow() {
 function kind::build_image_for_kubernetes_tests() {
     start_end::group_start "Build image for kubernetes tests ${AIRFLOW_PROD_IMAGE_KUBERNETES}"
     cd "${AIRFLOW_SOURCES}" || exit 1
-    docker build --tag "${AIRFLOW_PROD_IMAGE_KUBERNETES}" . -f - <<EOF
+    docker_v build --tag "${AIRFLOW_PROD_IMAGE_KUBERNETES}" . -f - <<EOF
 FROM ${AIRFLOW_PROD_IMAGE}
 
-USER root
+COPY airflow/example_dags/ \${AIRFLOW_HOME}/dags/
 
-COPY --chown=airflow:root airflow/example_dags/ \${AIRFLOW_HOME}/dags/
-
-COPY --chown=airflow:root airflow/kubernetes_executor_templates/ \${AIRFLOW_HOME}/pod_templates/
-
-USER airflow
+COPY airflow/kubernetes_executor_templates/ \${AIRFLOW_HOME}/pod_templates/
 
 EOF
     echo "The ${AIRFLOW_PROD_IMAGE_KUBERNETES} is prepared for test kubernetes deployment."
@@ -317,6 +313,24 @@ function kind::deploy_airflow_with_helm() {
     kubectl delete namespace "test-namespace" >/dev/null 2>&1 || true
     kubectl create namespace "${HELM_AIRFLOW_NAMESPACE}"
     kubectl create namespace "test-namespace"
+
+    # If on CI, "pass-through" the current docker credentials from the host to be default image pull-secrets in the namespace
+    if [[ ${CI:=} == "true" ]]; then
+      local regcred
+      regcred=$(jq -sRn '
+        .apiVersion="v1" |
+        .kind = "Secret" |
+        .type = "kubernetes.io/dockerconfigjson" |
+        .metadata.name="regcred" |
+        .data[".dockerconfigjson"] = @base64 "\(inputs)"
+      ' ~/.docker/config.json)
+      kubectl -n test-namespace apply -f - <<<"$regcred"
+      kubectl -n test-namespace patch serviceaccount default -p '{"imagePullSecrets": [{"name": "regcred"}]}'
+
+      kubectl -n "${HELM_AIRFLOW_NAMESPACE}" apply -f - <<<"$regcred"
+      kubectl -n "${HELM_AIRFLOW_NAMESPACE}" patch serviceaccount default -p '{"imagePullSecrets": [{"name": "regcred"}]}'
+    fi
+
     pushd "${AIRFLOW_SOURCES}/chart" >/dev/null 2>&1 || exit 1
     helm repo add stable https://charts.helm.sh/stable/
     helm dep update

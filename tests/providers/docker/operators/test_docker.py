@@ -100,6 +100,7 @@ class TestDockerOperator(unittest.TestCase):
             dns_search=None,
             cap_add=None,
             extra_hosts=None,
+            privileged=False,
         )
         self.tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
         self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
@@ -166,6 +167,15 @@ class TestDockerOperator(unittest.TestCase):
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
         with pytest.raises(AirflowException):
             operator.execute(None)
+
+    def test_auto_remove_container_fails(self):
+        self.client_mock.wait.return_value = {"StatusCode": 1}
+        operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest', auto_remove=True)
+        operator.container = {'Id': 'some_id'}
+        with pytest.raises(AirflowException):
+            operator.execute(None)
+
+        self.client_mock.remove_container.assert_called_once_with('some_id')
 
     @staticmethod
     def test_on_kill():
@@ -251,3 +261,12 @@ class TestDockerOperator(unittest.TestCase):
         assert 'host_config' in self.client_mock.create_container.call_args[1]
         assert 'extra_hosts' in self.client_mock.create_host_config.call_args[1]
         assert hosts_obj is self.client_mock.create_host_config.call_args[1]['extra_hosts']
+
+    def test_privileged(self):
+        privileged = mock.Mock()
+        operator = DockerOperator(task_id='test', image='test', privileged=privileged)
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        assert 'host_config' in self.client_mock.create_container.call_args[1]
+        assert 'privileged' in self.client_mock.create_host_config.call_args[1]
+        assert privileged is self.client_mock.create_host_config.call_args[1]['privileged']

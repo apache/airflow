@@ -20,7 +20,7 @@ import ast
 import json
 import socket
 import time
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
@@ -92,6 +92,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :param max_try_before_job_appears: The maximum number of requests to make
         while waiting for the job to appears on jenkins server (default 10)
     :type max_try_before_job_appears: int
+    :param allowed_jenkins_states: Iterable of allowed result jenkins states, default is ``['SUCCESS']``
+    :type allowed_jenkins_states: Optional[Iterable[str]]
     """
 
     template_fields = ('parameters',)
@@ -107,6 +109,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         parameters: ParamType = "",
         sleep_time: int = 10,
         max_try_before_job_appears: int = 10,
+        allowed_jenkins_states: Optional[Iterable[str]] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -115,6 +118,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.sleep_time = max(sleep_time, 1)
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
+        self.allowed_jenkins_states = list(allowed_jenkins_states) if allowed_jenkins_states else ['SUCCESS']
 
     def build_job(self, jenkins_server: Jenkins, params: ParamType = "") -> Optional[JenkinsRequest]:
         """
@@ -215,8 +219,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
                 build_info = jenkins_server.get_build_info(name=self.job_name, number=build_number)
                 if build_info['result'] is not None:
                     keep_polling_job = False
-                    # Check if job had errors.
-                    if build_info['result'] != 'SUCCESS':
+                    # Check if job ended with not allowed state.
+                    if build_info['result'] not in self.allowed_jenkins_states:
                         raise AirflowException(
                             'Jenkins job failed, final state : %s.'
                             'Find more information on job url : %s'

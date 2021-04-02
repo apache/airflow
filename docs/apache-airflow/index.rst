@@ -99,6 +99,7 @@ unit of work and continuity.
     dag-serialization
     modules_management
     smart-sensor
+    Release policies <release-process>
     changelog
     best-practices
     production-deployment

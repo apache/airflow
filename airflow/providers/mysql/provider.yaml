@@ -22,7 +22,10 @@ description: |
     `MySQL <https://www.mysql.com/products/>`__
 
 versions:
+  - 1.0.2
+  - 1.0.1
   - 1.0.0
+
 integrations:
   - integration-name: MySQL
     external-doc-url: https://www.mysql.com/

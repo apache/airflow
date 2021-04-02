@@ -100,6 +100,29 @@ class TestDockerSwarmOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     @mock.patch('airflow.providers.docker.operators.docker_swarm.types')
+    def test_auto_remove(self, types_mock, client_class_mock):
+
+        mock_obj = mock.Mock()
+
+        client_mock = mock.Mock(spec=APIClient)
+        client_mock.create_service.return_value = {'ID': 'some_id'}
+        client_mock.images.return_value = []
+        client_mock.pull.return_value = [b'{"status":"pull log"}']
+        client_mock.tasks.return_value = [{'Status': {'State': 'complete'}}]
+        types_mock.TaskTemplate.return_value = mock_obj
+        types_mock.ContainerSpec.return_value = mock_obj
+        types_mock.RestartPolicy.return_value = mock_obj
+        types_mock.Resources.return_value = mock_obj
+
+        client_class_mock.return_value = client_mock
+
+        operator = DockerSwarmOperator(image='', auto_remove=True, task_id='unittest', enable_logging=False)
+        operator.execute(None)
+
+        client_mock.remove_service.assert_called_once_with('some_id')
+
+    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
+    @mock.patch('airflow.providers.docker.operators.docker_swarm.types')
     def test_no_auto_remove(self, types_mock, client_class_mock):
 
         mock_obj = mock.Mock()

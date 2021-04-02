@@ -34,13 +34,13 @@ class TestGenerateDagYamlCommand(unittest.TestCase):
 
     def test_generate_dag_yaml(self):
         with tempfile.TemporaryDirectory("airflow_dry_run_test/") as directory:
-            file_name = "example_bash_operator_run_after_loop_2020-11-03T00_00_00_plus_00_00.yml"
+            file_name = "miscellaneous_test_dag_run_after_loop_2020-11-03T00_00_00_plus_00_00.yml"
             kubernetes_command.generate_pod_yaml(
                 self.parser.parse_args(
                     [
                         'kubernetes',
                         'generate-dag-yaml',
-                        'example_bash_operator',
+                        'miscellaneous_test_dag',
                         "2020-11-03",
                         "--output-path",
                         directory,

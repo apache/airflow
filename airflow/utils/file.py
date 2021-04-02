@@ -15,14 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import io
 import logging
 import os
 import re
 import zipfile
 from pathlib import Path
-from typing import Dict, Generator, List, Optional, Pattern
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Pattern, Union
 
 from airflow.configuration import conf
+
+if TYPE_CHECKING:
+    import pathlib
 
 log = logging.getLogger(__name__)
 
@@ -84,7 +88,7 @@ def open_maybe_zipped(fileloc, mode='r'):
     """
     _, archive, filename = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
-        return zipfile.ZipFile(archive, mode=mode).open(filename)
+        return io.TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
     else:
         return open(fileloc, mode=mode)
 
@@ -130,7 +134,7 @@ def find_path_from_directory(base_dir_path: str, ignore_file_name: str) -> Gener
 
 
 def list_py_file_paths(
-    directory: str,
+    directory: Union[str, "pathlib.Path"],
     safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
     include_examples: Optional[bool] = None,
     include_smart_sensor: Optional[bool] = conf.getboolean('smart_sensor', 'use_smart_sensor'),
@@ -158,9 +162,9 @@ def list_py_file_paths(
     if directory is None:
         file_paths = []
     elif os.path.isfile(directory):
-        file_paths = [directory]
+        file_paths = [str(directory)]
     elif os.path.isdir(directory):
-        find_dag_file_paths(directory, file_paths, safe_mode)
+        file_paths.extend(find_dag_file_paths(directory, safe_mode))
     if include_examples:
         from airflow import example_dags
 
@@ -174,9 +178,11 @@ def list_py_file_paths(
     return file_paths
 
 
-def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
+def find_dag_file_paths(directory: Union[str, "pathlib.Path"], safe_mode: bool) -> List[str]:
     """Finds file paths of all DAG files."""
-    for file_path in find_path_from_directory(directory, ".airflowignore"):
+    file_paths = []
+
+    for file_path in find_path_from_directory(str(directory), ".airflowignore"):
         try:
             if not os.path.isfile(file_path):
                 continue
@@ -189,6 +195,8 @@ def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
             file_paths.append(file_path)
         except Exception:  # noqa pylint: disable=broad-except
             log.exception("Error while examining %s", file_path)
+
+    return file_paths
 
 
 COMMENT_PATTERN = re.compile(r"\s*#.*")

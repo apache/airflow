@@ -22,7 +22,7 @@ from airflow import version
 
 def get_docs_url(page: Optional[str] = None) -> str:
     """Prepare link to Airflow documentation."""
-    if "dev" in version.version:
+    if any(suffix in version.version for suffix in ['dev', 'a', 'b']):
         result = (
             "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/"
         )

@@ -102,7 +102,7 @@ class Pool(Base):
         query = session.query(Pool.pool, Pool.slots)
 
         if lock_rows:
-            query = with_row_locks(query, **nowait(session))
+            query = with_row_locks(query, session=session, **nowait(session))
 
         pool_rows: Iterable[Tuple[str, int]] = query.all()
         for (pool_name, total_slots) in pool_rows:

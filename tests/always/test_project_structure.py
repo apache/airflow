@@ -158,6 +158,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'bigquery_to_mysql'),
         ('cloud', 'cassandra_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
+        ('suite', 'drive'),
         ('ads', 'ads_to_gcs'),
     }
 
@@ -168,6 +169,8 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         # Deprecated operator. Ignore it.
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
         '.CloudDataTransferServiceGCSToGCSOperator',
+        # Deprecated operator. Ignore it.
+        'airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor',
         # Base operator. Ignore it.
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator',
         # Deprecated operator. Ignore it
@@ -197,7 +200,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'airflow.providers.google.cloud.operators.dlp.CloudDLPCreateDeidentifyTemplateOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPCreateDLPJobOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPUpdateDeidentifyTemplateOperator',
-        'airflow.providers.google.cloud.operators.dlp.CloudDLPDeidentifyContentOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPGetDLPJobTriggerOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPListDeidentifyTemplatesOperator',
         'airflow.providers.google.cloud.operators.dlp.CloudDLPGetDeidentifyTemplateOperator',
@@ -217,9 +219,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'airflow.providers.google.cloud.operators.datastore.CloudDatastoreGetOperationOperator',
         # Base operator. Ignore it
         'airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator',
-        'airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor',
         'airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor',
-        'airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor',
         'airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor',
     }
 
