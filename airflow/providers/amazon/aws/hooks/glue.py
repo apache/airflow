@@ -77,7 +77,7 @@ class AwsGlueJobHook(AwsBaseHook):
         self.s3_glue_logs = 'logs/glue-logs/'
         self.create_job_kwargs = create_job_kwargs or {}
         kwargs['client_type'] = 'glue'
-        kwargs['region_name'] = region_name
+        kwargs['region_name'] = region_name # test
         super().__init__(*args, **kwargs)
 
     def list_jobs(self) -> List:
