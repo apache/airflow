@@ -427,7 +427,7 @@ The production images are build in DockerHub from:
 * ``2.0.*``, ``2.0.*rc*`` releases from the ``v2-0-stable`` branch when we prepare release candidates and
   final releases. There are no production images prepared from v2-0-stable branch.
 
-Similar rules apply to ``1.10.x`` releases until June 2020. We have ``v1-10-test`` and ``v1-10-stable``
+Similar rules apply to ``1.10.x`` releases until June 2021. We have ``v1-10-test`` and ``v1-10-stable``
 branches there.
 
 Development Environments
