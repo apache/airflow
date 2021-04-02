@@ -23,128 +23,13 @@ export RUN_TESTS
 SKIPPED_FAILED_JOB="Quarantined"
 export SKIPPED_FAILED_JOB
 
+SEMAPHORE_NAME="tests"
+export SEMAPHORE_NAME
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
-    echo
-    echo "Skipping running tests !!!!!"
-    echo
-    exit
-fi
 
-# In case we see too many failures on regular PRs from our users using GitHub Public runners
-# We can uncomment this and come back to sequential test-type execution
-#if [[ ${RUNS_ON} != *"self-hosted"* ]]; then
-#    echo
-#    echo "${COLOR_YELLOW}This is a Github Public runner - for now we are forcing max parallel jobs to 1 for those${COLOR_RESET}"
-#    echo "${COLOR_YELLOW}Until we fix memory usage to allow up to 2 parallel runs on those runners${COLOR_RESET}"
-#    echo
-#    # Forces testing in parallel in case the script is run on self-hosted runners
-#    export MAX_PARALLEL_TEST_JOBS="1"
-#fi
-
-SEMAPHORE_NAME="tests"
-
-function prepare_tests_to_run() {
-    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
-    if [[ ${MOUNT_SELECTED_LOCAL_SOURCES} == "true" ]]; then
-        DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local.yml")
-    fi
-    if [[ ${MOUNT_ALL_LOCAL_SOURCES} == "true" ]]; then
-        DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local-all-sources.yml")
-    fi
-
-    if [[ ${GITHUB_ACTIONS} == "true" ]]; then
-        DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/ga.yml")
-    fi
-
-    if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
-        DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml")
-    fi
-
-    if [[ -n ${INSTALL_AIRFLOW_VERSION=} || -n ${INSTALL_AIRFLOW_REFERENCE} ]]; then
-        DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml")
-    fi
-    readonly DOCKER_COMPOSE_LOCAL
-
-    if [[ -n "${FORCE_TEST_TYPE=}" ]]; then
-        # Handle case where test type is forced from outside
-        export TEST_TYPES="${FORCE_TEST_TYPE}"
-    fi
-
-    if [[ -z "${TEST_TYPES=}" ]]; then
-        TEST_TYPES="Core Providers API CLI Integration Other WWW"
-        echo
-        echo "Test types not specified. Adding all: ${TEST_TYPES}"
-        echo
-    fi
-
-    if [[ -z "${FORCE_TEST_TYPE=}" ]]; then
-        # Add Postgres/MySQL special test types in case we are running several test types
-        if [[ ${BACKEND} == "postgres" && ${TEST_TYPES} != "Quarantined" ]]; then
-            TEST_TYPES="${TEST_TYPES} Postgres"
-            echo
-            echo "Added Postgres. Tests to run: ${TEST_TYPES}"
-            echo
-        fi
-        if [[ ${BACKEND} == "mysql" && ${TEST_TYPES} != "Quarantined" ]]; then
-            TEST_TYPES="${TEST_TYPES} MySQL"
-            echo
-            echo "Added MySQL. Tests to run: ${TEST_TYPES}"
-            echo
-        fi
-    fi
-    readonly TEST_TYPES
-}
-
-function kill_all_running_docker_containers() {
-    echo
-    echo "${COLOR_BLUE}Kill all running docker containers${COLOR_RESET}"
-    echo
-    # shellcheck disable=SC2046
-    docker kill $(docker ps -q) || true
-}
-
-function system_prune_docker() {
-    echo
-    echo "${COLOR_BLUE}System-prune docker${COLOR_RESET}"
-    echo
-    docker_v system prune --force --volumes
-    echo
-}
-
-function get_maximum_parallel_test_jobs() {
-    if [[ ${MAX_PARALLEL_TEST_JOBS=} != "" ]]; then
-        echo
-        echo "${COLOR_YELLOW}Maximum parallel test jobs forced vi MAX_PARALLEL_TEST_JOBS = ${MAX_PARALLEL_TEST_JOBS}${COLOR_RESET}"
-        echo
-    else
-        MAX_PARALLEL_TEST_JOBS=${CPUS_AVAILABLE_FOR_DOCKER}
-        echo
-        echo "${COLOR_YELLOW}Maximum parallel test jobs set to number of CPUs available for Docker = ${MAX_PARALLEL_TEST_JOBS}${COLOR_RESET}"
-        echo
-    fi
-    export MAX_PARALLEL_TEST_JOBS
-}
-
-# Cleans up runner before test execution.
-#  * Kills all running docker containers
-#  * System prune to clean all the temporary/unnamed images and left-over volumes
-#  * Print information about available space and memory
-#  * Kills stale semaphore locks
-function cleanup_runner() {
-    start_end::group_start "Cleanup runner"
-    kill_all_running_docker_containers
-    system_prune_docker
-    docker_engine_resources::get_available_memory_in_docker
-    docker_engine_resources::get_available_cpus_in_docker
-    docker_engine_resources::get_available_disk_space_in_docker
-    docker_engine_resources::print_overall_stats
-    get_maximum_parallel_test_jobs
-    parallel::kill_stale_semaphore_locks
-    start_end::group_end
-}
 
 # Starts test types in parallel
 # test_types_to_run - list of test types (it's not an array, it is space-separate list)
@@ -171,9 +56,6 @@ function run_test_types_in_parallel() {
     start_end::group_end
 }
 
-
-export MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN=33000
-
 # Runs all test types in parallel depending on the number of CPUs available
 # We monitors their progress, display the progress  and summarize the result when finished.
 #
@@ -188,7 +70,7 @@ export MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN=33000
 #   * MEMORY_AVAILABLE_FOR_DOCKER - memory that is available in docker (set by cleanup_runners)
 #
 function run_all_test_types_in_parallel() {
-    cleanup_runner
+    parallel::cleanup_runner
 
     start_end::group_start "Determine how to run the tests"
     echo
@@ -196,6 +78,7 @@ function run_all_test_types_in_parallel() {
     echo
 
     local run_integration_tests_separately="false"
+    # shellcheck disable=SC2153
     local test_types_to_run=${TEST_TYPES}
 
     if [[ ${test_types_to_run} == *"Integration"* ]]; then
@@ -222,7 +105,7 @@ function run_all_test_types_in_parallel() {
 
     run_test_types_in_parallel "${@}"
     if [[ ${run_integration_tests_separately} == "true" ]]; then
-        cleanup_runner
+        parallel::cleanup_runner
         test_types_to_run="Integration"
         run_test_types_in_parallel "${@}"
     fi
@@ -231,12 +114,19 @@ function run_all_test_types_in_parallel() {
     parallel::print_job_summary_and_return_status_code
 }
 
+
+testing::skip_tests_if_requested
+
 build_images::prepare_ci_build
 
 build_images::rebuild_ci_image_if_needed_with_group
 
-prepare_tests_to_run
-
 parallel::make_sure_gnu_parallel_is_installed
+
+testing::get_maximum_parallel_test_jobs
+
+testing::get_test_types_to_run
+
+testing::get_docker_compose_local
 
 run_all_test_types_in_parallel "${@}"
