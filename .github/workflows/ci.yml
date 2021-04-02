@@ -500,7 +500,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: >
           github.ref == 'refs/heads/master' && github.repository == 'apache/airflow' &&
           github.event_name == 'push'
-        run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
+        run: aws s3 sync --delete ./docs/_build s3://apache-airflow-docs
 
   prepare-provider-packages:
     timeout-minutes: 40
