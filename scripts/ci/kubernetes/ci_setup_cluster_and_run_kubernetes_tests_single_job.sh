@@ -15,21 +15,40 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+if [[ $1 == "" ]]; then
+  >&2 echo "Requires Kubernetes_version as first parameter"
+  exit 1
+fi
+export KUBERNETES_VERSION=$1
+shift
 
-export SKIP_BUILDING_PROD_IMAGE="true"
+
+if [[ $1 == "" ]]; then
+  >&2 echo "Requires Python Major/Minor version as second parameter"
+  exit 1
+fi
+export PYTHON_MAJOR_MINOR_VERSION=$1
+shift
+
+# Requires PARALLEL_JOB_STATUS
+
+if [[ -z "${PARALLEL_JOB_STATUS=}" ]]; then
+    echo "Needs PARALLEL_JOB_STATUS to be set"
+    exit 1
+fi
+
+echo
+echo "KUBERNETES_VERSION:         ${KUBERNETES_VERSION}"
+echo "PYTHON_MAJOR_MINOR_VERSION: ${PYTHON_MAJOR_MINOR_VERSION}"
+echo
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-traps::add_trap "kind::dump_kind_logs" EXIT HUP INT TERM
-
-kind::make_sure_kubernetes_tools_are_installed
 kind::get_kind_cluster_name
-kind::perform_kind_cluster_operation "start"
-build_images::prepare_prod_build
-build_images::build_prod_images
-kind::build_image_for_kubernetes_tests
-kind::load_image_to_kind_cluster
-kind::deploy_airflow_with_helm
-kind::deploy_test_kubernetes_resources
-kind::wait_for_webserver_healthy
+trap 'echo $? > "${PARALLEL_JOB_STATUS}"; kind::perform_kind_cluster_operation "stop"' EXIT HUP INT TERM
+
+"$( dirname "${BASH_SOURCE[0]}" )/ci_setup_cluster_and_deploy_airflow_to_kubernetes.sh"
+
+export CLUSTER_FORWARDED_PORT="${FORWARDED_PORT_NUMBER}"
+"$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
