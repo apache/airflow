@@ -59,7 +59,7 @@ class FileSensor(BaseSensorOperator):
             if os.path.isfile(path):
                 return True
 
-            for _, _, files in os.walk(full_path):
+            for _, _, files in os.walk(path):
                 if len(files) > 0:
                     return True
         return False
