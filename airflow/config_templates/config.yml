@@ -1247,6 +1247,14 @@
       type: string
       example: ~
       default:
+    - name: show_templated_fields
+      description: |
+        Whether templated fields in tasks are shown in UI. Possible fields:
+        none, all, public
+      version_added: 2.1.0
+      type: string
+      example: ~
+      default: all
 
 - name: email
   description: |

@@ -922,15 +922,33 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         html_dict = {}
         renderers = wwwutils.get_attr_renderer()
 
-        for template_field in task.template_fields:
-            content = getattr(task, template_field)
-            renderer = task.template_fields_renderers.get(template_field, template_field)
+        show_templated_fields = conf.get(
+            "webserver",
+            "SHOW_TEMPLATED_FIELDS",
+            fallback="all",
+        ).lower()
+        if show_templated_fields not in ("all", "none", "public"):
+            logging.warning(
+                "Unknown value found for `show_templated_fields` option in "
+                "`[webserver]` section. Defaults to `all`."
+            )
+            show_templated_fields = "all"
+
+        def _render_templated_field(field: str) -> str:
+            if show_templated_fields == "none":
+                return Markup("<em>(value hidden)</em>")
+            if show_templated_fields == "public" and field[0] == "_":
+                return Markup("<em>(private value hidden)</em>")
+            content = getattr(task, field)
+            renderer = task.template_fields_renderers.get(field, field)
             if renderer in renderers:
-                html_dict[template_field] = renderers[renderer](content)
-            else:
-                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(
-                    pformat(content)
-                )  # noqa
+                return renderers[renderer](content)
+            return Markup("<pre><code>{}</pre></code>").format(pformat(content))
+
+        html_dict.update(
+            (template_field, _render_templated_field(template_field))
+            for template_field in task.template_fields
+        )
 
         return self.render_template(
             'airflow/ti_code.html',
