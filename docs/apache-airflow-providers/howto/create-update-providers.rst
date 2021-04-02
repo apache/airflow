@@ -282,7 +282,7 @@ In the ``airflow/providers/<NEW_PROVIDER>/provider.yaml`` add information of you
       hook-class-names:
         - airflow.providers.<NEW_PROVIDER>.hooks.<NEW_PROVIDER>.NewProviderHook
 
-You only need to add `hook-class-names` in case you have some hooks that have customized UI behavior.
+You only need to add ``hook-class-names`` in case you have some hooks that have customized UI behavior.
 For more information see `Custom connection types <http://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#custom-connection-types>`_
 
 
