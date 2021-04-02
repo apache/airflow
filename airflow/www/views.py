@@ -967,19 +967,24 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             flash(msg, "error")
         except Exception as e:  # pylint: disable=broad-except
             flash("Error rendering template: " + str(e), "error")
-        title = "Rendered Template"
-        html_dict = {}
-        renderers = wwwutils.get_attr_renderer()
 
-        for template_field in task.template_fields:
-            content = getattr(task, template_field)
-            renderer = task.template_fields_renderers.get(template_field, template_field)
+        title = "Rendered Template"
+        renderers = wwwutils.get_attr_renderer()
+        can_view_template_fields = current_app.appbuilder.sm.has_access(
+            permission=permissions.ACTION_CAN_READ,
+            resource=permissions.RESOURCE_TEMPLATE_FIELD,
+        )
+
+        def _render_field(field: str) -> str:
+            if not can_view_template_fields:
+                return Markup("<em>(value hidden)</em>")
+            content = getattr(task, field)
+            renderer = task.template_fields_renderers.get(field, field)
             if renderer in renderers:
-                html_dict[template_field] = renderers[renderer](content)
-            else:
-                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(
-                    pformat(content)
-                )  # noqa
+                return renderers[renderer](content)
+            return Markup("<pre><code>{}</pre></code>").format(pformat(content))
+
+        html_dict = {f: _render_field(f) for f in task.template_fields}
 
         return self.render_template(
             'airflow/ti_code.html',

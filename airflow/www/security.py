@@ -133,6 +133,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     # [END security_op_perms]
 
     ADMIN_PERMISSIONS = [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TEMPLATE_FIELD),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
