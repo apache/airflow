@@ -42,8 +42,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             "ti": task_instance,
         }
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_config_path(self, client_mock, monitor_mock, start_mock):  # pylint: disable=unused-argument
         from airflow.utils.state import State
@@ -94,8 +94,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
         assert k.env_vars[0].value == "footemplated"
         assert k.env_vars[0].name == "bartemplated"
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_image_pull_secrets_correctly_set(self, mock_client, monitor_mock, start_mock):
         from airflow.utils.state import State
@@ -121,8 +121,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             k8s.V1LocalObjectReference(name=fake_pull_secrets)
         ]
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_image_pull_policy_not_set(self, mock_client, monitor_mock, start_mock):
         from airflow.utils.state import State
@@ -144,8 +144,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
         k.execute(context=context)
         assert start_mock.call_args[0][0].spec.containers[0].image_pull_policy == 'IfNotPresent'
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_image_pull_policy_correctly_set(self, mock_client, monitor_mock, start_mock):
         from airflow.utils.state import State
@@ -168,9 +168,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
         k.execute(context=context)
         assert start_mock.call_args[0][0].spec.containers[0].image_pull_policy == 'Always'
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_pod_delete_even_on_launcher_error(
         self, mock_client, delete_pod_mock, monitor_pod_mock, start_pod_mock
@@ -207,8 +207,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
         task.render_template_fields(context={"image_jinja": "ubuntu"})
         assert task.image == "ubuntu:16.04"
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_randomize_pod_name(self, mock_client, monitor_mock, start_mock):
         from airflow.utils.state import State
@@ -234,8 +234,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
         assert start_mock.call_args[0][0].metadata.name.startswith(name_base)
         assert start_mock.call_args[0][0].metadata.name != name_base
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_describes_pod_on_failure(self, mock_client, monitor_mock, start_mock):
         from airflow.utils.state import State
@@ -270,8 +270,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
         assert mock_client.return_value.read_namespaced_pod.called
         assert read_namespaced_pod_mock.call_args[0][0] == k.pod.metadata.name
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_no_need_to_describe_pod_on_success(self, mock_client, monitor_mock, start_mock):
         from airflow.utils.state import State

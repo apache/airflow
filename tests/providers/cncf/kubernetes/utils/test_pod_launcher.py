@@ -21,7 +21,7 @@ import pytest
 from requests.exceptions import BaseHTTPError
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes.pod_launcher import PodLauncher, PodStatus
+from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher, PodStatus
 
 
 class TestPodLauncher(unittest.TestCase):
