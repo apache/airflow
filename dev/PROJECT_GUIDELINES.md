@@ -20,17 +20,13 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Overview](#overview)
-  - [Adding a Committer or PMC Member](#adding-a-committer-or-pmc-member)
-  - [Airflow Improvement Proposals (AIPs)](#airflow-improvement-proposals-aips)
-  - [Support for Airflow 1.10.x releases](#support-for-airflow-110x-releases)
-  - [Support for Backport Providers](#support-for-backport-providers)
-  - [Release Guidelines](#release-guidelines)
+- [Adding a Committer or PMC Member](#adding-a-committer-or-pmc-member)
+- [Airflow Improvement Proposals (AIPs)](#airflow-improvement-proposals-aips)
+- [Support for Airflow 1.10.x releases](#support-for-airflow-110x-releases)
+- [Support for Backport Providers](#support-for-backport-providers)
+- [Release Guidelines](#release-guidelines)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
-
-# Overview
 
 This document describes all the guidelines that have been agreed upon by the committers and PMC
 members on the mailing list.
@@ -61,3 +57,27 @@ Backport providers within 1.10.x, are not released any more, as of (March 17, 20
 
 - Follow Semantic Versioning ([SEMVER](https://semver.org/))
 - Changing the version of dependency should not count as breaking change
+
+### Providers
+
+#### Batch & Ad-hoc Releases
+
+- Release Manager would default to releasing Providers in Batch
+- If there is a critical bug that needs fixing in a single provider, an ad-hoc release for
+that provider will be created
+
+#### Frequency
+
+We will release all providers **every month** (Mostly first week of the month)
+
+**Note**: that it generally takes around a week for the vote to pass even
+though we have 72 hours minimum period
+
+#### Doc-only changes
+
+When provider(s) has doc-only changes during batch-release, we
+will not release that provider with a new version. As unliked the
+actual releases, our doc releases are mutable.
+
+So, we will simply tag that those providers with `*-doc1`, `*-doc2` tags in the repo
+to release docs for it.
