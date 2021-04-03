@@ -502,23 +502,18 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           github.event_name == 'push'
         run: aws s3 sync --delete ./docs/_build s3://apache-airflow-docs
 
-  prepare-provider-packages:
+  prepare-test-provider-packages-wheel:
     timeout-minutes: 40
-    name: "Provider packages ${{ matrix.package-format }}"
+    name: "Build and test provider packages wheel"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      INSTALL_AIRFLOW_VERSION: "${{ matrix.package-format }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: "dev"
       VERSION_SUFFIX_FOR_SVN: "dev"
-      PACKAGE_FORMAT: ${{ matrix.package-format }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
-    strategy:
-      matrix:
-        package-format: ['wheel', 'sdist']
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -536,43 +531,44 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Prepare provider documentation"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_documentation.sh
-      - name: "Prepare provider packages: ${{ matrix.package-format }}"
+      - name: "Prepare provider packages: wheel"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
-      - name: "Prepare airflow packages: ${{ matrix.package-format }}"
+        env:
+          PACKAGE_FORMAT: "wheel"
+      - name: "Prepare airflow package: wheel"
         run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
-      - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
+        env:
+          PACKAGE_FORMAT: "wheel"
+      - name: "Install and test provider packages and airflow via wheel files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
-      - name: "Upload package artifacts"
-        uses: actions/upload-artifact@v2
-        if: always()
-        with:
-          name: airflow-provider-packages
-          path: "./dist/apache-*"
-          retention-days: 7
+        env:
+          INSTALL_AIRFLOW_VERSION: "wheel"
+          PACKAGE_FORMAT: "wheel"
+      - name: "Install and test provider packages and airflow on Airflow 2.0 files"
+        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        env:
+          INSTALL_AIRFLOW_VERSION: "2.0.0"
+          PACKAGE_FORMAT: "wheel"
 
-  test-provider-packages-released-airflow:
-    timeout-minutes: 30
-    name: "Test Provider packages with 2.0.0 version ${{ matrix.package-format }}"
+  prepare-test-provider-packages-sdist:
+    timeout-minutes: 40
+    name: "Build and test provider packages sdist"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      INSTALL_AIRFLOW_VERSION: "2.0.0"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: "dev"
       VERSION_SUFFIX_FOR_SVN: "dev"
-      PACKAGE_FORMAT: ${{ matrix.package-format }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
-    strategy:
-      matrix:
-        package-format: ['wheel', 'sdist']
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
           persist-credentials: false
+        if: needs.build-info.outputs.default-branch == 'master'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -581,12 +577,19 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Prepare provider documentation"
-        run: ./scripts/ci/provider_packages/ci_prepare_provider_documentation.sh
-      - name: "Prepare provider packages: ${{ matrix.package-format }}"
+      - name: "Prepare provider packages: sdist"
         run: ./scripts/ci/provider_packages/ci_prepare_provider_packages.sh
-      - name: "Install and test provider packages and airflow via ${{ matrix.package-format }} files"
+        env:
+          PACKAGE_FORMAT: "sdist"
+      - name: "Prepare airflow package: sdist"
+        run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
+        env:
+          PACKAGE_FORMAT: "sdist"
+      - name: "Install and test provider packages and airflow via sdist files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        env:
+          INSTALL_AIRFLOW_VERSION: "sdist"
+          PACKAGE_FORMAT: "sdist"
 
   tests-helm:
     timeout-minutes: 20
@@ -1240,7 +1243,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-mysql
       - tests-kubernetes
       - constraints-push
-      - prepare-provider-packages
+      - prepare-test-provider-packages-wheel
+      - prepare-test-provider-packages-sdist
     if: github.event_name == 'schedule' &&  github.repository == 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
