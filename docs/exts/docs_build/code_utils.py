@@ -30,7 +30,7 @@ DOCKER_DOCS_DIR = os.path.join(DOCKER_PROJECT_DIR, "docs")
 DOCKER_AIRFLOW_DIR = os.path.join(DOCKER_PROJECT_DIR, "/airflow")
 ALL_PROVIDER_YAMLS = load_package_data()
 AIRFLOW_SITE_DIR = os.environ.get('AIRFLOW_SITE_DIRECTORY')
-PROCESS_TIMEOUT = 4 * 60
+PROCESS_TIMEOUT = 8 * 60  # 400 seconds
 
 TEXT_RED = '\033[31m'
 TEXT_RESET = '\033[0m'
