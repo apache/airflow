@@ -27,7 +27,7 @@ from parameterized import parameterized
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import connection_command
-from airflow.exceptions import AirflowException, ConnectionNotUnique
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
@@ -783,7 +783,7 @@ class TestCliImportConnections(unittest.TestCase):
             },
         }
 
-        # We're not testing the functionality of load_connections_dict -- assume it can successfully read JSON, YAML or env
+        # We're not testing the behavior of load_connections_dict, assume successfully reads JSON, YAML or env
         mock_load_connections_dict.return_value = expected_connections
 
         connection_command.connections_import(
@@ -857,7 +857,7 @@ class TestCliImportConnections(unittest.TestCase):
             },
         }
 
-        # We're not testing the functionality of load_connections_dict -- assume it can successfully read JSON, YAML or env
+        # We're not testing the behavior of load_connections_dict, assume successfully reads JSON, YAML or env
         mock_load_connections_dict.return_value = expected_connections
 
         with redirect_stdout(io.StringIO()) as stdout:
@@ -868,25 +868,24 @@ class TestCliImportConnections(unittest.TestCase):
             assert 'Could not import connection new1: connection already exists.' in stdout.getvalue()
 
         # Verify that the imported connections match the expected, sample connections
-        with create_session() as session:
-            current_conns = session.query(Connection).all()
+        current_conns = session.query(Connection).all()
 
-            comparable_attrs = [
-                "conn_type",
-                "description",
-                "host",
-                "is_encrypted",
-                "is_extra_encrypted",
-                "login",
-                "port",
-                "schema",
-            ]
+        comparable_attrs = [
+            "conn_type",
+            "description",
+            "host",
+            "is_encrypted",
+            "is_extra_encrypted",
+            "login",
+            "port",
+            "schema",
+        ]
 
-            current_conns_as_dicts = {
-                current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
-                for current_conn in current_conns
-            }
-            assert current_conns_as_dicts['new0'] == expected_connections['new0']
+        current_conns_as_dicts = {
+            current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+            for current_conn in current_conns
+        }
+        assert current_conns_as_dicts['new0'] == expected_connections['new0']
 
-            # The existing connection's description should not have changed
-            assert current_conns_as_dicts['new1']['description'] == 'new1 description'
+        # The existing connection's description should not have changed
+        assert current_conns_as_dicts['new1']['description'] == 'new1 description'

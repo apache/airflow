@@ -29,10 +29,10 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from airflow.secrets.local_filesystem import _create_connection, load_connections_dict
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
-from airflow.secrets.local_filesystem import load_connections_dict, _create_connection
 
 
 def _connection_mapper(conn: Connection) -> Dict[str, Any]:
