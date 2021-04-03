@@ -602,6 +602,7 @@ ARG_CONN_EXPORT = Arg(
 ARG_CONN_EXPORT_FORMAT = Arg(
     ('--format',), help='Format of the connections data in file', type=str, choices=['json', 'yaml', 'env']
 )
+ARG_CONN_IMPORT = Arg(("file",), help="Import connections from a file")
 
 # providers
 ARG_PROVIDER_NAME = Arg(
@@ -1199,6 +1200,16 @@ CONNECTIONS_COMMANDS = (
             ARG_CONN_EXPORT,
             ARG_CONN_EXPORT_FORMAT,
         ),
+    ),
+    ActionCommand(
+        name='import',
+        help='Import connections from a file',
+        description=(
+            "Connections can be imported from the output of the export command.\n"
+            "The filetype must by json, yaml or env and will be automatically inferred."
+        ),
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_import'),
+        args=(ARG_CONN_IMPORT,),
     ),
 )
 PROVIDERS_COMMANDS = (
