@@ -125,7 +125,7 @@ Committers/Maintainers
 Committers are community members that have write access to the project’s repositories, i.e., they can modify the code,
 documentation, and website by themselves and also accept other contributions.
 
-The official list of committers can be found `here <https://airflow.apache.org/docs/stable/project.html#committers>`__.
+The official list of committers can be found `here <https://airflow.apache.org/docs/apache-airflow/stable/project.html#committers>`__.
 
 Additionally, committers are listed in a few other places (some of these may only be visible to existing committers):
 
