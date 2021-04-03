@@ -80,7 +80,7 @@ An Airflow DAG with a ``start_date``, possibly an ``end_date``, and a ``sched
 series of intervals which the scheduler turns into individual DAG Runs and executes. The scheduler, by default, will
 kick off a DAG Run for any interval that has not been run since the last execution date (or has been cleared). This concept is called Catchup.
 
-If your DAG is written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
+If your DAG is not written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
 then you will want to turn catchup off. This can be done by setting ``catchup = False`` in DAG  or ``catchup_by_default = False``
 in the configuration file. When turned off, the scheduler creates a DAG run only for the latest interval.
 
