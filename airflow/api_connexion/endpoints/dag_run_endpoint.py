@@ -17,6 +17,7 @@
 from connexion import NoContent
 from flask import current_app, g, request
 from marshmallow import ValidationError
+from sqlalchemy import or_
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
@@ -240,14 +241,27 @@ def post_dag_run(dag_id, session):
         post_body = dagrun_schema.load(request.json, session=session)
     except ValidationError as err:
         raise BadRequest(detail=str(err))
+
     dagrun_instance = (
-        session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"]).first()
+        session.query(DagRun)
+        .filter(
+            DagRun.dag_id == dag_id,
+            or_(DagRun.run_id == post_body["run_id"], DagRun.execution_date == post_body["execution_date"]),
+        )
+        .first()
     )
     if not dagrun_instance:
         dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL, **post_body)
         session.add(dag_run)
         session.commit()
         return dagrun_schema.dump(dag_run)
+
+    if dagrun_instance.execution_date == post_body["execution_date"]:
+        raise AlreadyExists(
+            detail=f"DAGRun with DAG ID: '{dag_id}' and "
+            f"DAGRun ExecutionDate: '{post_body['execution_date']}' already exists"
+        )
+
     raise AlreadyExists(
         detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{post_body['run_id']}' already exists"
     )
