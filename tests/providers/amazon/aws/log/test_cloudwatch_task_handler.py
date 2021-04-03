@@ -122,17 +122,22 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
             self.remote_log_group,
             self.remote_log_stream,
             [
-                {'timestamp': 10000, 'message': 'First'},
-                {'timestamp': 20000, 'message': 'Second'},
-                {'timestamp': 30000, 'message': 'Third'},
+                {'timestamp': 1617400267000, 'message': 'First'},
+                {'timestamp': 1617400367000, 'message': 'Second'},
+                {'timestamp': 1617400467000, 'message': 'Third'},
             ],
         )
 
-        expected = (
-            '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\nFirst\nSecond\nThird\n'
+        msg_template = '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n'
+        events = '\n'.join(
+            [
+                '[2021-04-02T21:51:07] First',
+                '[2021-04-02T21:52:47] Second',
+                '[2021-04-02T21:54:27] Third',
+            ]
         )
         assert self.cloudwatch_task_handler.read(self.ti) == (
-            [[('', expected.format(self.remote_log_group, self.remote_log_stream))]],
+            [[('', msg_template.format(self.remote_log_group, self.remote_log_stream, events))]],
             [{'end_of_log': True}],
         )
 

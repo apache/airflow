@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
+
 import watchtower
 
 try:
@@ -24,6 +26,7 @@ except ImportError:
     from cached_property import cached_property
 
 from airflow.configuration import conf
+from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -118,7 +121,14 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
                     log_group=self.log_group, log_stream_name=stream_name, start_from_head=True
                 )
             )
-            return '\n'.join([event['message'] for event in events])
+
+            def event_to_str(event):
+                event_dt = timezone.make_aware(datetime.utcfromtimestamp(event['timestamp'] / 1000.0))
+                formatted_event_dt = timezone.make_naive(event_dt).isoformat(timespec='seconds')
+                message = event['message']
+                return f'[{formatted_event_dt}] {message}'
+
+            return '\n'.join([event_to_str(event) for event in events])
         except Exception:  # pylint: disable=broad-except
             msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
                 self.log_group, stream_name
