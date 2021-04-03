@@ -21,7 +21,7 @@ from typing import Dict, List, NamedTuple, Optional
 from rich.console import Console
 
 from airflow.utils.code_utils import prepare_code_snippet
-from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, remap_from_docker
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
@@ -82,7 +82,7 @@ def display_errors_summary(build_errors: Dict[str, List[DocBuildError]]) -> None
     console.print()
 
 
-def parse_sphinx_warnings(warning_text: str, docs_dir: str, dockerized: bool) -> List[DocBuildError]:
+def parse_sphinx_warnings(warning_text: str, docs_dir: str) -> List[DocBuildError]:
     """
     Parses warnings from Sphinx.
 
@@ -98,7 +98,7 @@ def parse_sphinx_warnings(warning_text: str, docs_dir: str, dockerized: bool) ->
             try:
                 sphinx_build_errors.append(
                     DocBuildError(
-                        file_path=remap_from_docker(os.path.join(docs_dir, warning_parts[0]), dockerized),
+                        file_path=os.path.join(docs_dir, warning_parts[0]),
                         line_no=int(warning_parts[1]),
                         message=warning_parts[2],
                     )

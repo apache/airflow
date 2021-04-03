@@ -22,16 +22,4 @@ build_images::prepare_ci_build
 
 build_images::rebuild_ci_image_if_needed_with_group
 
-start_end::group_start "Preparing venv for doc building"
-
-python3 -m venv .docs-venv
-source .docs-venv/bin/activate
-export PYTHONPATH=${AIRFLOW_SOURCES}
-
-pip install --upgrade pip==20.2.4
-
-pip install .[doc] --upgrade --constraint "${AIRFLOW_SOURCES}/constraints.txt"
-
-start_end::group_end
-
-"${AIRFLOW_SOURCES}/docs/build_docs.py" -j 0 "${@}"
+runs::run_docs "${@}"

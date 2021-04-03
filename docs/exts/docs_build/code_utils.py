@@ -25,9 +25,6 @@ ROOT_PROJECT_DIR = os.path.abspath(
 DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
 AIRFLOW_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
 
-DOCKER_PROJECT_DIR = "/opt/airflow"
-DOCKER_DOCS_DIR = os.path.join(DOCKER_PROJECT_DIR, "docs")
-DOCKER_AIRFLOW_DIR = os.path.join(DOCKER_PROJECT_DIR, "/airflow")
 ALL_PROVIDER_YAMLS = load_package_data()
 AIRFLOW_SITE_DIR = os.environ.get('AIRFLOW_SITE_DIRECTORY')
 PROCESS_TIMEOUT = 8 * 60  # 400 seconds
@@ -36,18 +33,6 @@ TEXT_RED = '\033[31m'
 TEXT_RESET = '\033[0m'
 
 CONSOLE_WIDTH = 180
-
-
-def remap_from_docker(file_name: str, dockerized: bool):
-    """
-    Remaps filename from Docker to Host.
-    :param file_name: name of file
-    :param dockerized: whether builds were running in docker environment.
-    :return:
-    """
-    if dockerized and file_name.startswith(DOCKER_PROJECT_DIR):
-        return file_name.replace(DOCKER_PROJECT_DIR, ROOT_PROJECT_DIR)
-    return file_name
 
 
 def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:
