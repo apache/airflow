@@ -3830,7 +3830,7 @@ class DagDependenciesView(AirflowBaseView):
     @expose('/dag-dependencies')
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         ]
     )
     @gzipped
