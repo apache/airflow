@@ -810,3 +810,83 @@ class TestCliImportConnections(unittest.TestCase):
                 for current_conn in current_conns
             }
             assert expected_connections == current_conns_as_dicts
+
+    @provide_session
+    @mock.patch('airflow.cli.commands.connection_command.load_connections_dict')
+    @mock.patch('os.path.exists')
+    def test_cli_connections_import_should_not_overwrite_existing_connections(
+        self, mock_exists, mock_load_connections_dict, session=None
+    ):
+        mock_exists.return_value = True
+
+        # Add a pre-existing connection "new1"
+        merge_conn(
+            Connection(
+                conn_id="new1",
+                conn_type="mysql",
+                description="mysql description",
+                host="mysql",
+                login="root",
+                password="",
+                schema="airflow",
+            ),
+            session=session,
+        )
+
+        # Sample connections to import, including a collision with "new1"
+        expected_connections = {
+            "new0": {
+                "conn_type": "postgres",
+                "description": "new0 description",
+                "host": "host",
+                "is_encrypted": False,
+                "is_extra_encrypted": False,
+                "login": "airflow",
+                "port": 5432,
+                "schema": "airflow",
+            },
+            "new1": {
+                "conn_type": "mysql",
+                "description": "new1 description",
+                "host": "host",
+                "is_encrypted": False,
+                "is_extra_encrypted": False,
+                "login": "airflow",
+                "port": 3306,
+                "schema": "airflow",
+            },
+        }
+
+        # We're not testing the functionality of load_connections_dict -- assume it can successfully read JSON, YAML or env
+        mock_load_connections_dict.return_value = expected_connections
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_import(
+                self.parser.parse_args(["connections", "import", 'sample.json'])
+            )
+
+            assert 'Could not import connection new1: connection already exists.' in stdout.getvalue()
+
+        # Verify that the imported connections match the expected, sample connections
+        with create_session() as session:
+            current_conns = session.query(Connection).all()
+
+            comparable_attrs = [
+                "conn_type",
+                "description",
+                "host",
+                "is_encrypted",
+                "is_extra_encrypted",
+                "login",
+                "port",
+                "schema",
+            ]
+
+            current_conns_as_dicts = {
+                current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+                for current_conn in current_conns
+            }
+            assert current_conns_as_dicts['new0'] == expected_connections['new0']
+
+            # The existing connection's description should not have changed
+            assert current_conns_as_dicts['new1']['description'] == 'new1 description'
