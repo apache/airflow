@@ -122,16 +122,16 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
                 )
             )
 
-            def event_to_str(event):
-                event_dt = timezone.make_aware(datetime.utcfromtimestamp(event['timestamp'] / 1000.0))
-                formatted_event_dt = timezone.make_naive(event_dt).isoformat(timespec='seconds')
-                message = event['message']
-                return f'[{formatted_event_dt}] {message}'
-
-            return '\n'.join([event_to_str(event) for event in events])
+            return '\n'.join([self._event_to_str(event) for event in events])
         except Exception:  # pylint: disable=broad-except
             msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
                 self.log_group, stream_name
             )
             self.log.exception(msg)
             return msg
+
+    def _event_to_str(self, event: dict) -> str:
+        event_dt = timezone.make_aware(datetime.utcfromtimestamp(event['timestamp'] / 1000.0))
+        formatted_event_dt = timezone.make_naive(event_dt).isoformat(timespec='seconds')
+        message = event['message']
+        return f'[{formatted_event_dt}] {message}'

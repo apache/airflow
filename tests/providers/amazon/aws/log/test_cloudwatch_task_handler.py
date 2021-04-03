@@ -112,6 +112,21 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
                 handler.handle(message)
             mock_emit.assert_has_calls([call(message) for message in messages])
 
+    def test_event_to_str(self):
+        handler = self.cloudwatch_task_handler
+        events = [
+            {'timestamp': 1617400267000, 'message': 'First'},
+            {'timestamp': 1617400367000, 'message': 'Second'},
+            {'timestamp': 1617400467000, 'message': 'Third'},
+        ]
+        assert [handler._event_to_str(event) for event in events] == (
+            [
+                '[2021-04-02T21:51:07] First',
+                '[2021-04-02T21:52:47] Second',
+                '[2021-04-02T21:54:27] Third',
+            ]
+        )
+
     def test_read(self):
         # Confirmed via AWS Support call:
         # CloudWatch events must be ordered chronologically otherwise
