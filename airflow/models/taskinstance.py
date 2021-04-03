@@ -1263,6 +1263,9 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         def signal_handler(signum, frame):  # pylint: disable=unused-argument
             self.log.error("Received SIGTERM. Terminating subprocesses.")
             task_copy.on_kill()
+            if task_copy.on_failure_callback is not None:
+                context = self.get_template_context()
+                task_copy.on_failure_callback(context)
             raise AirflowException("Task received SIGTERM signal")
 
         signal.signal(signal.SIGTERM, signal_handler)
