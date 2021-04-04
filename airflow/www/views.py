@@ -3151,9 +3151,9 @@ class VariableModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['key', 'val', 'is_encrypted']
-    add_columns = ['key', 'val']
-    edit_columns = ['key', 'val']
+    list_columns = ['key', 'val', 'description', 'is_encrypted']
+    add_columns = ['key', 'val', 'description']
+    edit_columns = ['key', 'val', 'description']
     search_columns = ['key', 'val']
 
     base_order = ('key', 'asc')
