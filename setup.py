@@ -481,8 +481,8 @@ devel_azure = azure_blob_storage + azure_container_instances + azure_cosmos + az
 devel_all = (all_dbs + atlas + aws +
              devel_azure +
              celery + cgroups + crypto + datadog + devel + doc + docker +
-             elasticsearch + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes + ldap +
-             oracle + papermill + password +
+             elasticsearch + flask_oauth + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes +
+             ldap + oracle + papermill + password +
              rabbitmq + redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
              virtualenv + webhdfs + zendesk)
 
