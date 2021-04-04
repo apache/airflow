@@ -168,7 +168,12 @@
           "type": "array",
           "items": { "type": "string" },
           "uniqueItems": true
-        }
+        },
+        "doc":  { "type": "string" },
+        "doc_md":  { "type": "string" },
+        "doc_json":  { "type": "string" },
+        "doc_yaml":  { "type": "string" },
+        "doc_rst":  { "type": "string" }
       },
       "additionalProperties": true
     },
