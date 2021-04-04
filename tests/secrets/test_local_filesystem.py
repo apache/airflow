@@ -219,8 +219,9 @@ class TestLoadConnection(unittest.TestCase):
                password: None
                port: 1234
                extra_dejson:
-                 extra__google_cloud_platform__keyfile_dict:
-                   a: b
+                 arbitrary_dict:
+                    a: b
+                 extra__google_cloud_platform__keyfile_dict: '{"a": "b"}'
                  extra__google_cloud_platform__keyfile_path: asaa""",
                 {
                     "conn_a": {'conn_type': 'mysql', 'host': 'hosta'},
@@ -232,7 +233,8 @@ class TestLoadConnection(unittest.TestCase):
                         'password': 'None',
                         'port': 1234,
                         'extra_dejson': {
-                            'extra__google_cloud_platform__keyfile_dict': {'a': 'b'},
+                            'arbitrary_dict': {"a": "b"},
+                            'extra__google_cloud_platform__keyfile_dict': '{"a": "b"}',
                             'extra__google_cloud_platform__keyfile_path': 'asaa',
                         },
                     },
