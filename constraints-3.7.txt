@@ -177,7 +177,7 @@ curlify==2.2.1
 cx-Oracle==8.1.0
 dask==2021.3.1
 datadog==0.40.1
-decorator==5.0.3
+decorator==5.0.4
 defusedxml==0.7.1
 dill==0.3.2
 distlib==0.3.1
@@ -186,7 +186,7 @@ dnspython==1.16.0
 docker-pycreds==0.4.0
 docker==3.7.3
 docopt==0.6.2
-docutils==0.16
+docutils==0.17
 ecdsa==0.14.1
 elasticsearch-dbapi==0.1.0
 elasticsearch-dsl==7.3.0
