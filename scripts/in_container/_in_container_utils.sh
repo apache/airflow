@@ -54,16 +54,6 @@ function assert_in_container() {
 }
 
 function in_container_script_start() {
-    OUTPUT_PRINTED_ONLY_ON_ERROR=$(mktemp)
-    export OUTPUT_PRINTED_ONLY_ON_ERROR
-    readonly OUTPUT_PRINTED_ONLY_ON_ERROR
-
-    if [[ ${VERBOSE=} == "true" && ${GITHUB_ACTIONS=} != "true" ]]; then
-        echo
-        echo "Output is redirected to ${OUTPUT_PRINTED_ONLY_ON_ERROR} and will be printed on error only"
-        echo
-    fi
-
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
     fi
@@ -74,23 +64,9 @@ function in_container_script_end() {
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
         if [[ "${PRINT_INFO_FROM_SCRIPTS="true"}" == "true" ]]; then
-            if [[ -f "${OUTPUT_PRINTED_ONLY_ON_ERROR}" ]]; then
-                echo "###########################################################################################"
-                echo
-                echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container (See above for error message). Below is the output of the last action! ${COLOR_RESET}"
-                echo
-                echo "${COLOR_BLUE}***  BEGINNING OF THE LAST COMMAND OUTPUT *** ${COLOR_RESET}"
-                cat "${OUTPUT_PRINTED_ONLY_ON_ERROR}"
-                echo "${COLOR_BLUE}***  END OF THE LAST COMMAND OUTPUT ***  ${COLOR_RESET}"
-                echo
-                echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container. The actual error might be above the output!  ${COLOR_RESET}"
-                echo
-                echo "###########################################################################################"
-            else
-                echo "########################################################################################################################"
-                echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${EXIT_CODE}  ${COLOR_RESET}"
-                echo "########################################################################################################################"
-            fi
+            echo "########################################################################################################################"
+            echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${EXIT_CODE}  ${COLOR_RESET}"
+            echo "########################################################################################################################"
         fi
     fi
 
