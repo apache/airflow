@@ -177,7 +177,7 @@ curlify==2.2.1
 cx-Oracle==8.1.0
 dask==2021.3.1
 datadog==0.40.1
-decorator==5.0.4
+decorator==5.0.5
 defusedxml==0.7.1
 dill==0.3.2
 distlib==0.3.1
