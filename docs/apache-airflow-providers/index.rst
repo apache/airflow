@@ -248,7 +248,7 @@ When running airflow with your provider package, there will be (at least) three 
   together with the related files (e.g. ``dags`` folder)
 * The ``apache-airflow`` package
 * Your own ``myproviderpackage`` package that is independent of ``apache-airflow`` or your airflow installation, which
-  can be a local Python package (that you install via ``pip pip install -e /path/to/my-package``), a normal pip package
+  can be a local Python package (that you install via ``pip install -e /path/to/my-package``), a normal pip package
   (``pip install myproviderpackage``), or any other type of Python package
 
 In the ``myproviderpackage`` package you need to add the entry point and provide the appropriate metadata as described above.
