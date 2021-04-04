@@ -718,7 +718,7 @@
     - name: auth_backend
       description: |
         How to authenticate users of the API. See
-        https://airflow.apache.org/docs/stable/security.html for possible values.
+        https://airflow.apache.org/docs/apache-airflow/stable/security.html for possible values.
         ("airflow.api.auth.backend.default" allows all requests for historic reasons)
       version_added: ~
       type: string
