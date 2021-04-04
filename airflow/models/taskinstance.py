@@ -1544,6 +1544,17 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             session.merge(self)
         session.commit()
 
+    @provide_session
+    def handle_failure_with_callback(
+        self,
+        error: Union[str, Exception],
+        test_mode: Optional[bool] = None,
+        force_fail: bool = False,
+        session=None,
+    ) -> None:
+        self.handle_failure(error=error, test_mode=test_mode, force_fail=force_fail, session=session)
+        self._run_finished_callback(error=error)
+
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""
         return self.task.retries and self.try_number <= self.max_tries
