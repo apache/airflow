@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,29 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "2.2"
-services:
-  redis:
-    image: redis:5.0.1
-    volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-      - redis-db-volume:/data/redis
-    ports:
-      - "${REDIS_HOST_PORT}:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 30s
-      retries: 50
-    restart: always
-
-  airflow:
-    environment:
-      - INTEGRATION_REDIS=true
-    depends_on:
-      redis:
-        condition: service_healthy
-
-volumes:
-  redis-db-volume:

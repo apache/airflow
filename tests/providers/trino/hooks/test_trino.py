@@ -24,23 +24,23 @@ from unittest.mock import patch
 
 import pytest
 from parameterized import parameterized
-from prestodb.transaction import IsolationLevel
+from trino.transaction import IsolationLevel
 
 from airflow import AirflowException
 from airflow.models import Connection
-from airflow.providers.presto.hooks.presto import PrestoHook
+from airflow.providers.trino.hooks.trino import TrinoHook
 
 
-class TestPrestoHookConn(unittest.TestCase):
-    @patch('airflow.providers.presto.hooks.presto.prestodb.auth.BasicAuthentication')
-    @patch('airflow.providers.presto.hooks.presto.prestodb.dbapi.connect')
-    @patch('airflow.providers.presto.hooks.presto.PrestoHook.get_connection')
+class TestTrinoHookConn(unittest.TestCase):
+    @patch('airflow.providers.trino.hooks.trino.trino.auth.BasicAuthentication')
+    @patch('airflow.providers.trino.hooks.trino.trino.dbapi.connect')
+    @patch('airflow.providers.trino.hooks.trino.TrinoHook.get_connection')
     def test_get_conn_basic_auth(self, mock_get_connection, mock_connect, mock_basic_auth):
         mock_get_connection.return_value = Connection(
             login='login', password='password', host='host', schema='hive'
         )
 
-        conn = PrestoHook().get_conn()
+        conn = TrinoHook().get_conn()
         mock_connect.assert_called_once_with(
             catalog='hive',
             host='host',
@@ -55,7 +55,7 @@ class TestPrestoHookConn(unittest.TestCase):
         mock_basic_auth.assert_called_once_with('login', 'password')
         assert mock_connect.return_value == conn
 
-    @patch('airflow.providers.presto.hooks.presto.PrestoHook.get_connection')
+    @patch('airflow.providers.trino.hooks.trino.TrinoHook.get_connection')
     def test_get_conn_invalid_auth(self, mock_get_connection):
         mock_get_connection.return_value = Connection(
             login='login',
@@ -67,11 +67,11 @@ class TestPrestoHookConn(unittest.TestCase):
         with pytest.raises(
             AirflowException, match=re.escape("Kerberos authorization doesn't support password.")
         ):
-            PrestoHook().get_conn()
+            TrinoHook().get_conn()
 
-    @patch('airflow.providers.presto.hooks.presto.prestodb.auth.KerberosAuthentication')
-    @patch('airflow.providers.presto.hooks.presto.prestodb.dbapi.connect')
-    @patch('airflow.providers.presto.hooks.presto.PrestoHook.get_connection')
+    @patch('airflow.providers.trino.hooks.trino.trino.auth.KerberosAuthentication')
+    @patch('airflow.providers.trino.hooks.trino.trino.dbapi.connect')
+    @patch('airflow.providers.trino.hooks.trino.TrinoHook.get_connection')
     def test_get_conn_kerberos_auth(self, mock_get_connection, mock_connect, mock_auth):
         mock_get_connection.return_value = Connection(
             login='login',
@@ -93,7 +93,7 @@ class TestPrestoHookConn(unittest.TestCase):
             ),
         )
 
-        conn = PrestoHook().get_conn()
+        conn = TrinoHook().get_conn()
         mock_connect.assert_called_once_with(
             catalog='hive',
             host='host',
@@ -128,8 +128,8 @@ class TestPrestoHookConn(unittest.TestCase):
         ]
     )
     def test_get_conn_verify(self, current_verify, expected_verify):
-        patcher_connect = patch('airflow.providers.presto.hooks.presto.prestodb.dbapi.connect')
-        patcher_get_connections = patch('airflow.providers.presto.hooks.presto.PrestoHook.get_connection')
+        patcher_connect = patch('airflow.providers.trino.hooks.trino.trino.dbapi.connect')
+        patcher_get_connections = patch('airflow.providers.trino.hooks.trino.TrinoHook.get_connection')
 
         with patcher_connect as mock_connect, patcher_get_connections as mock_get_connection:
             mock_get_connection.return_value = Connection(
@@ -138,12 +138,12 @@ class TestPrestoHookConn(unittest.TestCase):
             mock_verify = mock.PropertyMock()
             type(mock_connect.return_value._http_session).verify = mock_verify
 
-            conn = PrestoHook().get_conn()
+            conn = TrinoHook().get_conn()
             mock_verify.assert_called_once_with(expected_verify)
             assert mock_connect.return_value == conn
 
 
-class TestPrestoHook(unittest.TestCase):
+class TestTrinoHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
@@ -152,7 +152,7 @@ class TestPrestoHook(unittest.TestCase):
         self.conn.cursor.return_value = self.cur
         conn = self.conn
 
-        class UnitTestPrestoHook(PrestoHook):
+        class UnitTestTrinoHook(TrinoHook):
             conn_name_attr = 'test_conn_id'
 
             def get_conn(self):
@@ -161,7 +161,7 @@ class TestPrestoHook(unittest.TestCase):
             def get_isolation_level(self):
                 return IsolationLevel.READ_COMMITTED
 
-        self.db_hook = UnitTestPrestoHook()
+        self.db_hook = UnitTestTrinoHook()
 
     @patch('airflow.hooks.dbapi.DbApiHook.insert_rows')
     def test_insert_rows(self, mock_insert_rows):
@@ -206,3 +206,28 @@ class TestPrestoHook(unittest.TestCase):
         assert result_sets[1][0] == df.values.tolist()[1][0]
 
         self.cur.execute.assert_called_once_with(statement, None)
+
+
+class TestTrinoHookIntegration(unittest.TestCase):
+    @pytest.mark.integration("trino")
+    @mock.patch.dict('os.environ', AIRFLOW_CONN_TRINO_DEFAULT="trino://airflow@trino:8080/")
+    def test_should_record_records(self):
+        hook = TrinoHook()
+        sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
+        records = hook.get_records(sql)
+        assert [['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']] == records
+
+    @pytest.mark.integration("trino")
+    @pytest.mark.integration("kerberos")
+    def test_should_record_records_with_kerberos_auth(self):
+        conn_url = (
+            'trino://airflow@trino.example.com:7778/?'
+            'auth=kerberos&kerberos__service_name=HTTP&'
+            'verify=False&'
+            'protocol=https'
+        )
+        with mock.patch.dict('os.environ', AIRFLOW_CONN_TRINO_DEFAULT=conn_url):
+            hook = TrinoHook()
+            sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
+            records = hook.get_records(sql)
+            assert [['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']] == records

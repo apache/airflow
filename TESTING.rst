@@ -281,12 +281,12 @@ The following integrations are available:
      - Integration required for OpenLDAP hooks
    * - pinot
      - Integration required for Apache Pinot hooks
-   * - presto
-     - Integration required for Presto hooks
    * - rabbitmq
      - Integration required for Celery executor tests
    * - redis
      - Integration required for Celery executor tests
+   * - trino
+     - Integration required for Trino hooks
 
 To start the ``mongo`` integration only, enter:
 

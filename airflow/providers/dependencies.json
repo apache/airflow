@@ -50,7 +50,8 @@
     "presto",
     "salesforce",
     "sftp",
-    "ssh"
+    "ssh",
+    "trino"
   ],
   "hashicorp": [
     "google"
@@ -65,6 +66,7 @@
   "mysql": [
     "amazon",
     "presto",
+    "trino",
     "vertica"
   ],
   "opsgenie": [

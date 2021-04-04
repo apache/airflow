@@ -14,8 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-ARG PRESTO_VERSION="330"
-FROM prestosql/presto:${PRESTO_VERSION}
+ARG TRINO_VERSION="354"
+FROM trinodb/trino:${TRINO_VERSION}
 
 # Obtain root privileges
 USER 0
@@ -23,16 +23,16 @@ USER 0
 # Setup entrypoint
 COPY entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/usr/lib/presto/bin/run-presto"]
+CMD ["/usr/lib/trino/bin/run-trino"]
 
 # Expose HTTPS
 EXPOSE 7778
 
-LABEL org.apache.airflow.component="presto"
-LABEL org.apache.airflow.presto.core.version="${PRESTO_VERSION}"
-LABEL org.apache.airflow.airflow_bats.version="${AIRFLOW_PRESTO_VERSION}"
+LABEL org.apache.airflow.component="trino"
+LABEL org.apache.airflow.trino.core.version="${TRINO_VERSION}"
+LABEL org.apache.airflow.airflow_trino.version="${AIRFLOW_TRINO_VERSION}"
 LABEL org.apache.airflow.commit_sha="${COMMIT_SHA}"
 LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
 # Restore user
-USER presto:presto
+USER trino:trino

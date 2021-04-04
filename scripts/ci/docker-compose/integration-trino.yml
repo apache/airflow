@@ -17,10 +17,10 @@
 ---
 version: "2.2"
 services:
-  presto:
-    image: apache/airflow:presto-2020.10.08
-    container_name: presto
-    hostname: presto
+  trino:
+    image: apache/airflow:trino-2021.04.04
+    container_name: trino
+    hostname: trino
     domainname: example.com
 
     networks:
@@ -40,19 +40,19 @@ services:
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - ../dockerfiles/krb5-kdc-server/krb5.conf:/etc/krb5.conf:ro
-      - presto-db-volume:/data/presto
-      - kerberos-keytabs:/home/presto/kerberos-keytabs
+      - trino-db-volume:/data/trino
+      - kerberos-keytabs:/home/trino/kerberos-keytabs
 
     environment:
       - KRB5_CONFIG=/etc/krb5.conf
       - KRB5_TRACE=/dev/stderr
-      - KRB5_KTNAME=/home/presto/kerberos-keytabs/presto.keytab
+      - KRB5_KTNAME=/home/trino/kerberos-keytabs/trino.keytab
   airflow:
     environment:
-      - INTEGRATION_PRESTO=true
+      - INTEGRATION_TRINO=true
     depends_on:
-      presto:
+      trino:
         condition: service_healthy
 
 volumes:
-  presto-db-volume:
+  trino-db-volume:

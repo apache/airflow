@@ -25,7 +25,7 @@
 
 _breeze_allowed_python_major_minor_versions="2.7 3.5 3.6 3.7 3.8"
 _breeze_allowed_backends="sqlite mysql postgres"
-_breeze_allowed_integrations="cassandra kerberos mongo openldap pinot presto rabbitmq redis statsd all"
+_breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
 _breeze_allowed_generate_constraints_modes="source-providers pypi-providers no-providers"
 # registrys is good here even if it is not correct english. We are adding s automatically to all variables
 _breeze_allowed_github_registrys="docker.pkg.github.com ghcr.io"
