@@ -56,10 +56,10 @@ class TestGenerateDagYamlCommand(unittest.TestCase):
 
 class TestCleanUpPodsCommand(unittest.TestCase):
     label_selector = kubernetes.client.V1LabelSelector(
-            match_expressions=[
-                kubernetes.client.V1LabelSelectorRequirement(key=label, operator="Exists")
-                for label in ['dag_id', 'task_id', 'execution_date', 'try_number', 'airflow_version']
-            ]
+        match_expressions=[
+            kubernetes.client.V1LabelSelectorRequirement(key=label, operator="Exists")
+            for label in ['dag_id', 'task_id', 'execution_date', 'try_number', 'airflow_version']
+        ]
     )
 
     @classmethod
@@ -86,8 +86,9 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
-        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500,
-                                                    label_selector=self.label_selector)
+        list_namespaced_pod.assert_called_once_with(
+            namespace='awesome-namespace', limit=500, label_selector=self.label_selector
+        )
         delete_pod.assert_not_called()
         load_incluster_config.assert_called_once()
 
@@ -106,8 +107,9 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
-        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500,
-                                                    label_selector=self.label_selector)
+        list_namespaced_pod.assert_called_once_with(
+            namespace='awesome-namespace', limit=500, label_selector=self.label_selector
+        )
         delete_pod.assert_called_with('dummy', 'awesome-namespace')
         load_incluster_config.assert_called_once()
 
@@ -129,8 +131,9 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
-        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500,
-                                                    label_selector=self.label_selector)
+        list_namespaced_pod.assert_called_once_with(
+            namespace='awesome-namespace', limit=500, label_selector=self.label_selector
+        )
         delete_pod.assert_not_called()
         load_incluster_config.assert_called_once()
 
@@ -152,8 +155,9 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
-        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500,
-                                                    label_selector=self.label_selector)
+        list_namespaced_pod.assert_called_once_with(
+            namespace='awesome-namespace', limit=500, label_selector=self.label_selector
+        )
         delete_pod.assert_called_with('dummy3', 'awesome-namespace')
         load_incluster_config.assert_called_once()
 
@@ -173,8 +177,9 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
-        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500,
-                                                    label_selector=self.label_selector)
+        list_namespaced_pod.assert_called_once_with(
+            namespace='awesome-namespace', limit=500, label_selector=self.label_selector
+        )
         delete_pod.assert_called_with('dummy4', 'awesome-namespace')
         load_incluster_config.assert_called_once()
 
@@ -194,8 +199,9 @@ class TestCleanUpPodsCommand(unittest.TestCase):
         kubernetes_command.cleanup_pods(
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
-        list_namespaced_pod.assert_called_once_with(namespace='awesome-namespace', limit=500,
-                                                    label_selector=self.label_selector)
+        list_namespaced_pod.assert_called_once_with(
+            namespace='awesome-namespace', limit=500, label_selector=self.label_selector
+        )
         load_incluster_config.assert_called_once()
 
     @mock.patch('airflow.cli.commands.kubernetes_command._delete_pod')
@@ -217,11 +223,13 @@ class TestCleanUpPodsCommand(unittest.TestCase):
             self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
         )
         calls = [
-            call.first(namespace='awesome-namespace', limit=500,
-                       label_selector=self.label_selector),
-            call.second(namespace='awesome-namespace', limit=500,
-                        label_selector=self.label_selector,
-                        _continue='dummy-token'),
+            call.first(namespace='awesome-namespace', limit=500, label_selector=self.label_selector),
+            call.second(
+                namespace='awesome-namespace',
+                limit=500,
+                label_selector=self.label_selector,
+                _continue='dummy-token',
+            ),
         ]
         list_namespaced_pod.assert_has_calls(calls)
         delete_pod.assert_called_with('dummy', 'awesome-namespace')
