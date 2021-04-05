@@ -1493,7 +1493,7 @@ def cross_downstream(
 class BaseOperatorLink(metaclass=ABCMeta):
     """Abstract base class that defines how we get an operator link."""
 
-    operators: ClassVar[List[Type[BaseOperator]]] = []
+    operators: ClassVar[List[Type[BaseOperator]]] = []  # pylint: disable=invalid-name
     """
     This property will be used by Airflow Plugins to find the Operators to which you want
     to assign this Operator Link

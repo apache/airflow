@@ -237,7 +237,12 @@ cgroups = [
 cloudant = [
     'cloudant>=2.0',
 ]
-dask = ['cloudpickle>=1.4.1, <1.5.0', 'distributed>=2.11.1, <2.20']
+dask = [
+    'cloudpickle>=1.4.1, <1.5.0',
+    'dask<2021.3.1;python_version>"3.7"',  # dask stopped supporting python 3.6 in 2021.3.1 version
+    'dask>=2.9.0;python_version>="3.7"',
+    'distributed>=2.11.1, <2.20',
+]
 databricks = [
     'requests>=2.20.0, <3',
 ]
@@ -313,7 +318,9 @@ google = [
     'google-cloud-workflows>=0.1.0,<2.0.0',
     'grpcio-gcp>=0.2.2',
     'json-merge-patch~=0.2',
-    'pandas-gbq',
+    # pandas-gbq 0.15.0 release broke google provider's bigquery import
+    # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
+    'pandas-gbq<0.15.0',
     'plyvel',
 ]
 grpc = [

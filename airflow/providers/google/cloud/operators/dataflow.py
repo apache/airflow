@@ -43,9 +43,9 @@ class CheckJobRunning(Enum):
     WaitForRun - wait for job to finish and then continue with new job
     """
 
-    IgnoreJob = 1
-    FinishIfRunning = 2
-    WaitForRun = 3
+    IgnoreJob = 1  # pylint: disable=invalid-name
+    FinishIfRunning = 2  # pylint: disable=invalid-name
+    WaitForRun = 3  # pylint: disable=invalid-name
 
 
 class DataflowConfiguration:
