@@ -68,4 +68,11 @@ def getuser() -> str:
     try:
         return getpass.getuser()
     except KeyError:
-        return str(os.getuid())
+        # Inner import to avoid circular import
+        from airflow.exceptions import AirflowConfigException
+
+        raise AirflowConfigException(
+            "The user that Airflow is running as has no username; you must run"
+            "Airflow as a full user, with a username and home directory, "
+            "in order for it to function properly."
+        )

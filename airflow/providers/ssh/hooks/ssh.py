@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for SSH connections."""
-import getpass
 import os
 import warnings
 from base64 import decodebytes
@@ -29,6 +28,7 @@ from sshtunnel import SSHTunnelForwarder
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.utils.platform import getuser
 
 
 class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
@@ -175,7 +175,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
                 self.remote_host,
                 self.ssh_conn_id,
             )
-            self.username = getpass.getuser()
+            self.username = getuser()
 
         user_ssh_config_filename = os.path.expanduser('~/.ssh/config')
         if os.path.isfile(user_ssh_config_filename):

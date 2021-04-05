@@ -17,13 +17,13 @@
 # under the License.
 #
 """Hook for winrm remote execution."""
-import getpass
 from typing import Optional
 
 from winrm.protocol import Protocol
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.utils.platform import getuser
 
 
 # TODO: Fixme please - I have too complex implementation
@@ -203,7 +203,7 @@ class WinRMHook(BaseHook):
                 self.remote_host,
                 self.ssh_conn_id,
             )
-            self.username = getpass.getuser()
+            self.username = getuser()
 
         # If endpoint is not set, then build a standard wsman endpoint from host and port.
         if not self.endpoint:
