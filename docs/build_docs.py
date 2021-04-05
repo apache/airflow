@@ -290,23 +290,23 @@ def run_in_parallel(
     verbose,
 ):
     """Run both - spellcheck and docs build sequentially without multiprocessing"""
-    pool = multiprocessing.Pool(processes=jobs)
-    if not spellcheck_only:
-        run_docs_build_in_parallel(
-            all_build_errors=all_build_errors,
-            for_production=for_production,
-            current_packages=current_packages,
-            verbose=verbose,
-            pool=pool,
-        )
-    if not docs_only:
-        run_spell_check_in_parallel(
-            all_spelling_errors=all_spelling_errors,
-            for_production=for_production,
-            current_packages=current_packages,
-            verbose=verbose,
-            pool=pool,
-        )
+    with multiprocessing.Pool(processes=jobs) as pool:
+        if not spellcheck_only:
+            run_docs_build_in_parallel(
+                all_build_errors=all_build_errors,
+                for_production=for_production,
+                current_packages=current_packages,
+                verbose=verbose,
+                pool=pool,
+            )
+        if not docs_only:
+            run_spell_check_in_parallel(
+                all_spelling_errors=all_spelling_errors,
+                for_production=for_production,
+                current_packages=current_packages,
+                verbose=verbose,
+                pool=pool,
+            )
 
 
 def print_build_output(result: BuildDocsResult):
