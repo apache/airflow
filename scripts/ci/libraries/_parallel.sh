@@ -193,3 +193,16 @@ function parallel::cleanup_runner() {
     parallel::kill_stale_semaphore_locks
     start_end::group_end
 }
+
+
+function parallel::make_sure_python_versions_are_specified() {
+    if [[ -z "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING=}" ]]; then
+        echo
+        echo "${COLOR_RED}The CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING variable must be set and list python versions to use!${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    echo
+    echo "${COLOR_BLUE}Running parallel builds for those Python versions: ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}!${COLOR_RESET}"
+    echo
+}
