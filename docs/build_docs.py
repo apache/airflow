@@ -123,27 +123,12 @@ def _get_parser():
         "--jobs",
         dest='jobs',
         type=int,
-        default=1,
-        help=(
-            """
-    Number of parallel processes that will be spawned to build the docs.
+        default=0,
+        help=("""\
+        Number of parallel processes that will be spawned to build the docs.
 
-    This is usually used in CI system only. Though you can also use it to run complete check
-    of the documntation locally if you have powerful local machine.
-    Default is 1 - which means that doc check runs sequentially, This is the default behaviour
-    because autoapi extension we use is not capable of running parallel builds at the same time using
-    the same source files.
-
-    In parallel builds we are using dockerised version of image built from local sources but the image
-    has to be prepared locally (similarly as it is in CI) before you run the docs build. Any changes you
-    have done locally after building the image, will not be checked.
-
-    Typically you run parallel build in this way if you want to quickly run complete check for all docs:
-
-         ./breeze build-image --python 3.6
-         ./docs/build-docs.py -j 0
-
-"""
+        If passed 0, the value will be determined based on the number of CPUs.
+        """
         ),
     )
     parser.add_argument(
