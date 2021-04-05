@@ -60,6 +60,8 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_spinner.sh
 # shellcheck source=scripts/ci/libraries/_start_end.sh
 . "${LIBRARIES_DIR}"/_start_end.sh
+# shellcheck source=scripts/ci/libraries/_testing.sh
+. "${LIBRARIES_DIR}"/_testing.sh
 # shellcheck source=scripts/ci/libraries/_verbosity.sh
 . "${LIBRARIES_DIR}"/_verbosity.sh
 # shellcheck source=scripts/ci/libraries/_verify_image.sh

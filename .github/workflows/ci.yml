@@ -817,15 +817,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     continue-on-error: true
     needs: [build-info, ci-images]
-    strategy:
-      matrix:
-        include:
-          - backend: mysql
-          - backend: postgres
-          - backend: sqlite
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      BACKEND: ${{ matrix.backend }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
       MYSQL_VERSION: ${{needs.build-info.outputs.defaultMySQLVersion}}
       POSTGRES_VERSION: ${{needs.build-info.outputs.defaultPostgresVersion}}
@@ -860,7 +853,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: Quarantined"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        run: ./scripts/ci/testing/ci_run_quarantined_tests.sh
       - name: "Upload Quarantine test results"
         uses: actions/upload-artifact@v2
         if: always()

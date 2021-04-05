@@ -710,7 +710,7 @@ Initialization variables:
 
 Test variables:
 
-    TEST_TYPE: '${TEST_TYPE}'
+    TEST_TYPE: '${TEST_TYPE=}'
 
 EOF
     if [[ "${CI}" == "true" ]]; then
@@ -776,7 +776,6 @@ function initialization::make_constants_read_only() {
     readonly HELM_VERSION
     readonly KUBECTL_VERSION
 
-    readonly BACKEND
     readonly POSTGRES_VERSION
     readonly MYSQL_VERSION
 

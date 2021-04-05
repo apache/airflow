@@ -73,7 +73,7 @@ function parallel::monitor_loop() {
         do
             parallel_process=$(basename "${directory}")
 
-            echo "${COLOR_BLUE}### The last lines for ${parallel_process} process ###${COLOR_RESET}"
+            echo "${COLOR_BLUE}### The last lines for ${parallel_process} process: ${directory}/stdout ###${COLOR_RESET}"
             echo
             tail -2 "${directory}/stdout" || true
             echo
@@ -159,4 +159,37 @@ function parallel::print_job_summary_and_return_status_code() {
         fi
     done
     return "${return_code}"
+}
+
+function parallel::kill_all_running_docker_containers() {
+    echo
+    echo "${COLOR_BLUE}Kill all running docker containers${COLOR_RESET}"
+    echo
+    # shellcheck disable=SC2046
+    docker kill $(docker ps -q) || true
+}
+
+function parallel::system_prune_docker() {
+    echo
+    echo "${COLOR_BLUE}System-prune docker${COLOR_RESET}"
+    echo
+    docker_v system prune --force --volumes
+    echo
+}
+
+# Cleans up runner before test execution.
+#  * Kills all running docker containers
+#  * System prune to clean all the temporary/unnamed images and left-over volumes
+#  * Print information about available space and memory
+#  * Kills stale semaphore locks
+function parallel::cleanup_runner() {
+    start_end::group_start "Cleanup runner"
+    parallel::kill_all_running_docker_containers
+    parallel::system_prune_docker
+    docker_engine_resources::get_available_memory_in_docker
+    docker_engine_resources::get_available_cpus_in_docker
+    docker_engine_resources::get_available_disk_space_in_docker
+    docker_engine_resources::print_overall_stats
+    parallel::kill_stale_semaphore_locks
+    start_end::group_end
 }
