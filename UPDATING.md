@@ -74,7 +74,7 @@ https://developers.google.com/style/inclusive-documentation
 
 Moved the pod launcher from `airflow.kubernetes.pod_launcher` to `airflow.providers.cncf.kubernetes.utils.pod_launcher`
 
-This will alow users to fix the KubernetesPodOperator without requiring an airflow upgrade
+This will alow users to update the pod_launcher for the KubernetesPodOperator without requiring an airflow upgrade
 
 ### Default `[webserver] worker_refresh_interval` is changed to `6000` seconds
 
