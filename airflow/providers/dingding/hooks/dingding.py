@@ -122,5 +122,5 @@ class DingdingHook(HttpHook):
 
         # Dingding success send message will with errcode equal to 0
         if int(resp.json().get('errcode')) != 0:
-            raise AirflowException('Send Dingding message failed, receive error ' f'message {resp.text}')
+            raise AirflowException(f'Send Dingding message failed, receive error message {resp.text}')
         self.log.info('Success Send Dingding message')
