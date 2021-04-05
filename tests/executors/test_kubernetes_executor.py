@@ -41,7 +41,7 @@ try:
         get_base_pod_from_template,
     )
     from airflow.kubernetes import pod_generator
-    from airflow.kubernetes.pod_generator import PodGenerator
+    from airflow.kubernetes.pod_generator import PodGenerator, datetime_to_label_safe_datestring
     from airflow.utils.state import State
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
@@ -237,13 +237,20 @@ class TestKubernetesExecutor(unittest.TestCase):
             assert executor.event_buffer == {}
             assert executor.task_queue.empty()
 
+            execution_date = datetime.utcnow()
+
             executor.execute_async(
-                key=('dag', 'task', datetime.utcnow(), 1),
+                key=('dag', 'task', execution_date, 1),
                 queue=None,
                 command=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
                 executor_config={
                     "pod_template_file": template_file,
-                    "pod_override": k8s.V1Pod(metadata=k8s.V1ObjectMeta(labels={"release": "stable"})),
+                    "pod_override": k8s.V1Pod(
+                        metadata=k8s.V1ObjectMeta(labels={"release": "stable"}),
+                        spec=k8s.V1PodSpec(
+                            containers=[k8s.V1Container(name="base", image="airflow:3.6")],
+                        ),
+                    ),
                 },
             )
 
@@ -265,7 +272,7 @@ class TestKubernetesExecutor(unittest.TestCase):
                         namespace="default",
                         annotations={
                             'dag_id': 'dag',
-                            'execution_date': mock.ANY,
+                            'execution_date': execution_date.isoformat(),
                             'task_id': 'task',
                             'try_number': '1',
                         },
@@ -273,7 +280,7 @@ class TestKubernetesExecutor(unittest.TestCase):
                             'airflow-worker': '5',
                             'airflow_version': mock.ANY,
                             'dag_id': 'dag',
-                            'execution_date': mock.ANY,
+                            'execution_date': datetime_to_label_safe_datestring(execution_date),
                             'kubernetes_executor': 'True',
                             'mylabel': 'foo',
                             'release': 'stable',
@@ -282,7 +289,14 @@ class TestKubernetesExecutor(unittest.TestCase):
                         },
                     ),
                     spec=k8s.V1PodSpec(
-                        containers=mock.ANY,
+                        containers=[
+                            k8s.V1Container(
+                                name="base",
+                                image="airflow:3.6",
+                                args=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
+                                env=[k8s.V1EnvVar(name='AIRFLOW_IS_K8S_EXECUTOR_POD', value='True')],
+                            )
+                        ],
                         image_pull_secrets=[k8s.V1LocalObjectReference(name='airflow-registry')],
                         scheduler_name='default-scheduler',
                         security_context=k8s.V1PodSecurityContext(fs_group=50000, run_as_user=50000),
