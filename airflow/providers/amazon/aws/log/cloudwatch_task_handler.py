@@ -26,7 +26,6 @@ except ImportError:
     from cached_property import cached_property
 
 from airflow.configuration import conf
-from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -131,7 +130,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             return msg
 
     def _event_to_str(self, event: dict) -> str:
-        event_dt = timezone.make_aware(datetime.utcfromtimestamp(event['timestamp'] / 1000.0))
-        formatted_event_dt = timezone.make_naive(event_dt).isoformat(timespec='seconds')
+        event_dt = datetime.utcfromtimestamp(event['timestamp'] / 1000.0)
+        formatted_event_dt = event_dt.strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
         message = event['message']
         return f'[{formatted_event_dt}] {message}'
