@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import pathlib
 import random
 import re
 import string
@@ -22,6 +23,7 @@ import unittest
 from datetime import datetime
 from unittest import mock
 
+import pytest
 from kubernetes.client import models as k8s
 from urllib3 import HTTPResponse
 
@@ -39,7 +41,7 @@ try:
         get_base_pod_from_template,
     )
     from airflow.kubernetes import pod_generator
-    from airflow.kubernetes.pod_generator import PodGenerator
+    from airflow.kubernetes.pod_generator import PodGenerator, datetime_to_label_safe_datestring
     from airflow.utils.state import State
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
@@ -214,6 +216,93 @@ class TestKubernetesExecutor(unittest.TestCase):
         )
 
         assert list(executor.event_buffer.values())[0][1] == "Invalid executor_config passed"
+
+    @pytest.mark.execution_timeout(10)
+    @unittest.skipIf(AirflowKubernetesScheduler is None, 'kubernetes python package is not installed')
+    @mock.patch('airflow.kubernetes.pod_launcher.PodLauncher.run_pod_async')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    def test_pod_template_file_override_in_executor_config(self, mock_get_kube_client, mock_run_pod_async):
+        current_folder = pathlib.Path(__file__).parent.absolute()
+        template_file = str(
+            (current_folder / "kubernetes_executor_template_files" / "basic_template.yaml").absolute()
+        )
+
+        mock_kube_client = mock.patch('kubernetes.client.CoreV1Api', autospec=True)
+        mock_get_kube_client.return_value = mock_kube_client
+
+        with conf_vars({('kubernetes', 'pod_template_file'): ''}):
+            executor = self.kubernetes_executor
+            executor.start()
+
+            assert executor.event_buffer == {}
+            assert executor.task_queue.empty()
+
+            execution_date = datetime.utcnow()
+
+            executor.execute_async(
+                key=('dag', 'task', execution_date, 1),
+                queue=None,
+                command=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
+                executor_config={
+                    "pod_template_file": template_file,
+                    "pod_override": k8s.V1Pod(
+                        metadata=k8s.V1ObjectMeta(labels={"release": "stable"}),
+                        spec=k8s.V1PodSpec(
+                            containers=[k8s.V1Container(name="base", image="airflow:3.6")],
+                        ),
+                    ),
+                },
+            )
+
+            assert not executor.task_queue.empty()
+            task = executor.task_queue.get_nowait()
+            _, _, expected_executor_config, expected_pod_template_file = task
+
+            # Test that the correct values have been put to queue
+            assert expected_executor_config.metadata.labels == {'release': 'stable'}
+            assert expected_pod_template_file == template_file
+
+            self.kubernetes_executor.kube_scheduler.run_next(task)
+            mock_run_pod_async.assert_called_once_with(
+                k8s.V1Pod(
+                    api_version="v1",
+                    kind="Pod",
+                    metadata=k8s.V1ObjectMeta(
+                        name=mock.ANY,
+                        namespace="default",
+                        annotations={
+                            'dag_id': 'dag',
+                            'execution_date': execution_date.isoformat(),
+                            'task_id': 'task',
+                            'try_number': '1',
+                        },
+                        labels={
+                            'airflow-worker': '5',
+                            'airflow_version': mock.ANY,
+                            'dag_id': 'dag',
+                            'execution_date': datetime_to_label_safe_datestring(execution_date),
+                            'kubernetes_executor': 'True',
+                            'mylabel': 'foo',
+                            'release': 'stable',
+                            'task_id': 'task',
+                            'try_number': '1',
+                        },
+                    ),
+                    spec=k8s.V1PodSpec(
+                        containers=[
+                            k8s.V1Container(
+                                name="base",
+                                image="airflow:3.6",
+                                args=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
+                                env=[k8s.V1EnvVar(name='AIRFLOW_IS_K8S_EXECUTOR_POD', value='True')],
+                            )
+                        ],
+                        image_pull_secrets=[k8s.V1LocalObjectReference(name='airflow-registry')],
+                        scheduler_name='default-scheduler',
+                        security_context=k8s.V1PodSecurityContext(fs_group=50000, run_as_user=50000),
+                    ),
+                )
+            )
 
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
