@@ -19,11 +19,11 @@ import getpass
 import logging
 import os
 import time
-import unittest
 from logging.config import dictConfig
 from unittest import mock
 
 import psutil
+import pytest
 
 from airflow import models, settings
 from airflow.jobs.local_task_job import LocalTaskJob
@@ -48,22 +48,24 @@ LOGGING_CONFIG = {
             'class': 'logging.StreamHandler',
             'formatter': 'airflow.task',
             'stream': 'ext://sys.stdout',
-        }
+        },
     },
-    'loggers': {'airflow': {'handlers': ['console'], 'level': 'INFO', 'propagate': False}},
+    'loggers': {'airflow': {'handlers': ['console'], 'level': 'INFO', 'propagate': True}},
 }
 
 
-class TestStandardTaskRunner(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
+class TestStandardTaskRunner:
+    @pytest.fixture(autouse=True, scope="class")
+    def logging_and_db(self):
+        """
+        This fixture sets up logging to have a different setup on the way in
+        (as the test environment does not have enough context for the normal
+        way to run) and ensures they reset back to normal on the way out.
+        """
         dictConfig(LOGGING_CONFIG)
-
-    @classmethod
-    def tearDownClass(cls):
+        yield
         airflow_logger = logging.getLogger('airflow')
         airflow_logger.handlers = []
-        airflow_logger.propagate = True
         try:
             clear_db_runs()
         except Exception:  # noqa pylint: disable=broad-except
@@ -130,6 +132,43 @@ class TestStandardTaskRunner(unittest.TestCase):
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
         assert runner.return_code() is not None
+
+    def test_early_reap_exit(self, caplog):
+        """
+        Tests that when a child process running a task is killed externally
+        (e.g. by an OOM error, which we fake here), then we get return code
+        -9 and a log message.
+        """
+        # Set up mock task
+        local_task_job = mock.Mock()
+        local_task_job.task_instance = mock.MagicMock()
+        local_task_job.task_instance.run_as_user = getpass.getuser()
+        local_task_job.task_instance.command_as_list.return_value = [
+            'airflow',
+            'tasks',
+            'test',
+            'test_on_kill',
+            'task1',
+            '2016-01-01',
+        ]
+
+        # Kick off the runner
+        runner = StandardTaskRunner(local_task_job)
+        runner.start()
+        time.sleep(0.2)
+
+        # Kill the child process externally from the runner
+        # Note that we have to do this from ANOTHER process, as if we just
+        # call os.kill here we're doing it from the parent process and it
+        # won't be the same as an external kill in terms of OS tracking.
+        pgid = os.getpgid(runner.process.pid)
+        os.system(f"kill -s KILL {pgid}")
+        time.sleep(0.2)
+
+        runner.terminate()
+
+        assert runner.return_code() == -9
+        assert "running out of memory" in caplog.text
 
     def test_on_kill(self):
         """
