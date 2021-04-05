@@ -20,7 +20,7 @@
 # pylint: disable=unused-import
 import warnings
 
-from airflow.providers.cncf.kubernetes.utils import pod_launcher  # pylint: disable=unused-import
+from airflow.kubernetes import pod_launcher_deprecated  # pylint: disable=unused-import
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.utils.pod_launcher`",
