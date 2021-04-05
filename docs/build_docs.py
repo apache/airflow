@@ -26,7 +26,7 @@ from rich.console import Console
 from tabulate import tabulate
 
 from docs.exts.docs_build import dev_index_generator, lint_checks  # pylint: disable=no-name-in-module
-from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, TEXT_RED, TEXT_RESET
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE, TEXT_RED, TEXT_RESET
 from docs.exts.docs_build.docs_builder import (  # pylint: disable=no-name-in-module
     DOCS_DIR,
     AirflowDocsBuilder,
@@ -44,7 +44,7 @@ from docs.exts.docs_build.spelling_checks import (  # pylint: disable=no-name-in
     display_spelling_error_summary,
 )
 
-if __name__ != "__main__":
+if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         "To run this script, run the ./build_docs.py command"
@@ -503,10 +503,14 @@ def main():
     if not package_filters:
         _promote_new_flags()
 
+    if os.path.exists(PROVIDER_INIT_FILE):
+        os.remove(PROVIDER_INIT_FILE)
+
     print_build_errors_and_exit(
         all_build_errors,
         all_spelling_errors,
     )
 
 
-main()
+if __name__ == "__main__":
+    main()
