@@ -18,12 +18,4 @@
 """This module is deprecated. Please use `kubernetes.client.models for V1ResourceRequirements and Port."""
 # flake8: noqa
 # pylint: disable=unused-import
-import warnings
-
 from airflow.kubernetes.pod_launcher_deprecated import PodLauncher, PodStatus  # pylint: disable=unused-import
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.utils.pod_launcher`",
-    DeprecationWarning,
-    stacklevel=2,
-)

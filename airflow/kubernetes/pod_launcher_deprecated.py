@@ -18,6 +18,7 @@
 import json
 import math
 import time
+import warnings
 from datetime import datetime as dt
 from typing import Optional, Tuple
 
@@ -35,6 +36,12 @@ from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.utils.pod_launcher`",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class PodStatus:
