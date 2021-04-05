@@ -16,7 +16,6 @@
 # under the License.
 
 import datetime as dt
-import getpass
 import unittest
 
 import pytest
@@ -30,6 +29,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 )
 from airflow.models import DAG, SlaMiss, TaskInstance as TI
 from airflow.operators.dummy import DummyOperator
+from airflow.utils.platform import getuser
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -87,7 +87,7 @@ class TestTaskInstanceSchema(unittest.TestCase):
             "state": "running",
             "task_id": "TEST_TASK_ID",
             "try_number": 0,
-            "unixname": getpass.getuser(),
+            "unixname": getuser(),
         }
         assert serialized_ti == expected_json
 
@@ -133,7 +133,7 @@ class TestTaskInstanceSchema(unittest.TestCase):
             "state": "running",
             "task_id": "TEST_TASK_ID",
             "try_number": 0,
-            "unixname": getpass.getuser(),
+            "unixname": getuser(),
         }
         assert serialized_ti == expected_json
 

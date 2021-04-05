@@ -16,6 +16,7 @@
 # under the License.
 
 """Platform and system specific function."""
+import getpass
 import logging
 import os
 import pkgutil
@@ -57,3 +58,14 @@ def get_airflow_git_version():
         log.debug(e)
 
     return git_version
+
+
+def getuser() -> str:
+    """
+    Gets the username associated with the current user, or a fallback
+    representation if there is no username (stringified UID)
+    """
+    try:
+        return getpass.getuser()
+    except KeyError:
+        return str(os.getuid())

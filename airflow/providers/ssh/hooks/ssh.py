@@ -167,6 +167,8 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
 
         # Auto detecting username values from system
         if not self.username:
+            # Note - we don't fallback to os.getuid() here if there is no username
+            # as this is looking for an actual username as a fallback.
             self.log.debug(
                 "username to ssh to host: %s is not specified for connection id"
                 " %s. Using system's default provided by getpass.getuser()",
