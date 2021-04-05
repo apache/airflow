@@ -25,6 +25,7 @@ from typing import Dict, List, NamedTuple, Optional, Tuple
 from rich.console import Console
 from tabulate import tabulate
 
+from airflow.utils.helpers import partition
 from docs.exts.docs_build import dev_index_generator, lint_checks  # pylint: disable=no-name-in-module
 from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE, TEXT_RED, TEXT_RESET
 from docs.exts.docs_build.docs_builder import (  # pylint: disable=no-name-in-module
@@ -442,12 +443,15 @@ def main():
     current_packages = process_package_filters(available_packages, package_filters)
 
     with with_group("Fetching inventories"):
-        # Inventories that could not be retrieved should be retrieved first. This may mean this is a
+        # Inventories that could not be retrieved should be built first. This may mean this is a
         # new package.
-        priority_packages = fetch_inventories()
-    current_packages = sorted(current_packages, key=lambda d: -1 if d in priority_packages else 1)
-
+        packages_without_inventories = fetch_inventories()
+    normal_packages, priority_packages = partition(
+        lambda d: d in packages_without_inventories, current_packages
+    )
+    normal_packages, priority_packages = list(normal_packages), list(priority_packages)
     jobs = args.jobs if args.jobs != 0 else os.cpu_count()
+
     with with_group(
         f"Documentation will be built for {len(current_packages)} package(s) with {jobs} parallel jobs"
     ):
@@ -456,8 +460,27 @@ def main():
 
     all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
     all_spelling_errors: Dict[Optional[str], List[SpellingError]] = {}
+    if priority_packages:
+        # Build priority packages
+        package_build_errors, package_spelling_errors = build_docs_for_packages(
+            current_packages=priority_packages,
+            docs_only=docs_only,
+            spellcheck_only=spellcheck_only,
+            for_production=for_production,
+            jobs=jobs,
+            verbose=args.verbose,
+        )
+        if package_build_errors:
+            all_build_errors.update(package_build_errors)
+        if package_spelling_errors:
+            all_spelling_errors.update(package_spelling_errors)
+
+    # Build normal packages
+    # If only one inventory is missing, the remaining packages are correct. If we are missing
+    # two or more inventories, it is better to try to build for all packages as the previous packages
+    # may have failed as well.
     package_build_errors, package_spelling_errors = build_docs_for_packages(
-        current_packages=current_packages,
+        current_packages=current_packages if len(priority_packages) > 1 else normal_packages,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         for_production=for_production,
@@ -468,6 +491,8 @@ def main():
         all_build_errors.update(package_build_errors)
     if package_spelling_errors:
         all_spelling_errors.update(package_spelling_errors)
+
+    # Build documentation for some packages again if it can help them.
     to_retry_packages = [
         package_name
         for package_name, errors in package_build_errors.items()
