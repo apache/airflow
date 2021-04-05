@@ -20,11 +20,13 @@ from typing import NamedTuple, Optional, List
 import os
 from cached_property import cached_property
 from packaging.version import Version
+from zipfile import ZipFile
+from zipfile import is_zipfile
 
 from airflow import conf
 from airflow.upgrade.rules.base_rule import BaseRule
 from airflow.upgrade.rules.renamed_classes import ALL
-from airflow.utils.dag_processing import list_py_file_paths, correct_maybe_zipped
+from airflow.utils.dag_processing import list_py_file_paths
 
 try:
     from importlib_metadata import PackageNotFoundError, distribution
@@ -109,19 +111,18 @@ class ImportChangesRule(BaseRule):
     del _filter_incompatible_renames
 
     @staticmethod
-    def _check_file(file_path):
+    def _check_file(file_path, file_content):
         problems = []
         providers = set()
-        with open(file_path, "r") as file:
-            try:
-                content = file.read()
-                for change in ImportChangesRule.ALL_CHANGES:
-                    if change.old_path_without_classname in content:
-                        problems.append(change.info(file_path))
-                        if change.providers_package:
-                            providers.add(change.providers_package)
-            except UnicodeDecodeError:
-                problems.append("Unable to read python file {}".format(file_path))
+
+        try:
+            for change in ImportChangesRule.ALL_CHANGES:
+                if change.old_path_without_classname in file_content:
+                    problems.append(change.info(file_path))
+                    if change.providers_package:
+                        providers.add(change.providers_package)
+        except UnicodeDecodeError:
+            problems.append("Unable to read python file {}".format(file_path))
         return problems, providers
 
     @staticmethod
@@ -142,16 +143,27 @@ class ImportChangesRule(BaseRule):
 
     def check(self):
         dags_folder = conf.get("core", "dags_folder")
-        dags_folder = correct_maybe_zipped(dags_folder)
         files = list_py_file_paths(directory=dags_folder, include_examples=False)
-        files = [file for file in files if os.path.splitext(file)[1] == ".py"]
+
         problems = []
         providers = set()
+
         # Split in to two groups - install backports first, then make changes
         for file in files:
-            new_problems, new_providers = self._check_file(file)
-            problems.extend(new_problems)
-            providers |= new_providers
+            if is_zipfile(file):
+                zip_file = ZipFile(file)
+                for mod in zip_file.infolist():
+                    head, _ = os.path.split(mod.filename)
+                    mod_name, ext = os.path.splitext(mod.filename)
+                    if not head and (ext == '.py'):
+                        new_problems, new_providers = self._check_file(file, zip_file.open().read())
+                        problems.extend(new_problems)
+                        providers |= new_providers
+
+            elif os.path.splitext(file)[1] == ".py":
+                new_problems, new_providers = self._check_file(file, open(file))
+                problems.extend(new_problems)
+                providers |= new_providers
 
         return itertools.chain(
             self._check_missing_providers(sorted(providers)),
