@@ -38,7 +38,14 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.utils.pod_launcher`",
+    """
+    This module is deprecated. Please use `airflow.providers.cncf.kubernetes.utils.pod_launcher`
+
+    To use this module install the provider package by installing this pip package:
+
+    https://pypi.org/project/apache-airflow-providers-cncf-kubernetes/
+
+    """,
     DeprecationWarning,
     stacklevel=2,
 )
