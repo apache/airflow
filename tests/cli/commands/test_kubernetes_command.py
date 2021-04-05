@@ -58,8 +58,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
     label_selector = kubernetes.client.V1LabelSelector(
             match_expressions=[
                 kubernetes.client.V1LabelSelectorRequirement(key=label, operator="Exists")
-                for label in ['airflow-worker', 'dag_id', 'task_id', 'execution_date',
-                              'try_number', 'airflow_version', 'kubernetes_executor']
+                for label in ['dag_id', 'task_id', 'execution_date', 'try_number', 'airflow_version']
             ]
     )
 

@@ -91,13 +91,11 @@ def cleanup_pods(args):
     kube_client = get_kube_client()
     print(f'Listing pods in namespace {namespace}')
     airflow_pod_labels = [
-        'airflow-worker',
         'dag_id',
         'task_id',
         'execution_date',
         'try_number',
         'airflow_version',
-        'kubernetes_executor',
     ]
     list_kwargs = {
         "namespace": namespace,
