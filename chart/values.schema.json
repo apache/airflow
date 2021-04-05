@@ -560,6 +560,10 @@
                     "description": "Number of airflow celery workers in StatefulSet.",
                     "type": "integer"
                 },
+                "updateStrategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones.",
+                    "type": "object"
+                },
                 "keda": {
                     "description": "KEDA configuration.",
                     "type": "object",

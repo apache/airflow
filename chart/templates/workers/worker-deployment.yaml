@@ -46,6 +46,9 @@ spec:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
+  {{ if .Values.workers.updateStrategy }}
+{{ toYaml .Values.workers.updateStrategy | indent 2 }}
+  {{- end }}
   template:
     metadata:
       labels:

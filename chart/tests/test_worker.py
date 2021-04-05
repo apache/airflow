@@ -72,3 +72,19 @@ class WorkerTest(unittest.TestCase):
 
         assert "127.0.0.2" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
         assert "test.hostname" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+
+    def test_workers_update_strategy(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "updateStrategy": {
+                        "strategy": {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}}
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "100%" == jmespath.search("spec.strategy.rollingUpdate.maxSurge", docs[0])
+        assert "50%" == jmespath.search("spec.strategy.rollingUpdate.maxUnavailable", docs[0])
