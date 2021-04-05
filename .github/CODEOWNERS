@@ -26,7 +26,7 @@
 /airflow/www/ @ryanahamilton @ashb
 
 # Providers
-/airflow/providers/google/ @turbaszek 
+/airflow/providers/google/ @turbaszek
 /airflow/providers/snowflake/ @turbaszek @potiuk @mik-laj
 
 # Dev tools
