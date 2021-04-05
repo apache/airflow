@@ -1220,7 +1220,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # Color coding the special attributes that are code
         special_attrs_rendered = {}
         for attr_name in wwwutils.get_attr_renderer():
-            if hasattr(task, attr_name):
+            if getattr(task, attr_name, None) is not None:
                 source = getattr(task, attr_name)
                 special_attrs_rendered[attr_name] = wwwutils.get_attr_renderer()[attr_name](source)
 

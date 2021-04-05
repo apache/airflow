@@ -79,6 +79,7 @@ serialized_simple_dag_ground_truth = {
         },
         "is_paused_upon_creation": False,
         "_dag_id": "simple_dag",
+        "doc_md": "### DAG Tutorial Documentation",
         "fileloc": None,
         "tasks": [
             {
@@ -110,6 +111,7 @@ serialized_simple_dag_ground_truth = {
                         }
                     },
                 },
+                "doc_md": "### Task Tutorial Documentation",
             },
             {
                 "task_id": "custom_task",
@@ -170,6 +172,7 @@ def make_simple_dag():
         start_date=datetime(2019, 8, 1),
         is_paused_upon_creation=False,
         access_control={"test_role": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
+        doc_md="### DAG Tutorial Documentation",
     ) as dag:
         CustomOperator(task_id='custom_task')
         BashOperator(
@@ -177,6 +180,7 @@ def make_simple_dag():
             bash_command='echo {{ task.task_id }}',
             owner='airflow',
             executor_config={"pod_override": executor_config_pod},
+            doc_md="### Task Tutorial Documentation",
         )
         return {'simple_dag': dag}
 
@@ -853,6 +857,11 @@ class TestStringifiedDAGs(unittest.TestCase):
             '_upstream_task_ids': set(),
             'depends_on_past': False,
             'do_xcom_push': True,
+            'doc': None,
+            'doc_json': None,
+            'doc_md': None,
+            'doc_rst': None,
+            'doc_yaml': None,
             'email': None,
             'email_on_failure': True,
             'email_on_retry': True,

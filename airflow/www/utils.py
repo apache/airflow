@@ -321,7 +321,7 @@ def render(obj, lexer):
     return out
 
 
-def wrapped_markdown(s, css_class=None):
+def wrapped_markdown(s, css_class='rich_doc'):
     """Convert a Markdown string to HTML."""
     if s is None:
         return None
