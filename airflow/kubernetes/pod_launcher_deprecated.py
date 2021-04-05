@@ -48,7 +48,8 @@ class PodStatus:
 
 class PodLauncher(LoggingMixin):
     """Deprecated class for launching pods. please use
-    airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher instead"""
+    airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher instead
+    """
 
     def __init__(
         self,
