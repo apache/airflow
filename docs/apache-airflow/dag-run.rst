@@ -208,10 +208,10 @@ Example of a parameterized DAG:
 .. code-block:: python
 
     from airflow import DAG
-    from airflow.operators.bash_operator import BashOperator
+    from airflow.operators.bash import BashOperator
     from airflow.utils.dates import days_ago
 
-    dag = DAG("example_parametrized_dag", schedule_interval=None, start_date=days_ago(2))
+    dag = DAG("example_parameterized_dag", schedule_interval=None, start_date=days_ago(2))
 
     parameterized_task = BashOperator(
         task_id='parameterized_task',
@@ -227,7 +227,7 @@ Using CLI
 
 .. code-block:: bash
 
-    airflow dags trigger --conf '{"conf1": "value1"}' example_parametrized_dag
+    airflow dags trigger --conf '{"conf1": "value1"}' example_parameterized_dag
 
 Using UI
 ^^^^^^^^^^
