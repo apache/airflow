@@ -496,7 +496,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             return
 
         if executor_config:
-            pod_template_file = executor_config.get("pod_template_override", None)
+            pod_template_file = executor_config.get("pod_template_file", None)
         else:
             pod_template_file = None
         if not self.task_queue:
