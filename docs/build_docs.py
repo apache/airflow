@@ -124,7 +124,8 @@ def _get_parser():
         dest='jobs',
         type=int,
         default=0,
-        help=("""\
+        help=(
+            """\
         Number of parallel processes that will be spawned to build the docs.
 
         If passed 0, the value will be determined based on the number of CPUs.
