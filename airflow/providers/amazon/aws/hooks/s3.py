@@ -26,6 +26,7 @@ import shutil
 from functools import wraps
 from inspect import signature
 from io import BytesIO
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
@@ -464,7 +465,7 @@ class S3Hook(AwsBaseHook):
     @unify_bucket_name_and_key
     def load_file(
         self,
-        filename: str,
+        filename: Union[str, Path],
         key: str,
         bucket_name: Optional[str] = None,
         replace: bool = False,
@@ -494,6 +495,7 @@ class S3Hook(AwsBaseHook):
             uploaded to the S3 bucket.
         :type acl_policy: str
         """
+        filename = filename.as_posix() if isinstance(filename, Path) else filename
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError(f"The key {key} already exists.")
 
