@@ -147,7 +147,7 @@ function parallel::print_job_summary_and_return_status_code() {
     for job_path in "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/"*
     do
         job="$(basename "${job_path}")"
-        status=$(cat "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/status")
+        status=$(cat "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/status" || true)
         if [[ ${status} == "0" ]]; then
             parallel::output_log_for_successful_job "${job}"
         else
