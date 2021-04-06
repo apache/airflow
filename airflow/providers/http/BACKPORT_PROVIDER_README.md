@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-http
 
-Release: 2021.3.3
+Release: 2021.4.10
 
 **Table of contents**
 
@@ -34,6 +34,7 @@ Release: 2021.3.3
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
+    - [Release 2021.4.10](#release-2021410)
     - [Release 2021.3.3](#release-202133)
     - [Release 2021.2.5](#release-202125)
     - [Release 2020.11.23](#release-20201123)
@@ -106,6 +107,14 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 ## Releases
+
+### Release 2021.4.10
+
+| Commit                                                                                         | Committed   | Subject                                                   |
+|:-----------------------------------------------------------------------------------------------|:------------|:----------------------------------------------------------|
+| [68e4c4dcb](https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8) | 2021-03-20  | `Remove Backport Providers (#14886)`                      |
+| [589d6dec9](https://github.com/apache/airflow/commit/589d6dec922565897785bcbc5ac6bb3b973d7f5d) | 2021-02-27  | `Prepare to release the next wave of providers: (#14487)` |
+
 
 ### Release 2021.3.3
 
