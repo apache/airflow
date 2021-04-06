@@ -190,6 +190,10 @@ CONNECTION_FORM_WIDGETS = [
     'extra__snowflake__database',
     'extra__snowflake__region',
     'extra__snowflake__warehouse',
+    'extra__wasb__connection_string',
+    'extra__wasb__sas_token',
+    'extra__wasb__shared_access_key',
+    'extra__wasb__tenant_id',
     'extra__yandexcloud__folder_id',
     'extra__yandexcloud__oauth',
     'extra__yandexcloud__public_ssh_key',
@@ -217,6 +221,7 @@ CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
     'snowflake',
     'spark',
     'ssh',
+    'wasb',
     'yandexcloud',
 ]
 

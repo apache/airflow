@@ -48,19 +48,9 @@ class AzureBaseHook(BaseHook):
         from wtforms import StringField
 
         return {
-<<<<<<< HEAD
-<<<<<<< HEAD
             "extra__azure__tenantId": StringField(
                 lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()
             ),
-=======
-            "extra__azure__tenantId": StringField(lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()),
->>>>>>> add dynamic connection fields
-=======
-            "extra__azure__tenantId": StringField(
-                lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()
-            ),
->>>>>>> add dynamic fields to AzureContainerInstanceHook
             "extra__azure__subscriptionId": StringField(
                 lazy_gettext('Azure Subscription ID'), widget=BS3TextFieldWidget()
             ),
