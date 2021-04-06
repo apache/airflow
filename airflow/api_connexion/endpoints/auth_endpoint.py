@@ -20,12 +20,12 @@ import logging
 import jwt
 from flask import current_app, g, jsonify, request, session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
-from flask_jwt_extended import create_access_token, get_jwt_identity
+from flask_jwt_extended import create_access_token, decode_token, get_jti, get_jwt_identity
 from flask_login import login_user
 from marshmallow import ValidationError
 
-from airflow.api_connexion.exceptions import Unauthenticated
-from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_schema
+from airflow.api_connexion.exceptions import BadRequest, Unauthenticated
+from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_schema, logout_schema
 from airflow.api_connexion.security import jwt_refresh_token_required_
 from airflow.models.auth import Token
 from airflow.utils.session import provide_session
@@ -168,24 +168,30 @@ def auth_remoteuser():
 @provide_session
 def refresh_token(session):
     """Refresh token"""
-    app = current_app
     current_user = get_jwt_identity()
-    token = Token(
-        jti=create_access_token(identity=current_user), expiry_date=app.config.get("JWT_ACCESS_TOKEN_EXPIRES")
-    )
+    access_token = create_access_token(identity=current_user)
+    decoded = decode_token(access_token)
+    token = Token(jti=decoded['jti'], expiry_delta=decoded['exp'], created_delta=decoded['iat'])
     session.add(token)
     session.commit()
-    ret = {'access_token': token.jti}
+    ret = {'access_token': access_token}
     return jsonify(ret), 200
 
 
-def logout(token, refresh_token):
+def logout():
     """Sign out"""
-    exist = Token.get_token(token)
+    body = request.json
+    try:
+        data = logout_schema.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+    token_jti = get_jti(data['token'])
+    exist = Token.get_token(token_jti)
     if exist:
-        Token.delete_token(token)
-    exist = Token.get_token(refresh_token)
+        Token.delete_token(token_jti)
+    refresh_jti = get_jti(data['refresh_token'])
+    exist = Token.get_token(refresh_jti)
     if exist:
-        Token.delete_token(token)
+        Token.delete_token(refresh_jti)
     resp = {"logged_out": True}
     return jsonify(resp), 200

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, Interval, String, Text, func
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, func
 
 from airflow.models.base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -27,14 +27,14 @@ class Token(Base, LoggingMixin):
 
     __tablename__ = 'token'
     id = Column(Integer, primary_key=True)
-    jti = Column(Text(), nullable=False)
+    jti = Column(String(50), nullable=False)
     refresh = Column(Boolean(name="refresh"), default=False)
     is_revoked = Column(Boolean(name='revoked'), default=False)
     revoke_reason = Column(String(100))
     revoked_by = Column(String(50))
     date_revoked = Column(DateTime)
-    expiry_delta = Column(Interval, nullable=False)
-    created_at = Column(DateTime, default=func.now())
+    expiry_delta = Column(Integer, nullable=False)
+    created_delta = Column(Integer, default=func.now())
 
     def __init__(
         self,
@@ -45,7 +45,7 @@ class Token(Base, LoggingMixin):
         revoked_reason=None,
         revoked_by=None,
         date_revoked=None,
-        created_at=None,
+        created_delta=None,
     ):
         super().__init__()
         self.jti = jti
@@ -55,7 +55,7 @@ class Token(Base, LoggingMixin):
         self.revoke_reason = revoked_reason
         self.revoked_by = revoked_by
         self.date_revoked = date_revoked
-        self.created_at = created_at
+        self.created_delta = created_delta
 
     @classmethod
     @provide_session

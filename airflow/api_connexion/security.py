@@ -14,15 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
-try:
-    from flask import _app_ctx_stack as ctx_stack
-except ImportError:  # pragma: no cover
-    from flask import _request_ctx_stack as ctx_stack
-from flask import Response, current_app, request
+from flask import Response, _app_ctx_stack as ctx_stack, current_app, request
 from flask_jwt_extended.config import config
 from flask_jwt_extended.utils import verify_token_claims
 from flask_jwt_extended.view_decorators import _decode_jwt_from_request, _load_user
@@ -31,6 +27,10 @@ from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 from airflow.models.auth import Token
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+
+# Because we are using flask_jwt_extended <4.0, the two functions here have
+# to be created due to language matters. When we upgrade to >=4.0, we would
+# not need these functions, rather we would use token_in_blocklist callback
 
 
 def verify_jwt_access_token_():
@@ -41,11 +41,12 @@ def verify_jwt_access_token_():
         ctx_stack.top.jwt_header = jwt_header
         verify_token_claims(jwt_data)
         _load_user(jwt_data[config.identity_claim_key])
-        token = Token.get_token(jwt_data)
+        token = Token.get_token(jwt_data['jti'])
         if token and token.is_revoked:
             raise Unauthenticated(detail="Token revoked")
-        if token and token.expiry_delta < datetime.now() + timedelta(minutes=1):
-            Token.delete_token(token)
+        exp = datetime.timestamp(datetime.now())
+        if token and token.expiry_delta < exp:
+            Token.delete_token(token.jti)
             raise Unauthenticated(detail="Token expired and we have deleted it")
         if not token:
             raise Unauthenticated(detail="Token Unknown")
@@ -61,11 +62,12 @@ def verify_jwt_refresh_token_in_request_():
         ctx_stack.top.jwt = jwt_data
         ctx_stack.top.jwt_header = jwt_header
         _load_user(jwt_data[config.identity_claim_key])
-        token = Token.get_token(jwt_data)
+        token = Token.get_token(jwt_data['jti'])
         if token and token.is_revoked:
             raise Unauthenticated(detail="Token revoked")
-        if token and token.expiry_delta < datetime.now() + timedelta(minutes=1):
-            Token.delete_token(token)
+        exp = datetime.timestamp(datetime.now())
+        if token and token.expiry_delta < exp:
+            Token.delete_token(token.jti)
             raise Unauthenticated(detail="Token expired and we have deleted it")
         if not token:
             raise Unauthenticated(detail="Token Unknown")

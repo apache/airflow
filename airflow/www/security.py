@@ -25,7 +25,7 @@ from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
-from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token
+from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, decode_token, get_jti
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
@@ -746,18 +746,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     @provide_session
     def create_tokens_and_dump(self, user, session=None):
         """Creates access token, return user data alongside tokens"""
-        app = current_app
-        token = Token(
-            jti=create_access_token(user.id), expiry_delta=app.config.get("JWT_ACCESS_TOKEN_EXPIRES")
-        )
-        refresh_token = Token(
-            jti=create_refresh_token(user.id),
-            expiry_delta=app.config.get("JWT_REFRESH_TOKEN_EXPIRES"),
+        access_token = create_access_token(user.id)
+        decoded = decode_token(access_token)
+        token = Token(jti=decoded['jti'], expiry_delta=decoded['exp'], created_delta=decoded['iat'])
+        refresh_token = create_refresh_token(user.id)
+        decoded = decode_token(refresh_token)
+        r_token = Token(
+            jti=decoded['jti'],
+            expiry_delta=decoded['exp'],
+            created_delta=decoded['iat'],
             refresh=True,
         )
-        session.add_all([token, refresh_token])
+        session.add_all([token, r_token])
         session.commit()
-        return auth_schema.dump({'user': user, 'token': token.jti, 'refresh_token': refresh_token.jti})
+        return auth_schema.dump({'user': user, 'token': access_token, 'refresh_token': refresh_token})
 
 
 class ApplessAirflowSecurityManager(AirflowSecurityManager):

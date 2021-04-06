@@ -18,7 +18,10 @@ from unittest import mock
 
 import pytest
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
+from sqlalchemy import func
 
+from airflow.models.auth import Token
+from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import delete_user
 from tests.test_utils.fab_utils import create_user
 
@@ -45,6 +48,13 @@ OPENID_PROVIDERS = [
 ]
 
 
+@provide_session
+def delete_tokens(session=None):
+    tokens = session.query(Token).all()
+    for token in tokens:
+        Token.delete_token(token.jti, session)
+
+
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
@@ -60,6 +70,7 @@ class TestLoginEndpoint:
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
+        self.session = self.app.appbuilder.get_session
 
     def auth_type(self, auth):
         self.app.config['AUTH_TYPE'] = auth
@@ -72,6 +83,12 @@ class TestLoginEndpoint:
         else:
             self.app.config['OPENID_PROVIDERS'] = None
             self.app.config['OAUTH_PROVIDERS'] = None
+
+    def teardown_method(self):
+        tokens = self.session.query(Token).all()
+        for token in tokens:
+            self.session.delete(token)
+        self.session.commit()
 
 
 class TestAuthInfo(TestLoginEndpoint):
@@ -307,3 +324,52 @@ class TestRemoteUserLoginEndpoint(TestLoginEndpoint):
         resp = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
         assert resp.status_code == 401
         assert resp.json['detail'] == "Authentication type do not match"
+
+
+class TestRefreshTokenEndpoint(TestLoginEndpoint):
+    @provide_session
+    def test_creates_access_token(self, session=None):
+        self.auth_type(AUTH_DB)
+        payload = {"username": "test", "password": "test"}
+        response = self.client.post('api/v1/auth/login', json=payload)
+        token = response.json['token']
+        refresh = response.json['refresh_token']
+        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
+
+        assert total_tokens_in_db == 2
+        assert token is not None
+        response2 = self.client.post("api/v1/refresh", headers={"Authorization": f"Bearer {refresh}"})
+
+        assert response2.json['access_token'] is not None
+        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
+        assert total_tokens_in_db == 3
+
+    @provide_session
+    def test_access_token_cant_access_endpoint(self, session):
+        self.auth_type(AUTH_DB)
+        payload = {"username": "test", "password": "test"}
+        response = self.client.post('api/v1/auth/login', json=payload)
+        token = response.json['token']
+        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
+        assert total_tokens_in_db == 2
+        assert token is not None
+        response2 = self.client.post("api/v1/refresh", headers={"Authorization": f"Bearer {token}"})
+        assert response2.status_code == 422
+        assert response2.json['msg'] == 'Only refresh tokens are allowed'
+
+
+class TestLogoutEndpoint(TestLoginEndpoint):
+    @provide_session
+    def test_logout_works(self, session):
+        self.auth_type(AUTH_DB)
+        payload = {"username": "test", "password": "test"}
+        response = self.client.post('api/v1/auth/login', json=payload)
+        token = response.json['token']
+        refresh = response.json['refresh_token']
+        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
+        assert total_tokens_in_db == 2
+        assert token is not None
+        response2 = self.client.post("api/v1/logout", json={"token": token, "refresh_token": refresh})
+        assert response2.json == {'logged_out': True}
+        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
+        assert total_tokens_in_db == 0

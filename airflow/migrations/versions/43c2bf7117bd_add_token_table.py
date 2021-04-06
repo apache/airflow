@@ -39,14 +39,14 @@ def upgrade():
     op.create_table(
         "token",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("jti", sa.Text(), nullable=False),
+        sa.Column("jti", sa.String(50), nullable=False),
         sa.Column("is_revoked", sa.Boolean(name="is_revoked"), server_default="0"),
         sa.Column("refresh", sa.Boolean(name="refresh"), server_default="0"),
         sa.Column("revoke_reason", sa.String(100)),
         sa.Column("revoked_by", sa.String(50)),
         sa.Column("date_revoked", sa.DateTime),
-        sa.Column("expiry_delta", sa.Interval, nullable=False),
-        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("expiry_delta", sa.Integer, nullable=False),
+        sa.Column("created_delta", sa.Integer, nullable=False),
     )
 
 
