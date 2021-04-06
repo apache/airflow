@@ -43,6 +43,7 @@ Latest change: 2021-04-06
 ================================================================================================  ===========  ====================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ====================================================================================
+`042be2e4e <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
 `eae22cec9 <https://github.com/apache/airflow/commit/eae22cec9c87e8dad4d6e8599e45af1bdd452062>`_  2021-04-06   ``Adds 'Trino' provider (with lower memory footprint for tests) (#15187)``
 `e49722859 <https://github.com/apache/airflow/commit/e49722859b81cfcdd7e4bb8e8aba4efb049a8590>`_  2021-04-05   ``Updates 3.6 limits for latest versions of a few libraries (#15209)``
 `1d641d8f1 <https://github.com/apache/airflow/commit/1d641d8f114660eee18c6246081cfe991bb74baa>`_  2021-04-01   ``update remaining old import paths of operators (#15127)``

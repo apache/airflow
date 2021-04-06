@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.3.0
 .....
 
-Latest change: 2021-04-05
+Latest change: 2021-04-06
 
-================================================================================================  ===========  ============================================================================
+================================================================================================  ===========  =============================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  ============================================================================
+================================================================================================  ===========  =============================================================================
+`042be2e4e <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
 `266384a63 <https://github.com/apache/airflow/commit/266384a63f4693b667f308d49fcbed9a10a41fce>`_  2021-04-05   ``Fix string concatenation using 'f-strings' (#15200)``
 `eda538f56 <https://github.com/apache/airflow/commit/eda538f56cb2dc2728d303acddb42841fe419c36>`_  2021-04-02   ``AWS: Do not log info when SSM & SecretsManager secret not found (#15120)``
 `9b76b94c9 <https://github.com/apache/airflow/commit/9b76b94c940d472290861930a1d5860b43b3b2b2>`_  2021-04-02   ``A bunch of template_fields_renderers additions (#15130)``
@@ -52,7 +53,7 @@ Commit                                                                          
 `e7bb17aeb <https://github.com/apache/airflow/commit/e7bb17aeb83b2218620c5320241b0c9f902d74ff>`_  2021-03-06   ``Use built-in 'cached_property' on Python 3.8 where possible (#14606)``
 `697abf399 <https://github.com/apache/airflow/commit/697abf399de107eb4bafb730acf23d868e107a08>`_  2021-03-05   ``S3DataSource is not required (#14220)``
 `8ced652ec <https://github.com/apache/airflow/commit/8ced652ecf847ed668e5eed27e3e47a51a27b1c8>`_  2021-02-28   ``Implemented S3 Bucket Tagging (#14402)``
-================================================================================================  ===========  ============================================================================
+================================================================================================  ===========  =============================================================================
 
 1.2.0
 .....

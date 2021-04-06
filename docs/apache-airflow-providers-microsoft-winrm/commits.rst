@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.1.0
 .....
 
-Latest change: 2021-04-02
+Latest change: 2021-04-06
 
 ================================================================================================  ===========  =================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =================================================================================
+`042be2e4e <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
 `9b76b94c9 <https://github.com/apache/airflow/commit/9b76b94c940d472290861930a1d5860b43b3b2b2>`_  2021-04-02   ``A bunch of template_fields_renderers additions (#15130)``
 `68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
 `a1d060c7f <https://github.com/apache/airflow/commit/a1d060c7f4e09c617f39e2b8df2a043bfeac9d82>`_  2021-03-01   ``WinRM Operator: Fix stout decoding issue & add option to run command (#13153)``

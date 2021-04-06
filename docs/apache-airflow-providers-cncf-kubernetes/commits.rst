@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.1.0
 .....
 
-Latest change: 2021-04-05
+Latest change: 2021-04-07
 
 ================================================================================================  ===========  =============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =============================================================================
+`180667038 <https://github.com/apache/airflow/commit/18066703832319968ee3d6122907746fdfda5d4c>`_  2021-04-07   ``Retry pod launching on 409 ApiExceptions (#15137)``
+`042be2e4e <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
 `6d7a70b88 <https://github.com/apache/airflow/commit/6d7a70b88e8b1d1edc04c6c50bde02c4d407e15a>`_  2021-04-05   ``Separate Kubernetes pod_launcher from core airflow (#15165)``
 `00453dc4a <https://github.com/apache/airflow/commit/00453dc4a2d41da6c46e73cd66cac88e7556de71>`_  2021-03-20   ``Add ability to specify api group and version for Spark operators (#14898)``
 `68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
