@@ -1670,7 +1670,7 @@ paths:
   /refresh:
     post:
       summary: Refresh a token
-      description: Accepts fresh token and creates access token
+      description: Accepts refresh token and creates access token
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
       operationId: refresh_token
       tags: [Authentication]
