@@ -23,7 +23,11 @@ from winrm.protocol import Protocol
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.utils.platform import getuser
+
+try:
+    from airflow.utils.platform import getuser
+except ImportError:
+    from getpass import getuser
 
 
 # TODO: Fixme please - I have too complex implementation
@@ -195,8 +199,6 @@ class WinRMHook(BaseHook):
 
         # Auto detecting username values from system
         if not self.username:
-            # Note - we don't fallback to os.getuid() here if there is no username
-            # as this is looking for an actual username as a fallback.
             self.log.debug(
                 "username to WinRM to host: %s is not specified for connection id"
                 " %s. Using system's default provided by getpass.getuser()",

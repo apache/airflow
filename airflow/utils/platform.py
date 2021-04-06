@@ -62,8 +62,12 @@ def get_airflow_git_version():
 
 def getuser() -> str:
     """
-    Gets the username associated with the current user, or a fallback
-    representation if there is no username (stringified UID)
+    Gets the username associated with the current user, or error with a nice
+    error message if there's no current user.
+
+    We don't want to fall back to os.getuid() because not having a username
+    probably means the rest of the user environment is wrong (e.g. no $HOME).
+    Explicit failure is better than silently trying to work badly.
     """
     try:
         return getpass.getuser()
