@@ -409,7 +409,7 @@ def dag_query_for_key(sorting_key):
     dag_query_key_map = {
         'dag_id': DagModel.dag_id,
         'owner': DagModel.owners,
-        'schedule': DagModel.next_dagrun,
+        'next_dagrun': DagModel.next_dagrun,
         # <- add any extra (URL param)->(DagModel attr) mappings here
     }
 

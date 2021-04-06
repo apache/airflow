@@ -3413,7 +3413,7 @@ class TestDagsView(TestBase):
         self.assertNotEqual(owner_query, dag_id_query)
         self.assertEqual(owner_query_casetest, owner_query)
 
-        schedule_query = dag_query_for_key(sorting_key='schedule')
+        schedule_query = dag_query_for_key(sorting_key='next_dagrun')
 
         self.assertEqual(schedule_query, DagModel.next_dagrun)
         self.assertNotEqual(schedule_query, dag_id_query)
@@ -3440,7 +3440,7 @@ class TestDagsView(TestBase):
         desc_dag_id_query = build_dag_sorting_query(sorting_key='dag_id', sorting_order='desc')
         self.assertIsNotNone(desc_dag_id_query)
 
-        asc_schedule_query = build_dag_sorting_query(sorting_key='scHedUle', sorting_order='aSc')
+        asc_schedule_query = build_dag_sorting_query(sorting_key='nEXt_dAgEun', sorting_order='aSc')
         asc_owner_query = build_dag_sorting_query(sorting_key='oWNer', sorting_order='aSc')
         desc_owner_query = build_dag_sorting_query(sorting_key='oWNer', sorting_order='deSC')
 
