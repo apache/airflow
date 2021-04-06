@@ -117,7 +117,9 @@ jobs:
             "zhongjiajie",
             "ephraimbuddy",
             "jhtimmins",
-            "dstandish"
+            "dstandish",
+            "xinbinhuang",
+            "yuqian"
           ]'), github.actor)
         ) && github.repository == 'apache/airflow'
       ) && 'self-hosted' || 'ubuntu-20.04' }}

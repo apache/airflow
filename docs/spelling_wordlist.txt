@@ -183,6 +183,7 @@ Hou
 Http
 HttpError
 HttpRequest
+Huang
 IdP
 ImageAnnotatorClient
 Imap
@@ -300,6 +301,7 @@ Pyarrow
 Pylint
 Pyspark
 PythonOperator
+Qian
 Qingping
 Qplum
 Quantopian
@@ -409,9 +411,11 @@ XComs
 Xcom
 Xero
 Xiaodong
+Xinbin
 Yamllint
 Yandex
 Yieldr
+Yu
 Zego
 Zendesk
 Zhong
@@ -1416,6 +1420,7 @@ www
 xcom
 xcomarg
 xcomresult
+xinbinhuang
 xml
 xpath
 xyz
@@ -1426,6 +1431,7 @@ yarnpkg
 yml
 youtrack
 youtube
+yuqian
 zA
 zendesk
 zhongjiajie
