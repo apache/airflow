@@ -1710,6 +1710,31 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
+  /revoke:
+    post:
+      summary: Revoke a token
+      description: Revoke a refresh or access token
+      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
+      operationId: revoke_token
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Revoke'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  revoked:
+                    type: boolean
+                    description: Indicate token is revoked
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
   # Reusable schemas (data models)
@@ -2700,12 +2725,23 @@ components:
         - $ref: '#/components/schemas/UserCollectionItem'
 
     AccessToken:
-      description: AccessToken
+      description: Access Token
       type: object
       properties:
         access_token:
           type: string
           description: authentication token
+
+    Revoke:
+      description: Revoke a token
+      type: object
+      properties:
+        token:
+          type: string
+          description: The token to be revoked
+        reason:
+          type: string
+          description: Reason for the revoke
 
     # Configuration
     ConfigOption:

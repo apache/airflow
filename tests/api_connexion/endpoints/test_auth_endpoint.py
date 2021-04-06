@@ -344,15 +344,11 @@ class TestRefreshTokenEndpoint(TestLoginEndpoint):
         total_tokens_in_db = session.query(func.count(Token.id)).scalar()
         assert total_tokens_in_db == 3
 
-    @provide_session
-    def test_access_token_cant_access_endpoint(self, session):
+    def test_access_token_cant_access_endpoint(self):
         self.auth_type(AUTH_DB)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth/login', json=payload)
         token = response.json['token']
-        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
-        assert total_tokens_in_db == 2
-        assert token is not None
         response2 = self.client.post("api/v1/refresh", headers={"Authorization": f"Bearer {token}"})
         assert response2.status_code == 422
         assert response2.json['msg'] == 'Only refresh tokens are allowed'
@@ -373,3 +369,20 @@ class TestLogoutEndpoint(TestLoginEndpoint):
         assert response2.json == {'logged_out': True}
         total_tokens_in_db = session.query(func.count(Token.id)).scalar()
         assert total_tokens_in_db == 0
+
+
+class TestTokenRevokeEndpoint(TestLoginEndpoint):
+    @provide_session
+    def test_revoke_token_works(self, session):
+        self.auth_type(AUTH_DB)
+        payload = {"username": "test", "password": "test"}
+        response = self.client.post('api/v1/auth/login', json=payload)
+        token = response.json['token']
+        refresh = response.json['refresh_token']
+        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
+        assert total_tokens_in_db == 2
+        self.client.post("api/v1/revoke", json={"token": token, "reason": "test"})
+        self.client.post("api/v1/revoke", json={"token": refresh, "reason": "test"})
+        tokens = session.query(Token).all()
+        for token in tokens:
+            assert token.is_revoked is True

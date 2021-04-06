@@ -16,16 +16,22 @@
 # under the License.
 
 import logging
+from datetime import datetime
 
 import jwt
-from flask import current_app, g, jsonify, request, session
+from flask import current_app, g, jsonify, request, session as c_session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
 from flask_jwt_extended import create_access_token, decode_token, get_jti, get_jwt_identity
-from flask_login import login_user
+from flask_login import current_user, login_user
 from marshmallow import ValidationError
 
-from airflow.api_connexion.exceptions import BadRequest, Unauthenticated
-from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_schema, logout_schema
+from airflow.api_connexion.exceptions import BadRequest, NotFound, Unauthenticated
+from airflow.api_connexion.schemas.auth_schema import (
+    info_schema,
+    login_form_schema,
+    logout_schema,
+    token_schema,
+)
 from airflow.api_connexion.security import jwt_refresh_token_required_
 from airflow.models.auth import Token
 from airflow.utils.session import provide_session
@@ -94,7 +100,7 @@ def auth_oauthlogin(provider, register=None, redirect_url=None):
     try:
         auth_provider = appbuilder.sm.oauth_remotes[provider]
         if register:
-            session["register"] = True
+            c_session["register"] = True
         if provider == "twitter":
             redirect_uri = redirect_url + f"&state={state}"
             auth_data = auth_provider.create_authorization_url(redirect_uri=redirect_uri)
@@ -166,10 +172,10 @@ def auth_remoteuser():
 
 @jwt_refresh_token_required_
 @provide_session
-def refresh_token(session):
+def refresh_token(session=None):
     """Refresh token"""
-    current_user = get_jwt_identity()
-    access_token = create_access_token(identity=current_user)
+    user = get_jwt_identity()
+    access_token = create_access_token(identity=user)
     decoded = decode_token(access_token)
     token = Token(jti=decoded['jti'], expiry_delta=decoded['exp'], created_delta=decoded['iat'])
     session.add(token)
@@ -195,3 +201,25 @@ def logout():
         Token.delete_token(refresh_jti)
     resp = {"logged_out": True}
     return jsonify(resp), 200
+
+
+@provide_session
+def revoke_token(session=None):
+    """Revoke a token"""
+    body = request.json
+    try:
+        data = token_schema.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+    jti = get_jti(data['token'])
+    token = Token.get_token(jti)
+    if token:
+        token.is_revoked = True
+        token.revoked_by = current_user.username
+        token.revoke_reason = data['reason']
+        token.date_revoked = datetime.now()
+        session.merge(token)
+        session.commit()
+        resp = jsonify({"revoked": True})
+        return resp
+    raise NotFound(detail="Token not found")
