@@ -37,10 +37,10 @@ depends_on = None
 def upgrade():
     """Apply Increase pool name size in TaskInstance"""
     with op.batch_alter_table('task_instance') as batch_op:
-        batch_op.alter_column('pool', type_=sa.String(256))
+        batch_op.alter_column('pool', type_=sa.String(256), nullable=False)
 
 
 def downgrade():
     """Unapply Increase pool name size in TaskInstance"""
     with op.batch_alter_table('task_instance') as batch_op:
-        batch_op.alter_column('pool', type_=sa.String(50))
+        batch_op.alter_column('pool', type_=sa.String(50), nullable=False)
