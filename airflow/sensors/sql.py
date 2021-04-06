@@ -84,6 +84,7 @@ class SqlSensor(BaseSensorOperator):
             'presto',
             'snowflake',
             'sqlite',
+            'trino',
             'vertica',
         }
         if conn.conn_type not in allowed_conn_type:

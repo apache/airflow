@@ -454,6 +454,7 @@ tableau = [
 telegram = [
     'python-telegram-bot==13.0',
 ]
+trino = ['trino']
 vertica = [
     'vertica-python>=0.5.1',
 ]
@@ -583,6 +584,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'ssh': ssh,
     'tableau': tableau,
     'telegram': telegram,
+    'trino': trino,
     'vertica': vertica,
     'yandex': yandex,
     'zendesk': zendesk,
@@ -717,6 +719,7 @@ ALL_DB_PROVIDERS = [
     'neo4j',
     'postgres',
     'presto',
+    'trino',
     'vertica',
 ]
 
@@ -932,7 +935,9 @@ def add_all_provider_packages() -> None:
     add_provider_packages_to_extra_requirements("devel_ci", ALL_PROVIDERS)
     add_provider_packages_to_extra_requirements("devel_all", ALL_PROVIDERS)
     add_provider_packages_to_extra_requirements("all_dbs", ALL_DB_PROVIDERS)
-    add_provider_packages_to_extra_requirements("devel_hadoop", ["apache.hdfs", "apache.hive", "presto"])
+    add_provider_packages_to_extra_requirements(
+        "devel_hadoop", ["apache.hdfs", "apache.hive", "presto", "trino"]
+    )
 
 
 class Develop(develop_orig):

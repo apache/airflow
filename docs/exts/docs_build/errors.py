@@ -69,7 +69,7 @@ def display_errors_summary(build_errors: Dict[str, List[DocBuildError]]) -> None
             console.print("-" * 30, f"[red]Error {warning_no:3}[/]", "-" * 20)
             console.print(error.message)
             console.print()
-            if error.file_path and error.file_path != "<unknown>" and error.line_no:
+            if error.file_path and not error.file_path.endswith("<unknown>") and error.line_no:
                 console.print(
                     f"File path: {os.path.relpath(error.file_path, start=DOCS_DIR)} ({error.line_no})"
                 )

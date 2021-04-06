@@ -54,7 +54,7 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google_auth         | ``pip install 'apache-airflow[google_auth]'``       | Google auth backend                                                        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto)              |
+| kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -232,6 +232,8 @@ Those are extras that add dependencies needed for integration with other softwar
 | samba               | ``pip install 'apache-airflow[samba]'``             | Samba hooks and operators                 |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | singularity         | ``pip install 'apache-airflow[singularity]'``       | Singularity container operator            |
++---------------------+-----------------------------------------------------+-------------------------------------------+
+| trino               | ``pip install 'apache-airflow[trino]'``             | All Trino related operators & hooks       |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 
 

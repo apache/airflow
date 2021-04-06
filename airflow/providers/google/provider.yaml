@@ -588,6 +588,10 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/presto_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.presto_to_gcs
+  - source-integration-name: Trino
+    target-integration-name: Google Cloud Storage (GCS)
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/trino_to_gcs.rst
+    python-module: airflow.providers.google.cloud.transfers.trino_to_gcs
   - source-integration-name: SQL
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.sql_to_gcs

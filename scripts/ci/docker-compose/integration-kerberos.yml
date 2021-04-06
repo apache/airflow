@@ -36,7 +36,7 @@ services:
         /opt/kerberos-utils/create_client.sh bob bob /root/kerberos-keytabs/airflow.keytab;
         /opt/kerberos-utils/create_service.sh krb5-machine-example-com airflow
         /root/kerberos-keytabs/airflow.keytab;
-        /opt/kerberos-utils/create_service.sh presto HTTP /root/kerberos-keytabs/presto.keytab;
+        /opt/kerberos-utils/create_service.sh trino HTTP /root/kerberos-keytabs/trino.keytab;
     healthcheck:
       test: |-
         python -c "

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,29 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "2.2"
-services:
-  redis:
-    image: redis:5.0.1
-    volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-      - redis-db-volume:/data/redis
-    ports:
-      - "${REDIS_HOST_PORT}:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 30s
-      retries: 50
-    restart: always
+set -euo pipefail
+DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
+DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
+readonly DOCKERHUB_USER
+readonly DOCKERHUB_REPO
 
-  airflow:
-    environment:
-      - INTEGRATION_REDIS=true
-    depends_on:
-      redis:
-        condition: service_healthy
+TRINO_VERSION="354"
+readonly TRINO_VERSION
 
-volumes:
-  redis-db-volume:
+AIRFLOW_TRINO_VERSION="2021.04.04"
+readonly AIRFLOW_TRINO_VERSION
+
+COMMIT_SHA=$(git rev-parse HEAD)
+readonly COMMIT_SHA
+
+cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
+
+TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:trino-${AIRFLOW_TRINO_VERSION}"
+readonly TAG
+
+docker build . \
+    --pull \
+    --build-arg "TRINO_VERSION=${TRINO_VERSION}" \
+    --build-arg "AIRFLOW_TRINO_VERSION=${AIRFLOW_TRINO_VERSION}" \
+    --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
+    --tag "${TAG}"
+
+docker push "${TAG}"

@@ -101,6 +101,10 @@ class TestCliListConnections(unittest.TestCase):
             'sqlite',
         ),
         (
+            'trino_default',
+            'trino',
+        ),
+        (
             'vertica_default',
             'vertica',
         ),

@@ -1324,6 +1324,7 @@ tooltips
 traceback
 tracebacks
 travis
+trino
 trojan
 tsv
 ttl

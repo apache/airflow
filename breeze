@@ -819,7 +819,7 @@ function breeze::parse_arguments() {
             else
                 INTEGRATIONS+=("${INTEGRATION}")
             fi
-            if [[ " ${INTEGRATIONS[*]} " =~ " presto " ]]; then
+            if [[ " ${INTEGRATIONS[*]} " =~ " trino " ]]; then
               INTEGRATIONS+=("kerberos");
             fi
             echo

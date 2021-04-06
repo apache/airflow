@@ -14,29 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 ---
-version: "2.2"
-services:
-  redis:
-    image: redis:5.0.1
-    volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-      - redis-db-volume:/data/redis
-    ports:
-      - "${REDIS_HOST_PORT}:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 30s
-      retries: 50
-    restart: always
+package-name: apache-airflow-providers-trino
+name: Trino
+description: |
+    `Trino <https://trino.io/>`__
 
-  airflow:
-    environment:
-      - INTEGRATION_REDIS=true
-    depends_on:
-      redis:
-        condition: service_healthy
+versions:
+  - 1.0.0
 
-volumes:
-  redis-db-volume:
+integrations:
+  - integration-name: Trino
+    external-doc-url: https://trino.io/docs/
+    logo: /integration-logos/trino/trino-og.png
+    tags: [software]
+
+hooks:
+  - integration-name: Trino
+    python-modules:
+      - airflow.providers.trino.hooks.trino
+
+hook-class-names:
+  - airflow.providers.trino.hooks.trino.TrinoHook

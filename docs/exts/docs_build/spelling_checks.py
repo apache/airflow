@@ -176,6 +176,6 @@ def _display_error(error: SpellingError):
             console.print(f"Suggested Spelling: '{error.suggestion}'")
         if error.context_line:
             console.print(f"Line with Error: '{error.context_line}'")
-        if error.line_no:
+        if error.file_path and not error.file_path.endswith("<unknown>") and error.line_no:
             console.print(f"Line Number: {error.line_no}")
             console.print(prepare_code_snippet(error.file_path, error.line_no))

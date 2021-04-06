@@ -510,6 +510,16 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="trino_default",
+            conn_type="trino",
+            host="localhost",
+            schema="hive",
+            port=3400,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="vertica_default",
             conn_type="vertica",
             host="localhost",
