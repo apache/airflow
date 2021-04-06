@@ -476,7 +476,7 @@ class CeleryExecutor(BaseExecutor):
             return tis
 
         states_by_celery_task_id = self.bulk_state_fetcher.get_many(
-            map(operator.itemgetter(0), celery_tasks.values())
+            list(map(operator.itemgetter(0), celery_tasks.values()))
         )
 
         adopted = []
@@ -526,10 +526,6 @@ def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, 
         return async_result.task_id, ExceptionWithTraceback(e, exception_traceback), None
 
 
-def _tasks_list_to_task_ids(async_tasks) -> Set[str]:
-    return {a.task_id for a in async_tasks}
-
-
 class BulkStateFetcher(LoggingMixin):
     """
     Gets status for many Celery tasks using the best method available
@@ -543,20 +539,22 @@ class BulkStateFetcher(LoggingMixin):
         super().__init__()
         self._sync_parallelism = sync_parralelism
 
+    def _tasks_list_to_task_ids(self, async_tasks) -> Set[str]:
+        return {a.task_id for a in async_tasks}
+
     def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
         """Gets status for many Celery tasks using the best method available."""
         if isinstance(app.backend, BaseKeyValueStoreBackend):
             result = self._get_many_from_kv_backend(async_results)
-            return result
-        if isinstance(app.backend, DatabaseBackend):
+        elif isinstance(app.backend, DatabaseBackend):
             result = self._get_many_from_db_backend(async_results)
-            return result
-        result = self._get_many_using_multiprocessing(async_results)
-        self.log.debug("Fetched %d states for %d task", len(result), len(async_results))
+        else:
+            result = self._get_many_using_multiprocessing(async_results)
+        self.log.debug("Fetched %d state(s) for %d task(s)", len(result), len(async_results))
         return result
 
     def _get_many_from_kv_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
-        task_ids = _tasks_list_to_task_ids(async_tasks)
+        task_ids = self._tasks_list_to_task_ids(async_tasks)
         keys = [app.backend.get_key_for_task(k) for k in task_ids]
         values = app.backend.mget(keys)
         task_results = [app.backend.decode_result(v) for v in values if v]
@@ -565,7 +563,7 @@ class BulkStateFetcher(LoggingMixin):
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
     def _get_many_from_db_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
-        task_ids = _tasks_list_to_task_ids(async_tasks)
+        task_ids = self._tasks_list_to_task_ids(async_tasks)
         session = app.backend.ResultSession()
         task_cls = getattr(app.backend, "task_cls", TaskDb)
         with session_cleanup(session):

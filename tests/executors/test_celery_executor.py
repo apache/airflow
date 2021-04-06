@@ -414,7 +414,9 @@ class TestBulkStateFetcher(unittest.TestCase):
     def test_should_support_kv_backend(self, mock_mget):
         with _prepare_app():
             mock_backend = BaseKeyValueStoreBackend(app=celery_executor.app)
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend):
+            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
+                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
+            ) as cm:
                 fetcher = BulkStateFetcher()
                 result = fetcher.get_many(
                     [
@@ -429,6 +431,9 @@ class TestBulkStateFetcher(unittest.TestCase):
         mock_mget.assert_called_once_with(mock.ANY)
 
         assert result == {'123': ('SUCCESS', None), '456': ("PENDING", None)}
+        assert [
+            'DEBUG:airflow.executors.celery_executor.BulkStateFetcher:Fetched 2 state(s) for 2 task(s)'
+        ] == cm.output
 
     @mock.patch("celery.backends.database.DatabaseBackend.ResultSession")
     @pytest.mark.integration("redis")
@@ -438,21 +443,26 @@ class TestBulkStateFetcher(unittest.TestCase):
         with _prepare_app():
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
 
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend):
+            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
+                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
+            ) as cm:
                 mock_session = mock_backend.ResultSession.return_value  # pylint: disable=no-member
                 mock_session.query.return_value.filter.return_value.all.return_value = [
                     mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
                 ]
 
-        fetcher = BulkStateFetcher()
-        result = fetcher.get_many(
-            [
-                mock.MagicMock(task_id="123"),
-                mock.MagicMock(task_id="456"),
-            ]
-        )
+                fetcher = BulkStateFetcher()
+                result = fetcher.get_many(
+                    [
+                        mock.MagicMock(task_id="123"),
+                        mock.MagicMock(task_id="456"),
+                    ]
+                )
 
         assert result == {'123': ('SUCCESS', None), '456': ("PENDING", None)}
+        assert [
+            'DEBUG:airflow.executors.celery_executor.BulkStateFetcher:Fetched 2 state(s) for 2 task(s)'
+        ] == cm.output
 
     @pytest.mark.integration("redis")
     @pytest.mark.integration("rabbitmq")
@@ -461,7 +471,9 @@ class TestBulkStateFetcher(unittest.TestCase):
         with _prepare_app():
             mock_backend = mock.MagicMock(autospec=BaseBackend)
 
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend):
+            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
+                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
+            ) as cm:
                 fetcher = BulkStateFetcher(1)
                 result = fetcher.get_many(
                     [
@@ -471,3 +483,6 @@ class TestBulkStateFetcher(unittest.TestCase):
                 )
 
         assert result == {'123': ('SUCCESS', None), '456': ("PENDING", None)}
+        assert [
+            'DEBUG:airflow.executors.celery_executor.BulkStateFetcher:Fetched 2 state(s) for 2 task(s)'
+        ] == cm.output
