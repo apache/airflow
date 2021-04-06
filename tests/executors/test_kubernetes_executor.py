@@ -219,7 +219,7 @@ class TestKubernetesExecutor(unittest.TestCase):
 
     @pytest.mark.execution_timeout(10)
     @unittest.skipIf(AirflowKubernetesScheduler is None, 'kubernetes python package is not installed')
-    @mock.patch('airflow.kubernetes.pod_launcher.PodLauncher.run_pod_async')
+    @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.run_pod_async')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     def test_pod_template_file_override_in_executor_config(self, mock_get_kube_client, mock_run_pod_async):
         current_folder = pathlib.Path(__file__).parent.absolute()
