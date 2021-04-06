@@ -307,13 +307,3 @@ class TestRemoteUserLoginEndpoint(TestLoginEndpoint):
         resp = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
         assert resp.status_code == 401
         assert resp.json['detail'] == "Authentication type do not match"
-
-
-class TestLogoutEndpoint(TestLoginEndpoint):
-    def test_logout(self):
-        self.auth_type(AUTH_DB)
-        payload = {"username": "test", "password": "test"}
-        response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.json['user']['username'] == 'test'
-        response = self.client.get('api/v1/logout')
-        assert response.json == {"logged_out": True}

@@ -20,12 +20,15 @@ import logging
 import jwt
 from flask import current_app, g, jsonify, request, session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
-from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_refresh_token_required
+from flask_jwt_extended import create_access_token, get_jwt_identity
 from flask_login import login_user
 from marshmallow import ValidationError
 
 from airflow.api_connexion.exceptions import Unauthenticated
 from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_schema
+from airflow.api_connexion.security import jwt_refresh_token_required_
+from airflow.models.auth import Tokens
+from airflow.utils.session import provide_session
 
 log = logging.getLogger(__name__)
 
@@ -161,16 +164,28 @@ def auth_remoteuser():
     return appbuilder.sm.create_tokens_and_dump(user)
 
 
-@jwt_refresh_token_required
-def refresh_token():
+@jwt_refresh_token_required_
+@provide_session
+def refresh_token(session):
     """Refresh token"""
+    app = current_app
     current_user = get_jwt_identity()
-    ret = {'access_token': create_access_token(identity=current_user)}
+    token = Tokens(
+        jti=create_access_token(identity=current_user), expiry_date=app.config.get("JWT_ACCESS_TOKEN_EXPIRES")
+    )
+    session.add(token)
+    session.commit()
+    ret = {'access_token': token.jti}
     return jsonify(ret), 200
 
 
-def logout():
+def logout(token, refresh_token):
     """Sign out"""
-    resp = jsonify({'logged_out': True})
-    # TODO: logout user
-    return resp, 200
+    exist = Tokens.get_token(token)
+    if exist:
+        Tokens.delete_token(token)
+    exist = Tokens.get_token(refresh_token)
+    if exist:
+        Tokens.delete_token(token)
+    resp = {"logged_out": True}
+    return jsonify(resp), 200

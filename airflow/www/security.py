@@ -32,6 +32,7 @@ from sqlalchemy.orm import joinedload
 from airflow.api_connexion.schemas.auth_schema import auth_schema
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel
+from airflow.models.auth import Tokens
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -742,11 +743,21 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         jwt_manager.user_loader_callback_loader(self.load_user_jwt)
         return jwt_manager
 
-    def create_tokens_and_dump(self, user):
+    @provide_session
+    def create_tokens_and_dump(self, user, session=None):
         """Creates access token, return user data alongside tokens"""
-        token = create_access_token(user.id)
-        refresh_token = create_refresh_token(user.id)
-        return auth_schema.dump({'user': user, 'token': token, 'refresh_token': refresh_token})
+        app = current_app
+        token = Tokens(
+            jti=create_access_token(user.id), expiry_delta=app.config.get("JWT_ACCESS_TOKEN_EXPIRES")
+        )
+        refresh_token = Tokens(
+            jti=create_refresh_token(user.id),
+            expiry_delta=app.config.get("JWT_REFRESH_TOKEN_EXPIRES"),
+            refresh=True,
+        )
+        session.add_all([token, refresh_token])
+        session.commit()
+        return auth_schema.dump({'user': user, 'token': token.jti, 'refresh_token': refresh_token.jti})
 
 
 class ApplessAirflowSecurityManager(AirflowSecurityManager):

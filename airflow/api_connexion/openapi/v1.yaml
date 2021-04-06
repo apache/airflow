@@ -1605,8 +1605,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JwtAuthAndUser'
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
@@ -1629,6 +1627,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthorizationUrl'
 
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
   /oauth-authorized/{provider}:
     parameters:
       - $ref: '#/components/parameters/OauthProvider'
@@ -1646,8 +1647,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JwtAuthAndUser'
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
@@ -1665,8 +1664,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JwtAuthAndUser'
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
@@ -1684,16 +1681,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccessToken'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
   /logout:
-    get:
+    post:
       summary: Webserver logout
       description: Logout user by unsetting cookies
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
       operationId: logout
       tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessRefresh'
       responses:
         '200':
           description: Success
@@ -1704,8 +1707,8 @@ paths:
                   logged_out:
                     type: boolean
                     description: Indicate user is logged out
-        '400':
-          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
 
 components:
@@ -2750,6 +2753,16 @@ components:
           nullable: true
 
     # Form
+    AccessRefresh:
+      type: object
+      properties:
+        token:
+          description: Access token
+          type: string
+        refresh_token:
+          description: Refresh token
+          type: string
+
     ClearTaskInstance:
       type: object
       properties:
