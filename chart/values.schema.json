@@ -162,6 +162,10 @@
             "description": "Extra annotations to apply to all Airflow pods.",
             "type": "object"
         },
+        "airflowConfigAnnotations": {
+            "description": "Extra annotations to apply to the main Airflow configs.",
+            "type": "object"
+        },
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
             "type": "object",

@@ -111,6 +111,10 @@ networkPolicies:
 # Airflow pods
 airflowPodAnnotations: {}
 
+# Extra annotations to apply to
+# Airflow's main config
+airflowConfigAnnotations: {}
+
 # Enable RBAC (default on most clusters these days)
 rbac:
   # Specifies whether RBAC resources should be created
