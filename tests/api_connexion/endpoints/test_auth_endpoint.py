@@ -22,8 +22,7 @@ from sqlalchemy import func
 
 from airflow.models.auth import Token
 from airflow.utils.session import provide_session
-from tests.test_utils.api_connexion_utils import delete_user
-from tests.test_utils.fab_utils import create_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
 
 OAUTH_PROVIDERS = [
     {
