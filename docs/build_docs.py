@@ -18,23 +18,15 @@
 import argparse
 import multiprocessing
 import os
-import platform
 import sys
 from collections import defaultdict
-from subprocess import run
 from typing import Dict, List, NamedTuple, Optional, Tuple
 
 from rich.console import Console
 from tabulate import tabulate
 
 from docs.exts.docs_build import dev_index_generator, lint_checks  # pylint: disable=no-name-in-module
-from docs.exts.docs_build.code_utils import (
-    CONSOLE_WIDTH,
-    DOCKER_PROJECT_DIR,
-    ROOT_PROJECT_DIR,
-    TEXT_RED,
-    TEXT_RESET,
-)
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE, TEXT_RED, TEXT_RESET
 from docs.exts.docs_build.docs_builder import (  # pylint: disable=no-name-in-module
     DOCS_DIR,
     AirflowDocsBuilder,
@@ -52,7 +44,7 @@ from docs.exts.docs_build.spelling_checks import (  # pylint: disable=no-name-in
     display_spelling_error_summary,
 )
 
-if __name__ != "__main__":
+if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         "To run this script, run the ./build_docs.py command"
@@ -131,27 +123,13 @@ def _get_parser():
         "--jobs",
         dest='jobs',
         type=int,
-        default=1,
+        default=0,
         help=(
-            """
-    Number of parallel processes that will be spawned to build the docs.
+            """\
+        Number of parallel processes that will be spawned to build the docs.
 
-    This is usually used in CI system only. Though you can also use it to run complete check
-    of the documntation locally if you have powerful local machine.
-    Default is 1 - which means that doc check runs sequentially, This is the default behaviour
-    because autoapi extension we use is not capable of running parallel builds at the same time using
-    the same source files.
-
-    In parallel builds we are using dockerised version of image built from local sources but the image
-    has to be prepared locally (similarly as it is in CI) before you run the docs build. Any changes you
-    have done locally after building the image, will not be checked.
-
-    Typically you run parallel build in this way if you want to quickly run complete check for all docs:
-
-         ./breeze build-image --python 3.6
-         ./docs/build-docs.py -j 0
-
-"""
+        If passed 0, the value will be determined based on the number of CPUs.
+        """
         ),
     )
     parser.add_argument(
@@ -174,7 +152,6 @@ class BuildSpecification(NamedTuple):
     package_name: str
     for_production: bool
     verbose: bool
-    dockerized: bool
 
 
 class BuildDocsResult(NamedTuple):
@@ -202,7 +179,6 @@ def perform_docs_build_for_single_package(build_specification: BuildSpecificatio
     result = BuildDocsResult(
         package_name=build_specification.package_name,
         errors=builder.build_sphinx_docs(
-            dockerized=build_specification.dockerized,
             verbose=build_specification.verbose,
         ),
         log_file_name=builder.log_build_filename,
@@ -219,7 +195,6 @@ def perform_spell_check_for_single_package(build_specification: BuildSpecificati
     result = SpellCheckResult(
         package_name=build_specification.package_name,
         errors=builder.check_spelling(
-            dockerized=build_specification.dockerized,
             verbose=build_specification.verbose,
         ),
         log_file_name=builder.log_spelling_filename,
@@ -245,11 +220,6 @@ def build_docs_for_packages(
             builder = AirflowDocsBuilder(package_name=package_name, for_production=for_production)
             builder.clean_files()
     if jobs > 1:
-        if os.getenv('CI', '') == '':
-            console.print("[yellow] PARALLEL DOCKERIZED EXECUTION REQUIRES IMAGE TO BE BUILD BEFORE !!!![/]")
-            console.print("[yellow] Make sure that you've build the image before runnning docs build.[/]")
-            console.print("[yellow] otherwise local changes you've done will not be used during the check[/]")
-            console.print()
         run_in_parallel(
             all_build_errors,
             all_spelling_errors,
@@ -289,7 +259,6 @@ def run_sequentially(
                 build_specification=BuildSpecification(
                     package_name=package_name,
                     for_production=for_production,
-                    dockerized=False,
                     verbose=verbose,
                 )
             )
@@ -302,7 +271,6 @@ def run_sequentially(
                 build_specification=BuildSpecification(
                     package_name=package_name,
                     for_production=for_production,
-                    dockerized=False,
                     verbose=verbose,
                 )
             )
@@ -323,15 +291,12 @@ def run_in_parallel(
 ):
     """Run both - spellcheck and docs build sequentially without multiprocessing"""
     pool = multiprocessing.Pool(processes=jobs)
-    # until we fix autoapi, we need to run parallel builds as dockerized images
-    dockerized = True
     if not spellcheck_only:
         run_docs_build_in_parallel(
             all_build_errors=all_build_errors,
             for_production=for_production,
             current_packages=current_packages,
             verbose=verbose,
-            dockerized=dockerized,
             pool=pool,
         )
     if not docs_only:
@@ -340,34 +305,8 @@ def run_in_parallel(
             for_production=for_production,
             current_packages=current_packages,
             verbose=verbose,
-            dockerized=dockerized,
             pool=pool,
         )
-    fix_ownership()
-
-
-def fix_ownership():
-    """Fixes ownership for all files created with root user,"""
-    console.print("Fixing ownership for generated files")
-    python_version = os.getenv('PYTHON_MAJOR_MINOR_VERSION', "3.6")
-    fix_cmd = [
-        "docker",
-        "run",
-        "--entrypoint",
-        "/bin/bash",
-        "--rm",
-        "-e",
-        f"HOST_OS={platform.system()}",
-        "-e" f"HOST_USER_ID={os.getuid()}",
-        "-e",
-        f"HOST_GROUP_ID={os.getgid()}",
-        "-v",
-        f"{ROOT_PROJECT_DIR}:{DOCKER_PROJECT_DIR}",
-        f"apache/airflow:master-python{python_version}-ci",
-        "-c",
-        "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
-    ]
-    run(fix_cmd, check=True)
 
 
 def print_build_output(result: BuildDocsResult):
@@ -386,7 +325,6 @@ def run_docs_build_in_parallel(
     for_production: bool,
     current_packages: List[str],
     verbose: bool,
-    dockerized: bool,
     pool,
 ):
     """Runs documentation building in parallel."""
@@ -399,7 +337,6 @@ def run_docs_build_in_parallel(
                     package_name=package_name,
                     for_production=for_production,
                     verbose=verbose,
-                    dockerized=dockerized,
                 )
             )
     with with_group("Running docs building"):
@@ -428,7 +365,6 @@ def run_spell_check_in_parallel(
     for_production: bool,
     current_packages: List[str],
     verbose: bool,
-    dockerized: bool,
     pool,
 ):
     """Runs spell check in parallel."""
@@ -437,12 +373,7 @@ def run_spell_check_in_parallel(
         for package_name in current_packages:
             console.print(f"[blue]{package_name:60}:[/] Scheduling spellchecking")
             spell_check_specifications.append(
-                BuildSpecification(
-                    package_name=package_name,
-                    for_production=for_production,
-                    verbose=verbose,
-                    dockerized=dockerized,
-                )
+                BuildSpecification(package_name=package_name, for_production=for_production, verbose=verbose)
             )
     with with_group("Running spell checking of documentation"):
         console.print()
@@ -572,10 +503,14 @@ def main():
     if not package_filters:
         _promote_new_flags()
 
+    if os.path.exists(PROVIDER_INIT_FILE):
+        os.remove(PROVIDER_INIT_FILE)
+
     print_build_errors_and_exit(
         all_build_errors,
         all_spelling_errors,
     )
 
 
-main()
+if __name__ == "__main__":
+    main()

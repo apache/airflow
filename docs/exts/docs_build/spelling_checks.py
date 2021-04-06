@@ -23,7 +23,7 @@ from typing import Dict, List, NamedTuple, Optional
 from rich.console import Console
 
 from airflow.utils.code_utils import prepare_code_snippet
-from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, remap_from_docker
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
@@ -80,7 +80,7 @@ class SpellingError(NamedTuple):
         return left < right
 
 
-def parse_spelling_warnings(warning_text: str, docs_dir: str, dockerized: bool) -> List[SpellingError]:
+def parse_spelling_warnings(warning_text: str, docs_dir: str) -> List[SpellingError]:
     """
     Parses warnings from Sphinx.
 
@@ -99,7 +99,7 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str, dockerized: bool) 
             try:
                 sphinx_spelling_errors.append(
                     SpellingError(
-                        file_path=remap_from_docker(os.path.join(docs_dir, warning_parts[0]), dockerized),
+                        file_path=os.path.join(docs_dir, warning_parts[0]),
                         line_no=int(warning_parts[1]) if warning_parts[1] not in ('None', '') else None,
                         spelling=warning_parts[2],
                         suggestion=warning_parts[3] if warning_parts[3] else None,

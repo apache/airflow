@@ -506,7 +506,7 @@ autoapi_keep_files = True
 
 # Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
 # anywhere in your documentation hierarchy.
-autoapi_root = f'{PACKAGE_NAME}/_api'
+autoapi_root = '_api'
 
 # Whether to insert the generated documentation into the TOC tree. If this is False, the default AutoAPI
 # index page is not generated and you will need to include the generated documentation in a
