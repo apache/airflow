@@ -465,7 +465,7 @@ class S3Hook(AwsBaseHook):
     @unify_bucket_name_and_key
     def load_file(
         self,
-        filename: Union[str, Path],
+        filename: Union[Path, str],
         key: str,
         bucket_name: Optional[str] = None,
         replace: bool = False,
@@ -476,8 +476,8 @@ class S3Hook(AwsBaseHook):
         """
         Loads a local file to S3
 
-        :param filename: name of the file to load.
-        :type filename: str
+        :param filename: path to the file to load.
+        :type filename: Union[Path, str]
         :param key: S3 key that will point to the file
         :type key: str
         :param bucket_name: Name of the bucket in which to store the file
