@@ -1703,6 +1703,7 @@ paths:
           content:
             application/json:
               schema:
+                type: object
                 properties:
                   logged_out:
                     type: boolean
@@ -1729,6 +1730,7 @@ paths:
           content:
             application/json:
               schema:
+                type: object
                 properties:
                   revoked:
                     type: boolean
