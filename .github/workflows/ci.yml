@@ -1114,17 +1114,21 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     timeout-minutes: 10
     name: "Constraints"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    strategy:
-      matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
-      fail-fast: false
     needs:
       - build-info
       - ci-images
+      - prod-images
+      - static-checks
+      - static-checks-pylint
+      - tests-sqlite
+      - tests-mysql
+      - tests-postgres
+      - tests-kubernetes
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
+      CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: ${{needs.build-info.outputs.pythonVersionsListAsString}}
     # Only run it for direct pushes
     if: >
       github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
@@ -1140,54 +1144,22 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ github.sha }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: >
+          Wait for CI images
+          ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
+        run: ./scripts/ci/images/ci_wait_for_and_verify_all_ci_images.sh
       - name: "Generate constraints with PyPI providers"
-        run: ./scripts/ci/constraints/ci_generate_constraints.sh
+        run: ./scripts/ci/constraints/ci_generate_all_constraints.sh
         env:
           GENERATE_CONSTRAINTS_MODE: "pypi-providers"
       - name: "Generate constraints with source providers"
-        run: ./scripts/ci/constraints/ci_generate_constraints.sh
+        run: ./scripts/ci/constraints/ci_generate_all_constraints.sh
         env:
           GENERATE_CONSTRAINTS_MODE: "source-providers"
       - name: "Generate constraints without providers"
-        run: ./scripts/ci/constraints/ci_generate_constraints.sh
+        run: ./scripts/ci/constraints/ci_generate_all_constraints.sh
         env:
           GENERATE_CONSTRAINTS_MODE: "no-providers"
-      - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@v2
-        with:
-          name: 'constraints-${{matrix.python-version}}'
-          path: './files/constraints-${{matrix.python-version}}/constraints-*${{matrix.python-version}}.txt'
-          retention-days: 7
-
-  constraints-push:
-    timeout-minutes: 10
-    name: "Constraints push"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs:
-      - build-info
-      - constraints
-      - ci-images
-      - prod-images
-      - static-checks
-      - static-checks-pylint
-      - tests-sqlite
-      - tests-mysql
-      - tests-postgres
-      - tests-kubernetes
-    # Only run it for direct pushes
-    if: >
-      github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
-      github.ref == 'refs/heads/v2-0-test'
-    env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-          submodules: recursive
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh
@@ -1197,10 +1169,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           path: "repo"
           ref: ${{ steps.constraints-branch.outputs.branch }}
           persist-credentials: false
-      - name: "Get all artifacts (constraints)"
-        uses: actions/download-artifact@v2
-        with:
-          path: 'artifacts'
       - name: "Commit changed constraint files for ${{needs.build-info.outputs.pythonVersions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
       - name: "Push changes"
@@ -1223,7 +1191,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-postgres
       - tests-mysql
       - tests-kubernetes
-      - constraints-push
+      - constraints
       - prepare-test-provider-packages-wheel
       - prepare-test-provider-packages-sdist
     if: github.event_name == 'schedule' &&  github.repository == 'apache/airflow'

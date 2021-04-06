@@ -17,6 +17,7 @@
 # under the License.
 set -euo pipefail
 
+
 # We cannot perform full initialization because it will be done later in the "single run" scripts
 # And some readonly variables are set there, therefore we only selectively reuse parallel lib needed
 LIBRARIES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../libraries/" && pwd)
@@ -25,12 +26,18 @@ source "${LIBRARIES_DIR}/_all_libs.sh"
 
 initialization::set_output_color_variables
 
+export CHECK_IMAGE_FOR_REBUILD="false"
+echo
+echo "${COLOR_YELLOW}Skip rebuilding CI images. Assume the one we have is good!${COLOR_RESET}"
+echo "${COLOR_YELLOW}You must run './breeze build-image --upgrade-to-newer-dependencies before for all python versions before running this one!${COLOR_RESET}"
+echo
+
 parallel::make_sure_gnu_parallel_is_installed
 
 parallel::make_sure_python_versions_are_specified
 
 echo
-echo "${COLOR_BLUE}Waiting for all PROD images to appear${COLOR_RESET}"
+echo "${COLOR_BLUE}Generating all constraint files${COLOR_RESET}"
 echo
 
 parallel::initialize_monitoring
@@ -39,5 +46,5 @@ parallel::monitor_progress
 
 # shellcheck disable=SC2086
 parallel --results "${PARALLEL_MONITORED_DIR}" \
-    "$( dirname "${BASH_SOURCE[0]}" )/ci_wait_for_and_verify_prod_image.sh" ::: \
+    "$( dirname "${BASH_SOURCE[0]}" )/ci_generate_constraints.sh" ::: \
     ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}
