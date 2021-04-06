@@ -37,7 +37,7 @@ depends_on = None
 def upgrade():
     """Apply Add token blocklist table"""
     op.create_table(
-        "tokens",
+        "token",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("jti", sa.Text(), nullable=False),
         sa.Column("is_revoked", sa.Boolean(name="is_revoked"), server_default="0"),

@@ -32,7 +32,7 @@ from sqlalchemy.orm import joinedload
 from airflow.api_connexion.schemas.auth_schema import auth_schema
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel
-from airflow.models.auth import Tokens
+from airflow.models.auth import Token
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -747,10 +747,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     def create_tokens_and_dump(self, user, session=None):
         """Creates access token, return user data alongside tokens"""
         app = current_app
-        token = Tokens(
+        token = Token(
             jti=create_access_token(user.id), expiry_delta=app.config.get("JWT_ACCESS_TOKEN_EXPIRES")
         )
-        refresh_token = Tokens(
+        refresh_token = Token(
             jti=create_refresh_token(user.id),
             expiry_delta=app.config.get("JWT_REFRESH_TOKEN_EXPIRES"),
             refresh=True,

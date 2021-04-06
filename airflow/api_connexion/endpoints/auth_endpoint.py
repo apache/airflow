@@ -27,7 +27,7 @@ from marshmallow import ValidationError
 from airflow.api_connexion.exceptions import Unauthenticated
 from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_schema
 from airflow.api_connexion.security import jwt_refresh_token_required_
-from airflow.models.auth import Tokens
+from airflow.models.auth import Token
 from airflow.utils.session import provide_session
 
 log = logging.getLogger(__name__)
@@ -170,7 +170,7 @@ def refresh_token(session):
     """Refresh token"""
     app = current_app
     current_user = get_jwt_identity()
-    token = Tokens(
+    token = Token(
         jti=create_access_token(identity=current_user), expiry_date=app.config.get("JWT_ACCESS_TOKEN_EXPIRES")
     )
     session.add(token)
@@ -181,11 +181,11 @@ def refresh_token(session):
 
 def logout(token, refresh_token):
     """Sign out"""
-    exist = Tokens.get_token(token)
+    exist = Token.get_token(token)
     if exist:
-        Tokens.delete_token(token)
-    exist = Tokens.get_token(refresh_token)
+        Token.delete_token(token)
+    exist = Token.get_token(refresh_token)
     if exist:
-        Tokens.delete_token(token)
+        Token.delete_token(token)
     resp = {"logged_out": True}
     return jsonify(resp), 200

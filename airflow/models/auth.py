@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, Interval, String, Text, func
 
@@ -23,10 +22,10 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 
 
-class Tokens(Base, LoggingMixin):
+class Token(Base, LoggingMixin):
     """Token list"""
 
-    __tablename__ = 'tokens'
+    __tablename__ = 'token'
     id = Column(Integer, primary_key=True)
     jti = Column(Text(), nullable=False)
     refresh = Column(Boolean(name="refresh"), default=False)
