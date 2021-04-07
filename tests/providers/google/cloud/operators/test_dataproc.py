@@ -148,7 +148,7 @@ class TestsClusterGenerator(unittest.TestCase):
         with pytest.raises(ValueError) as ctx:
             ClusterGenerator(
                 custom_image="custom_image",
-                custom_image_family="image_family",
+                custom_image_family="custom_image_family",
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
