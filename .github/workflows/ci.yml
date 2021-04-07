@@ -1146,6 +1146,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/checkout@v2
         with:
           persist-credentials: false
+          submodules: recursive
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
