@@ -86,9 +86,9 @@ class AzureDataExplorerHook(BaseHook):
     @staticmethod
     def get_connection_form_widgets() -> Dict[str, Any]:
         """Returns connection widgets to add to connection form"""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import StringField
+        from wtforms import PasswordField, StringField
 
         return {
             "extra__azure_data_explorer__auth_method": StringField(
@@ -97,11 +97,11 @@ class AzureDataExplorerHook(BaseHook):
             "extra__azure_data_explorer__tenant": StringField(
                 lazy_gettext('Authentication Method'), widget=BS3TextFieldWidget()
             ),
-            "extra__azure_data_explorer__certificate": StringField(
-                lazy_gettext('Application PEM Certificate'), widget=BS3TextFieldWidget()
+            "extra__azure_data_explorer__certificate": PasswordField(
+                lazy_gettext('Application PEM Certificate'), widget=BS3PasswordFieldWidget()
             ),
-            "extra__azure_data_explorer__thumbprint": StringField(
-                lazy_gettext('Application Certificate Thumbprint'), widget=BS3TextFieldWidget()
+            "extra__azure_data_explorer__thumbprint": PasswordField(
+                lazy_gettext('Application Certificate Thumbprint'), widget=BS3PasswordFieldWidget()
             ),
         }
 

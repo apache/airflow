@@ -60,22 +60,22 @@ class WasbHook(BaseHook):
     @staticmethod
     def get_connection_form_widgets() -> Dict[str, Any]:
         """Returns connection widgets to add to connection form"""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import StringField
+        from wtforms import PasswordField, StringField
 
         return {
-            "extra__wasb__connection_string": StringField(
-                lazy_gettext('Blob Storage Connection String (optional)'), widget=BS3TextFieldWidget()
+            "extra__wasb__connection_string": PasswordField(
+                lazy_gettext('Blob Storage Connection String (optional)'), widget=BS3PasswordFieldWidget()
             ),
-            "extra__wasb__shared_access_key": StringField(
-                lazy_gettext('Blob Storage Shared Access Key (optional)'), widget=BS3TextFieldWidget()
+            "extra__wasb__shared_access_key": PasswordField(
+                lazy_gettext('Blob Storage Shared Access Key (optional)'), widget=BS3PasswordFieldWidget()
             ),
             "extra__wasb__tenant_id": StringField(
                 lazy_gettext('Tenant Id (Active Directory Auth)'), widget=BS3TextFieldWidget()
             ),
-            "extra__wasb__sas_token": StringField(
-                lazy_gettext('SAS Token (optional)'), widget=BS3TextFieldWidget()
+            "extra__wasb__sas_token": PasswordField(
+                lazy_gettext('SAS Token (optional)'), widget=BS3PasswordFieldWidget()
             ),
         }
 
@@ -86,7 +86,7 @@ class WasbHook(BaseHook):
             "hidden_fields": ['schema', 'port', 'host'],
             "relabeling": {
                 'login': 'Blob Storage Login (optional)',
-                'password': 'Blob Storage Token (optional)',
+                'password': 'Blob Storage Key (optional)',
                 'host': 'Account Name (Active Directory Auth)',
             },
             "placeholders": {
