@@ -128,3 +128,30 @@ class SchedulerTest(unittest.TestCase):
             "spec.template.spec.tolerations[0].key",
             docs[0],
         )
+
+    def test_livenessprobe_values_are_configurable(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "scheduler": {
+                    "livenessProbe": {
+                        "initialDelaySeconds": 111,
+                        "timeoutSeconds": 222,
+                        "failureThreshold": 333,
+                        "periodSeconds": 444,
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert 111 == jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.initialDelaySeconds", docs[0]
+        )
+        assert 222 == jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.timeoutSeconds", docs[0]
+        )
+        assert 333 == jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.failureThreshold", docs[0]
+        )
+        assert 444 == jmespath.search("spec.template.spec.containers[0].livenessProbe.periodSeconds", docs[0])
