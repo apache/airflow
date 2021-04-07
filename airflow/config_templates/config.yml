@@ -2149,6 +2149,28 @@
       type: boolean
       example: ~
       default: "True"
+    - name: worker_pods_pending_timeout
+      description: |
+        How long in seconds a worker can be in Pending before it is considered a failure
+      version_added: 2.1.0
+      type: integer
+      example: ~
+      default: "300"
+    - name: worker_pods_pending_timeout_check_interval
+      description: |
+        How often in seconds to check if Pending workers have exceeded their timeouts
+      version_added: 2.1.0
+      type: integer
+      example: ~
+      default: "120"
+    - name: worker_pods_pending_timeout_batch_size
+      description: |
+        How many pending pods to check for timeout violations in each check interval.
+        You may want this higher if you have a very large cluster and/or use ``multi_namespace_mode``.
+      version_added: 2.1.0
+      type: integer
+      example: ~
+      default: "100"
 - name: smart_sensor
   description: ~
   options:

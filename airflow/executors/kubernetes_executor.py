@@ -26,6 +26,7 @@ import functools
 import json
 import multiprocessing
 import time
+from datetime import timedelta
 from queue import Empty, Queue  # pylint: disable=unused-import
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -47,6 +48,8 @@ from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import TaskInstance
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.settings import pod_mutation_hook
+from airflow.utils import timezone
+from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -434,6 +437,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.kube_scheduler: Optional[AirflowKubernetesScheduler] = None
         self.kube_client: Optional[client.CoreV1Api] = None
         self.scheduler_job_id: Optional[str] = None
+        self.event_scheduler: Optional[EventScheduler] = None
         super().__init__(parallelism=self.kube_config.parallelism)
 
     @provide_session
@@ -494,6 +498,11 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.kube_client = get_kube_client()
         self.kube_scheduler = AirflowKubernetesScheduler(
             self.kube_config, self.task_queue, self.result_queue, self.kube_client, self.scheduler_job_id
+        )
+        self.event_scheduler = EventScheduler()
+        self.event_scheduler.call_regular_interval(
+            self.kube_config.worker_pods_pending_timeout_check_interval,
+            self._check_worker_pods_pending_timeout,
         )
         self.clear_not_launched_queued_tasks()
 
@@ -588,6 +597,44 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             except Empty:
                 break
         # pylint: enable=too-many-nested-blocks
+
+        # Run any pending timed events
+        next_event = self.event_scheduler.run(blocking=False)
+        self.log.debug("Next timed event is in %f", next_event)
+
+    def _check_worker_pods_pending_timeout(self):
+        """Check if any pending worker pods have timed out"""
+        timeout = self.kube_config.worker_pods_pending_timeout
+        self.log.debug('Looking for pending worker pods older than %d seconds', timeout)
+
+        kwargs = {
+            'limit': self.kube_config.worker_pods_pending_timeout_batch_size,
+            'field_selector': 'status.phase=Pending',
+            'label_selector': f'airflow-worker={self.scheduler_job_id}',
+            **self.kube_config.kube_client_request_args,
+        }
+        if self.kube_config.multi_namespace_mode:
+            pending_pods = functools.partial(self.kube_client.list_pod_for_all_namespaces, **kwargs)
+        else:
+            pending_pods = functools.partial(
+                self.kube_client.list_namespaced_pod, self.kube_config.kube_namespace, **kwargs
+            )
+
+        cutoff = timezone.utcnow() - timedelta(seconds=timeout)
+        for pod in pending_pods().items:
+            self.log.debug(
+                'Found a pending pod "%s", created "%s"', pod.metadata.name, pod.metadata.creation_timestamp
+            )
+            if pod.metadata.creation_timestamp < cutoff:
+                self.log.error(
+                    (
+                        'Pod "%s" has been pending for longer than %d seconds.'
+                        'It will be deleted and set to failed.'
+                    ),
+                    pod.metadata.name,
+                    timeout,
+                )
+                self.kube_scheduler.delete_pod(pod.metadata.name, pod.metadata.namespace)
 
     def _change_state(self, key: TaskInstanceKey, state: Optional[str], pod_id: str, namespace: str) -> None:
         if state != State.RUNNING:
