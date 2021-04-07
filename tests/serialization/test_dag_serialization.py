@@ -303,7 +303,6 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         assert sorted_serialized_dag(ground_truth_dag) == sorted_serialized_dag(json_dag)
 
-    @pytest.mark.quarantined
     def test_deserialization_across_process(self):
         """A serialized DAG can be deserialized in another process."""
 
