@@ -85,8 +85,8 @@
         {{ op.task_type }}</span>{% endfor %}
     </div>
     <div>
-      {% for state, state_color in state_color_mapping.items() %}<span class="legend-item js-state-legend-item" data-state="{{state}}" style="border-color: {{state_color}};">
-        {{state}}</span>{% endfor %}<span class="legend-item legend-item--no-border js-state-legend-item" data-state="no_status" style="border-color:white;">no_status</span>
+      {% for state, state_color in state_color_mapping.items() %}<span class="legend-item legend-item--interactive js-state-legend-item" data-state="{{state}}" style="border-color: {{state_color}};">
+        {{state}}</span>{% endfor %}<span class="legend-item legend-item--interactive legend-item--no-border js-state-legend-item" data-state="no_status" style="border-color:white;">no_status</span>
     </div>
   </div>
   <div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
@@ -118,16 +118,10 @@
   {{ super() }}
   <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3-shape.min.js') }}"></script>
   <script src="{{ url_for_asset('d3-tip.js') }}"></script>
   <script src="{{ url_for_asset('taskInstances.js') }}"></script>
   <script>
-
-      var highlight_color = "#000";
-      var upstream_color = "#2020a0";
-      var downstream_color = "#0000ff";
-      var initialStrokeWidth = '3px';
-      var highlightStrokeWidth = '5px';
-
       var nodes = {{ nodes|tojson }};
       var edges = {{ edges|tojson }};
       var execution_date = "{{ execution_date }}";
@@ -165,7 +159,7 @@
       // Preparation of DagreD3 data structures
       // "compound" is set to true to make use of clusters to display TaskGroup.
       var g = new dagreD3.graphlib.Graph({compound: true}).setGraph({
-          nodesep: 15,
+          nodesep: 30,
           ranksep: 15,
           rankdir: arrange,
         })
@@ -215,32 +209,30 @@
           }
         });
 
-        d3.selectAll("g.node").on("mouseover", function (d) {
-          d3.select(this).selectAll("rect").style("stroke", highlight_color);
-          highlight_nodes(g.predecessors(d), upstream_color, highlightStrokeWidth);
-          highlight_nodes(g.successors(d), downstream_color, highlightStrokeWidth)
-          adjacent_node_names = [d, ...g.predecessors(d), ...g.successors(d)]
+        d3.selectAll('g.node').on('mouseover', function (d) {
+          d3.select(this).selectAll('rect').attr('data-highlight', 'highlight');
+          highlightNodes(g.predecessors(d));
+          highlightNodes(g.successors(d));
+          adjacent_node_names = [d, ...g.predecessors(d), ...g.successors(d)];
+
           d3.selectAll("g.nodes g.node")
             .filter(x => !adjacent_node_names.includes(x))
-            .style("opacity", 0.2);
-          adjacent_edges = g.nodeEdges(d)
-          d3.selectAll("g.edgePath")[0]
-            .filter(x => !adjacent_edges.includes(x.__data__))
-            .forEach(function (x) {
-              d3.select(x).style('opacity', .2)
-            })
+            .attr('data-highlight', 'fade');
+
+          d3.selectAll("g.edgePath")[0].forEach(function (x) {
+            var val = g.nodeEdges(d).includes(x.__data__) ? 'highlight' : 'fade';
+            d3.select(x).attr('data-highlight', val);
+          });
         });
 
-        d3.selectAll("g.node").on("mouseout", function (d) {
-          d3.select(this).selectAll("rect,circle").style("stroke", null);
-          highlight_nodes(g.predecessors(d), null, initialStrokeWidth)
-          highlight_nodes(g.successors(d), null, initialStrokeWidth)
-          d3.selectAll("g.node")
-            .style("opacity", 1);
-          d3.selectAll("g.node rect")
-            .style("stroke-width", initialStrokeWidth);
-          d3.selectAll("g.edgePath")
-            .style("opacity", 1);
+        d3.selectAll('g.node').on('mouseout', function (d) {
+          d3.select(this).selectAll('rect, circle').attr('data-highlight', null);
+          unHighlightNodes(g.predecessors(d))
+          unHighlightNodes(g.successors(d))
+          d3.selectAll('g.node')
+            .attr('data-highlight', null);
+          d3.selectAll('g.edgePath')
+            .attr('data-highlight', null);
           localStorage.removeItem(focused_group_key(dag_id));
         });
         updateNodesStates(task_instances);
@@ -277,44 +269,49 @@
         zoom.event(innerSvg);
       }
 
-      function highlight_nodes(nodes, color, stroke_width) {
-          nodes.forEach (function (nodeid) {
-              const my_node = g.node(nodeid).elem
-              d3.select(my_node)
-                  .selectAll("rect,circle")
-                  .style("stroke", color)
-                  .style("stroke-width", stroke_width) ;
-          })
+      function highlightNodes(nodes) {
+        nodes.forEach (function (nodeid) {
+          const my_node = g.node(nodeid).elem
+          d3.select(my_node)
+            .selectAll('rect, circle')
+            .attr('data-highlight', 'highlight');
+        });
+      }
+
+      function unHighlightNodes(nodes) {
+        nodes.forEach (function (nodeid) {
+          const my_node = g.node(nodeid).elem
+          d3.select(my_node)
+            .selectAll('rect, circle')
+            .attr('data-highlight', null);
+        });
       }
 
       d3.selectAll('.js-state-legend-item')
-          .style("cursor", "pointer")
-          .on("mouseover", function(){
-              if(!stateIsSet()){
-                  state = $(this).data('state');
-                  focusState(state);
-              }
-          })
-          .on("mouseout", function(){
-              if(!stateIsSet()){
-                  clearFocus();
-              }
-          });
+        .on('mouseover', function() {
+          if (!stateIsSet()) {
+            state = $(this).data('state');
+            focusState(state);
+          }
+        })
+        .on('mouseout', function() {
+          if (!stateIsSet()) {
+            clearFocus();
+          }
+        });
 
-      d3.selectAll('.js-state-legend-item')
-          .on("click", function(){
-              state = $(this).data('state');
-              color = d3.select(this).style("border-color");
+      d3.selectAll('.js-state-legend-item').on('click', function() {
+        state = $(this).data('state');
 
-              if (!stateFocusMap[state]){
-                  clearFocus();
-                  focusState(state, this, color);
-                  setFocusMap(state);
-              } else {
-                  clearFocus();
-                  setFocusMap();
-              }
-          });
+        clearFocus();
+        if (!stateFocusMap[state]) {
+          color = d3.select(this).style('border-color');
+          focusState(state, this, color);
+          setFocusMap(state);
+        } else {
+          setFocusMap();
+        }
+      });
 
       // Returns true if a node's id or its children's id matches search_text
       function node_matches(node_id, search_text) {
@@ -333,49 +330,30 @@
       }
 
       d3.select("#searchbox").on("keyup", function() {
-          var s = document.getElementById("searchbox").value;
+          var s = document.getElementById('searchbox').value;
 
-          if(s == "")
-            return;
+          if (s == '') return;
 
           var match = null;
 
-          if (stateIsSet()){
-              clearFocus();
-              setFocusMap();
+          if (stateIsSet()) {
+            clearFocus();
+            setFocusMap();
           }
 
-          d3.selectAll("g.nodes g.node").filter(function(d, i){
-              if (s==""){
-                  d3.select("g.edgePaths")
-                      .transition().duration(duration)
-                      .style("opacity", 1);
-                  d3.select(this)
-                      .transition().duration(duration)
-                      .style("opacity", 1)
-                      .selectAll("rect")
-                      .style("stroke-width", initialStrokeWidth);
+          d3.selectAll('g.nodes g.node').filter(function(d, i){
+            if (s == '') {
+              d3.select('g.edgePaths').attr('data-highlight', null);
+              d3.select(this).attr('data-highlight', null);
+            } else {
+              d3.select('g.edgePaths').attr('data-highlight', 'fade');
+              if (node_matches(d, s)) {
+                if (!match) match = this;
+                d3.select(this).attr('data-highlight', null);
+              } else {
+                d3.select(this).attr('data-highlight', 'fade');
               }
-              else{
-                  d3.select("g.edgePaths")
-                      .transition().duration(duration)
-                      .style("opacity", 0.2);
-                  if (node_matches(d, s)) {
-                      if (!match)
-                          match = this;
-                      d3.select(this)
-                          .transition().duration(duration)
-                          .style("opacity", 1)
-                          .selectAll("rect")
-                          .style("stroke-width", highlightStrokeWidth);
-                  } else {
-                      d3.select(this)
-                          .transition()
-                          .style("opacity", 0.2).duration(duration)
-                          .selectAll("rect")
-                          .style("stroke-width", initialStrokeWidth);
-                  }
-              }
+            }
           });
 
           // This moves the matched node to the center of the graph area
@@ -397,56 +375,45 @@
           }
       });
 
-      function clearFocus(){
-          d3.selectAll("g.node")
-              .transition(duration)
-              .style("opacity", 1);
-          d3.selectAll("g.node rect")
-              .transition(duration)
-              .style("stroke-width", initialStrokeWidth);
-          d3.select("g.edgePaths")
-              .transition().duration(duration)
-              .style("opacity", 1);
-          d3.selectAll('.js-state-legend-item')
-              .style("background-color", null);
-
-          localStorage.removeItem(focused_group_key(dag_id));
+      function clearFocus() {
+        d3.selectAll('g.node')
+          .attr('data-highlight', null);
+        d3.select('g.edgePaths')
+          .attr('data-highlight', null);
+        d3.selectAll('.js-state-legend-item')
+          .style('background-color', null);
+        localStorage.removeItem(focused_group_key(dag_id));
       }
 
-      function focusState(state, node, color){
-          d3.selectAll("g.node")
-              .transition(duration)
-              .style("opacity", 0.2);
-          d3.selectAll(`g.node.${state}`)
-              .transition(duration)
-              .style("opacity", 1);
-          d3.selectAll(`g.node.${state} rect`)
-              .transition(duration)
-              .style("stroke-width", highlightStrokeWidth)
-              .style("opacity", 1);
-          d3.select("g.edgePaths")
-              .transition().duration(duration)
-              .style("opacity", 0.2);
-          d3.select(node)
-              .style("background-color", color);
+      function focusState(state, node, color) {
+        d3.selectAll('g.node')
+          .attr('data-highlight', 'fade');
+        d3.selectAll(`g.node.${state}`)
+          .attr('data-highlight', null);
+        d3.selectAll(`g.node.${state} rect`)
+          .attr('data-highlight', null);
+        d3.select('g.edgePaths')
+          .attr('data-highlight', 'fade');
+        d3.select(node)
+          .style('background-color', color);
       }
 
-      function setFocusMap(state){
-          for (var key in stateFocusMap){
-                  stateFocusMap[key] = false;
-          }
-          if(state != null){
-              stateFocusMap[state] = true;
-          }
+      function setFocusMap(state) {
+        for (var key in stateFocusMap) {
+          stateFocusMap[key] = false;
+        }
+        if (state != null) {
+          stateFocusMap[state] = true;
+        }
       }
 
-      function stateIsSet(){
-          for (var key in stateFocusMap){
-              if (stateFocusMap[key]){
-                  return true
-              }
+      function stateIsSet() {
+        for (var key in stateFocusMap) {
+          if (stateFocusMap[key]) {
+            return true;
           }
-          return false
+        }
+        return false;
       }
 
       function handleRefresh() {
@@ -608,18 +575,18 @@
         node = g.node(node_id)
 
         if (node.children == undefined) {
-          if(node_id in tis)
-            return tis[node_id].state
-
-          return "no_status"
+          if (node_id in tis) {
+            return tis[node_id].state || 'no_status';
+          }
+          return 'no_status';
         }
-        var children = get_children_ids(node)
+        var children = get_children_ids(node);
 
-        children_states = new Set()
+        children_states = new Set();
         children.forEach(function(task_id) {
           if (task_id in tis) {
-            var state = tis[task_id].state
-            children_states.add(state == null ? "no_status" : state)
+            var state = tis[task_id].state;
+            children_states.add(state == null ? "no_status" : state);
           }
         })
 
@@ -676,16 +643,14 @@
             zoom.event(innerSvg.transition().duration(duration));
 
             const children = new Set(g.children(node_id))
-            // Change opacity to highlight the focused group.
-            d3.selectAll("g.nodes g.node").filter(function(d, i){
+            // Set data attr to highlight the focused group (via CSS).
+            d3.selectAll('g.nodes g.node').filter(function(d, i){
               if (d == node_id || children.has(d)) {
-                  d3.select(this)
-                      .transition().duration(duration)
-                      .style("opacity", 1)
+                d3.select(this)
+                  .attr('data-highlight', null);
               } else {
-                  d3.select(this)
-                      .transition()
-                      .style("opacity", 0.2).duration(duration)
+                d3.select(this)
+                  .attr('data-highlight', 'fade');
               }
             });
 
@@ -718,40 +683,44 @@
           source_id = map_task_to_node.get(edge.source_id)
           target_id = map_task_to_node.get(edge.target_id)
           if(source_id != target_id && !g.hasEdge(source_id, target_id))
-            g.setEdge(source_id, target_id)
+            g.setEdge(source_id, target_id, {
+              curve: d3.curveBasis,
+              arrowheadClass: 'arrowhead',
+            });
         })
 
         g.edges().forEach(function (edge) {
           // Remove edges that were associated with the expanded group node..
-          if(node_id == edge.v || node_id == edge.w)
-            g.removeEdge(edge.v, edge.w)
-        })
+          if (node_id == edge.v || node_id == edge.w) {
+            g.removeEdge(edge.v, edge.w);
+          }
+        });
 
-        draw()
+        draw();
 
         if (focus) {
           focus_group(node_id);
         }
 
-        save_expanded_group(node_id)
-    }
-
-    // Remove the node with this node_id from g.
-    function remove_node(node_id) {
-      if (g.hasNode(node_id)) {
-          node = g.node(node_id)
-          if(node.children != undefined) {
-            // If the child is an expanded group node, remove children too.
-            node.children.forEach(function (child) {
-              remove_node(child.id);
-            })
-          }
+        save_expanded_group(node_id);
       }
-      g.removeNode(node_id)
-    }
 
-    // Collapse the children of the given group node.
-    function collapse_group(node_id, node) {
+      // Remove the node with this node_id from g.
+      function remove_node(node_id) {
+        if (g.hasNode(node_id)) {
+            node = g.node(node_id)
+            if(node.children != undefined) {
+              // If the child is an expanded group node, remove children too.
+              node.children.forEach(function (child) {
+                remove_node(child.id);
+              })
+            }
+        }
+        g.removeNode(node_id);
+      }
+
+      // Collapse the children of the given group node.
+      function collapse_group(node_id, node) {
         // Remove children nodes
         node.children.forEach(function(child) {
           remove_node(child.id)
@@ -766,8 +735,12 @@
         edges.forEach(function(edge) {
           source_id = map_task_to_node.get(edge.source_id)
           target_id = map_task_to_node.get(edge.target_id)
-          if(source_id != target_id && !g.hasEdge(source_id, target_id))
-            g.setEdge(source_id, target_id)
+          if (source_id != target_id && !g.hasEdge(source_id, target_id)) {
+            g.setEdge(source_id, target_id, {
+              curve: d3.curveBasis,
+              arrowheadClass: 'arrowhead',
+            });
+          }
         })
 
         draw()

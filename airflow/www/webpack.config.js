@@ -165,6 +165,10 @@ const config = {
           flatten: true,
         },
         {
+          from: 'node_modules/d3-shape/dist/*.min.*',
+          flatten: true,
+        },
+        {
           from: 'node_modules/d3-tip/dist/index.js',
           to: 'd3-tip.js',
           flatten: true,
