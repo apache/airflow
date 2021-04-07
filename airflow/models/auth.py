@@ -53,7 +53,7 @@ class JwtToken(Base, LoggingMixin):
     revoked_by = Column(String(50))
     date_revoked = Column(DateTime)
     expiry_delta = Column(Integer, nullable=False)
-    created_delta = Column(Integer, default=datetime.timestamp(datetime.now()))
+    created_delta = Column(Integer, nullable=False, default=datetime.timestamp(datetime.now()))
 
     def __init__(
         self,

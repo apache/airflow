@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add token blocklist table
+"""add jwt token table
 
-Revision ID: 43c2bf7117bd
-Revises: 2e42bb497a22
-Create Date: 2021-04-05 13:04:23.339826
+Revision ID: 09dd4b177b92
+Revises: 90d1635d7b86
+Create Date: 2021-04-07 17:06:42.061407
 
 """
 
@@ -28,14 +28,14 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '43c2bf7117bd'
-down_revision = '2e42bb497a22'
+revision = '09dd4b177b92'
+down_revision = '90d1635d7b86'
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    """Apply Add token blocklist table"""
+    """Apply Add jwt token table"""
     op.create_table(
         "jwt_token",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -51,5 +51,5 @@ def upgrade():
 
 
 def downgrade():  # noqa: D103
-    """Unapply Add token blocklist table"""
-    op.drop_table('tokens')
+    """Unapply Add jwt token table"""
+    op.drop_table('jwt_token')
