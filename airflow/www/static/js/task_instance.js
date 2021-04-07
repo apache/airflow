@@ -17,7 +17,7 @@
  * under the License.
  */
 
-document.addEventListener('DOMContentLoaded', () => {
+$(document).ready(() => {
   function dateChange() {
     // We don't want to navigate away if the datetimepicker is still visible
     if ($('.datetimepicker bootstrap-datetimepicker-widget :visible').length > 0) {
