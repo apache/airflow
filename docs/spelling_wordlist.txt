@@ -750,6 +750,7 @@ evo
 exasol
 execvp
 exitcode
+exp
 explict
 exportingmultiple
 extensibility
@@ -859,6 +860,7 @@ hyperparameter
 iPython
 iTerm
 iam
+iat
 idempotence
 idempotency
 ie
