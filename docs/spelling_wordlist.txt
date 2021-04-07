@@ -194,6 +194,7 @@ InspectContentResponse
 InspectTemplate
 Investorise
 JPype
+JWT
 Jakob
 Jarek
 Jdbc
@@ -920,6 +921,7 @@ joygao
 js
 json
 jthomas
+jti
 jupyter
 jupytercmd
 kaxil
