@@ -18,7 +18,7 @@
 import unittest
 from datetime import timedelta
 
-from airflow.models.auth import Token
+from airflow.models.auth import JwtToken
 from airflow.utils.session import provide_session
 
 
@@ -28,13 +28,13 @@ class TestToken(unittest.TestCase):
 
     @provide_session
     def delete_tokens(self, session=None):
-        tokens = session.query(Token).all()
+        tokens = session.query(JwtToken).all()
         for i in tokens:
             session.delete(i)
 
     @provide_session
     def create_token(self, session=None):
-        token = Token(jti="token", expiry_delta=timedelta(minutes=2))
+        token = JwtToken(jti="token", expiry_delta=timedelta(minutes=2))
         session.add(token)
         session.commit()
         return token
@@ -42,19 +42,19 @@ class TestToken(unittest.TestCase):
     @provide_session
     def test_create_token(self, session=None):
         self.create_token()
-        token = session.query(Token).all()
+        token = session.query(JwtToken).all()
         assert len(token) == 1
 
     def test_get_token_method(self):
         token = self.create_token()
-        token2 = Token.get_token(token.jti)
+        token2 = JwtToken.get_token(token.jti)
         assert token2.jti == token.jti
         assert token2.expiry_delta == token.expiry_delta
 
     def test_delete_token_method(self):
         tkn = self.create_token()
-        token = Token.get_token(tkn.jti)
+        token = JwtToken.get_token(tkn.jti)
         assert token is not None
-        Token.delete_token(token.jti)
-        token = Token.get_token(token.jti)
+        JwtToken.delete_token(token.jti)
+        token = JwtToken.get_token(token.jti)
         assert token is None

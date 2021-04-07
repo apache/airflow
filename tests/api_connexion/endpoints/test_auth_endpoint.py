@@ -20,7 +20,7 @@ import pytest
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
 from sqlalchemy import func
 
-from airflow.models.auth import Token
+from airflow.models.auth import JwtToken
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 
@@ -45,13 +45,6 @@ OPENID_PROVIDERS = [
     {'name': 'Yahoo', 'url': 'https://me.yahoo.com'},
     {'name': 'AOL', 'url': 'http://openid.aol.com/<username>'},
 ]
-
-
-@provide_session
-def delete_tokens(session=None):
-    tokens = session.query(Token).all()
-    for token in tokens:
-        Token.delete_token(token.jti, session)
 
 
 @pytest.fixture(scope="module")
@@ -84,7 +77,7 @@ class TestLoginEndpoint:
             self.app.config['OAUTH_PROVIDERS'] = None
 
     def teardown_method(self):
-        tokens = self.session.query(Token).all()
+        tokens = self.session.query(JwtToken).all()
         for token in tokens:
             self.session.delete(token)
         self.session.commit()
@@ -333,14 +326,14 @@ class TestRefreshTokenEndpoint(TestLoginEndpoint):
         response = self.client.post('api/v1/auth/login', json=payload)
         token = response.json['token']
         refresh = response.json['refresh_token']
-        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
+        total_tokens_in_db = session.query(func.count(JwtToken.id)).scalar()
 
         assert total_tokens_in_db == 2
         assert token is not None
         response2 = self.client.post("api/v1/refresh", headers={"Authorization": f"Bearer {refresh}"})
 
         assert response2.json['access_token'] is not None
-        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
+        total_tokens_in_db = session.query(func.count(JwtToken.id)).scalar()
         assert total_tokens_in_db == 3
 
     def test_access_token_cant_access_endpoint(self):
@@ -361,12 +354,12 @@ class TestLogoutEndpoint(TestLoginEndpoint):
         response = self.client.post('api/v1/auth/login', json=payload)
         token = response.json['token']
         refresh = response.json['refresh_token']
-        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
+        total_tokens_in_db = session.query(func.count(JwtToken.id)).scalar()
         assert total_tokens_in_db == 2
         assert token is not None
         response2 = self.client.post("api/v1/logout", json={"token": token, "refresh_token": refresh})
         assert response2.json == {'logged_out': True}
-        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
+        total_tokens_in_db = session.query(func.count(JwtToken.id)).scalar()
         assert total_tokens_in_db == 0
 
 
@@ -378,10 +371,10 @@ class TestTokenRevokeEndpoint(TestLoginEndpoint):
         response = self.client.post('api/v1/auth/login', json=payload)
         token = response.json['token']
         refresh = response.json['refresh_token']
-        total_tokens_in_db = session.query(func.count(Token.id)).scalar()
+        total_tokens_in_db = session.query(func.count(JwtToken.id)).scalar()
         assert total_tokens_in_db == 2
         self.client.post("api/v1/revoke", json={"token": token, "reason": "test"})
         self.client.post("api/v1/revoke", json={"token": refresh, "reason": "test"})
-        tokens = session.query(Token).all()
+        tokens = session.query(JwtToken).all()
         for token in tokens:
             assert token.is_revoked is True

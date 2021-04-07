@@ -32,7 +32,7 @@ from sqlalchemy.orm import joinedload
 from airflow.api_connexion.schemas.auth_schema import auth_schema
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel
-from airflow.models.auth import Token
+from airflow.models.auth import JwtToken
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -748,10 +748,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """Creates access token, return user data alongside tokens"""
         access_token = create_access_token(user.id)
         decoded = decode_token(access_token)
-        token = Token(jti=decoded['jti'], expiry_delta=decoded['exp'], created_delta=decoded['iat'])
+        token = JwtToken(jti=decoded['jti'], expiry_delta=decoded['exp'], created_delta=decoded['iat'])
         refresh_token = create_refresh_token(user.id)
         decoded = decode_token(refresh_token)
-        r_token = Token(
+        r_token = JwtToken(
             jti=decoded['jti'],
             expiry_delta=decoded['exp'],
             created_delta=decoded['iat'],

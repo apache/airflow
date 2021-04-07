@@ -33,7 +33,7 @@ from airflow.api_connexion.schemas.auth_schema import (
     token_schema,
 )
 from airflow.api_connexion.security import jwt_refresh_token_required_
-from airflow.models.auth import Token
+from airflow.models.auth import JwtToken
 from airflow.utils.session import provide_session
 
 log = logging.getLogger(__name__)
@@ -177,7 +177,7 @@ def refresh_token(session=None):
     user = get_jwt_identity()
     access_token = create_access_token(identity=user)
     decoded = decode_token(access_token)
-    token = Token(jti=decoded['jti'], expiry_delta=decoded['exp'], created_delta=decoded['iat'])
+    token = JwtToken(jti=decoded['jti'], expiry_delta=decoded['exp'], created_delta=decoded['iat'])
     session.add(token)
     session.commit()
     ret = {'access_token': access_token}
@@ -192,13 +192,13 @@ def logout():
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
     token_jti = get_jti(data['token'])
-    exist = Token.get_token(token_jti)
+    exist = JwtToken.get_token(token_jti)
     if exist:
-        Token.delete_token(token_jti)
+        JwtToken.delete_token(token_jti)
     refresh_jti = get_jti(data['refresh_token'])
-    exist = Token.get_token(refresh_jti)
+    exist = JwtToken.get_token(refresh_jti)
     if exist:
-        Token.delete_token(refresh_jti)
+        JwtToken.delete_token(refresh_jti)
     resp = {"logged_out": True}
     return jsonify(resp), 200
 
@@ -212,7 +212,7 @@ def revoke_token(session=None):
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
     jti = get_jti(data['token'])
-    token = Token.get_token(jti)
+    token = JwtToken.get_token(jti)
     if token:
         token.is_revoked = True
         token.revoked_by = current_user.username

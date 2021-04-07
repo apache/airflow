@@ -24,7 +24,7 @@ from flask_jwt_extended.utils import verify_token_claims
 from flask_jwt_extended.view_decorators import _decode_jwt_from_request, _load_user
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
-from airflow.models.auth import Token
+from airflow.models.auth import JwtToken
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
@@ -41,12 +41,12 @@ def verify_jwt_access_token_():
         ctx_stack.top.jwt_header = jwt_header
         verify_token_claims(jwt_data)
         _load_user(jwt_data[config.identity_claim_key])
-        token = Token.get_token(jwt_data['jti'])
+        token = JwtToken.get_token(jwt_data['jti'])
         if token and token.is_revoked:
             raise Unauthenticated(detail="Token revoked")
         exp = datetime.timestamp(datetime.now())
         if token and token.expiry_delta < exp:
-            Token.delete_token(token.jti)
+            JwtToken.delete_token(token.jti)
             raise Unauthenticated(detail="Token expired and we have deleted it")
         if not token:
             raise Unauthenticated(detail="Token Unknown")
@@ -62,12 +62,12 @@ def verify_jwt_refresh_token_in_request_():
         ctx_stack.top.jwt = jwt_data
         ctx_stack.top.jwt_header = jwt_header
         _load_user(jwt_data[config.identity_claim_key])
-        token = Token.get_token(jwt_data['jti'])
+        token = JwtToken.get_token(jwt_data['jti'])
         if token and token.is_revoked:
             raise Unauthenticated(detail="Token revoked")
         exp = datetime.timestamp(datetime.now())
         if token and token.expiry_delta < exp:
-            Token.delete_token(token.jti)
+            JwtToken.delete_token(token.jti)
             raise Unauthenticated(detail="Token expired and we have deleted it")
         if not token:
             raise Unauthenticated(detail="Token Unknown")

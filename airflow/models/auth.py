@@ -24,7 +24,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 
 
-class Token(Base, LoggingMixin):
+class JwtToken(Base, LoggingMixin):
     """
     A model for recording decoded token information
 
@@ -44,7 +44,7 @@ class Token(Base, LoggingMixin):
     :type created_delta: int
     """
 
-    __tablename__ = 'token'
+    __tablename__ = 'jwt_token'
     id = Column(Integer, primary_key=True)
     jti = Column(String(50), nullable=False)
     refresh = Column(Boolean(name="refresh"), default=False)
