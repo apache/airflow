@@ -17,27 +17,40 @@
 # under the License.
 set -euo pipefail
 
-# We cannot perform full initialization because it will be done later in the "single run" scripts
-# And some readonly variables are set there, therefore we only selectively reuse parallel lib needed
-LIBRARIES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../libraries/" && pwd)
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
-source "${LIBRARIES_DIR}/_all_libs.sh"
-
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_all_libs.sh"
 initialization::set_output_color_variables
+export SEMAPHORE_NAME="wait_for_prod_images"
+
+echo
+echo "${COLOR_BLUE}Wait for all PROD images and test${COLOR_RESET}"
+echo
 
 parallel::make_sure_gnu_parallel_is_installed
-
 parallel::make_sure_python_versions_are_specified
 
-echo
-echo "${COLOR_BLUE}Waiting for all PROD images to appear${COLOR_RESET}"
-echo
-
 parallel::initialize_monitoring
+parallel::kill_stale_semaphore_locks
 
+# Get as many parallel jobs as many python versions we have to work on
+# Docker operations are not CPU bound
+parallel::max_parallel_from_variable "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}"
+
+start_end::group_start "Wait for PROD images ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING} in parallel"
 parallel::monitor_progress
 
 # shellcheck disable=SC2086
-parallel --results "${PARALLEL_MONITORED_DIR}" \
-    "$( dirname "${BASH_SOURCE[0]}" )/ci_wait_for_and_verify_prod_image.sh" ::: \
-    ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}
+for python_version in ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}
+do
+    mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${python_version}"
+    export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${python_version}/stdout"
+    parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
+        --jobs "${MAX_PARALLEL_FROM_VARIABLE}" \
+            "$(dirname "${BASH_SOURCE[0]}")/ci_wait_for_and_verify_prod_image.sh" "${python_version}" >"${JOB_LOG}" 2>&1
+done
+
+parallel --semaphore --semaphorename "${SEMAPHORE_NAME}" --wait
+
+start_end::group_end
+
+parallel::print_job_summary_and_return_status_code

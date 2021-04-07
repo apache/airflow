@@ -27,11 +27,13 @@ function kind::get_kind_cluster_name() {
 }
 
 function kind::dump_kind_logs() {
+    local exit_code=$?
     verbosity::print_info "Dumping logs from KinD"
     local DUMP_DIR_NAME DUMP_DIR
     DUMP_DIR_NAME=kind_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}
     DUMP_DIR="/tmp/${DUMP_DIR_NAME}"
     kind --name "${KIND_CLUSTER_NAME}" export logs "${DUMP_DIR}"
+    return ${exit_code}
 }
 
 function kind::make_sure_kubernetes_tools_are_installed() {
@@ -230,6 +232,11 @@ function kind::perform_kind_cluster_operation() {
     fi
 }
 
+function kind::delete_cluster() {
+    kind::perform_kind_cluster_operation "stop"
+}
+
+
 function kind::check_cluster_ready_for_airflow() {
     kubectl cluster-info --cluster "${KUBECTL_CLUSTER_NAME}"
     kubectl get nodes --cluster "${KUBECTL_CLUSTER_NAME}"
@@ -292,6 +299,12 @@ function kind::wait_for_webserver_healthy() {
     set -e
 }
 
+function kind::remove_chartdir() {
+    local exit_code=$?
+    rm -rf "${TEMPORARY_CHARTDIR}"
+    return ${exit_code}
+}
+
 function kind::deploy_airflow_with_helm() {
     echo "Deleting namespace ${HELM_AIRFLOW_NAMESPACE}"
     kubectl delete namespace "${HELM_AIRFLOW_NAMESPACE}" >/dev/null 2>&1 || true
@@ -316,14 +329,14 @@ function kind::deploy_airflow_with_helm() {
       kubectl -n "${HELM_AIRFLOW_NAMESPACE}" patch serviceaccount default -p '{"imagePullSecrets": [{"name": "regcred"}]}'
     fi
 
-    local chartdir
-    chartdir=$(mktemp -d)
-    traps::add_trap "rm -rf ${chartdir}" EXIT INT HUP TERM
+    TEMPORARY_CHARTDIR=$(mktemp -d)
+    export TEMPORARY_CHARTDIR
+    traps::add_trap "kind::remove_chartdir" EXIT INT HUP TERM
     # Copy chart to temporary directory to allow chart deployment in parallel
     # Otherwise helm deployment will fail on renaming charts to tmpcharts
-    cp -r "${AIRFLOW_SOURCES}/chart" "${chartdir}"
+    cp -r "${AIRFLOW_SOURCES}/chart" "${TEMPORARY_CHARTDIR}"
 
-    pushd "${chartdir}/chart" >/dev/null 2>&1 || exit 1
+    pushd "${TEMPORARY_CHARTDIR}/chart" >/dev/null 2>&1 || exit 1
     helm repo add stable https://charts.helm.sh/stable/
     helm dep update
     helm install airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \

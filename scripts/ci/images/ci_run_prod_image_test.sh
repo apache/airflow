@@ -15,18 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_initialization.sh
-. "$(dirname "${BASH_SOURCE[0]}")/../libraries/_initialization.sh"
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 initialization::set_output_color_variables
 
 job_name=$1
 file=$2
 
+parallel::get_parallel_job_status_file "${job_name}"
+traps::add_trap "parallel::save_status" EXIT HUP INT TERM
+
+echo
+echo "${COLOR_BLUE}Running prod image build test ${job_name} via: ${file}.${COLOR_RESET}"
+echo
+
 set +e
 
 if [[ ${file} == *".sh" ]]; then
-    "${file}"
+    bash "${file}"
     res=$?
 elif [[ ${file} == *"Dockerfile" ]]; then
     cd "$(dirname "${file}")" || exit 1
@@ -37,14 +44,13 @@ else
     echo "Bad file ${file}. Should be either a Dockerfile or script"
     exit 1
 fi
-# Print status to status file
-echo "${res}" >"${PARALLEL_JOB_STATUS}"
 
 echo
-# print status to log
+
 if [[ ${res} == "0" ]]; then
     echo "${COLOR_GREEN}Extend PROD image test ${job_name} succeeded${COLOR_RESET}"
 else
     echo "${COLOR_RED}Extend PROD image test ${job_name} failed${COLOR_RESET}"
 fi
-echo
+
+exit ${res}

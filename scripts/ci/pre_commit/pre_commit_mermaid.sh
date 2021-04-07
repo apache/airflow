@@ -29,7 +29,7 @@ if ! command -v npm; then
 fi
 
 TMP_FILE="${CACHE_TMP_FILE_DIR}/tmp.mermaid"
-readonly TMP_FILE
+export TMP_FILE
 
 cd "${AIRFLOW_SOURCES}"
 
@@ -51,8 +51,15 @@ else
     mermaid_installed="false"
 fi
 
+function rm_tmp_file() {
+    local exit_code=$?
+    rm -rf -- "${TMP_FILE}" 2>/dev/null
+    return ${exit_code}
+}
+
+
 # shellcheck disable=SC2064
-traps::add_trap "rm -rf '${TMP_FILE}'" EXIT HUP INT TERM
+traps::add_trap "rm_tmp_file" EXIT HUP INT TERM
 
 for file in "${@}"
 do

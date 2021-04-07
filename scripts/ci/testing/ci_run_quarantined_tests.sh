@@ -30,8 +30,6 @@ export SEMAPHORE_NAME
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-initialization::set_output_color_variables
-
 BACKEND_TEST_TYPES=(mysql postgres sqlite)
 
 # Starts test types in parallel
@@ -52,10 +50,9 @@ function run_quarantined_backend_tests_in_parallel() {
     for BACKEND in "${BACKEND_TEST_TYPES[@]}"
     do
         export BACKEND
-        mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${BACKEND}"
-        mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${BACKEND}"
-        export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${BACKEND}/stdout"
-        export PARALLEL_JOB_STATUS="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${BACKEND}/status"
+        local job="${TEST_TYPE}-${BACKEND}"
+        mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
+        export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/stdout"
         # Each test job will get SIGTERM followed by SIGTERM 200ms later and SIGKILL 200ms later after 25 mins
         # shellcheck disable=SC2086
         parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \

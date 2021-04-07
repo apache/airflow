@@ -15,24 +15,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
-# Require SEMAPHORE_NAME
-
 function parallel::initialize_monitoring() {
     PARALLEL_MONITORED_DIR="$(mktemp -d)"
     export PARALLEL_MONITORED_DIR
 }
 
+function parallel::max_parallel_from_variable() {
+    MAX_PARALLEL_FROM_VARIABLE=$(echo "${@}" | wc -w)
+    export MAX_PARALLEL_FROM_VARIABLE
+    echo
+    echo "${COLOR_BLUE}Maximum number of parallel jobs: ${MAX_PARALLEL_FROM_VARIABLE}${COLOR_RESET}"
+    echo
+}
+
 function parallel::make_sure_gnu_parallel_is_installed() {
-    start_end::group_start "Making sure GNU Parallels is installed"
     echo
     echo "Making sure you have GNU parallel installed"
     echo
     echo "You might need to provide root password if you do not have it"
     echo
     (command -v parallel || apt install parallel || sudo apt install parallel || brew install parallel) >/dev/null
-    start_end::group_end "Making sure GNU Parallels is installed"
 }
 
 function parallel::kill_stale_semaphore_locks() {
@@ -40,7 +42,7 @@ function parallel::kill_stale_semaphore_locks() {
     echo
     echo "${COLOR_BLUE}Killing stale semaphore locks${COLOR_RESET}"
     echo
-    for s in "${HOME}/.parallel/semaphores/id-${SEMAPHORE_NAME}/"*@*
+    for s in "${HOME}/.parallel/semaphores/id-${SEMAPHORE_NAME="0"}/"*@*
     do
         pid="${s%%@*}"
         if [[ ${pid} != "-*" ]]; then
@@ -104,14 +106,16 @@ function parallel::monitor_progress() {
 
 
 function parallel::kill_monitor() {
+    local exit_code=$?
     kill ${PARALLEL_MONITORING_PID} >/dev/null 2>&1 || true
+    return ${exit_code}
 }
 
 # Outputs logs for successful test type
 # $1 test type
 function parallel::output_log_for_successful_job(){
     local job=$1
-    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
+    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="0"}/${job}"
     start_end::group_start "${COLOR_GREEN}Output for successful ${job}${COLOR_RESET}"
     echo "${COLOR_GREEN}##### The ${job} succeeded ##### ${COLOR_RESET}"
     echo
@@ -126,7 +130,7 @@ function parallel::output_log_for_successful_job(){
 # $1 test type
 function parallel::output_log_for_failed_job(){
     local job=$1
-    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
+    local log_dir="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="0"}/${job}"
     start_end::group_start "${COLOR_RED}Output: for failed ${job}${COLOR_RESET}"
     echo "${COLOR_RED}##### The ${job} failed ##### ${COLOR_RESET}"
     echo
@@ -144,10 +148,12 @@ function parallel::output_log_for_failed_job(){
 function parallel::print_job_summary_and_return_status_code() {
     local return_code="0"
     local job
-    for job_path in "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/"*
+    find "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="0"}/"
+    for job_path in "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="0"}/"*
     do
         job="$(basename "${job_path}")"
-        status=$(cat "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/status")
+        # shellcheck disable=SC2030
+        status=$(cat "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="0"}/${job}/status")
         if [[ ${status} == "0" ]]; then
             parallel::output_log_for_successful_job "${job}"
         else
@@ -216,4 +222,20 @@ function parallel::make_sure_kubernetes_versions_are_specified() {
     echo
     echo "${COLOR_BLUE}Running parallel builds for those Kubernetes versions: ${CURRENT_KUBERNETES_VERSIONS_AS_STRING}${COLOR_RESET}"
     echo
+}
+
+function parallel::save_status() {
+    local exit_code=$?
+    mkdir -pv "$(dirname "${PARALLEL_JOB_STATUS_FILE}")"
+    echo ${exit_code} > "${PARALLEL_JOB_STATUS_FILE}"
+    echo "Saved status to ${PARALLEL_JOB_STATUS_FILE} file"
+    return ${exit_code}
+}
+
+# set the variable where to store status from this particular job
+# Requires job_name to be passed as parameter
+function parallel::get_parallel_job_status_file() {
+    local job_name=$1
+    # shellcheck disable=SC2031
+    export PARALLEL_JOB_STATUS_FILE="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME="0"}/${job_name}/status"
 }

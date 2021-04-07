@@ -28,6 +28,9 @@ shift
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+parallel::get_parallel_job_status_file "${PYTHON_MAJOR_MINOR_VERSION}"
+traps::add_trap "parallel::save_status" EXIT HUP INT TERM
+
 push_pull_remove_images::check_if_github_registry_wait_for_image_enabled
 
 start_end::group_start "Configure Docker Registry"
@@ -42,11 +45,17 @@ push_pull_remove_images::wait_for_github_registry_image \
     "${AIRFLOW_PROD_IMAGE_NAME}${GITHUB_REGISTRY_IMAGE_SUFFIX}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
 start_end::group_end
 
-start_end::group_start "Pulling the PROD Image"
-build_images::prepare_prod_build
-image_name_with_tag="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-verbosity::print_info "Pulling the ${image_name_with_tag} image and tagging with ${AIRFLOW_PROD_IMAGE}"
-push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" "${image_name_with_tag}"
-start_end::group_end
+if [[ ${SKIP_PULLING_IMAGES=} != "true" ]]; then
+    start_end::group_start "Pulling the PROD Image"
+    build_images::prepare_prod_build
+    image_name_with_tag="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+    verbosity::print_info "Pulling the ${image_name_with_tag} image and tagging with ${AIRFLOW_PROD_IMAGE}"
+    push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" "${image_name_with_tag}"
+    start_end::group_end
 
-verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
+    if [[ ${SKIP_VERIFYING_IMAGES=} != "true" ]]; then
+        start_end::group_start "Verifying the PROD Image"
+        verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
+        start_end::group_end
+    fi
+fi

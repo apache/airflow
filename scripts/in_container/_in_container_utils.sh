@@ -60,12 +60,11 @@ function in_container_script_start() {
 }
 
 function in_container_script_end() {
-    #shellcheck disable=2181
-    EXIT_CODE=$?
-    if [[ ${EXIT_CODE} != 0 ]]; then
+    local exit_code=$?
+    if [[ ${exit_code} != 0 ]]; then
         if [[ "${PRINT_INFO_FROM_SCRIPTS="true"}" == "true" ]]; then
             echo "########################################################################################################################"
-            echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${EXIT_CODE}  ${COLOR_RESET}"
+            echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${exit_code}  ${COLOR_RESET}"
             echo "########################################################################################################################"
         fi
     fi
@@ -73,6 +72,7 @@ function in_container_script_end() {
     if [[ ${VERBOSE_COMMANDS} == "true" ]]; then
         set +x
     fi
+    return ${exit_code}
 }
 
 #
@@ -111,6 +111,7 @@ function in_container_cleanup_pycache() {
 # changed to the Host user via osxfs filesystem
 #
 function in_container_fix_ownership() {
+    local exit_code=$?
     if [[ ${HOST_OS:=} == "Linux" ]]; then
         DIRECTORIES_TO_FIX=(
             "/files"
@@ -124,10 +125,13 @@ function in_container_fix_ownership() {
         find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
             xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
     fi
+    return ${exit_code}
 }
 
 function in_container_clear_tmp() {
+    local exit_code=$?
     rm -rf /tmp/*
+    return ${exit_code}
 }
 
 function in_container_go_to_airflow_sources() {

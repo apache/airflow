@@ -28,6 +28,13 @@ CURRENT_HELM_VERSIONS=()
 ALL_PYTHON_MAJOR_MINOR_VERSIONS=()
 INSTALLED_PROVIDERS=()
 
+# Trap to remove cache
+function initialization::remove_cache() {
+    local exit_code=$?
+    rm -rf -- "${CACHE_TMP_FILE_DIR}"
+    return ${exit_code}
+}
+
 # Creates directories for Breeze
 function initialization::create_directories() {
     # This folder is mounted to inside the container in /files folder. This is the way how
@@ -56,10 +63,9 @@ function initialization::create_directories() {
 
     CACHE_TMP_FILE_DIR=$(mktemp -d)
     export CACHE_TMP_FILE_DIR
-    readonly CACHE_TMP_FILE_DIR
 
     if [[ ${SKIP_CACHE_DELETION=} != "true" ]]; then
-        traps::add_trap "rm -rf -- '${CACHE_TMP_FILE_DIR}'" EXIT HUP INT TERM
+        traps::add_trap "initialization::remove_cache" EXIT HUP INT TERM
     fi
 
     OUTPUT_LOG="${CACHE_TMP_FILE_DIR}/out.log"
@@ -525,10 +531,11 @@ function initialization::initialize_kubernetes_variables() {
     # local Kubectl path
     export KUBECTL_BINARY_PATH="${BUILD_CACHE_DIR}/kubernetes-bin/${KUBERNETES_VERSION}/kubectl"
     readonly KUBECTL_BINARY_PATH
+    # Those cane be changed
     FORWARDED_PORT_NUMBER="${FORWARDED_PORT_NUMBER:="8080"}"
-    readonly FORWARDED_PORT_NUMBER
+    export FORWARDED_PORT_NUMBER
     API_SERVER_PORT="${API_SERVER_PORT:="19090"}"
-    readonly API_SERVER_PORT
+    export API_SERVER_PORT
 }
 
 function initialization::initialize_git_variables() {
@@ -777,8 +784,6 @@ function initialization::get_environment_for_builds_on_ci() {
 # so we can set them as readonly.
 function initialization::make_constants_read_only() {
     # Set the arguments as read-only
-    readonly PYTHON_MAJOR_MINOR_VERSION
-
     readonly HOST_USER_ID
     readonly HOST_GROUP_ID
     readonly HOST_HOME

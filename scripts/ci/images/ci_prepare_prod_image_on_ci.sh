@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 export INSTALL_FROM_PYPI="false"
 export INSTALL_PROVIDERS_FROM_SOURCES="false"
 export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
@@ -23,13 +22,25 @@ export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
 export DOCKER_CACHE="pulled"
 export VERBOSE="true"
 
+if [[ $1 == "" ]]; then
+  >&2 echo "Requires python MAJOR/MINOR version as first parameter"
+  exit 1
+fi
+
+export PYTHON_MAJOR_MINOR_VERSION=$1
+shift
+
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+parallel::get_parallel_job_status_file "${PYTHON_MAJOR_MINOR_VERSION}"
+traps::add_trap "parallel::save_status" EXIT HUP INT TERM
+
 # Builds or waits for the PROD image in the CI environment
 # Depending on the "USE_GITHUB_REGISTRY" and "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_prod_images_on_ci() {
+
     build_images::prepare_prod_build
 
     if [[ ${USE_GITHUB_REGISTRY} == "true" && ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
@@ -41,12 +52,10 @@ function build_prod_images_on_ci() {
             python_tag_suffix="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         fi
 
-        if [[ "${WAIT_FOR_PYTHON_BASE_IMAGE=}" == "true" ]]; then
-            # first we pull base python image. We will need it to re-push it after master build
-            # Becoming the new "latest" image for other builds
-            build_images::wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
-                "${python_tag_suffix}" "${AIRFLOW_PYTHON_BASE_IMAGE}"
-        fi
+        # first we pull base python image. We will need it to re-push it after master build
+        # Becoming the new "latest" image for other builds
+        build_images::wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
+            "${python_tag_suffix}" "${AIRFLOW_PYTHON_BASE_IMAGE}"
 
         # And then the actual image
         build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}" \

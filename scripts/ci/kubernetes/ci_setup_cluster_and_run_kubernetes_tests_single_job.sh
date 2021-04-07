@@ -30,12 +30,8 @@ fi
 export PYTHON_MAJOR_MINOR_VERSION=$1
 shift
 
-# Requires PARALLEL_JOB_STATUS
-
-if [[ -z "${PARALLEL_JOB_STATUS=}" ]]; then
-    echo "Needs PARALLEL_JOB_STATUS to be set"
-    exit 1
-fi
+parallel::get_parallel_job_status_file "Cluster-${KUBERNETES_VERSION}-python-${PYTHON_MAJOR_MINOR_VERSION}"
+traps::add_trap "parallel::save_status" EXIT HUP INT TERM
 
 echo
 echo "KUBERNETES_VERSION:         ${KUBERNETES_VERSION}"
@@ -46,7 +42,8 @@ echo
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 kind::get_kind_cluster_name
-trap 'echo $? > "${PARALLEL_JOB_STATUS}"; kind::perform_kind_cluster_operation "stop"' EXIT HUP INT TERM
+
+traps::add_trap 'kind::delete_cluster' EXIT HUP INT TERM
 
 "$( dirname "${BASH_SOURCE[0]}" )/ci_setup_cluster_and_deploy_airflow_to_kubernetes.sh"
 

@@ -18,10 +18,6 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-echo "${COLOR_BLUE}Disable swap${COLOR_RESET}"
-sudo swapoff -a
-sudo rm -f /swapfile
-
 echo "${COLOR_BLUE}Cleaning apt${COLOR_RESET}"
 sudo apt clean
 

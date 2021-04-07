@@ -86,7 +86,7 @@ jobs:
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh "${{env.PYTHON_MAJOR_MINOR_VERSION}}"
         env:
           GITHUB_REGISTRY: ${{ steps.determine-github-registry.outputs.githubRegistry }}
       - name: "Tests"

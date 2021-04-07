@@ -142,7 +142,7 @@ function push_pull_remove_images::pull_base_python_image() {
             PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         fi
         push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PYTHON_BASE_IMAGE}" \
-            "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+            "${GITHUB_REGISTRY_APACHE_AIRFLOW_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
     else
         docker_v pull "${AIRFLOW_PYTHON_BASE_IMAGE}"
     fi
@@ -159,7 +159,7 @@ function push_pull_remove_images::pull_ci_images_if_needed() {
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
             push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_CI_IMAGE}" \
-                "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+                "${GITHUB_REGISTRY_APACHE_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         else
             push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_CI_IMAGE}"
         fi
@@ -179,10 +179,10 @@ function push_pull_remove_images::pull_prod_images_if_needed() {
         if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
             # "Build" segment of production image
             push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PROD_BUILD_IMAGE}" \
-                "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+                "${GITHUB_REGISTRY_APACHE_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
             # "Main" segment of production image
             push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" \
-                "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+                "${GITHUB_REGISTRY_APACHE_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         else
             push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_PROD_BUILD_IMAGE}"
             push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_PROD_IMAGE}"

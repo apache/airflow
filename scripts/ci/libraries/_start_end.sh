@@ -138,4 +138,5 @@ function start_end::script_end {
         fi
         verbosity::print_info
     fi
+    return ${exit_code}
 }

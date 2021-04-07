@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$(dirname "${BASH_SOURCE[0]}")/../libraries/_script_init.sh"
+# shellcheck source=scripts/ci/libraries/_all_libs.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_all_libs.sh"
+initialization::set_output_color_variables
+export SEMAPHORE_NAME="image_tests"
 
-SEMAPHORE_NAME="image_tests"
-export SEMAPHORE_NAME
+export AIRFLOW_SOURCES="${AIRFLOW_SOURCES:=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../.." && pwd )}"
+readonly AIRFLOW_SOURCES
 
 DOCKER_EXAMPLES_DIR=${AIRFLOW_SOURCES}/docs/docker-stack/docker-examples/
 export DOCKER_EXAMPLES_DIR
@@ -33,9 +35,8 @@ function run_image_test_job() {
     local job_name=$2
     mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job_name}"
     export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job_name}/stdout"
-    export PARALLEL_JOB_STATUS="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job_name}/status"
     parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
-        --jobs "${MAX_PARALLEL_IMAGE_JOBS}" \
+        --jobs "${MAX_PARALLEL_FROM_VARIABLE}" \
             "$(dirname "${BASH_SOURCE[0]}")/ci_run_prod_image_test.sh" "${job_name}" "${file}" >"${JOB_LOG}" 2>&1
 }
 
@@ -69,11 +70,9 @@ function test_images() {
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
-docker_engine_resources::get_available_cpus_in_docker
-
-# Building max for images in parlallel helps to conserve docker image space
-MAX_PARALLEL_IMAGE_JOBS=4
-export MAX_PARALLEL_IMAGE_JOBS
+# Get as many parallel jobs as many python versions we have to work on
+# Docker operations are not CPU bound
+parallel::max_parallel_from_variable "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}"
 
 parallel::make_sure_gnu_parallel_is_installed
 parallel::kill_stale_semaphore_locks
@@ -82,7 +81,6 @@ parallel::initialize_monitoring
 start_end::group_start "Testing image building"
 
 parallel::monitor_progress
-
 test_images
 
 parallel --semaphore --semaphorename "${SEMAPHORE_NAME}" --wait

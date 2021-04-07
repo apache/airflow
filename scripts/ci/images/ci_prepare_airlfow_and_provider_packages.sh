@@ -15,35 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export PRINT_INFO_FROM_SCRIPTS="false"
-export SKIP_CHECK_REMOTE_IMAGE="true"
-
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-TMP_OUTPUT=$(mktemp)
-export TMP_OUTPUT
-
-function rm_output() {
-    local exit_code=$?
-    rm -rf -- "${TMP_OUTPUT}" 2>/dev/null
-    return ${exit_code}
-}
-
-# Remove temp file if it's hanging around
-traps::add_trap "rm_output" EXIT HUP INT TERM
-
-LOCAL_YML_FILE="${AIRFLOW_SOURCES}/scripts/ci/docker-compose/local.yml"
-readonly LOCAL_YML_FILE
-
-lead_marker='      # START automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh'
-tail_marker='      # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh'
-
-local_mounts::generate_local_mounts_list "      - ../../../"
-
-sed "/$lead_marker/q" "${LOCAL_YML_FILE}" > "${TMP_OUTPUT}"
-
-printf '%s\n' "${LOCAL_MOUNTS[@]}" >> "${TMP_OUTPUT}"
-sed -ne "/$tail_marker/,\$ p" "${LOCAL_YML_FILE}" >> "${TMP_OUTPUT}"
-
-mv "${TMP_OUTPUT}" "${LOCAL_YML_FILE}"
+build_images::prepare_airflow_and_provider_packages

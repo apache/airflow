@@ -43,4 +43,4 @@ initialization::make_constants_read_only
 # The one error I did see: BlockingIOError: [Errno 11] write could not complete without blocking
 [[ "$CI" == "true" ]] && python3 -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
 
-traps::add_trap start_end::script_end EXIT HUP INT TERM
+traps::add_trap "start_end::script_end" EXIT HUP INT TERM

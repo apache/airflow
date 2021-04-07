@@ -36,7 +36,7 @@ env:
   # Airflow one is going to be used
   CONSTRAINTS_GITHUB_REPOSITORY: >-
     ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
-        secrets.CONSTRAINTS_GITHUB_REPOSITORY || github.repository }}
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - workflow_run type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # This token should not be empty in workflow_run type of event.
@@ -204,6 +204,7 @@ jobs:
       pythonVersions: ${{ steps.selective-checks.python-versions }}
       upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
+      pythonVersionsListAsString: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
@@ -259,28 +260,23 @@ jobs:
 
   build-ci-images:
     timeout-minutes: 80
-    name: "Build CI images ${{matrix.python-version}}"
+    name: "Build CI images"
     runs-on: ${{ fromJson(needs.cancel-workflow-runs.outputs.runsOn) }}
     needs: [build-info, cancel-workflow-runs]
-    strategy:
-      matrix:
-        # We need to attempt to build all possible versions here because workflow_run
-        # event is run from master for both master and v1-10-tests
-        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
-      fail-fast: true
     if: >
       needs.build-info.outputs.image-build == 'true' &&
       needs.cancel-workflow-runs.outputs.buildImages == 'true'
     env:
       RUNS_ON: ${{ fromJson(needs.cancel-workflow-runs.outputs.runsOn)[0] }}
       BACKEND: postgres
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.workflow_run.id }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       CONTINUE_ON_PIP_CHECK_FAILURE: "true"
       DOCKER_CACHE: ${{ needs.cancel-workflow-runs.outputs.cacheDirective }}
       FORCE_PULL_BASE_PYTHON_IMAGE: >
         ${{ needs.cancel-workflow-runs.sourceEvent == 'schedule' && 'true' || 'false' }}
+      CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
+        ${{needs.build-info.outputs.pythonVersionsListAsString}}
     steps:
       - name: >
           Checkout [${{ needs.cancel-workflow-runs.outputs.sourceEvent }}]
@@ -335,13 +331,13 @@ jobs:
         id: build-image-check
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          name: "Status of image build CI: ${{ matrix.python-version }}"
+          name: "Status of CI images building"
           status: "in_progress"
           sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
           details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           output: >
             {"summary":
-            "Building the image: CI: ${{ matrix.python-version }}. See the
+            "Building the CI images. See the
             [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
         if: steps.defaults.outputs.proceed == 'true'
@@ -363,11 +359,11 @@ jobs:
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: steps.defaults.outputs.proceed == 'true'
-      - name: "Build CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Build CI images:${{ github.event.workflow_run.id }}"
+        run: ./scripts/ci/images/ci_prepare_all_ci_images_on_ci.sh
         if: steps.defaults.outputs.proceed == 'true'
-      - name: "Push CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
-        run: ./scripts/ci/images/ci_push_ci_images.sh
+      - name: "Push CI images:${{ github.event.workflow_run.id }}"
+        run: ./scripts/ci/images/ci_push_all_ci_images.sh
         if: steps.defaults.outputs.proceed == 'true'
       - name: Update GitHub Checks for Building image with status
         uses: ./main-airflow/.github/actions/checks-action
@@ -381,28 +377,21 @@ jobs:
           details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           output: >
             {"summary":
-            "Building the image: CI: ${{ matrix.python-version }}. See the
+            "Building the CI images. See the
             [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
 
   build-prod-images:
-    timeout-minutes: 80
-    name: "Build PROD images ${{matrix.python-version}}"
+    timeout-minutes: 120
+    name: "Build PROD images"
     runs-on: ${{ fromJson(needs.cancel-workflow-runs.outputs.runsOn) }}
     needs: [build-info, cancel-workflow-runs, build-ci-images]
-    strategy:
-      matrix:
-        # We need to attempt to build all possible versions here because workflow_run
-        # event is run from master for both master and v1-10-tests
-        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
-      fail-fast: true
     if: >
       needs.build-info.outputs.image-build == 'true' &&
       needs.cancel-workflow-runs.outputs.buildImages == 'true'
     env:
       RUNS_ON: ${{ fromJson(needs.cancel-workflow-runs.outputs.runsOn)[0] }}
       BACKEND: postgres
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.workflow_run.id }}
       GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.workflow_run.id }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
@@ -411,6 +400,8 @@ jobs:
         ${{ needs.cancel-workflow-runs.sourceEvent == 'schedule' && 'true' || 'false' }}
       VERSION_SUFFIX_FOR_PYPI: "dev"
       VERSION_SUFFIX_FOR_SVN: "dev"
+      CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
+        ${{needs.build-info.outputs.pythonVersionsListAsString}}
     steps:
       - name: >
           Checkout [${{ needs.cancel-workflow-runs.outputs.sourceEvent }}]
@@ -464,14 +455,14 @@ jobs:
         id: build-image-check
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          name: "Status of image build PROD: ${{ matrix.python-version }}"
+          name: "Status of PROD images building"
           status: "in_progress"
           sha: ${{ needs.cancel-workflow-runs.outputs.sourceHeadSha }}
           details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           output: >
             {"summary":
-            "Building the image: PROD: ${{ matrix.python-version }}. See the
-            [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            "Building the PROD images. See the
+            [PROD Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
         if: steps.defaults.outputs.proceed == 'true'
       - name: "Setup python"
@@ -492,17 +483,30 @@ jobs:
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
         if: steps.defaults.outputs.proceed == 'true'
-      - name: "Build CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-        # Pull images built in the previous step
+      - name: "Pull the CI image to build the packages ${{env.PYTHON_MAJOR_MINOR_VERSION}}"
+        # Pull only the default image here, we do not need more
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh "${{env.PYTHON_MAJOR_MINOR_VERSION}}"
         if: steps.defaults.outputs.proceed == 'true'
         env:
           GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
-      - name: "Build PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
-        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+          PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      - name: "Prepare airflow and provider packages"
+        run: ./scripts/ci/images/ci_prepare_airlfow_and_provider_packages.sh
         if: steps.defaults.outputs.proceed == 'true'
-      - name: "Push PROD images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
-        run: ./scripts/ci/images/ci_push_production_images.sh
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Build PROD images:${{ github.event.workflow_run.id }}"
+        run: ./scripts/ci/images/ci_prepare_all_prod_images_on_ci.sh
+        if: steps.defaults.outputs.proceed == 'true'
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+          # The packages are prepared above
+          SKIP_PREPARING_AIRFLOW_AND_PROVIDER_PACKAGES: "true"
+      - name: "Push PROD images:${{ github.event.workflow_run.id }}"
+        run: ./scripts/ci/images/ci_push_all_prod_images.sh
         if: steps.defaults.outputs.proceed == 'true'
       - name: Update GitHub Checks for Building image with status
         uses: ./main-airflow/.github/actions/checks-action
@@ -516,8 +520,8 @@ jobs:
           details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           output: >
             {"summary":
-            "Building the image: PROD: ${{ matrix.python-version }}. See the
-            [Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            "Building the PROD images. See the
+            [PROD Image Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             for details" }
 
   cancel-on-build-cancel:

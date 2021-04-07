@@ -435,7 +435,9 @@ function build_images::get_docker_image_names() {
 
 
     local image_name
-    image_name="${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)"
+    image_name="${GITHUB_REGISTRY}/$(build_image::get_github_container_registry_image_prefix)"
+    local apache_airflow_image_name
+    apache_airflow_image_name="${GITHUB_REGISTRY}/apache/airflow"
     local image_separator
     if [[ ${GITHUB_REGISTRY} == "ghcr.io" ]]; then
         image_separator="-"
@@ -450,9 +452,15 @@ function build_images::get_docker_image_names() {
 
     export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
     export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}-build${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
     export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 
-    export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    # For Pull always yse apache/airflow as image to pull, not the repository-specific one
+    export GITHUB_REGISTRY_APACHE_AIRFLOW_PROD_IMAGE="${apache_airflow_image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    export GITHUB_REGISTRY_APACHE_AIRFLOW_PROD_BUILD_IMAGE="${apache_airflow_image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}-build${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    export GITHUB_REGISTRY_APACHE_AIRFLOW_CI_IMAGE="${apache_airflow_image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    export GITHUB_REGISTRY_APACHE_AIRFLOW_PYTHON_BASE_IMAGE="${apache_airflow_image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
@@ -654,10 +662,16 @@ function build_images::rebuild_ci_image_if_needed_and_confirmed() {
 # this is because in order for it to work for internal PR for users or other organisation's
 # repositories, the other organisations and repositories can be uppercase
 # container registry image name has to be lowercase
-function get_github_container_registry_image_prefix() {
+function build_image::get_github_container_registry_image_prefix() {
     echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]'
 }
 
+# Trap to kill the spinning indicator
+function build_image::kill_spin() {
+    local exit_code=$?
+    kill "${SPIN_PID}" || true
+    return ${exit_code}
+}
 
 # Builds CI image - depending on the caching strategy (pulled, local, disabled) it
 # passes the necessary docker build flags via DOCKER_CACHE_CI_DIRECTIVE array
@@ -670,8 +684,9 @@ function build_images::build_ci_image() {
         " >"${DETECTED_TERMINAL}"
         spinner::spin "${OUTPUT_LOG}" &
         SPIN_PID=$!
+        export SPIN_PID
         # shellcheck disable=SC2064,SC2016
-        traps::add_trap '$(kill '${SPIN_PID}' || true)' EXIT HUP INT TERM
+        traps::add_trap "build_image::kill_spin" EXIT HUP INT TERM
     fi
     push_pull_remove_images::pull_ci_images_if_needed
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
@@ -711,8 +726,9 @@ function build_images::build_ci_image() {
         " >"${DETECTED_TERMINAL}"
         spinner::spin "${OUTPUT_LOG}" &
         SPIN_PID=$!
+        export SPIN_PID
         # shellcheck disable=SC2064,SC2016
-        traps::add_trap '$(kill '${SPIN_PID}' || true)' EXIT HUP INT TERM
+        traps::add_trap "build_image::kill_spin" EXIT HUP INT TERM
     fi
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
         echo -n "
@@ -1045,14 +1061,8 @@ function build_image::assert_variable() {
     fi
 }
 
-function build_images::build_prod_images_from_locally_built_airflow_packages() {
-    # We do not install from PyPI
-    build_image::assert_variable INSTALL_FROM_PYPI "false"
-    # But then we reinstall airflow and providers from prepared packages in the docker context files
-    build_image::assert_variable INSTALL_FROM_DOCKER_CONTEXT_FILES "true"
-    # But we install everything from scratch to make a "clean" installation in case any dependencies got removed
-    build_image::assert_variable AIRFLOW_PRE_CACHED_PIP_PACKAGES "false"
 
+function build_images::prepare_airflow_and_provider_packages() {
     # Cleanup dist and docker-context-files folders
     mkdir -pv "${AIRFLOW_SOURCES}/dist"
     mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
@@ -1062,10 +1072,22 @@ function build_images::build_prod_images_from_locally_built_airflow_packages() {
     # Build necessary provider packages
     runs::run_prepare_provider_packages "${INSTALLED_PROVIDERS[@]}"
     mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
-
     # Build apache airflow packages
     build_airflow_packages::build_airflow_packages
     mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
+}
+
+function build_images::build_prod_images_from_locally_built_airflow_packages() {
+    # We do not install from PyPI
+    build_image::assert_variable INSTALL_FROM_PYPI "false"
+    # But then we reinstall airflow and providers from prepared packages in the docker context files
+    build_image::assert_variable INSTALL_FROM_DOCKER_CONTEXT_FILES "true"
+    # But we install everything from scratch to make a "clean" installation in case any dependencies got removed
+    build_image::assert_variable AIRFLOW_PRE_CACHED_PIP_PACKAGES "false"
+
+    if [[ ${SKIP_PREPARING_AIRFLOW_AND_PROVIDER_PACKAGES=} != "true" ]]; then
+        build_images::prepare_airflow_and_provider_packages
+    fi
 
     build_images::build_prod_images
 }

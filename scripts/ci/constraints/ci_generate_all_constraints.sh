@@ -16,15 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 set -euo pipefail
-
-
-# We cannot perform full initialization because it will be done later in the "single run" scripts
-# And some readonly variables are set there, therefore we only selectively reuse parallel lib needed
-LIBRARIES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../libraries/" && pwd)
-# shellcheck source=scripts/ci/libraries/_all_libs.sh
-source "${LIBRARIES_DIR}/_all_libs.sh"
-
-initialization::set_output_color_variables
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 export CHECK_IMAGE_FOR_REBUILD="false"
 echo

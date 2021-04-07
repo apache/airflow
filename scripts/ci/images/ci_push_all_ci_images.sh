@@ -20,10 +20,10 @@ set -euo pipefail
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_all_libs.sh"
 initialization::set_output_color_variables
-export SEMAPHORE_NAME="wait_for_ci_images"
+export SEMAPHORE_NAME="push_ci_images"
 
 echo
-echo "${COLOR_BLUE}Wait for all CI images and test${COLOR_RESET}"
+echo "${COLOR_BLUE}Push all CI images${COLOR_RESET}"
 echo
 
 parallel::make_sure_gnu_parallel_is_installed
@@ -36,7 +36,7 @@ parallel::kill_stale_semaphore_locks
 # Docker operations are not CPU bound
 parallel::max_parallel_from_variable "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}"
 
-start_end::group_start "Wait for CI images ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING} in parallel"
+start_end::group_start "Pushing CI images in parallel"
 parallel::monitor_progress
 
 # shellcheck disable=SC2086
@@ -46,7 +46,7 @@ do
     export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${python_version}/stdout"
     parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
         --jobs "${MAX_PARALLEL_FROM_VARIABLE}" \
-            "$(dirname "${BASH_SOURCE[0]}")/ci_wait_for_and_verify_ci_image.sh" "${python_version}" >"${JOB_LOG}" 2>&1
+            "$(dirname "${BASH_SOURCE[0]}")/ci_push_ci_image.sh" "${python_version}" >"${JOB_LOG}" 2>&1
 done
 
 parallel --semaphore --semaphorename "${SEMAPHORE_NAME}" --wait

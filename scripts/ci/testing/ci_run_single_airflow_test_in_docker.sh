@@ -20,6 +20,23 @@ PRINT_INFO_FROM_SCRIPTS="false"
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+if [[ -z "${TEST_TYPE=}" ]]; then
+    echo
+    echo "${COLOR_RED}The TEST_TYPE variable must be set!${COLOR_RESET}"
+    echo
+    exit 1
+fi
+
+if [[ -z "${BACKEND=}" ]]; then
+    echo
+    echo "${COLOR_RED}The BACKEND variable must be set!${COLOR_RESET}"
+    echo
+    exit 1
+fi
+
+parallel::get_parallel_job_status_file "${TEST_TYPE}-${BACKEND}"
+traps::add_trap "parallel::save_status" EXIT HUP INT TERM
+
 PRINT_INFO_FROM_SCRIPTS="true"
 export PRINT_INFO_FROM_SCRIPTS
 
@@ -170,15 +187,13 @@ function run_airflow_testing_in_docker() {
 
     fi
 
-    echo ${exit_code} > "${PARALLEL_JOB_STATUS}"
-
     if [[ ${exit_code} == 0 ]]; then
         echo
-        echo "${COLOR_GREEN}Test type: ${TEST_TYPE} succeeded.${COLOR_RESET}"
+        echo "${COLOR_GREEN}Test type: ${TEST_TYPE}-${BACKEND} succeeded.${COLOR_RESET}"
         echo
     else
         echo
-        echo "${COLOR_RED}Test type: ${TEST_TYPE} failed.${COLOR_RESET}"
+        echo "${COLOR_RED}Test type: ${TEST_TYPE}-${BACKEND} failed.${COLOR_RESET}"
         echo
     fi
     return "${exit_code}"

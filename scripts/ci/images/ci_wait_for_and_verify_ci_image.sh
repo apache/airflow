@@ -24,17 +24,11 @@ fi
 export PYTHON_MAJOR_MINOR_VERSION=$1
 shift
 
-
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-function pull_ci_image() {
-    local image_name_with_tag="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-    start_end::group_start "Pulling ${image_name_with_tag} image"
-    push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_CI_IMAGE}" "${image_name_with_tag}"
-    start_end::group_end
-
-}
+parallel::get_parallel_job_status_file "${PYTHON_MAJOR_MINOR_VERSION}"
+traps::add_trap "parallel::save_status" EXIT HUP INT TERM
 
 push_pull_remove_images::check_if_github_registry_wait_for_image_enabled
 
@@ -48,11 +42,18 @@ start_end::group_start "Waiting for ${AIRFLOW_CI_IMAGE_NAME} image to appear"
 
 push_pull_remove_images::wait_for_github_registry_image \
     "${AIRFLOW_CI_IMAGE_NAME}${GITHUB_REGISTRY_IMAGE_SUFFIX}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+start_end::group_end
 
 build_images::prepare_ci_build
 
-pull_ci_image
-
-verify_image::verify_ci_image "${AIRFLOW_CI_IMAGE}"
-
-start_end::group_end
+if [[ ${SKIP_PULLING_IMAGES=} != "true" ]]; then
+    image_name_with_tag="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+    start_end::group_start "Pulling ${image_name_with_tag} image"
+    push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_CI_IMAGE}" "${image_name_with_tag}"
+    start_end::group_end
+    if [[ ${SKIP_VERIFYING_IMAGES=} != "true" ]]; then
+        start_end::group_start "Verify ${image_name_with_tag} image"
+        verify_image::verify_ci_image "${AIRFLOW_CI_IMAGE}"
+        start_end::group_end
+    fi
+fi

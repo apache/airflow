@@ -17,11 +17,9 @@
 # under the License.
 set -euo pipefail
 
-# We cannot perform full initialization because it will be done later in the "single run" scripts
-# And some readonly variables are set there, therefore we only selectively reuse parallel lib needed
-LIBRARIES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../libraries/" && pwd)
-# shellcheck source=scripts/ci/libraries/_all_libs.sh
-source "${LIBRARIES_DIR}/_all_libs.sh"
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
 export SEMAPHORE_NAME="kubernetes-tests"
 
 function get_maximum_parallel_k8s_jobs() {
@@ -56,7 +54,6 @@ function run_kubernetes_test() {
 
     mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
     export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/stdout"
-    export PARALLEL_JOB_STATUS="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}/status"
     echo "Starting K8S tests for kubernetes version ${kubernetes_version}, python version: ${python_version}"
     parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
         --jobs "${MAX_PARALLEL_K8S_JOBS}" \
@@ -91,8 +88,6 @@ function run_k8s_tests_in_parallel() {
     set -e
     start_end::group_end
 }
-
-initialization::set_output_color_variables
 
 parallel::make_sure_gnu_parallel_is_installed
 parallel::make_sure_python_versions_are_specified

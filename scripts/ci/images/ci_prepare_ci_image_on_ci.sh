@@ -15,14 +15,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+if [[ $1 == "" ]]; then
+  >&2 echo "Requires python MAJOR/MINOR version as first parameter"
+  exit 1
+fi
+
+export PYTHON_MAJOR_MINOR_VERSION=$1
+shift
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
+if [[ -n "${PARALLEL_MONITORED_DIR=}" ]]; then
+    parallel::get_parallel_job_status_file "${PYTHON_MAJOR_MINOR_VERSION}"
+    traps::add_trap "parallel::save_status" EXIT HUP INT TERM
+fi
 
 # Builds or waits for the CI image in the CI environment
 # Depending on "USE_GITHUB_REGISTRY" and "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_ci_image_on_ci() {
     build_images::prepare_ci_build
-    start_end::group_start "Prepare CI image ${AIRFLOW_CI_IMAGE}"
 
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
@@ -58,7 +70,6 @@ function build_ci_image_on_ci() {
     unset FORCE_BUILD
     # Skip the image check entirely for the rest of the script
     export CHECK_IMAGE_FOR_REBUILD="false"
-    start_end::group_end
 }
 
 build_ci_image_on_ci
