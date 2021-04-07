@@ -142,7 +142,7 @@ class TestStandardTaskRunner:
         # Set up mock task
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
-        local_task_job.task_instance.run_as_user = getpass.getuser()
+        local_task_job.task_instance.run_as_user = getuser()
         local_task_job.task_instance.command_as_list.return_value = [
             'airflow',
             'tasks',
