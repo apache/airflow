@@ -221,7 +221,7 @@ google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.4.4
 google-auth==1.28.0
 google-cloud-automl==2.2.0
-google-cloud-bigquery-datatransfer==3.1.0
+google-cloud-bigquery-datatransfer==3.1.1
 google-cloud-bigquery-storage==2.3.0
 google-cloud-bigquery==1.28.0
 google-cloud-bigtable==1.7.0
@@ -257,7 +257,7 @@ graphviz==0.16
 greenlet==1.0.0
 grpc-google-iam-v1==0.12.3
 grpcio-gcp==0.2.2
-grpcio==1.36.1
+grpcio==1.37.0
 gunicorn==19.10.0
 hdfs==2.6.0
 hmsclient==0.1.1
