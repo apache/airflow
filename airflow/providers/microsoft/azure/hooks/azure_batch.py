@@ -18,7 +18,7 @@
 #
 import time
 from datetime import timedelta
-from typing import Optional, Set, Dict, Any
+from typing import Any, Dict, Optional, Set
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter

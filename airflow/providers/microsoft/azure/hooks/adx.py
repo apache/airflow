@@ -18,7 +18,7 @@
 #
 
 """This module contains Azure Data Explorer hook"""
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 from azure.kusto.data.exceptions import KustoServiceError
 from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
@@ -113,7 +113,7 @@ class AzureDataExplorerHook(BaseHook):
             "relabeling": {
                 'login': 'Auth Username',
                 'password': 'Auth Password',
-                'host': 'Data Explorer Cluster Url'
+                'host': 'Data Explorer Cluster Url',
             },
             "placeholders": {
                 'login': 'varies with authentication method',

@@ -24,7 +24,7 @@ Airflow connection of type `azure_data_lake` exists. Authorization can be done b
 login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
 (see connection `azure_data_lake_default` for an example).
 """
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from azure.datalake.store import core, lib, multithread
 
@@ -98,9 +98,7 @@ class AzureDataLakeHook(BaseHook):
             )
             tenant = service_options.get('tenant') or service_options.get('extra__azure_data_lake__tenant')
 
-            adl_creds = lib.auth(
-                tenant_id=tenant, client_secret=conn.password, client_id=conn.login
-            )
+            adl_creds = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
             self._conn = core.AzureDLFileSystem(adl_creds, store_name=self.account_name)
             self._conn.connect()
         return self._conn

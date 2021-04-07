@@ -16,7 +16,7 @@
 # under the License.
 import inspect
 from functools import wraps
-from typing import Any, Callable, Optional, Dict
+from typing import Any, Callable, Dict, Optional
 
 from azure.core.polling import LROPoller
 from azure.identity import ClientSecretCredential
@@ -136,9 +136,9 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
             return self._conn
 
         conn = self.get_connection(self.conn_id)
-        tenant = conn.extra_dejson.get(
-            'extra__azure_data_factory__tenantId'
-        ) or conn.extra_dejson.get('tenantId')
+        tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId') or conn.extra_dejson.get(
+            'tenantId'
+        )
         subscription_id = conn.extra_dejson.get(
             'extra__azure_data_factory__subscriptionId'
         ) or conn.extra_dejson.get('subscriptionId')

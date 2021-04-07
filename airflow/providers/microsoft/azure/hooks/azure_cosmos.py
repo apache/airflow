@@ -24,7 +24,7 @@ login (=Endpoint uri), password (=secret key) and extra fields database_name and
 the default database and collection to use (see connection `azure_cosmos_default` for an example).
 """
 import uuid
-from typing import Optional, Any, Dict
+from typing import Any, Dict, Optional
 
 from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.errors import HTTPFailure

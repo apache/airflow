@@ -87,7 +87,7 @@ class WasbHook(BaseHook):
             "relabeling": {
                 'login': 'Blob Storage Login (optional)',
                 'password': 'Blob Storage Token (optional)',
-                'host': 'Account Name (Active Directory Auth)'
+                'host': 'Account Name (Active Directory Auth)',
             },
             "placeholders": {
                 'extra': 'additional options for use with FileService and AzureFileVolume',
@@ -97,7 +97,7 @@ class WasbHook(BaseHook):
                 'extra__wasb__connection_string': 'connection string auth',
                 'extra__wasb__tenant_id': 'tenant',
                 'extra__wasb__shared_access_key': 'shared access key',
-                'extra__wasb__sas_token': 'account url or token'
+                'extra__wasb__sas_token': 'account url or token',
             },
         }
 

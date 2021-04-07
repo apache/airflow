@@ -51,7 +51,7 @@ class AzureContainerRegistryHook(BaseHook):
             "placeholders": {
                 'login': 'private registry username',
                 'password': 'private registry password',
-                'host': 'docker image registry server'
+                'host': 'docker image registry server',
             },
         }
 
