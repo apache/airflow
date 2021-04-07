@@ -16,7 +16,6 @@
 # under the License.
 
 import unittest
-from datetime import timedelta
 
 from airflow.models.auth import JwtToken
 from airflow.utils.session import provide_session
@@ -34,7 +33,7 @@ class TestToken(unittest.TestCase):
 
     @provide_session
     def create_token(self, session=None):
-        token = JwtToken(jti="token", expiry_delta=timedelta(minutes=2))
+        token = JwtToken(jti="token", expiry_delta=62939233)
         session.add(token)
         session.commit()
         return token

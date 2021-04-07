@@ -17,7 +17,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 
 from airflow.models.base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -53,7 +53,7 @@ class JwtToken(Base, LoggingMixin):
     revoked_by = Column(String(50))
     date_revoked = Column(DateTime)
     expiry_delta = Column(Integer, nullable=False)
-    created_delta = Column(Integer, default=func.now())
+    created_delta = Column(Integer, default=datetime.timestamp(datetime.now()))
 
     def __init__(
         self,
