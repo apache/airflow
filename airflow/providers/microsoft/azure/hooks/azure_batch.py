@@ -97,7 +97,9 @@ class AzureBatchHook(BaseHook):
                 raise AirflowException(f'Extra connection option is missing required parameter: `{name}`')
             return value
 
-        batch_account_url = _get_required_param('account_url') or _get_required_param('extra__azure_batch__account_url')
+        batch_account_url = _get_required_param('account_url') or _get_required_param(
+            'extra__azure_batch__account_url'
+        )
         credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)
         return batch_client

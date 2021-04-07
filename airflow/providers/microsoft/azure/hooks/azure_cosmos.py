@@ -99,7 +99,9 @@ class AzureCosmosDBHook(BaseHook):
             endpoint_uri = conn.login
             master_key = conn.password
 
-            self.default_database_name = extras.get('database_name') or extras.get('extra__azure_cosmos__database_name')
+            self.default_database_name = extras.get('database_name') or extras.get(
+                'extra__azure_cosmos__database_name'
+            )
             self.default_collection_name = extras.get('collection_name') or extras.get(
                 'extra__azure_cosmos__collection_name'
             )

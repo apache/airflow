@@ -136,10 +136,12 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
             return self._conn
 
         conn = self.get_connection(self.conn_id)
-        tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId') or conn.extra_dejson.get('tenantId')
-        subscription_id = conn.extra_dejson.get('extra__azure_data_factory__subscriptionId') or conn.extra_dejson.get(
-            'subscriptionId'
-        )
+        tenant = conn.extra_dejson.get(
+            'extra__azure_data_factory__tenantId'
+        ) or conn.extra_dejson.get('tenantId')
+        subscription_id = conn.extra_dejson.get(
+            'extra__azure_data_factory__subscriptionId'
+        ) or conn.extra_dejson.get('subscriptionId')
 
         self._conn = DataFactoryManagementClient(
             credential=ClientSecretCredential(

@@ -145,7 +145,9 @@ class AzureDataExplorerHook(BaseHook):
                 raise AirflowException(f'Extra connection option is missing required parameter: `{name}`')
             return value
 
-        auth_method = get_required_param('auth_method') or get_required_param('extra__azure_data_explorer__auth_method')
+        auth_method = get_required_param('auth_method') or get_required_param(
+            'extra__azure_data_explorer__auth_method'
+        )
 
         if auth_method == 'AAD_APP':
             tenant = get_required_param('tenant') or get_required_param('extra__azure_data_explorer__tenant')
