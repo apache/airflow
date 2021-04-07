@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
+from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, func
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, func
 
 from airflow.models.base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -23,7 +25,24 @@ from airflow.utils.session import provide_session
 
 
 class Token(Base, LoggingMixin):
-    """Token list"""
+    """
+    A model for recording decoded token information
+
+    :param jti: The token jti(JWT ID)
+    :type jti: str
+    :param refresh: Whether the token is a refresh token or not
+    :type refresh: bool
+    :param is_revoked: Whether the token is revoked
+    :type is_revoked: bool
+    :param revoked_by: The username of the user who revoked the token
+    :type revoked_by: str
+    :param date_revoked: The date the token was revoked
+    :type date_revoked: datetime
+    :param expiry_delta: The timestamp of when the token will expire. Token exp
+    :type expiry_delta: int
+    :param created_delta: The timestamp of when the token was created. The token's iat
+    :type created_delta: int
+    """
 
     __tablename__ = 'token'
     id = Column(Integer, primary_key=True)
@@ -38,14 +57,14 @@ class Token(Base, LoggingMixin):
 
     def __init__(
         self,
-        jti,
-        expiry_delta,
-        refresh=False,
-        is_revoked=False,
-        revoked_reason=None,
-        revoked_by=None,
-        date_revoked=None,
-        created_delta=None,
+        jti: str,
+        expiry_delta: int,
+        refresh: Optional[bool] = False,
+        is_revoked: Optional[bool] = False,
+        revoked_reason: Optional[str] = None,
+        revoked_by: Optional[str] = None,
+        date_revoked: Optional[datetime] = None,
+        created_delta: Optional[int] = None,
     ):
         super().__init__()
         self.jti = jti
@@ -60,12 +79,14 @@ class Token(Base, LoggingMixin):
     @classmethod
     @provide_session
     def get_token(cls, token, session=None):
+        """Get a token"""
         tkn = session.query(cls).filter(cls.jti == token).first()
         return tkn
 
     @classmethod
     @provide_session
     def delete_token(cls, token, session=None):
+        """Delete a token"""
         tkn = session.query(cls).filter(cls.jti == token).first()
         if tkn:
             session.delete(tkn)

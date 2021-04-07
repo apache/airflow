@@ -25,7 +25,7 @@ from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
-from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, decode_token, get_jti
+from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, decode_token
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 

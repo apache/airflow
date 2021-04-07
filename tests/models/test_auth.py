@@ -51,8 +51,7 @@ class TestToken(unittest.TestCase):
         assert token2.jti == token.jti
         assert token2.expiry_delta == token.expiry_delta
 
-    @provide_session
-    def test_delete_token_method(self, session):
+    def test_delete_token_method(self):
         tkn = self.create_token()
         token = Token.get_token(tkn.jti)
         assert token is not None
