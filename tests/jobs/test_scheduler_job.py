@@ -2672,6 +2672,7 @@ class TestSchedulerJob(unittest.TestCase):
         # As tasks require 2 slots, only 3 can fit into 6 available
         assert len(task_instances_list) == 3
 
+    @pytest.mark.quarantined
     def test_scheduler_keeps_scheduling_pool_full(self):
         """
         Test task instances in a pool that isn't full keep getting scheduled even when a pool is full.
