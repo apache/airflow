@@ -75,7 +75,7 @@ MISMATCH_RATE_RELAXATION_THRESHOLD = float(os.environ.get('MISMATCH_RATE_RELAXAT
 
 
 def is_mismatch(measure_result, curve_mode):
-    analysis_result = 'OK' if curve_mode is 0 else 'NOK'
+    analysis_result = 'OK' if curve_mode[0] is 0 else 'NOK'
     return analysis_result != measure_result
 
 
@@ -115,7 +115,7 @@ def filter_mismatches(measure_result, curve_mode, dag_id, task_id, execution_dat
     mismatch_rate, count = get_recent_mismatch_rate(dag_id, task_id)
     _log.info('mismatch_rate:{}, count:{}'.format(mismatch_rate, count))
     if mismatch_relaxation(mismatch_rate, count):
-        return 0 if measure_result == 'OK' else 1
+        return [0] if measure_result == 'OK' else [1]
     return curve_mode
 
 
@@ -130,13 +130,13 @@ def put_anaylysis_result():
         execution_date = data.get('exec_date')
         entity_id = data.get('entity_id')
         measure_result = data.get('measure_result')
-        curve_mode = int(data.get('result'))  # OK, NOK
+        curve_mode = list(map(int, data.get('result')))  # List[int]
 
         if FILTER_MISMATCHES:
             curve_mode = filter_mismatches(measure_result, curve_mode, dag_id, task_id, execution_date)
 
         verify_error = int(data.get('verify_error'))  # OK, NOK
-        rresult = 'OK' if curve_mode is 0 else 'NOK'
+        rresult = 'OK' if curve_mode[0] is 0 else 'NOK'
 
         if (not ANALYSIS_NOK_RESULTS) and measure_result == 'NOK':
             rresult = 'NOK'
@@ -146,8 +146,8 @@ def put_anaylysis_result():
             ti.measure_result = measure_result
             ti.entity_id = entity_id
             ti.error_code = curve_mode
-            if curve_mode is not 0:
-                ti.error_tag = json.dumps([curve_mode])
+            if curve_mode[0] is not 0:
+                ti.error_tag = json.dumps(curve_mode)
             else:
                 ti.error_tag = json.dumps([])
             ti.verify_error = verify_error
