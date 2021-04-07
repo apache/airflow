@@ -396,6 +396,7 @@ toolz==0.11.1
 tornado==6.1
 tqdm==4.59.0
 traitlets==5.0.5
+trino==0.305.0
 typed-ast==1.4.2
 typing-extensions==3.7.4.3
 typing-inspect==0.6.0

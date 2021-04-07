@@ -1,6 +1,6 @@
 # Editable install with no version control (apache-airflow==2.1.0.dev0)
 Babel==2.9.0
-Flask-AppBuilder==3.2.1
+Flask-AppBuilder==3.2.2
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.1

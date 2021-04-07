@@ -2,7 +2,7 @@
 APScheduler==3.6.3
 Authlib==0.15.3
 Babel==2.9.0
-Flask-AppBuilder==3.2.1
+Flask-AppBuilder==3.2.2
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.1
@@ -41,6 +41,7 @@ alembic==1.5.8
 amqp==2.6.1
 analytics-python==1.2.9
 ansiwrap==0.8.4
+apache-airflow-providers-airbyte==1.0.0rc1
 apache-airflow-providers-amazon==1.2.0
 apache-airflow-providers-apache-beam==1.0.1
 apache-airflow-providers-apache-cassandra==1.0.1
@@ -102,6 +103,7 @@ apache-airflow-providers-sqlite==1.0.2
 apache-airflow-providers-ssh==1.2.0
 apache-airflow-providers-tableau==1.0.0
 apache-airflow-providers-telegram==1.0.2
+apache-airflow-providers-trino==1.0.0rc1
 apache-airflow-providers-vertica==1.0.1
 apache-airflow-providers-yandex==1.0.1
 apache-airflow-providers-zendesk==1.0.1
@@ -206,7 +208,7 @@ flower==0.9.7
 freezegun==1.1.0
 fsspec==0.9.0
 future==0.18.2
-gcsfs==0.7.2
+gcsfs==0.8.0
 gevent==21.1.2
 gitdb==4.0.7
 github3.py==2.0.0
@@ -282,7 +284,7 @@ json-merge-patch==0.2
 jsondiff==1.2.0
 jsonpath-ng==1.5.2
 jsonschema==3.2.0
-jupyter-client==6.1.12
+jupyter-client==6.1.13
 jupyter-core==4.7.1
 jwcrypto==0.8
 kombu==4.6.11
@@ -451,7 +453,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.4
 sphinxcontrib-spelling==5.2.1
-spython==0.1.12
+spython==0.1.13
 sshtunnel==0.1.5
 starkbank-ecdsa==1.1.0
 statsd==3.3.0
@@ -468,12 +470,14 @@ thrift==0.13.0
 toml==0.10.2
 toolz==0.11.1
 tornado==6.1
-tqdm==4.59.0
+tqdm==4.60.0
 traitlets==5.0.5
+trino==0.305.0
 typed-ast==1.4.2
 typing-extensions==3.7.4.3
 typing-inspect==0.6.0
 tzlocal==2.1
+ujson==4.0.2
 unicodecsv==0.14.1
 uritemplate==3.0.1
 urllib3==1.25.11
