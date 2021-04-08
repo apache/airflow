@@ -284,7 +284,7 @@ json-merge-patch==0.2
 jsondiff==1.2.0
 jsonpath-ng==1.5.2
 jsonschema==3.2.0
-jupyter-client==6.1.13
+jupyter-client==6.1.12
 jupyter-core==4.7.1
 jwcrypto==0.8
 kombu==4.6.11
@@ -293,7 +293,6 @@ kylinpy==2.8.4
 lazy-object-proxy==1.4.3
 ldap3==2.9
 libcst==0.3.18
-locket==0.2.1
 lockfile==0.12.2
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==2.1.0
@@ -337,7 +336,6 @@ papermill==2.3.3
 parameterized==0.8.1
 paramiko==2.7.2
 parso==0.8.2
-partd==1.1.0
 pathspec==0.8.1
 pbr==5.5.1
 pdpyras==4.1.4

@@ -289,7 +289,7 @@ json-merge-patch==0.2
 jsondiff==1.2.0
 jsonpath-ng==1.5.2
 jsonschema==3.2.0
-jupyter-client==6.1.13
+jupyter-client==6.1.12
 jupyter-core==4.7.1
 jwcrypto==0.8
 kombu==4.6.11
