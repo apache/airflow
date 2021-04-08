@@ -385,7 +385,7 @@ pagerduty = [
 ]
 papermill = [
     'papermill[all]>=1.2.1',
-    'scrapbook[all]>=0.3.1',
+    'scrapbook[all]>=0.5.0',
 ]
 password = [
     'bcrypt>=2.0.0',
