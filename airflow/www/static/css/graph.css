@@ -43,7 +43,8 @@ svg {
   transition: stroke 0.2s ease-in-out, opacity 0.2s ease-in-out;
 }
 
-.edgePath[data-highlight="fade"] {
+.edgePath[data-highlight="fade"],
+.edgePaths[data-highlight="fade"] > .edgePath {
   opacity: 0.2 !important;
 }
 
