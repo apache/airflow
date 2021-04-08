@@ -237,7 +237,7 @@ class DockerOperator(BaseOperator):
             if not self.cli:
                 raise Exception("The 'cli' should be initialized before!")
             self.container = self.cli.create_container(
-                command=self.get_command(self.command),
+                command=self.format_command(self.command),
                 name=self.container_name,
                 environment={**self.environment, **self._private_environment},
                 host_config=self.cli.create_host_config(
@@ -255,7 +255,7 @@ class DockerOperator(BaseOperator):
                 ),
                 image=self.image,
                 user=self.user,
-                entrypoint=self.get_command(self.entrypoint),
+                entrypoint=self.format_command(self.entrypoint),
                 working_dir=self.working_dir,
                 tty=self.tty,
             )
@@ -282,12 +282,15 @@ class DockerOperator(BaseOperator):
 
                 ret = None
                 if self.do_xcom_push:
-                    ret = self.cli.logs(container=self.container['Id']) if self.xcom_all else line.encode('utf-8')
+                    ret = (
+                        self.cli.logs(container=self.container['Id'])
+                        if self.xcom_all
+                        else line.encode('utf-8')
+                    )
                 return ret
             finally:
                 if self.auto_remove:
                     self.cli.remove_container(self.container['Id'])
-
 
     def execute(self, context) -> Optional[str]:
         self.cli = self._get_cli()
@@ -325,7 +328,7 @@ class DockerOperator(BaseOperator):
             return APIClient(base_url=self.docker_url, version=self.api_version, tls=tls_config)
 
     @staticmethod
-    def get_command(command: Union[str, List[str]]) -> Union[List[str], str]:
+    def format_command(command: Union[str, List[str]]) -> Union[List[str], str]:
         """
         Retrieve command(s). if command string starts with [, it returns the command list)
 
