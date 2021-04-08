@@ -235,7 +235,7 @@ def configure_orm(disable_connection_pool=False):
 def prepare_engine_args(disable_connection_pool=False):
     """Prepare SQLAlchemy engine args"""
     engine_args = {}
-    pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED')
+    pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED', fallback=True)
     if disable_connection_pool or not pool_connections:
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
