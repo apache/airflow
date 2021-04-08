@@ -21,7 +21,7 @@
 
 # User and group of airflow user
 uid: 50000
-gid: 50000
+gid: 0
 
 # Airflow home directory
 # Used for mount paths
