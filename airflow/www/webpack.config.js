@@ -51,6 +51,7 @@ const config = {
     moment: 'moment-timezone',
     switch: `${CSS_DIR}/switch.css`,
     taskInstances: `${JS_DIR}/task_instances.js`,
+    taskInstance: `${JS_DIR}/task_instance.js`,
     tree: [`${CSS_DIR}/tree.css`, `${JS_DIR}/tree.js`],
     circles: `${JS_DIR}/circles.js`,
     durationChart: `${JS_DIR}/duration_chart.js`,
