@@ -163,7 +163,7 @@
             "type": "object"
         },
         "airflowConfigAnnotations": {
-            "description": "Extra annotations to apply to the main Airflow configs.",
+            "description": "Extra annotations to apply to the main Airflow configmap.",
             "type": "object"
         },
         "rbac": {

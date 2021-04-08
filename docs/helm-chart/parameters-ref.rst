@@ -79,7 +79,7 @@ The following tables lists the configurable parameters of the Airflow chart and 
      - Extra annotations to apply to all Airflow pods.
      - ``{}``
    * - ``airflowConfigAnnotations``
-     - Extra annotations to apply to the main Airflow configs.
+     - Extra annotations to apply to the main Airflow configmap.
      - ``{}``
    * - ``executor``
      - Airflow executor (eg SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor)

@@ -112,7 +112,7 @@ networkPolicies:
 airflowPodAnnotations: {}
 
 # Extra annotations to apply to
-# Airflow's main config
+# main Airflow configmap
 airflowConfigAnnotations: {}
 
 # Enable RBAC (default on most clusters these days)
