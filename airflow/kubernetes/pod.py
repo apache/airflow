@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `kubernetes.client.models for V1ResourceRequirements and Port."""
+"""
+This module is deprecated.
+Please use `kubernetes.client.models` for V1ResourceRequirements and Port.
+"""
 # flake8: noqa
 # pylint: disable=unused-import
 import warnings
@@ -27,7 +30,7 @@ with warnings.catch_warnings():
     )
 
 warnings.warn(
-    "This module is deprecated. Please use `kubernetes.client.models for V1ResourceRequirements and Port.",
+    "This module is deprecated. Please use `kubernetes.client.models` for V1ResourceRequirements and Port.",
     DeprecationWarning,
     stacklevel=2,
 )

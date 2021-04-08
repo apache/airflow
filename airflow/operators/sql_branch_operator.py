@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.operators.sql`."""
+"""This module is deprecated. Please use :class:`airflow.operators.sql`."""
 import warnings
 
 from airflow.operators.sql import BranchSQLOperator
