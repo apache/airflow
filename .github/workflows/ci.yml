@@ -78,7 +78,8 @@ jobs:
     # change this and get access to our self-hosted runners
     #
     # When changing this list, ensure that it is kept in sync with the
-    # configOverride parameter in AWS SSM (which is what the runner uses)
+    # /runners/apache/airflow/configOverlay
+    # parameter in AWS SSM ParameterStore (which is what the runner uses)
     runs-on: >-
       ${{ (
         (
@@ -119,7 +120,8 @@ jobs:
             "jhtimmins",
             "dstandish",
             "xinbinhuang",
-            "yuqian"
+            "yuqian",
+            "eladkal"
           ]'), github.actor)
         ) && github.repository == 'apache/airflow'
       ) && 'self-hosted' || 'ubuntu-20.04' }}
