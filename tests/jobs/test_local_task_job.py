@@ -520,6 +520,7 @@ class TestLocalTaskJob(unittest.TestCase):
             # This should not happen -- the state change should be noticed and the task should get killed
             with shared_mem_lock:
                 task_terminated_externally.value = 0
+            raise Exception
 
         task = PythonOperator(
             task_id='test_on_failure',
@@ -547,7 +548,7 @@ class TestLocalTaskJob(unittest.TestCase):
         process = multiprocessing.Process(target=job1.run)
         process.start()
 
-        for _ in range(0, 25):
+        for _ in range(0, 10):
             ti.refresh_from_db()
             if ti.state == State.RUNNING:
                 break
