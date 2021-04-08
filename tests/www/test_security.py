@@ -29,6 +29,7 @@ from sqlalchemy import Column, Date, Float, Integer, String
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
+from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
 from airflow.www.utils import CustomSQLAInterface
@@ -431,7 +432,7 @@ class TestSecurity(unittest.TestCase):
 
     def test_access_control_with_non_existent_role(self):
         with pytest.raises(AirflowException) as ctx:
-            self.security_manager.sync_perm_for_dag(
+            self.security_manager._sync_dag_view_permissions(
                 dag_id='access-control-test',
                 access_control={
                     'this-role-does-not-exist': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
@@ -473,7 +474,7 @@ class TestSecurity(unittest.TestCase):
         for permission in invalid_permissions:
             self.expect_user_is_in_role(user, rolename='team-a')
             with pytest.raises(AirflowException) as ctx:
-                self.security_manager.sync_perm_for_dag(
+                self.security_manager._sync_dag_view_permissions(
                     'access_control_test', access_control={'team-a': {permission}}
                 )
             assert "invalid permissions" in str(ctx.value)
@@ -489,7 +490,7 @@ class TestSecurity(unittest.TestCase):
                 permissions=[],
             )
             self.expect_user_is_in_role(user, rolename='team-a')
-            self.security_manager.sync_perm_for_dag(
+            self.security_manager._sync_dag_view_permissions(
                 'access_control_test',
                 access_control={'team-a': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
             )
@@ -517,12 +518,12 @@ class TestSecurity(unittest.TestCase):
                 permissions=[],
             )
             self.expect_user_is_in_role(user, rolename='team-a')
-            self.security_manager.sync_perm_for_dag(
+            self.security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_WRITE}
             )
             self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id='access_control_test', user=user)
 
-            self.security_manager.sync_perm_for_dag(
+            self.security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_ONLY}
             )
             self.assert_user_has_dag_perms(
@@ -562,24 +563,46 @@ class TestSecurity(unittest.TestCase):
                     f"on {permissions.RESOURCE_CONFIG}"
                 )
 
-    def test_create_dag_specific_permissions(self):
-        dag_id = 'some_dag_id'
-        dag_permission_name = self.security_manager.prefixed_dag_id(dag_id)
-        assert ('can_read', dag_permission_name) not in self.security_manager.get_all_permissions()
+    @mock.patch("airflow.www.security.DagBag")
+    def test_create_dag_specific_permissions(self, dagbag_mock):
+        access_control = {'Public': {permissions.ACTION_CAN_READ}}
+        dags = [
+            DAG('has_access_control', access_control=access_control),
+            DAG('no_access_control'),
+        ]
 
-        dag_model = DagModel(
-            dag_id=dag_id, fileloc='/tmp/dag_.py', schedule_interval='2 2 * * *', is_paused=True
-        )
-        self.session.add(dag_model)
-        self.session.commit()
+        collect_dags_from_db_mock = mock.Mock()
+        dagbag = mock.Mock()
+
+        dagbag.dags = {dag.dag_id: dag for dag in dags}
+        dagbag.collect_dags_from_db = collect_dags_from_db_mock
+        dagbag_mock.return_value = dagbag
+
+        self.security_manager._sync_dag_view_permissions = mock.Mock()
+
+        for dag in dags:
+            prefixed_dag_id = self.security_manager.prefixed_dag_id(dag.dag_id)
+            all_perms = self.security_manager.get_all_permissions()
+            assert ('can_read', prefixed_dag_id) not in all_perms
+            assert ('can_edit', prefixed_dag_id) not in all_perms
 
         self.security_manager.create_dag_specific_permissions()
-        self.session.commit()
 
-        assert ('can_read', dag_permission_name) in self.security_manager.get_all_permissions()
+        dagbag_mock.assert_called_once_with(read_dags_from_db=True)
+        collect_dags_from_db_mock.assert_called_once_with()
 
-        # Make sure we short circuit when the perms already exist
-        with assert_queries_count(2):  # One query to get DagModels, one query to get all perms
+        for dag in dags:
+            prefixed_dag_id = self.security_manager.prefixed_dag_id(dag.dag_id)
+            all_perms = self.security_manager.get_all_permissions()
+            assert ('can_read', prefixed_dag_id) in all_perms
+            assert ('can_edit', prefixed_dag_id) in all_perms
+
+        self.security_manager._sync_dag_view_permissions.assert_called_once_with(
+            self.security_manager.prefixed_dag_id('has_access_control'), access_control
+        )
+
+        del dagbag.dags["has_access_control"]
+        with assert_queries_count(1):  # one query to get all perms; dagbag is mocked
             self.security_manager.create_dag_specific_permissions()
 
     def test_get_all_permissions(self):

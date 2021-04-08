@@ -27,9 +27,8 @@ from flask_appbuilder.security.sqla.models import PermissionView, Role, User
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
-from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.models import DagModel
+from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -540,23 +539,24 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     def create_dag_specific_permissions(self) -> None:
         """
-        Creates 'can_read' and 'can_edit' permissions for all active and paused DAGs.
+        Creates 'can_read' and 'can_edit' permissions for all active and paused DAGs,
+        along with any `access_control` permissions provided in the DAG.
 
         :return: None.
         """
         perms = self.get_all_permissions()
-        rows = (
-            self.get_session.query(models.DagModel.dag_id)
-            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))
-            .all()
-        )
+        dagbag = DagBag(read_dags_from_db=True)
+        dagbag.collect_dags_from_db()
+        dags = dagbag.dags.values()
 
-        for row in rows:
-            dag_id = row[0]
+        for dag in dags:
+            dag_resource_name = self.prefixed_dag_id(dag.dag_id)
             for perm_name in self.DAG_PERMS:
-                dag_resource_name = self.prefixed_dag_id(dag_id)
                 if (perm_name, dag_resource_name) not in perms:
                     self._merge_perm(perm_name, dag_resource_name)
+
+            if dag.access_control:
+                self._sync_dag_view_permissions(dag_resource_name, dag.access_control)
 
     def update_admin_perm_view(self):
         """
@@ -595,7 +595,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """
         # Create global all-dag VM
         self.create_perm_vm_for_all_dag()
-        self.create_dag_specific_permissions()
 
         # Sync the default roles (Admin, Viewer, User, Op, public) with related permissions
         self.bulk_sync_roles(self.ROLE_CONFIGS)
@@ -617,7 +616,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     def sync_perm_for_dag(self, dag_id, access_control=None):
         """
         Sync permissions for given dag id. The dag id surely exists in our dag bag
-        as only / refresh button or cli.sync_perm will call this function
+        as only / refresh button or SerializedDagModel will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated
         :type dag_id: str
