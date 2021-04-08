@@ -527,12 +527,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             .all()
         )
 
+        missing_perms = []
         for row in rows:
             dag_id = row[0]
             for perm_name in self.DAG_PERMS:
                 dag_resource_name = self.prefixed_dag_id(dag_id)
                 if (perm_name, dag_resource_name) not in perms:
-                    self._merge_perm(perm_name, dag_resource_name)
+                    missing_perms.append((perm_name, dag_resource_name))
+
+        if not missing_perms:
+            return
+
+        self.log.info("Creating %d missing DAG specific permissions", len(missing_perms))
+        for perm_name, dag_resource_name in missing_perms:
+            self._merge_perm(perm_name, dag_resource_name)
 
     def update_admin_perm_view(self):
         """
