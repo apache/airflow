@@ -178,7 +178,7 @@ curlify==2.2.1
 cx-Oracle==8.1.0
 dask==2021.3.0
 datadog==0.40.1
-decorator==5.0.5
+decorator==5.0.6
 defusedxml==0.7.1
 dill==0.3.2
 distlib==0.3.1
@@ -293,6 +293,7 @@ kylinpy==2.8.4
 lazy-object-proxy==1.4.3
 ldap3==2.9
 libcst==0.3.18
+locket==0.2.1
 lockfile==0.12.2
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==2.1.0
@@ -336,6 +337,7 @@ papermill==2.3.3
 parameterized==0.8.1
 paramiko==2.7.2
 parso==0.8.2
+partd==1.1.0
 pathspec==0.8.1
 pbr==5.5.1
 pdpyras==4.1.4
