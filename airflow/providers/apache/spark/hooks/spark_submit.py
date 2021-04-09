@@ -392,7 +392,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
 
         else:
-            # Requesting submission statuses is only supported in standalone or Mesos mode!
+
             connection_cmd = self._get_spark_binary_path()
 
             # The url to the spark master
@@ -497,14 +497,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 match = re.search('(application[0-9_]+)', line)
                 if match:
                     self._yarn_application_id = match.groups()[0]
-                    #self._driver_id = self._yarn_application_id
-                    self.log.info("Identified spark driver id: %s", self._driver_id)
-
-                # if self._yarn_application_id:
-                #     match_current_state = re.search(f'{self._yarn_application_id}\W+state: (\w+)', line)
-                #     if match_current_state:
-                #         self._driver_status = match_current_state.groups()[0]
-                #         self.log.info("Set spark driver status: %s", self._driver_status)
+                    self.log.info("Identified spark driver id: %s", self._yarn_application_id)
 
             # If we run Kubernetes cluster mode, we want to extract the driver pod id
             # from the logs so we can kill the application when we stop it unexpectedly
