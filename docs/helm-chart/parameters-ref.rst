@@ -415,7 +415,7 @@ The following tables lists the configurable parameters of the Airflow chart and 
      - Toleration labels for pod assignment
      - ``1``
    * - ``pgbouncer.configSecretName``
-     - Name of existing pgbouncer config secret
+     - Name of existing PgBouncer config secret
      - ``~``
    * - ``redis.enabled``
      - Enable the redis provisioned by the chart

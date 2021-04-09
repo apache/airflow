@@ -1050,7 +1050,7 @@
                     "type": "integer"
                 },
                 "configSecretName": {
-                    "description": "The pgbouncer config secret name.",
+                    "description": "The PgBouncer config secret name.",
                     "type": [
                         "string",
                         "null"
