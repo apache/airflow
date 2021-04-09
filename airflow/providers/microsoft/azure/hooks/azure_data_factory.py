@@ -119,7 +119,7 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
                     },
                     indent=1,
                 ),
-                'login': 'client_id',
+                'login': 'client id',
                 'password': 'secret',
                 'extra__azure_data_factory__tenantId': 'tenant id',
                 'extra__azure_data_factory__subscriptionId': 'subscription id',

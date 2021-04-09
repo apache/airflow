@@ -75,9 +75,9 @@ class AzureDataLakeHook(BaseHook):
                 'password': 'Azure Client Secret',
             },
             "placeholders": {
-                'login': 'client_id',
+                'login': 'client id',
                 'password': 'secret',
-                'extra__azure_data_lake__tenant': 'tenent id',
+                'extra__azure_data_lake__tenant': 'tenant id',
                 'extra__azure_data_lake__account_name': 'datalake store',
             },
         }

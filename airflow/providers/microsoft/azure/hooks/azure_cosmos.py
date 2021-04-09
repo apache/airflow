@@ -59,10 +59,10 @@ class AzureCosmosDBHook(BaseHook):
 
         return {
             "extra__azure_cosmos__database_name": StringField(
-                lazy_gettext('Cosmos Database Name'), widget=BS3TextFieldWidget()
+                lazy_gettext('Cosmos Database Name (optional)'), widget=BS3TextFieldWidget()
             ),
             "extra__azure_cosmos__collection_name": StringField(
-                lazy_gettext('Cosmos Collection Name'), widget=BS3TextFieldWidget()
+                lazy_gettext('Cosmos Collection Name (optional)'), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -78,8 +78,8 @@ class AzureCosmosDBHook(BaseHook):
             "placeholders": {
                 'login': 'endpoint uri',
                 'password': 'master key',
-                'extra__azure_cosmos__database_name': 'database name (optional)',
-                'extra__azure_cosmos__collection_name': 'collection name (optional)',
+                'extra__azure_cosmos__database_name': 'database name',
+                'extra__azure_cosmos__collection_name': 'collection name',
             },
         }
 

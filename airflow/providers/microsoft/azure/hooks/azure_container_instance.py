@@ -81,10 +81,10 @@ class AzureContainerInstanceHook(AzureBaseHook):
                     },
                     indent=1,
                 ),
-                'login': 'client_id (token credentials auth)',
+                'login': 'client id (token credentials auth)',
                 'password': 'secret (token credentials auth)',
-                'extra__azure__tenantId': 'tenentId (token credentials auth)',
-                'extra__azure__subscriptionId': 'subscriptionId (token credentials auth)',
+                'extra__azure__tenantId': 'tenant id (token credentials auth)',
+                'extra__azure__subscriptionId': 'subscription id (token credentials auth)',
             },
         }
 
