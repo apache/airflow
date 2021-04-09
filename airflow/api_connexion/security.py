@@ -18,7 +18,7 @@
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
-from flask import Response, current_app
+from flask import Response, current_app, g
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 
@@ -42,6 +42,7 @@ def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> 
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
+            g.login_from_api = True
             check_authentication()
             if appbuilder.sm.check_authorization(permissions, kwargs.get('dag_id')):
                 return func(*args, **kwargs)
