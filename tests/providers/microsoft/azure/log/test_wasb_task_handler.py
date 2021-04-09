@@ -71,11 +71,11 @@ class TestWasbTaskHandler(unittest.TestCase):
                 handler.hook
 
             mock_error.assert_called_once_with(
-                'Could not create an WasbHook with connection id "%s". '
-                'Please make sure that airflow[azure] is installed and '
-                'the Wasb connection exists. Exception "%s"',
-                "wasb_default",
-                ANY,
+                'Could not create an WasbHook with connection id "%s".'
+                ' Please make sure that airflow[azure] is installed'
+                ' and the Wasb connection exists.',
+                'wasb_default',
+                exc_info=True,
             )
 
     def test_set_context_raw(self):
@@ -123,9 +123,7 @@ class TestWasbTaskHandler(unittest.TestCase):
 
                 handler.wasb_read(self.remote_log_location, return_error=True)
             mock_error.assert_called_once_with(
-                "Message: '%s', exception '%s'",
                 'Could not read logs from remote/log/location/1.log',
-                ANY,
                 exc_info=True,
             )
 

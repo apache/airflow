@@ -63,15 +63,13 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
             return WasbHook(remote_conn_id)
-        except AzureHttpError as e:
-            self.log.error(
-                'Could not create an WasbHook with connection id "%s". '
-                'Please make sure that airflow[azure] is installed and '
-                'the Wasb connection exists. Exception "%s"',
+        except AzureHttpError:
+            self.log.exception(
+                'Could not create an WasbHook with connection id "%s".'
+                ' Please make sure that airflow[azure] is installed'
+                ' and the Wasb connection exists.',
                 remote_conn_id,
-                e,
             )
-            return None
 
     def set_context(self, ti) -> None:
         super().set_context(ti)
