@@ -1,6 +1,4 @@
-/* eslint-disable no-loop-func */
 /* eslint-disable no-underscore-dangle */
-/* eslint-disable no-restricted-syntax */
 /* eslint-disable no-use-before-define */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
