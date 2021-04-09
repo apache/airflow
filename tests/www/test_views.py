@@ -65,7 +65,7 @@ from airflow.www import app as application
 from airflow.www.extensions import init_views
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
 from airflow.www.views import ConnectionModelView, get_safe_url, truncate_task_duration
-from tests.test_utils import fab_utils
+from tests.test_utils import api_connexion_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
@@ -229,7 +229,7 @@ class TestBase(unittest.TestCase):
 
     def create_user_and_login(self, username, role_name, perms):
         self.logout()
-        fab_utils.create_user(
+        api_connexion_utils.create_user(
             self.app,
             username=username,
             role_name=role_name,
