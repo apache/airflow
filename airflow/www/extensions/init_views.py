@@ -164,9 +164,8 @@ class CustomSessionInterface(SecureCookieSessionInterface):
     def save_session(self, *args, **kwargs):
         """Do not create session if login_from_api in g"""
         if g.get('login_from_api'):
-            return
-        super().save_session(*args, **kwargs)
-        return
+            return None
+        return super().save_session(*args, **kwargs)
 
     @user_loaded_from_header.connect
     def user_loaded_from_header(self, user=None):  # pylint: disable=unused-argument
