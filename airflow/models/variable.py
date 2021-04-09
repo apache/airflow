@@ -47,11 +47,7 @@ class Variable(Base, LoggingMixin):
     id = Column(Integer, primary_key=True)
     key = Column(String(ID_LEN), unique=True)
     _val = Column('val', Text)
-<<<<<<< HEAD
-    description = Column(Text)
-=======
     description = Column(String(5000))
->>>>>>> 7e7040bf3 (add description field in variable (#12413))
     is_encrypted = Column(Boolean, unique=False, default=False)
 
     def __init__(self, key=None, val=None, description=None):
