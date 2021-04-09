@@ -350,6 +350,7 @@ rich==9.2.0
 rsa==4.7.2
 s3transfer==0.3.6
 sasl==0.2.1
+scrapbook==0.5.0
 semver==2.13.0
 sendgrid==6.6.0
 sentinels==1.0.0
