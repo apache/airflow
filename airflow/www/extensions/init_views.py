@@ -21,9 +21,7 @@ from os import path
 
 import connexion
 from connexion import ProblemException
-from flask import Flask, g, request
-from flask.sessions import SecureCookieSessionInterface
-from flask_login import user_loaded_from_header
+from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
@@ -158,21 +156,6 @@ def set_cors_headers_on_response(response):
     return response
 
 
-class CustomSessionInterface(SecureCookieSessionInterface):
-    """Prevent creating session from API requests."""
-
-    def save_session(self, *args, **kwargs):
-        """Do not create session if login_from_api in g"""
-        if g.get('login_from_api'):
-            return None
-        return super().save_session(*args, **kwargs)
-
-    @user_loaded_from_header.connect
-    def user_loaded_from_header(self, user=None):  # pylint: disable=unused-argument
-        """Set login_from_api in g"""
-        g.login_from_api = True
-
-
 def init_api_connexion(app: Flask) -> None:
     """Initialize Stable API"""
     base_path = '/api/v1'
@@ -202,7 +185,6 @@ def init_api_connexion(app: Flask) -> None:
     app.after_request_funcs.setdefault(api_bp.name, []).append(set_cors_headers_on_response)
     app.register_error_handler(ProblemException, common_error_handler)
     app.extensions['csrf'].exempt(api_bp)
-    app.session_interface = CustomSessionInterface()
 
 
 def init_api_experimental(app):
