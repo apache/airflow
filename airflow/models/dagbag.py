@@ -36,7 +36,12 @@ from tabulate import tabulate
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, SerializedDagNotFound
+from airflow.exceptions import (
+    AirflowClusterPolicyViolation,
+    AirflowDagCycleException,
+    AirflowDagDuplicatedIdException,
+    SerializedDagNotFound,
+)
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
@@ -381,7 +386,11 @@ class DagBag(LoggingMixin):
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
                 self.import_errors[dag.full_filepath] = f"Invalid Cron expression: {cron_e}"
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
-            except (AirflowDagCycleException, AirflowClusterPolicyViolation) as exception:
+            except (
+                AirflowDagCycleException,
+                AirflowDagDuplicatedIdException,
+                AirflowClusterPolicyViolation,
+            ) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
                 self.import_errors[dag.full_filepath] = str(exception)
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
@@ -411,10 +420,12 @@ class DagBag(LoggingMixin):
                 subdag.parent_dag = dag
                 subdag.is_subdag = True
                 self.bag_dag(dag=subdag, root_dag=root_dag)
+            if dag.dag_id in self.dags:
+                raise AirflowDagDuplicatedIdException(self.dags[dag.dag_id])
 
             self.dags[dag.dag_id] = dag
             self.log.debug('Loaded DAG %s', dag)
-        except AirflowDagCycleException as cycle_exception:
+        except (AirflowDagCycleException, AirflowDagDuplicatedIdException):
             # There was an error in bagging the dag. Remove it from the list of dags
             self.log.exception('Exception bagging dag: %s', dag.dag_id)
             # Only necessary at the root level since DAG.subdags automatically
@@ -423,7 +434,7 @@ class DagBag(LoggingMixin):
                 for subdag in subdags:
                     if subdag.dag_id in self.dags:
                         del self.dags[subdag.dag_id]
-            raise cycle_exception
+            raise
 
     def collect_dags(
         self,
