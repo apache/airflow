@@ -22,39 +22,22 @@ import jmespath
 from tests.helm_template_generator import render_chart
 
 
-class StatsdTest(unittest.TestCase):
-    def test_should_create_statsd_default(self):
-        docs = render_chart(show_only=["templates/statsd/statsd-deployment.yaml"])
-
-        assert "RELEASE-NAME-statsd" == jmespath.search("metadata.name", docs[0])
-
-        assert "statsd" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
-
-    def test_should_add_volume_and_volume_mount_when_exist_extra_mappings(self):
-        extra_mapping = {
-            "match": "airflow.pool.queued_slots.*",
-            "name": "airflow_pool_queued_slots",
-            "labels": {"pool": "$1"},
-        }
+class PgbouncerTest(unittest.TestCase):
+    def test_should_create_pgbouncer(self):
         docs = render_chart(
-            values={"statsd": {"enabled": True, "extraMappings": [extra_mapping]}},
-            show_only=["templates/statsd/statsd-deployment.yaml"],
+            values={"pgbouncer": {"enabled": True}},
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
-        assert {"name": "config", "configMap": {"name": "RELEASE-NAME-statsd"}} in jmespath.search(
-            "spec.template.spec.volumes", docs[0]
-        )
+        assert "RELEASE-NAME-pgbouncer" == jmespath.search("metadata.name", docs[0])
 
-        assert {
-            "name": "config",
-            "mountPath": "/etc/statsd-exporter/mappings.yml",
-            "subPath": "mappings.yml",
-        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "pgbouncer" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
-                "statsd": {
+                "pgbouncer": {
+                    "enabled": True,
                     "affinity": {
                         "nodeAffinity": {
                             "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -74,7 +57,7 @@ class StatsdTest(unittest.TestCase):
                     "nodeSelector": {"diskType": "ssd"},
                 }
             },
-            show_only=["templates/statsd/statsd-deployment.yaml"],
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
         assert "Deployment" == jmespath.search("kind", docs[0])

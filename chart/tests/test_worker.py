@@ -88,3 +88,48 @@ class WorkerTest(unittest.TestCase):
 
         assert "100%" == jmespath.search("spec.strategy.rollingUpdate.maxSurge", docs[0])
         assert "50%" == jmespath.search("spec.strategy.rollingUpdate.maxUnavailable", docs[0])
+
+    def test_should_create_valid_affinity_tolerations_and_node_selector(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "affinity": {
+                        "nodeAffinity": {
+                            "requiredDuringSchedulingIgnoredDuringExecution": {
+                                "nodeSelectorTerms": [
+                                    {
+                                        "matchExpressions": [
+                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "nodeSelector": {"diskType": "ssd"},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "StatefulSet" == jmespath.search("kind", docs[0])
+        assert "foo" == jmespath.search(
+            "spec.template.spec.affinity.nodeAffinity."
+            "requiredDuringSchedulingIgnoredDuringExecution."
+            "nodeSelectorTerms[0]."
+            "matchExpressions[0]."
+            "key",
+            docs[0],
+        )
+        assert "ssd" == jmespath.search(
+            "spec.template.spec.nodeSelector.diskType",
+            docs[0],
+        )
+        assert "dynamic-pods" == jmespath.search(
+            "spec.template.spec.tolerations[0].key",
+            docs[0],
+        )
