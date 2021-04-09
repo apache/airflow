@@ -32,8 +32,8 @@ from airflow.models import DagModel
 from airflow.security import permissions
 from airflow.www import app as application
 from airflow.www.utils import CustomSQLAInterface
-from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils import api_connexion_utils
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
 
