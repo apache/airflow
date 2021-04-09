@@ -46,9 +46,16 @@ function checkAutoTailingCondition() {
          && ($(window).scrollTop() + $(window).height() > docHeight - AUTO_TAILING_OFFSET);
 }
 
+function toggleWrap() {
+  $('pre code').toggleClass('wrap');
+}
+
 function scrollBottom() {
   $('html, body').animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
 }
+
+window.toggleWrapLogs = toggleWrap;
+window.scrollBottomLogs = scrollBottom;
 
 // Streaming log with auto-tailing.
 function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
