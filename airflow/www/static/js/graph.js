@@ -106,6 +106,8 @@ function collapseGroup(nodeId, node) {
   // Map task that are under this node to this node's id
   for (const childId of getChildrenIds(node)) mapTaskToNode.set(childId, nodeId);
 
+  node = g.node(nodeId);
+
   // Set children edges onto the group edge
   edges.forEach((edge) => {
     const sourceId = mapTaskToNode.get(edge.source_id);
