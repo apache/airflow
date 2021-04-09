@@ -47,7 +47,7 @@ class Variable(Base, LoggingMixin):
     id = Column(Integer, primary_key=True)
     key = Column(String(ID_LEN), unique=True)
     _val = Column('val', Text)
-    description = Column(String(5000))
+    description = Column(Text(5000))
     is_encrypted = Column(Boolean, unique=False, default=False)
 
     def __init__(self, key=None, val=None, description=None):
