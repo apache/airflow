@@ -1049,7 +1049,7 @@
                     "description": "Maximum clients that can connect to pgbouncer (higher = more file descriptors).",
                     "type": "integer"
                 },
-                "pgbouncerConfigSecretName": {
+                "configSecretName": {
                     "description": "The pgbouncer config secret name.",
                     "type": [
                         "string",
