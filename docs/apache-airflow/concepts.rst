@@ -1159,6 +1159,11 @@ Or, you can use them directly inline with the ``>>`` and ``<<`` operators:
     from airflow.utils.edgemodifier import Label
     my_task >> Label("When empty") >> other_task
 
+Here's an example DAG which illustrates labeling different branches:
+
+.. image:: img/edge_label_example.png
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_labels.py
 
 SLAs
 ====
