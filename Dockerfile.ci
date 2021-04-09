@@ -110,8 +110,6 @@ RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
-# The latest buster images do not have libpython 2.7 installed and it is needed
-# To run virtualenv tests with python 2
 ARG RUNTIME_APT_DEPS="\
       gnupg \
       libgcc-8-dev \
@@ -123,7 +121,6 @@ ARG RUNTIME_APT_DEPS="\
       krb5-user \
       ldap-utils \
       less \
-      libpython2.7-stdlib \
       lsb-release \
       net-tools \
       openssh-client \

@@ -187,7 +187,6 @@ class TestCore(unittest.TestCase):
             self.fail("BashOperator's subprocess still running after stopping on timeout!")
 
     def test_on_failure_callback(self):
-        # Annoying workaround for nonlocal not existing in python 2
         data = {'called': False}
 
         def check_failure(context, test_case=self):  # pylint: disable=unused-argument

@@ -318,12 +318,7 @@ class TestVariableModelView(TestBase):
             set_mock.side_effect = UnicodeEncodeError
             assert self.session.query(models.Variable).count() == 0
 
-            try:
-                # python 3+
-                bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
-            except TypeError:
-                # python 2.7
-                bytes_content = io.BytesIO(bytes(content))
+            bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
 
             resp = self.client.post(
                 '/variable/varimport', data={'file': (bytes_content, 'test.json')}, follow_redirects=True
@@ -336,12 +331,7 @@ class TestVariableModelView(TestBase):
         content = (
             '{"str_key": "str_value", "int_key": 60, "list_key": [1, 2], "dict_key": {"k_a": 2, "k_b": 3}}'
         )
-        try:
-            # python 3+
-            bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
-        except TypeError:
-            # python 2.7
-            bytes_content = io.BytesIO(bytes(content))
+        bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
 
         resp = self.client.post(
             '/variable/varimport', data={'file': (bytes_content, 'test.json')}, follow_redirects=True
