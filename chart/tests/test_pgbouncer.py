@@ -82,35 +82,26 @@ class PgbouncerTest(unittest.TestCase):
         docs = render_chart(
             "TEST-PGBOUNCER-CONFIG",
             values={
-                "pgbouncer": {
-                    "enabled": True
-                },
+                "pgbouncer": {"enabled": True},
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
         assert {
             "name": "pgbouncer-config",
-            "secret": {
-                "secretName": "TEST-PGBOUNCER-CONFIG-pgbouncer-config"
-            }
+            "secret": {"secretName": "TEST-PGBOUNCER-CONFIG-pgbouncer-config"},
         } == jmespath.search("spec.template.spec.volumes[0]", docs[0])
 
     def test_existing_secret(self):
         docs = render_chart(
             "TEST-PGBOUNCER-CONFIG",
             values={
-                "pgbouncer": {
-                    "enabled": True,
-                    "configSecretName": "pgbouncer-config-secret"
-                },
+                "pgbouncer": {"enabled": True, "configSecretName": "pgbouncer-config-secret"},
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
         assert {
             "name": "pgbouncer-config",
-            "secret": {
-                "secretName": "pgbouncer-config-secret"
-            }
+            "secret": {"secretName": "pgbouncer-config-secret"},
         } == jmespath.search("spec.template.spec.volumes[0]", docs[0])
