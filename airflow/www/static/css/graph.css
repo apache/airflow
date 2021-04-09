@@ -32,6 +32,19 @@ svg {
   stroke: #017cee !important;
 }
 
+.edgeLabel {
+  transition: opacity 0.2s ease-in-out;
+}
+
+.edgeLabel > .label {
+  font-weight: normal;
+  font-size: 10px;
+}
+
+.edgeLabel text {
+  transform: translate(16px, 0);
+}
+
 .edgeLabel rect {
   fill: #fff;
 }
@@ -44,7 +57,8 @@ svg {
 }
 
 .edgePath[data-highlight="fade"],
-.edgePaths[data-highlight="fade"] > .edgePath {
+.edgePaths[data-highlight="fade"] > .edgePath,
+.edgeLabel[data-highlight="fade"] {
   opacity: 0.2 !important;
 }
 

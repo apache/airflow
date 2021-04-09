@@ -223,15 +223,18 @@
             var val = g.nodeEdges(d).includes(x.__data__) ? 'highlight' : 'fade';
             d3.select(x).attr('data-highlight', val);
           });
+          d3.selectAll('g.edgeLabel')[0].forEach(function (x) {
+            if (!g.nodeEdges(d).includes(x.__data__)) {
+              d3.select(x).attr('data-highlight', 'fade');
+            }
+          });
         });
 
         d3.selectAll('g.node').on('mouseout', function (d) {
           d3.select(this).selectAll('rect, circle').attr('data-highlight', null);
           unHighlightNodes(g.predecessors(d))
           unHighlightNodes(g.successors(d))
-          d3.selectAll('g.node')
-            .attr('data-highlight', null);
-          d3.selectAll('g.edgePath')
+          d3.selectAll('g.node, g.edgePath, g.edgeLabel')
             .attr('data-highlight', null);
           localStorage.removeItem(focused_group_key(dag_id));
         });
@@ -310,6 +313,8 @@
           setFocusMap(state);
         } else {
           setFocusMap();
+          d3.selectAll('.js-state-legend-item')
+            .style('background-color', null);
         }
       });
 
@@ -343,10 +348,10 @@
 
           d3.selectAll('g.nodes g.node').filter(function(d, i){
             if (s == '') {
-              d3.select('g.edgePaths').attr('data-highlight', null);
+              d3.selectAll('g.edgePaths, g.edgeLabel').attr('data-highlight', null);
               d3.select(this).attr('data-highlight', null);
             } else {
-              d3.select('g.edgePaths').attr('data-highlight', 'fade');
+              d3.selectAll('g.edgePaths, g.edgeLabel').attr('data-highlight', 'fade');
               if (node_matches(d, s)) {
                 if (!match) match = this;
                 d3.select(this).attr('data-highlight', null);
@@ -376,24 +381,18 @@
       });
 
       function clearFocus() {
-        d3.selectAll('g.node')
+        d3.selectAll('g.node, g.edgePaths, g.edgeLabel')
           .attr('data-highlight', null);
-        d3.select('g.edgePaths')
-          .attr('data-highlight', null);
-        d3.selectAll('.js-state-legend-item')
-          .style('background-color', null);
         localStorage.removeItem(focused_group_key(dag_id));
       }
 
       function focusState(state, node, color) {
-        d3.selectAll('g.node')
+        d3.selectAll('g.node, g.edgePaths, g.edgeLabel')
           .attr('data-highlight', 'fade');
         d3.selectAll(`g.node.${state}`)
           .attr('data-highlight', null);
         d3.selectAll(`g.node.${state} rect`)
           .attr('data-highlight', null);
-        d3.select('g.edgePaths')
-          .attr('data-highlight', 'fade');
         d3.select(node)
           .style('background-color', color);
       }
