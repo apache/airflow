@@ -816,6 +816,13 @@ dags:
     existingClaim:
   gitSync:
     enabled: false
+
+    # Change it to true when DAG Serialization is turned on. This will exclude git sync containers
+    # from Webserver as DAGs are fetched from the DB. DAG Serialization was introduced in
+    # 1.10.7 and is optional for <2.0.0.
+    # https://airflow.apache.org/docs/apache-airflow/1.10.15/dag-serialization.html
+    excludeWebserver: false
+
     # git repo clone url
     # ssh examples ssh://git@github.com/apache/airflow.git
     # git@github.com:apache/airflow.git
