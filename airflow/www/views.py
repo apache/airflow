@@ -3864,8 +3864,6 @@ class DagDependenciesView(AirflowBaseView):
         fallback=conf.getint("scheduler", "dag_dir_list_interval"),
     )
     last_refresh = datetime.utcnow() - timedelta(seconds=refresh_interval)
-    trigger_task_types = conf.getlist("core", "dag_dependencies_trigger")
-    sensor_task_types = conf.getlist("core", "dag_dependencies_sensor")
     nodes = []
     edges = []
 
@@ -3900,35 +3898,24 @@ class DagDependenciesView(AirflowBaseView):
 
         current_app.dag_bag.collect_dags_from_db()
 
-        nodes = {}
+        nodes = []
         edges = []
 
         for dag_id, dag in current_app.dag_bag.dags.items():
-            dag_node_id = f"d:{dag_id}"
-            nodes[dag_node_id] = self._node_dict(dag_node_id, dag_id, "dag")
+            dag_node_id = f"dag:{dag_id}"
+            nodes.append(self._node_dict(dag_node_id, dag_id, "dag"))
 
-            for task in dag.tasks:
-                task_node_id = f"t:{dag_id}:{task.task_id}"
-                if task.task_type in self.trigger_task_types:
-                    nodes[task_node_id] = self._node_dict(task_node_id, task.task_id, "trigger")
+            for dep in dag.dependencies:
+                task_node_id = ":".join([dep['type'], dep["from"], dep["to"], dep["id"]])
+                nodes.append(self._node_dict(task_node_id, dep["id"], dep["type"]))
+                edges.extend(
+                    [
+                        {"u": f"dag:{dep['from']}", "v": task_node_id},
+                        {"u": task_node_id, "v": f"dag:{dep['to']}"},
+                    ]
+                )
 
-                    edges.extend(
-                        [
-                            {"u": dag_node_id, "v": task_node_id},
-                            {"u": task_node_id, "v": f"d:{task.trigger_dag_id}"},
-                        ]
-                    )
-                elif task.task_type in self.sensor_task_types:
-                    nodes[task_node_id] = self._node_dict(task_node_id, task.task_id, "sensor")
-
-                    edges.extend(
-                        [
-                            {"u": task_node_id, "v": dag_node_id},
-                            {"u": f"d:{task.external_dag_id}", "v": task_node_id},
-                        ]
-                    )
-
-        self.nodes = list(nodes.values())
+        self.nodes = nodes
         self.edges = edges
 
     @staticmethod
