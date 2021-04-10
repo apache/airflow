@@ -18,11 +18,34 @@
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
 
 class WorkerTest(unittest.TestCase):
+    @parameterized.expand(
+        [
+            ("CeleryExecutor", False, "Deployment"),
+            ("CeleryExecutor", True, "StatefulSet"),
+            ("CeleryKubernetesExecutor", False, "Deployment"),
+            ("CeleryKubernetesExecutor", True, "StatefulSet"),
+        ]
+    )
+    def test_worker_kind(self, executor, persistence, kind):
+        """
+        Test worker kind is StatefulSet when worker persistence is enabled.
+        """
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {"persistence": {"enabled": persistence}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert kind == jmespath.search("kind", docs[0])
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
