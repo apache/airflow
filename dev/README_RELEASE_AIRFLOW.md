@@ -502,13 +502,13 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-./breeze start-airflow --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
+./breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
 ```
 
 For 1.10 releases you can also use `--no-rbac-ui` flag disable RBAC UI of Airflow:
 
 ```shell script
-./breeze start-airflow --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres --no-rbac-ui
+./breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres --no-rbac-ui
 ```
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check

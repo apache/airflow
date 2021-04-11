@@ -573,8 +573,8 @@ Here is a typical scenario.
 First copy all the provider packages .whl files to the `dist` folder.
 
 ```shell script
-./breeze start-airflow --install-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --install-packages-from-dist
+./breeze start-airflow --use-airflow-version <VERSION>rc<X> \
+    --python 3.7 --backend postgres --use-packages-from-dist
 ```
 
 ### Building your own docker image
