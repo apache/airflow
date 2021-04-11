@@ -18,7 +18,6 @@
 
 import unittest
 from datetime import datetime
-from unittest import mock
 
 import pytest
 
