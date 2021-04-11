@@ -42,6 +42,7 @@ def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> 
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
+            # This line below lets DefaultSessionInterface to know that login is from the REST API
             g.login_from_api = True
             check_authentication()
             if appbuilder.sm.check_authorization(permissions, kwargs.get('dag_id')):
