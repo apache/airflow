@@ -60,7 +60,7 @@ from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
-from sqlalchemy import and_, desc, func, or_, union_all
+from sqlalchemy import and_, desc, func, or_, union_all, extract
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
@@ -2055,6 +2055,66 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             num_runs=num_runs,
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
+        )
+
+    @expose('/calendar')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+        ]
+    )
+    @gzipped  # pylint: disable=too-many-locals
+    @action_logging  # pylint: disable=too-many-locals
+    def calendar(self):
+        dag_id = request.args.get('dag_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
+            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
+            return redirect(url_for('Airflow.index'))
+
+        with create_session() as session:
+            dag_states = (
+                session
+                .query(
+                    DagRun.execution_date,
+                    DagRun.state,
+                    func.count('*').label('count'),
+                )
+                .filter(DagRun.dag_id == dag.dag_id)
+                .group_by(func.date(DagRun.execution_date), DagRun.state)
+                .order_by(DagRun.execution_date.asc())
+                .all()
+            )
+
+        dag_states = [
+            {
+                'execution_date': dr.execution_date.date().isoformat(),
+                'state': dr.state,
+                'count': dr.count,
+            }
+            for dr in dag_states
+        ]
+
+        data = {
+            'name': '[DAG]',
+            'dag_id': dag_id,
+            'start_date': dag.start_date.isoformat() if dag.start_date else None,
+            'end_date': dag.end_date.isoformat() if dag.end_date else None,
+            'dag_states': dag_states,
+        }
+
+        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
+
+        # avoid spaces to reduce payload size
+        data = htmlsafe_json_dumps(data, separators=(',', ':'))
+
+        return self.render_template(
+            'airflow/calendar.html',
+            dag=dag,
+            doc_md=doc_md,
+            data=data,
         )
 
     @expose('/graph')

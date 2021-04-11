@@ -54,6 +54,7 @@ const config = {
     taskInstance: `${JS_DIR}/task_instance.js`,
     tiLog: `${JS_DIR}/ti_log.js`,
     tree: [`${CSS_DIR}/tree.css`, `${JS_DIR}/tree.js`],
+    calendar: [`${JS_DIR}/calendar.js`],
     circles: `${JS_DIR}/circles.js`,
     durationChart: `${JS_DIR}/duration_chart.js`,
     trigger: `${JS_DIR}/trigger.js`,
