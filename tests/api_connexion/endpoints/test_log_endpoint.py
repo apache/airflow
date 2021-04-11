@@ -113,6 +113,7 @@ class TestGetLog:
         dagbag = self.app.dag_bag  # pylint: disable=no-member
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
         dag.sync_to_db()
+        dagbag.dags.pop(self.DAG_ID, None)
         dagbag.bag_dag(dag=dag, root_dag=dag)
         with create_session() as session:
             self.ti = TaskInstance(
@@ -174,6 +175,7 @@ class TestGetLog:
         # Recreate DAG without tasks
         dagbag = self.app.dag_bag  # pylint: disable=no-member
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
+        del dagbag.dags[self.DAG_ID]
         dagbag.bag_dag(dag=dag, root_dag=dag)
 
         key = self.app.config["SECRET_KEY"]

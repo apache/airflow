@@ -1524,6 +1524,8 @@ class TestLogView(TestBase):
             self.login()
 
             dagbag = self.app.dag_bag
+            dagbag.dags.pop(self.DAG_ID, None)
+            dagbag.dags.pop(self.DAG_ID_REMOVED, None)
             dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
             dag_removed = DAG(self.DAG_ID_REMOVED, start_date=self.DEFAULT_DATE)
             dagbag.bag_dag(dag=dag, root_dag=dag)
@@ -1798,6 +1800,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
 
     def setup(self):
         dagbag = self.test.app.dag_bag
+        dagbag.dags.pop(self.DAG_ID, None)
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dagbag.bag_dag(dag=dag, root_dag=dag)
         for run_data in self.RUNS_DATA:
