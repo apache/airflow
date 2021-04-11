@@ -155,4 +155,3 @@ class TestHelpers(unittest.TestCase):
 
         with cached_app(testing=True).test_request_context():
             assert build_airflow_url_with_query(query) == expected_url
-
