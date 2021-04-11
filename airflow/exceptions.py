@@ -19,13 +19,10 @@
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 """Exceptions used by Airflow"""
-from typing import TYPE_CHECKING, List, NamedTuple, Optional
+from typing import List, NamedTuple, Optional
 
 from airflow.utils.code_utils import prepare_code_snippet
 from airflow.utils.platform import is_tty
-
-if TYPE_CHECKING:
-    from airflow.models.dag import DAG
 
 
 class AirflowException(Exception):
@@ -104,12 +101,14 @@ class AirflowDagCycleException(AirflowException):
 class AirflowDagDuplicatedIdException(AirflowException):
     """Raise when a Dag's ID is already used by another Dag"""
 
-    def __init__(self, existing: "DAG") -> None:
-        super().__init__(existing)
+    def __init__(self, dag_id: str, incoming: str, existing: str) -> None:
+        super().__init__(dag_id, incoming, existing)
+        self.dag_id = dag_id
+        self.incoming = incoming
         self.existing = existing
 
     def __str__(self) -> str:
-        return f"Ignoring DAG; name {self.existing.dag_id} already found in {self.existing.full_filepath}"
+        return f"Ignoring DAG {self.dag_id} from {self.incoming} - also found in {self.existing}"
 
 
 class AirflowClusterPolicyViolation(AirflowException):
