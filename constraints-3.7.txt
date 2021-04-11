@@ -262,7 +262,7 @@ gunicorn==19.10.0
 hdfs==2.6.0
 hmsclient==0.1.1
 httplib2==0.17.4
-humanize==3.3.0
+humanize==3.4.0
 hvac==0.10.9
 identify==2.2.1
 idna==2.10

@@ -68,7 +68,7 @@ google-auth==1.28.1
 graphviz==0.16
 greenlet==1.0.0
 gunicorn==19.10.0
-humanize==3.3.0
+humanize==3.4.0
 idna==2.10
 immutables==0.15
 importlib-metadata==1.7.0
