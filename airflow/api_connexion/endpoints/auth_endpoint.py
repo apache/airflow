@@ -136,7 +136,6 @@ def authorize_oauth(provider, state):
         raise Unauthenticated(detail="State signature is not valid!")
     # Retrieves specific user info from the provider
     try:
-        appbuilder.sm.set_oauth_session(provider, resp)
         userinfo = appbuilder.sm.oauth_user_info(provider, resp)
     except Exception as e:  # pylint: disable=broad-except
         log.error("Error returning OAuth user info: %s", e)

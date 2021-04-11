@@ -285,7 +285,7 @@ class TestAuthorizeOauth(TestLoginEndpoint):
         mock_authorized = mock.MagicMock()
         mock_twitter_auth_provider.authorize_access_token.return_value = mock_authorized
         self.client.get('api/v1/oauth-authorized/twitter?state=state')
-        mock_oauth_session.assert_called_once_with('twitter', mock_authorized)
+        mock_oauth_session.assert_not_called()
         mock_user_info.assert_called_once_with('twitter', mock_authorized)
         mock_user_oauth.assert_called_once_with(mock_user_info.return_value)
 
