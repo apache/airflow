@@ -253,6 +253,7 @@ nbformat==5.1.2
 neo4j==4.2.1
 nest-asyncio==1.5.1
 nodeenv==1.5.0
+nteract-scrapbook==0.4.2
 ntlm-auth==1.5.0
 numpy==1.19.5
 oauthlib==2.1.0
