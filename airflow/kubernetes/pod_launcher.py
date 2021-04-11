@@ -17,7 +17,7 @@
 # under the License.
 """
 This module is deprecated.
-Please use :mod:`kubernetes.client.models for V1ResourceRequirements and Port.
+Please use :mod:`kubernetes.client.models` for V1ResourceRequirements and Port.
 """
 # flake8: noqa
 # pylint: disable=unused-import

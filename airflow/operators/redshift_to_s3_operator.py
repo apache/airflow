@@ -34,7 +34,7 @@ warnings.warn(
 class RedshiftToS3Transfer(RedshiftToS3Operator):
     """
     This class is deprecated.
-    Please use: :mod:`airflow.providers.amazon.aws.transfers.redshift_to_s3.RedshiftToS3Operator`.
+    Please use: :class:`airflow.providers.amazon.aws.transfers.redshift_to_s3.RedshiftToS3Operator`.
     """
 
     def __init__(self, **kwargs):
