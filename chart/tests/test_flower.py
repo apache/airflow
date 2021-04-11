@@ -17,8 +17,7 @@
 
 import jmespath
 import pytest
-
-from tests.helm_template_generator import render_chart
+from helm_template_generator import render_chart
 
 
 class TestFlower:

@@ -18,9 +18,8 @@
 import unittest
 
 import jmespath
+from helm_template_generator import render_chart
 from parameterized import parameterized
-
-from tests.helm_template_generator import render_chart
 
 
 class PodLauncherTest(unittest.TestCase):

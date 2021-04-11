@@ -15,9 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import jmespath
+from helm_template_generator import render_chart
 from parameterized import parameterized
-
-from tests.helm_template_generator import render_chart
 
 
 class TestKeda:

@@ -19,8 +19,7 @@ import re
 import unittest
 
 import jmespath
-
-from tests.helm_template_generator import render_chart
+from helm_template_generator import render_chart
 
 
 class MigrateDatabaseJobTest(unittest.TestCase):

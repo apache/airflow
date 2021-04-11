@@ -22,9 +22,8 @@ from typing import Optional
 
 import jmespath
 import pytest
+from helm_template_generator import prepare_k8s_lookup_dict, render_chart
 from parameterized import parameterized
-
-from tests.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
 RELEASE_NAME_REDIS = "TEST-REDIS"
 

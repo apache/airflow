@@ -19,9 +19,8 @@ from subprocess import CalledProcessError
 from typing import Any, Dict, List, Union
 
 import jmespath
+from helm_template_generator import render_chart
 from parameterized import parameterized
-
-from tests.helm_template_generator import render_chart
 
 OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 22
 

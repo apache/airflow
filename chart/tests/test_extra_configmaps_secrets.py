@@ -20,8 +20,7 @@ import unittest
 from base64 import b64encode
 
 import yaml
-
-from tests.helm_template_generator import prepare_k8s_lookup_dict, render_chart
+from helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
 RELEASE_NAME = "TEST-EXTRA-CONFIGMAPS-SECRETS"
 

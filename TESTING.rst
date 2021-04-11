@@ -216,7 +216,7 @@ Example test here:
 
 .. code-block:: python
 
-    from .helm_template_generator import render_chart, render_k8s_object
+    from helm_template_generator import render_chart, render_k8s_object
 
     git_sync_basic = """
     dags:
