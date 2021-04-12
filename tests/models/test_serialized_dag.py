@@ -19,6 +19,7 @@
 """Unit tests for SerializedDagModel."""
 
 import unittest
+from unittest import mock
 
 from airflow import DAG, example_dags as example_dags_module
 from airflow.models import DagBag
@@ -60,7 +61,8 @@ class SerializedDagModelTest(unittest.TestCase):
             SDM.write_dag(dag)
         return example_dags
 
-    def test_write_dag(self):
+    @mock.patch('airflow.models.serialized_dag.security_manager')
+    def test_write_dag(self, mock_security_manager):
         """DAGs can be written into database."""
         example_dags = self._write_example_dags()
 
@@ -73,12 +75,16 @@ class SerializedDagModelTest(unittest.TestCase):
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
 
-    def test_serialized_dag_is_updated_only_if_dag_is_changed(self):
+                mock_security_manager.sync_perm_for_dag.assert_any_call(dag.dag_id, dag.access_control)
+
+    @mock.patch('airflow.models.serialized_dag.security_manager')
+    def test_serialized_dag_is_updated_only_if_dag_is_changed(self, mock_security_manager):
         """Test Serialized DAG is updated if DAG is changed"""
 
         example_dags = make_example_dags(example_dags_module)
         example_bash_op_dag = example_dags.get("example_bash_operator")
         SDM.write_dag(dag=example_bash_op_dag)
+        mock_security_manager.reset_mock()
 
         with create_session() as session:
             s_dag = session.query(SDM).get(example_bash_op_dag.dag_id)
@@ -90,8 +96,10 @@ class SerializedDagModelTest(unittest.TestCase):
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
             assert s_dag.last_updated == s_dag_1.last_updated
+            mock_security_manager.sync_perm_for_dag.assert_not_called()
 
             # Update DAG
+            mock_security_manager.reset_mock()
             example_bash_op_dag.tags += ["new_tag"]
             assert set(example_bash_op_dag.tags) == {"example", "example2", "new_tag"}
 
@@ -101,6 +109,9 @@ class SerializedDagModelTest(unittest.TestCase):
             assert s_dag.last_updated != s_dag_2.last_updated
             assert s_dag.dag_hash != s_dag_2.dag_hash
             assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
+            mock_security_manager.sync_perm_for_dag.assert_any_call(
+                example_bash_op_dag.dag_id, example_bash_op_dag.access_control
+            )
 
     def test_read_dags(self):
         """DAGs can be read from database."""
@@ -144,5 +155,5 @@ class SerializedDagModelTest(unittest.TestCase):
             DAG("dag_2"),
             DAG("dag_3"),
         ]
-        with assert_queries_count(10):
+        with assert_queries_count(48):
             SDM.bulk_sync_to_db(dags)

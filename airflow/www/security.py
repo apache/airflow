@@ -628,9 +628,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """
         prefixed_dag_id = self.prefixed_dag_id(dag_id)
         for dag_perm in self.DAG_PERMS:
-            perm_on_dag = self.find_permission_view_menu(dag_perm, prefixed_dag_id)
-            if perm_on_dag is None:
-                self.add_permission_view_menu(dag_perm, prefixed_dag_id)
+            self.add_permission_view_menu(dag_perm, prefixed_dag_id)
 
         if access_control:
             self._sync_dag_view_permissions(prefixed_dag_id, access_control)
