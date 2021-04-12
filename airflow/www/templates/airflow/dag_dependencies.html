@@ -61,50 +61,15 @@ under the License.
 {% endblock %}
 
 {% block tail %}
-{{ super() }}
-
-<script src="{{ url_for_asset('d3.min.js') }}"></script>
-<script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
-<script src="{{ url_for_asset('d3-tip.js') }}"></script>
-<script src="{{ url_for_asset('graph.js') }}"></script>
-<script>
-
-  let nodes = {{ nodes|tojson }};
-  let edges = {{ edges|tojson }};
-  const arrange = "{{ arrange }}";
-
-  // Preparation of DagreD3 data structures
-  let g = new dagreD3.graphlib.Graph().setGraph({
-    nodesep: 15,
-    ranksep: 15,
-    rankdir: arrange,
-  })
-    .setDefaultEdgeLabel(function() { return { lineInterpolate: 'basis' } });
-
-  // Set all nodes and styles
-  nodes.forEach(function(node) {
-    g.setNode(node.id, node.value)
-  });
-
-  // Set edges
-  edges.forEach(function(edge) {
-    g.setEdge(edge.u, edge.v)
-  });
-
-  let render = dagreD3.render(),
-    svg = d3.select("#graph-svg"),
-    innerSvg = d3.select("#graph-svg g");
-
-  innerSvg.call(render, g);
-
-  Airflow.graph.setUpNodeHighlighting(g);
-  Airflow.graph.setUpZoomSupport(g);
-
-  d3.select("#searchbox").on("keyup", function(){
-    let s = document.getElementById("searchbox").value;
-    Airflow.graph.searchboxHighlighting(s);
-  });
-
-</script>
-
+  {{ super() }}
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3-shape.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3-tip.js') }}"></script>
+  <script>
+    let nodes = {{ nodes|tojson }};
+    let edges = {{ edges|tojson }};
+    const arrange = '{{ arrange }}';
+  </script>
+  <script src="{{ url_for_asset('dagDependencies.js') }}"></script>
 {% endblock %}

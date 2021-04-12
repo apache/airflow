@@ -40,6 +40,7 @@ const config = {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
     dagCode: `${JS_DIR}/dag_code.js`,
+    dagDependencies: `${JS_DIR}/dag_dependencies.js`,
     dags: [`${CSS_DIR}/dags.css`, `${JS_DIR}/dags.js`],
     flash: `${CSS_DIR}/flash.css`,
     gantt: [`${CSS_DIR}/gantt.css`, `${JS_DIR}/gantt.js`],
@@ -162,6 +163,10 @@ const config = {
         },
         {
           from: 'node_modules/dagre-d3/dist/*.min.*',
+          flatten: true,
+        },
+        {
+          from: 'node_modules/d3-shape/dist/*.min.*',
           flatten: true,
         },
         {
