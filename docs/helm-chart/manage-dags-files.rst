@@ -114,8 +114,8 @@ This is also recommended when enabling DAG Serialization for ``apache-airflow>=1
 Mounting DAGs using Git-Sync sidecar without Persistence
 --------------------------------------------------------
 
-This option will use an always running Git-Sync side car on every scheduler, webserver and worker pods.
-The Git-Sync side car containers will sync DAGs from a git repository every configured number of
+This option will use an always running Git-Sync sidecar on every scheduler, webserver and worker pods.
+The Git-Sync sidecar containers will sync DAGs from a git repository every configured number of
 seconds. If you are using the ``KubernetesExecutor``, Git-sync will run as an init container on your worker pods.
 
 .. code-block:: bash
