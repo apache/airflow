@@ -43,8 +43,6 @@ The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.Kubernet
 Kubernetes API to launch a pod in a Kubernetes cluster. By supplying an
 image URL and a command with optional arguments, the operator uses the Kube Python Client to generate a Kubernetes API
 request that dynamically launches those individual pods.
-Under the hood, :class:`~airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook` creates the connection to
-the Kubernetes API server.
 Essentially, KubernetesPodOperator packages all the supplied parameters into a request object which is then shipped off
 to Kubernetes API Server so that the pod to execute your task is created. Whenever a task is triggered, a new worker pod
 is spun up to execute that task. And once the task is completed, by default the worker pod is deleted
