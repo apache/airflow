@@ -57,10 +57,8 @@ function daysInMonth(y, m) {
 }
 
 // The state of the days will picked according to the states of the dag runs for that day
-// using the following states priority
-const priority = ["failed", "upstream_failed", "up_for_retry","up_for_reschedule",
-                  "queued", "scheduled", "sensing", "running", "shutdown", "removed",
-                  "no_status", "success", "skipped"]
+// using the following states priority:
+const priority = ["failed", "running", "success"]
 
 function stateClass(dagStates) {
   for (const state of priority) {
