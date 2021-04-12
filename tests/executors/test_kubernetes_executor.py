@@ -46,40 +46,6 @@ try:
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
-WATCHER_STREAM_CONTAINER_STATUSES = [
-    {
-        "container_id": "None",
-        "image": "apache/airflow:2.0.1-python3.8",
-        "image_id": "",
-        "last_state": {"running": "None", "terminated": "None", "waiting": "None"},
-        "name": "base",
-        "ready": "false",
-        "restart_count": 0,
-        "state": {
-            "running": "None",
-            "terminated": {"message": "Terminating", "reason": "Terminating"},
-            "waiting": "None",
-        },
-    }
-]
-
-WATCHER_STREAM_INIT_CONTAINER_STATUSES = [
-    {
-        "container_id": "None",
-        "image": "apache/airflow:2.0.1-python3.8",
-        "image_id": "",
-        "last_state": {"running": "None", "terminated": "None", "waiting": "None"},
-        "name": "base",
-        "ready": "false",
-        "restart_count": 0,
-        "state": {
-            "running": "None",
-            "terminated": {"message": "Terminating", "reason": "Terminating"},
-            "waiting": "None",
-        },
-    }
-]
-
 
 # pylint: disable=unused-argument
 class TestAirflowKubernetesScheduler(unittest.TestCase):
