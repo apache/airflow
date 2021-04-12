@@ -132,7 +132,6 @@ class SchedulerTest(unittest.TestCase):
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(
             values={
-                "executor": "CeleryExecutor",
                 "scheduler": {
                     "livenessProbe": {
                         "initialDelaySeconds": 111,
