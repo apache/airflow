@@ -68,7 +68,7 @@ class DefaultSessionInterface(SecureCookieSessionInterface):
 
     def save_session(self, *args, **kwargs):
         """Prevent creating session from REST API requests."""
-        if "/api/" in request.url:
+        if request.blueprint == '/api/v1':
             return None
         return super().save_session(*args, **kwargs)
 
