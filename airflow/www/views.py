@@ -2078,7 +2078,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag_states = (
                 session
                 .query(
-                    DagRun.execution_date,
+                    func.date(DagRun.execution_date).label('date'),
                     DagRun.state,
                     func.count('*').label('count'),
                 )
@@ -2090,7 +2090,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         dag_states = [
             {
-                'execution_date': dr.execution_date.date().isoformat(),
+                'date': dr.date,
                 'state': dr.state,
                 'count': dr.count,
             }
@@ -2098,10 +2098,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         ]
 
         data = {
-            'name': '[DAG]',
-            'dag_id': dag_id,
-            'start_date': dag.start_date.isoformat() if dag.start_date else None,
-            'end_date': dag.end_date.isoformat() if dag.end_date else None,
             'dag_states': dag_states,
         }
 
