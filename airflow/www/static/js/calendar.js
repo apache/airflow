@@ -96,9 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // group dag run stats by year -> month -> day -> state
     let dagStates = d3
       .nest()
-      .key(dr => new Date(dr.execution_date).getUTCFullYear())
-      .key(dr => new Date(dr.execution_date).getMonth())
-      .key(dr => new Date(dr.execution_date).getDate())
+      .key(dr => new Date(dr.date).getUTCFullYear())
+      .key(dr => new Date(dr.date).getMonth())
+      .key(dr => new Date(dr.date).getDate())
       .key(dr => dr.state)
       .map(data.dag_states);
 
