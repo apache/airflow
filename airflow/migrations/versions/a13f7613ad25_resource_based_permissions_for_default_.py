@@ -19,7 +19,7 @@
 """Resource based permissions for default FAB views.
 
 Revision ID: a13f7613ad25
-Revises: 2e42bb497a22
+Revises: e165e7455d70
 Create Date: 2021-03-20 21:23:05.793378
 
 """
@@ -30,7 +30,7 @@ from airflow.www.app import create_app
 
 # revision identifiers, used by Alembic.
 revision = 'a13f7613ad25'
-down_revision = '2e42bb497a22'
+down_revision = 'e165e7455d70'
 branch_labels = None
 depends_on = None
 

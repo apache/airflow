@@ -143,7 +143,7 @@ class TestBase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         clear_db_runs()
-        fab_utils.delete_roles(cls.app)
+        api_connexion_utils.delete_roles(cls.app)
 
     def setUp(self):
         self.client = self.app.test_client()
