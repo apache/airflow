@@ -280,11 +280,11 @@ class TestSecurity(unittest.TestCase):
 
     def test_get_user_roles_for_anonymous_user(self):
         viewer_role_perms = {
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
