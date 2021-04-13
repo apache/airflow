@@ -507,7 +507,7 @@ class TestKubernetesJobWatcher(unittest.TestCase):
         self._run()
         self.watcher.watcher_queue.put.assert_not_called()
 
-    def test_container_status_of_terminating_with_exit_code_1_fails_pod(self):
+    def test_container_status_of_waiting_with_errimagepull_fails_pod(self):
         self.pod.status.phase = "Pending"
         self.pod.status.container_statuses = [
             k8s.V1ContainerStatus(
@@ -517,73 +517,14 @@ class TestKubernetesJobWatcher(unittest.TestCase):
                 name="base",
                 ready="false",
                 restart_count=0,
-                state=k8s.V1ContainerState(
-                    terminated=k8s.V1ContainerStateTerminated(
-                        reason="Terminating", exit_code=1
-                    )  # Terminating
-                ),
+                state=k8s.V1ContainerState(waiting=k8s.V1ContainerStateWaiting(reason='ErrImagePull')),
             )
         ]
         self.events.append({"type": 'MODIFIED', "object": self.pod})
         self._run()
         self.watcher.watcher_queue.put.assert_called()
 
-    def test_container_status_of_terminating_with_exit_code_0_fails_pod(self):
-        self.pod.status.phase = "Pending"
-        self.pod.status.container_statuses = [
-            k8s.V1ContainerStatus(
-                container_id=None,
-                image="apache/airflow:2.0.1-python3.8",
-                image_id="",
-                name="base",
-                ready="false",
-                restart_count=0,
-                state=k8s.V1ContainerState(
-                    terminated=k8s.V1ContainerStateTerminated(
-                        reason="Terminating", exit_code=0
-                    )  # Terminating
-                ),
-            )
-        ]
-        self.events.append({"type": 'MODIFIED', "object": self.pod})
-        self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
-
-    def test_container_status_of_waiting_do_not_fail_pod(self):
-        self.pod.status.phase = "Pending"
-        self.pod.status.container_statuses = [
-            k8s.V1ContainerStatus(
-                container_id=None,
-                image="apache/airflow:2.0.1-python3.8",
-                image_id="",
-                name="base",
-                ready="false",
-                restart_count=0,
-                state=k8s.V1ContainerState(waiting=k8s.V1ContainerStateWaiting()),
-            )
-        ]
-        self.events.append({"type": 'MODIFIED', "object": self.pod})
-        self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
-
-    def test_container_status_of_running_do_not_fail_pod(self):
-        self.pod.status.phase = "Pending"
-        self.pod.status.container_statuses = [
-            k8s.V1ContainerStatus(
-                container_id=None,
-                image="apache/airflow:2.0.1-python3.8",
-                image_id="",
-                name="base",
-                ready="false",
-                restart_count=0,
-                state=k8s.V1ContainerState(running=k8s.V1ContainerStateRunning(started_at=datetime.now())),
-            )
-        ]
-        self.events.append({"type": 'MODIFIED', "object": self.pod})
-        self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
-
-    def test_init_container_status_of_terminating_with_exit_code_1_fails_pod(self):
+    def test_init_container_status_of_waiting_with_errimagepull_fails_pod(self):
         self.pod.status.phase = "Pending"
         self.pod.status.init_container_statuses = [
             k8s.V1ContainerStatus(
@@ -593,68 +534,9 @@ class TestKubernetesJobWatcher(unittest.TestCase):
                 name="base",
                 ready="false",
                 restart_count=0,
-                state=k8s.V1ContainerState(
-                    terminated=k8s.V1ContainerStateTerminated(
-                        reason="Terminating", exit_code=1
-                    )  # Terminating
-                ),
+                state=k8s.V1ContainerState(waiting=k8s.V1ContainerStateWaiting(reason='ErrImagePull')),
             )
         ]
         self.events.append({"type": 'MODIFIED', "object": self.pod})
         self._run()
         self.watcher.watcher_queue.put.assert_called()
-
-    def test_init_container_status_of_terminating_with_exit_code_0_fails_pod(self):
-        self.pod.status.phase = "Pending"
-        self.pod.status.init_container_statuses = [
-            k8s.V1ContainerStatus(
-                container_id=None,
-                image="apache/airflow:2.0.1-python3.8",
-                image_id="",
-                name="base",
-                ready="false",
-                restart_count=0,
-                state=k8s.V1ContainerState(
-                    terminated=k8s.V1ContainerStateTerminated(
-                        reason="Terminating", exit_code=0
-                    )  # Terminating
-                ),
-            )
-        ]
-        self.events.append({"type": 'MODIFIED', "object": self.pod})
-        self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
-
-    def test_init_container_status_of_waiting_do_not_fail_pod(self):
-        self.pod.status.phase = "Pending"
-        self.pod.status.init_container_statuses = [
-            k8s.V1ContainerStatus(
-                container_id=None,
-                image="apache/airflow:2.0.1-python3.8",
-                image_id="",
-                name="base",
-                ready="false",
-                restart_count=0,
-                state=k8s.V1ContainerState(waiting=k8s.V1ContainerStateWaiting()),
-            )
-        ]
-        self.events.append({"type": 'MODIFIED', "object": self.pod})
-        self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
-
-    def test_init_container_status_of_running_do_not_fail_pod(self):
-        self.pod.status.phase = "Pending"
-        self.pod.status.init_container_statuses = [
-            k8s.V1ContainerStatus(
-                container_id=None,
-                image="apache/airflow:2.0.1-python3.8",
-                image_id="",
-                name="base",
-                ready="false",
-                restart_count=0,
-                state=k8s.V1ContainerState(running=k8s.V1ContainerStateRunning(started_at=datetime.now())),
-            )
-        ]
-        self.events.append({"type": 'MODIFIED', "object": self.pod})
-        self._run()
-        self.watcher.watcher_queue.put.assert_not_called()

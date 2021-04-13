@@ -201,17 +201,11 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # Check container statuses
             container_statuses = status.container_statuses
             init_container_statuses = status.init_container_statuses
-            if container_statuses and self._container_terminated_with_exit_code_1(container_statuses):
-                self.log.info(
-                    'Event: Failed to start pod %s, a container exited with non-zero status code', pod_id
-                )
+            if container_statuses and self._container_image_pull_err(container_statuses):
+                self.log.info('Event: Failed to start pod %s, a container has an ErrImagePull', pod_id)
                 self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
-            elif init_container_statuses and self._container_terminated_with_exit_code_1(
-                init_container_statuses
-            ):
-                self.log.info(
-                    'Event: Failed to start pod %s, a container exited with non-zero status code', pod_id
-                )
+            elif init_container_statuses and self._container_image_pull_err(init_container_statuses):
+                self.log.info('Event: Failed to start pod %s, a container has an ErrImagePull', pod_id)
                 self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
             elif event['type'] == 'DELETED':
                 self.log.info('Event: Failed to start pod %s', pod_id)
@@ -237,15 +231,12 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 resource_version,
             )
 
-    def _container_terminated_with_exit_code_1(
+    def _container_image_pull_err(
         self,
         statuses: List[V1ContainerStatus],
     ):
         """Monitor pod container statuses"""
-        return any(
-            (container_status.state.terminated and container_status.state.terminated.exit_code != 0)
-            for container_status in statuses
-        )
+        return any(container_status.state.waiting.reason == 'ErrImagePull' for container_status in statuses)
 
 
 class AirflowKubernetesScheduler(LoggingMixin):
