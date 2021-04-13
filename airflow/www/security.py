@@ -20,8 +20,7 @@
 import warnings
 from typing import Dict, Optional, Sequence, Set, Tuple
 
-from flask import current_app, g, request
-from flask.sessions import SecureCookieSessionInterface
+from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
@@ -58,19 +57,6 @@ EXISTING_ROLES = {
     'Op',
     'Public',
 }
-
-
-class DefaultSessionInterface(SecureCookieSessionInterface):
-    """
-    Default cookie session interface.
-    This prevents creating flask sessions on REST API requests.
-    """
-
-    def save_session(self, *args, **kwargs):
-        """Prevent creating session from REST API requests."""
-        if request.blueprint == '/api/v1':
-            return None
-        return super().save_session(*args, **kwargs)
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=too-many-public-methods
@@ -208,11 +194,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             if not view or not getattr(view, 'datamodel', None):
                 continue
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
-        app = self.appbuilder.get_app
         self.perms = None
-        # Custom cookie session interface
-        # Override to implement your custom cookie session interface
-        app.session_interface = DefaultSessionInterface()
 
     def init_role(self, role_name, perms):
         """
