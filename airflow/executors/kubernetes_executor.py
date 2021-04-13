@@ -34,6 +34,8 @@ from dateutil import parser
 from kubernetes import client, watch
 from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.models import V1Pod
+from kubernetes.client.models.v1_container_status import V1ContainerStatus
+from kubernetes.client.models.v1_pod_status import V1PodStatus
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
@@ -144,7 +146,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 watcher.stream, kube_client.list_namespaced_pod, self.namespace, **kwargs
             )
         for event in list_worker_pods():
-            self.log.debug("Pod event: %s", event)
+            self.log.debug("%s", event)
             task = event['object']
             self.log.info('Event: %s had an event of type %s', task.metadata.name, event['type'])
             if event['type'] == 'ERROR':
@@ -188,7 +190,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self,
         pod_id: str,
         namespace: str,
-        status: Any,
+        status: V1PodStatus,
         annotations: Dict[str, str],
         resource_version: str,
         event: Any,
@@ -199,23 +201,19 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # Check container statuses
             container_statuses = status.container_statuses
             init_container_statuses = status.init_container_statuses
-            if container_statuses:
-                self.process_container_statuses(
-                    pod_id,
-                    statuses=container_statuses,
-                    namespace=namespace,
-                    annotations=annotations,
-                    resource_version=resource_version,
+            if container_statuses and self._container_terminated_with_exit_code_1(container_statuses):
+                self.log.info(
+                    'Event: Failed to start pod %s, a container exited with non-zero status code', pod_id
                 )
-            if init_container_statuses:
-                self.process_container_statuses(
-                    pod_id,
-                    statuses=init_container_statuses,
-                    namespace=namespace,
-                    annotations=annotations,
-                    resource_version=resource_version,
+                self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
+            elif init_container_statuses and self._container_terminated_with_exit_code_1(
+                init_container_statuses
+            ):
+                self.log.info(
+                    'Event: Failed to start pod %s, a container exited with non-zero status code', pod_id
                 )
-            if event['type'] == 'DELETED':
+                self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
+            elif event['type'] == 'DELETED':
                 self.log.info('Event: Failed to start pod %s', pod_id)
                 self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
             else:
@@ -239,33 +237,15 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 resource_version,
             )
 
-    def process_container_statuses(
+    def _container_terminated_with_exit_code_1(
         self,
-        pod_id: str,
-        statuses: List[Any],
-        namespace: str,
-        annotations: Dict[str, str],
-        resource_version: str,
+        statuses: List[V1ContainerStatus],
     ):
         """Monitor pod container statuses"""
-        for container_status in statuses:
-            terminated = container_status.state.terminated
-            waiting = container_status.state.waiting
-            if terminated:
-                self.log.debug(
-                    "A container in the pod %s has terminated, reason: %s, message: %s",
-                    pod_id,
-                    terminated.reason,
-                    terminated.message,
-                )
-                self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
-            if waiting:
-                self.log.debug(
-                    "A container in the pod %s is waiting, reason: %s, message: %s",
-                    pod_id,
-                    waiting.reason,
-                    waiting.message,
-                )
+        return any(
+            (container_status.state.terminated and container_status.state.terminated.exit_code != 0)
+            for container_status in statuses
+        )
 
 
 class AirflowKubernetesScheduler(LoggingMixin):
