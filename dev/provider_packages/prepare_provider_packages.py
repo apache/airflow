@@ -1815,8 +1815,11 @@ def get_current_tag(provider_package_id: str, suffix: str, git_update: bool, ver
 
 def cleanup_remnants(verbose: bool):
     if verbose:
-        print("Cleaning remnants (*.egginfo)")
+        print("Cleaning remnants")
     files = glob.glob("*.egg-info")
+    for file in files:
+        shutil.rmtree(file, ignore_errors=True)
+    files = glob.glob("build")
     for file in files:
         shutil.rmtree(file, ignore_errors=True)
 

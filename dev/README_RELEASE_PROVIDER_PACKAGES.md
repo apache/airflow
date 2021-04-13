@@ -158,6 +158,9 @@ svn update
 # Create a new folder for the release.
 cd providers
 
+# Remove previously released providers
+rm -rf *
+
 # Move the artifacts to svn folder
 mv ${AIRFLOW_REPO_ROOT}/dist/* .
 
@@ -652,13 +655,20 @@ We also need to archive older releases before copying the new ones
 [Release policy](http://www.apache.org/legal/release-policy.html#when-to-archive)
 
 ```shell script
+# Go to the directory where you have checked out the dev svn release
+# And go to the sub-folder with RC candidates
+cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
 export AIRFLOW_REPO_ROOT=$(pwd)
 
-# Go to the directory where you have checked out the dev svn release
-# And go to the sub-folder with RC candidates
 cd "<ROOT_OF_YOUR_DEV_REPO>/providers/"
 export SOURCE_DIR=$(pwd)
+
+# If some packages have been excluded, remove them now
+# Check the packages
+ls *<provider>*
+# Remove them
+svn rm *<provider>*
 
 # Go the folder where you have checked out the release repo
 # Clone it if it's not done yet
@@ -672,19 +682,15 @@ svn update
 mkdir -pv providers
 cd providers
 
-# Move the artifacts to svn folder & remove the rc postfix
+# Copy your providers with the target name to dist directory and to SVN
+rm ${AIRFLOW_REPO_ROOT}/dist/*
+
 for file in ${SOURCE_DIR}/*
 do
  base_file=$(basename ${file})
- svn mv "${file}" "${base_file//rc[0-9][\.-]/.}"
+ cp -v "${file}" "${AIRFLOW_REPO_ROOT}/dist/${base_file//rc[0-9]/}"
+ svn mv "${file}" "${base_file//rc[0-9]/}"
 done
-
-
-# If some packages have been excluded, remove them now
-# Check the packages
-ls *<provider>*
-# Remove them
-svn rm *<provider>*
 
 # Check which old packages will be removed (you need python 3.6+)
 python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
@@ -705,37 +711,23 @@ Verify that the packages appear in
 
 ## Publish the Regular convenience package to PyPI
 
-* Checkout the RC Version for the RC Version released (there is a batch of providers - one of them is enough):
-
-    ```shell script
-    git checkout providers-<PROVIDER_NAME>/<VERSION_RC>
-    ```
-
-* Generate the packages with final version. Note that
-  this will clean up dist folder before generating the packages, so you will only have the right packages there.
+By that time the packages with proper name (renamed from rc* to final version should be in your dist
+folder.
 
 ```shell script
-rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
-./breeze prepare-provider-packages --package-format both
-```
-
-if you ony build few packages, run:
-
-```shell script
-rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
-./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+cd ${AIRFLOW_REPO_ROOT}
 ```
 
 * Verify the artifacts that would be uploaded:
 
 ```shell script
-twine check ${AIRFLOW_REPO_ROOT}/dist/*
+twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
 * Upload the package to PyPi's test environment:
 
 ```shell script
-twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*
+twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
 * Verify that the test packages look good by downloading it and installing them into a virtual environment.
@@ -744,7 +736,7 @@ twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*
 * Upload the package to PyPi's production environment:
 
 ```shell script
-twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
+twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
 * Again, confirm that the packages are available under the links printed.
