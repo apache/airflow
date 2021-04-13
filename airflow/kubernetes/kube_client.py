@@ -80,9 +80,9 @@ def _enable_tcp_keepalive() -> None:
 
     from urllib3.connection import HTTPConnection, HTTPSConnection
 
-    tcp_keep_idle = conf.getint('kubernetes', 'tcp_keep_idle', fallback=120)
-    tcp_keep_intvl = conf.getint('kubernetes', 'tcp_keep_intvl', fallback=30)
-    tcp_keep_cnt = conf.getint('kubernetes', 'tcp_keep_cnt', fallback=6)
+    tcp_keep_idle = conf.getint('kubernetes', 'tcp_keep_idle')
+    tcp_keep_intvl = conf.getint('kubernetes', 'tcp_keep_intvl')
+    tcp_keep_cnt = conf.getint('kubernetes', 'tcp_keep_cnt')
 
     socket_options = [
         (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
@@ -120,7 +120,7 @@ def get_kube_client(
         if config_file is None:
             config_file = conf.get('kubernetes', 'config_file', fallback=None)
 
-    if conf.getboolean('kubernetes', 'enable_tcp_keepalive', fallback=False):
+    if conf.getboolean('kubernetes', 'enable_tcp_keepalive'):
         _enable_tcp_keepalive()
 
     client_conf = _get_kube_config(in_cluster, cluster_context, config_file)

@@ -2065,7 +2065,7 @@
       version_added: ~
       type: boolean
       example: ~
-      default: "False"
+      default: "True"
     - name: tcp_keep_idle
       description: |
         When the `enable_tcp_keepalive` option is enabled, TCP probes a connection that has
