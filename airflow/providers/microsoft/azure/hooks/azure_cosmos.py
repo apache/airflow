@@ -42,6 +42,11 @@ class AzureCosmosDBHook(BaseHook):
     {"database_name": "<DATABASE_NAME>", "collection_name": "COLLECTION_NAME"}.
 
     :param azure_cosmos_conn_id: Reference to the Azure CosmosDB connection.
+
+        .. seealso::
+            See the docs for information on how to setup this connection:
+            :ref:`howto/connection:azure_cosmos`
+
     :type azure_cosmos_conn_id: str
     """
 

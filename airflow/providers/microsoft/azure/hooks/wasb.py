@@ -47,6 +47,11 @@ class WasbHook(BaseHook):
     using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
 
     :param wasb_conn_id: Reference to the wasb connection.
+
+        .. seealso::
+            See the docs for information on how to setup this connection:
+            :ref:`howto/connection:wasp`
+
     :type wasb_conn_id: str
     :param public_read: Whether an anonymous public read access should be used. default is False
     :type public_read: bool

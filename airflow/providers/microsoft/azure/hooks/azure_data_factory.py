@@ -75,7 +75,12 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
     A hook to interact with Azure Data Factory.
 
     :param conn_id: The Azure Data Factory connection id.
-    :type conn_id: str
+
+        .. seealso::
+            See the docs for information on how to setup this connection:
+            :ref:`howto/connection:adf`
+
+    :type: str
     """
 
     conn_type: str = 'azure_data_factory'

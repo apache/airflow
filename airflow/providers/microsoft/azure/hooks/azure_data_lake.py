@@ -41,6 +41,11 @@ class AzureDataLakeHook(BaseHook):
     {"tenant": "<TENANT>", "account_name": "ACCOUNT_NAME"}.
 
     :param azure_data_lake_conn_id: Reference to the Azure Data Lake connection.
+
+        .. seealso::
+            See the docs for information on how to setup this connection:
+            :ref:`howto/connection:adf`
+
     :type azure_data_lake_conn_id: str
     """
 

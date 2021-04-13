@@ -31,6 +31,11 @@ class AzureFileShareHook(BaseHook):
     passed to the `FileService()` constructor.
 
     :param wasb_conn_id: Reference to the wasb connection.
+
+        .. seealso::
+            See the docs for information on how to setup this connection:
+            :ref:`howto/connection:wasp`
+
     :type wasb_conn_id: str
     """
 

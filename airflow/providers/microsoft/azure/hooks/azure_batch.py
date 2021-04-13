@@ -35,6 +35,15 @@ class AzureBatchHook(BaseHook):
 
     Account name and account key should be in login and password parameters.
     The account url should be in extra parameter as account_url
+
+    :param azure_batch_conn_id: connection id of a service principal which will be used
+        to start the container instance
+
+        .. seealso::
+            See the docs for information on how to setup this connection:
+            :ref:`howto/connection:azure_batch`
+
+    :type azure_batch_conn_id: str
     """
 
     conn_name_attr = 'azure_batch_conn_id'

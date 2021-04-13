@@ -26,7 +26,7 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/azure>
+    Connection types <connections/index>
     Operators <operators/index>
     Secrets backends <secrets-backends/azure-key-vault>
     Logging for Tasks <logging>

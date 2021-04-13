@@ -27,6 +27,11 @@ class AzureContainerVolumeHook(BaseHook):
 
     :param wasb_conn_id: connection id of a Azure storage account of
         which file shares should be mounted
+
+        .. seealso::
+            See the docs for information on how to setup this connection:
+            :ref:`howto/connection:wasp`
+
     :type wasb_conn_id: str
     """
 

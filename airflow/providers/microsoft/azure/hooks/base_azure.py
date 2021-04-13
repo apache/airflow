@@ -31,8 +31,13 @@ class AzureBaseHook(BaseHook):
 
     :param sdk_client: The SDKClient to use.
     :type sdk_client: Optional[str]
-    :param conn_id: The azure connection id which refers to the information to connect to the service.
-    :type conn_id: str
+    :param azure_conn_id: The azure connection id which refers to the information to connect to the service.
+
+        .. seealso::
+            See the docs for information on how to setup this connection:
+            :ref:`howto/connection:azure`
+
+    :type: str
     """
 
     conn_name_attr = 'azure_conn_id'
