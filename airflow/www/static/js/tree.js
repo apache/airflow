@@ -22,7 +22,6 @@
 /* global treeData, document, window, $, d3, moment, call_modal_dag, call_modal, */
 import { escapeHtml } from './main';
 import tiTooltip from './task_instances';
-import getMetaValue from './meta_value';
 
 function toDateString(ts) {
   const dt = new Date(ts * 1000);
@@ -84,35 +83,34 @@ document.addEventListener('DOMContentLoaded', () => {
       const dataInstance = data.instances[j];
       const row = node.instances[j];
 
-      if (row === null) {
+      if (row) {
+        const taskInstance = {
+          state: row[0],
+          try_number: row[1],
+          start_ts: row[2],
+          duration: row[3],
+        };
+        node.instances[j] = taskInstance;
+
+        taskInstance.task_id = node.name;
+        taskInstance.operator = node.operator;
+        taskInstance.execution_date = dataInstance.execution_date;
+        taskInstance.external_trigger = dataInstance.external_trigger;
+
+        // compute start_date and end_date if applicable
+        if (taskInstance.start_ts !== null) {
+          taskInstance.start_date = toDateString(taskInstance.start_ts);
+          if (taskInstance.state === 'running') {
+            taskInstance.duration = now - taskInstance.start_ts;
+          } else if (taskInstance.duration !== null) {
+            taskInstance.end_date = toDateString(taskInstance.start_ts + taskInstance.duration);
+          }
+        }
+      } else {
         node.instances[j] = {
           task_id: node.name,
           execution_date: dataInstance.execution_date,
         };
-        continue;
-      }
-
-      const taskInstance = {
-        state: row[0],
-        try_number: row[1],
-        start_ts: row[2],
-        duration: row[3],
-      };
-      node.instances[j] = taskInstance;
-
-      taskInstance.task_id = node.name;
-      taskInstance.operator = node.operator;
-      taskInstance.execution_date = dataInstance.execution_date;
-      taskInstance.external_trigger = dataInstance.external_trigger;
-
-      // compute start_date and end_date if applicable
-      if (taskInstance.start_ts !== null) {
-        taskInstance.start_date = toDateString(taskInstance.start_ts);
-        if (taskInstance.state === 'running') {
-          taskInstance.duration = now - taskInstance.start_ts;
-        } else if (taskInstance.duration !== null) {
-          taskInstance.end_date = toDateString(taskInstance.start_ts + taskInstance.duration);
-        }
       }
     }
   }
@@ -121,22 +119,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const node = nodes[i];
     nodeobj[node.name] = node;
 
-    if (node.name === '[DAG]') {
     // skip synthetic root node since it's doesn't contain actual task instances
-      continue;
-    }
+    if (node.name !== '[DAG]') {
+      if (node.start_ts !== undefined) {
+        node.start_date = toDateString(node.start_ts);
+      }
+      if (node.end_ts !== undefined) {
+        node.end_date = toDateString(node.end_ts);
+      }
+      if (node.depends_on_past === undefined) {
+        node.depends_on_past = false;
+      }
 
-    if (node.start_ts !== undefined) {
-      node.start_date = toDateString(node.start_ts);
+      populateTaskInstanceProperties(node);
     }
-    if (node.end_ts !== undefined) {
-      node.end_date = toDateString(node.end_ts);
-    }
-    if (node.depends_on_past === undefined) {
-      node.depends_on_past = false;
-    }
-
-    populateTaskInstanceProperties(node);
   }
 
   const diagonal = d3.svg.diagonal()
@@ -191,29 +187,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function update(source) {
   // Compute the flattened node list. TODO use d3.layout.hierarchy.
-    const nodes = tree.nodes(root);
+    const nodeList = tree.nodes(root);
 
-    const height = Math.max(500, nodes.length * barHeight + margin.top + margin.bottom);
-    const width = squareX
+    const height = Math.max(500, nodeList.length * barHeight + margin.top + margin.bottom);
+    const treeWidth = squareX
       + (numSquare * (squareSize + squareSpacing))
       + margin.left + margin.right + 50;
     d3.select('#tree-svg').transition()
       .duration(duration)
       .attr('height', height)
-      .attr('width', width);
+      .attr('width', treeWidth);
 
     d3.select(self.frameElement).transition()
       .duration(duration)
       .style('height', `${height}px`);
 
     // Compute the "layout".
-    nodes.forEach((n, i) => {
-      n.x = i * barHeight;
+    nodeList.forEach((n, j) => {
+      n.x = j * barHeight;
     });
+
+    function toggles(clicked) {
+      // Collapse nodes with the same task id
+      d3.selectAll(`[task_id='${clicked.name}']`).each((d) => {
+        if (clicked !== d && d.children) {
+          d._children = d.children;
+          d.children = null;
+          update(d);
+        }
+      });
+
+      // Toggle clicked node
+      if (clicked._children) {
+        clicked.children = clicked._children;
+        clicked._children = null;
+      } else {
+        clicked._children = clicked.children;
+        clicked.children = null;
+      }
+      update(clicked);
+    }
 
     // Update the nodes…
     const node = svg.selectAll('g.node')
-      .data(nodes, (d) => d.id || (d.id = ++i));
+      .data(nodeList, (d) => d.id || (d.id = ++i));
 
     const nodeEnter = node.enter().append('g')
       .attr('class', nodeClass)
@@ -254,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('task_id', (d) => d.name)
       .on('click', toggles);
 
-    const text = nodeEnter.append('text')
+    nodeEnter.append('text')
       .attr('dy', 3.5)
       .attr('dx', barHeight / 2)
       .text((d) => d.name);
@@ -334,7 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update the links…
     const link = svg.selectAll('path.link')
-      .data(tree.links(nodes), (d) => d.target.id);
+      .data(tree.links(nodeList), (d) => d.target.id);
 
     // Enter any new links at the parent's previous position.
     link.enter().insert('path', 'g')
@@ -362,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .remove();
 
     // Stash the old positions for transition.
-    nodes.forEach((d) => {
+    nodeList.forEach((d) => {
       d.x0 = d.x;
       d.y0 = d.y;
     });
@@ -371,25 +388,4 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   update(root = data);
-
-  function toggles(clicked) {
-  // Collapse nodes with the same task id
-    d3.selectAll(`[task_id='${clicked.name}']`).each((d) => {
-      if (clicked !== d && d.children) {
-        d._children = d.children;
-        d.children = null;
-        update(d);
-      }
-    });
-
-    // Toggle clicked node
-    if (clicked._children) {
-      clicked.children = clicked._children;
-      clicked._children = null;
-    } else {
-      clicked._children = clicked.children;
-      clicked.children = null;
-    }
-    update(clicked);
-  }
 });
