@@ -415,9 +415,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         return pod.metadata.labels['try_number'] == context['ti'].try_number
 
     def _set_name(self, name):
-        if name is None and (self.pod_template_file or self.full_pod_spec):
-            return None
         if name is None:
+            if self.pod_template_file or self.full_pod_spec:
+                return None
             raise AirflowException("`name` is required unless `pod_template_file` or `full_pod_spec` is set")
 
         validate_key(name, max_length=220)
