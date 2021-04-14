@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import inspect
+import logging
 import os
 import pickle
+import subprocess
 import sys
 import types
 import warnings
@@ -35,6 +37,8 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import determine_kwargs
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
+
+log = logging.getLogger(__name__)
 
 
 def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs):
@@ -465,6 +469,109 @@ class PythonVirtualenvOperator(_BaseExternalPythonOperator):
                 requirements=self.requirements,
             )
             return self._execute_callable_with(f'{tmp_dir}/bin/python', tmp_dir)
+
+
+class ExternalPythonOperator(_BaseExternalPythonOperator):
+    """Allows one to run a function against a Python interpreter (with certain caveats).
+
+    By using this operator, you promise to populate and manage the specified Python
+    interpreter's execution environment so it can run the provided function. Airflow
+    will not perform any setup before running the program against the interpreter.
+
+    The function must be defined using def, and not be part of a class. All imports
+    must happen inside the function and no variables outside of the scope may be
+    referenced. A global scope variable named ``virtualenv_string_args`` will be
+    available (populated by ``string_args``). In addition, one can pass stuff through
+    ``op_args`` and ``op_kwargs``, and one can use a return value.
+
+    Note that if the specified Python interpreter is of a different Python major version
+    than Airflow, you cannot use return values, ``op_args``, ``op_kwargs``, or use any
+    macros that are being provided to Airflow through plugins. You can use
+    ``string_args`` though.
+
+    :param python_callable: A python function with no references to outside variables,
+        defined with def, which will be run in a virtualenv
+    :type python_callable: function
+    :param python_executable: The Python interpreter to run. This should be an absolute
+        path on the local filesystem, such as ``/opt/python3.7/bin/python``.
+    :type python_executable: str
+    :param use_dill: Whether to use dill to serialize
+        the args and result (pickle is default). This allow more complex types
+        but requires you to include dill in your requirements.
+    :type use_dill: bool
+    :param use_airflow: Whether Airflow is available for the function. Set this to
+        *True* if the specified environment can ``import airflow``. This affects whether
+        Airflow will try to pass Airflow-related context into the function.
+    :type use_airflow: bool
+    :param use_pendulum: This affects whether Airflow will pass Pendulum-related context
+        into the function. Set this to ``True`` if the specified environment contains
+        both *pendulum* and *lazy-object-proxy*.
+    :type use_pendulum: bool
+    :param op_args: A list of positional arguments to pass to python_callable.
+    :type op_args: list
+    :param op_kwargs: A dict of keyword arguments to pass to python_callable.
+    :type op_kwargs: dict
+    :param string_args: Strings that are present in the global var
+        ``virtualenv_string_args``, available to ``python_callable`` at runtime as a
+        ``list[str]``. Note that args are split by newline.
+    :type string_args: list[str]
+    :param templates_dict: a dictionary where the values are templates that will get
+        templated by the Airflow engine sometime between ``__init__`` and ``execute``
+        takes place and are made available in your callable's context after the template
+        has been applied.
+    :type templates_dict: dict of str
+    :param templates_exts: a list of file extensions to resolve while processing
+        templated fields, for examples ``['.sql', '.hql']``.
+    :type templates_exts: list[str]
+    """
+
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        *,
+        python_callable: Callable,
+        python_executable: str,
+        use_airflow: bool,
+        use_dill: bool = False,
+        use_pendulum: bool,
+        op_args: Optional[List] = None,
+        op_kwargs: Optional[Dict] = None,
+        string_args: Optional[Iterable[str]] = None,
+        templates_dict: Optional[Dict] = None,
+        templates_exts: Optional[List[str]] = None,
+        **kwargs,
+    ) -> None:
+        proc = subprocess.run(  # pylint: disable=subprocess-run-check
+            [python_executable, '-Ic', 'import sys; print(sys.version_info[0])'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding='utf8',
+        )
+        log.info('%s', proc.stderr)
+        if proc.returncode != 0:
+            raise AirflowException(f'Invalid Python executable: {python_executable!r}')
+        if (op_args or op_kwargs) and proc.stdout.strip() != str(sys.version_info.major):
+            raise AirflowException(
+                "Passing op_args or op_kwargs is not supported across different Python "
+                "major versions for ExternalPythonOperator. Please use string_args."
+            )
+
+        super().__init__(
+            python_callable=python_callable,
+            use_airflow=use_airflow,
+            use_dill=use_dill,
+            use_pendulum=use_pendulum,
+            op_args=op_args,
+            op_kwargs=op_kwargs,
+            string_args=string_args,
+            templates_dict=templates_dict,
+            templates_exts=templates_exts,
+            **kwargs,
+        )
+        self.python_executable = python_executable
+
+    def execute_callable(self):
+        with TemporaryDirectory(prefix='ext-py') as tmp_dir:
+            return self._execute_callable_with(self.python_executable, tmp_dir)
 
 
 def get_current_context() -> Dict[str, Any]:
