@@ -37,11 +37,8 @@ from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.www.security import SimpleAirflowSecurityManager
 
 log = logging.getLogger(__name__)
-
-security_manager = SimpleAirflowSecurityManager()
 
 
 class SerializedDagModel(Base):
@@ -139,7 +136,9 @@ class SerializedDagModel(Base):
         session.merge(new_serialized_dag)
 
         log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
-        security_manager.session = session
+        from airflow.www.security import SimpleAirflowSecurityManager
+
+        security_manager = SimpleAirflowSecurityManager(session=session)
         security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
 
         log.debug("DAG: %s written to the DB", dag.dag_id)

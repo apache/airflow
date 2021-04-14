@@ -730,8 +730,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 class SimpleAirflowSecurityManager(AirflowSecurityManager):
     """Security Manager that doesn't need the whole flask app"""
 
-    def __init__(self):  # pylint: disable=super-init-not-called
-        self.session = None
+    def __init__(self, session=None):  # pylint: disable=super-init-not-called
+        self.session = session
 
     @property
     def get_session(self):
