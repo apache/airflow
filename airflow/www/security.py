@@ -539,8 +539,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     def create_dag_specific_permissions(self) -> None:
         """
-        Creates 'can_read' and 'can_edit' permissions for all active and paused DAGs,
-        along with any `access_control` permissions provided in the DAG.
+        Creates 'can_read' and 'can_edit' permissions for all DAGs,
+        along with any `access_control` permissions provided in them.
+
+        This does iterate through ALL the DAGs, which can be slow. See `sync_perm_for_dag`
+        if you only need to sync a single DAG.
 
         :return: None.
         """
