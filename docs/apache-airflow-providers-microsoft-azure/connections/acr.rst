@@ -59,5 +59,4 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_AZURE_CONTAINER_REGISTRY_DEFAULT='azure-container-registry://password:registryserver.com@username?tenant=tenant+id&account_name=store+name'
-
+    export AIRFLOW_CONN_AZURE_CONTAINER_REGISTRY_DEFAULT='azure-container-registry://password:registryserver.com@username?tenant=tenant+id&account_name=store+name'

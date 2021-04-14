@@ -70,4 +70,3 @@ For example:
 .. code-block:: bash
 
    export AIRFLOW_CONN_AZURE_DATA_FACTORY_DEFAULT='azure-data-factory://client%20id:secret@?tenantId=tenant+id&subscriptionId=subscription+id&resourceGroup=group+name&factory=factory+name'
-

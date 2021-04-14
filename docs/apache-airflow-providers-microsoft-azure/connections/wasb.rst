@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:wasp:
+.. _howto/connection:wasb:
 
 Microsoft Azure Blob Storage Connection
 =======================================
@@ -81,4 +81,4 @@ For example connect with token credentials:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_WASP_DEFAULT='wasp://blob%20username:blob%20password@myblob.com?tenant_id=tenant+id'
+   export AIRFLOW_CONN_WASP_DEFAULT='wasb://blob%20username:blob%20password@myblob.com?tenant_id=tenant+id'

@@ -40,12 +40,7 @@ class AzureDataLakeHook(BaseHook):
     Tenant and account name should be extra field as
     {"tenant": "<TENANT>", "account_name": "ACCOUNT_NAME"}.
 
-    :param azure_data_lake_conn_id: Reference to the Azure Data Lake connection.
-
-        .. seealso::
-            See the docs for information on how to setup this connection:
-            :ref:`howto/connection:adf`
-
+    :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
     :type azure_data_lake_conn_id: str
     """
 

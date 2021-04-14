@@ -25,13 +25,8 @@ class AzureContainerVolumeHook(BaseHook):
     """
     A hook which wraps an Azure Volume.
 
-    :param wasb_conn_id: connection id of a Azure storage account of
-        which file shares should be mounted
-
-        .. seealso::
-            See the docs for information on how to setup this connection:
-            :ref:`howto/connection:wasp`
-
+    :param  wasb_conn_id: :ref:`Wasb connection id<howto/connection:wasb>` of an Azure storage
+        account of which file shares should be mounted.
     :type wasb_conn_id: str
     """
 

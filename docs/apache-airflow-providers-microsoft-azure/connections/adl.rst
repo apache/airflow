@@ -68,4 +68,3 @@ For example:
 .. code-block:: bash
 
    export AIRFLOW_CONN_AZURE_DATA_LAKE_DEFAULT='azure-data-lake://client%20id:secret@?tenant=tenant+id&account_name=store+name'
-

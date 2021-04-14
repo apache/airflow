@@ -64,4 +64,3 @@ For example:
 .. code-block:: bash
 
    export AIRFLOW_CONN_AZURE_COSMOS_DEFAULT='azure-cosmos://https%3A%2F%2Fairflow.azure.com:master%20key@?database_name=mydatabase&collection_name=mycollection'
-

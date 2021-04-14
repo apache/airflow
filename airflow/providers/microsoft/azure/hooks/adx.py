@@ -74,12 +74,7 @@ class AzureDataExplorerHook(BaseHook):
                      that is initialized. It is highly recommended to create one instance
                      and use it for all queries.
 
-    :param azure_data_explorer_conn_id: Reference to the Azure Data Explorer connection.
-
-        .. seealso::
-            See the docs for information on how to setup this connection:
-            :ref:`howto/connection:adx`
-
+    :param azure_data_explorer_conn_id: Reference to the :ref:`Azure Data Explorer connection<howto/connection:adx>`.
     :type azure_data_explorer_conn_id: str
     """
 

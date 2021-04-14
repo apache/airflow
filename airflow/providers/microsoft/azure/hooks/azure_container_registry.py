@@ -28,12 +28,8 @@ class AzureContainerRegistryHook(BaseHook):
     """
     A hook to communicate with a Azure Container Registry.
 
-    :param conn_id: connection id of a service principal which will be used
-        to start the container instance
-
-        .. seealso::
-            See the docs for information on how to setup this connection:
-            :ref:`howto/connection:acr`
+    :param conn_id: :ref:`Azure Container Registry connection id<howto/connection:acr>` of a service principal which
+        will be used to start the container instance
 
     :type conn_id: str
     """

@@ -81,4 +81,3 @@ For example:
 .. code-block:: bash
 
    export AIRFLOW_CONN_AZURE_DEFAULT='azure://?key_path=%2Fkeys%2Fkey.json'
-

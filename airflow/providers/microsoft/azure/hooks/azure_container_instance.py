@@ -36,14 +36,9 @@ class AzureContainerInstanceHook(AzureBaseHook):
     client_id (Application ID) as login, the generated password as password,
     and tenantId and subscriptionId in the extra's field as a json.
 
-    :param conn_id: connection id of a service principal which will be used
-        to start the container instance
-
-        .. seealso::
-            See the docs for information on how to setup this connection:
-            :ref:`howto/connection:azure`
-
-    :type conn_id: str
+    :param azure_conn_id: :ref:`Azure connection id<howto/connection:azure>` of a service principal which will be used
+        to start the container instance.
+    :type azure_conn_id: str
     """
 
     conn_name_attr = 'azure_conn_id'

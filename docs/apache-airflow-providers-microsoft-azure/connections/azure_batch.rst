@@ -63,4 +63,3 @@ For example:
 .. code-block:: bash
 
    export AIRFLOW_CONN_AZURE_BATCH_DEFAULT='azure-batch://batch%20acount:batch%20key@?account_url=mybatchaccount.com'
-
