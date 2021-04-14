@@ -115,7 +115,7 @@ class TestPostgresHookConn(unittest.TestCase):
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
     def test_get_conn_rds_iam_redshift(self, mock_client, mock_connect):
-        self.connection.extra = '{"iam":true, "redshift":true}'
+        self.connection.extra = '{"iam":true, "redshift":true, "cluster-identifier": "different-identifier"}'
         self.connection.host = 'cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com'
         login = f'IAM:{self.connection.login}'
         mock_client.return_value.get_cluster_credentials.return_value = {
