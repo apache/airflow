@@ -410,10 +410,20 @@ class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual
 class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     """Retrieve conversion tables for UTC-Aware filters."""
 
+
+class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
+    """Retrieve conversion tables for Airflow-specific filters."""
+
     conversion_table = (
         (
             'is_utcdatetime',
             [UtcAwareFilterEqual, UtcAwareFilterGreater, UtcAwareFilterSmaller, UtcAwareFilterNotEqual],
+        ),
+        # FAB will try to create filters for extendedjson fields even though we
+        # exclude them from all UI, so we add this here to make it ignore them.
+        (
+            'is_extendedjson',
+            [],
         ),
     ) + fab_sqlafilters.SQLAFilterConverter.conversion_table
 
@@ -450,7 +460,20 @@ class CustomSQLAInterface(SQLAInterface):
             )
         return False
 
-    filter_converter_class = UtcAwareFilterConverter
+    def is_extendedjson(self, col_name):
+        """Checks if it is a special extended JSON type"""
+        from airflow.utils.sqlalchemy import ExtendedJSON
+
+        if col_name in self.list_columns:
+            obj = self.list_columns[col_name].type
+            return (
+                isinstance(obj, ExtendedJSON)
+                or isinstance(obj, sqla.types.TypeDecorator)
+                and isinstance(obj.impl, ExtendedJSON)
+            )
+        return False
+
+    filter_converter_class = AirflowFilterConverter
 
 
 # This class is used directly (i.e. we can't tell Fab to use a different

@@ -45,6 +45,7 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'celery_broker_transport_options',
     'dask',
     'scheduler',
+    'triggerer',
     'kerberos',
     'github_enterprise',
     'elasticsearch',

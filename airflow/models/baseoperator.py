@@ -52,7 +52,7 @@ from sqlalchemy.orm import Session
 import airflow.templates
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.base import Operator
 from airflow.models.pool import Pool
@@ -64,6 +64,7 @@ from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
+from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
@@ -1552,6 +1553,23 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         # needs to cope when `self` is a Serialized instance of a DummyOperator or one
         # of its sub-classes (which don't inherit from anything but BaseOperator).
         return getattr(self, '_is_dummy', False)
+
+    def defer(
+        self,
+        *,
+        trigger: BaseTrigger,
+        method_name: str,
+        kwargs: Optional[Dict[str, Any]] = None,
+        timeout: Optional[timedelta] = None,
+    ):
+        """
+        Marks this Operator as being "deferred" - that is, suspending its
+        execution until the provided trigger fires an event.
+
+        This is achieved by raising a special exception (TaskDeferred)
+        which is caught in the main _execute_task wrapper.
+        """
+        raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
 
 Chainable = Union[BaseOperator, "XComArg", EdgeModifier]

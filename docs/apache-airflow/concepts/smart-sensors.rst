@@ -27,6 +27,12 @@ Smart Sensors
   However this feature can be considered bug-free, and Airbnb has been using this feature in production
   since early 2020 and has significantly reduced their costs for heavy use of sensors.
 
+.. note::
+
+  :doc:`Deferrable Operators <deferring>` are a more flexible way to achieve efficient long-running sensors,
+  as well as allowing Operators to also achieve similar efficiency gains. If you are considering writing a
+  new Smart Sensor, you may want to instead write it as a Deferrable Operator.
+
 The smart sensor is a service (run by a builtin DAG) which greatly reduces Airflow’s infrastructure
 cost by consolidating multiple instances of small, light-weight Sensors into a single process.
 
