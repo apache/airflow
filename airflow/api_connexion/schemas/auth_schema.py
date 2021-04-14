@@ -66,10 +66,9 @@ class LogoutSchema(Schema):
 
 
 class RevokeTokenSchema(Schema):
-    """Schema to revoke token"""
+    """Schema to revoke tokens"""
 
-    token = fields.String()
-    reason = fields.String()
+    token = fields.String(required=True)
 
 
 info_schema = InfoSchema()

@@ -14,27 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import logging
-from datetime import datetime
 
 import jwt
 from flask import current_app, g, jsonify, request, session as c_session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
-from flask_jwt_extended import create_access_token, decode_token, get_jti, get_jwt_identity
-from flask_login import current_user, login_user
+from flask_jwt_extended import (
+    create_access_token,
+    decode_token,
+    get_jwt_identity,
+    get_raw_jwt,
+    jwt_refresh_token_required,
+    jwt_required,
+)
+from flask_login import login_user
 from marshmallow import ValidationError
 
-from airflow.api_connexion.exceptions import BadRequest, NotFound, Unauthenticated
-from airflow.api_connexion.schemas.auth_schema import (
-    info_schema,
-    login_form_schema,
-    logout_schema,
-    token_schema,
-)
-from airflow.api_connexion.security import jwt_refresh_token_required_
-from airflow.models.auth import JwtToken
-from airflow.utils.session import provide_session
+from airflow.api_connexion.exceptions import BadRequest, Unauthenticated
+from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_schema, token_schema
+from airflow.models.auth import TokenBlockList
 
 log = logging.getLogger(__name__)
 
@@ -64,21 +62,13 @@ def get_auth_info():
 
 def auth_login():
     """Handle DB login"""
-    security_manager = current_app.appbuilder.sm
-    auth_type = security_manager.auth_type
-    if g.user is not None and g.user.is_authenticated:
-        raise Unauthenticated(detail="Client already authenticated")  # For security
-    if auth_type not in (AUTH_DB, AUTH_LDAP):
-        raise Unauthenticated(detail="Authentication type do not match")
     body = request.json
     try:
         data = login_form_schema.load(body)
     except ValidationError as err:
         raise Unauthenticated(detail=str(err.messages))
-    if auth_type == AUTH_DB:
-        user = security_manager.auth_user_db(data['username'], data['password'])
-    else:
-        user = security_manager.auth_user_ldap(data['username'], data['password'])
+    security_manager = current_app.appbuilder.sm
+    user = security_manager.api_login_with_username_and_password(data['username'], data['password'])
     if not user:
         raise Unauthenticated(detail="Invalid login")
     login_user(user, remember=False)
@@ -169,56 +159,60 @@ def auth_remoteuser():
     return appbuilder.sm.create_tokens_and_dump(user)
 
 
-@jwt_refresh_token_required_
-@provide_session
-def refresh_token(session=None):
+@jwt_refresh_token_required
+def refresh_token():
     """Refresh token"""
     user = get_jwt_identity()
     access_token = create_access_token(identity=user)
-    decoded = decode_token(access_token)
-    token = JwtToken(jti=decoded['jti'], expiry_delta=decoded['exp'], created_delta=decoded['iat'])
-    session.add(token)
-    session.commit()
     ret = {'access_token': access_token}
     return jsonify(ret), 200
 
 
-def logout():
-    """Sign out"""
-    body = request.json
-    try:
-        data = logout_schema.load(body)
-    except ValidationError as err:
-        raise BadRequest(detail=str(err.messages))
-    token_jti = get_jti(data['token'])
-    exist = JwtToken.get_token(token_jti)
-    if exist:
-        JwtToken.delete_token(token_jti)
-    refresh_jti = get_jti(data['refresh_token'])
-    exist = JwtToken.get_token(refresh_jti)
-    if exist:
-        JwtToken.delete_token(refresh_jti)
-    resp = {"logged_out": True}
-    return jsonify(resp), 200
+@jwt_required
+def revoke_token():
+    """
+    An endpoint for revoking both access and refresh token.
 
-
-@provide_session
-def revoke_token(session=None):
-    """Revoke a token"""
+    This is intended for a case where a logged in user want to revoke
+    another user's tokens
+    """
+    resp = jsonify({"revoked": True})
     body = request.json
     try:
         data = token_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    jti = get_jti(data['token'])
-    token = JwtToken.get_token(jti)
-    if token:
-        token.is_revoked = True
-        token.revoked_by = current_user.username
-        token.revoke_reason = data['reason']
-        token.date_revoked = datetime.now()
-        session.merge(token)
-        session.commit()
-        resp = jsonify({"revoked": True})
-        return resp
-    raise NotFound(detail="Token not found")
+    token = decode_token(data['token'])
+    tkn = TokenBlockList.get_token(token['jti'])
+
+    if not tkn:
+        TokenBlockList.add_token(jti=token['jti'], expiry_delta=token['exp'])
+    return resp
+
+
+@jwt_required
+def revoke_current_user_token():
+    """
+    An endpoint for revoking current user access token
+    This should be called during current user logout
+    """
+    resp = jsonify({"revoked": True})
+    raw_jwt = get_raw_jwt()
+    token = TokenBlockList.get_token(raw_jwt['jti'])
+    if not token:
+        TokenBlockList.add_token(jti=raw_jwt['jti'], expiry_delta=raw_jwt['exp'])
+    return resp
+
+
+@jwt_refresh_token_required
+def revoke_current_user_refresh_token():
+    """
+    An endpoint for revoking current user refresh token
+    This should be called during current user logout
+    """
+    resp = jsonify({"revoked": True})
+    raw_jwt = get_raw_jwt()
+    token = TokenBlockList.get_token(raw_jwt['jti'])
+    if not token:
+        TokenBlockList.add_token(jti=raw_jwt['jti'], expiry_delta=raw_jwt['exp'])
+    return resp

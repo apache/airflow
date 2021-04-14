@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-from airflow.models.auth import JwtToken
+from airflow.models.auth import TokenBlockList
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection

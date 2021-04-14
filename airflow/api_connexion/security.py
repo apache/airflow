@@ -14,78 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
-from flask import Response, _app_ctx_stack as ctx_stack, current_app, request
-from flask_jwt_extended.config import config
-from flask_jwt_extended.utils import verify_token_claims
-from flask_jwt_extended.view_decorators import _decode_jwt_from_request, _load_user
+from flask import Response, current_app
+from flask_jwt_extended import verify_jwt_in_request
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
-from airflow.models.auth import JwtToken
+from airflow.models import TokenBlockList
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
-# Because we are using flask_jwt_extended <4.0, the two functions here have
-# to be created due to language matters. When we upgrade to >=4.0, we would
-# not need these functions, rather we would use token_in_blocklist callback
 
-
-def verify_jwt_access_token_():
-    """Verify JWT in request"""
-    if request.method not in config.exempt_methods:
-        jwt_data, jwt_header = _decode_jwt_from_request(request_type='access')
-        ctx_stack.top.jwt = jwt_data
-        ctx_stack.top.jwt_header = jwt_header
-        verify_token_claims(jwt_data)
-        _load_user(jwt_data[config.identity_claim_key])
-        token = JwtToken.get_token(jwt_data['jti'])
-        if token and token.is_revoked:
-            raise Unauthenticated(detail="Token revoked")
-        exp = datetime.timestamp(datetime.now())
-        if token and token.expiry_delta < exp:
-            JwtToken.delete_token(token.jti)
-            raise Unauthenticated(detail="Token expired and we have deleted it")
-        if not token:
-            raise Unauthenticated(detail="Token Unknown")
-
-
-def verify_jwt_refresh_token_in_request_():
-    """
-    Ensure that the requester has a valid refresh token. Raises an appropiate
-    exception if there is no token or the token is invalid.
-    """
-    if request.method not in config.exempt_methods:
-        jwt_data, jwt_header = _decode_jwt_from_request(request_type='refresh')
-        ctx_stack.top.jwt = jwt_data
-        ctx_stack.top.jwt_header = jwt_header
-        _load_user(jwt_data[config.identity_claim_key])
-        token = JwtToken.get_token(jwt_data['jti'])
-        if token and token.is_revoked:
-            raise Unauthenticated(detail="Token revoked")
-        exp = datetime.timestamp(datetime.now())
-        if token and token.expiry_delta < exp:
-            JwtToken.delete_token(token.jti)
-            raise Unauthenticated(detail="Token expired and we have deleted it")
-        if not token:
-            raise Unauthenticated(detail="Token Unknown")
-
-
-def jwt_refresh_token_required_(fn):
-    """
-    A decorator to protect a an endpoint.
-    If you decorate an endpoint with this, it will ensure that the requester
-    has a valid refresh token before allowing the endpoint to be called.
-    """
-
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        verify_jwt_refresh_token_in_request_()
-        return fn(*args, **kwargs)
-
-    return wrapper
+@current_app.appbuilder.sm.jwt_manager.token_in_blacklist_loader
+def check_if_token_in_blacklist(decrypted_token):
+    """Checks if there's a blocked token"""
+    jti = decrypted_token['jti']
+    return TokenBlockList.get_token(jti) is not None
 
 
 def check_authentication() -> None:
@@ -94,7 +39,7 @@ def check_authentication() -> None:
     if response.status_code == 200:
         return
     try:
-        verify_jwt_access_token_()
+        verify_jwt_in_request()
         return
     except Exception:  # pylint: disable=broad-except
         pass

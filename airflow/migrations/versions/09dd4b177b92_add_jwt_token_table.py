@@ -37,19 +37,13 @@ depends_on = None
 def upgrade():
     """Apply Add jwt token table"""
     op.create_table(
-        "jwt_token",
+        "token_blocklist",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("jti", sa.String(50), nullable=False),
-        sa.Column("is_revoked", sa.Boolean(name="is_revoked"), server_default="0"),
-        sa.Column("refresh", sa.Boolean(name="refresh"), server_default="0"),
-        sa.Column("revoke_reason", sa.String(100)),
-        sa.Column("revoked_by", sa.String(50)),
-        sa.Column("date_revoked", sa.DateTime),
-        sa.Column("expiry_delta", sa.Integer, nullable=False),
-        sa.Column("created_delta", sa.Integer, nullable=False),
+        sa.Column("jti", sa.String(50), nullable=False, unique=True),
+        sa.Column("expiry_date", sa.DateTime, nullable=True, index=True),
     )
 
 
 def downgrade():  # noqa: D103
     """Unapply Add jwt token table"""
-    op.drop_table('jwt_token')
+    op.drop_table('token_blocklist')

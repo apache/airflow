@@ -20,7 +20,7 @@ import pytest
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
 from sqlalchemy import func
 
-from airflow.models.auth import JwtToken
+from airflow.models.auth import TokenBlockList
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 
@@ -77,7 +77,7 @@ class TestLoginEndpoint:
             self.app.config['OAUTH_PROVIDERS'] = None
 
     def teardown_method(self):
-        tokens = self.session.query(JwtToken).all()
+        tokens = self.session.query(TokenBlockList).all()
         for token in tokens:
             self.session.delete(token)
         self.session.commit()
@@ -319,22 +319,14 @@ class TestRemoteUserLoginEndpoint(TestLoginEndpoint):
 
 
 class TestRefreshTokenEndpoint(TestLoginEndpoint):
-    @provide_session
-    def test_creates_access_token(self, session=None):
+    def test_creates_access_token(self):
         self.auth_type(AUTH_DB)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth/login', json=payload)
-        token = response.json['token']
         refresh = response.json['refresh_token']
-        total_tokens_in_db = session.query(func.count(JwtToken.id)).scalar()
-
-        assert total_tokens_in_db == 2
-        assert token is not None
         response2 = self.client.post("api/v1/refresh", headers={"Authorization": f"Bearer {refresh}"})
 
         assert response2.json['access_token'] is not None
-        total_tokens_in_db = session.query(func.count(JwtToken.id)).scalar()
-        assert total_tokens_in_db == 3
 
     def test_access_token_cant_access_endpoint(self):
         self.auth_type(AUTH_DB)
@@ -346,21 +338,34 @@ class TestRefreshTokenEndpoint(TestLoginEndpoint):
         assert response2.json['msg'] == 'Only refresh tokens are allowed'
 
 
-class TestLogoutEndpoint(TestLoginEndpoint):
+class TestRevokeAccessTokenEndpoint(TestLoginEndpoint):
     @provide_session
-    def test_logout_works(self, session):
+    def test_revoke_current_user_access_token_works(self, session):
         self.auth_type(AUTH_DB)
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth/login', json=payload)
         token = response.json['token']
-        refresh = response.json['refresh_token']
-        total_tokens_in_db = session.query(func.count(JwtToken.id)).scalar()
-        assert total_tokens_in_db == 2
-        assert token is not None
-        response2 = self.client.post("api/v1/logout", json={"token": token, "refresh_token": refresh})
-        assert response2.json == {'logged_out': True}
-        total_tokens_in_db = session.query(func.count(JwtToken.id)).scalar()
-        assert total_tokens_in_db == 0
+        response2 = self.client.get(
+            "api/v1/revoke_access_token", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response2.json == {'revoked': True}
+        total_tokens_in_db = session.query(func.count(TokenBlockList.id)).scalar()
+        assert total_tokens_in_db == 1
+
+
+class TestRevokeRefreshTokenEndpoint(TestLoginEndpoint):
+    @provide_session
+    def test_revoke_current_user_access_token_works(self, session):
+        self.auth_type(AUTH_DB)
+        payload = {"username": "test", "password": "test"}
+        response = self.client.post('api/v1/auth/login', json=payload)
+        refresh_token = response.json['refresh_token']
+        response2 = self.client.get(
+            "api/v1/revoke_refresh_token", headers={"Authorization": f"Bearer {refresh_token}"}
+        )
+        assert response2.json == {'revoked': True}
+        total_tokens_in_db = session.query(func.count(TokenBlockList.id)).scalar()
+        assert total_tokens_in_db == 1
 
 
 class TestTokenRevokeEndpoint(TestLoginEndpoint):
@@ -371,10 +376,8 @@ class TestTokenRevokeEndpoint(TestLoginEndpoint):
         response = self.client.post('api/v1/auth/login', json=payload)
         token = response.json['token']
         refresh = response.json['refresh_token']
-        total_tokens_in_db = session.query(func.count(JwtToken.id)).scalar()
-        assert total_tokens_in_db == 2
-        self.client.post("api/v1/revoke", json={"token": token, "reason": "test"})
-        self.client.post("api/v1/revoke", json={"token": refresh, "reason": "test"})
-        tokens = session.query(JwtToken).all()
-        for token in tokens:
-            assert token.is_revoked is True
+        self.client.post(
+            "api/v1/revoke", json={"token": refresh}, headers={"Authorization": f"Bearer {token}"}
+        )
+        total_tokens_in_db = session.query(func.count(TokenBlockList.id)).scalar()
+        assert total_tokens_in_db == 1

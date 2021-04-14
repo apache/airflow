@@ -22,13 +22,15 @@ from datetime import timedelta
 from typing import Dict, Optional, Sequence, Set, Tuple
 
 from flask import current_app, g
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
-from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, decode_token
+from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
+from airflow.api_connexion.exceptions import Unauthenticated
 from airflow.api_connexion.schemas.auth_schema import auth_schema
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel
@@ -734,6 +736,19 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
         return True
 
+    def api_login_with_username_and_password(self, username, password):
+        """Convenience method for user login through the API"""
+        if g.user is not None and g.user.is_authenticated:
+            raise Unauthenticated(detail="Client already authenticated")  # For security
+        if self.auth_type not in (AUTH_DB, AUTH_LDAP):
+            raise Unauthenticated(detail="Authentication type do not match")
+        user = None
+        if self.auth_type == AUTH_DB:
+            user = self.auth_user_db(username, password)
+        elif self.auth_type == AUTH_LDAP:
+            user = self.auth_user_ldap(username, password)
+        return user
+
     def create_jwt_manager(self, app) -> JWTManager:
         """JWT Manager"""
         jwt_manager = JWTManager()
@@ -743,22 +758,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         jwt_manager.user_loader_callback_loader(self.load_user_jwt)
         return jwt_manager
 
-    @provide_session
-    def create_tokens_and_dump(self, user, session=None):
+    def create_tokens_and_dump(self, user):
         """Creates access token, return user data alongside tokens"""
         access_token = create_access_token(user.id)
-        decoded = decode_token(access_token)
-        token = JwtToken(jti=decoded['jti'], expiry_delta=decoded['exp'], created_delta=decoded['iat'])
         refresh_token = create_refresh_token(user.id)
-        decoded = decode_token(refresh_token)
-        r_token = JwtToken(
-            jti=decoded['jti'],
-            expiry_delta=decoded['exp'],
-            created_delta=decoded['iat'],
-            refresh=True,
-        )
-        session.add_all([token, r_token])
-        session.commit()
         return auth_schema.dump({'user': user, 'token': access_token, 'refresh_token': refresh_token})
 
 

@@ -16,9 +16,12 @@
 # under the License.
 
 import unittest
+from datetime import datetime
 
-from airflow.models.auth import JwtToken
+from airflow.models.auth import TokenBlockList
 from airflow.utils.session import provide_session
+
+EXPIRY_DELTA = datetime.timestamp(datetime.now())
 
 
 class TestToken(unittest.TestCase):
@@ -27,33 +30,25 @@ class TestToken(unittest.TestCase):
 
     @provide_session
     def delete_tokens(self, session=None):
-        tokens = session.query(JwtToken).all()
+        tokens = session.query(TokenBlockList).all()
         for i in tokens:
             session.delete(i)
 
     @provide_session
-    def create_token(self, session=None):
-        token = JwtToken(jti="token", expiry_delta=62939233)
-        session.add(token)
-        session.commit()
-        return token
-
-    @provide_session
-    def test_create_token(self, session=None):
-        self.create_token()
-        token = session.query(JwtToken).all()
+    def test_add_token(self, session=None):
+        TokenBlockList.add_token(jti="token", expiry_delta=EXPIRY_DELTA)
+        token = session.query(TokenBlockList).all()
         assert len(token) == 1
 
     def test_get_token_method(self):
-        token = self.create_token()
-        token2 = JwtToken.get_token(token.jti)
-        assert token2.jti == token.jti
-        assert token2.expiry_delta == token.expiry_delta
+        TokenBlockList.add_token(jti="token", expiry_delta=EXPIRY_DELTA)
+        token2 = TokenBlockList.get_token("token")
+        assert token2.jti == "token"
 
     def test_delete_token_method(self):
-        tkn = self.create_token()
-        token = JwtToken.get_token(tkn.jti)
+        TokenBlockList.add_token(jti="token", expiry_delta=EXPIRY_DELTA)
+        token = TokenBlockList.get_token("token")
         assert token is not None
-        JwtToken.delete_token(token.jti)
-        token = JwtToken.get_token(token.jti)
+        TokenBlockList.delete_token("token")
+        token = TokenBlockList.get_token("token")
         assert token is None

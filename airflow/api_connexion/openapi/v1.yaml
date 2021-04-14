@@ -1684,19 +1684,15 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
-  /logout:
-    post:
-      summary: Webserver logout
-      description: Logout user by unsetting cookies
+  /revoke_access_token:
+    get:
+      summary: Revoke current user access token
+      description: |
+        An endpoint for revoking current user access token
+        This should be called during current user logout
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
-      operationId: logout
+      operationId: revoke_current_user_token
       tags: [Authentication]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AccessRefresh'
       responses:
         '200':
           description: Success
@@ -1705,7 +1701,30 @@ paths:
               schema:
                 type: object
                 properties:
-                  logged_out:
+                  revoked:
+                    type: boolean
+                    description: Indicate user is logged out
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /revoke_refresh_token:
+    get:
+      summary: Revoke current user refresh token
+      description: |
+        An endpoint for revoking current user access token
+        This should be called during current user logout
+      x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
+      operationId: revoke_current_user_refresh_token
+      tags: [Authentication]
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked:
                     type: boolean
                     description: Indicate user is logged out
         '401':
@@ -1713,8 +1732,9 @@ paths:
 
   /revoke:
     post:
-      summary: Revoke a token
-      description: Revoke a refresh or access token
+      summary: Revoke access and refresh token
+      description: |
+        An endpoint for revoking both access and refresh token.
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
       operationId: revoke_token
       tags: [Authentication]
@@ -1737,6 +1757,10 @@ paths:
                     description: Indicate token is revoked
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
 components:
   # Reusable schemas (data models)
@@ -2741,9 +2765,6 @@ components:
         token:
           type: string
           description: The token to be revoked
-        reason:
-          type: string
-          description: Reason for the revoke
 
     # Configuration
     ConfigOption:
