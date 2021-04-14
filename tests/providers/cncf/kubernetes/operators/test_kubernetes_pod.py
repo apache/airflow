@@ -301,6 +301,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
         context = self.create_context(k)
         k.execute(context=context)
 
+        # make sure the kwargs takes precedence (and that name is randomized)
         assert start_mock.call_args[0][0].metadata.name.startswith(name_base)
         assert start_mock.call_args[0][0].metadata.name != name_base
         assert start_mock.call_args[0][0].spec.containers[0].image == image
@@ -358,6 +359,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             context = self.create_context(k)
             k.execute(context=context)
 
+            # make sure the kwargs takes precedence (and that name is randomized)
             assert start_mock.call_args[0][0].metadata.name.startswith(name_base)
             assert start_mock.call_args[0][0].metadata.name != name_base
             assert start_mock.call_args[0][0].spec.containers[0].image == image
