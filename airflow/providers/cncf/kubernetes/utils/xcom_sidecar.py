@@ -24,8 +24,6 @@ import copy
 
 from kubernetes.client import models as k8s
 
-MAX_LABEL_LEN = 63
-
 
 class PodDefaults:
     """Static defaults for Pods"""
