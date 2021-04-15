@@ -28,6 +28,7 @@ from airflow.hooks.base import BaseHook
 
 class MongoHook(BaseHook):
     """
+    Interact with Mongo. This hook uses the Mongo conn_id.
     PyMongo Wrapper to Interact With Mongo Database
     Mongo Connection Documentation
     https://docs.mongodb.com/manual/reference/connection-string/index.html
