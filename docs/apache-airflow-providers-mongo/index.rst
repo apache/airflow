@@ -26,6 +26,7 @@ Content
     :maxdepth: 1
     :caption: References
 
+    Connection types <connections/mongo>
     Python API <_api/airflow/providers/mongo/index>
 
 .. toctree::

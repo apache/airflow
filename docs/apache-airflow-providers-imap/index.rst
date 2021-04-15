@@ -26,7 +26,7 @@ Content
     :maxdepth: 1
     :caption: References
 
-    Connection types <connections/index>
+    Connection types <connections/imap>
     Python API <_api/airflow/providers/imap/index>
 
 .. toctree::
