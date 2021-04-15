@@ -61,7 +61,7 @@ class SerializedDagModelTest(unittest.TestCase):
             SDM.write_dag(dag)
         return example_dags
 
-    @mock.patch('airflow.models.serialized_dag.security_manager')
+    @mock.patch('airflow.www.security.SimpleAirflowSecurityManager')
     def test_write_dag(self, mock_security_manager):
         """DAGs can be written into database."""
         example_dags = self._write_example_dags()
@@ -75,9 +75,11 @@ class SerializedDagModelTest(unittest.TestCase):
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
 
-                mock_security_manager.sync_perm_for_dag.assert_any_call(dag.dag_id, dag.access_control)
+                mock_security_manager.return_value.sync_perm_for_dag.assert_any_call(
+                    dag.dag_id, dag.access_control
+                )
 
-    @mock.patch('airflow.models.serialized_dag.security_manager')
+    @mock.patch('airflow.www.security.SimpleAirflowSecurityManager')
     def test_serialized_dag_is_updated_only_if_dag_is_changed(self, mock_security_manager):
         """Test Serialized DAG is updated if DAG is changed"""
 
@@ -96,7 +98,7 @@ class SerializedDagModelTest(unittest.TestCase):
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
             assert s_dag.last_updated == s_dag_1.last_updated
-            mock_security_manager.sync_perm_for_dag.assert_not_called()
+            mock_security_manager.return_value.sync_perm_for_dag.assert_not_called()
 
             # Update DAG
             mock_security_manager.reset_mock()
@@ -109,7 +111,7 @@ class SerializedDagModelTest(unittest.TestCase):
             assert s_dag.last_updated != s_dag_2.last_updated
             assert s_dag.dag_hash != s_dag_2.dag_hash
             assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
-            mock_security_manager.sync_perm_for_dag.assert_any_call(
+            mock_security_manager.return_value.sync_perm_for_dag.assert_any_call(
                 example_bash_op_dag.dag_id, example_bash_op_dag.access_control
             )
 
