@@ -15,10 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module provides an interface between the previous Pod
-API and outputs a kubernetes.client.models.V1Pod.
-The advantage being that the full Kubernetes API
-is supported and no serialization need be written.
+This module handles all xcom functionality for the KubernetesPodOperator
+by attaching a sidecar container that blocks the pod from completing until
+Airflow has pulled result data into the worker for xcom serialization.
 """
 import copy
 
