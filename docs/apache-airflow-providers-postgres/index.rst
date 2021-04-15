@@ -25,7 +25,7 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/postgres>
+    Connection types <connections/index>
     PostgresOperator types <operators/postgres_operator_howto_guide>
 
 

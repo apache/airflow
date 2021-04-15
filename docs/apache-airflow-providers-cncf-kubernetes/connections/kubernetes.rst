@@ -57,3 +57,5 @@ Kube config (JSON format)
 
 Namespace
   Default kubernetes namespace for the connection.
+
+
