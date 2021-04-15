@@ -33,7 +33,7 @@ Headers can be given in json format in the Extras field.
 Default Connection IDs
 ----------------------
 
-The HTTP operators and hooks use the ``http_default`` by default
+The HTTP operators and hooks use ``http_default`` by default.
 
 Configuring the Connection
 --------------------------
@@ -53,7 +53,7 @@ Port (optional)
 Schema (optional)
     Specify the service type etc: http/https.
 
-Extra (optional)
+Extras (optional)
     Specify headers in json format.
 
 When specifying the connection in environment variable you should specify
@@ -65,4 +65,4 @@ For example:
 
 .. code-block:: bash
 
-   export IRFLOW_CONN_HTTP_DEFAULT='http://username:password@servvice.com:80/https?headers=header'
+   export AIRFLOW_CONN_HTTP_DEFAULT='http://username:password@servvice.com:80/https?headers=header'
