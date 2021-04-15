@@ -47,7 +47,7 @@ class PodDefaults:
 
     XCOM_MOUNT_PATH = '/airflow/xcom'
     SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
-    XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
+    XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 1; done;'
     VOLUME_MOUNT = k8s.V1VolumeMount(name='xcom', mount_path=XCOM_MOUNT_PATH)
     VOLUME = k8s.V1Volume(name='xcom', empty_dir=k8s.V1EmptyDirVolumeSource())
     SIDECAR_CONTAINER = k8s.V1Container(
@@ -157,6 +157,10 @@ class PodGenerator:
     @staticmethod
     def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
         """Adds sidecar"""
+        warnings.warn(
+            "This function is deprecated. "
+            "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
+        )
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
