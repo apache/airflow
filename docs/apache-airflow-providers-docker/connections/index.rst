@@ -27,36 +27,36 @@ The Docker connection type enables connection to the Docker registry.
 Authenticating to Docker
 ------------------------
 
-Authenticate to docker
+Authenticate to docker by using the login information for docker registry.
+More information on `Docker authentication here
+<https://docker-py.readthedocs.io/en/1.2.3/api/>`_.
 
 Default Connection IDs
 ----------------------
 
-Some hooks and operators related to Microsoft Azure use ``azure_default`` by default.
+Some hooks and operators related to Docker use ``docker_default`` by default.
 
 Configuring the Connection
 --------------------------
 
-Login (optional)
-    Specify the ``client_id`` used for the initial connection.
-    This is only needed for *token credentials* authentication mechanism.
+Login
+    Specify the docker registry username.
 
-Password (optional)
-    Specify the ``secret`` used for the initial connection.
-    This is only needed for *token credentials* authentication mechanism.
+Password
+    Specify the docker registry plaintext password.
 
-Extra (optional)
+Host
+    Specify the URL to the docker registry. Ex: ``https://index.docker.io/v1``
+
+Port (optional)
+    Specify the port if not specified in host.
+
+Extra
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
     The following parameters are all optional:
 
-    * ``tenantId``: Specify the tenant to use.
-      This is only needed for *token credentials* authentication mechanism.
-    * ``subscriptionId``: Specify the subscription id to use.
-      This is only needed for *token credentials* authentication mechanism.
-    * ``key_path``: If set, it uses the *JSON file* authentication mechanism.
-      It specifies the path to the json file that contains the authentication information.
-    * ``key_json``: If set, it uses the *JSON dictionary* authentication mechanism.
-      It specifies the json that contains the authentication information. See
+    * ``email``: Specify the email used for the registry account.
+    * ``reauth``: Specify whether refresh existing authentication on the docker server. (bool)
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -67,4 +67,4 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_AZURE_DEFAULT='azure://?key_path=%2Fkeys%2Fkey.json'
+   export AIRFLOW_CONN_DOCKER_DEFAULT='docker://username:password@https%3A%2F%2Findex.docker.io%2Fv1:80?email=myemail%40my.com&reauth=False'
