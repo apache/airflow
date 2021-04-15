@@ -41,7 +41,8 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
     :type collection_name: str
     :param document_id: The ID of the target document.
     :type document_id: str
-    :param azure_cosmos_conn_id: Reference to the Azure CosmosDB connection.
+    :param azure_cosmos_conn_id: Reference to the
+        :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
     :type azure_cosmos_conn_id: str
     """
 
