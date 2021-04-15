@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Master](#master)
+- [Airflow 2.0.2](#airflow-202)
 - [Airflow 2.0.1](#airflow-201)
 - [Airflow 2.0.0](#airflow-200)
 - [Airflow 1.10.15](#airflow-11015)
@@ -90,6 +91,8 @@ serve as a DagBag cache burst time.
 ### `default_queue` configuration has been moved to the `operators` section.
 
 The `default_queue` configuration option has been moved from `[celery]` section to `[operators]` section to allow for re-use between different executors.
+
+## Airflow 2.0.2
 
 ### Default `[kubernetes] enable_tcp_keepalive` is changed to `True`
 
