@@ -45,12 +45,12 @@ Password (optional)
     Specify the password for the http service you would like to connect too.
 
 Host (optional)
-    Specify the entire url or just the base of the url for the service.
+    Specify the entire url or the base of the url for the service.
 
 Port (optional)
     Specify a port number if applicable.
 
-schema (optional)
+Schema (optional)
     Specify the service type etc: http/https.
 
 Extra (optional)
@@ -65,4 +65,4 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_AZURE_DEFAULT='azure://?key_path=%2Fkeys%2Fkey.json'
+   export IRFLOW_CONN_HTTP_DEFAULT='http://username:password@servvice.com:80/https?headers=header'
