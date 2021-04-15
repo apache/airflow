@@ -71,6 +71,11 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Deprecated PodDefaults and in airflow.kubernetes.pod_generator
+
+We have moved PodDefaults and add_xcom_sidecar to `airflow.providers.cncf.kubernetes.utils.xcom_sidecar`.
+This change will allow us to modify the KubernetesPodOperator XCom functionality without requiring airflow upgrades.
+
 ### Removed pod_launcher from core airflow
 
 Moved the pod launcher from `airflow.kubernetes.pod_launcher` to `airflow.providers.cncf.kubernetes.utils.pod_launcher`
