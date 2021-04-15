@@ -3864,7 +3864,7 @@ class DagDependenciesView(AirflowBaseView):
         "dag_dependencies_refresh_interval",
         fallback=conf.getint("scheduler", "dag_dir_list_interval"),
     )
-    last_refresh = datetime.utcnow() - timedelta(seconds=refresh_interval)
+    last_refresh = timezone.utcnow() - timedelta(seconds=refresh_interval)
     nodes = []
     edges = []
 
@@ -3880,9 +3880,10 @@ class DagDependenciesView(AirflowBaseView):
         """Display DAG dependencies"""
         title = "DAG Dependencies"
 
-        if datetime.utcnow() > self.last_refresh + timedelta(seconds=self.refresh_interval):
-            self._calculate_graph()
-            self.last_refresh = datetime.utcnow()
+        if timezone.utcnow() > self.last_refresh + timedelta(seconds=self.refresh_interval):
+            if models.SerializedDagModel.get_max_last_updated_datetime() > self.last_refresh:
+                self._calculate_graph()
+            self.last_refresh = timezone.utcnow()
 
         return self.render_template(
             "airflow/dag_dependencies.html",
@@ -3897,22 +3898,20 @@ class DagDependenciesView(AirflowBaseView):
 
     def _calculate_graph(self):
 
-        current_app.dag_bag.collect_dags_from_db()
-
         nodes = []
         edges = []
 
-        for dag_id, dag in current_app.dag_bag.dags.items():
-            dag_node_id = f"dag:{dag_id}"
-            nodes.append(self._node_dict(dag_node_id, dag_id, "dag"))
+        for dag, dependencies in models.SerializedDagModel.get_dag_dependencies().items():
+            dag_node_id = f"dag:{dag}"
+            nodes.append(self._node_dict(dag_node_id, dag, "dag"))
 
-            for dep in dag.dependencies:
-                task_node_id = ":".join([dep['type'], dep["from"], dep["to"], dep["id"]])
-                nodes.append(self._node_dict(task_node_id, dep["id"], dep["type"]))
+            for dep in dependencies:
+
+                nodes.append(self._node_dict(dep.node_id, dep.dependency_id, dep.dependency_type))
                 edges.extend(
                     [
-                        {"u": f"dag:{dep['from']}", "v": task_node_id},
-                        {"u": task_node_id, "v": f"dag:{dep['to']}"},
+                        {"u": f"dag:{dep.source}", "v": dep.node_id},
+                        {"u": dep.node_id, "v": f"dag:{dep.target}"},
                     ]
                 )
 
