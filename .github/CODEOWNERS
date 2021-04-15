@@ -10,10 +10,19 @@
 /airflow/kubernetes/ @dimberman
 /airflow/kubernetes_executor_templates/ @dimberman
 /airflow/executors/celery_kubernetes_executor.py @dimberman
-/chart/ @dimberman @ashb
+
+# Helm Chart
+/chart/ @dimberman @ashb @kaxil
+
 
 # Docs
-/docs/ @mik-laj @kaxil @vikramkoka
+/docs/ @mik-laj @vikramkoka
+
+# Docs (without Providers)
+/docs/apache-airflow @kaxil
+/docs/docker-stack @kaxil
+/docs/helm-chart @kaxil
+/docs/*.py @kaxil
 
 # API
 /airflow/api/ @mik-laj @kaxil
