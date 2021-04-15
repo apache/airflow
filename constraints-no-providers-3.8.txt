@@ -34,7 +34,7 @@ bcrypt==3.2.0
 billiard==3.6.4.0
 blinker==1.4
 cachetools==4.2.1
-cattrs==1.4.0
+cattrs==1.5.0
 celery==4.4.7
 certifi==2020.12.5
 cffi==1.14.5
@@ -61,7 +61,7 @@ eventlet==0.30.2
 filelock==3.0.12
 flower==0.9.7
 gevent==21.1.2
-google-auth==1.28.1
+google-auth==1.29.0
 graphviz==0.16
 greenlet==1.0.0
 gunicorn==19.10.0

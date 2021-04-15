@@ -149,14 +149,14 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==20.8b1
 blinker==1.4
-boto3==1.17.52
+boto3==1.17.53
 boto==2.49.0
-botocore==1.20.52
+botocore==1.20.53
 bowler==0.9.0
 cached-property==1.5.2
 cachetools==4.2.1
 cassandra-driver==3.20.2
-cattrs==1.4.0
+cattrs==1.5.0
 celery==4.4.7
 certifi==2020.12.5
 cffi==1.14.5
@@ -178,7 +178,7 @@ cryptography==3.4.7
 curlify==2.2.1
 cx-Oracle==8.1.0
 dask==2021.3.1
-datadog==0.40.1
+datadog==0.41.0
 decorator==5.0.7
 defusedxml==0.7.1
 dill==0.3.2
@@ -219,7 +219,7 @@ google-api-python-client==1.12.8
 google-apitools==0.5.31
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.4.4
-google-auth==1.28.1
+google-auth==1.29.0
 google-cloud-automl==2.3.0
 google-cloud-bigquery-datatransfer==3.1.1
 google-cloud-bigquery-storage==2.3.0
