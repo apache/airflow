@@ -119,14 +119,14 @@ class TestConfigInfoLogging(unittest.TestCase):
         with conf_vars(
             {
                 ('logging', 'remote_logging'): 'True',
-                ('logging', 'remote_base_log_folder'): 'stackdriver://logs-name',
+                ('logging', 'remote_base_log_folder'): 's3://logs-name',
             }
         ):
             importlib.reload(airflow_local_settings)
             configure_logging()
             instance = info_command.ConfigInfo(info_command.NullAnonymizer())
             text = capture_show_output(instance)
-            assert "stackdriver" in text
+            assert "S3TaskHandler" in text
 
     def tearDown(self) -> None:
         importlib.reload(airflow_local_settings)
