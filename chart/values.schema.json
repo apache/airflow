@@ -682,6 +682,29 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "livenessProbe": {
+                    "description": "Liveness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Scheduler Liveness probe initial delay.",
+                            "type": "integer"
+                        },
+                        "timeoutSeconds": {
+                            "description": "Scheduler Liveness probe timeout seconds.",
+                            "type": "integer"
+                        },
+                        "failureThreshold": {
+                            "description": "Scheduler Liveness probe failure threshold.",
+                            "type": "integer"
+                        },
+                        "periodSeconds": {
+                            "description": "Webserver Liveness probe period seconds.",
+                            "type": "integer"
+                        }
+                    }
+                },
                 "replicas": {
                   "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
                   "type": "integer"
@@ -1048,6 +1071,13 @@
                 "maxClientConn": {
                     "description": "Maximum clients that can connect to pgbouncer (higher = more file descriptors).",
                     "type": "integer"
+                },
+                "configSecretName": {
+                    "description": "The PgBouncer config secret name.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
                 },
                 "podDisruptionBudget": {
                     "description": "Pgbouner pod disruption budget.",
@@ -1417,6 +1447,10 @@
                     "properties": {
                         "enabled": {
                             "description": "Enable Git sync.",
+                            "type": "boolean"
+                        },
+                        "excludeWebserver": {
+                            "description": "Disable Git sync on webserver as it is not needed when DAG Serialization is enabled.",
                             "type": "boolean"
                         },
                         "repo": {

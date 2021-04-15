@@ -156,3 +156,4 @@ hook-class-names:
   - airflow.providers.microsoft.azure.hooks.azure_container_instance.AzureContainerInstanceHook
   - airflow.providers.microsoft.azure.hooks.wasb.WasbHook
   - airflow.providers.microsoft.azure.hooks.azure_data_factory.AzureDataFactoryHook
+  - airflow.providers.microsoft.azure.hooks.azure_container_registry.AzureContainerRegistryHook

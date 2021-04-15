@@ -102,6 +102,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           label: 'full tests needed'
           require_committers_approval: 'true'
+          remove_label_when_approval_missing: 'false'
           pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
           comment: >
             The PR most likely needs to run full matrix of tests because it modifies parts of the core

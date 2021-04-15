@@ -34,6 +34,21 @@ from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.www.utils import CustomSQLAInterface
+from airflow.www.views import (
+    CustomPermissionModelView,
+    CustomPermissionViewModelView,
+    CustomResetMyPasswordView,
+    CustomResetPasswordView,
+    CustomRoleModelView,
+    CustomUserDBModelView,
+    CustomUserInfoEditView,
+    CustomUserLDAPModelView,
+    CustomUserOAuthModelView,
+    CustomUserOIDModelView,
+    CustomUserRemoteUserModelView,
+    CustomUserStatsChartView,
+    CustomViewMenuModelView,
+)
 
 EXISTING_ROLES = {
     'Admin',
@@ -45,7 +60,7 @@ EXISTING_ROLES = {
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=too-many-public-methods
-    """Custom security manager, which introduces an permission model adapted to Airflow"""
+    """Custom security manager, which introduces a permission model adapted to Airflow"""
 
     ###########################################################################
     #                               PERMISSIONS
@@ -53,12 +68,16 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     # [START security_viewer_perms]
     VIEWER_PERMISSIONS = [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
@@ -67,24 +86,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
-        (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
-        (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
-        (permissions.ACTION_RESETMYPASSWORD, permissions.RESOURCE_USER_DB_MODELVIEW),
-        (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_USERINFO_EDIT_VIEW),
-        (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_USERINFO_EDIT_VIEW),
-        (permissions.ACTION_USERINFOEDIT, permissions.RESOURCE_USER_DB_MODELVIEW),
-        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_DB_MODELVIEW),
-        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OID_MODELVIEW),
-        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_LDAP_MODELVIEW),
-        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OAUTH_MODELVIEW),
-        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_REMOTEUSER_MODELVIEW),
     ]
     # [END security_viewer_perms]
 
@@ -128,6 +136,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     ADMIN_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_PASSWORD),
     ]
 
     # global view-menu for dag-level access
@@ -156,6 +166,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + ADMIN_PERMISSIONS,
         },
     ]
+
+    permissionmodelview = CustomPermissionModelView
+    permissionviewmodelview = CustomPermissionViewModelView
+    rolemodelview = CustomRoleModelView
+    viewmenumodelview = CustomViewMenuModelView
+    userdbmodelview = CustomUserDBModelView
+    resetmypasswordview = CustomResetMyPasswordView
+    resetpasswordview = CustomResetPasswordView
+    userinfoeditview = CustomUserInfoEditView
+    userldapmodelview = CustomUserLDAPModelView
+    useroauthmodelview = CustomUserOAuthModelView
+    userremoteusermodelview = CustomUserRemoteUserModelView
+    useroidmodelview = CustomUserOIDModelView
+    userstatschartview = CustomUserStatsChartView
 
     def __init__(self, appbuilder):
         super().__init__(appbuilder)

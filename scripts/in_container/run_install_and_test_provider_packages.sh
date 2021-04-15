@@ -118,7 +118,7 @@ function discover_all_hooks() {
     group_start "Listing available hooks via 'airflow providers hooks'"
     COLUMNS=180 airflow providers hooks
 
-    local expected_number_of_hooks=63
+    local expected_number_of_hooks=64
     local actual_number_of_hooks
     actual_number_of_hooks=$(airflow providers hooks --output table | grep -c "| apache" | xargs)
     if [[ ${actual_number_of_hooks} != "${expected_number_of_hooks}" ]]; then
@@ -157,7 +157,7 @@ function discover_all_connection_form_widgets() {
 
     COLUMNS=180 airflow providers widgets
 
-    local expected_number_of_widgets=25
+    local expected_number_of_widgets=42
     local actual_number_of_widgets
     actual_number_of_widgets=$(airflow providers widgets --output table | grep -c ^extra)
     if [[ ${actual_number_of_widgets} != "${expected_number_of_widgets}" ]]; then
@@ -176,7 +176,7 @@ function discover_all_field_behaviours() {
     group_start "Listing connections with custom behaviours via 'airflow providers behaviours'"
     COLUMNS=180 airflow providers behaviours
 
-    local expected_number_of_connections_with_behaviours=12
+    local expected_number_of_connections_with_behaviours=21
     local actual_number_of_connections_with_behaviours
     actual_number_of_connections_with_behaviours=$(airflow providers behaviours --output table | grep -v "===" | \
         grep -v field_behaviours | grep -cv "^ " | xargs)

@@ -39,12 +39,11 @@ def configured_app(minimal_app_for_api):
         username="test",
         role_name="Test",
         permissions=[
-            (permissions.ACTION_CAN_LIST, permissions.RESOURCE_ROLE_MODEL_VIEW),
-            (permissions.ACTION_CAN_ADD, permissions.RESOURCE_ROLE_MODEL_VIEW),
-            (permissions.ACTION_CAN_SHOW, permissions.RESOURCE_ROLE_MODEL_VIEW),
-            (permissions.ACTION_CAN_LIST, permissions.RESOURCE_PERMISSION_MODEL_VIEW),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE_MODEL_VIEW),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE_MODEL_VIEW),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_PERMISSION),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -155,6 +154,7 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
         existing_roles.update(['Test', 'TestNoPermissions'])
         assert response.json['total_entries'] == len(existing_roles)
         roles = [role['name'] for role in response.json['roles'] if role]
+
         assert roles == expected_roles
 
 

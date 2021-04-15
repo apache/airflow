@@ -17,6 +17,8 @@
 # under the License.
 """Hook for Azure Container Registry"""
 
+from typing import Dict
+
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
 
 from airflow.hooks.base import BaseHook
@@ -30,6 +32,28 @@ class AzureContainerRegistryHook(BaseHook):
         to start the container instance
     :type conn_id: str
     """
+
+    conn_name_attr = 'azure_container_registry_conn_id'
+    default_conn_name = 'azure_container_registry_default'
+    conn_type = 'azure_container_registry'
+    hook_name = 'Azure Container Registry'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema', 'port', 'extra'],
+            "relabeling": {
+                'login': 'Registry Username',
+                'password': 'Registry Password',
+                'host': 'Registry Server',
+            },
+            "placeholders": {
+                'login': 'private registry username',
+                'password': 'private registry password',
+                'host': 'docker image registry server',
+            },
+        }
 
     def __init__(self, conn_id: str = 'azure_registry') -> None:
         super().__init__()

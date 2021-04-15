@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pendulum
@@ -233,6 +234,135 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
         assert start_mock.call_args[0][0].metadata.name.startswith(name_base)
         assert start_mock.call_args[0][0].metadata.name != name_base
+
+    def test_pod_name_required(self):
+        with pytest.raises(AirflowException, match="`name` is required"):
+            KubernetesPodOperator(
+                namespace='default',
+                image="ubuntu:16.04",
+                cmds=["bash", "-cx"],
+                arguments=["echo 10"],
+                labels={"foo": "bar"},
+                task_id="task",
+                in_cluster=False,
+                do_xcom_push=False,
+                cluster_context='default',
+            )
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_full_pod_spec(self, mock_client, monitor_mock, start_mock):
+        from airflow.utils.state import State
+
+        pod_spec = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="hello", labels={"foo": "bar"}, namespace="mynamespace"),
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        image="ubuntu:16.04",
+                        command=["something"],
+                    )
+                ]
+            ),
+        )
+
+        k = KubernetesPodOperator(
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            cluster_context='default',
+            full_pod_spec=pod_spec,
+        )
+        monitor_mock.return_value = (State.SUCCESS, None)
+        context = self.create_context(k)
+        k.execute(context=context)
+
+        assert start_mock.call_args[0][0].metadata.name == pod_spec.metadata.name
+        assert start_mock.call_args[0][0].metadata.labels == pod_spec.metadata.labels
+        assert start_mock.call_args[0][0].metadata.namespace == pod_spec.metadata.namespace
+        assert start_mock.call_args[0][0].spec.containers[0].image == pod_spec.spec.containers[0].image
+        assert start_mock.call_args[0][0].spec.containers[0].command == pod_spec.spec.containers[0].command
+
+        # kwargs take precedence, however
+        start_mock.reset_mock()
+        image = "some.custom.image:andtag"
+        name_base = "world"
+        k = KubernetesPodOperator(
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            cluster_context='default',
+            full_pod_spec=pod_spec,
+            name=name_base,
+            image=image,
+        )
+        context = self.create_context(k)
+        k.execute(context=context)
+
+        # make sure the kwargs takes precedence (and that name is randomized)
+        assert start_mock.call_args[0][0].metadata.name.startswith(name_base)
+        assert start_mock.call_args[0][0].metadata.name != name_base
+        assert start_mock.call_args[0][0].spec.containers[0].image == image
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_pod_template_file(self, mock_client, monitor_mock, start_mock):
+        from airflow.utils.state import State
+
+        pod_template_yaml = b"""
+            apiVersion: v1
+            kind: Pod
+            metadata:
+              name: hello
+              namespace: mynamespace
+              labels:
+                foo: bar
+            spec:
+              containers:
+                - name: base
+                  image: ubuntu:16.04
+                  command:
+                    - something
+        """
+
+        with NamedTemporaryFile() as tpl_file:
+            tpl_file.write(pod_template_yaml)
+            tpl_file.flush()
+
+            k = KubernetesPodOperator(
+                task_id="task",
+                pod_template_file=tpl_file.name,
+            )
+            monitor_mock.return_value = (State.SUCCESS, None)
+            context = self.create_context(k)
+            k.execute(context=context)
+
+            assert start_mock.call_args[0][0].metadata.name == "hello"
+            assert start_mock.call_args[0][0].metadata.labels == {"foo": "bar"}
+            assert start_mock.call_args[0][0].metadata.namespace == "mynamespace"
+            assert start_mock.call_args[0][0].spec.containers[0].image == "ubuntu:16.04"
+            assert start_mock.call_args[0][0].spec.containers[0].command == ["something"]
+
+            # kwargs take precedence, however
+            start_mock.reset_mock()
+            image = "some.custom.image:andtag"
+            name_base = "world"
+            k = KubernetesPodOperator(
+                task_id="task",
+                pod_template_file=tpl_file.name,
+                name=name_base,
+                image=image,
+            )
+            context = self.create_context(k)
+            k.execute(context=context)
+
+            # make sure the kwargs takes precedence (and that name is randomized)
+            assert start_mock.call_args[0][0].metadata.name.startswith(name_base)
+            assert start_mock.call_args[0][0].metadata.name != name_base
+            assert start_mock.call_args[0][0].spec.containers[0].image == image
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")

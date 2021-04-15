@@ -55,6 +55,21 @@ from flask_appbuilder import BaseView, ModelView, expose
 from flask_appbuilder.actions import action
 from flask_appbuilder.fieldwidgets import Select2Widget
 from flask_appbuilder.models.sqla.filters import BaseFilter  # noqa
+from flask_appbuilder.security.views import (
+    PermissionModelView,
+    PermissionViewModelView,
+    ResetMyPasswordView,
+    ResetPasswordView,
+    RoleModelView,
+    UserDBModelView,
+    UserInfoEditView,
+    UserLDAPModelView,
+    UserOAuthModelView,
+    UserOIDModelView,
+    UserRemoteUserModelView,
+    UserStatsChartView,
+    ViewMenuModelView,
+)
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
@@ -348,10 +363,16 @@ def dag_edges(dag):
     for root in dag.roots:
         get_downstream(root)
 
-    return [
-        {'source_id': source_id, 'target_id': target_id}
-        for source_id, target_id in sorted(edges.union(edges_to_add) - edges_to_skip)
-    ]
+    result = []
+    # Build result dicts with the two ends of the edge, plus any extra metadata
+    # if we have it.
+    for source_id, target_id in sorted(edges.union(edges_to_add) - edges_to_skip):
+        record = {"source_id": source_id, "target_id": target_id}
+        label = dag.get_edge_info(source_id, target_id).get("label")
+        if label:
+            record["label"] = label
+        result.append(record)
+    return result
 
 
 ######################################################################################
@@ -3145,9 +3166,9 @@ class VariableModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['key', 'val', 'is_encrypted']
-    add_columns = ['key', 'val']
-    edit_columns = ['key', 'val']
+    list_columns = ['key', 'val', 'description', 'is_encrypted']
+    add_columns = ['key', 'val', 'description']
+    edit_columns = ['key', 'val', 'description']
     search_columns = ['key', 'val']
 
     base_order = ('key', 'asc')
@@ -3293,6 +3314,7 @@ class DagRunModelView(AirflowModelView):
     method_permission_name = {
         'add': 'create',
         'list': 'read',
+        'action_clear': 'delete',
         'action_muldelete': 'delete',
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
@@ -3831,3 +3853,204 @@ class DagModelView(AirflowModelView):
         payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
 
         return wwwutils.json_response(payload)
+
+
+class CustomPermissionModelView(PermissionModelView):
+    """Customize permission names for FAB's builtin PermissionModelView."""
+
+    class_permission_name = permissions.RESOURCE_PERMISSION
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomPermissionViewModelView(PermissionViewModelView):
+    """Customize permission names for FAB's builtin PermissionViewModelView."""
+
+    class_permission_name = permissions.RESOURCE_PERMISSION_VIEW
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomResetMyPasswordView(ResetMyPasswordView):
+    """Customize permission names for FAB's builtin ResetMyPasswordView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PASSWORD
+    method_permission_name = {
+        'this_form_get': 'read',
+        'this_form_post': 'edit',
+    }
+    base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
+
+class CustomResetPasswordView(ResetPasswordView):
+    """Customize permission names for FAB's builtin ResetPasswordView."""
+
+    class_permission_name = permissions.RESOURCE_PASSWORD
+    method_permission_name = {
+        'this_form_get': 'read',
+        'this_form_post': 'edit',
+    }
+
+    base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
+
+class CustomRoleModelView(RoleModelView):
+    """Customize permission names for FAB's builtin RoleModelView."""
+
+    class_permission_name = permissions.RESOURCE_ROLE
+    method_permission_name = {
+        'delete': 'delete',
+        'download': 'read',
+        'show': 'read',
+        'list': 'read',
+        'edit': 'edit',
+        'add': 'create',
+        'copy_role': 'create',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+    ]
+
+
+class CustomViewMenuModelView(ViewMenuModelView):
+    """Customize permission names for FAB's builtin ViewMenuModelView."""
+
+    class_permission_name = permissions.RESOURCE_VIEW_MENU
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserDBModelView(UserDBModelView):
+    """Customize permission names for FAB's builtin UserDBModelView."""
+
+    _class_permission_name = permissions.RESOURCE_USER
+
+    class_permission_name_mapping = {
+        'resetmypassword': permissions.RESOURCE_MY_PASSWORD,
+        'resetpasswords': permissions.RESOURCE_PASSWORD,
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE,
+    }
+
+    method_permission_name = {
+        'add': 'create',
+        'userinfo': 'read',
+        'download': 'read',
+        'show': 'read',
+        'list': 'read',
+        'edit': 'edit',
+        'resetmypassword': 'read',
+        'resetpasswords': 'read',
+        'userinfoedit': 'edit',
+        'delete': 'delete',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+    ]
+
+    @property
+    def class_permission_name(self):
+        """Returns appropriate permission name depending on request method name."""
+        if request:
+            action_name = request.view_args.get("name")
+            _, method_name = request.url_rule.endpoint.split(".")
+            if method_name == 'action' and action_name:
+                return self.class_permission_name_mapping.get(action_name, self._class_permission_name)
+            if method_name:
+                return self.class_permission_name_mapping.get(method_name, self._class_permission_name)
+
+        return self._class_permission_name
+
+    @class_permission_name.setter
+    def class_permission_name(self, name):
+        self._class_permission_name = name
+
+
+class CustomUserInfoEditView(UserInfoEditView):
+    """Customize permission names for FAB's builtin UserInfoEditView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    route_base = "/userinfoeditview"
+    method_permission_name = {
+        'this_form_get': 'read',
+        'this_form_post': 'edit',
+    }
+    base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
+
+class CustomUserStatsChartView(UserStatsChartView):
+    """Customize permission names for FAB's builtin UserStatsChartView."""
+
+    class_permission_name = permissions.RESOURCE_USER_STATS_CHART
+    route_base = "/userstatschartview"
+    method_permission_name = {
+        'chart': 'read',
+    }
+    base_permissions = [permissions.ACTION_CAN_READ]
+
+
+class CustomUserLDAPModelView(UserLDAPModelView):
+    """Customize permission names for FAB's builtin UserLDAPModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserOAuthModelView(UserOAuthModelView):
+    """Customize permission names for FAB's builtin UserOAuthModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserOIDModelView(UserOIDModelView):
+    """Customize permission names for FAB's builtin UserOIDModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserRemoteUserModelView(UserRemoteUserModelView):
+    """Customize permission names for FAB's builtin UserRemoteUserModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]

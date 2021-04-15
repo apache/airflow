@@ -358,9 +358,10 @@
         Whether to persist DAG files code in DB.
         If set to True, Webserver reads file contents from DB instead of
         trying to access files in a DAG folder.
+        (Default is ``True``)
       version_added: 1.10.10
       type: string
-      example: "False"
+      example: "True"
       default: ~
     - name: max_num_rendered_ti_fields_per_task
       description: |
@@ -2115,7 +2116,7 @@
       version_added: ~
       type: boolean
       example: ~
-      default: "False"
+      default: "True"
     - name: tcp_keep_idle
       description: |
         When the `enable_tcp_keepalive` option is enabled, TCP probes a connection that has

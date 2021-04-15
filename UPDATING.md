@@ -74,7 +74,7 @@ https://developers.google.com/style/inclusive-documentation
 
 Moved the pod launcher from `airflow.kubernetes.pod_launcher` to `airflow.providers.cncf.kubernetes.utils.pod_launcher`
 
-This will alow users to update the pod_launcher for the KubernetesPodOperator without requiring an airflow upgrade
+This will allow users to update the pod_launcher for the KubernetesPodOperator without requiring an airflow upgrade
 
 ### Default `[webserver] worker_refresh_interval` is changed to `6000` seconds
 
@@ -90,6 +90,10 @@ serve as a DagBag cache burst time.
 ### `default_queue` configuration has been moved to the `operators` section.
 
 The `default_queue` configuration option has been moved from `[celery]` section to `[operators]` section to allow for re-use between different executors.
+
+### Default `[kubernetes] enable_tcp_keepalive` is changed to `True`
+
+This allows Airflow to work more reliably with some environments (like Azure) by default.
 
 ## Airflow 2.0.1
 

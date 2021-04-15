@@ -24,7 +24,7 @@ Airflow connection of type `azure_data_lake` exists. Authorization can be done b
 login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
 (see connection `azure_data_lake_default` for an example).
 """
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from azure.datalake.store import core, lib, multithread
 
@@ -49,6 +49,39 @@ class AzureDataLakeHook(BaseHook):
     conn_type = 'azure_data_lake'
     hook_name = 'Azure Data Lake'
 
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        return {
+            "extra__azure_data_lake__tenant": StringField(
+                lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()
+            ),
+            "extra__azure_data_lake__account_name": StringField(
+                lazy_gettext('Azure DataLake Store Name'), widget=BS3TextFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema', 'port', 'host', 'extra'],
+            "relabeling": {
+                'login': 'Azure Client ID',
+                'password': 'Azure Client Secret',
+            },
+            "placeholders": {
+                'login': 'client id',
+                'password': 'secret',
+                'extra__azure_data_lake__tenant': 'tenant id',
+                'extra__azure_data_lake__account_name': 'datalake store',
+            },
+        }
+
     def __init__(self, azure_data_lake_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_data_lake_conn_id
@@ -60,11 +93,12 @@ class AzureDataLakeHook(BaseHook):
         if not self._conn:
             conn = self.get_connection(self.conn_id)
             service_options = conn.extra_dejson
-            self.account_name = service_options.get('account_name')
-
-            adl_creds = lib.auth(
-                tenant_id=service_options.get('tenant'), client_secret=conn.password, client_id=conn.login
+            self.account_name = service_options.get('account_name') or service_options.get(
+                'extra__azure_data_lake__account_name'
             )
+            tenant = service_options.get('tenant') or service_options.get('extra__azure_data_lake__tenant')
+
+            adl_creds = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
             self._conn = core.AzureDLFileSystem(adl_creds, store_name=self.account_name)
             self._conn.connect()
         return self._conn

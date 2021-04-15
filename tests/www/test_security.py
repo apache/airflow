@@ -32,7 +32,7 @@ from airflow.models import DagModel
 from airflow.security import permissions
 from airflow.www import app as application
 from airflow.www.utils import CustomSQLAInterface
-from tests.test_utils import fab_utils
+from tests.test_utils import api_connexion_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
@@ -100,7 +100,7 @@ class TestSecurity(unittest.TestCase):
     @classmethod
     def delete_roles(cls):
         for role_name in ['team-a', 'MyRole1', 'MyRole5', 'Test_Role', 'MyRole3', 'MyRole2']:
-            fab_utils.delete_role(cls.app, role_name)
+            api_connexion_utils.delete_role(cls.app, role_name)
 
     def expect_user_is_in_role(self, user, rolename):
         self.security_manager.bulk_sync_roles([{'role': rolename, 'perms': []}])
@@ -189,7 +189,9 @@ class TestSecurity(unittest.TestCase):
         self.security_manager.bulk_sync_roles(mock_roles)
         role = self.security_manager.find_role(role_name)
 
-        perm = self.security_manager.find_permission_view_menu(permissions.ACTION_CAN_EDIT, 'RoleModelView')
+        perm = self.security_manager.find_permission_view_menu(
+            permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE
+        )
         self.security_manager.add_permission_role(role, perm)
         role_perms_len = len(role.permissions)
 
@@ -278,11 +280,11 @@ class TestSecurity(unittest.TestCase):
 
     def test_get_user_roles_for_anonymous_user(self):
         viewer_role_perms = {
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
@@ -290,6 +292,10 @@ class TestSecurity(unittest.TestCase):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
@@ -299,17 +305,6 @@ class TestSecurity(unittest.TestCase):
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
-            (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
-            (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
-            (permissions.ACTION_RESETMYPASSWORD, permissions.RESOURCE_USER_DB_MODELVIEW),
-            (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_USERINFO_EDIT_VIEW),
-            (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_USERINFO_EDIT_VIEW),
-            (permissions.ACTION_USERINFOEDIT, permissions.RESOURCE_USER_DB_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_DB_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OID_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_LDAP_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OAUTH_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_REMOTEUSER_MODELVIEW),
         }
         self.app.config['AUTH_ROLE_PUBLIC'] = 'Viewer'
 
@@ -332,7 +327,7 @@ class TestSecurity(unittest.TestCase):
         username = 'get_current_user_permissions'
 
         with self.app.app_context():
-            user = fab_utils.create_user(
+            user = api_connexion_utils.create_user(
                 self.app,
                 username,
                 role_name,
@@ -354,7 +349,7 @@ class TestSecurity(unittest.TestCase):
         dag_id = 'dag_id'
         username = "ElUser"
 
-        user = fab_utils.create_user(
+        user = api_connexion_utils.create_user(
             self.app,
             username,
             role_name,
@@ -382,7 +377,7 @@ class TestSecurity(unittest.TestCase):
         permission_action = [permissions.ACTION_CAN_EDIT]
         dag_id = "dag_id"
 
-        user = fab_utils.create_user(
+        user = api_connexion_utils.create_user(
             self.app,
             username,
             role_name,
@@ -448,7 +443,7 @@ class TestSecurity(unittest.TestCase):
         username = 'dag_access_user'
         role_name = 'dag_access_role'
         with self.app.app_context():
-            user = fab_utils.create_user(
+            user = api_connexion_utils.create_user(
                 self.app,
                 username,
                 role_name,
@@ -470,7 +465,7 @@ class TestSecurity(unittest.TestCase):
             'can_eat_pudding',  # clearly not a real permission
         ]
         username = "LaUser"
-        user = fab_utils.create_user(
+        user = api_connexion_utils.create_user(
             self.app,
             username=username,
             role_name='team-a',
@@ -487,7 +482,7 @@ class TestSecurity(unittest.TestCase):
         username = 'access_control_is_set_on_init'
         role_name = 'team-a'
         with self.app.app_context():
-            user = fab_utils.create_user(
+            user = api_connexion_utils.create_user(
                 self.app,
                 username,
                 role_name,
@@ -515,7 +510,7 @@ class TestSecurity(unittest.TestCase):
         username = 'access_control_stale_perms_are_revoked'
         role_name = 'team-a'
         with self.app.app_context():
-            user = fab_utils.create_user(
+            user = api_connexion_utils.create_user(
                 self.app,
                 username,
                 role_name,

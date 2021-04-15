@@ -204,7 +204,10 @@ class TestLoadConnection(unittest.TestCase):
 
     @parameterized.expand(
         (
-            ("""CONN_A: 'mysql://host_a'""", {"CONN_A": "mysql://host_a"}),
+            (
+                """CONN_A: 'mysql://host_a'""",
+                {"CONN_A": {'conn_type': 'mysql', 'host': 'host_a'}},
+            ),
             (
                 """
             conn_a: mysql://hosta
@@ -216,28 +219,36 @@ class TestLoadConnection(unittest.TestCase):
                password: None
                port: 1234
                extra_dejson:
-                 extra__google_cloud_platform__keyfile_dict:
-                   a: b
+                 arbitrary_dict:
+                    a: b
+                 extra__google_cloud_platform__keyfile_dict: '{"a": "b"}'
                  extra__google_cloud_platform__keyfile_path: asaa""",
                 {
-                    "conn_a": "mysql://hosta",
-                    "conn_b": ''.join(
-                        """scheme://Login:None@host:1234/lschema?
-                        extra__google_cloud_platform__keyfile_dict=%7B%27a%27%3A+%27b%27%7D
-                        &extra__google_cloud_platform__keyfile_path=asaa""".split()
-                    ),
+                    "conn_a": {'conn_type': 'mysql', 'host': 'hosta'},
+                    "conn_b": {
+                        'conn_type': 'scheme',
+                        'host': 'host',
+                        'schema': 'lschema',
+                        'login': 'Login',
+                        'password': 'None',
+                        'port': 1234,
+                        'extra_dejson': {
+                            'arbitrary_dict': {"a": "b"},
+                            'extra__google_cloud_platform__keyfile_dict': '{"a": "b"}',
+                            'extra__google_cloud_platform__keyfile_path': 'asaa',
+                        },
+                    },
                 },
             ),
         )
     )
-    def test_yaml_file_should_load_connection(self, file_content, expected_connection_uris):
+    def test_yaml_file_should_load_connection(self, file_content, expected_attrs_dict):
         with mock_local_file(file_content):
             connections_by_conn_id = local_filesystem.load_connections_dict("a.yaml")
-            connection_uris_by_conn_id = {
-                conn_id: connection.get_uri() for conn_id, connection in connections_by_conn_id.items()
-            }
-
-            assert expected_connection_uris == connection_uris_by_conn_id
+            for conn_id, connection in connections_by_conn_id.items():
+                expected_attrs = expected_attrs_dict[conn_id]
+                actual_attrs = {k: getattr(connection, k) for k in expected_attrs.keys()}
+                assert actual_attrs == expected_attrs
 
     @parameterized.expand(
         (

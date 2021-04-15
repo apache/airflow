@@ -116,11 +116,11 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
-          # If the scheduler stops heartbeating for 5 minutes (10*30s) kill the
-          # scheduler and let Kubernetes restart it
           livenessProbe:
-            failureThreshold: 10
-            periodSeconds: 30
+            initialDelaySeconds: {{ .Values.scheduler.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.scheduler.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.scheduler.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.scheduler.livenessProbe.periodSeconds }}
             exec:
               command:
               - python
