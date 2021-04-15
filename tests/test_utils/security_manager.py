@@ -20,12 +20,12 @@ from flask_appbuilder.security.sqla.models import assoc_permissionview_role
 
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.session import create_session
-from airflow.www.security import SimpleAirflowSecurityManager
+from airflow.www.security import ApplessAirflowSecurityManager
 
 
 def delete_dag_specific_permissions():
     with create_session() as session:
-        security_manager = SimpleAirflowSecurityManager(session=session)
+        security_manager = ApplessAirflowSecurityManager(session=session)
 
         dag_vms = (
             session.query(security_manager.viewmenu_model)

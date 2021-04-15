@@ -546,9 +546,9 @@ class DagBag(LoggingMixin):
                 )
                 if dag_was_updated:
                     self.log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
-                    from airflow.www.security import SimpleAirflowSecurityManager
+                    from airflow.www.security import ApplessAirflowSecurityManager
 
-                    security_manager = SimpleAirflowSecurityManager(session=session)
+                    security_manager = ApplessAirflowSecurityManager(session=session)
                     security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
                 return []
             except OperationalError:

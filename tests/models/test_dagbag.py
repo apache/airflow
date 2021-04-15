@@ -688,7 +688,7 @@ class TestDagBag(unittest.TestCase):
         )
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
-    @patch("airflow.www.security.SimpleAirflowSecurityManager")
+    @patch("airflow.www.security.ApplessAirflowSecurityManager")
     def test_sync_to_db_handles_dag_specific_permissions(self, mock_security_manager):
         """
         Test that when dagbag.sync_to_db is called new DAGs and updates DAGs have their
