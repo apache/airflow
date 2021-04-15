@@ -75,7 +75,8 @@ class ClusterGenerator:
     :param custom_image_project_id: project id for the custom Dataproc image, for more info see
         https://cloud.google.com/dataproc/docs/guides/dataproc-images
     :type custom_image_project_id: str
-    :param custom_image_family: family for the custom Dataproc image, for more info see
+    :param custom_image_family: family for the custom Dataproc image,
+        family name can be provide using --family flag while creating custom image, for more info see
         https://cloud.google.com/dataproc/docs/guides/dataproc-images
     :type custom_image_family: str
     :param autoscaling_policy: The autoscaling policy used by the cluster. Only resource names
