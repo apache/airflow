@@ -98,7 +98,7 @@ This allows Airflow to work more reliably with some environments (like Azure) by
 ### `sync-perm` CLI no longer syncs DAG specific permissions by default
 
 The `sync-perm` CLI command will no longer sync DAG specific permissions by default as they are now being handled during
-DAG parsing. If you need or want the old behavoir, you can pass `--include-dags` to have `sync-perm` also sync DAG
+DAG parsing. If you need or want the old behavior, you can pass `--include-dags` to have `sync-perm` also sync DAG
 specific permissions.
 
 ## Airflow 2.0.1

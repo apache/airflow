@@ -619,7 +619,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     def sync_perm_for_dag(self, dag_id, access_control=None):
         """
         Sync permissions for given dag id. The dag id surely exists in our dag bag
-        as only / refresh button or SerializedDagModel will call this function
+        as only / refresh button or DagBag will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated
         :type dag_id: str
