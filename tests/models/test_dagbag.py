@@ -688,6 +688,43 @@ class TestDagBag(unittest.TestCase):
         )
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
+    @patch("airflow.www.security.SimpleAirflowSecurityManager")
+    def test_sync_to_db_handles_dag_specific_permissions(self, mock_security_manager):
+        """
+        Test that when dagbag.sync_to_db is called new DAGs and updates DAGs have their
+        DAG specific permissions synced
+        """
+        with create_session() as session:
+            # New DAG
+            dagbag = DagBag(
+                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
+                include_examples=False,
+            )
+            with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)):
+                dagbag.sync_to_db(session=session)
+
+            mock_security_manager.return_value.sync_perm_for_dag.assert_called_once_with(
+                "test_example_bash_operator", None
+            )
+
+            # DAG is updated
+            mock_security_manager.reset_mock()
+            dagbag.dags["test_example_bash_operator"].tags = ["new_tag"]
+            with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 20)):
+                dagbag.sync_to_db(session=session)
+
+            mock_security_manager.return_value.sync_perm_for_dag.assert_called_once_with(
+                "test_example_bash_operator", None
+            )
+
+            # DAG isn't updated
+            mock_security_manager.reset_mock()
+            with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 40)):
+                dagbag.sync_to_db(session=session)
+
+            mock_security_manager.return_value.sync_perm_for_dag.assert_not_called()
+
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
     def test_get_dag_with_dag_serialization(self):
         """

@@ -19,7 +19,6 @@
 """Unit tests for SerializedDagModel."""
 
 import unittest
-from unittest import mock
 
 from airflow import DAG, example_dags as example_dags_module
 from airflow.models import DagBag
@@ -28,7 +27,6 @@ from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.security_manager import delete_dag_specific_permissions
 
 
 # To move it to a shared module.
@@ -46,10 +44,6 @@ def clear_db_serialized_dags():
 class SerializedDagModelTest(unittest.TestCase):
     """Unit tests for SerializedDagModel."""
 
-    @classmethod
-    def setUpClass(cls):
-        delete_dag_specific_permissions()
-
     def setUp(self):
         clear_db_serialized_dags()
 
@@ -66,8 +60,7 @@ class SerializedDagModelTest(unittest.TestCase):
             SDM.write_dag(dag)
         return example_dags
 
-    @mock.patch('airflow.www.security.SimpleAirflowSecurityManager')
-    def test_write_dag(self, mock_security_manager):
+    def test_write_dag(self):
         """DAGs can be written into database."""
         example_dags = self._write_example_dags()
 
@@ -80,45 +73,37 @@ class SerializedDagModelTest(unittest.TestCase):
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
 
-                mock_security_manager.return_value.sync_perm_for_dag.assert_any_call(
-                    dag.dag_id, dag.access_control
-                )
-
-    @mock.patch('airflow.www.security.SimpleAirflowSecurityManager')
-    def test_serialized_dag_is_updated_only_if_dag_is_changed(self, mock_security_manager):
+    def test_serialized_dag_is_updated_only_if_dag_is_changed(self):
         """Test Serialized DAG is updated if DAG is changed"""
 
         example_dags = make_example_dags(example_dags_module)
         example_bash_op_dag = example_dags.get("example_bash_operator")
-        SDM.write_dag(dag=example_bash_op_dag)
-        mock_security_manager.reset_mock()
+        dag_updated = SDM.write_dag(dag=example_bash_op_dag)
+        assert dag_updated is True
 
         with create_session() as session:
             s_dag = session.query(SDM).get(example_bash_op_dag.dag_id)
 
             # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
             # column is not updated
-            SDM.write_dag(dag=example_bash_op_dag)
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag)
             s_dag_1 = session.query(SDM).get(example_bash_op_dag.dag_id)
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
             assert s_dag.last_updated == s_dag_1.last_updated
-            mock_security_manager.return_value.sync_perm_for_dag.assert_not_called()
+            assert dag_updated is False
 
             # Update DAG
-            mock_security_manager.reset_mock()
             example_bash_op_dag.tags += ["new_tag"]
             assert set(example_bash_op_dag.tags) == {"example", "example2", "new_tag"}
 
-            SDM.write_dag(dag=example_bash_op_dag)
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag)
             s_dag_2 = session.query(SDM).get(example_bash_op_dag.dag_id)
 
             assert s_dag.last_updated != s_dag_2.last_updated
             assert s_dag.dag_hash != s_dag_2.dag_hash
             assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
-            mock_security_manager.return_value.sync_perm_for_dag.assert_any_call(
-                example_bash_op_dag.dag_id, example_bash_op_dag.access_control
-            )
+            assert dag_updated is True
 
     def test_read_dags(self):
         """DAGs can be read from database."""
@@ -162,8 +147,5 @@ class SerializedDagModelTest(unittest.TestCase):
             DAG("dag_2"),
             DAG("dag_3"),
         ]
-        with assert_queries_count(48):
-            SDM.bulk_sync_to_db(dags)
-
-        with assert_queries_count(3):
+        with assert_queries_count(10):
             SDM.bulk_sync_to_db(dags)

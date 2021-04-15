@@ -539,11 +539,17 @@ class DagBag(LoggingMixin):
                 return []
             try:
                 # We cant use bulk_write_to_db as we want to capture each error individually
-                SerializedDagModel.write_dag(
+                dag_was_updated = SerializedDagModel.write_dag(
                     dag,
                     min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
                     session=session,
                 )
+                if dag_was_updated:
+                    self.log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
+                    from airflow.www.security import SimpleAirflowSecurityManager
+
+                    security_manager = SimpleAirflowSecurityManager(session=session)
+                    security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
                 return []
             except OperationalError:
                 raise
