@@ -28,6 +28,7 @@ from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
 from tests.test_utils.asserts import assert_queries_count
+from tests.test_utils.security_manager import delete_dag_specific_permissions
 
 
 # To move it to a shared module.
@@ -44,6 +45,10 @@ def clear_db_serialized_dags():
 
 class SerializedDagModelTest(unittest.TestCase):
     """Unit tests for SerializedDagModel."""
+
+    @classmethod
+    def setUpClass(cls):
+        delete_dag_specific_permissions()
 
     def setUp(self):
         clear_db_serialized_dags()
@@ -158,4 +163,7 @@ class SerializedDagModelTest(unittest.TestCase):
             DAG("dag_3"),
         ]
         with assert_queries_count(48):
+            SDM.bulk_sync_to_db(dags)
+
+        with assert_queries_count(3):
             SDM.bulk_sync_to_db(dags)
