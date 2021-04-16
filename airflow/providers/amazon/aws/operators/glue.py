@@ -39,7 +39,7 @@ class AwsGlueJobOperator(BaseOperator):
     :type job_desc: Optional[str]
     :param concurrent_run_limit: The maximum number of concurrent runs allowed for a job
     :type concurrent_run_limit: Optional[int]
-    :param script_args: etl script arguments and AWS Glue arguments
+    :param script_args: etl script arguments and AWS Glue arguments (templated)
     :type script_args: dict
     :param retry_limit: The maximum number of times to retry this job if it fails
     :type retry_limit: Optional[int]
@@ -55,8 +55,9 @@ class AwsGlueJobOperator(BaseOperator):
     :type create_job_kwargs: Optional[dict]
     """
 
-    template_fields = ()
+    template_fields = ('script_args',)
     template_ext = ()
+    template_fields_renderers = {"script_args": "py"}
     ui_color = '#ededed'
 
     @apply_defaults

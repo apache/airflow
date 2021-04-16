@@ -16,7 +16,7 @@
 # under the License.
 import inspect
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, Optional
 
 from azure.core.polling import LROPoller
 from azure.identity import ClientSecretCredential
@@ -75,12 +75,56 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
     A hook to interact with Azure Data Factory.
 
     :param conn_id: The Azure Data Factory connection id.
+    :type conn_id: str
     """
 
     conn_type: str = 'azure_data_factory'
     conn_name_attr: str = 'azure_data_factory_conn_id'
     default_conn_name: str = 'azure_data_factory_default'
     hook_name: str = 'Azure Data Factory'
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        return {
+            "extra__azure_data_factory__tenantId": StringField(
+                lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()
+            ),
+            "extra__azure_data_factory__subscriptionId": StringField(
+                lazy_gettext('Azure Subscription ID'), widget=BS3TextFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        import json
+
+        return {
+            "hidden_fields": ['schema', 'port', 'host'],
+            "relabeling": {
+                'login': 'Azure Client ID',
+                'password': 'Azure Secret',
+                'extra': 'Extra (optional)',
+            },
+            "placeholders": {
+                'extra': json.dumps(
+                    {
+                        "resourceGroup": "azure resource group name",
+                        "factory": "azure data factory name",
+                    },
+                    indent=1,
+                ),
+                'login': 'client id',
+                'password': 'secret',
+                'extra__azure_data_factory__tenantId': 'tenant id',
+                'extra__azure_data_factory__subscriptionId': 'subscription id',
+            },
+        }
 
     def __init__(self, conn_id: Optional[str] = default_conn_name):
         self._conn: DataFactoryManagementClient = None
@@ -92,12 +136,18 @@ class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
             return self._conn
 
         conn = self.get_connection(self.conn_id)
+        tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId') or conn.extra_dejson.get(
+            'tenantId'
+        )
+        subscription_id = conn.extra_dejson.get(
+            'extra__azure_data_factory__subscriptionId'
+        ) or conn.extra_dejson.get('subscriptionId')
 
         self._conn = DataFactoryManagementClient(
             credential=ClientSecretCredential(
-                client_id=conn.login, client_secret=conn.password, tenant_id=conn.extra_dejson.get("tenantId")
+                client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             ),
-            subscription_id=conn.extra_dejson.get("subscriptionId"),
+            subscription_id=subscription_id,
         )
 
         return self._conn

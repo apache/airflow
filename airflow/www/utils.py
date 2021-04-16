@@ -126,9 +126,11 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, window=
     output = [Markup('<ul class="pagination" style="margin-top:0;">')]
 
     is_disabled = 'disabled' if current_page <= 0 else ''
+
+    first_node_link = void_link if is_disabled else f'?{get_params(page=0, search=search, status=status)}'
     output.append(
         first_node.format(
-            href_link=f"?{get_params(page=0, search=search, status=status)}",  # noqa
+            href_link=first_node_link,
             disabled=is_disabled,
         )
     )
@@ -171,9 +173,13 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, window=
     )
 
     output.append(next_node.format(href_link=page_link, disabled=is_disabled))  # noqa
+
+    last_node_link = (
+        void_link if is_disabled else f'?{get_params(page=last_page, search=search, status=status)}'
+    )
     output.append(
         last_node.format(
-            href_link=f"?{get_params(page=last_page, search=search, status=status)}",  # noqa
+            href_link=last_node_link,
             disabled=is_disabled,
         )
     )
@@ -332,7 +338,7 @@ def json_render(obj, lexer):
     return out
 
 
-def wrapped_markdown(s, css_class=None):
+def wrapped_markdown(s, css_class='rich_doc'):
     """Convert a Markdown string to HTML."""
     if s is None:
         return None
@@ -356,8 +362,10 @@ def get_attr_renderer():
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
+        'jinja': lambda x: render(x, lexers.DjangoLexer),
         'json': lambda x: json_render(x, lexers.JsonLexer),
         'md': wrapped_markdown,
+        'powershell': lambda x: render(x, lexers.PowerShellLexer),
         'py': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'rst': lambda x: render(x, lexers.RstLexer),

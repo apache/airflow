@@ -24,7 +24,7 @@ login (=Endpoint uri), password (=secret key) and extra fields database_name and
 the default database and collection to use (see connection `azure_cosmos_default` for an example).
 """
 import uuid
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.errors import HTTPFailure
@@ -50,6 +50,39 @@ class AzureCosmosDBHook(BaseHook):
     conn_type = 'azure_cosmos'
     hook_name = 'Azure CosmosDB'
 
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        return {
+            "extra__azure_cosmos__database_name": StringField(
+                lazy_gettext('Cosmos Database Name (optional)'), widget=BS3TextFieldWidget()
+            ),
+            "extra__azure_cosmos__collection_name": StringField(
+                lazy_gettext('Cosmos Collection Name (optional)'), widget=BS3TextFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema', 'port', 'host', 'extra'],
+            "relabeling": {
+                'login': 'Cosmos Endpoint URI',
+                'password': 'Cosmos Master Key Token',
+            },
+            "placeholders": {
+                'login': 'endpoint uri',
+                'password': 'master key',
+                'extra__azure_cosmos__database_name': 'database name',
+                'extra__azure_cosmos__collection_name': 'collection name',
+            },
+        }
+
     def __init__(self, azure_cosmos_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_cosmos_conn_id
@@ -66,8 +99,12 @@ class AzureCosmosDBHook(BaseHook):
             endpoint_uri = conn.login
             master_key = conn.password
 
-            self.default_database_name = extras.get('database_name')
-            self.default_collection_name = extras.get('collection_name')
+            self.default_database_name = extras.get('database_name') or extras.get(
+                'extra__azure_cosmos__database_name'
+            )
+            self.default_collection_name = extras.get('collection_name') or extras.get(
+                'extra__azure_cosmos__collection_name'
+            )
 
             # Initialize the Python Azure Cosmos DB client
             self._conn = CosmosClient(endpoint_uri, {'masterKey': master_key})

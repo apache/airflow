@@ -23,5 +23,6 @@
 const neutrino = require('neutrino');
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'test';
+process.env.WEBSERVER_URL = process.env.WEBSERVER_URL || 'http://localhost:9999';
 
 module.exports = neutrino().jest();

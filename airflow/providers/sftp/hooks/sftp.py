@@ -102,13 +102,6 @@ class SFTPHook(SSHHook):
                     self.ciphers = extra_options['ciphers']
 
                 if 'private_key' in extra_options:
-                    warnings.warn(
-                        'Extra option `private_key` is deprecated.'
-                        'Please use `key_file` instead.'
-                        'This option will be removed in Airflow 2.1',
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
                     self.key_file = extra_options.get('private_key')
 
     @tenacity.retry(

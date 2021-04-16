@@ -83,6 +83,7 @@ class ComputeEngineSSHHook(SSHHook):
     :type use_internal_ip: bool
     :param use_oslogin: Whether to manage keys using OsLogin API. If false,
         keys are managed using instance metadata
+    :type use_oslogin: bool
     :param expire_time: The maximum amount of time in seconds before the private key expires
     :type expire_time: int
     :param gcp_conn_id: The connection id to use when fetching connection information

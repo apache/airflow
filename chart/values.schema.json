@@ -192,7 +192,8 @@
                         },
                         "pullPolicy": {
                             "description": "The airflow image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -216,7 +217,8 @@
                         },
                         "pullPolicy": {
                             "description": "The pod_template image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -240,7 +242,8 @@
                         },
                         "pullPolicy": {
                             "description": "The flower image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -258,7 +261,8 @@
                         },
                         "pullPolicy": {
                             "description": "The statsd image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -276,7 +280,8 @@
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -294,7 +299,8 @@
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -312,7 +318,8 @@
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -330,7 +337,8 @@
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 }
@@ -552,6 +560,10 @@
                     "description": "Number of airflow celery workers in StatefulSet.",
                     "type": "integer"
                 },
+                "updateStrategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones.",
+                    "type": "object"
+                },
                 "keda": {
                     "description": "KEDA configuration.",
                     "type": "object",
@@ -658,6 +670,10 @@
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "array"
+                },
+                "hostAliases": {
+                    "description": "Specify hostAliases for workers.",
+                    "type": "array"
                 }
             }
         },
@@ -666,6 +682,29 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "livenessProbe": {
+                    "description": "Liveness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Scheduler Liveness probe initial delay.",
+                            "type": "integer"
+                        },
+                        "timeoutSeconds": {
+                            "description": "Scheduler Liveness probe timeout seconds.",
+                            "type": "integer"
+                        },
+                        "failureThreshold": {
+                            "description": "Scheduler Liveness probe failure threshold.",
+                            "type": "integer"
+                        },
+                        "periodSeconds": {
+                            "description": "Webserver Liveness probe period seconds.",
+                            "type": "integer"
+                        }
+                    }
+                },
                 "replicas": {
                   "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
                   "type": "integer"
@@ -1033,6 +1072,13 @@
                     "description": "Maximum clients that can connect to pgbouncer (higher = more file descriptors).",
                     "type": "integer"
                 },
+                "configSecretName": {
+                    "description": "The PgBouncer config secret name.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "podDisruptionBudget": {
                     "description": "Pgbouner pod disruption budget.",
                     "type": "object",
@@ -1382,7 +1428,8 @@
                         },
                         "accessMode": {
                             "description": "Access mode of the persistent volume.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
@@ -1400,6 +1447,10 @@
                     "properties": {
                         "enabled": {
                             "description": "Enable Git sync.",
+                            "type": "boolean"
+                        },
+                        "excludeWebserver": {
+                            "description": "Disable Git sync on webserver as it is not needed when DAG Serialization is enabled.",
                             "type": "boolean"
                         },
                         "repo": {
@@ -1445,6 +1496,10 @@
                         "uid": {
                             "description": "Git sync container run as user parameter.",
                             "type": "integer"
+                        },
+                        "extraVolumeMounts": {
+                            "description": "Mount additional volumes into git sync container.",
+                            "type": "array"
                         },
                         "credentialsSecret": {
                             "description": "TODO",

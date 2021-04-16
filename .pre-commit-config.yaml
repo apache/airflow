@@ -62,8 +62,8 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all JS/CSS/PUML files
-        files: \.(js|css|puml)$
+        name: Add license for all JS/TS/TSX/CSS/PUML files
+        files: \.(js|ts|tsx|css|puml)$
         exclude: ^\.github/.*$
         args:
           - --comment-style
@@ -321,7 +321,9 @@ repos:
           ^airflow/providers/apache/hive/.*README.md$|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
-          ^docs/apache-airflow-providers-apache-hive/commits.rst$|git|
+          ^docs/apache-airflow-providers-apache-hive/commits.rst$|
+          git|
+          ^pylintrc |
           ^CHANGELOG.txt$
       - id: consistent-pylint
         language: pygrep
@@ -561,20 +563,8 @@ repos:
         entry: flynt
         language: python
         language_version: python3
-        additional_dependencies: ['flynt']
+        additional_dependencies: ['flynt==0.63']
         files: \.py$
-      - id: ui-lint
-        name: Lint React UI
-        language: node
-        entry: bash
-        args: ["-c", "cd airflow/ui && yarn install && yarn lint"]
-        files: ^airflow/ui/.*\.(ts|tsx)$
-      - id: ui-test
-        name: Test React UI
-        language: node
-        entry: bash
-        args: ["-c", "cd airflow/ui && yarn install && yarn test"]
-        files: ^airflow/ui/.*\.(ts|tsx)$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: build
@@ -630,6 +620,13 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
         files: \.py$
         pass_filenames: true
+      - id: ui-lint
+        name: ESLint against airflow/ui
+        language: node
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/ui/
+        entry: "scripts/ci/static_checks/eslint.sh"
+        pass_filenames: false
       - id: bats-in-container-tests
         name: Run in container bats tests
         language: system

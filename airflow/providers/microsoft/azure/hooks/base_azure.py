@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any
+from typing import Any, Dict
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
@@ -30,13 +30,57 @@ class AzureBaseHook(BaseHook):
     authenticate the client library used for upstream azure hooks.
 
     :param sdk_client: The SDKClient to use.
+    :type sdk_client: Optional[str]
     :param conn_id: The azure connection id which refers to the information to connect to the service.
+    :type conn_id: str
     """
 
-    conn_name_attr = 'conn_id'
+    conn_name_attr = 'azure_conn_id'
     default_conn_name = 'azure_default'
     conn_type = 'azure'
     hook_name = 'Azure'
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        return {
+            "extra__azure__tenantId": StringField(
+                lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()
+            ),
+            "extra__azure__subscriptionId": StringField(
+                lazy_gettext('Azure Subscription ID'), widget=BS3TextFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        import json
+
+        return {
+            "hidden_fields": ['schema', 'port', 'host'],
+            "relabeling": {
+                'login': 'Azure Client ID',
+                'password': 'Azure Secret',
+            },
+            "placeholders": {
+                'extra': json.dumps(
+                    {
+                        "key_path": "path to json file for auth",
+                        "key_json": "specifies json dict for auth",
+                    },
+                    indent=1,
+                ),
+                'login': 'client_id (token credentials auth)',
+                'password': 'secret (token credentials auth)',
+                'extra__azure__tenantId': 'tenentId (token credentials auth)',
+                'extra__azure__subscriptionId': 'subscriptionId (token credentials auth)',
+            },
+        }
 
     def __init__(self, sdk_client: Any, conn_id: str = 'azure_default'):
         self.sdk_client = sdk_client
@@ -50,6 +94,10 @@ class AzureBaseHook(BaseHook):
         :return: the authenticated client.
         """
         conn = self.get_connection(self.conn_id)
+        tenant = conn.extra_dejson.get('extra__azure__tenantId') or conn.extra_dejson.get('tenantId')
+        subscription_id = conn.extra_dejson.get('extra__azure__subscriptionId') or conn.extra_dejson.get(
+            'subscriptionId'
+        )
 
         key_path = conn.extra_dejson.get('key_path')
         if key_path:
@@ -66,7 +114,7 @@ class AzureBaseHook(BaseHook):
         self.log.info('Getting connection using specific credentials and subscription_id.')
         return self.sdk_client(
             credentials=ServicePrincipalCredentials(
-                client_id=conn.login, secret=conn.password, tenant=conn.extra_dejson.get('tenantId')
+                client_id=conn.login, secret=conn.password, tenant=tenant
             ),
-            subscription_id=conn.extra_dejson.get('subscriptionId'),
+            subscription_id=subscription_id,
         )

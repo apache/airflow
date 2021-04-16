@@ -34,7 +34,7 @@ from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
@@ -170,7 +170,7 @@ class TestLocalTaskJob(unittest.TestCase):
                 time2 = heartbeat_records[i]
                 # Assert that difference small enough
                 delta = (time2 - time1).total_seconds()
-                assert abs(delta - job.heartrate) < 0.05
+                assert abs(delta - job.heartrate) < 0.5
 
     @pytest.mark.quarantined
     def test_mark_success_no_kill(self):

@@ -57,6 +57,50 @@ class WasbHook(BaseHook):
     conn_type = 'wasb'
     hook_name = 'Azure Blob Storage'
 
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField
+
+        return {
+            "extra__wasb__connection_string": PasswordField(
+                lazy_gettext('Blob Storage Connection String (optional)'), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__wasb__shared_access_key": PasswordField(
+                lazy_gettext('Blob Storage Shared Access Key (optional)'), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__wasb__tenant_id": StringField(
+                lazy_gettext('Tenant Id (Active Directory Auth)'), widget=BS3TextFieldWidget()
+            ),
+            "extra__wasb__sas_token": PasswordField(
+                lazy_gettext('SAS Token (optional)'), widget=BS3PasswordFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema', 'port', 'host'],
+            "relabeling": {
+                'login': 'Blob Storage Login (optional)',
+                'password': 'Blob Storage Key (optional)',
+                'host': 'Account Name (Active Directory Auth)',
+            },
+            "placeholders": {
+                'extra': 'additional options for use with FileService and AzureFileVolume',
+                'login': 'account name',
+                'password': 'secret',
+                'host': 'account url',
+                'extra__wasb__connection_string': 'connection string auth',
+                'extra__wasb__tenant_id': 'tenant',
+                'extra__wasb__shared_access_key': 'shared access key',
+                'extra__wasb__sas_token': 'account url or token',
+            },
+        }
+
     def __init__(self, wasb_conn_id: str = default_conn_name, public_read: bool = False) -> None:
         super().__init__()
         self.conn_id = wasb_conn_id
@@ -74,19 +118,22 @@ class WasbHook(BaseHook):
             # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
             return BlobServiceClient(account_url=conn.host)
 
-        if extra.get('connection_string'):
+        if extra.get('connection_string') or extra.get('extra__wasb__connection_string'):
             # connection_string auth takes priority
-            return BlobServiceClient.from_connection_string(extra.get('connection_string'))
-        if extra.get('shared_access_key'):
+            connection_string = extra.get('connection_string') or extra.get('extra__wasb__connection_string')
+            return BlobServiceClient.from_connection_string(connection_string)
+        if extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key'):
+            shared_access_key = extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key')
             # using shared access key
-            return BlobServiceClient(account_url=conn.host, credential=extra.get('shared_access_key'))
-        if extra.get('tenant_id'):
+            return BlobServiceClient(account_url=conn.host, credential=shared_access_key)
+        if extra.get('tenant_id') or extra.get('extra__wasb__tenant_id'):
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            token_credential = ClientSecretCredential(extra.get('tenant_id'), app_id, app_secret)
+            tenant = extra.get('tenant_id') or extra.get('extra__wasb__tenant_id')
+            token_credential = ClientSecretCredential(tenant, app_id, app_secret)
             return BlobServiceClient(account_url=conn.host, credential=token_credential)
-        sas_token = extra.get('sas_token')
+        sas_token = extra.get('sas_token') or extra.get('extra__wasb__sas_token')
         if sas_token and sas_token.startswith('https'):
             return BlobServiceClient(account_url=extra.get('sas_token'))
         if sas_token and not sas_token.startswith('https'):

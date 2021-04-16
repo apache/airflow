@@ -133,6 +133,7 @@ class AzureContainerInstancesOperator(BaseOperator):
     """
 
     template_fields = ('name', 'image', 'command', 'environment_variables')
+    template_fields_renderers = {"command": "bash", "environment_variables": "json"}
 
     # pylint: disable=too-many-arguments
     @apply_defaults

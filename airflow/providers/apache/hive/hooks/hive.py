@@ -426,7 +426,7 @@ class HiveCliHook(BaseHook):
         if create or recreate:
             if field_dict is None:
                 raise ValueError("Must provide a field dict when creating a table")
-            fields = ",\n    ".join(['`{k}` {v}'.format(k=k.strip('`'), v=v) for k, v in field_dict.items()])
+            fields = ",\n    ".join([f"`{k.strip('`')}` {v}" for k, v in field_dict.items()])
             hql += f"CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n"
             if partition:
                 pfields = ",\n    ".join([p + " STRING" for p in partition])
@@ -483,7 +483,7 @@ class HiveMetastoreHook(BaseHook):
 
     def __getstate__(self) -> Dict[str, Any]:
         # This is for pickling to work despite the thrift hive client not
-        # being pickable
+        # being picklable
         state = dict(self.__dict__)
         del state['metastore']
         return state

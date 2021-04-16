@@ -83,6 +83,7 @@ ALL_PROVIDERS = [
     'apache-airflow-providers-ssh',
     'apache-airflow-providers-tableau',
     'apache-airflow-providers-telegram',
+    'apache-airflow-providers-trino',
     'apache-airflow-providers-vertica',
     'apache-airflow-providers-yandex',
     'apache-airflow-providers-zendesk',
@@ -93,6 +94,7 @@ CONNECTIONS_LIST = [
     'azure',
     'azure_batch',
     'azure_container_instances',
+    'azure_container_registry',
     'azure_cosmos',
     'azure_data_explorer',
     'azure_data_factory',
@@ -147,6 +149,7 @@ CONNECTIONS_LIST = [
     'sqoop',
     'ssh',
     'tableau',
+    'trino',
     'vault',
     'vertica',
     'wasb',
@@ -154,6 +157,19 @@ CONNECTIONS_LIST = [
 ]
 
 CONNECTION_FORM_WIDGETS = [
+    'extra__azure__subscriptionId',
+    'extra__azure__tenantId',
+    'extra__azure_batch__account_url',
+    'extra__azure_cosmos__collection_name',
+    'extra__azure_cosmos__database_name',
+    'extra__azure_data_explorer__auth_method',
+    'extra__azure_data_explorer__certificate',
+    'extra__azure_data_explorer__tenant',
+    'extra__azure_data_explorer__thumbprint',
+    'extra__azure_data_factory__subscriptionId',
+    'extra__azure_data_factory__tenantId',
+    'extra__azure_data_lake__account_name',
+    'extra__azure_data_lake__tenant',
     'extra__google_cloud_platform__key_path',
     'extra__google_cloud_platform__keyfile_dict',
     'extra__google_cloud_platform__num_retries',
@@ -174,6 +190,10 @@ CONNECTION_FORM_WIDGETS = [
     'extra__snowflake__database',
     'extra__snowflake__region',
     'extra__snowflake__warehouse',
+    'extra__wasb__connection_string',
+    'extra__wasb__sas_token',
+    'extra__wasb__shared_access_key',
+    'extra__wasb__tenant_id',
     'extra__yandexcloud__folder_id',
     'extra__yandexcloud__oauth',
     'extra__yandexcloud__public_ssh_key',
@@ -182,6 +202,14 @@ CONNECTION_FORM_WIDGETS = [
 ]
 
 CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
+    'azure',
+    'azure_batch',
+    'azure_container_instances',
+    'azure_container_registry',
+    'azure_cosmos',
+    'azure_data_explorer',
+    'azure_data_factory',
+    'azure_data_lake',
     'cloudant',
     'docker',
     'gcpssh',
@@ -193,6 +221,7 @@ CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
     'snowflake',
     'spark',
     'ssh',
+    'wasb',
     'yandexcloud',
 ]
 

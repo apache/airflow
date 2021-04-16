@@ -24,7 +24,7 @@ module.exports = {
   env: {
     jest: true,
   },
-  extends: ['airbnb-typescript'],
+  extends: ['airbnb-typescript', 'plugin:react-hooks/recommended'],
   parserOptions: {
     project: './tsconfig.json',
   },

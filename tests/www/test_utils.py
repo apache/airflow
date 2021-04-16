@@ -240,7 +240,7 @@ class TestWrappedMarkdown(unittest.TestCase):
         )
 
         assert (
-            '<div class="None" ><table>\n<thead>\n<tr>\n<th>Job</th>\n'
+            '<div class="rich_doc" ><table>\n<thead>\n<tr>\n<th>Job</th>\n'
             '<th>Duration</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ETL'
             '</td>\n<td>14m</td>\n</tr>\n</tbody>\n'
             '</table></div>'
@@ -255,4 +255,4 @@ class TestWrappedMarkdown(unittest.TestCase):
             """
         )
 
-        assert '<div class="None" ><h1>header</h1>\n<p>1st line\n2nd line</p></div>' == rendered
+        assert '<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p></div>' == rendered

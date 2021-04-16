@@ -185,6 +185,41 @@ class TestGetConnections(TestConnectionEndpoint):
             'total_entries': 2,
         }
 
+    def test_should_respond_200_with_order_by(self, session):
+        connection_model_1 = Connection(conn_id='test-connection-id-1', conn_type='test_type')
+        connection_model_2 = Connection(conn_id='test-connection-id-2', conn_type='test_type')
+        connections = [connection_model_1, connection_model_2]
+        session.add_all(connections)
+        session.commit()
+        result = session.query(Connection).all()
+        assert len(result) == 2
+        response = self.client.get(
+            "/api/v1/connections?order_by=-connection_id", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        # Using - means descending
+        assert response.json == {
+            'connections': [
+                {
+                    "connection_id": "test-connection-id-2",
+                    "conn_type": 'test_type',
+                    "host": None,
+                    "login": None,
+                    'schema': None,
+                    'port': None,
+                },
+                {
+                    "connection_id": "test-connection-id-1",
+                    "conn_type": 'test_type',
+                    "host": None,
+                    "login": None,
+                    'schema': None,
+                    'port': None,
+                },
+            ],
+            'total_entries': 2,
+        }
+
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/connections")
 
@@ -250,6 +285,20 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
 
         assert response.json["total_entries"] == 200
         assert len(response.json["connections"]) == 100
+
+    def test_invalid_order_by_raises_400(self, session):
+        connection_models = self._create_connections(200)
+        session.add_all(connection_models)
+        session.commit()
+
+        response = self.client.get(
+            "/api/v1/connections?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 400
+        assert (
+            response.json['detail'] == "Ordering with 'invalid' is disallowed or"
+            " the attribute does not exist on the model"
+        )
 
     def test_limit_of_zero_should_return_default(self, session):
         connection_models = self._create_connections(200)

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import subprocess
+import runpy
+import sys
 import unittest
 from datetime import timedelta
 from unittest import mock
@@ -241,9 +242,13 @@ class TestApp(unittest.TestCase):
         assert app.config['SESSION_COOKIE_SAMESITE'] == 'Lax'
 
 
-class TestFlaskCli(unittest.TestCase):
-    @dont_initialize_flask_app_submodules
-    def test_flask_cli_should_display_routes(self):
-        with mock.patch.dict("os.environ", FLASK_APP="airflow.www.app:create_app"):
-            output = subprocess.check_output(["flask", "routes"])
-            assert "/api/v1/version" in output.decode()
+class TestFlaskCli:
+    @dont_initialize_flask_app_submodules(skip_all_except=['init_appbuilder'])
+    def test_flask_cli_should_display_routes(self, capsys):
+        with mock.patch.dict("os.environ", FLASK_APP="airflow.www.app:cached_app"), mock.patch.object(
+            sys, 'argv', ['flask', 'routes']
+        ), pytest.raises(SystemExit):
+            runpy.run_module('flask', run_name='__main__')
+
+        output = capsys.readouterr()
+        assert "/login/" in output.out

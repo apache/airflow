@@ -41,6 +41,7 @@ class SageMakerBaseOperator(BaseOperator):
 
     template_fields = ['config']
     template_ext = ()
+    template_fields_renderers = {"config": "py"}
     ui_color = '#ededed'
 
     integer_fields = []  # type: Iterable[Iterable[str]]

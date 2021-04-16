@@ -21,7 +21,7 @@
 
 # User and group of airflow user
 uid: 50000
-gid: 50000
+gid: 0
 
 # Airflow home directory
 # Used for mount paths
@@ -299,6 +299,11 @@ kerberos:
 workers:
   # Number of airflow celery workers in StatefulSet
   replicas: 1
+  updateStrategy:
+    strategy:
+      rollingUpdate:
+        maxSurge: "100%"
+        maxUnavailable: "50%"
 
   # Allow KEDA autoscaling.
   # Persistence.enabled must be set to false to use KEDA.
@@ -367,9 +372,26 @@ workers:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  # hostAliases to use in worker pods.
+  # See:
+  # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
+  hostAliases: []
+  # - ip: "127.0.0.2"
+  #   hostnames:
+  #   - "test.hostname.one"
+  # - ip: "127.0.0.3"
+  #   hostnames:
+  #   - "test.hostname.two"
 
 # Airflow scheduler settings
 scheduler:
+  # If the scheduler stops heartbeating for 5 minutes (10*30s) kill the
+  # scheduler and let Kubernetes restart it
+  livenessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 10
+    periodSeconds: 30
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -552,6 +574,21 @@ pgbouncer:
   # Maximum clients that can connect to pgbouncer (higher = more file descriptors)
   maxClientConn: 100
 
+  # supply the name of existing secret with pgbouncer.ini and users.txt defined
+  # you can load them to a k8s secret like the one below
+  #  apiVersion: v1
+  #  kind: Secret
+  #  metadata:
+  #    name: pgbouncer-config-secret
+  #  data:
+  #     pgbouncer.ini: <base64_encoded pgbouncer.ini file content>
+  #     users.txt: <base64_encoded users.txt file content>
+  #  type: Opaque
+  #
+  #  configSecretName: pgbouncer-config-secret
+  #
+  configSecretName: ~
+
   # Pgbouner pod disruption budget
   podDisruptionBudget:
     enabled: false
@@ -728,11 +765,12 @@ config:
     statsd_port: 9125
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
+  operators:
+    default_queue: celery
   webserver:
     enable_proxy_fix: 'True'
     rbac: 'True'
   celery:
-    default_queue: celery
     worker_concurrency: 16
   scheduler:
     scheduler_heartbeat_sec: 5
@@ -785,6 +823,13 @@ dags:
     existingClaim:
   gitSync:
     enabled: false
+
+    # Change it to true when DAG Serialization is turned on. This will exclude git sync containers
+    # from Webserver as DAGs are fetched from the DB. DAG Serialization was introduced in
+    # 1.10.7 and is optional for <2.0.0.
+    # https://airflow.apache.org/docs/apache-airflow/1.10.15/dag-serialization.html
+    excludeWebserver: false
+
     # git repo clone url
     # ssh examples ssh://git@github.com/apache/airflow.git
     # git@github.com:apache/airflow.git
@@ -838,3 +883,4 @@ dags:
     wait: 60
     containerName: git-sync
     uid: 65533
+    extraVolumeMounts: []

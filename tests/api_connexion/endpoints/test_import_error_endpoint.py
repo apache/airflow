@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import timedelta
 
 import pytest
 from parameterized import parameterized
@@ -153,6 +154,63 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
             ],
             "total_entries": 2,
         } == response_data
+
+    def test_get_import_errors_order_by(self, session):
+        import_error = [
+            ImportError(
+                filename=f"Lorem_ipsum{i}.py",
+                stacktrace="Lorem ipsum",
+                timestamp=timezone.parse(self.timestamp, timezone="UTC") + timedelta(days=-i),
+            )
+            for i in range(1, 3)
+        ]
+        session.add_all(import_error)
+        session.commit()
+
+        response = self.client.get(
+            "/api/v1/importErrors?order_by=-timestamp", environ_overrides={'REMOTE_USER': "test"}
+        )
+
+        assert response.status_code == 200
+        response_data = response.json
+        self._normalize_import_errors(response_data['import_errors'])
+        assert {
+            "import_errors": [
+                {
+                    "filename": "Lorem_ipsum1.py",
+                    "import_error_id": 1,  # id normalized with self._normalize_import_errors
+                    "stack_trace": "Lorem ipsum",
+                    "timestamp": "2020-06-09T12:00:00+00:00",
+                },
+                {
+                    "filename": "Lorem_ipsum2.py",
+                    "import_error_id": 2,
+                    "stack_trace": "Lorem ipsum",
+                    "timestamp": "2020-06-08T12:00:00+00:00",
+                },
+            ],
+            "total_entries": 2,
+        } == response_data
+
+    def test_order_by_raises_400_for_invalid_attr(self, session):
+        import_error = [
+            ImportError(
+                filename="Lorem_ipsum.py",
+                stacktrace="Lorem ipsum",
+                timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+            )
+            for _ in range(2)
+        ]
+        session.add_all(import_error)
+        session.commit()
+
+        response = self.client.get(
+            "/api/v1/importErrors?order_by=timest", environ_overrides={'REMOTE_USER': "test"}
+        )
+
+        assert response.status_code == 400
+        msg = "Ordering with 'timest' is disallowed or the attribute does not exist on the model"
+        assert response.json['detail'] == msg
 
     def test_should_raises_401_unauthenticated(self, session):
         import_error = [

@@ -1971,8 +1971,8 @@ class TestTaskInstance(unittest.TestCase):
                 for upstream, downstream in dependencies.items():
                     dag.set_dependency(upstream, downstream)
 
-            scheduler = SchedulerJob(subdir=os.devnull)
-            scheduler.dagbag.bag_dag(dag, root_dag=dag)
+            scheduler_job = SchedulerJob(subdir=os.devnull)
+            scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
 
             dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow', state=State.RUNNING)
 
@@ -1999,9 +1999,11 @@ class TestTaskInstance(unittest.TestCase):
             self.validate_ti_states(dag_run, first_run_state, error_message)
 
             if second_run_state:
-                scheduler._critical_section_execute_task_instances(session=session)
+                scheduler_job._critical_section_execute_task_instances(session=session)
                 task_instance_b.run()
                 self.validate_ti_states(dag_run, second_run_state, error_message)
+            if scheduler_job.processor_agent:
+                scheduler_job.processor_agent.end()
 
     def test_set_state_up_for_retry(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)

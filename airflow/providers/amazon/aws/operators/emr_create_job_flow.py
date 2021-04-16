@@ -37,10 +37,13 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
         (must be '.json') to override emr_connection extra. (templated)
     :type job_flow_overrides: dict|str
+    :param region_name: Region named passed to EmrHook
+    :type region_name: Optional[str]
     """
 
     template_fields = ['job_flow_overrides']
     template_ext = ('.json',)
+    template_fields_renderers = {"job_flow_overrides": "json"}
     ui_color = '#f9c915'
 
     @apply_defaults

@@ -100,6 +100,7 @@ class AwsBatchOperator(BaseOperator):
         "overrides",
         "parameters",
     )
+    template_fields_renderers = {"overrides": "py", "parameters": "py"}
 
     @apply_defaults
     def __init__(
