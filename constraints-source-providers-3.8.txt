@@ -85,6 +85,7 @@ boto3==1.17.45
 boto==2.49.0
 botocore==1.20.45
 bowler==0.9.0
+cached-property==1.5.2
 cachetools==4.2.1
 cassandra-driver==3.20.2
 cattrs==1.4.0
@@ -394,6 +395,7 @@ toolz==0.11.1
 tornado==6.1
 tqdm==4.59.0
 traitlets==5.0.5
+trino==0.305.0
 typed-ast==1.4.2
 typing-extensions==3.7.4.3
 typing-inspect==0.6.0

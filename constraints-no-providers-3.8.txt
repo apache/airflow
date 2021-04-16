@@ -1,6 +1,6 @@
 # Editable install with no version control (apache-airflow==2.0.1)
 Babel==2.9.0
-Flask-AppBuilder==3.2.1
+Flask-AppBuilder==3.2.2
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.1
@@ -20,7 +20,7 @@ PyJWT==1.7.1
 PyYAML==5.4.1
 Pygments==2.8.1
 SQLAlchemy-JSONField==1.0.0
-SQLAlchemy-Utils==0.36.8
+SQLAlchemy-Utils==0.37.0
 SQLAlchemy==1.3.24
 WTForms==2.3.3
 Werkzeug==1.0.1
@@ -33,8 +33,9 @@ attrs==20.3.0
 bcrypt==3.2.0
 billiard==3.6.4.0
 blinker==1.4
+cached-property==1.5.2
 cachetools==4.2.1
-cattrs==1.4.0
+cattrs==1.5.0
 celery==4.4.7
 certifi==2020.12.5
 cffi==1.14.5
@@ -44,7 +45,7 @@ click==7.1.2
 clickclick==20.10.2
 cloudpickle==1.4.1
 colorama==0.4.4
-colorlog==4.8.0
+colorlog==5.0.1
 commonmark==0.9.1
 connexion==2.7.0
 croniter==0.3.37
@@ -61,11 +62,11 @@ eventlet==0.30.2
 filelock==3.0.12
 flower==0.9.7
 gevent==21.1.2
-google-auth==1.28.0
+google-auth==1.29.0
 graphviz==0.16
 greenlet==1.0.0
 gunicorn==19.10.0
-humanize==3.3.0
+humanize==3.4.1
 idna==2.10
 importlib-metadata==1.7.0
 importlib-resources==1.5.0
@@ -89,7 +90,7 @@ numpy==1.20.2
 oauthlib==2.1.0
 openapi-schema-validator==0.1.5
 openapi-spec-validator==0.3.0
-pandas==1.2.3
+pandas==1.2.4
 pendulum==2.1.2
 prison==0.1.3
 prometheus-client==0.8.0
@@ -139,4 +140,4 @@ websocket-client==0.58.0
 zict==2.0.0
 zipp==3.4.1
 zope.event==4.5.0
-zope.interface==5.3.0
+zope.interface==5.4.0
