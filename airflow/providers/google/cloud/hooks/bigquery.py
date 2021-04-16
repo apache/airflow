@@ -67,7 +67,7 @@ BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
 class BigQueryHook(GoogleBaseHook, DbApiHook):
     """
     Interact with BigQuery. This hook uses the Google Cloud connection.
-    
+
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
     :type gcp_conn_id: Optional[str]
     :param delegate_to: This performs a task on one host with reference to other hosts.
@@ -80,7 +80,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     :type bigquery_conn_id: Optional[str]
     :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
     :type api_resource_configs: Optional[Dict]
-    :param impersonation_chain: This is the optional service account to impersonate using short term credentials.
+    :param impersonation_chain: This is the optional service account to impersonate using short term 
+        credentials.
     :type impersonation_chain: Optional[Union[str, Sequence[str]]]
     :param labels: The BigQuery resource label.
     :type labels: Optional[Dict]

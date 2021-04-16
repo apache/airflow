@@ -36,7 +36,7 @@ class HdfsSensor(BaseSensorOperator):
     :type filepath: str
     :param hdfs_conn_id: The Airflow connection used for HDFS credentials.
     :type hdfs_conn_id: str
-    :param ignored_ext: This is the list of ignored extensions. 
+    :param ignored_ext: This is the list of ignored extensions.
     :type ignored_ext: Optional[List[str]]
     :param ignore_copying: Shall we ignore?
     :type ignore_copying: Optional[bool]
