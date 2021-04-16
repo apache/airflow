@@ -31,7 +31,7 @@ There are two ways to connect to SFTP using Airflow.
 
 1. Use `host key
    <https://pysftp.readthedocs.io/en/release_0.2.9/pysftp.html#pysftp.CnOpts>`_
-i.e. host key entered in extras value ``host_key``
+   i.e. host key entered in extras value ``host_key``.
 2. Use a `private key, private key pass, or password
    <https://pysftp.readthedocs.io/en/release_0.2.9/pysftp.html#pysftp.Connection>`_
    i.e. use the ``private_key``, ``private_key_pass``, or ``private_key`` extra values.
@@ -99,4 +99,5 @@ Example connection string with ``private_key``:
 Example connection string with ``host_key``:
 
 .. code-block:: bash
+
     AIRFLOW_CONN_SFTP_DEFAULT='sftp://user:pass@localhost:22?host_key=AAAHD...YDWwq%3D%3D&no_host_key_check=false'

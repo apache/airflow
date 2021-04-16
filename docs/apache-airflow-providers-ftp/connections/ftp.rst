@@ -27,8 +27,8 @@ The FTP connection type enables the FTP Integrations.
 Authenticating to FTP
 -----------------------
 
-Authenticate too FTP using  `ftplib
-  <https://docs.python.org/3/library/ftplib.html>`_.
+Authenticate to FTP using `ftplib
+<https://docs.python.org/3/library/ftplib.html>`_.
 i.e. indicate ``user``, ``password``, ``host``
 
 Default Connection IDs

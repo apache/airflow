@@ -27,8 +27,8 @@ The Snowflake connection type enables integrations with Snowflake.
 Authenticating to Snowflake
 ---------------------------
 
-Authenticate too Snowflake using the `Snowflake python connector default authentication
-    <https://docs.snowflake.com/en/user-guide/python-connector-example.html#connecting-using-the-default-authenticator>`_.
+Authenticate to Snowflake using the `Snowflake python connector default authentication
+<https://docs.snowflake.com/en/user-guide/python-connector-example.html#connecting-using-the-default-authenticator>`_.
 
 Default Connection IDs
 ----------------------
