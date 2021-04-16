@@ -36,7 +36,7 @@ class MongoSensor(BaseSensorOperator):
     :type query: dict
     :param mongo_conn_id: The :ref:`Mongo connection ID<howto/connection:mongo>` to use
         when connecting to MongoDB.
-    :type mongo: str
+    :type mongo_conn_id: str
     """
 
     template_fields = ('collection', 'query')

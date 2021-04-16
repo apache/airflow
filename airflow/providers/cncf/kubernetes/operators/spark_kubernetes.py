@@ -34,9 +34,9 @@ class SparkKubernetesOperator(BaseOperator):
     :type application_file:  str
     :param namespace: kubernetes namespace to put sparkApplication
     :type namespace: str
-    :param conn_id: The :ref:`kubernetes connection<howto/connection:kubernetes>`
+    :param kubernetes_conn_id: The :ref:`kubernetes connection<howto/connection:kubernetes>`
         to Kubernetes cluster.
-    :type conn_id: str
+    :type kubernetes_conn_id: str
     :param api_group: kubernetes api group of sparkApplication
     :type api_group: str
     :param api_version: kubernetes api version of sparkApplication
