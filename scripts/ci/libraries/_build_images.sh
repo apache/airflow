@@ -453,7 +453,6 @@ function build_images::get_docker_image_names() {
     export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 
     export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
-    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and

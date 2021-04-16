@@ -1053,6 +1053,16 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: Set push-python-image
+        id: push-python-image
+        run: |
+          if [[ "${REF}" == 'refs/head/master' || "${REF}" == 'refs/head/main' ]]; then
+              echo "::set-output name=wanted::true"
+          else
+              echo "::set-output name=wanted::false"
+          fi
+        env:
+          REF: ${{ github.ref }}
       - name:
           "Prepare PROD image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
@@ -1060,8 +1070,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           # Since we are going to push both final image and build image segment, we need to pull the
           # build image, in case we are pulling from registry rather than building.
           WAIT_FOR_PROD_BUILD_IMAGE: "true"
+          WAIT_FOR_PYTHON_BASE_IMAGE: ${{ steps.push-python-image.outputs.wanted}}
       - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
+        env:
+          PUSH_PYTHON_BASE_IMAGE: ${{ steps.push-python-image.outputs.wanted}}
 
   push-ci-images-to-github-registry:
     timeout-minutes: 10
