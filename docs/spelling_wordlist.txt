@@ -693,6 +693,7 @@ docstring
 docstrings
 doesn
 doesnt
+dogstatsd
 donot
 dropdown
 druidHook
@@ -1027,6 +1028,7 @@ noqa
 notificationChannels
 npm
 ntlm
+nullable
 num
 oauth
 objectORfile

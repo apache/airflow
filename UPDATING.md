@@ -26,6 +26,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow 2.0.2](#airflow-202)
 - [Airflow 2.0.1](#airflow-201)
 - [Airflow 2.0.0](#airflow-200)
 - [Airflow 1.10.14](#airflow-11014)
@@ -50,8 +51,6 @@ assists users migrating to a new version.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Airflow 2.0.1
-
 <!--
 
 I'm glad you want to write a new note. Remember that this note is intended for users.
@@ -67,6 +66,14 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 2.0.2
+
+### Default `[kubernetes] enable_tcp_keepalive` is changed to `True`
+
+This allows Airflow to work more reliably with some environments (like Azure) by default.
+
+## Airflow 2.0.1
 
 ### Permission to view Airflow Configurations has been removed from `User` and `Viewer` role
 

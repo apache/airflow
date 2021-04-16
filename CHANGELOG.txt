@@ -1,5 +1,100 @@
+Airflow 2.0.2, 2021-04-19
+-------------------------
+
+Bug Fixes
+"""""""""
+
+* Bugfix: ``TypeError`` when Serializing & sorting iterable properties of DAGs (#15395)
+* Fix missing ``on_load`` trigger for folder-based plugins (#15208)
+* ``kubernetes cleanup-pods`` subcommand will only clean up Airflow-created Pods (#15204)
+* Fix password masking in CLI action_logging (#15143)
+* Fix url generation for TriggerDagRunOperatorLink (#14990)
+* Restore base lineage backend (#14146)
+* Unable to trigger backfill or manual jobs with Kubernetes executor. (#14160)
+* Bugfix: Task docs are not shown in the Task Instance Detail View (#15191)
+* Bugfix: Fix overriding ``pod_template_file`` in KubernetesExecutor (#15197)
+* Bugfix: resources in ``executor_config`` breaks Graph View in UI (#15199)
+* Fix celery executor bug trying to call len on map (#14883)
+* Fix bug in airflow.stats timing that broke dogstatsd mode (#15132)
+* Avoid scheduler/parser manager deadlock by using non-blocking IO (#15112)
+* Re-introduce ``dagrun.schedule_delay`` metric (#15105)
+* Compare string values, not if strings are the same object in Kube executor(#14942)
+* Pass queue to BaseExecutor.execute_async like in airflow 1.10 (#14861)
+* Scheduler: Remove TIs from starved pools from the critical path. (#14476)
+* Remove extra/needless deprecation warnings from airflow.contrib module (#15065)
+* Fix support for long dag_id and task_id in KubernetesExecutor (#14703)
+* Sort lists, sets and tuples in Serialized DAGs (#14909)
+* Simplify cleaning string passed to origin param (#14738) (#14905)
+* Fix error when running tasks with Sentry integration enabled. (#13929)
+* Webserver: Sanitize string passed to origin param (#14738)
+* Fix losing duration < 1 secs in tree (#13537)
+* Pin SQLAlchemy to <1.4 due to breakage of sqlalchemy-utils (#14812)
+* Fix KubernetesExecutor issue with deleted pending pods (#14810)
+* Default to Celery Task model when backend model does not exist (#14612)
+* Bugfix: Plugins endpoint was unauthenticated (#14570)
+* BugFix: fix DAG doc display (especially for TaskFlow DAGs) (#14564)
+* BugFix: TypeError in airflow.kubernetes.pod_launcher's monitor_pod (#14513)
+* Bugfix: Fix wrong output of tags and owners in dag detail API endpoint (#14490)
+* Fix logging error with task error when JSON logging is enabled (#14456)
+* Fix statsd metrics not sending when using daemon mode (#14454)
+* Gracefully handle missing start_date and end_date for DagRun (#14452)
+* BugFix: Serialize max_retry_delay as a timedelta (#14436)
+* Fix crash when user clicks on  "Task Instance Details" caused by start_date being None (#14416)
+* BugFix: Fix TaskInstance API call fails if a task is removed from running DAG (#14381)
+* Scheduler should not fail when invalid ``executor_config`` is passed (#14323)
+* Fix bug allowing task instances to survive when dagrun_timeout is exceeded (#14321)
+* Fix bug where DAG timezone was not always shown correctly in UI tooltips (#14204)
+* Use ``Lax`` for ``cookie_samesite`` when empty string is passed (#14183)
+* [AIRFLOW-6076] fix ``dag.cli()`` KeyError (#13647)
+* Fix running child tasks in a subdag after clearing a successful subdag (#14776)
+
+Improvements
+""""""""""""
+
+* Remove unused JS packages causing false security alerts (#15383)
+* Change default of ``[kubernetes] enable_tcp_keepalive`` for new installs to ``True`` (#15338)
+* Fixed #14270: Add error message in OOM situations (#15207)
+* Better compatibility/diagnostics for arbitrary UID in docker image (#15162)
+* Updates 3.6 limits for latest versions of a few libraries (#15209)
+* Adds Blinker dependency which is missing after recent changes (#15182)
+* Remove 'conf' from search_columns in DagRun View (#15099)
+* More proper default value for namespace in K8S cleanup-pods CLI (#15060)
+* Faster default role syncing during webserver start (#15017)
+* Speed up webserver start when there are many DAGs (#14993)
+* Much easier to use and better documented Docker image (#14911)
+* Use ``libyaml`` C library when available. (#14577)
+* Don't create unittest.cfg when not running in unit test mode (#14420)
+* Webserver: Allow Filtering TaskInstances by queued_dttm (#14708)
+* Update Flask-AppBuilder dependency to allow 3.2 (and all 3.x series) (#14665)
+* Remember expanded task groups in browser local storage (#14661)
+* Add plain format output to cli tables (#14546)
+* Make ``airflow dags show`` command display TaskGroups (#14269)
+* Increase maximum size of ``extra`` connection field. (#12944)
+* Speed up clear_task_instances by doing a single sql delete for TaskReschedule (#14048)
+* Add more flexibility with FAB menu links (#13903)
+* Add better description and guidance in case of sqlite version mismatch (#14209)
+
+Doc only changes
+""""""""""""""""
+
+* Add documentation create/update community providers (#15061)
+* Fix mistake and typos in airflow.utils.timezone docstrings (#15180)
+* Replace new url for Stable Airflow Docs (#15169)
+* Docs: Clarify behavior of delete_worker_pods_on_failure (#14958)
+* Create a documentation package for Docker image (#14846)
+* Multiple minor doc (OpenAPI) fixes (#14917)
+* Replace Graph View Screenshot to show Auto-refresh (#14571)
+
+Misc/Internal
+"""""""""""""
+
+* Import Connection lazily in hooks to avoid cycles (#15361)
+* Rename last_scheduler_run into last_parsed_time, and ensure it's updated in DB (#14581)
+* Make TaskInstance.pool_slots not nullable with a default of 1 (#14406)
+* Log migrations info in consistent way (#14158)
+
 Airflow 2.0.1, 2021-02-08
-----------------------------
+-------------------------
 
 Bug Fixes
 """""""""
