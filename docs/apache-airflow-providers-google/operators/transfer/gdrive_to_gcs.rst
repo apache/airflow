@@ -58,7 +58,7 @@ drive to both the ``folder_id`` and ``drive_id`` parameters.
     :start-after: [START upload_gdrive_to_gcs]
     :end-before: [END upload_gdrive_to_gcs]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.transfers.gdrive_to_gcs.GoogleDriveToGCSOperator`
 parameters which allows you to dynamically determine values.
 

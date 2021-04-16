@@ -367,6 +367,8 @@ TCP
 TLS
 TTY
 TZ
+TaskGroup
+TaskGroups
 TaskInstance
 Taskfail
 Templated
@@ -636,6 +638,7 @@ datacenter
 datadog
 dataflow
 dataframe
+dataframes
 datapipe
 datapoint
 dataproc
@@ -657,6 +660,7 @@ dbs
 dbtapquerycmd
 dbutils
 de
+declaratively
 decomissioning
 decrypt
 decrypted

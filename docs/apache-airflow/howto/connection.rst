@@ -28,7 +28,7 @@ will author will reference the 'conn_id' of the Connection objects.
 Connections can be created and managed using either the UI or environment
 variables.
 
-See the :ref:`Connections Concepts <concepts-connections>` documentation for
+See the :doc:`Connections Concepts </concepts/connections>` documentation for
 more information.
 
 Creating a Connection with the UI

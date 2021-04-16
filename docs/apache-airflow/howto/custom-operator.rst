@@ -29,7 +29,7 @@ There are two methods that you need to override in a derived class:
 
 * Constructor - Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
   Use ``@apply_defaults`` decorator function to fill unspecified arguments with ``default_args``. You can specify the ``default_args``
-  in the dag file. See :ref:`Default args <default-args>` for more details.
+  in the dag file. See :ref:`Default args <concepts:default-arguments>` for more details.
 
 * Execute - The code to execute when the runner calls the operator. The method contains the
   airflow context as a parameter that can be used to read config values.
@@ -152,7 +152,7 @@ Override ``ui_fgcolor`` to change the color of the label.
 
 Templating
 ^^^^^^^^^^^
-You can use :ref:`Jinja templates <jinja-templating>` to parameterize your operator.
+You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize your operator.
 Airflow considers the field names present in ``template_fields``  for templating while rendering
 the operator.
 

@@ -75,7 +75,7 @@ For example, if we have a task that stores processed data in S3 that task can pu
 and the downstream tasks can pull the path from XCom and use it to read the data.
 
 The tasks should also not store any authentication parameters such as passwords or token inside them.
-Where at all possible, use :ref:`Connections <concepts-connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
+Where at all possible, use :doc:`Connections </concepts/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
 
 
 Variables

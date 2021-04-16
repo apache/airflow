@@ -84,8 +84,7 @@ unit of work and continuity.
     tutorial_taskflow_api
     howto/index
     ui
-    concepts
-    scheduler
+    concepts/index
     executor/index
     dag-run
     plugins
@@ -98,7 +97,6 @@ unit of work and continuity.
     lineage
     dag-serialization
     modules_management
-    smart-sensor
     Release policies <release-process>
     changelog
     best-practices

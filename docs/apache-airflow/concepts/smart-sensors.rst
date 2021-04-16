@@ -18,19 +18,19 @@
 
 
 
-Smart Sensor
-============
+Smart Sensors
+=============
 
 .. warning::
 
   This is an **early-access** feature and might change in incompatible ways in future Airflow versions.
-  However this feature can be considered bug-free, and Airbnb has been using this feature in Production
+  However this feature can be considered bug-free, and Airbnb has been using this feature in production
   since early 2020 and has significantly reduced their costs for heavy use of sensors.
 
-The smart sensor is a service (run by a builtin DAG) which greatly reduces airflow’s infrastructure
-cost by consolidating some of the airflow long running light weight tasks.
+The smart sensor is a service (run by a builtin DAG) which greatly reduces Airflow’s infrastructure
+cost by consolidating multiple instances of small, light-weight Sensors into a single process.
 
-.. image:: img/smart_sensor_architecture.png
+.. image:: /img/smart_sensor_architecture.png
 
 Instead of using one process for each task, the main idea of the smart sensor service is to improve the
 efficiency of these long running tasks by using centralized processes to execute those tasks in batches.
@@ -41,7 +41,7 @@ tasks in batches.
 
 In this way, we only need a handful of running processes.
 
-.. image:: img/smart_sensor_single_task_execute_flow.png
+.. image:: /img/smart_sensor_single_task_execute_flow.png
 
 The smart sensor service is supported in a new mode called “smart sensor mode”. In smart sensor mode,
 instead of holding a long running process for each sensor and poking periodically, a sensor will only
