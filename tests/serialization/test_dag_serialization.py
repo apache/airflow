@@ -357,10 +357,9 @@ class TestStringifiedDAGs(unittest.TestCase):
             "_task_group",
         }
         for field in fields_to_check:
-            dag_field = getattr(dag, field)
-            if isinstance(dag_field, list):
-                dag_field = sorted(dag_field)
-            assert getattr(serialized_dag, field) == dag_field, f'{dag.dag_id}.{field} does not match'
+            assert getattr(serialized_dag, field) == getattr(
+                dag, field
+            ), f'{dag.dag_id}.{field} does not match'
 
         if dag.default_args:
             for k, v in dag.default_args.items():
@@ -1041,7 +1040,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         [
             (
                 ['task_1', 'task_5', 'task_2', 'task_4'],
-                ['task_1', 'task_2', 'task_4', 'task_5'],
+                ['task_1', 'task_5', 'task_2', 'task_4'],
             ),
             (
                 {'task_1', 'task_5', 'task_2', 'task_4'},
@@ -1049,16 +1048,39 @@ class TestStringifiedDAGs(unittest.TestCase):
             ),
             (
                 ('task_1', 'task_5', 'task_2', 'task_4'),
-                ['task_1', 'task_2', 'task_4', 'task_5'],
+                ['task_1', 'task_5', 'task_2', 'task_4'],
+            ),
+            (
+                {
+                    "staging_schema": [
+                        {"key:": "foo", "value": "bar"},
+                        {"key:": "this", "value": "that"},
+                        "test_conf",
+                    ]
+                },
+                {
+                    "staging_schema": [
+                        {"__type": "dict", "__var": {"key:": "foo", "value": "bar"}},
+                        {
+                            "__type": "dict",
+                            "__var": {"key:": "this", "value": "that"},
+                        },
+                        "test_conf",
+                    ]
+                },
             ),
             (
                 {"task3": "test3", "task2": "test2", "task1": "test1"},
                 {"task1": "test1", "task2": "test2", "task3": "test3"},
             ),
+            (
+                ('task_1', 'task_5', 'task_2', 3, ["x", "y"]),
+                ['task_1', 'task_5', 'task_2', 3, ["x", "y"]],
+            ),
         ]
     )
     def test_serialized_objects_are_sorted(self, object_to_serialized, expected_output):
-        """Test Serialized Lists, Sets and Tuples are sorted"""
+        """Test Serialized Sets are sorted while list and tuple preserve order"""
         serialized_obj = SerializedDAG._serialize(object_to_serialized)
         if isinstance(serialized_obj, dict) and "__type" in serialized_obj:
             serialized_obj = serialized_obj["__var"]
