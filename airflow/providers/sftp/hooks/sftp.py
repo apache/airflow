@@ -17,6 +17,8 @@
 # under the License.
 """This module contains SFTP hook."""
 import datetime
+import os
+import re
 import stat
 from typing import Dict, List, Optional, Tuple
 
@@ -166,16 +168,21 @@ class SFTPHook(SSHHook):
             }
         return files
 
-    def list_directory(self, path: str) -> List[str]:
+    def list_directory(self, path: str, regex_pattern: Optional[str] = None) -> List[str]:
         """
         Returns a list of files on the remote system.
 
         :param path: full path to the remote directory to list
         :type path: str
+        :param regex_pattern: optional pattern to filter the remote_full_path files
+        :type: regex_pattern: Optional[str]
         """
         conn = self.get_conn()
-        files = conn.listdir(path)
-        return files
+        if regex_pattern:
+            pattern = re.compile(regex_pattern)
+            return [file for file in conn.listdir(path) if pattern.match(file)]
+
+        return conn.listdir(path)
 
     def create_directory(self, path: str, mode: int = 777) -> None:
         """
@@ -198,7 +205,9 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.rmdir(path)
 
-    def retrieve_file(self, remote_full_path: str, local_full_path: str) -> None:
+    def retrieve_file(
+        self, remote_full_path: str, local_full_path: str, regex_pattern: Optional[str] = None
+    ) -> None:
         """
         Transfers the remote file to a local location.
         If local_full_path is a string path, the file will be put
@@ -208,11 +217,21 @@ class SFTPHook(SSHHook):
         :type remote_full_path: str
         :param local_full_path: full path to the local file
         :type local_full_path: str
+        :param regex_pattern: optional pattern to filter the remote_full_path files
+        :type: regex_pattern: Optional[str]
         """
         conn = self.get_conn()
         self.log.info('Retrieving file from FTP: %s', remote_full_path)
-        conn.get(remote_full_path, local_full_path)
-        self.log.info('Finished retrieving file from FTP: %s', remote_full_path)
+        if regex_pattern:
+            pattern = re.compile(regex_pattern)
+            for file in conn.listdir(remote_full_path):
+                if pattern.match(file):
+                    conn.get(os.path.join(remote_full_path, file), os.path.join(local_full_path, file))
+                    self.log.info('Finished retrieving file from FTP: %s', file)
+
+        else:
+            conn.get(remote_full_path, local_full_path)
+            self.log.info('Finished retrieving file from FTP: %s', remote_full_path)
 
     def store_file(self, remote_full_path: str, local_full_path: str) -> None:
         """
@@ -238,14 +257,23 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.remove(path)
 
-    def get_mod_time(self, path: str) -> str:
+    def get_mod_time(self, path: str, regex_pattern: Optional[str] = None) -> str:
         """
         Returns modification time.
 
         :param path: full path to the remote file
         :type path: str
+        :param regex_pattern: optional pattern to filter the remote_full_path files
+        :type: regex_pattern: Optional[str]
         """
         conn = self.get_conn()
+        if regex_pattern:
+            pattern = re.compile(regex_pattern)
+            for file in conn.listdir(path):
+                if pattern.match(file):
+                    path = file
+                    break
+
         ftp_mdtm = conn.stat(path).st_mtime
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')
 
@@ -279,7 +307,11 @@ class SFTPHook(SSHHook):
         return True
 
     def get_tree_map(
-        self, path: str, prefix: Optional[str] = None, delimiter: Optional[str] = None
+        self,
+        path: str,
+        prefix: Optional[str] = None,
+        delimiter: Optional[str] = None,
+        regex_pattern: Optional[str] = None,
     ) -> Tuple[List[str], List[str], List[str]]:
         """
         Return tuple with recursive lists of files, directories and unknown paths from given path.
@@ -293,6 +325,8 @@ class SFTPHook(SSHHook):
         :type delimiter: str
         :return: tuple with list of files, dirs and unknown items
         :rtype: Tuple[List[str], List[str], List[str]]
+        :param regex_pattern: optional pattern to filter the remote_full_path files
+        :type: regex_pattern: Optional[str]
         """
         conn = self.get_conn()
         files, dirs, unknowns = [], [], []  # type: List[str], List[str], List[str]
@@ -308,4 +342,9 @@ class SFTPHook(SSHHook):
             recurse=True,
         )
 
+        if regex_pattern:
+            pattern = re.compile(regex_pattern)
+            files = [file for file in files if pattern.match(file)]
+            unknowns = [file for file in unknowns if pattern.match(file)]
+            dirs = [file for file in dirs if pattern.match(file)]
         return files, dirs, unknowns

@@ -33,14 +33,19 @@ class SFTPSensor(BaseSensorOperator):
     :type path: str
     :param sftp_conn_id: The connection to run the sensor against
     :type sftp_conn_id: str
+    :param regex_pattern: optional pattern to filter the path files
+    :type: regex_pattern: Optional[str]
     """
 
-    template_fields = ('path',)
+    template_fields = ('path', 'regex_pattern')
 
     @apply_defaults
-    def __init__(self, *, path: str, sftp_conn_id: str = 'sftp_default', **kwargs) -> None:
+    def __init__(
+        self, *, path: str, regex_pattern: Optional[str] = None, sftp_conn_id: str = 'sftp_default', **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         self.path = path
+        self.regex_pattern = regex_pattern
         self.hook: Optional[SFTPHook] = None
         self.sftp_conn_id = sftp_conn_id
 
@@ -48,7 +53,7 @@ class SFTPSensor(BaseSensorOperator):
         self.hook = SFTPHook(self.sftp_conn_id)
         self.log.info('Poking for %s', self.path)
         try:
-            mod_time = self.hook.get_mod_time(self.path)
+            mod_time = self.hook.get_mod_time(self.path, self.regex_pattern)
             self.log.info('Found File %s last modified: %s', str(self.path), str(mod_time))
         except OSError as e:
             if e.errno != SFTP_NO_SUCH_FILE:

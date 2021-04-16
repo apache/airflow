@@ -32,7 +32,16 @@ class TestSFTPSensor(unittest.TestCase):
         sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/1970-01-01.txt')
         context = {'ds': '1970-01-01'}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt', None)
+        assert output
+
+    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
+    def test_file_present_with_pattern(self, sftp_hook_mock):
+        sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
+        sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/', regex_pattern=".*.txt")
+        context = {'ds': '1970-01-01'}
+        output = sftp_sensor.poke(context)
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/', ".*.txt")
         assert output
 
     @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
@@ -41,7 +50,7 @@ class TestSFTPSensor(unittest.TestCase):
         sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/1970-01-01.txt')
         context = {'ds': '1970-01-01'}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt', None)
         assert not output
 
     @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
@@ -51,7 +60,9 @@ class TestSFTPSensor(unittest.TestCase):
         context = {'ds': '1970-01-01'}
         with pytest.raises(OSError):
             sftp_sensor.poke(context)
-            sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
+            sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
+                '/path/to/file/1970-01-01.txt', None
+            )
 
     def test_hook_not_created_during_init(self):
         sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/1970-01-01.txt')
