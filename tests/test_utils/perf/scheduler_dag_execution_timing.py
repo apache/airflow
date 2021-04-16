@@ -163,18 +163,18 @@ def create_dag_runs(dag, num_runs, session):
 
         id_prefix = DagRun.ID_PREFIX
 
-    next_run_date = dag.normalize_schedule(dag.start_date or min(t.start_date for t in dag.tasks))
-
+    last_dagrun_at = None
     for _ in range(num_runs):
+        next_info = dag.next_dagrun_info(last_dagrun_at)
+        last_dagrun_at = next_info.data_interval.start
         dag.create_dagrun(
-            run_id=id_prefix + next_run_date.isoformat(),
-            execution_date=next_run_date,
+            run_id=f"{id_prefix}{last_dagrun_at.isoformat()}",
+            execution_date=last_dagrun_at,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             external_trigger=False,
             session=session,
         )
-        next_run_date = dag.following_schedule(next_run_date)
 
 
 @click.command()

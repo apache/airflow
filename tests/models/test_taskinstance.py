@@ -868,6 +868,12 @@ class TestTaskInstance(unittest.TestCase):
         )
         dag.clear()
 
+        dag.create_dagrun(
+            execution_date=DEFAULT_DATE,
+            state=State.FAILED,
+            run_type=DagRunType.SCHEDULED,
+        )
+
         run_date = task.start_date + datetime.timedelta(days=5)
 
         dag.create_dagrun(

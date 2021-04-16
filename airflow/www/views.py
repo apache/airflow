@@ -2334,20 +2334,17 @@ class Airflow(AirflowBaseView):
         except airflow.exceptions.SerializedDagNotFound:
             dag = None
 
-        base_date = request.args.get('base_date')
-        num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
-
         if dag is None:
             flash(f'DAG "{dag_id}" seems to be missing.', "error")
             return redirect(url_for('Airflow.index'))
+
+        base_date = request.args.get('base_date')
+        num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
         if base_date:
             base_date = timezone.parse(base_date)
         else:
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
-
-        dates = dag.date_range(base_date, num=-abs(num_runs))
-        min_date = dates[0] if dates else timezone.utc_epoch()
 
         root = request.args.get('root')
         if root:
@@ -2364,7 +2361,11 @@ class Airflow(AirflowBaseView):
         x_points = defaultdict(list)
         cumulative_y = defaultdict(list)
 
-        task_instances = dag.get_task_instances(start_date=min_date, end_date=base_date)
+        task_instances = dag.get_task_instances_before(base_date, num_runs, session=session)
+        if task_instances:
+            min_date = task_instances[0].execution_date
+        else:
+            min_date = timezone.utc_epoch()
         ti_fails = (
             session.query(TaskFail)
             .filter(
@@ -2468,9 +2469,6 @@ class Airflow(AirflowBaseView):
         else:
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
-        dates = dag.date_range(base_date, num=-abs(num_runs))
-        min_date = dates[0] if dates else timezone.utc_epoch()
-
         root = request.args.get('root')
         if root:
             dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
@@ -2484,10 +2482,11 @@ class Airflow(AirflowBaseView):
             chart_attr=self.line_chart_attr,
         )
 
+        tis = dag.get_task_instances_before(base_date, num_runs, session=session)
         for task in dag.tasks:
             y_points = []
             x_points = []
-            for ti in task.get_task_instances(start_date=min_date, end_date=base_date):
+            for ti in tis:
                 dttm = wwwutils.epoch(ti.execution_date)
                 x_points.append(dttm)
                 # y value should reflect completed tries to have a 0 baseline.
@@ -2495,7 +2494,6 @@ class Airflow(AirflowBaseView):
             if x_points:
                 chart.add_serie(name=task.task_id, x=x_points, y=y_points)
 
-        tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
         tries = sorted({ti.try_number for ti in tis})
         max_date = max(ti.execution_date for ti in tis) if tries else None
         chart.create_y_axis('yAxis', format='.02f', custom_format=False, label='Tries')
@@ -2543,12 +2541,11 @@ class Airflow(AirflowBaseView):
         else:
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
-        dates = dag.date_range(base_date, num=-abs(num_runs))
-        min_date = dates[0] if dates else timezone.utc_epoch()
-
         root = request.args.get('root')
         if root:
             dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
+
+        tis = dag.get_task_instances_before(base_date, num_runs, session=session)
 
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
@@ -2560,7 +2557,7 @@ class Airflow(AirflowBaseView):
             task_id = task.task_id
             y_points[task_id] = []
             x_points[task_id] = []
-            for ti in task.get_task_instances(start_date=min_date, end_date=base_date):
+            for ti in tis:
                 ts = ti.execution_date
                 if dag.schedule_interval and dag.following_schedule(ts):
                     ts = dag.following_schedule(ts)
@@ -2584,7 +2581,6 @@ class Airflow(AirflowBaseView):
                 y=scale_time_units(y_points[task_id], y_unit),
             )
 
-        tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
         dates = sorted({ti.execution_date for ti in tis})
         max_date = max(ti.execution_date for ti in tis) if dates else None
 

@@ -265,11 +265,11 @@ def dag_next_execution(args):
             )
             print(None)
         else:
-            print(next_execution_dttm)
+            print(next_execution_dttm.isoformat())
 
             for _ in range(1, args.num_executions):
                 next_execution_dttm = dag.following_schedule(next_execution_dttm)
-                print(next_execution_dttm)
+                print(next_execution_dttm.isoformat())
     else:
         print("[WARN] Only applicable when there is execution record found for the DAG.", file=sys.stderr)
         print(None)

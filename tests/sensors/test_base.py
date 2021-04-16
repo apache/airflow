@@ -421,7 +421,8 @@ class TestBaseSensor(unittest.TestCase):
         # poke returns False and AirflowRescheduleException is raised
         date1 = timezone.utcnow()
         with freeze_time(date1):
-            for date in self.dag.date_range(DEFAULT_DATE, end_date=DEFAULT_DATE):
+            dates = self.dag.get_run_dates(DEFAULT_DATE, end_date=DEFAULT_DATE, align=True)
+            for date in dates:
                 TaskInstance(sensor, date).run(ignore_ti_state=True, test_mode=True)
         tis = dr.get_task_instances()
         assert len(tis) == 2

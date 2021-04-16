@@ -369,14 +369,14 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def get_previous_scheduled_dagrun(self, session: Session = None) -> Optional['DagRun']:
         """The previous, SCHEDULED DagRun, if there is one"""
-        dag = self.get_dag()
-
         return (
             session.query(DagRun)
             .filter(
                 DagRun.dag_id == self.dag_id,
-                DagRun.execution_date == dag.previous_schedule(self.execution_date),
+                DagRun.execution_date < self.execution_date,
+                DagRun.run_type != DagRunType.MANUAL,
             )
+            .order_by(DagRun.execution_date.desc())
             .first()
         )
 

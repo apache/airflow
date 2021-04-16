@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import warnings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
@@ -72,6 +73,12 @@ def date_range(
     :param delta: step length. It can be datetime.timedelta or cron expression as string
     :type delta: datetime.timedelta or str or dateutil.relativedelta
     """
+    warnings.warn(
+        "`airflow.utils.dates.date_range()` is deprecated. Please use `airflow.timetables`.",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+
     if not delta:
         return []
     if end_date:

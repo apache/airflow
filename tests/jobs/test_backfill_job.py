@@ -1362,8 +1362,8 @@ class TestBackfillJob(unittest.TestCase):
         session.close()
 
     def test_dag_get_run_dates(self):
-        def get_test_dag_for_backfill(schedule_interval=None):
-            dag = DAG(dag_id='test_get_dates', start_date=DEFAULT_DATE, schedule_interval=schedule_interval)
+        def get_test_dag_for_backfill():
+            dag = DAG(dag_id='test_get_dates', start_date=DEFAULT_DATE, schedule_interval="@hourly")
             DummyOperator(
                 task_id='dummy',
                 dag=dag,
@@ -1372,9 +1372,13 @@ class TestBackfillJob(unittest.TestCase):
             return dag
 
         test_dag = get_test_dag_for_backfill()
-        assert [DEFAULT_DATE] == test_dag.get_run_dates(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        assert [DEFAULT_DATE] == test_dag.get_run_dates(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            align=True,
+        )
 
-        test_dag = get_test_dag_for_backfill(schedule_interval="@hourly")
+        test_dag = get_test_dag_for_backfill()
         assert [
             DEFAULT_DATE - datetime.timedelta(hours=3),
             DEFAULT_DATE - datetime.timedelta(hours=2),
@@ -1383,6 +1387,7 @@ class TestBackfillJob(unittest.TestCase):
         ] == test_dag.get_run_dates(
             start_date=DEFAULT_DATE - datetime.timedelta(hours=3),
             end_date=DEFAULT_DATE,
+            align=True,
         )
 
     def test_backfill_run_backwards(self):
