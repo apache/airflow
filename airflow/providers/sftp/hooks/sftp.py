@@ -45,9 +45,12 @@ class SFTPHook(SSHHook):
           permissions.
 
     Errors that may occur throughout but should be handled downstream.
+
+    :param sftp_conn_id: The :ref:`sftp connection id<howto/connection:sftp>`
+    :type sftp_conn_id: str
     """
 
-    conn_name_attr = 'ftp_conn_id'
+    conn_name_attr = 'sftp_conn_id'
     default_conn_name = 'sftp_default'
     conn_type = 'sftp'
     hook_name = 'SFTP'
