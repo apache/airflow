@@ -58,7 +58,7 @@ dill==0.3.2
 distlib==0.3.1
 distributed==2.19.0
 dnspython==1.16.0
-docutils==0.17
+docutils==0.17.1
 email-validator==1.1.2
 eventlet==0.30.2
 filelock==3.0.12
