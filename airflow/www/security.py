@@ -21,12 +21,14 @@ import warnings
 from datetime import timedelta
 from typing import Dict, Optional, Sequence, Set, Tuple
 
-from flask import current_app, g
-from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
+import jwt
+from flask import current_app, g, request
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
 from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token
+from flask_login import login_user
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
@@ -736,10 +738,15 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
         return True
 
-    def api_login_with_username_and_password(self, username, password):
-        """Convenience method for user login through the API"""
+    # TODO: Whether to create APISecurityManager and move api related code to it?
+    def is_user_logged_in(self):
+        """Raise if user already logged in"""
         if g.user is not None and g.user.is_authenticated:
             raise Unauthenticated(detail="Client already authenticated")  # For security
+
+    def login_with_user_pass(self, username, password):
+        """Convenience method for user login through the API"""
+        self.is_user_logged_in()
         if self.auth_type not in (AUTH_DB, AUTH_LDAP):
             raise Unauthenticated(detail="Authentication type do not match")
         user = None
@@ -747,6 +754,72 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             user = self.auth_user_db(username, password)
         elif self.auth_type == AUTH_LDAP:
             user = self.auth_user_ldap(username, password)
+        return user
+
+    def oauth_authorization_url(self, app, provider, redirect_url):
+        """Get authorization url for oauth"""
+        self.is_user_logged_in()
+        if self.auth_type != AUTH_OAUTH:
+            raise Unauthenticated(detail="Authentication type do not match")
+        state = jwt.encode(
+            request.args.to_dict(flat=False),
+            app.config["SECRET_KEY"],
+            algorithm="HS256",
+        )
+        auth_provider = self.oauth_remotes[provider]
+        try:
+
+            if provider == "twitter":
+                redirect_uri = redirect_url + f"&state={state}"
+                auth_data = auth_provider.create_authorization_url(redirect_uri=redirect_uri)
+                auth_provider.save_authorize_data(request, redirect_uri=redirect_uri, **auth_data)
+                return dict(auth_url=auth_data['url'])
+            else:
+                state = state.decode("ascii") if isinstance(state, bytes) else state
+                auth_data = auth_provider.create_authorization_url(
+                    redirect_uri=redirect_url,
+                    state=state,
+                )
+                auth_provider.save_authorize_data(request, redirect_uri=redirect_url, **auth_data)
+                return dict(auth_url=auth_data['url'])
+        except Exception as err:  # pylint: disable=broad-except
+            raise Unauthenticated(detail=str(err))
+
+    def oauth_login_user(self, app, provider, state):
+        """Oauth login"""
+        resp = self.oauth_remotes[provider].authorize_access_token()
+        if resp is None:
+            raise Unauthenticated(detail="You denied the request to sign in")
+        # Verify state
+        try:
+            jwt.decode(
+                state,
+                app.config["SECRET_KEY"],
+                algorithms=["HS256"],
+            )
+        except jwt.InvalidTokenError:
+            raise Unauthenticated(detail="State signature is not valid!")
+        # Retrieves specific user info from the provider
+        try:
+            userinfo = self.oauth_user_info(provider, resp)
+        except Exception:  # pylint: disable=broad-except
+            user = None
+        else:
+            user = self.auth_user_oauth(userinfo)
+        if user is None:
+            raise Unauthenticated(detail="Invalid login")
+        login_user(user)
+        return user
+
+    def login_remote_user(self, username):
+        """Login user using remote auth"""
+        self.is_user_logged_in()
+        if self.auth_type != AUTH_REMOTE_USER:
+            raise Unauthenticated(detail="Authentication type do not match")
+        user = self.auth_user_remote_user(username)
+        if user is None:
+            raise Unauthenticated(detail="Invalid login")
+        login_user(user)
         return user
 
     def create_jwt_manager(self, app) -> JWTManager:

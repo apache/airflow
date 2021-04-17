@@ -16,8 +16,7 @@
 # under the License.
 import logging
 
-import jwt
-from flask import current_app, g, jsonify, request, session as c_session
+from flask import current_app, jsonify, request, session as c_session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
 from flask_jwt_extended import (
     create_access_token,
@@ -68,7 +67,7 @@ def auth_login():
     except ValidationError as err:
         raise Unauthenticated(detail=str(err.messages))
     security_manager = current_app.appbuilder.sm
-    user = security_manager.api_login_with_username_and_password(data['username'], data['password'])
+    user = security_manager.login_with_user_pass(data['username'], data['password'])
     if not user:
         raise Unauthenticated(detail="Invalid login")
     login_user(user, remember=False)
@@ -76,67 +75,17 @@ def auth_login():
 
 
 def auth_oauthlogin(provider, register=None, redirect_url=None):
-    """Handle Oauth login"""
+    """Returns OAUTH authorization url"""
     appbuilder = current_app.appbuilder
-    if g.user is not None and g.user.is_authenticated:
-        raise Unauthenticated(detail="Client already authenticated")
-    if appbuilder.sm.auth_type != AUTH_OAUTH:
-        raise Unauthenticated(detail="Authentication type do not match")
-    state = jwt.encode(
-        request.args.to_dict(flat=False),
-        appbuilder.app.config["SECRET_KEY"],
-        algorithm="HS256",
-    )
-    try:
-        auth_provider = appbuilder.sm.oauth_remotes[provider]
-        if register:
-            c_session["register"] = True
-        if provider == "twitter":
-            redirect_uri = redirect_url + f"&state={state}"
-            auth_data = auth_provider.create_authorization_url(redirect_uri=redirect_uri)
-            auth_provider.save_authorize_data(request, redirect_uri=redirect_uri, **auth_data)
-            return dict(auth_url=auth_data['url'])
-        else:
-            state = state.decode("ascii") if isinstance(state, bytes) else state
-            auth_data = auth_provider.create_authorization_url(
-                redirect_uri=redirect_url,
-                state=state,
-            )
-            auth_provider.save_authorize_data(request, redirect_uri=redirect_url, **auth_data)
-            return dict(auth_url=auth_data['url'])
-    except Exception as err:  # pylint: disable=broad-except
-        raise Unauthenticated(detail=str(err))
+    if register:
+        c_session["register"] = True
+    return appbuilder.sm.oauth_authorization_url(appbuilder.app, provider, redirect_url)
 
 
 def authorize_oauth(provider, state):
     """Callback to authorize Oauth."""
     appbuilder = current_app.appbuilder
-    resp = appbuilder.sm.oauth_remotes[provider].authorize_access_token()
-    if resp is None:
-        raise Unauthenticated(detail="You denied the request to sign in")
-    log.debug("OAUTH Authorized resp: %s", resp)
-    # Verify state
-    try:
-        jwt.decode(
-            state,
-            appbuilder.app.config["SECRET_KEY"],
-            algorithms=["HS256"],
-        )
-    except jwt.InvalidTokenError:
-        raise Unauthenticated(detail="State signature is not valid!")
-    # Retrieves specific user info from the provider
-    try:
-        userinfo = appbuilder.sm.oauth_user_info(provider, resp)
-    except Exception as e:  # pylint: disable=broad-except
-        log.error("Error returning OAuth user info: %s", e)
-        user = None
-    else:
-        log.debug("User info retrieved from %s: %s", provider, userinfo)
-        user = appbuilder.sm.auth_user_oauth(userinfo)
-
-    if user is None:
-        raise Unauthenticated(detail="Invalid login")
-    login_user(user)
+    user = appbuilder.sm.oauth_login_user(appbuilder.app, provider, state)
     return appbuilder.sm.create_tokens_and_dump(user)
 
 
@@ -144,16 +93,8 @@ def auth_remoteuser():
     """Handle remote user auth"""
     appbuilder = current_app.appbuilder
     username = request.environ.get("REMOTE_USER")
-    if g.user is not None and g.user.is_authenticated:
-        raise Unauthenticated(detail="Client already authenticated")
-    if appbuilder.sm.auth_type != AUTH_REMOTE_USER:
-        raise Unauthenticated(detail="Authentication type do not match")
     if username:
-        user = appbuilder.sm.auth_user_remote_user(username)
-        if user is None:
-            raise Unauthenticated(detail="Invalid login")
-        else:
-            login_user(user)
+        user = appbuilder.sm.login_remote_user(username)
     else:
         raise Unauthenticated(detail="Invalid login")
     return appbuilder.sm.create_tokens_and_dump(user)
@@ -184,7 +125,6 @@ def revoke_token():
         raise BadRequest(detail=str(err.messages))
     token = decode_token(data['token'])
     tkn = TokenBlockList.get_token(token['jti'])
-
     if not tkn:
         TokenBlockList.add_token(jti=token['jti'], expiry_delta=token['exp'])
     return resp
