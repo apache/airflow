@@ -226,6 +226,9 @@ class ClusterGenerator:
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
 
+        if self.custom_image_family and self.image_version:
+            raise ValueError("The image_version and custom_image_family can't be both set")
+
         if self.custom_image_family and self.custom_image:
             raise ValueError("The custom_image and custom_image_family can't be both set")
 
