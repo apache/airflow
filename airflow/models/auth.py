@@ -36,7 +36,7 @@ class TokenBlockList(Base, LoggingMixin):
     __tablename__ = 'token_blocklist'
     id = Column(Integer, primary_key=True)
     jti = Column(String(50), unique=True, nullable=False)
-    expiry_date = Column(DateTime, nullable=False, index=True)
+    expiry_date = Column(DateTime(), nullable=False, index=True)
 
     def __init__(self, jti: str, expiry_date: DateTime):
         super().__init__()

@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add jwt token table
+"""add-token-blocklist
 
-Revision ID: 09dd4b177b92
-Revises: 90d1635d7b86
-Create Date: 2021-04-07 17:06:42.061407
+Revision ID: 22ab4efd5674
+Revises: a13f7613ad25
+Create Date: 2021-04-17 18:16:31.019394
 
 """
 
@@ -28,22 +28,22 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '09dd4b177b92'
-down_revision = '90d1635d7b86'
+revision = '22ab4efd5674'
+down_revision = 'a13f7613ad25'
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    """Apply Add jwt token table"""
+    """Apply Add token blocklist table"""
     op.create_table(
         "token_blocklist",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("jti", sa.String(50), nullable=False, unique=True),
-        sa.Column("expiry_date", sa.DateTime, nullable=True, index=True),
+        sa.Column("expiry_date", sa.DateTime(), nullable=False, index=True),
     )
 
 
 def downgrade():  # noqa: D103
-    """Unapply Add jwt token table"""
+    """Unapply Add token blocklist table"""
     op.drop_table('token_blocklist')
