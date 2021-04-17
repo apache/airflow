@@ -24,10 +24,11 @@
   {{ super() }}
   <meta name="dag_id" content="{{ dag.dag_id }}">
   <meta name="tree_url" content="{{ url_for('Airflow.tree') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('calendar.css') }}">
   <style type="text/css">
-    {% for state, state_color in state_color_mapping.items() %}
+    {% for state in ['failed', 'success', 'running'] %}
       rect.{{state}} {
-        fill: {{state_color}} !important;
+        fill: {{ state_color_mapping[state] }} !important;
       }
     {% endfor %}
   </style>
@@ -37,11 +38,16 @@
   {{ super() }}
   <hr>
   <div class="legend-row">
+    <div></div>
     <div>
-      {% for state, state_color in state_color_mapping.items() %}<span class="legend-item legend-item--no-border">
-        <span class="legend-item__swatch legend-item__swatch--no-border" style="background: {{ state_color }};"></span>
-        {{state}}</span>{% endfor %}<span class="legend-item legend-item--no-border">
-        <span class="legend-item__swatch"></span>no_status</span>
+      {% for state in ['failed', 'success', 'running'] %}
+        <span class="legend-item legend-item--no-border">
+        <span class="legend-item__swatch legend-item__swatch--no-border"
+          style="background: {{ state_color_mapping[state] }};">
+        </span>
+        {{state}}
+        </span>
+      {% endfor %}
     </div>
   </div>
   <hr>

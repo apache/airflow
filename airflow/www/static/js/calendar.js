@@ -21,6 +21,7 @@
 
 /* global calendarData, document, window, $, d3, moment, call_modal_dag, call_modal, */
 import getMetaValue from './meta_value';
+import { defaultFormat } from './datetime_utils';
 
 const dagId = getMetaValue('dag_id');
 const treeUrl = getMetaValue('tree_url');
@@ -36,24 +37,31 @@ function formatDay(d) {
   return ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][d]
 }
 
-function formatMonth(m) {
-  return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"][m]
-}
-
 function toMoment(y, m, d) {
   return moment.utc(`${y}-${m + 1}-${d}`, 'YYYY-MM-DD')
 }
 
 function weekOfMonth(y, m, d) {
-  const offset = toMoment(y, m, 1).isoWeekday()
-  return Math.floor((toMoment(y, m, d).date() - 1 + offset) / 7)
+  const monthOffset = toMoment(y, m, 1).day()
+  const dayOfMonth = toMoment(y, m, d).date()
+  return Math.floor((dayOfMonth + monthOffset - 1) / 7)
+}
+
+function weekOfYear(y, m) {
+  const yearOffset = toMoment(y, 0, 1).day()
+  const dayOfYear = toMoment(y, m, 1).dayOfYear()
+  return Math.floor((dayOfYear + yearOffset - 1) / 7)
 }
 
 function daysInMonth(y, m) {
-  const startDay = toMoment(y, m, 1)
-  // we substract 1 otherwise moment will return a duration of 1 month and 0 days
-  const endDay = toMoment(y, m, 1).add(1, 'month').subtract(1, 'day')
-  return moment.duration(endDay.diff(startDay)).asDays() + 1
+  const lastDay = toMoment(y, m, 1).add(1, 'month').subtract(1, 'day')
+  return lastDay.date()
+}
+
+function weeksInMonth(y, m) {
+  const firstDay = toMoment(y, m, 1)
+  const monthOffset = firstDay.day()
+  return Math.floor((daysInMonth(y, m) + monthOffset) / 7) + 1
 }
 
 // The state of the days will picked according to the states of the dag runs for that day
@@ -64,7 +72,7 @@ function stateClass(dagStates) {
   for (const state of priority) {
     if (dagStates[state] !== undefined) return state
   }
-  return 'no_dag_states'
+  return ''
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -83,13 +91,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function draw() {
 
     // display constants
-    const fullWidth = 1100
     const leftPadding = 40
+    const yearLabelWidth = 26
+    const dayLabelWidth = 14
     const yearPadding = 20
-    const yearHeaderHeight = 20
-    const monthHeaderHeight = 16
-    const cellSize = 16;
-    const yearHeight = yearPadding + yearHeaderHeight + monthHeaderHeight + cellSize * 7
+    const cellSize = 16
+    const yearHeight = cellSize * 7 + 2
+    const fullWidth = leftPadding * 2 + yearLabelWidth + dayLabelWidth + 53 * cellSize
 
     // group dag run stats by year -> month -> day -> state
     let dagStates = d3
@@ -99,6 +107,11 @@ document.addEventListener('DOMContentLoaded', () => {
       .key(dr => new Date(dr.date).getDate())
       .key(dr => dr.state)
       .map(data.dag_states);
+
+    if (Object.keys(dagStates).length == 0) {
+      // never display an empty calendar, instead show the current year
+      dagStates[moment.utc().year()] = {}
+    }
 
     dagStates = d3
       .entries(dagStates)
@@ -112,55 +125,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const svg = d3
       .select("#calendar-svg")
       .attr("width", fullWidth)
-      .attr("height", yearHeight * dagStates.length)
+      .attr("height", (yearHeight + yearPadding) * dagStates.length + yearPadding)
       .call(dayTip)
 
     const group = svg.append("g");
 
-    // create the years groups, eahc holding a year of data
+    // create the years groups, each holding a year of data
     const year = group
       .selectAll("g")
       .data(dagStates)
       .enter()
       .append('g')
-      .attr("transform", (d, i) => `translate(0, ${yearHeight * i + yearPadding})`);
+      .attr("transform", (d, i) => `translate(${leftPadding}, ${yearPadding + (yearHeight + yearPadding) * i})`);
 
     year
       .append("text")
-      .attr("x", fullWidth / 2)
-      .attr("y", yearHeaderHeight / 2)
+      .attr("x", - yearHeight * 0.5)
+      .attr("transform", "rotate(270)")
       .attr("text-anchor", "middle")
-      .attr("font-size", 16)
-      .attr("font-weight", 550)
-      .text(d => d.year)
-
-    const yearBody = year
-      .append('g')
-      .attr("transform", `translate(${leftPadding}, ${yearHeaderHeight})`);
+      .attr("class", "year-label")
+      .text(d => d.year);
 
     // write day names
-    yearBody
+    year
       .append("g")
+      .attr("transform", `translate(${yearLabelWidth}, 0)`)
       .attr("text-anchor", "end")
-      .attr("transform", `translate(0, ${monthHeaderHeight})`)
       .selectAll("g")
       .data(d3.range(7))
       .enter()
       .append('text')
       .attr("y", i => (i + 0.5) * cellSize)
-      .attr("dy", "0.31em")
-      .attr("font-size", 12)
+      .attr("class", "day-label")
       .text(formatDay);
 
     // create months groups to old the individual day cells
-    const months = yearBody
+    const months = year
       .append("g")
-      .attr("transform", data => `translate(10, 0)`);
-
-    const startWeekOffset = (y, m) => m == 0 ? 0 : toMoment(y, m, 1).isoWeek()
-    const endWeekOffset = (y, m) => toMoment(y, m, 1).add(1, 'month').subtract(7, 'day').isoWeek() + 1
-    const monthXPos = (y, m) => startWeekOffset(y, m) * cellSize + m * cellSize
-    const monthWitdth = (y, m) => (endWeekOffset(y, m) - startWeekOffset(y, m) + 1) * cellSize
+      .attr("transform", data => `translate(${yearLabelWidth + dayLabelWidth}, 0)`);
 
     const month = months
       .append("g")
@@ -180,29 +182,17 @@ document.addEventListener('DOMContentLoaded', () => {
       )
       .enter()
       .append('g')
-      .attr("transform", data => `translate(${monthXPos(data.year, data.month)}, 0)`);
-
-    // write month names
-    month
-      .append('text')
-      .attr("x", data => monthWitdth(data.year, data.month) / 2)
-      .attr("y", monthHeaderHeight / 2)
-      .attr("text-anchor", "middle")
-      .text(data => formatMonth(data.month))
-
-    const monthBody =  month
-      .append("g")
-      .attr("transform", data => `translate(0, ${monthHeaderHeight})`)
+      .attr("transform", data => `translate(${weekOfYear(data.year, data.month) * cellSize}, 0)`);
 
     // create days inside the month groups
     const tipHtml = data => {
       const stateCounts = d3.entries(data.dagStates).map(kv => `${kv.value[0].count} ${kv.key}`)
-      const d = toMoment(data.year, data.month, data.day)
-      return `<strong>${d}</strong><br>${stateCounts.join('<br>')}`
+      const date = toMoment(data.year, data.month, data.day)
+      return `<strong>${date.format(defaultFormat)} UTC</strong><br>${stateCounts.join('<br>')}`
     }
 
-    monthBody
-      .selectAll("text")
+    month
+      .selectAll("g")
       .data(data => d3
         .range(daysInMonth(data.year, data.month))
         .map(i => {
@@ -213,26 +203,18 @@ document.addEventListener('DOMContentLoaded', () => {
             'month': data.month,
             'day': day,
             'dagStates': dagStatesByState,
-            'weekDay': toMoment(data.year, data.month, day).day(),
-            'monthWeek': weekOfMonth(data.year, data.month, day),
           }
         })
       )
       .enter()
       .append('rect')
-      .attr("x", data => data.monthWeek  * cellSize)
-      .attr("y", data => data.weekDay  * cellSize)
+      .attr("x", data => weekOfMonth(data.year, data.month, data.day)  * cellSize)
+      .attr("y", data => toMoment(data.year, data.month, data.day).day()  * cellSize)
       .attr("width", cellSize)
       .attr("height", cellSize)
-      .attr("class", data => stateClass(data.dagStates))
-      .style({
-        "fill": "#eeeeee",
-        "stroke": "#ffffff",
-        "stroke-width": 1,
-        "cursor": "pointer"
-      })
+      .attr("class", data => 'day ' + stateClass(data.dagStates))
       .on("click", data => {
-        window.location.href=getTreeViewURL(
+        window.location.href = getTreeViewURL(
           // add 1 day and substract 1 ms to not show any run from the next day.
           toMoment(data.year, data.month, data.day).add(1, 'day').subtract(1, 'ms')
         )
@@ -243,6 +225,31 @@ document.addEventListener('DOMContentLoaded', () => {
         dayTip.show(tt, this);
       })
       .on('mouseout', function(d,i){dayTip.hide(d, this)});
+
+    // add paths around months
+    month
+      .selectAll("g")
+      .data(data => [data])
+      .enter()
+      .append('path')
+      .attr('class', 'month')
+      .style("fill", "none")
+      .attr("d", data => {
+        const firstDayOffset = toMoment(data.year, data.month, 1).day()
+        const lastDayOffset = toMoment(data.year, data.month, 1).add(1, 'month').day()
+        const weeks = weeksInMonth(data.year, data.month)
+        return d3.svg.line()([
+          [0, firstDayOffset * cellSize],
+          [cellSize, firstDayOffset * cellSize],
+          [cellSize, 0],
+          [weeks * cellSize, 0],
+          [weeks * cellSize, lastDayOffset * cellSize],
+          [(weeks - 1) * cellSize, lastDayOffset * cellSize],
+          [(weeks - 1) * cellSize, 7 * cellSize],
+          [0, 7 * cellSize],
+          [0, firstDayOffset * cellSize]
+        ])
+      })
   }
 
   function update() {

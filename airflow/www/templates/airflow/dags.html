@@ -233,6 +233,10 @@
                           <span class="material-icons" aria-hidden="true">hourglass_bottom</span>
                           Duration
                         </a>
+                        <a href="{{ url_for('Airflow.calendar', dag_id=dag.dag_id) }}" class="dags-table-more__link">
+                          <span class="material-icons" aria-hidden="true">event</span>
+                          Calendar
+                        </a>
                         <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id) }}" class="dags-table-more__link">
                           <span class="material-icons" aria-hidden="true">account_tree</span>
                           Graph
@@ -240,10 +244,6 @@
                         <a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}" class="dags-table-more__link">
                           <span class="material-icons" aria-hidden="true">nature</span>
                           Tree
-                        </a>
-                        <a href="{{ url_for('Airflow.calendar', dag_id=dag.dag_id) }}" class="dags-table-more__link">
-                          <span class="material-icons" aria-hidden="true">event</span>
-                          Calendar
                         </a>
                       </div>
                       <span class="dags-table-more__toggle"><span class="material-icons">more_horiz</span></span>
