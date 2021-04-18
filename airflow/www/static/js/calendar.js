@@ -19,7 +19,7 @@
  * under the License.
  */
 
-/* global calendarData, document, window, $, d3, moment, call_modal_dag, call_modal, */
+/* global calendarData, document, window, $, d3, moment */
 import getMetaValue from './meta_value';
 import { defaultFormat } from './datetime_utils';
 

@@ -37,6 +37,7 @@ from urllib.parse import quote_plus
 import jinja2
 import pytest
 from flask import Markup, session as flask_session, template_rendered, url_for
+from jinja2.utils import htmlsafe_json_dumps
 from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
@@ -994,10 +995,10 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('DAG Details', resp)
 
-    @parameterized.expand(["graph", "tree", "dag_details"])
+    @parameterized.expand(["graph", "tree", "calendar", "dag_details"])
     def test_view_uses_existing_dagbag(self, endpoint):
         """
-        Test that Graph, Tree & Dag Details View uses the DagBag already created in views.py
+        Test that Graph, Tree, Calendar & Dag Details View uses the DagBag already created in views.py
         instead of creating a new one.
         """
         url = f'{endpoint}?dag_id=example_bash_operator'
@@ -1099,6 +1100,14 @@ class TestAirflowBaseViews(TestBase):
         url = 'tree?dag_id=example_subdag_operator.section-1'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('section-1-task-1', resp)
+
+    def test_calendar(self):
+        url = 'calendar?dag_id=example_bash_operator'
+        resp = self.client.get(url, follow_redirects=True)
+        dag_run_date = self.bash_dagrun.execution_date.date().isoformat()
+        expected_data = {'dag_states': [{'date': dag_run_date, 'state': State.RUNNING, 'count': 1}]}
+        expected_data_json_escaped = json.dumps(expected_data).replace('"', '\\"').replace(' ', '')
+        self.check_content_in_response(expected_data_json_escaped, resp)
 
     def test_duration(self):
         url = 'duration?days=30&dag_id=example_bash_operator'

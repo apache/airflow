@@ -2095,10 +2095,13 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for('Airflow.index'))
 
+        root = request.args.get('root')
+        if root:
+            dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+
         with create_session() as session:
             dag_states = (
-                session
-                .query(
+                session.query(
                     func.date(DagRun.execution_date).label('date'),
                     DagRun.state,
                     func.count('*').label('count'),
@@ -2132,6 +2135,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag=dag,
             doc_md=doc_md,
             data=data,
+            root=root,
         )
 
     @expose('/graph')
