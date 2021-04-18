@@ -293,7 +293,7 @@ class BaseSerialization:
         elif type_ == DAT.SET:
             return {cls._deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:
-            return tuple([cls._deserialize(v) for v in var])
+            return tuple(cls._deserialize(v) for v in var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
