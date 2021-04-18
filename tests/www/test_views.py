@@ -273,7 +273,12 @@ class TestConnectionModelView(TestBase):
 class TestVariableModelView(TestBase):
     def setUp(self):
         super().setUp()
-        self.variable = {'key': 'test_key', 'val': 'text_val', 'is_encrypted': True}
+        self.variable = {
+            'key': 'test_key',
+            'val': 'text_val',
+            'description': 'test_description',
+            'is_encrypted': True,
+        }
 
     def tearDown(self):
         self.clear_table(models.Variable)
@@ -338,6 +343,13 @@ class TestVariableModelView(TestBase):
             '/variable/varimport', data={'file': (bytes_content, 'test.json')}, follow_redirects=True
         )
         self.check_content_in_response('4 variable(s) successfully updated.', resp)
+
+    def test_description_retrieval(self):
+        # create valid variable
+        self.client.post('/variable/add', data=self.variable, follow_redirects=True)
+
+        row = self.session.query(models.Variable.key, models.Variable.description).first()
+        assert row.key == 'test_key' and row.description == 'test_description'
 
 
 class PluginOperator(BaseOperator):

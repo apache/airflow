@@ -70,6 +70,7 @@ spec:
         - mountPath: {{ include "airflow_dags" . }}
           name: dags
           readOnly: true
+          subPath: {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
 {{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 8 }}

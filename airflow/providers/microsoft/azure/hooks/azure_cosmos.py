@@ -41,7 +41,8 @@ class AzureCosmosDBHook(BaseHook):
     optionally, you can use the following extras to default these values
     {"database_name": "<DATABASE_NAME>", "collection_name": "COLLECTION_NAME"}.
 
-    :param azure_cosmos_conn_id: Reference to the Azure CosmosDB connection.
+    :param azure_cosmos_conn_id: Reference to the
+        :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
     :type azure_cosmos_conn_id: str
     """
 

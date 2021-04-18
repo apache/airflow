@@ -697,6 +697,7 @@ docstring
 docstrings
 doesn
 doesnt
+dogstatsd
 donot
 downscaling
 dropdown
@@ -1033,6 +1034,7 @@ noqa
 notificationChannels
 npm
 ntlm
+nullable
 num
 oauth
 objectORfile

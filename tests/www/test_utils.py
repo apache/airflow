@@ -128,8 +128,13 @@ class TestUtils(unittest.TestCase):
         assert ['a=0', 'c=true'] == pairs
 
     def test_params_all(self):
-        query = utils.get_params(status='active', page=3, search='bash_')
-        assert {'page': ['3'], 'search': ['bash_'], 'status': ['active']} == parse_qs(query)
+        query = utils.get_params(tags=['tag1', 'tag2'], status='active', page=3, search='bash_')
+        assert {
+            'tags': ['tag1', 'tag2'],
+            'page': ['3'],
+            'search': ['bash_'],
+            'status': ['active'],
+        } == parse_qs(query)
 
     def test_params_escape(self):
         assert 'search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E' == utils.get_params(

@@ -222,7 +222,9 @@ function push_pull_remove_images::push_python_image_to_github() {
 
 # Pushes Ci images and their tags to registry in GitHub
 function push_pull_remove_images::push_ci_images_to_github() {
-    push_pull_remove_images::push_python_image_to_github
+    if [[ "${PUSH_PYTHON_BASE_IMAGE=}" != "false" ]]; then
+        push_pull_remove_images::push_python_image_to_github
+    fi
     AIRFLOW_CI_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     docker_v tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_TAGGED_IMAGE}"
     push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_TAGGED_IMAGE}"
@@ -263,7 +265,6 @@ function push_pull_remove_images::push_prod_images_to_dockerhub () {
 #     "${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
 #     "latest"           - in case of push builds
 function push_pull_remove_images::push_prod_images_to_github () {
-    push_pull_remove_images::push_python_image_to_github
     AIRFLOW_PROD_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     docker_v tag "${AIRFLOW_PROD_IMAGE}" "${AIRFLOW_PROD_TAGGED_IMAGE}"
     push_pull_remove_images::push_image_with_retries "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"

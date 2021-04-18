@@ -26,6 +26,7 @@ Content
     :maxdepth: 1
     :caption: Guides
 
+    Connection types <connections/databricks>
     Operators <operators>
 
 .. toctree::
