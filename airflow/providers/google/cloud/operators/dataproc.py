@@ -362,7 +362,7 @@ class ClusterGenerator:
             project_id = self.custom_image_project_id or self.project_id
             custom_image_url = (
                 'https://www.googleapis.com/compute/beta/projects/'
-                '{}/global/images/family/{}'.format(project_id, self.custom_image_family)
+                f'{project_id}/global/images/family/{self.custom_image_family}'
             )
             cluster_data['master_config']['image_uri'] = custom_image_url
             if not self.single_node:
