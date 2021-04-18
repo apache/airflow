@@ -144,7 +144,7 @@ class TestsClusterGenerator(unittest.TestCase):
             )
             assert "custom_image and image_version" in str(ctx.value)
 
-    def test_custom_image_family_1(self):
+    def test_custom_image_family_error_with_image_version(self):
         with pytest.raises(ValueError) as ctx:
             ClusterGenerator(
                 image_version="image_version",
@@ -154,7 +154,7 @@ class TestsClusterGenerator(unittest.TestCase):
             )
             assert "image_version and custom_image_family" in str(ctx.value)
 
-    def test_custom_image_family_2(self):
+    def test_custom_image_family_error_with_custom_image(self):
         with pytest.raises(ValueError) as ctx:
             ClusterGenerator(
                 custom_image="custom_image",
