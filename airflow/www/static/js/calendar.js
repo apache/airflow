@@ -110,9 +110,10 @@ document.addEventListener('DOMContentLoaded', () => {
       .key(dr => dr.state)
       .map(data.dag_states);
 
-    if (Object.keys(dagStates).length == 0) {
-      // never display an empty calendar, instead show the current year
-      dagStates[moment.utc().year()] = {}
+    const startYear = moment.utc(data.start_date, dateFormat).year()
+    const endYear = moment.utc(data.end_date, dateFormat).year()
+    for (let y = startYear; y <= endYear; y++) {
+      dagStates[y] = dagStates[y] || {}
     }
 
     dagStates = d3

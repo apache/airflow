@@ -2123,6 +2123,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         data = {
             'dag_states': dag_states,
+            'start_date': (dag.start_date or datetime.utcnow()).date().isoformat(),
+            'end_date': (dag.end_date or datetime.utcnow()).date().isoformat(),
         }
 
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))

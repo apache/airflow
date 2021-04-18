@@ -1105,7 +1105,7 @@ class TestAirflowBaseViews(TestBase):
         url = 'calendar?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         dag_run_date = self.bash_dagrun.execution_date.date().isoformat()
-        expected_data = {'dag_states': [{'date': dag_run_date, 'state': State.RUNNING, 'count': 1}]}
+        expected_data = [{'date': dag_run_date, 'state': State.RUNNING, 'count': 1}]
         expected_data_json_escaped = json.dumps(expected_data).replace('"', '\\"').replace(' ', '')
         self.check_content_in_response(expected_data_json_escaped, resp)
 
