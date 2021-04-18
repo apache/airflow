@@ -39,7 +39,8 @@ class AzureDataExplorerQueryOperator(BaseOperator):
     :param options: Optional query options. See:
       https://docs.microsoft.com/en-us/azure/kusto/api/netfx/request-properties#list-of-clientrequestproperties
     :type options: dict
-    :param azure_data_explorer_conn_id: Azure Data Explorer connection to use.
+    :param azure_data_explorer_conn_id: Reference to the
+        :ref:`Azure Data Explorer connection<howto/connection:adx>`.
     :type azure_data_explorer_conn_id: str
     """
 

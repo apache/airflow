@@ -653,6 +653,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 num_of_pages,
                 search=escape(arg_search_query) if arg_search_query else None,
                 status=arg_status_filter if arg_status_filter else None,
+                tags=arg_tags_filter if arg_tags_filter else None,
             ),
             num_runs=num_runs,
             tags=tags,
