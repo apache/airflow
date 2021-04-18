@@ -75,6 +75,10 @@ class ClusterGenerator:
     :param custom_image_project_id: project id for the custom Dataproc image, for more info see
         https://cloud.google.com/dataproc/docs/guides/dataproc-images
     :type custom_image_project_id: str
+    :param custom_image_family: family for the custom Dataproc image,
+        family name can be provide using --family flag while creating custom image, for more info see
+        https://cloud.google.com/dataproc/docs/guides/dataproc-images
+    :type custom_image_family: str
     :param autoscaling_policy: The autoscaling policy used by the cluster. Only resource names
         including projectid and location (region) are valid. Example:
         ``projects/[projectId]/locations/[dataproc_region]/autoscalingPolicies/[policy_id]``
@@ -163,6 +167,7 @@ class ClusterGenerator:
         metadata: Optional[Dict] = None,
         custom_image: Optional[str] = None,
         custom_image_project_id: Optional[str] = None,
+        custom_image_family: Optional[str] = None,
         image_version: Optional[str] = None,
         autoscaling_policy: Optional[str] = None,
         properties: Optional[Dict] = None,
@@ -194,6 +199,7 @@ class ClusterGenerator:
         self.metadata = metadata
         self.custom_image = custom_image
         self.custom_image_project_id = custom_image_project_id
+        self.custom_image_family = custom_image_family
         self.image_version = image_version
         self.properties = properties or {}
         self.optional_components = optional_components
@@ -219,6 +225,12 @@ class ClusterGenerator:
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
+
+        if self.custom_image_family and self.image_version:
+            raise ValueError("The image_version and custom_image_family can't be both set")
+
+        if self.custom_image_family and self.custom_image:
+            raise ValueError("The custom_image and custom_image_family can't be both set")
 
         if self.single_node and self.num_preemptible_workers > 0:
             raise ValueError("Single node cannot have preemptible workers.")
@@ -341,6 +353,16 @@ class ClusterGenerator:
             custom_image_url = (
                 'https://www.googleapis.com/compute/beta/projects/'
                 '{}/global/images/{}'.format(project_id, self.custom_image)
+            )
+            cluster_data['master_config']['image_uri'] = custom_image_url
+            if not self.single_node:
+                cluster_data['worker_config']['image_uri'] = custom_image_url
+
+        elif self.custom_image_family:
+            project_id = self.custom_image_project_id or self.project_id
+            custom_image_url = (
+                'https://www.googleapis.com/compute/beta/projects/'
+                f'{project_id}/global/images/family/{self.custom_image_family}'
             )
             cluster_data['master_config']['image_uri'] = custom_image_url
             if not self.single_node:

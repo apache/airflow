@@ -101,6 +101,50 @@ CONFIG = {
     ],
 }
 
+CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
+    "gce_cluster_config": {
+        "zone_uri": "https://www.googleapis.com/compute/v1/projects/project_id/zones/zone",
+        "metadata": {"metadata": "data"},
+        "network_uri": "network_uri",
+        "subnetwork_uri": "subnetwork_uri",
+        "internal_ip_only": True,
+        "tags": ["tags"],
+        "service_account": "service_account",
+        "service_account_scopes": ["service_account_scopes"],
+    },
+    "master_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/master_machine_type",
+        "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/family/custom_image_family",
+    },
+    "worker_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/family/custom_image_family",
+    },
+    "secondary_worker_config": {
+        "num_instances": 4,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "is_preemptible": True,
+    },
+    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "lifecycle_config": {
+        "idle_delete_ttl": {'seconds': 60},
+        "auto_delete_time": "2019-09-12T00:00:00.000000Z",
+    },
+    "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
+    "autoscaling_config": {"policy_uri": "autoscaling_policy"},
+    "config_bucket": "storage_bucket",
+    "initialization_actions": [
+        {"executable_file": "init_actions_uris", "execution_timeout": {'seconds': 600}}
+    ],
+}
+
 LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION}
 
 LABELS.update({'airflow-version': 'v' + airflow_version.replace('.', '-').replace('+', '-')})
@@ -143,6 +187,26 @@ class TestsClusterGenerator(unittest.TestCase):
                 cluster_name=CLUSTER_NAME,
             )
             assert "custom_image and image_version" in str(ctx.value)
+
+    def test_custom_image_family_error_with_image_version(self):
+        with pytest.raises(ValueError) as ctx:
+            ClusterGenerator(
+                image_version="image_version",
+                custom_image_family="custom_image_family",
+                project_id=GCP_PROJECT,
+                cluster_name=CLUSTER_NAME,
+            )
+            assert "image_version and custom_image_family" in str(ctx.value)
+
+    def test_custom_image_family_error_with_custom_image(self):
+        with pytest.raises(ValueError) as ctx:
+            ClusterGenerator(
+                custom_image="custom_image",
+                custom_image_family="custom_image_family",
+                project_id=GCP_PROJECT,
+                cluster_name=CLUSTER_NAME,
+            )
+            assert "custom_image and custom_image_family" in str(ctx.value)
 
     def test_nodes_number(self):
         with pytest.raises(AssertionError) as ctx:
@@ -187,6 +251,43 @@ class TestsClusterGenerator(unittest.TestCase):
         )
         cluster = generator.make()
         assert CONFIG == cluster
+
+    def test_build_with_custom_image_family(self):
+        generator = ClusterGenerator(
+            project_id="project_id",
+            num_workers=2,
+            zone="zone",
+            network_uri="network_uri",
+            subnetwork_uri="subnetwork_uri",
+            internal_ip_only=True,
+            tags=["tags"],
+            storage_bucket="storage_bucket",
+            init_actions_uris=["init_actions_uris"],
+            init_action_timeout="10m",
+            metadata={"metadata": "data"},
+            custom_image_family="custom_image_family",
+            custom_image_project_id="custom_image_project_id",
+            autoscaling_policy="autoscaling_policy",
+            properties={"properties": "data"},
+            optional_components=["optional_components"],
+            num_masters=2,
+            master_machine_type="master_machine_type",
+            master_disk_type="master_disk_type",
+            master_disk_size=128,
+            worker_machine_type="worker_machine_type",
+            worker_disk_type="worker_disk_type",
+            worker_disk_size=256,
+            num_preemptible_workers=4,
+            region="region",
+            service_account="service_account",
+            service_account_scopes=["service_account_scopes"],
+            idle_delete_ttl=60,
+            auto_delete_time=datetime(2019, 9, 12),
+            auto_delete_ttl=250,
+            customer_managed_key="customer_managed_key",
+        )
+        cluster = generator.make()
+        assert CONFIG_WITH_CUSTOM_IMAGE_FAMILY == cluster
 
 
 class TestDataprocClusterCreateOperator(unittest.TestCase):
