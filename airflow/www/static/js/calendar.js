@@ -63,6 +63,8 @@ function weeksInMonth(y, m) {
   return Math.floor((daysInMonth(y, m) + monthOffset) / 7) + 1
 }
 
+const dateFormat = 'YYYY-MM-DD'
+
 // The state of the days will picked according to the states of the dag runs for that day
 // using the following states priority:
 const priority = ["failed", "running", "success"]
@@ -73,8 +75,6 @@ function stateClass(dagStates) {
   }
   return 'no_status'
 }
-
-const dateFormat = 'YYYY-MM-DD'
 
 document.addEventListener('DOMContentLoaded', () => {
   $('span.status_square').tooltip({ html: true });
@@ -99,7 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const yearPadding = 20
     const cellSize = 16
     const yearHeight = cellSize * 7 + 2
-    const fullWidth = leftPadding * 2 + yearLabelWidth + dayLabelWidth + 53 * cellSize
+    const maxWeeksInYear = 53
+    const fullWidth = leftPadding * 2 + yearLabelWidth + dayLabelWidth + maxWeeksInYear * cellSize
 
     // group dag run stats by year -> month -> day -> state
     let dagStates = d3
@@ -110,6 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
       .key(dr => dr.state)
       .map(data.dag_states);
 
+    // Make sure we have one year displayed for each year between the start and end dates.
+    // This also ensures we do not have show an empty calendar view when no dag runs exist.
     const startYear = moment.utc(data.start_date, dateFormat).year()
     const endYear = moment.utc(data.end_date, dateFormat).year()
     for (let y = startYear; y <= endYear; y++) {
