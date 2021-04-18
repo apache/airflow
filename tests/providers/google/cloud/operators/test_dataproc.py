@@ -287,7 +287,6 @@ class TestsClusterGenerator(unittest.TestCase):
             customer_managed_key="customer_managed_key",
         )
         cluster = generator.make()
-        print(cluster)
         assert CONFIG_WITH_CUSTOM_IMAGE_FAMILY == cluster
 
 
