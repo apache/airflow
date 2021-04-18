@@ -37,7 +37,6 @@ from urllib.parse import quote_plus
 import jinja2
 import pytest
 from flask import Markup, session as flask_session, template_rendered, url_for
-from jinja2.utils import htmlsafe_json_dumps
 from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse

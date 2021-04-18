@@ -76,7 +76,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
-from sqlalchemy import and_, desc, func, or_, union_all, extract
+from sqlalchemy import and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
@@ -2089,6 +2089,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @gzipped  # pylint: disable=too-many-locals
     @action_logging  # pylint: disable=too-many-locals
     def calendar(self):
+        """Get DAG runs as calendar"""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:

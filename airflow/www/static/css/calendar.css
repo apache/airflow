@@ -32,7 +32,7 @@ path.month {
 }
 
 rect.day {
-  stroke: #cccccc;
+  stroke: #ccc;
   stroke-width: 1px;
   cursor: pointer;
 }
@@ -50,11 +50,11 @@ rect.failed {
 }
 
 rect.no_status {
-  fill: #eeeeee;
+  fill: #eee;
 }
 
 .legend-item__swatch {
   /* Keep in sync with the formatting of rect.no_status */
-  background-color: #eeeeee;
-  border: 1px solid #cccccc;
+  background-color: #eee;
+  border: 1px solid #ccc;
 }
