@@ -32,7 +32,6 @@ path.month {
 }
 
 rect.day {
-  fill: #eeeeee;
   stroke: #cccccc;
   stroke-width: 1px;
   cursor: pointer;
@@ -48,4 +47,14 @@ rect.running {
 
 rect.failed {
   fill: red;
+}
+
+rect.no_status {
+  fill: #eeeeee;
+}
+
+.legend-item__swatch {
+  /* Keep in sync with the formatting of rect.no_status */
+  background-color: #eeeeee;
+  border: 1px solid #cccccc;
 }

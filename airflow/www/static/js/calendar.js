@@ -21,7 +21,6 @@
 
 /* global calendarData, document, window, $, d3, moment */
 import getMetaValue from './meta_value';
-import { defaultFormat } from './datetime_utils';
 
 const dagId = getMetaValue('dag_id');
 const treeUrl = getMetaValue('tree_url');
@@ -34,11 +33,11 @@ function getTreeViewURL(d) {
 
 // date helpers
 function formatDay(d) {
-  return ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][d]
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]
 }
 
 function toMoment(y, m, d) {
-  return moment.utc(`${y}-${m + 1}-${d}`, 'YYYY-MM-DD')
+  return moment.utc([y, m, d])
 }
 
 function weekOfMonth(y, m, d) {
@@ -72,8 +71,10 @@ function stateClass(dagStates) {
   for (const state of priority) {
     if (dagStates[state] !== undefined) return state
   }
-  return ''
+  return 'no_status'
 }
+
+const dateFormat = 'YYYY-MM-DD'
 
 document.addEventListener('DOMContentLoaded', () => {
   $('span.status_square').tooltip({ html: true });
@@ -91,9 +92,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function draw() {
 
     // display constants
-    const leftPadding = 40
-    const yearLabelWidth = 26
+    const leftPadding = 32
+    const yearLabelWidth = 34
     const dayLabelWidth = 14
+    const dayLabelPadding = 4
     const yearPadding = 20
     const cellSize = 16
     const yearHeight = cellSize * 7 + 2
@@ -102,9 +104,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // group dag run stats by year -> month -> day -> state
     let dagStates = d3
       .nest()
-      .key(dr => new Date(dr.date).getUTCFullYear())
-      .key(dr => new Date(dr.date).getMonth())
-      .key(dr => new Date(dr.date).getDate())
+      .key(dr => moment.utc(dr.date, dateFormat).year())
+      .key(dr => moment.utc(dr.date, dateFormat).month())
+      .key(dr => moment.utc(dr.date, dateFormat).date())
       .key(dr => dr.state)
       .map(data.dag_states);
 
@@ -149,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // write day names
     year
       .append("g")
-      .attr("transform", `translate(${yearLabelWidth}, 0)`)
+      .attr("transform", `translate(${yearLabelWidth}, ${dayLabelPadding})`)
       .attr("text-anchor", "end")
       .selectAll("g")
       .data(d3.range(7))
@@ -188,7 +190,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const tipHtml = data => {
       const stateCounts = d3.entries(data.dagStates).map(kv => `${kv.value[0].count} ${kv.key}`)
       const date = toMoment(data.year, data.month, data.day)
-      return `<strong>${date.format(defaultFormat)} UTC</strong><br>${stateCounts.join('<br>')}`
+      const daySr = formatDay(date.day())
+      const dateStr = date.format(dateFormat)
+      return `<strong>${daySr} ${dateStr}</strong><br>${stateCounts.join('<br>')}`
     }
 
     month
