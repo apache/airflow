@@ -95,7 +95,7 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    def _read(self, ti, try_number, metadata=None):  # pylint: disable=unused-argument
+    def _read(self, ti: "TaskInstance", try_number, metadata=None):  # pylint: disable=unused-argument
         """
         Template method that contains custom logic of reading
         logs given the try_number.
@@ -204,7 +204,7 @@ class FileTaskHandler(logging.Handler):
         return full_path
 
 
-def read_local_log(location):
+def read_local_log(location: str):
     """Reading task logs from local machine"""
     log = ""
     try:
@@ -212,12 +212,11 @@ def read_local_log(location):
             log += f"*** Reading local file: {location}\n"
             log += "".join(file.readlines())
     except Exception as e:  # pylint: disable=broad-except
-        log = f"*** Failed to load local log file: {location}\n"
-        log += f"*** {str(e)}\n"
+        log += f"*** Failed to load local log file: {location} ***\n{e}\n\n"
     return log
 
 
-def read_celery_worker_log(ti, location, log_relative_path):
+def read_celery_worker_log(ti: "TaskInstance", location: str, log_relative_path: str):
     """Reading task logs from a celery worker"""
     log = ""
 
@@ -241,12 +240,16 @@ def read_celery_worker_log(ti, location, log_relative_path):
 
         log += '\n' + response.text
     except Exception as e:  # pylint: disable=broad-except
-        log += f"*** Failed to fetch log file from worker. {str(e)}\n"
+        log += f"*** Failed to fetch log file from worker ***\n{e}\n\n"
     return log
 
 
-def read_kubernetes_pod_log(ti):
-    """Reading task logs from a kubernetes worker pod"""
+def read_kubernetes_pod_log(ti: "TaskInstance", log_lines: str = 100):
+    """Reading task logs from a kubernetes worker pod
+
+    :param ti: :param ti: task instance object
+    :param log_lines: number of lines to tail from the pod
+    """
     log = ""
     try:
         from airflow.kubernetes.kube_client import get_kube_client
@@ -264,20 +267,20 @@ def read_kubernetes_pod_log(ti):
             if len(matches) == 1 and (len(matches[0]) > len(ti.hostname)):
                 ti.hostname = matches[0]
 
-        log += f'*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n'
+        log += f'*** Trying to get logs (last {log_lines} lines) from worker pod {ti.hostname} ***\n\n'
 
         res = kube_client.read_namespaced_pod_log(
             name=ti.hostname,
             namespace=conf.get('kubernetes', 'namespace'),
             container='base',
             follow=False,
-            tail_lines=100,
+            tail_lines=log_lines,
             _preload_content=False,
         )
 
         for line in res:
             log += line.decode()
 
-    except Exception as f:  # pylint: disable=broad-except
-        log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
+    except Exception as e:  # pylint: disable=broad-except
+        log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{e}\n\n'
     return log
