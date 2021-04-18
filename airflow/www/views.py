@@ -2109,13 +2109,15 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 )
                 .filter(DagRun.dag_id == dag.dag_id)
                 .group_by(func.date(DagRun.execution_date), DagRun.state)
-                .order_by(DagRun.execution_date.asc())
+                .order_by(func.date(DagRun.execution_date).asc())
                 .all()
             )
 
         dag_states = [
             {
-                'date': dr.date,
+                # DATE() in SQLite and MySQL behave differently:
+                # SQLite returns a string, MySQL returns a date.
+                'date': dr.date if isinstance(dr.date, str) else dr.date.isoformat(),
                 'state': dr.state,
                 'count': dr.count,
             }
