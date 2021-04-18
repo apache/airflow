@@ -60,7 +60,6 @@ class AwsGlueJobHook(AwsBaseHook):
         script_location: Optional[str] = None,
         retry_limit: int = 0,
         num_of_dpus: int = 10,
-        region_name: Optional[str] = None,
         iam_role_name: Optional[str] = None,
         create_job_kwargs: Optional[dict] = None,
         *args,
@@ -72,7 +71,6 @@ class AwsGlueJobHook(AwsBaseHook):
         self.script_location = script_location
         self.retry_limit = retry_limit
         self.num_of_dpus = num_of_dpus
-        self.region_name = region_name
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
         self.s3_glue_logs = 'logs/glue-logs/'

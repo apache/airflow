@@ -66,6 +66,7 @@ from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
@@ -282,6 +283,21 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
     :type do_xcom_push: bool
+    :param doc: Add documentation or notes to your Task objects that is visible in
+        Task Instance details View in the Webserver
+    :type doc: str
+    :param doc_md: Add documentation (in Markdown format) or notes to your Task objects
+        that is visible in Task Instance details View in the Webserver
+    :type doc_md: str
+    :param doc_rst: Add documentation (in RST format) or notes to your Task objects
+        that is visible in Task Instance details View in the Webserver
+    :type doc_rst: str
+    :param doc_json: Add documentation (in JSON format) or notes to your Task objects
+        that is visible in Task Instance details View in the Webserver
+    :type doc_json: str
+    :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
+        that is visible in Task Instance details View in the Webserver
+    :type doc_yaml: str
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -367,7 +383,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         default_args: Optional[Dict] = None,  # pylint: disable=unused-argument
         priority_weight: int = 1,
         weight_rule: str = WeightRule.DOWNSTREAM,
-        queue: str = conf.get('celery', 'default_queue'),
+        queue: str = conf.get('operators', 'default_queue'),
         pool: Optional[str] = None,
         pool_slots: int = 1,
         sla: Optional[timedelta] = None,
@@ -385,6 +401,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         inlets: Optional[Any] = None,
         outlets: Optional[Any] = None,
         task_group: Optional["TaskGroup"] = None,
+        doc: Optional[str] = None,
+        doc_md: Optional[str] = None,
+        doc_json: Optional[str] = None,
+        doc_yaml: Optional[str] = None,
+        doc_rst: Optional[str] = None,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -489,6 +510,12 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.task_concurrency = task_concurrency
         self.executor_config = executor_config or {}
         self.do_xcom_push = do_xcom_push
+
+        self.doc_md = doc_md
+        self.doc_json = doc_json
+        self.doc_yaml = doc_yaml
+        self.doc_rst = doc_rst
+        self.doc = doc
 
         # Private attributes
         self._upstream_task_ids: Set[str] = set()
@@ -1179,6 +1206,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self,
         task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
         upstream: bool = False,
+        edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
         """Sets relatives for the task or task list."""
         if not isinstance(task_or_task_list, Sequence):
@@ -1233,23 +1261,35 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             if upstream:
                 task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id, self.dag.dag_id)
                 self.add_only_new(self._upstream_task_ids, task.task_id, task.dag.dag_id)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, task.task_id, self.task_id)
             else:
                 self.add_only_new(self._downstream_task_ids, task.task_id, task.dag.dag_id)
                 task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id, self.dag.dag_id)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, self.task_id, task.task_id)
 
-    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
+    def set_downstream(
+        self,
+        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        edge_modifier: Optional[EdgeModifier] = None,
+    ) -> None:
         """
         Set a task or a task list to be directly downstream from the current
         task. Required by TaskMixin.
         """
-        self._set_relatives(task_or_task_list, upstream=False)
+        self._set_relatives(task_or_task_list, upstream=False, edge_modifier=edge_modifier)
 
-    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
+    def set_upstream(
+        self,
+        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        edge_modifier: Optional[EdgeModifier] = None,
+    ) -> None:
         """
         Set a task or a task list to be directly upstream from the current
         task. Required by TaskMixin.
         """
-        self._set_relatives(task_or_task_list, upstream=True)
+        self._set_relatives(task_or_task_list, upstream=True, edge_modifier=edge_modifier)
 
     @property
     def output(self):
@@ -1497,7 +1537,7 @@ def cross_downstream(
 class BaseOperatorLink(metaclass=ABCMeta):
     """Abstract base class that defines how we get an operator link."""
 
-    operators: ClassVar[List[Type[BaseOperator]]] = []
+    operators: ClassVar[List[Type[BaseOperator]]] = []  # pylint: disable=invalid-name
     """
     This property will be used by Airflow Plugins to find the Operators to which you want
     to assign this Operator Link

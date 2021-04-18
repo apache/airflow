@@ -136,23 +136,21 @@ class TestKillChildProcessesByPids(unittest.TestCase):
         num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
         assert before_num_process == num_process
 
-    @pytest.mark.quarantined
     def test_should_force_kill_process(self):
-        before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
 
         process = multiprocessing.Process(target=my_sleep_subprocess_with_signals, args=())
         process.start()
         sleep(0)
 
-        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
-        assert before_num_process + 1 == num_process
+        all_processes = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
+        assert str(process.pid) in map(lambda x: x.strip(), all_processes)
 
         with self.assertLogs(process_utils.log) as cm:
             process_utils.kill_child_processes_by_pids([process.pid], timeout=0)
         assert any("Killing child PID" in line for line in cm.output)
-
-        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
-        assert before_num_process == num_process
+        sleep(0)
+        all_processes = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
+        assert str(process.pid) not in map(lambda x: x.strip(), all_processes)
 
 
 class TestPatchEnviron(unittest.TestCase):

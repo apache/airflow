@@ -89,7 +89,7 @@ function build_images::add_build_args_for_remote_install() {
 # Retrieves version of airflow stored in the production image (used to display the actual
 # Version we use if it was build from PyPI or GitHub
 function build_images::get_airflow_version_from_production_image() {
-    VERBOSE="false" docker run --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'echo "${AIRFLOW_VERSION}"'
+    docker run --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'echo "${AIRFLOW_VERSION}"'
 }
 
 # Removes the "Forced answer" (yes/no/quit) given previously, unless you specifically want to remember it.
@@ -252,7 +252,7 @@ function build_images::confirm_non-empty-docker-context-files() {
 # We cannot use docker registry APIs as they are available only with authorisation
 # But this image can be pulled without authentication
 function build_images::build_ci_image_manifest() {
-    docker build \
+    docker_v build \
         --tag="${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" \
         -f- . <<EOF
 FROM scratch
@@ -270,8 +270,8 @@ function build_images::get_local_build_cache_hash() {
 
     set +e
     # Remove the container just in case
-    docker rm --force "local-airflow-ci-container" 2>/dev/null >/dev/null
-    if ! docker inspect "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null; then
+    docker_v rm --force "local-airflow-ci-container" 2>/dev/null >/dev/null
+    if ! docker_v inspect "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null; then
         verbosity::print_info
         verbosity::print_info "Local airflow CI image not available"
         verbosity::print_info
@@ -281,8 +281,8 @@ function build_images::get_local_build_cache_hash() {
         return
 
     fi
-    docker create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null
-    docker cp "local-airflow-ci-container:/build-cache-hash" \
+    docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null
+    docker_v cp "local-airflow-ci-container:/build-cache-hash" \
         "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}" 2>/dev/null ||
         touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
     set -e
@@ -305,7 +305,7 @@ function build_images::get_local_build_cache_hash() {
 function build_images::get_remote_image_build_cache_hash() {
     set +e
     # Pull remote manifest image
-    if ! docker pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null; then
+    if ! docker_v pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null; then
         verbosity::print_info
         verbosity::print_info "Remote docker registry unreachable"
         verbosity::print_info
@@ -317,11 +317,11 @@ function build_images::get_remote_image_build_cache_hash() {
     set -e
     rm -f "${REMOTE_IMAGE_CONTAINER_ID_FILE}"
     # Create container dump out of the manifest image without actually running it
-    docker create --cidfile "${REMOTE_IMAGE_CONTAINER_ID_FILE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+    docker_v create --cidfile "${REMOTE_IMAGE_CONTAINER_ID_FILE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     # Extract manifest and store it in local file
-    docker cp "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}"):/build-cache-hash" \
+    docker_v cp "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}"):/build-cache-hash" \
         "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}"
-    docker rm --force "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}")"
+    docker_v rm --force "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}")"
     rm -f "${REMOTE_IMAGE_CONTAINER_ID_FILE}"
     verbosity::print_info
     verbosity::print_info "Remote build cache hash: '$(cat "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}")'"
@@ -453,16 +453,14 @@ function build_images::get_docker_image_names() {
     export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 
     export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
-    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
 # either GITHUB_TOKEN or CONTAINER_REGISTRY_TOKEN depending on the registry.
 # In case Personal Access token is not set, skip logging in
 # Also enable experimental features of docker (we need `docker manifest` command)
-function build_image::configure_github_docker_registry() {
+function build_image::configure_docker_registry() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        start_end::group_start "Determine GitHub Registry token used and login if needed"
         local token=""
         if [[ "${GITHUB_REGISTRY}" == "ghcr.io" ]]; then
             # For now ghcr.io can only authenticate using Personal Access Token with package access scope.
@@ -488,20 +486,16 @@ function build_image::configure_github_docker_registry() {
             verbosity::print_info
         fi
         if [[ -n "${token}" ]]; then
-            echo "${token}" | docker login \
+            echo "${token}" | docker_v login \
                 --username "${GITHUB_USERNAME:-apache}" \
                 --password-stdin \
                 "${GITHUB_REGISTRY}"
         else
             verbosity::print_info "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
         fi
-        verbosity::print_info "Make sure experimental docker features are enabled"
         local new_config
         new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json")
         echo "${new_config}" > "${HOME}/.docker/config.json"
-        verbosity::print_info "Docker config after change:"
-        verbosity::print_info "${new_config}"
-        start_end::group_end
     fi
 }
 
@@ -521,7 +515,7 @@ function build_images::prepare_ci_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    build_image::configure_github_docker_registry
+    build_image::configure_docker_registry
     sanity_checks::go_to_airflow_sources
     permissions::fix_group_permissions
 }
@@ -742,10 +736,9 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     if [[ -n "${RUNTIME_APT_COMMAND}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
-    docker build \
+    docker_v build \
         "${EXTRA_DOCKER_CI_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
-        --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
@@ -779,11 +772,11 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     set -u
     if [[ -n "${DEFAULT_CI_IMAGE=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${DEFAULT_CI_IMAGE}"
-        docker tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_CI_IMAGE}"
+        docker_v tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_CI_IMAGE}"
     fi
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
-        docker tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
+        docker_v tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
     fi
     if [[ -n ${SPIN_PID=} ]]; then
         kill -HUP "${SPIN_PID}" || true
@@ -817,6 +810,7 @@ function build_images::prepare_prod_build() {
             "--build-arg" "AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION}"
         )
         export AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
+        export INSTALL_PROVIDERS_FROM_SOURCES="false"
         build_images::add_build_args_for_remote_install
     else
         # When no airflow version/reference is specified, production image is built either from the
@@ -844,7 +838,7 @@ function build_images::prepare_prod_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    build_image::configure_github_docker_registry
+    build_image::configure_docker_registry
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
     sanity_checks::go_to_airflow_sources
 }
@@ -858,9 +852,10 @@ function build_images::build_prod_images() {
     build_images::print_build_info
 
     if [[ ${SKIP_BUILDING_PROD_IMAGE} == "true" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Skip building production image. Assume the one we have is good!"
-        verbosity::print_info
+        echo
+        echo "${COLOR_YELLOW}Skip building production image. Assume the one we have is good!${COLOR_RESET}"
+        echo "${COLOR_YELLOW}You must run './breeze build-image --production-image before for all python versions!${COLOR_RESET}"
+        echo
         return
     fi
 
@@ -895,10 +890,9 @@ function build_images::build_prod_images() {
     if [[ -n "${DEV_APT_COMMAND}" ]]; then
         additional_dev_args+=("--build-arg" "DEV_APT_COMMAND=\"${DEV_APT_COMMAND}\"")
     fi
-    docker build \
+    docker_v build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
-        --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
@@ -932,10 +926,9 @@ function build_images::build_prod_images() {
     if [[ -n "${RUNTIME_APT_COMMAND}" ]]; then
         additional_runtime_args+=("--build-arg" "RUNTIME_APT_COMMAND=\"${RUNTIME_APT_COMMAND}\"")
     fi
-    docker build \
+    docker_v build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
-        --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
@@ -969,18 +962,12 @@ function build_images::build_prod_images() {
     set -u
     if [[ -n "${DEFAULT_PROD_IMAGE:=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${DEFAULT_PROD_IMAGE}"
-        docker tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_PROD_IMAGE}"
+        docker_v tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_PROD_IMAGE}"
     fi
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${IMAGE_TAG}"
-        docker tag "${AIRFLOW_PROD_IMAGE}" "${IMAGE_TAG}"
+        docker_v tag "${AIRFLOW_PROD_IMAGE}" "${IMAGE_TAG}"
     fi
-}
-
-function build_images::build_prod_images_with_group() {
-    start_end::group_start "Build PROD images ${AIRFLOW_PROD_BUILD_IMAGE}"
-    build_images::build_prod_images
-    start_end::group_end
 }
 
 # Waits for image tag to appear in GitHub Registry, pulls it and tags with the target tag
@@ -999,7 +986,7 @@ function build_images::wait_for_image_tag() {
     while true; do
         set +e
         echo "${COLOR_BLUE}Docker pull ${IMAGE_TO_WAIT_FOR} ${COLOR_RESET}" >"${OUTPUT_LOG}"
-        docker pull "${IMAGE_TO_WAIT_FOR}" >>"${OUTPUT_LOG}" 2>&1
+        docker_v pull "${IMAGE_TO_WAIT_FOR}" >>"${OUTPUT_LOG}" 2>&1
         set -e
         local image_hash
         echo "${COLOR_BLUE} Docker images -q ${IMAGE_TO_WAIT_FOR}${COLOR_RESET}" >>"${OUTPUT_LOG}"
@@ -1019,12 +1006,12 @@ function build_images::wait_for_image_tag() {
             echo
             echo "Tagging ${IMAGE_TO_WAIT_FOR} as ${IMAGE_NAME}."
             echo
-            docker tag "${IMAGE_TO_WAIT_FOR}" "${IMAGE_NAME}"
+            docker_v tag "${IMAGE_TO_WAIT_FOR}" "${IMAGE_NAME}"
             for TARGET_TAG in "${@}"; do
                 echo
                 echo "Tagging ${IMAGE_TO_WAIT_FOR} as ${TARGET_TAG}."
                 echo
-                docker tag "${IMAGE_TO_WAIT_FOR}" "${TARGET_TAG}"
+                docker_v tag "${IMAGE_TO_WAIT_FOR}" "${TARGET_TAG}"
             done
             break
         fi
@@ -1083,7 +1070,7 @@ function build_images::build_prod_images_from_locally_built_airflow_packages() {
     build_airflow_packages::build_airflow_packages
     mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
 
-    build_images::build_prod_images_with_group
+    build_images::build_prod_images
 }
 
 # Useful information for people who stumble upon a pip check failure

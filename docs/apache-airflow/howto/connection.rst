@@ -212,10 +212,6 @@ In general, Airflow's URI format is like so:
 
     my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2
 
-.. note::
-
-    The params ``param1`` and ``param2`` are just examples; you may supply arbitrary urlencoded json-serializable data there.
-
 The above URI would produce a ``Connection`` object equivalent to the following:
 
 .. code-block:: python
@@ -232,17 +228,6 @@ The above URI would produce a ``Connection`` object equivalent to the following:
         extra=json.dumps(dict(param1='val1', param2='val2'))
     )
 
-You can verify a URI is parsed correctly like so:
-
-.. code-block:: pycon
-
-    >>> from airflow.models.connection import Connection
-
-    >>> c = Connection(uri='my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2')
-    >>> print(c.login)
-    my-login
-    >>> print(c.password)
-    my-password
 
 .. _generating_connection_uri:
 
@@ -289,12 +274,63 @@ Additionally, if you have created a connection, you can use ``airflow connection
 
 .. _manage-connections-connection-types:
 
+Encoding arbitrary JSON
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Some JSON structures cannot be urlencoded without loss.  For such JSON, ``get_uri``
+will store the entire string under the url query param ``__extra__``.
+
+For example:
+
+.. code-block:: pycon
+
+    >>> extra_dict = {'my_val': ['list', 'of', 'values'], 'extra': {'nested': {'json': 'val'}}}
+    >>> c = Connection(
+    >>>     conn_type='scheme',
+    >>>     host='host/location',
+    >>>     schema='schema',
+    >>>     login='user',
+    >>>     password='password',
+    >>>     port=1234,
+    >>>     extra=json.dumps(extra_dict),
+    >>> )
+    >>> uri = c.get_uri()
+    >>> uri
+    'scheme://user:password@host%2Flocation:1234/schema?__extra__=%7B%22my_val%22%3A+%5B%22list%22%2C+%22of%22%2C+%22values%22%5D%2C+%22extra%22%3A+%7B%22nested%22%3A+%7B%22json%22%3A+%22val%22%7D%7D%7D'
+
+
+And we can verify that it returns the same dictionary:
+
+.. code-block:: pycon
+
+    >>> new_c = Connection(uri=uri)
+    >>> new_c.extra_dejson == extra_dict
+    True
+
+
+But for the most common case of storing only key-value pairs, plain url encoding is used.
+
+You can verify a URI is parsed correctly like so:
+
+.. code-block:: pycon
+
+    >>> from airflow.models.connection import Connection
+
+    >>> c = Connection(uri='my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2')
+    >>> print(c.login)
+    my-login
+    >>> print(c.password)
+    my-password
+
+
 Handling of special characters in connection params
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. note::
 
-    This process is automated as described in section :ref:`Generating a Connection URI <generating_connection_uri>`.
+    Use the convenience method ``Connection.get_uri`` when generating a connection
+    as described in section :ref:`Generating a Connection URI <generating_connection_uri>`.
+    This section for informational purposes only.
 
 Special handling is required for certain characters when building a URI manually.
 

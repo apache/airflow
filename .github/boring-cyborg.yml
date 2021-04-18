@@ -44,6 +44,11 @@ labelPRBasedOnFilePath:
     - docs/howto/operator/snowflake/*
     - tests/providers/snowflake/**/*
 
+  area:providers:
+    - airflow/providers/**/*
+    - docs/apache-airflow-providers-*/**/*
+    - tests/providers/**/*
+
   area:kubernetes:
     - airflow/**/kubernetes_*.py
     - airflow/example_dags/example_kubernetes_executor.py
@@ -105,10 +110,8 @@ labelPRBasedOnFilePath:
   area:Webserver:
     - airflow/cli/commands/webserver_command.py
     - airflow/www/**/*
-    - airflow/www_rbac/**/*
     - tests/cli/commands/test_webserver_command.py
     - tests/www/**/*
-    - tests/www_rbac/**/*
 
   area:UI:
     - airflow/www/static/**/*
@@ -173,6 +176,16 @@ labelPRBasedOnFilePath:
     - tests/serialization/**/*
     - tests/models/test_serialized_dag.py
     - docs/apache-airflow/dag-serialization.rst
+
+  area:core-operators:
+    - airflow/operators/**/*
+    - airflow/hooks/**/*
+    - airflow/sensors/**/*
+    - tests/operators/**/*
+    - tests/hooks/**/*
+    - tests/sensors/**/*
+    - docs/apache-airflow/operators-and-hooks-ref.rst
+    - docs/apache-airflow/howto/operator/*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:

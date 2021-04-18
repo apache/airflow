@@ -16,12 +16,19 @@
 # under the License.
 
 import pytest
+from flask_appbuilder.security.sqla.models import Role
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 from airflow.www.security import EXISTING_ROLES
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import (
+    assert_401,
+    create_role,
+    create_user,
+    delete_role,
+    delete_user,
+)
 
 
 @pytest.fixture(scope="module")
@@ -32,9 +39,11 @@ def configured_app(minimal_app_for_api):
         username="test",
         role_name="Test",
         permissions=[
-            (permissions.ACTION_CAN_LIST, permissions.RESOURCE_ROLE_MODEL_VIEW),
-            (permissions.ACTION_CAN_SHOW, permissions.RESOURCE_ROLE_MODEL_VIEW),
-            (permissions.ACTION_CAN_LIST, permissions.RESOURCE_PERMISSION_MODEL_VIEW),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_PERMISSION),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -49,6 +58,18 @@ class TestRoleEndpoint:
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
+
+    def teardown_method(self):
+        """
+        Delete all roles except these ones.
+        Test and TestNoPermissions are deleted by delete_user above
+        """
+        session = self.app.appbuilder.get_session
+        existing_roles = set(EXISTING_ROLES)
+        existing_roles.update(['Test', 'TestNoPermissions'])
+        roles = session.query(Role).filter(~Role.name.in_(existing_roles)).all()
+        for role in roles:
+            delete_role(self.app, role.name)
 
 
 class TestGetRoleEndpoint(TestRoleEndpoint):
@@ -92,6 +113,14 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
         response = self.client.get("/api/v1/roles")
         assert_401(response)
 
+    def test_should_raises_400_for_invalid_order_by(self):
+        response = self.client.get(
+            "/api/v1/roles?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 400
+        msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
+        assert response.json['detail'] == msg
+
     def test_should_raise_403_forbidden(self):
         response = self.client.get("/api/v1/roles", environ_overrides={'REMOTE_USER': "test_no_permissions"})
         assert response.status_code == 403
@@ -125,6 +154,7 @@ class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
         existing_roles.update(['Test', 'TestNoPermissions'])
         assert response.json['total_entries'] == len(existing_roles)
         roles = [role['name'] for role in response.json['roles'] if role]
+
         assert roles == expected_roles
 
 
@@ -144,5 +174,311 @@ class TestGetPermissionsEndpoint(TestRoleEndpoint):
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             "/api/v1/permissions", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
+
+
+class TestPostRole(TestRoleEndpoint):
+    def test_post_should_respond_200(self):
+        payload = {
+            'name': 'Test2',
+            'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+        }
+        response = self.client.post("/api/v1/roles", json=payload, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        role = self.app.appbuilder.sm.find_role('Test2')
+        assert role is not None
+
+    @parameterized.expand(
+        [
+            (
+                {
+                    'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+                },
+                "{'name': ['Missing data for required field.']}",
+            ),
+            (
+                {
+                    'name': "TestRole",
+                    'actionss': [
+                        {
+                            'resource': {'name': 'Connections'},  # actionss not correct
+                            'action': {'name': 'can_create'},
+                        }
+                    ],
+                },
+                "{'actionss': ['Unknown field.']}",
+            ),
+            (
+                {
+                    'name': "TestRole",
+                    'actions': [
+                        {
+                            'resources': {'name': 'Connections'},  # resources is invalid, should be resource
+                            'action': {'name': 'can_create'},
+                        }
+                    ],
+                },
+                "{'actions': {0: {'resources': ['Unknown field.']}}}",
+            ),
+            (
+                {
+                    'name': "TestRole",
+                    'actions': [
+                        {'resource': {'name': 'Connections'}, 'actions': {'name': 'can_create'}}
+                    ],  # actions is invalid, should be action
+                },
+                "{'actions': {0: {'actions': ['Unknown field.']}}}",
+            ),
+            (
+                {
+                    'name': "TestRole",
+                    'actions': [
+                        {
+                            'resource': {'name': 'FooBars'},  # FooBars is not a resource
+                            'action': {'name': 'can_create'},
+                        }
+                    ],
+                },
+                "The specified resource: 'FooBars' was not found",
+            ),
+            (
+                {
+                    'name': "TestRole",
+                    'actions': [
+                        {'resource': {'name': 'Connections'}, 'action': {'name': 'can_amend'}}
+                    ],  # can_amend is not an action
+                },
+                "The specified action: 'can_amend' was not found",
+            ),
+        ]
+    )
+    def test_post_should_respond_400_for_invalid_payload(self, payload, error_message):
+        response = self.client.post("/api/v1/roles", json=payload, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 400
+        assert response.json == {
+            'detail': error_message,
+            'status': 400,
+            'title': 'Bad Request',
+            'type': EXCEPTIONS_LINK_MAP[400],
+        }
+
+    def test_post_should_respond_409_already_exist(self):
+        payload = {
+            'name': 'Test',
+            'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+        }
+        response = self.client.post("/api/v1/roles", json=payload, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 409
+        assert response.json == {
+            'detail': "Role with name `Test` already exist. Please update with patch endpoint",
+            'status': 409,
+            'title': 'Conflict',
+            'type': EXCEPTIONS_LINK_MAP[409],
+        }
+
+    def test_should_raises_401_unauthenticated(self):
+        response = self.client.post(
+            "/api/v1/roles",
+            json={
+                'name': 'Test2',
+                'actions': [{'resource': {'name': 'Connections'}, 'action': {'name': 'can_create'}}],
+            },
+        )
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.post(
+            "/api/v1/roles",
+            json={
+                "name": "mytest2",
+                "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+            },
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+        assert response.status_code == 403
+
+
+class TestDeleteRole(TestRoleEndpoint):
+    def test_delete_should_respond_204(self, session):
+        role = create_role(self.app, "mytestrole")
+        response = self.client.delete(f"/api/v1/roles/{role.name}", environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 204
+        role_obj = session.query(Role).filter(Role.name == role.name).all()
+        assert len(role_obj) == 0
+
+    def test_delete_should_respond_404(self):
+        response = self.client.delete(
+            "/api/v1/roles/invalidrolename", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 404
+        assert response.json == {
+            'detail': "The Role with name `invalidrolename` was not found",
+            'status': 404,
+            'title': 'Role not found',
+            'type': EXCEPTIONS_LINK_MAP[404],
+        }
+
+    def test_should_raises_401_unauthenticated(self):
+        response = self.client.delete("/api/v1/roles/test")
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.delete(
+            "/api/v1/roles/test", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+        )
+        assert response.status_code == 403
+
+
+class TestPatchRole(TestRoleEndpoint):
+    @parameterized.expand(
+        [
+            ({"name": "mytest"}, "mytest", []),
+            (
+                {
+                    "name": "mytest2",
+                    "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                },
+                "mytest2",
+                [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+            ),
+        ]
+    )
+    def test_patch_should_respond_200(self, payload, expected_name, expected_actions):
+        role = create_role(self.app, 'mytestrole')
+        response = self.client.patch(
+            f"/api/v1/roles/{role.name}", json=payload, environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        assert response.json['name'] == expected_name
+        assert response.json["actions"] == expected_actions
+
+    @parameterized.expand(
+        [
+            (
+                "?update_mask=name",
+                {
+                    "name": "mytest2",
+                    "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                },
+                "mytest2",
+                [],
+            ),
+            (
+                "?update_mask=name, actions",  # both name and actions in update mask
+                {
+                    "name": "mytest2",
+                    "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                },
+                "mytest2",
+                [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+            ),
+        ]
+    )
+    def test_patch_should_respond_200_with_update_mask(
+        self, update_mask, payload, expected_name, expected_actions
+    ):
+        role = create_role(self.app, "mytestrole")
+        assert role.permissions == []
+        response = self.client.patch(
+            f"/api/v1/roles/{role.name}{update_mask}",
+            json=payload,
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        assert response.json['name'] == expected_name
+        assert response.json['actions'] == expected_actions
+
+    def test_patch_should_respond_400_for_invalid_fields_in_update_mask(self):
+        role = create_role(self.app, "mytestrole")
+        payload = {"name": "testme"}
+        response = self.client.patch(
+            f"/api/v1/roles/{role.name}?update_mask=invalid_name",
+            json=payload,
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 400
+        assert response.json['detail'] == "'invalid_name' in update_mask is unknown"
+
+    @parameterized.expand(
+        [
+            (
+                {
+                    "name": "testme",
+                    "permissions": [  # Using permissions instead of actions should raise
+                        {"resource": {"name": "Connections"}, "action": {"name": "can_create"}}
+                    ],
+                },
+                "{'permissions': ['Unknown field.']}",
+            ),
+            (
+                {
+                    "name": "testme",
+                    "actions": [
+                        {
+                            "view_menu": {"name": "Connections"},  # Using view_menu instead of resource
+                            "action": {"name": "can_create"},
+                        }
+                    ],
+                },
+                "{'actions': {0: {'view_menu': ['Unknown field.']}}}",
+            ),
+            (
+                {
+                    "name": "testme",
+                    "actions": [
+                        {
+                            "resource": {"name": "FooBars"},  # Using wrong resource name
+                            "action": {"name": "can_create"},
+                        }
+                    ],
+                },
+                "The specified resource: 'FooBars' was not found",
+            ),
+            (
+                {
+                    "name": "testme",
+                    "actions": [
+                        {
+                            "resource": {"name": "Connections"},  # Using wrong action name
+                            "action": {"name": "can_invalid"},
+                        }
+                    ],
+                },
+                "The specified action: 'can_invalid' was not found",
+            ),
+        ]
+    )
+    def test_patch_should_respond_400_for_invalid_update(self, payload, expected_error):
+        role = create_role(self.app, "mytestrole")
+        response = self.client.patch(
+            f"/api/v1/roles/{role.name}",
+            json=payload,
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 400
+        assert response.json['detail'] == expected_error
+
+    def test_should_raises_401_unauthenticated(self):
+        response = self.client.patch(
+            "/api/v1/roles/test",
+            json={
+                "name": "mytest2",
+                "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+            },
+        )
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.patch(
+            "/api/v1/roles/test",
+            json={
+                "name": "mytest2",
+                "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+            },
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
         )
         assert response.status_code == 403

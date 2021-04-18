@@ -58,7 +58,7 @@ class TestVaultClient(TestCase):
         )
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
-        client.auth_approle.assert_called_with(role_id="role", secret_id="pass")
+        client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
 
@@ -75,7 +75,7 @@ class TestVaultClient(TestCase):
         )
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
-        client.auth_approle.assert_called_with(role_id="role", secret_id="pass", mount_point="other")
+        client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
 

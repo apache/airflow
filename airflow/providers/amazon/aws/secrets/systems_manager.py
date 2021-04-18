@@ -140,9 +140,5 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
             value = response["Parameter"]["Value"]
             return value
         except self.client.exceptions.ParameterNotFound:
-            self.log.info(
-                "An error occurred (ParameterNotFound) when calling the GetParameter operation: "
-                "Parameter %s not found.",
-                ssm_path,
-            )
+            self.log.debug("Parameter %s not found.", ssm_path)
             return None

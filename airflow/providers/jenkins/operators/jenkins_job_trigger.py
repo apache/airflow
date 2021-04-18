@@ -231,9 +231,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
                     time.sleep(self.sleep_time)
             except jenkins.NotFoundException as err:
                 # pylint: disable=no-member
-                raise AirflowException(
-                    'Jenkins job status check failed. Final error was: ' f'{err.resp.status}'
-                )
+                raise AirflowException(f'Jenkins job status check failed. Final error was: {err.resp.status}')
             except jenkins.JenkinsException as err:
                 raise AirflowException(
                     f'Jenkins call failed with error : {err}, if you have parameters '

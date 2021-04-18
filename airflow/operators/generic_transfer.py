@@ -49,6 +49,7 @@ class GenericTransfer(BaseOperator):
         '.sql',
         '.hql',
     )
+    template_fields_renderers = {"preoperator": "sql"}
     ui_color = '#b0f07c'
 
     @apply_defaults

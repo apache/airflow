@@ -78,13 +78,13 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|              | Master version (dev)      | Stable version (2.0.1)   | Previous version (1.10.14) |
+|              | Master version (dev)      | Stable version (2.0.1)   | Previous version (1.10.15) |
 | ------------ | ------------------------- | ------------------------ | -------------------------  |
 | Python       | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
 | MySQL        | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
 | SQLite       | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
-| Kubernetes   | 1.16.9, 1.17.5, 1.18.6    | 1.16.9, 1.17.5, 1.18.6   | 1.16.9, 1.17.5, 1.18.6     |
+| Kubernetes   | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         | 1.18, 1.17, 1.16           |
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html).
@@ -179,7 +179,8 @@ pip install apache-airflow[postgres,google]==2.0.1 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.1/constraints-3.7.txt"
 ```
 
-For information on installing backport providers check [backport-providers.rst](docs/apache-airflow/backport-providers.rst).
+For information on installing provider packages check
+[providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
 ## Official source code
 

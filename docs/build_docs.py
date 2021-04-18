@@ -16,14 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 import argparse
+import multiprocessing
 import os
 import sys
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
+from rich.console import Console
 from tabulate import tabulate
 
+from airflow.utils.helpers import partition
 from docs.exts.docs_build import dev_index_generator, lint_checks  # pylint: disable=no-name-in-module
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE, TEXT_RED, TEXT_RESET
 from docs.exts.docs_build.docs_builder import (  # pylint: disable=no-name-in-module
     DOCS_DIR,
     AirflowDocsBuilder,
@@ -41,7 +45,7 @@ from docs.exts.docs_build.spelling_checks import (  # pylint: disable=no-name-in
     display_spelling_error_summary,
 )
 
-if __name__ != "__main__":
+if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         "To run this script, run the ./build_docs.py command"
@@ -60,32 +64,32 @@ ERRORS_ELIGIBLE_TO_REBUILD = [
 ]
 
 ON_GITHUB_ACTIONS = os.environ.get('GITHUB_ACTIONS', 'false') == "true"
-TEXT_BLUE = '\033[94m'
-TEXT_RESET = '\033[0m'
+
+console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
 
 def _promote_new_flags():
-    print(TEXT_BLUE)
-    print("Tired of waiting for documentation to be built?")
-    print()
+    console.print()
+    console.print("[yellow]Still tired of waiting for documentation to be built?[/]")
+    console.print()
     if ON_GITHUB_ACTIONS:
-        print("You can quickly build documentation locally with just one command.")
-        print("    ./breeze build-docs")
-        print()
-        print("Still too slow?")
-        print()
-    print("You can only build one documentation package:")
-    print("    ./breeze build-docs -- --package-filter <PACKAGE-NAME>")
-    print()
-    print("This usually takes from 20 seconds to 2 minutes.")
-    print()
-    print("You can also use other extra flags to iterate faster:")
-    print("   --docs-only       - Only build documentation")
-    print("   --spellcheck-only - Only perform spellchecking")
-    print()
-    print("For more info:")
-    print("   ./breeze build-docs --help")
-    print(TEXT_RESET)
+        console.print("You can quickly build documentation locally with just one command.")
+        console.print("    [blue]./breeze build-docs[/]")
+        console.print()
+        console.print("[yellow]Still too slow?[/]")
+        console.print()
+    console.print("You can only build one documentation package:")
+    console.print("    [blue]./breeze build-docs -- --package-filter <PACKAGE-NAME>[/]")
+    console.print()
+    console.print("This usually takes from [yellow]20 seconds[/] to [yellow]2 minutes[/].")
+    console.print()
+    console.print("You can also use other extra flags to iterate faster:")
+    console.print("   [blue]--docs-only       - Only build documentation[/]")
+    console.print("   [blue]--spellcheck-only - Only perform spellchecking[/]")
+    console.print()
+    console.print("For more info:")
+    console.print("   [blue]./breeze build-docs --help[/]")
+    console.print()
 
 
 def _get_parser():
@@ -116,6 +120,20 @@ def _get_parser():
         help='Builds documentation for official release i.e. all links point to stable version',
     )
     parser.add_argument(
+        "-j",
+        "--jobs",
+        dest='jobs',
+        type=int,
+        default=0,
+        help=(
+            """\
+        Number of parallel processes that will be spawned to build the docs.
+
+        If passed 0, the value will be determined based on the number of CPUs.
+        """
+        ),
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         dest='verbose',
@@ -129,29 +147,242 @@ def _get_parser():
     return parser
 
 
+class BuildSpecification(NamedTuple):
+    """Specification of single build."""
+
+    package_name: str
+    for_production: bool
+    verbose: bool
+
+
+class BuildDocsResult(NamedTuple):
+    """Result of building documentation."""
+
+    package_name: str
+    log_file_name: str
+    errors: List[DocBuildError]
+
+
+class SpellCheckResult(NamedTuple):
+    """Result of spellcheck."""
+
+    package_name: str
+    log_file_name: str
+    errors: List[SpellingError]
+
+
+def perform_docs_build_for_single_package(build_specification: BuildSpecification) -> BuildDocsResult:
+    """Performs single package docs build."""
+    builder = AirflowDocsBuilder(
+        package_name=build_specification.package_name, for_production=build_specification.for_production
+    )
+    console.print(f"[blue]{build_specification.package_name:60}:[/] Building documentation")
+    result = BuildDocsResult(
+        package_name=build_specification.package_name,
+        errors=builder.build_sphinx_docs(
+            verbose=build_specification.verbose,
+        ),
+        log_file_name=builder.log_build_filename,
+    )
+    return result
+
+
+def perform_spell_check_for_single_package(build_specification: BuildSpecification) -> SpellCheckResult:
+    """Performs single package spell check."""
+    builder = AirflowDocsBuilder(
+        package_name=build_specification.package_name, for_production=build_specification.for_production
+    )
+    console.print(f"[blue]{build_specification.package_name:60}:[/] Checking spelling started")
+    result = SpellCheckResult(
+        package_name=build_specification.package_name,
+        errors=builder.check_spelling(
+            verbose=build_specification.verbose,
+        ),
+        log_file_name=builder.log_spelling_filename,
+    )
+    console.print(f"[blue]{build_specification.package_name:60}:[/] Checking spelling completed")
+    return result
+
+
 def build_docs_for_packages(
-    current_packages: List[str], docs_only: bool, spellcheck_only: bool, for_production: bool, verbose: bool
+    current_packages: List[str],
+    docs_only: bool,
+    spellcheck_only: bool,
+    for_production: bool,
+    jobs: int,
+    verbose: bool,
 ) -> Tuple[Dict[str, List[DocBuildError]], Dict[str, List[SpellingError]]]:
-    """Builds documentation for single package and returns errors"""
+    """Builds documentation for all packages and combines errors."""
     all_build_errors: Dict[str, List[DocBuildError]] = defaultdict(list)
     all_spelling_errors: Dict[str, List[SpellingError]] = defaultdict(list)
-    for package_no, package_name in enumerate(current_packages, start=1):
-        print("#" * 20, f"[{package_no}/{len(current_packages)}] {package_name}", "#" * 20)
-        builder = AirflowDocsBuilder(package_name=package_name, for_production=for_production)
-        builder.clean_files()
-        if not spellcheck_only:
-            with with_group(f"Building docs: {package_name}"):
-                docs_errors = builder.build_sphinx_docs(verbose=verbose)
-            if docs_errors:
-                all_build_errors[package_name].extend(docs_errors)
-
-        if not docs_only:
-            with with_group(f"Check spelling: {package_name}"):
-                spelling_errors = builder.check_spelling(verbose=verbose)
-            if spelling_errors:
-                all_spelling_errors[package_name].extend(spelling_errors)
-
+    with with_group("Cleaning documentation files"):
+        for package_name in current_packages:
+            console.print(f"[blue]{package_name:60}:[/] Cleaning files")
+            builder = AirflowDocsBuilder(package_name=package_name, for_production=for_production)
+            builder.clean_files()
+    if jobs > 1:
+        run_in_parallel(
+            all_build_errors,
+            all_spelling_errors,
+            current_packages,
+            docs_only,
+            for_production,
+            jobs,
+            spellcheck_only,
+            verbose,
+        )
+    else:
+        run_sequentially(
+            all_build_errors,
+            all_spelling_errors,
+            current_packages,
+            docs_only,
+            for_production,
+            spellcheck_only,
+            verbose,
+        )
     return all_build_errors, all_spelling_errors
+
+
+def run_sequentially(
+    all_build_errors,
+    all_spelling_errors,
+    current_packages,
+    docs_only,
+    for_production,
+    spellcheck_only,
+    verbose,
+):
+    """Run both - spellcheck and docs build sequentially without multiprocessing"""
+    if not spellcheck_only:
+        for package_name in current_packages:
+            build_result = perform_docs_build_for_single_package(
+                build_specification=BuildSpecification(
+                    package_name=package_name,
+                    for_production=for_production,
+                    verbose=verbose,
+                )
+            )
+            if build_result.errors:
+                all_build_errors[package_name].extend(build_result.errors)
+                print_build_output(build_result)
+    if not docs_only:
+        for package_name in current_packages:
+            spellcheck_result = perform_spell_check_for_single_package(
+                build_specification=BuildSpecification(
+                    package_name=package_name,
+                    for_production=for_production,
+                    verbose=verbose,
+                )
+            )
+            if spellcheck_result.errors:
+                all_spelling_errors[package_name].extend(spellcheck_result.errors)
+                print_spelling_output(spellcheck_result)
+
+
+def run_in_parallel(
+    all_build_errors,
+    all_spelling_errors,
+    current_packages,
+    docs_only,
+    for_production,
+    jobs,
+    spellcheck_only,
+    verbose,
+):
+    """Run both - spellcheck and docs build sequentially without multiprocessing"""
+    with multiprocessing.Pool(processes=jobs) as pool:
+        if not spellcheck_only:
+            run_docs_build_in_parallel(
+                all_build_errors=all_build_errors,
+                for_production=for_production,
+                current_packages=current_packages,
+                verbose=verbose,
+                pool=pool,
+            )
+        if not docs_only:
+            run_spell_check_in_parallel(
+                all_spelling_errors=all_spelling_errors,
+                for_production=for_production,
+                current_packages=current_packages,
+                verbose=verbose,
+                pool=pool,
+            )
+
+
+def print_build_output(result: BuildDocsResult):
+    """Prints output of docs build job."""
+    with with_group(f"{TEXT_RED}Output for documentation build {result.package_name}{TEXT_RESET}"):
+        console.print()
+        console.print(f"[blue]{result.package_name:60}: " + "#" * 80)
+        with open(result.log_file_name) as output:
+            for line in output.read().splitlines():
+                console.print(f"{result.package_name:60} {line}")
+        console.print(f"[blue]{result.package_name:60}: " + "#" * 80)
+
+
+def run_docs_build_in_parallel(
+    all_build_errors: Dict[str, List[DocBuildError]],
+    for_production: bool,
+    current_packages: List[str],
+    verbose: bool,
+    pool,
+):
+    """Runs documentation building in parallel."""
+    doc_build_specifications: List[BuildSpecification] = []
+    with with_group("Scheduling documentation to build"):
+        for package_name in current_packages:
+            console.print(f"[blue]{package_name:60}:[/] Scheduling documentation to build")
+            doc_build_specifications.append(
+                BuildSpecification(
+                    package_name=package_name,
+                    for_production=for_production,
+                    verbose=verbose,
+                )
+            )
+    with with_group("Running docs building"):
+        console.print()
+        result_list = pool.map(perform_docs_build_for_single_package, doc_build_specifications)
+    for result in result_list:
+        if result.errors:
+            all_build_errors[result.package_name].extend(result.errors)
+            print_build_output(result)
+
+
+def print_spelling_output(result: SpellCheckResult):
+    """Prints output of spell check job."""
+    with with_group(f"{TEXT_RED}Output for spelling check: {result.package_name}{TEXT_RESET}"):
+        console.print()
+        console.print(f"[blue]{result.package_name:60}: " + "#" * 80)
+        with open(result.log_file_name) as output:
+            for line in output.read().splitlines():
+                console.print(f"{result.package_name:60} {line}")
+        console.print(f"[blue]{result.package_name:60}: " + "#" * 80)
+        console.print()
+
+
+def run_spell_check_in_parallel(
+    all_spelling_errors: Dict[str, List[SpellingError]],
+    for_production: bool,
+    current_packages: List[str],
+    verbose: bool,
+    pool,
+):
+    """Runs spell check in parallel."""
+    spell_check_specifications: List[BuildSpecification] = []
+    with with_group("Scheduling spell checking of documentation"):
+        for package_name in current_packages:
+            console.print(f"[blue]{package_name:60}:[/] Scheduling spellchecking")
+            spell_check_specifications.append(
+                BuildSpecification(package_name=package_name, for_production=for_production, verbose=verbose)
+            )
+    with with_group("Running spell checking of documentation"):
+        console.print()
+        result_list = pool.map(perform_spell_check_for_single_package, spell_check_specifications)
+    for result in result_list:
+        if result.errors:
+            all_spelling_errors[result.package_name].extend(result.errors)
+            print_spelling_output(result)
 
 
 def display_packages_summary(
@@ -161,15 +392,15 @@ def display_packages_summary(
     packages_names = {*build_errors.keys(), *spelling_errors.keys()}
     tabular_data = [
         {
-            "Package name": package_name,
+            "Package name": f"[blue]{package_name}[/]",
             "Count of doc build errors": len(build_errors.get(package_name, [])),
             "Count of spelling errors": len(spelling_errors.get(package_name, [])),
         }
         for package_name in sorted(packages_names, key=lambda k: k or '')
     ]
-    print("#" * 20, "Packages errors summary", "#" * 20)
-    print(tabulate(tabular_data=tabular_data, headers="keys"))
-    print("#" * 50)
+    console.print("#" * 20, " Packages errors summary ", "#" * 20)
+    console.print(tabulate(tabular_data=tabular_data, headers="keys"))
+    console.print("#" * 50)
 
 
 def print_build_errors_and_exit(
@@ -180,15 +411,17 @@ def print_build_errors_and_exit(
     if build_errors or spelling_errors:
         if build_errors:
             display_errors_summary(build_errors)
-            print()
+            console.print()
         if spelling_errors:
             display_spelling_error_summary(spelling_errors)
-            print()
-        print("The documentation has errors.")
+            console.print()
+        console.print("The documentation has errors.")
         display_packages_summary(build_errors, spelling_errors)
-        print()
-        print(CHANNEL_INVITATION)
+        console.print()
+        console.print(CHANNEL_INVITATION)
         sys.exit(1)
+    else:
+        console.print("[green]Documentation build is successful[/]")
 
 
 def main():
@@ -201,36 +434,65 @@ def main():
     package_filters = args.package_filter
     for_production = args.for_production
 
-    if not package_filters:
-        _promote_new_flags()
-
     with with_group("Available packages"):
-        for pkg in available_packages:
-            print(f" - {pkg}")
+        for pkg in sorted(available_packages):
+            console.print(f" - {pkg}")
 
     if package_filters:
-        print("Current package filters: ", package_filters)
+        console.print("Current package filters: ", package_filters)
     current_packages = process_package_filters(available_packages, package_filters)
-    with with_group(f"Documentation will be built for {len(current_packages)} package(s)"):
-        for pkg_no, pkg in enumerate(current_packages, start=1):
-            print(f"{pkg_no}. {pkg}")
 
     with with_group("Fetching inventories"):
-        fetch_inventories()
+        # Inventories that could not be retrieved should be built first. This may mean this is a
+        # new package.
+        packages_without_inventories = fetch_inventories()
+    normal_packages, priority_packages = partition(
+        lambda d: d in packages_without_inventories, current_packages
+    )
+    normal_packages, priority_packages = list(normal_packages), list(priority_packages)
+    jobs = args.jobs if args.jobs != 0 else os.cpu_count()
+
+    with with_group(
+        f"Documentation will be built for {len(current_packages)} package(s) with {jobs} parallel jobs"
+    ):
+        for pkg_no, pkg in enumerate(current_packages, start=1):
+            console.print(f"{pkg_no}. {pkg}")
 
     all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
     all_spelling_errors: Dict[Optional[str], List[SpellingError]] = {}
+    if priority_packages:
+        # Build priority packages
+        package_build_errors, package_spelling_errors = build_docs_for_packages(
+            current_packages=priority_packages,
+            docs_only=docs_only,
+            spellcheck_only=spellcheck_only,
+            for_production=for_production,
+            jobs=jobs,
+            verbose=args.verbose,
+        )
+        if package_build_errors:
+            all_build_errors.update(package_build_errors)
+        if package_spelling_errors:
+            all_spelling_errors.update(package_spelling_errors)
+
+    # Build normal packages
+    # If only one inventory is missing, the remaining packages are correct. If we are missing
+    # two or more inventories, it is better to try to build for all packages as the previous packages
+    # may have failed as well.
     package_build_errors, package_spelling_errors = build_docs_for_packages(
-        current_packages=current_packages,
+        current_packages=current_packages if len(priority_packages) > 1 else normal_packages,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         for_production=for_production,
+        jobs=jobs,
         verbose=args.verbose,
     )
     if package_build_errors:
         all_build_errors.update(package_build_errors)
     if package_spelling_errors:
         all_spelling_errors.update(package_spelling_errors)
+
+    # Build documentation for some packages again if it can help them.
     to_retry_packages = [
         package_name
         for package_name, errors in package_build_errors.items()
@@ -248,6 +510,7 @@ def main():
             docs_only=docs_only,
             spellcheck_only=spellcheck_only,
             for_production=for_production,
+            jobs=jobs,
             verbose=args.verbose,
         )
         if package_build_errors:
@@ -265,10 +528,14 @@ def main():
     if not package_filters:
         _promote_new_flags()
 
+    if os.path.exists(PROVIDER_INIT_FILE):
+        os.remove(PROVIDER_INIT_FILE)
+
     print_build_errors_and_exit(
         all_build_errors,
         all_spelling_errors,
     )
 
 
-main()
+if __name__ == "__main__":
+    main()

@@ -50,7 +50,7 @@ Package apache-airflow-providers-apache-livy
 `Apache Livy <https://livy.apache.org/>`__
 
 
-Release: 1.0.1
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -77,7 +77,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified backport providers package in order to use them.
+You need to install the specified provider packages in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -113,12 +113,21 @@ Dependent package                                                               
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Extend HTTP extra_options to LivyHook and operator (#14816)``
+
+
 1.0.1
 .....
 
-Updated documentation and readme files.
+* ``Updated documentation and readme files.``
 
 1.0.0
 .....
 
-Initial version of the provider.
+* ``Initial version of the provider.``

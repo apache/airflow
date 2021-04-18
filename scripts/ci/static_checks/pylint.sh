@@ -20,12 +20,12 @@
 
 function run_pylint() {
     if [[ "${#@}" == "0" ]]; then
-       docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+       docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/in_container/run_pylint.sh"
     else
-        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init" \
             "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/in_container/run_pylint.sh" "${@}"

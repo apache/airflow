@@ -29,7 +29,7 @@ fi
 
 function run_test_package_import_all_classes() {
     # Groups are added internally
-    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+    docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         -t \
         -v "${AIRFLOW_SOURCES}/setup.py:/airflow_sources/setup.py:cached" \

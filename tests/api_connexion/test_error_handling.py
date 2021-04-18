@@ -14,39 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+def test_incorrect_endpoint_should_return_json(minimal_app_for_api):
+    client = minimal_app_for_api.test_client()
 
-from airflow.www import app
+    # Given we have application with Connexion added
+    # When we hitting incorrect endpoint in API path
 
+    resp_json = client.get("/api/v1/incorrect_endpoint").json
 
-class TestErrorHandling(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
+    # Then we have parsable JSON as output
 
-    def setUp(self) -> None:
-        self.client = self.app.test_client()  # type:ignore
+    assert 404 == resp_json["status"]
 
-    def test_incorrect_endpoint_should_return_json(self):
+    # When we are hitting non-api incorrect endpoint
 
-        # Given we have application with Connexion added
-        # When we hitting incorrect endpoint in API path
+    resp_json = client.get("/incorrect_endpoint").json
 
-        resp_json = self.client.get("/api/v1/incorrect_endpoint").json
+    # Then we do not have JSON as response, rather standard HTML
 
-        # Then we have parsable JSON as output
+    assert resp_json is None
 
-        assert 404 == resp_json["status"]
+    resp_json = client.put("/api/v1/variables").json
 
-        # When we are hitting non-api incorrect endpoint
-
-        resp_json = self.client.get("/incorrect_endpoint").json
-
-        # Then we do not have JSON as response, rather standard HTML
-
-        assert resp_json is None
-
-        resp_json = self.client.put("/api/v1/variables").json
-
-        assert 'Method Not Allowed' == resp_json["title"]
+    assert 'Method Not Allowed' == resp_json["title"]

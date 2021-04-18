@@ -31,7 +31,7 @@ class WasbBlobSensor(BaseSensorOperator):
     :type container_name: str
     :param blob_name: Name of the blob.
     :type blob_name: str
-    :param wasb_conn_id: Reference to the wasb connection.
+    :param wasb_conn_id: Reference to the :ref:`wasb connection <howto/connection:wasb>`.
     :type wasb_conn_id: str
     :param check_options: Optional keyword arguments that
         `WasbHook.check_for_blob()` takes.

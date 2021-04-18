@@ -17,31 +17,25 @@
 # under the License.
 #
 import io
-import unittest
 from contextlib import redirect_stdout
 
-from airflow import models
-from airflow.cli import cli_parser
+import pytest
+
 from airflow.cli.commands import role_command
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
 TEST_USER2_EMAIL = 'test-user2@example.com'
 
 
-class TestCliRoles(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli_parser.get_parser()
-
-    def setUp(self):
-        from airflow.www import app as application
-
-        self.app = application.create_app(testing=True)
+class TestCliRoles:
+    @pytest.fixture(autouse=True)
+    def _set_attrs(self, app, dagbag, parser):
+        self.app = app
+        self.dagbag = dagbag
+        self.parser = parser
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
         self.clear_roles_and_roles()
-
-    def tearDown(self):
+        yield
         self.clear_roles_and_roles()
 
     def clear_roles_and_roles(self):
