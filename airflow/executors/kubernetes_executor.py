@@ -176,12 +176,14 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         if raw_object['code'] == 410:
             message = raw_object['message']
             latest_resource_version = self._parse_too_old_failure(message)
+            if latest_resource_version is None:
+                # Return resource version 0
+                return '0'
             self.log.warning(
                 "Updated to new resource version: %s due to 'too old' error: %s",
                 latest_resource_version,
                 raw_object,
             )
-
             return latest_resource_version
         raise AirflowException(
             'Kubernetes failure for %s with code %s and message: %s'
