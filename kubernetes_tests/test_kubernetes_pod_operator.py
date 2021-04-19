@@ -904,7 +904,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                         'volumeMounts': [{'mountPath': '/airflow/xcom', 'name': 'xcom'}],
                     },
                     {
-                        'command': ['sh', '-c', 'trap "exit 0" INT; while true; do sleep 30; done;'],
+                        'command': ['sh', '-c', 'trap "exit 0" INT; while true; do sleep 1; done;'],
                         'image': 'alpine',
                         'name': 'airflow-xcom-sidecar',
                         'resources': {'requests': {'cpu': '1m'}},
