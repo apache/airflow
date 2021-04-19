@@ -60,6 +60,8 @@ Some directories in the container are mounted, which means that their contents a
 - ``./logs`` - contains logs from task execution and scheduler.
 - ``./plugins`` - you can put your :doc:`custom plugins </plugins>` here.
 
+This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
+
 Initializing Environment
 ========================
 
@@ -192,10 +194,13 @@ To stop and delete containers, delete volumes with database data and download im
 
     docker-compose down --volumes --rmi all
 
-Notes
-=====
+FAQ: Frequently asked questions
+===============================
 
-By default, the Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need, you can :doc:`customize and extend it <docker-stack:index>`.
+``ModuleNotFoundError: No module named 'XYZ'``
+----------------------------------------------
+
+The Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
 
 What's Next?
 ============
