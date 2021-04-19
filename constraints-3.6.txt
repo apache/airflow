@@ -138,7 +138,7 @@ azure-mgmt-datafactory==1.1.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
-azure-mgmt-resource==16.0.0
+azure-mgmt-resource==16.1.0
 azure-nspkg==3.0.2
 azure-storage-blob==12.8.0
 azure-storage-common==2.1.0
