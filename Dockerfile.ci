@@ -260,9 +260,6 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES}
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
 ENV INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES}
 
-ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
-ENV INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES}
-
 ARG INSTALL_FROM_PYPI="true"
 ENV INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI}
 
@@ -365,17 +362,6 @@ COPY scripts/docker/install_airflow.sh /scripts/docker/install_airflow.sh
 # and push the constraints if everything is successful
 RUN if [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         bash /scripts/docker/install_airflow.sh; \
-    fi
-
-# Only copy install_from_docker_context_files.sh to not invalidate cache on other script changes
-COPY scripts/docker/install_from_docker_context_files.sh /scripts/docker/install_from_docker_context_files.sh
-
-# If wheel files are found in /docker-context-files during installation
-# they are also installed additionally to whatever is installed from Airflow.
-COPY docker-context-files/ /docker-context-files/
-
-RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        bash /scripts/docker/install_from_docker_context_files.sh; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY
