@@ -1189,7 +1189,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         mode: str = 'PRODUCTION',
         labels: Optional[Dict[str, str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        hyperparameters: Optional[Dict] = None
+        hyperparameters: Optional[Dict] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
