@@ -70,6 +70,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 ' and the Wasb connection exists.',
                 remote_conn_id,
             )
+            return None
 
     def set_context(self, ti) -> None:
         super().set_context(ti)
