@@ -485,7 +485,7 @@ Container Registry. In case of GitHub Packages, authentication uses GITHUB_TOKEN
 is needed for both pushing the images (WRITE) and pulling them (READ) - which means that GitHub token
 is used in "master" build (WRITE) and in fork builds (READ). For container registry, our images are
 Publicly Visible and we do not need any authentication to pull them so the CONTAINER_REGISTRY_TOKEN is
-only set in the "master" builds only ("Build Images" workflow and "Scheduled quarantine" one).
+only set in the "master" builds only ("Build Images" workflow).
 
 Dockerhub Variables
 ===================
@@ -736,27 +736,6 @@ Comments:
      is explained.
  (6) Nightly tag is pushed to the repository only in CRON job and only if all tests pass. This
      causes the DockerHub images are built automatically and made available to developers.
-
-Scheduled quarantined builds
-----------------------------
-
-This workflow runs only quarantined tests. Those tests do not fail the build even if some tests fail (only if
-the whole pytest execution fails). Instead this workflow updates one of the issues where we keep status
-of quarantined tests. Once the test succeeds in NUM_RUNS subsequent runs, it is marked as stable and
-can be removed from quarantine. You can read more about quarantine in `<TESTING.rst>`_
-
-The issues are only updated if the test is run as direct push or scheduled run and only in the
-``apache/airflow`` repository - so that the issues are not updated in forks.
-
-The issues that gets updated are different for different branches:
-
-* master: `Quarantine tests master <https://github.com/apache/airflow/issues/10118>`_
-* v1-10-stable: `Quarantine tests v1-10-stable <https://github.com/apache/airflow/issues/10127>`_
-* v1-10-test: `Quarantine tests v1-10-test <https://github.com/apache/airflow/issues/10128>`_
-
-Those runs and their corresponding ``Build Images`` runs are only executed in main ``apache/airflow``
-repository, they are not executed in forks - we want to be nice to the contributors and not use their
-free build minutes on GitHub Actions.
 
 Force sync master from apache/airflow
 -------------------------------------
