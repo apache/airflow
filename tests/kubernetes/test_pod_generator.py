@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import re
 import sys
 import unittest
 import uuid
@@ -655,6 +656,24 @@ class TestPodGenerator(unittest.TestCase):
         else:
             assert len(parts[0]) <= 63
         assert len(parts[1]) <= 63
+
+    @parameterized.expand(
+        (
+            ("pod-name-with-hyphen-", "pod-name-with-hyphen"),
+            ("pod-name-with-double-hyphen--", "pod-name-with-double-hyphen"),
+            ("pod0-name", "pod0-name"),
+            ("simple", "simple"),
+        )
+    )
+    def test_pod_name_is_valid(self, pod_id, expected_starts_with):
+        name = PodGenerator.make_unique_pod_id(pod_id)
+
+        regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+        assert (
+            len(name) <= 253 and all(ch.lower() == ch for ch in name) and re.match(regex, name)
+        ), "pod_id is invalid - fails allowed regex check"
+
+        assert name.rsplit(".")[0] == expected_starts_with
 
     def test_deserialize_model_string(self):
         fixture = """
