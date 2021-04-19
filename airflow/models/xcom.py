@@ -19,7 +19,6 @@
 import json
 import logging
 import pickle
-from json import JSONDecodeError
 from typing import Any, Iterable, Optional, Union
 
 import pendulum
@@ -245,7 +244,7 @@ class BaseXCom(Base, LoggingMixin):
         else:
             try:
                 return json.loads(result.value.decode('UTF-8'))
-            except JSONDecodeError:
+            except (json.JSONDecodeError, UnicodeDecodeError):
                 return pickle.loads(result.value)
 
     def orm_deserialize_value(self) -> Any:
