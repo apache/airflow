@@ -102,6 +102,20 @@ class TestPool(unittest.TestCase):
         assert 1 == pool.running_slots()  # pylint: disable=no-value-for-parameter
         assert 1 == pool.queued_slots()  # pylint: disable=no-value-for-parameter
         assert 2 == pool.occupied_slots()  # pylint: disable=no-value-for-parameter
+        assert {
+            "default_pool": {
+                "open": 128,
+                "queued": 0,
+                "total": 128,
+                "running": 0,
+            },
+            "test_pool": {
+                "open": -1,
+                "queued": 1,
+                "running": 1,
+                "total": -1,
+            },
+        } == pool.slots_stats()
 
     def test_default_pool_open_slots(self):
         set_default_pool_slots(5)
@@ -125,3 +139,11 @@ class TestPool(unittest.TestCase):
         session.close()
 
         assert 2 == Pool.get_default_pool().open_slots()
+        assert {
+            "default_pool": {
+                "open": 2,
+                "queued": 2,
+                "total": 5,
+                "running": 1,
+            }
+        } == Pool.slots_stats()
