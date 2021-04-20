@@ -736,7 +736,7 @@ hook-class-names:
   - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook
   - airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook
   - airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
-  - airflow.providers.google.common.hooks.leveldb.LevelDBHook
+  - airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook
 
 extra-links:
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
