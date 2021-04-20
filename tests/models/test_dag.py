@@ -1006,6 +1006,9 @@ class TestDag(unittest.TestCase):
         sub_dag = dag.sub_dag('t2', include_upstream=True, include_downstream=False)
         assert id(sub_dag.task_dict['t1'].downstream_list[0].dag) == id(sub_dag)
 
+        # Copied DAG should not include unused task IDs in used_group_ids
+        assert 't3' not in sub_dag._task_group.used_group_ids
+
     def test_schedule_dag_no_previous_runs(self):
         """
         Tests scheduling a dag with no previous runs

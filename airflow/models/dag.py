@@ -1495,6 +1495,8 @@ class DAG(LoggingMixin):
                 if isinstance(child, BaseOperator):
                     if child.task_id in dag.task_dict:
                         copied.children[child.task_id] = dag.task_dict[child.task_id]
+                    else:
+                        copied.used_group_ids.discard(child.task_id)
                 else:
                     filtered_child = filter_task_group(child, copied)
 
