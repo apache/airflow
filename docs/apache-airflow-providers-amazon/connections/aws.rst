@@ -31,10 +31,13 @@ Authentication may be performed using any of the `boto3 options <https://boto3.a
 To use IAM instance profile, create an "empty" connection (i.e. one with no Login or Password specified, or
 ``aws://``).
 
+
 Default Connection IDs
 -----------------------
 
-The default connection ID is ``aws_default``.
+The default connection ID is ``aws_default``. If the environment/machine where you are running Airflow has the
+file credentials in ``/home/.aws/``, and the default connection has user and pass fields empty, it will take
+automatically the credentials from there.
 
 .. note:: Previously, the ``aws_default`` connection had the "extras" field set to ``{"region_name": "us-east-1"}``
     on install. This means that by default the ``aws_default`` connection used the ``us-east-1`` region.
@@ -73,6 +76,8 @@ Extra (optional)
 
     * ``config_kwargs``: Additional ``kwargs`` used to construct a ``botocore.config.Config`` passed to *boto3.client* and *boto3.resource*.
     * ``session_kwargs``: Additional ``kwargs`` passed to *boto3.session.Session*.
+
+    * ``profile``: If you are getting your credentials from the credentials file, you can specify the profile with this.
 
 If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 

@@ -56,6 +56,7 @@ class WinRMOperator(BaseOperator):
     """
 
     template_fields = ('command',)
+    template_fields_renderers = {"command": "powershell"}
 
     @apply_defaults
     def __init__(

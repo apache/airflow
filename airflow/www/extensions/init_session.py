@@ -15,7 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from flask import session as flask_session
+from flask import request, session as flask_session
+from flask.sessions import SecureCookieSessionInterface
+
+
+class AirflowSessionInterface(SecureCookieSessionInterface):
+    """
+    Airflow cookie session interface.
+    Modifications of sessions should be done here because
+    the change here is global.
+    """
+
+    def save_session(self, *args, **kwargs):
+        """Prevent creating session from REST API requests."""
+        if request.blueprint == '/api/v1':
+            return None
+        return super().save_session(*args, **kwargs)
 
 
 def init_permanent_session(app):
@@ -25,3 +40,8 @@ def init_permanent_session(app):
         flask_session.permanent = True
 
     app.before_request(make_session_permanent)
+
+
+def init_airflow_session_interface(app):
+    """Set airflow session interface"""
+    app.session_interface = AirflowSessionInterface()

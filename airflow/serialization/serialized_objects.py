@@ -240,7 +240,10 @@ class BaseSerialization:
             return str(get_python_source(var))
         elif isinstance(var, set):
             # FIXME: casts set to list in customized serialization in future.
-            return cls._encode([cls._serialize(v) for v in var], type_=DAT.SET)
+            try:
+                return cls._encode(sorted(cls._serialize(v) for v in var), type_=DAT.SET)
+            except TypeError:
+                return cls._encode([cls._serialize(v) for v in var], type_=DAT.SET)
         elif isinstance(var, tuple):
             # FIXME: casts tuple to list in customized serialization in future.
             return cls._encode([cls._serialize(v) for v in var], type_=DAT.TUPLE)
@@ -647,6 +650,9 @@ class SerializedDAG(DAG, BaseSerialization):
             serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
             serialize_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
+            # Edge info in the JSON exactly matches our internal structure
+            serialize_dag["edge_info"] = dag.edge_info
+
             # has_on_*_callback are only stored if the value is True, as the default is False
             if dag.has_on_success_callback:
                 serialize_dag['has_on_success_callback'] = True
@@ -678,6 +684,9 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize_timedelta(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
+            elif k == "edge_info":
+                # Value structure matches exactly
+                pass
             elif k in cls._decorated_fields:
                 v = cls._deserialize(v)
             # else use v as it is

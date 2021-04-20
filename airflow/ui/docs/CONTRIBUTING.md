@@ -34,10 +34,18 @@ the more confidence they can give you." Keep their [cheatsheet](https://testing-
 
 - Neutrino handles our App's configuration and Webpack build. Check out their [docs](https://neutrinojs.org/api/) if you need to customize it.
 
+- State management is handled with [Context](https://reactjs.org/docs/context.html) and [react-query](https://react-query.tanstack.com/). Context is used for App-level state that doesn't change often (authentication, dark/light mode). React Query handles all the state and side effects (loading, error, caching, etc) of async data from the API.
+
 ## Project Structure
 
 - `src/index.tsx` is the entry point of the app. Here you will find all the root level Providers that expose functionality to the rest of the app like the Chakra component library, routing, authentication or API queries.
 - `.neutrinorc.js` is the main config file. Although some custom typescript or linting may need to be changed in `tsconfig.json` or `.eslintrc.js`, respectively
+- `src/components` are React components that will be shared across the app
+- `src/views` are React components that are specific to a certain url route
+- `src/interfaces` are custom-defined Typescript types/interfaces
+- `src/utils` contains various helper functions that are shared throughout the app
+- `src/auth` has the Context for authentication
+- `src/api` contains all of the actual API requests as custom hooks around react-query
 
 ## Find open issues
 

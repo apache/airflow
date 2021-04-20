@@ -31,7 +31,6 @@ class TestKeda:
 
     @parameterized.expand(
         [
-            ('SequentialExecutor', False),
             ('CeleryExecutor', True),
             ('CeleryKubernetesExecutor', True),
         ]

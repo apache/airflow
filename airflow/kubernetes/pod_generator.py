@@ -368,10 +368,6 @@ class PodGenerator:
         except Exception:  # pylint: disable=W0703
             image = kube_image
 
-        task_id = make_safe_label_value(task_id)
-        dag_id = make_safe_label_value(dag_id)
-        scheduler_job_id = make_safe_label_value(str(scheduler_job_id))
-
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
@@ -383,9 +379,9 @@ class PodGenerator:
                 },
                 name=PodGenerator.make_unique_pod_id(pod_id),
                 labels={
-                    'airflow-worker': scheduler_job_id,
-                    'dag_id': dag_id,
-                    'task_id': task_id,
+                    'airflow-worker': make_safe_label_value(str(scheduler_job_id)),
+                    'dag_id': make_safe_label_value(dag_id),
+                    'task_id': make_safe_label_value(task_id),
                     'execution_date': datetime_to_label_safe_datestring(date),
                     'try_number': str(try_number),
                     'airflow_version': airflow_version.replace('+', '-'),
@@ -473,7 +469,10 @@ class PodGenerator:
 
         safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
         trimmed_pod_id = pod_id[:MAX_LABEL_LEN]
-        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
+
+        # Since we use '.' as separator we need to remove all the occurences of '-' if any
+        # in the trimmed_pod_id as the regex does not allow '-' followed by '.'.
+        safe_pod_id = f"{trimmed_pod_id.rstrip('-')}.{safe_uuid}"
 
         return safe_pod_id
 

@@ -1416,6 +1416,34 @@ class TestDataflowJob(unittest.TestCase):
 
     # fmt: off
     @parameterized.expand([
+        # RUNNING
+        (DataflowJobStatus.JOB_STATE_RUNNING, None, False),
+        (DataflowJobStatus.JOB_STATE_RUNNING, True, False),
+        (DataflowJobStatus.JOB_STATE_RUNNING, False, True),
+        # AWAITING STATE
+        (DataflowJobStatus.JOB_STATE_PENDING, None, False),
+        (DataflowJobStatus.JOB_STATE_PENDING, True, False),
+        (DataflowJobStatus.JOB_STATE_PENDING, False, True),
+    ])
+    # fmt: on
+    def test_check_dataflow_job_state_without_job_type(self, job_state, wait_until_finished, expected_result):
+        job = {"id": "id-2", "name": "name-2", "currentState": job_state}
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="name-",
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=None,
+            num_retries=20,
+            multiple_jobs=True,
+            wait_until_finished=wait_until_finished,
+        )
+        result = dataflow_job._check_dataflow_job_state(job)
+        assert result == expected_result
+
+    # fmt: off
+    @parameterized.expand([
         (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_FAILED,
             "Google Cloud Dataflow job name-2 has failed\\."),
         (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_FAILED,

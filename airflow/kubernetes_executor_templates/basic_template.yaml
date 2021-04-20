@@ -69,8 +69,8 @@ spec:
         defaultMode: 420
   restartPolicy: Never
   terminationGracePeriodSeconds: 30
-  serviceAccountName: airflow-worker-serviceaccount
-  serviceAccount: airflow-worker-serviceaccount
+  serviceAccountName: airflow-worker
+  serviceAccount: airflow-worker
   securityContext:
     runAsUser: 50000
     fsGroup: 50000

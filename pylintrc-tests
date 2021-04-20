@@ -54,6 +54,8 @@ suggestion-mode=yes
 # active Python interpreter and may run arbitrary code.
 unsafe-load-any-extension=no
 
+# Pylint 2.8 changes this to `extension-pkg-allow-list`
+extension-pkg-whitelist=cassandra
 
 [MESSAGES CONTROL]
 
@@ -160,7 +162,9 @@ disable=print-statement,
         missing-docstring,
         no-self-use,
         too-many-public-methods,
-        protected-access
+        protected-access,
+        redefined-outer-name, # Gets confused about file-scoped pytest fixtures
+        attribute-defined-outside-init,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
@@ -387,7 +391,7 @@ min-similarity-lines=4
 # Regular expression matching correct argument names. Overrides argument-
 # naming-style.
 # BasPH: Kept snake_case but allow for 1-char argument names.
-argument-rgx=[a-z_][a-z0-9_]{0,30}$
+argument-rgx=[a-z_][a-z0-9_]{0,32}$
 
 # Naming style matching correct attribute names.
 attr-naming-style=snake_case
@@ -439,6 +443,7 @@ good-names=e,
            i,
            j,
            k,
+           n,
            v, # Commonly used when iterating dict.items()
            _,
            ti,  # Commonly used in Airflow as shorthand for taskinstance
@@ -450,7 +455,8 @@ good-names=e,
            cm,  # Commonly used as shorthand for context manager
            ds,  # Used in Airflow templates
            ts,  # Used in Airflow templates
-           id   # Commonly used as shorthand for identifier
+           id,  # Commonly used as shorthand for identifier
+           fd,  # aka "file-descriptor" -- common in socket code
 
 # Include a hint for the correct naming format with invalid-name.
 include-naming-hint=no

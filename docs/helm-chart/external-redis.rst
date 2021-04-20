@@ -21,7 +21,7 @@ External Redis
 When using the ``CeleryExecutor`` or the ``CeleryKubernetesExecutor``
 the chart will by default create a redis Deployment/StatefulSet
 alongside airflow. You can also use “your own” redis instance by
-providing the ``data.brokerUrl`` (or ``data.borkerUrlSecretName``) value
+providing the ``data.brokerUrl`` (or ``data.brokerUrlSecretName``) value
 directly:
 
 .. code-block:: bash

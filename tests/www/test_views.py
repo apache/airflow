@@ -43,7 +43,7 @@ from werkzeug.wrappers import BaseResponse
 
 from airflow import models, settings, version
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.configuration import conf
+from airflow.configuration import conf, initialize_config
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, Connection, DagRun, TaskInstance
@@ -65,7 +65,7 @@ from airflow.www import app as application
 from airflow.www.extensions import init_views
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
 from airflow.www.views import ConnectionModelView, get_safe_url, truncate_task_duration
-from tests.test_utils import fab_utils
+from tests.test_utils import api_connexion_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
@@ -143,6 +143,7 @@ class TestBase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         clear_db_runs()
+        api_connexion_utils.delete_roles(cls.app)
 
     def setUp(self):
         self.client = self.app.test_client()
@@ -229,7 +230,7 @@ class TestBase(unittest.TestCase):
 
     def create_user_and_login(self, username, role_name, perms):
         self.logout()
-        fab_utils.create_user(
+        api_connexion_utils.create_user(
             self.app,
             username=username,
             role_name=role_name,
@@ -272,7 +273,12 @@ class TestConnectionModelView(TestBase):
 class TestVariableModelView(TestBase):
     def setUp(self):
         super().setUp()
-        self.variable = {'key': 'test_key', 'val': 'text_val', 'is_encrypted': True}
+        self.variable = {
+            'key': 'test_key',
+            'val': 'text_val',
+            'description': 'test_description',
+            'is_encrypted': True,
+        }
 
     def tearDown(self):
         self.clear_table(models.Variable)
@@ -318,12 +324,7 @@ class TestVariableModelView(TestBase):
             set_mock.side_effect = UnicodeEncodeError
             assert self.session.query(models.Variable).count() == 0
 
-            try:
-                # python 3+
-                bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
-            except TypeError:
-                # python 2.7
-                bytes_content = io.BytesIO(bytes(content))
+            bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
 
             resp = self.client.post(
                 '/variable/varimport', data={'file': (bytes_content, 'test.json')}, follow_redirects=True
@@ -336,17 +337,19 @@ class TestVariableModelView(TestBase):
         content = (
             '{"str_key": "str_value", "int_key": 60, "list_key": [1, 2], "dict_key": {"k_a": 2, "k_b": 3}}'
         )
-        try:
-            # python 3+
-            bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
-        except TypeError:
-            # python 2.7
-            bytes_content = io.BytesIO(bytes(content))
+        bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
 
         resp = self.client.post(
             '/variable/varimport', data={'file': (bytes_content, 'test.json')}, follow_redirects=True
         )
         self.check_content_in_response('4 variable(s) successfully updated.', resp)
+
+    def test_description_retrieval(self):
+        # create valid variable
+        self.client.post('/variable/add', data=self.variable, follow_redirects=True)
+
+        row = self.session.query(models.Variable.key, models.Variable.description).first()
+        assert row.key == 'test_key' and row.description == 'test_description'
 
 
 class PluginOperator(BaseOperator):
@@ -484,6 +487,10 @@ class TestAirflowBaseViews(TestBase):
         self.login()
         clear_db_runs()
         self.prepare_dagruns()
+
+    def _delete_role_if_exists(self, role_name):
+        if self.appbuilder.sm.find_role(role_name):
+            self.appbuilder.sm.delete_role(role_name)
 
     def prepare_dagruns(self):
         self.bash_dag = self.dagbag.get_dag('example_bash_operator')
@@ -626,25 +633,275 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('users/list', follow_redirects=True)
         self.check_content_in_response('List Users', resp)
 
-    def test_roles_list(self):
-        resp = self.client.get('roles/list', follow_redirects=True)
-        self.check_content_in_response('List Roles', resp)
+    @parameterized.expand(
+        [
+            ("roles/list", "List Roles"),
+            ("roles/show/1", "Show Role"),
+        ]
+    )
+    def test_roles_read(self, path, body_content):
+        resp = self.client.get(path, follow_redirects=True)
+        self.check_content_in_response(body_content, resp)
+
+    def test_roles_read_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get("roles/list", follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+
+    def test_roles_create(self):
+        role_name = "test_roles_create_role"
+        self._delete_role_if_exists(role_name)
+        if self.appbuilder.sm.find_role(role_name):
+            self.appbuilder.sm.delete_role(role_name)
+        self.client.post("roles/add", data={'name': role_name}, follow_redirects=True)
+        assert self.appbuilder.sm.find_role(role_name)
+        self._delete_role_if_exists(role_name)
+
+    def test_roles_create_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        role_name = "test_roles_create_role"
+        resp = self.client.post("roles/add", data={'name': role_name}, follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+        assert self.appbuilder.sm.find_role(role_name) is None
+
+    def test_roles_edit(self):
+        role_name = "test_roles_create_role"
+        role = self.appbuilder.sm.add_role(role_name)
+        updated_role_name = "test_roles_create_role_new"
+        self._delete_role_if_exists(updated_role_name)
+        self.client.post(f"roles/edit/{role.id}", data={'name': updated_role_name}, follow_redirects=True)
+        updated_role = self.appbuilder.sm.find_role(updated_role_name)
+        assert role.id == updated_role.id
+
+        self._delete_role_if_exists(updated_role_name)
+
+    def test_roles_edit_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+
+        role_name = "test_roles_create_role"
+        role = self.appbuilder.sm.add_role(role_name)
+
+        updated_role_name = "test_roles_create_role_new"
+        resp = self.client.post(
+            f"roles/edit/{role.id}", data={'name': updated_role_name}, follow_redirects=True
+        )
+
+        self.check_content_in_response('Access is Denied', resp)
+        assert self.appbuilder.sm.find_role(role_name)
+        assert self.appbuilder.sm.find_role(updated_role_name) is None
+
+        self._delete_role_if_exists(role_name)
+
+    def test_roles_delete(self):
+        role_name = "test_roles_create_role"
+        role = self.appbuilder.sm.add_role(role_name)
+
+        self.client.post(f"roles/delete/{role.id}", follow_redirects=True)
+        assert self.appbuilder.sm.find_role(role_name) is None
+        self._delete_role_if_exists(role_name)
+
+    def test_roles_delete_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+
+        role_name = "test_roles_create_role"
+        role = self.appbuilder.sm.add_role(role_name)
+
+        resp = self.client.post(f"roles/delete/{role.id}", follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+        assert self.appbuilder.sm.find_role(role_name)
+
+        self._delete_role_if_exists(role_name)
 
     def test_userstatschart_view(self):
         resp = self.client.get('userstatschartview/chart/', follow_redirects=True)
         self.check_content_in_response('User Statistics', resp)
 
+    def test_userstatschart_view_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get('userstatschartview/chart/', follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+
     def test_permissions_list(self):
         resp = self.client.get('permissions/list/', follow_redirects=True)
         self.check_content_in_response('List Base Permissions', resp)
+
+    def test_permissions_list_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get('permissions/list/', follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
 
     def test_viewmenus_list(self):
         resp = self.client.get('viewmenus/list/', follow_redirects=True)
         self.check_content_in_response('List View Menus', resp)
 
+    def test_viewmenus_list_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get('viewmenus/list/', follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+
     def test_permissionsviews_list(self):
         resp = self.client.get('permissionviews/list/', follow_redirects=True)
         self.check_content_in_response('List Permissions on Views/Menus', resp)
+
+    def test_permissionsviews_list_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get('permissionviews/list/', follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+
+    def test_resetmypasswordview_read(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        # Tests with viewer as all roles should have access.
+        resp = self.client.get('resetmypassword/form', follow_redirects=True)
+        self.check_content_in_response('Reset Password Form', resp)
+
+    def test_resetmypasswordview_edit(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        # Tests with viewer as all roles should have access.
+        resp = self.client.post(
+            'resetmypassword/form', data={'password': 'blah', 'conf_password': 'blah'}, follow_redirects=True
+        )
+        self.check_content_in_response('Password Changed', resp)
+
+    def test_resetpasswordview_read(self):
+        resp = self.client.get('resetpassword/form?pk=1', follow_redirects=True)
+        self.check_content_in_response('Reset Password Form', resp)
+
+    def test_resetpasswordview_read_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get('resetpassword/form?pk=1', follow_redirects=True)
+        self.check_content_in_response('Access is Denied', resp)
+
+    def test_resetpasswordview_edit(self):
+        resp = self.client.post(
+            'resetpassword/form?pk=1',
+            data={'password': 'blah', 'conf_password': 'blah'},
+            follow_redirects=True,
+        )
+        self.check_content_in_response('Password Changed', resp)
+
+    def test_resetpasswordview_edit_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        # Tests with viewer as all roles should have access.
+        resp = self.client.post(
+            'resetpassword/form?pk=1',
+            data={'password': 'blah', 'conf_password': 'blah'},
+            follow_redirects=True,
+        )
+        self.check_content_in_response('Access is Denied', resp)
+
+    def test_get_myuserinfo(self):
+        resp = self.client.get("users/userinfo/", follow_redirects=True)
+        self.check_content_in_response('Your user information', resp)
+
+    def test_edit_myuserinfo(self):
+        resp = self.client.post(
+            "userinfoeditview/form",
+            data={'first_name': 'new_first_name', 'last_name': 'new_last_name'},
+            follow_redirects=True,
+        )
+        self.check_content_in_response("User information changed", resp)
+
+    def test_create_user(self):
+        resp = self.client.post(
+            "users/add",
+            data={
+                'first_name': 'fake_first_name',
+                'last_name': 'fake_last_name',
+                'username': 'fake_username',
+                'email': 'fake_email@email.com',
+                'password': 'test',
+                'conf_password': 'test',
+            },
+            follow_redirects=True,
+        )
+        self.check_content_in_response("Added Row", resp)
+        new_user = self.appbuilder.sm.find_user("fake_username")
+        self.appbuilder.sm.del_register_user(new_user)
+
+    def test_create_user_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.post("users/add", follow_redirects=True)
+        self.check_content_in_response("Access is Denied", resp)
+
+    def test_read_users(self):
+        resp = self.client.get("users/list/", follow_redirects=True)
+        self.check_content_in_response("List Users", resp)
+
+    def test_read_users_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.get("users/list/", follow_redirects=True)
+        self.check_content_in_response("Access is Denied", resp)
+
+    def test_edit_user(self):
+        username = "test_edit_user_user"
+        self._delete_user_if_exists(username)
+        dag_tester_role = self.appbuilder.sm.add_role('dag_acl_tester')
+        new_user = self.appbuilder.sm.add_user(
+            "test_edit_user_user",
+            "first_name",
+            "last_name",
+            "email@email.com",
+            dag_tester_role,
+            password="password",
+        )
+        resp = self.client.post(
+            f"users/edit/{new_user.id}",
+            data={"first_name": "new_first_name"},
+            follow_redirects=True,
+        )
+        self.check_content_in_response("new_first_name", resp)
+        self._delete_user_if_exists(username)
+
+    def test_edit_users_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        resp = self.client.post("users/edit/1", follow_redirects=True)
+        self.check_content_in_response("Access is Denied", resp)
+
+    def _delete_user_if_exists(self, username):
+        user = self.appbuilder.sm.find_user(username)
+        if user:
+            self.appbuilder.sm.del_register_user(user)
+
+    def test_delete_user(self):
+        username = "test_edit_user_user"
+        self._delete_user_if_exists(username)
+        dag_tester_role = self.appbuilder.sm.add_role('dag_acl_tester')
+        new_user = self.appbuilder.sm.add_user(
+            "test_edit_user_user",
+            "first_name",
+            "last_name",
+            "email@email.com",
+            dag_tester_role,
+            password="password",
+        )
+        resp = self.client.post(
+            f"users/delete/{new_user.id}",
+            follow_redirects=True,
+        )
+        self.check_content_in_response("Deleted Row", resp)
+        self._delete_user_if_exists(username)
+
+    def test_delete_users_unauthorized(self):
+        self.logout()
+        self.login(username='test_viewer', password='test_viewer')
+        dag_tester_role = self.appbuilder.sm.add_role('dag_acl_tester')
+        resp = self.client.post(f"users/delete/{dag_tester_role.id}", follow_redirects=True)
+        self.check_content_in_response("Access is Denied", resp)
 
     def test_home_filter_tags(self):
         from airflow.www.views import FILTER_TAGS_COOKIE
@@ -1178,6 +1435,11 @@ class TestAirflowBaseViews(TestBase):
 
 
 class TestConfigurationView(TestBase):
+    def setUp(self):
+        super().setUp()
+        with mock.patch.dict(os.environ, {"AIRFLOW__CORE__UNIT_TEST_MODE": "False"}):
+            initialize_config()
+
     def test_configuration_do_not_expose_config(self):
         self.logout()
         self.login()
@@ -3353,15 +3615,15 @@ class TestHelperFunctions(TestBase):
             ("36539'%3balert(1)%2f%2f166", "/home"),
             (
                 "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2",
-                "http://localhost:8080/trigger?dag_id=test&abc=2",
+                "/home",
             ),
             (
                 "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag';alert(33)//",
-                "http://localhost:8080/trigger?dag_id=test_dag",
+                "/home",
             ),
             (
-                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag",
-                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%25test_dag",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%3Dtest_dag",
+                "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%3Dtest_dag",
             ),
         ]
     )

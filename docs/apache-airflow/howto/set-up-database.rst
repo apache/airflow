@@ -103,6 +103,48 @@ An example URI for the sqlite database:
 
     sqlite:////home/airflow/airflow.db
 
+**Upgrading SQLite on AmazonLinux AMI or Container Image**
+
+AmazonLinux SQLite can only be upgraded to v3.7 using the source repos. Airflow requires v3.15 or higher. Use the
+following instructions to setup the base image (or AMI) with latest SQLite3
+
+Pre-requisite: You will need ``wget``, ``tar``, ``gzip``,`` gcc``, ``make``, and ``expect`` to get the upgrade process working.
+
+.. code-block:: bash
+
+  yum -y install wget tar gzip gcc make expect
+
+Download source from https://sqlite.org/, make and install locally.
+
+.. code-block:: bash
+
+    wget https://www.sqlite.org/src/tarball/sqlite.tar.gz
+    tar xzf sqlite.tar.gz
+    cd sqlite/
+    export CFLAGS="-DSQLITE_ENABLE_FTS3 \
+        -DSQLITE_ENABLE_FTS3_PARENTHESIS \
+        -DSQLITE_ENABLE_FTS4 \
+        -DSQLITE_ENABLE_FTS5 \
+        -DSQLITE_ENABLE_JSON1 \
+        -DSQLITE_ENABLE_LOAD_EXTENSION \
+        -DSQLITE_ENABLE_RTREE \
+        -DSQLITE_ENABLE_STAT4 \
+        -DSQLITE_ENABLE_UPDATE_DELETE_LIMIT \
+        -DSQLITE_SOUNDEX \
+        -DSQLITE_TEMP_STORE=3 \
+        -DSQLITE_USE_URI \
+        -O2 \
+        -fPIC"
+    export PREFIX="/usr/local"
+    LIBS="-lm" ./configure --disable-tcl --enable-shared --enable-tempstore=always --prefix="$PREFIX"
+    make
+    make install
+
+Post install add ``/usr/local/lib`` to library path
+
+.. code-block:: bash
+
+  export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 Setting up a MySQL Database
 ---------------------------

@@ -283,10 +283,10 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
     :param days_back: number of days between ds and the ds we want to check
         against. Defaults to 7 days
     :type days_back: int
-    :param metrics_threshold: a dictionary of ratios indexed by metrics, for
+    :param metrics_thresholds: a dictionary of ratios indexed by metrics, for
         example 'COUNT(*)': 1.5 would require a 50 percent or less difference
         between the current day, and the prior days_back.
-    :type metrics_threshold: dict
+    :type metrics_thresholds: dict
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
     :type use_legacy_sql: bool

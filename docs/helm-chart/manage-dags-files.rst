@@ -28,6 +28,21 @@ The recommended way to update your DAGs with this chart is to build a new docker
 .. code-block:: bash
 
     docker build --tag "my-company/airflow:8a0da78" . -f - <<EOF
+    FROM apache/airflow
+
+    COPY ./dags/ \${AIRFLOW_HOME}/dags/
+
+    EOF
+
+.. note::
+
+   In airflow images prior to version 2.0.2, there was a bug that required you to use
+   a bit longer Dockerfile, to make sure the image remains OpenShift-compatible (i.e dag
+   has root group similarly as other files). In 2.0.2 this has been fixed.
+
+.. code-block:: bash
+
+    docker build --tag "my-company/airflow:8a0da78" . -f - <<EOF
     FROM apache/airflow:2.0.1
 
     USER root
@@ -37,6 +52,7 @@ The recommended way to update your DAGs with this chart is to build a new docker
     USER airflow
 
     EOF
+
 
 Then publish it in the accessible registry:
 
@@ -64,7 +80,12 @@ If you are deploying an image with a constant tag, you need to make sure that th
 Mounting DAGs using Git-Sync sidecar with Persistence enabled
 -------------------------------------------------------------
 
-This option will use a Persistent Volume Claim with an access mode of ``ReadWriteMany``. The scheduler pod will sync DAGs from a git repository onto the PVC every configured number of seconds. The other pods will read the synced DAGs. Not all volume  plugins have support for ``ReadWriteMany`` access mode. Refer `Persistent Volume Access Modes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes>`__ for details
+This option will use a Persistent Volume Claim with an access mode of ``ReadWriteMany``.
+The scheduler pod will sync DAGs from a git repository onto the PVC every configured number of
+seconds. The other pods will read the synced DAGs. Not all volume  plugins have support for
+``ReadWriteMany`` access mode.
+Refer `Persistent Volume Access Modes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes>`__
+for details.
 
 .. code-block:: bash
 
@@ -75,10 +96,27 @@ This option will use a Persistent Volume Claim with an access mode of ``ReadWrit
       # by setting the  dags.persistence.* and dags.gitSync.* values
       # Please refer to values.yaml for details
 
+When using ``apache-airflow>=2.0.0``, :ref:`DAG Serialization <apache-airflow:dag-serialization>` is enabled by default,
+hence Webserver does not need access to DAG files, so you can turn off ``git-sync`` for Webserver by setting
+``dags.gitSync.excludeWebserver`` to ``true``.
+This is also recommended when enabling DAG Serialization for ``apache-airflow>=1.10.11,<2``.
+
+.. code-block:: bash
+
+    helm upgrade airflow . \
+      --set dags.persistence.enabled=true \
+      --set dags.gitSync.enabled=true \
+      --set dags.gitSync.excludeWebserver=true
+      # you can also override the other persistence or gitSync values
+      # by setting the  dags.persistence.* and dags.gitSync.* values
+      # Please refer to values.yaml for details
+
 Mounting DAGs using Git-Sync sidecar without Persistence
 --------------------------------------------------------
 
-This option will use an always running Git-Sync side car on every scheduler, webserver and worker pods. The Git-Sync side car containers will sync DAGs from a git repository every configured number of seconds. If you are using the KubernetesExecutor, Git-sync will run as an init container on your worker pods.
+This option will use an always running Git-Sync sidecar on every scheduler, webserver and worker pods.
+The Git-Sync sidecar containers will sync DAGs from a git repository every configured number of
+seconds. If you are using the ``KubernetesExecutor``, Git-sync will run as an init container on your worker pods.
 
 .. code-block:: bash
 

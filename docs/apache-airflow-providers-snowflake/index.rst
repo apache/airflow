@@ -57,7 +57,7 @@ Package apache-airflow-providers-snowflake
 `Snowflake <https://www.snowflake.com/>`__
 
 
-Release: 1.1.1
+Release: 1.2.0
 
 Provider package
 ----------------
@@ -94,7 +94,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified backport providers package in order to use them.
+You need to install the specified provider packages in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -130,6 +130,14 @@ Dependent package                                                               
 Changelog
 ---------
 
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add dynamic fields to snowflake connection (#14724)``
+
 1.1.1
 .....
 
@@ -137,7 +145,7 @@ Bug fixes
 ~~~~~~~~~
 
 * ``Corrections in docs and tools after releasing provider RCs (#14082)``
-
+* ``Prepare to release the next wave of providers: (#14487)``
 
 1.1.0
 .....

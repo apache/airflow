@@ -43,5 +43,16 @@ class JSONFormatter(logging.Formatter):
     def format(self, record):
         super().format(record)
         record_dict = {label: getattr(record, label, None) for label in self.json_fields}
+        if "message" in self.json_fields:
+            msg = record_dict["message"]
+            if record.exc_text:
+                if msg[-1:] != "\n":
+                    msg = msg + "\n"
+                msg = msg + record.exc_text
+            if record.stack_info:
+                if msg[-1:] != "\n":
+                    msg = msg + "\n"
+                msg = msg + self.formatStack(record.stack_info)
+            record_dict["message"] = msg
         merged_record = merge_dicts(record_dict, self.extras)
         return json.dumps(merged_record)

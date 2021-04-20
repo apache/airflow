@@ -47,7 +47,7 @@ spec:
         - name: GIT_SYNC_MAX_SYNC_FAILURES
           value: "0"
       volumeMounts:
-        - name: dags
+        - name: airflow-dags
           mountPath: /git
   containers:
     - args: []
@@ -82,9 +82,6 @@ spec:
         - mountPath: /opt/airflow/dags
           name: airflow-dags
           readOnly: false
-        - mountPath: /opt/airflow/dags
-          name: airflow-dags
-          readOnly: true
   hostNetwork: false
   restartPolicy: Never
   securityContext:
@@ -97,7 +94,7 @@ spec:
     []
   serviceAccountName: 'RELEASE-NAME-worker-serviceaccount'
   volumes:
-    - name: dags
+    - name: airflow-dags
       emptyDir: {}
     - emptyDir: {}
       name: airflow-logs

@@ -24,7 +24,7 @@ import os
 import textwrap
 from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
-from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Union
+from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
 
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
@@ -502,7 +502,7 @@ ARG_DO_PICKLE = Arg(
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
-    default=conf.get('celery', 'DEFAULT_QUEUE'),
+    default=conf.get('operators', 'DEFAULT_QUEUE'),
 )
 ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),
@@ -518,6 +518,18 @@ ARG_UMASK = Arg(
     ("-u", "--umask"),
     help="Set the umask of celery worker in daemon mode",
     default=conf.get('celery', 'worker_umask'),
+)
+ARG_WITHOUT_MINGLE = Arg(
+    ("--without-mingle",),
+    default=False,
+    help="Don’t synchronize with other workers at start-up",
+    action="store_true",
+)
+ARG_WITHOUT_GOSSIP = Arg(
+    ("--without-gossip",),
+    default=False,
+    help="Don’t subscribe to other workers events",
+    action="store_true",
 )
 
 # flower
@@ -590,6 +602,7 @@ ARG_CONN_EXPORT = Arg(
 ARG_CONN_EXPORT_FORMAT = Arg(
     ('--format',), help='Format of the connections data in file', type=str, choices=['json', 'yaml', 'env']
 )
+ARG_CONN_IMPORT = Arg(("file",), help="Import connections from a file")
 
 # providers
 ARG_PROVIDER_NAME = Arg(
@@ -684,8 +697,8 @@ ARG_OPTION = Arg(
 # kubernetes cleanup-pods
 ARG_NAMESPACE = Arg(
     ("--namespace",),
-    default='default',
-    help="Kubernetes Namespace",
+    default=conf.get('kubernetes', 'namespace'),
+    help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
 )
 
 # jobs check
@@ -714,6 +727,11 @@ ARG_ALLOW_MULTIPLE = Arg(
     ("--allow-multiple",),
     action='store_true',
     help="If passed, this command will be successful even if multiple matching alive jobs are found.",
+)
+
+# sync-perm
+ARG_INCLUDE_DAGS = Arg(
+    ("--include-dags",), help="If passed, DAG specific permissions will also be synced.", action="store_true"
 )
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
@@ -1188,6 +1206,16 @@ CONNECTIONS_COMMANDS = (
             ARG_CONN_EXPORT_FORMAT,
         ),
     ),
+    ActionCommand(
+        name='import',
+        help='Import connections from a file',
+        description=(
+            "Connections can be imported from the output of the export command.\n"
+            "The filetype must by json, yaml or env and will be automatically inferred."
+        ),
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_import'),
+        args=(ARG_CONN_IMPORT,),
+    ),
 )
 PROVIDERS_COMMANDS = (
     ActionCommand(
@@ -1326,6 +1354,8 @@ CELERY_COMMANDS = (
             ARG_LOG_FILE,
             ARG_AUTOSCALE,
             ARG_SKIP_SERVE_LOGS,
+            ARG_WITHOUT_MINGLE,
+            ARG_WITHOUT_GOSSIP,
         ),
     ),
     ActionCommand(
@@ -1375,7 +1405,11 @@ CONFIG_COMMANDS = (
 KUBERNETES_COMMANDS = (
     ActionCommand(
         name='cleanup-pods',
-        help="Clean up Kubernetes pods in evicted/failed/succeeded states",
+        help=(
+            "Clean up Kubernetes pods "
+            "(created by KubernetesExecutor/KubernetesPodOperator) "
+            "in evicted/failed/succeeded states"
+        ),
         func=lazy_load_command('airflow.cli.commands.kubernetes_command.cleanup_pods'),
         args=(ARG_NAMESPACE,),
     ),
@@ -1527,9 +1561,9 @@ airflow_commands: List[CLICommand] = [
     ),
     ActionCommand(
         name='sync-perm',
-        help="Update permissions for existing roles and DAGs",
+        help="Update permissions for existing roles and optionally DAGs",
         func=lazy_load_command('airflow.cli.commands.sync_perm_command.sync_perm'),
-        args=(),
+        args=(ARG_INCLUDE_DAGS,),
     ),
     ActionCommand(
         name='rotate-fernet-key',
@@ -1571,7 +1605,31 @@ airflow_commands: List[CLICommand] = [
     ),
 ]
 ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
-DAG_CLI_COMMANDS: Set[str] = {'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs'}
+
+
+def _remove_dag_id_opt(command: ActionCommand):
+    cmd = command._asdict()
+    cmd['args'] = (arg for arg in command.args if arg is not ARG_DAG_ID)
+    return ActionCommand(**cmd)
+
+
+dag_cli_commands: List[CLICommand] = [
+    GroupCommand(
+        name='dags',
+        help='Manage DAGs',
+        subcommands=[
+            _remove_dag_id_opt(sp)
+            for sp in DAGS_COMMANDS
+            if sp.name in ['backfill', 'list-runs', 'pause', 'unpause']
+        ],
+    ),
+    GroupCommand(
+        name='tasks',
+        help='Manage tasks',
+        subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in ['list', 'test', 'run']],
+    ),
+]
+DAG_CLI_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}
 
 
 class AirflowHelpFormatter(argparse.HelpFormatter):
@@ -1623,10 +1681,11 @@ def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest='subcommand', metavar="GROUP_OR_COMMAND")
     subparsers.required = True
 
-    subparser_list = DAG_CLI_COMMANDS if dag_parser else ALL_COMMANDS_DICT.keys()
+    command_dict = DAG_CLI_DICT if dag_parser else ALL_COMMANDS_DICT
+    subparser_list = command_dict.keys()
     sub_name: str
     for sub_name in sorted(subparser_list):
-        sub: CLICommand = ALL_COMMANDS_DICT[sub_name]
+        sub: CLICommand = command_dict[sub_name]
         _add_command(subparsers, sub)
     return parser
 

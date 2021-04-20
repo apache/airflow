@@ -101,7 +101,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def write_dag(cls, dag: DAG, min_update_interval: Optional[int] = None, session: Session = None):
+    def write_dag(cls, dag: DAG, min_update_interval: Optional[int] = None, session: Session = None) -> bool:
         """Serializes a DAG and writes it into database.
         If the record already exists, it checks if the Serialized DAG changed or not. If it is
         changed, it updates the record, ignores otherwise.
@@ -109,6 +109,8 @@ class SerializedDagModel(Base):
         :param dag: a DAG to be written into database
         :param min_update_interval: minimal interval in seconds to update serialized DAG
         :param session: ORM Session
+
+        :returns: Boolean indicating if the DAG was written to the DB
         """
         # Checks if (Current Time - Time when the DAG was written to DB) < min_update_interval
         # If Yes, does nothing
@@ -122,7 +124,7 @@ class SerializedDagModel(Base):
                     )
                 )
             ).scalar():
-                return
+                return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag)
@@ -130,11 +132,12 @@ class SerializedDagModel(Base):
 
         if serialized_dag_hash_from_db == new_serialized_dag.dag_hash:
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
-            return
+            return False
 
         log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
         session.merge(new_serialized_dag)
         log.debug("DAG: %s written to the DB", dag.dag_id)
+        return True
 
     @classmethod
     @provide_session

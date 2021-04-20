@@ -182,6 +182,8 @@ Endpoint                                                                        
                                                                                           Task Instances.can_read, XComs.can_read
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} GET    DAGs.can_read, DAG Runs.can_read,                                 Viewer
                                                                                           Task Instances.can_read, XComs.can_read
+/users                                                                             GET    Users.can_read                                                    Admin
+/users/{username}                                                                  GET    Users.can_read                                                    Admin
 ================================================================================== ====== ================================================================= ============
 
 

@@ -254,22 +254,12 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | ``HOST_HOME``                           |             |             |            | Home directory on the host.                     |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-|                                                           Image variables                                                          |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``INSTALL_AIRFLOW_VERSION``             |             |             |            | Installs Airflow version from PyPI when         |
-|                                         |             |             |            | building image. Can be "none" to skip airflow   |
-|                                         |             |             |            | installation so that it can be installed from   |
-|                                         |             |             |            | locally prepared packages.                      |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``INSTALL_AIRFLOW_REFERENCE``           |             |             |            | Installs Airflow version from GitHub            |
-|                                         |             |             |            | branch or tag.                                  |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                      Version suffix variables                                                      |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``VERSION_SUFFIX_FOR_PYPI``             |             |             |            | Version suffix used during backport             |
+| ``VERSION_SUFFIX_FOR_PYPI``             |             |             |            | Version suffix used during provider             |
 |                                         |             |             |            | package preparation for PyPI builds.            |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``VERSION_SUFFIX_FOR_SVN``              |             |             |            | Version suffix used during backport             |
+| ``VERSION_SUFFIX_FOR_SVN``              |             |             |            | Version suffix used during provider             |
 |                                         |             |             |            | package preparation for SVN builds.             |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                            Git variables                                                           |
@@ -706,8 +696,6 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 | Build docs                | Builds documentation                         | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 | Spell check docs          | Spell check for documentation                | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Backport packages         | Prepares Backport Packages for 1.10 Airflow  | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 | Trigger tests             | Checks if tests should be triggered          | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+

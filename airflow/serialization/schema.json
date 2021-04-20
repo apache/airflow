@@ -102,7 +102,8 @@
         "_task_group": {"anyOf": [
           { "type": "null" },
           { "$ref": "#/definitions/task_group" }
-        ]}
+        ]},
+        "edge_info": { "$ref": "#/definitions/edge_info" }
       },
       "required": [
         "_dag_id",
@@ -168,7 +169,12 @@
           "type": "array",
           "items": { "type": "string" },
           "uniqueItems": true
-        }
+        },
+        "doc":  { "type": "string" },
+        "doc_md":  { "type": "string" },
+        "doc_json":  { "type": "string" },
+        "doc_yaml":  { "type": "string" },
+        "doc_rst":  { "type": "string" }
       },
       "additionalProperties": true
     },
@@ -212,6 +218,21 @@
         }
       },
       "additionalProperties": false
+    },
+    "edge_info": {
+      "$comment": "Metadata about DAG edges",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "label": { "type": "string" }
+          },
+          "required": ["label"],
+          "additionalProperties": false
+        }
+      }
     }
   },
 

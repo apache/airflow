@@ -50,6 +50,26 @@ to execute a BigQuery load job.
     :start-after: [START howto_operator_gcs_to_bigquery]
     :end-before: [END howto_operator_gcs_to_bigquery]
 
+
+.. _howto/operator:GCSTimeSpanFileTransformOperator:
+
+GCSTimeSpanFileTransformOperator
+--------------------------------
+
+Use the
+:class:`~airflow.providers.google.cloud.operators.gcs.GCSTimeSpanFileTransformOperator`
+to transform files that were modified in a specific time span. The time span is defined
+by the DAG instance logical execution timestamp (``execution_date``, start of time span)
+and the timestamp when the next DAG instance execution is scheduled (end of time span). If a DAG
+does not have a *next* DAG instance scheduled, the time span end infinite, meaning the operator
+processes all files older than ``execution_date``.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs_timespan_file_transform.py
+    :language: python
+    :start-after: [START howto_operator_gcs_timespan_file_transform_operator_Task]
+    :end-before: [END howto_operator_gcs_timespan_file_transform_operator_Task]
+
+
 .. _howto/operator:GCSBucketCreateAclEntryOperator:
 
 GCSBucketCreateAclEntryOperator

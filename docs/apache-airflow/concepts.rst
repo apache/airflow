@@ -371,7 +371,8 @@ using ``@task`` decorator.
 
 .. code-block:: python
 
-    from airflow.operators.python import task, get_current_context
+    from airflow.decorators import task
+    from airflow.operators.python import get_current_context
 
     @task
     def my_task():
@@ -1127,6 +1128,42 @@ This animated gif shows the UI interactions. TaskGroups are expanded or collapse
 
 .. image:: img/task_group.gif
 
+TaskGroup can be created using ``@task_group`` decorator, it takes one argument ``group_id`` which is same as constructor of TaskGroup class, if not given it copies function name as ``group_id``. It works exactly same as creating TaskGroup using context manager ``with TaskGroup('groupid') as section:``.
+
+.. exampleinclude:: /../../airflow/example_dags/example_task_group_decorator.py
+    :language: python
+    :start-after: [START howto_task_group_decorator]
+    :end-before: [END howto_task_group_decorator]
+
+
+Edge Labels
+===========
+
+As well as grouping tasks into groups, you can also label the edges between
+different tasks in the Graph View - this can be especially useful for branching
+areas of your DAG, so you can label the conditions under which certain branches
+might run.
+
+To add labels, you can either pass a Label object to
+``set_upstream``/``set_downstream``:
+
+.. code-block:: python
+
+    from airflow.utils.edgemodifier import Label
+    my_task.set_downstream(other_task, Label("When empty"))
+
+Or, you can use them directly inline with the ``>>`` and ``<<`` operators:
+
+.. code-block:: python
+
+    from airflow.utils.edgemodifier import Label
+    my_task >> Label("When empty") >> other_task
+
+Here's an example DAG which illustrates labeling different branches:
+
+.. image:: img/edge_label_example.png
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_labels.py
 
 SLAs
 ====
@@ -1350,6 +1387,12 @@ Here is what it may look like:
       :start-after: [START example_dag_cluster_policy]
       :end-before: [END example_dag_cluster_policy]
 
+
+.. note::
+
+    To avoid import cycles, if using ``DAG`` in type annotations in your cluster policy, be sure to import from ``airflow.models`` and not from ``airflow``.
+
+
 Task level cluster policy
 -----------------------------
 For example, this function could apply a specific queue property when
@@ -1400,8 +1443,8 @@ Documentation & Notes
 =====================
 
 It's possible to add documentation or notes to your DAGs & task objects that
-become visible in the web interface ("Graph View" & "Tree View" for DAGs, "Task Details" for
-tasks). There are a set of special task attributes that get rendered as rich
+become visible in the web interface ("Graph View" & "Tree View" for DAGs, "Task Instance Details"
+for tasks). There are a set of special task attributes that get rendered as rich
 content if defined:
 
 ==========  ================
@@ -1436,7 +1479,7 @@ to the related tasks in Airflow.
     """
 
 This content will get rendered as markdown respectively in the "Graph View" and
-"Task Details" pages.
+"Task Instance Details" pages.
 
 .. _jinja-templating:
 
