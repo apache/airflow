@@ -63,6 +63,6 @@ if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
 else
     echo
     echo "You can add ${AIRFLOW_BREEZE_CONFIG_DIR} directory and place ${TMUX_CONF_FILE}"
-    echo "In it to make breeze will use your ${TMUX_CONF_FILE} for tmux"
+    echo "In it to make breeze use your local ${TMUX_CONF_FILE} for tmux"
     echo
 fi
