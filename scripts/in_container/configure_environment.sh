@@ -19,6 +19,7 @@
 export FILES_DIR="/files"
 export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
 VARIABLES_ENV_FILE="variables.env"
+TMUX_CONF_FILE=".tmux.conf"
 
 if [[ -d "${FILES_DIR}" ]]; then
     export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"
@@ -46,5 +47,26 @@ else
     echo
     echo "You can add ${AIRFLOW_BREEZE_CONFIG_DIR} directory and place ${VARIABLES_ENV_FILE}"
     echo "In it to make breeze source the variables automatically for you"
+    echo
+fi
+
+
+if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
+    -f "${AIRFLOW_BREEZE_CONFIG_DIR}/${TMUX_CONF_FILE}" ]]; then
+    pushd "${AIRFLOW_BREEZE_CONFIG_DIR}" >/dev/null 2>&1 || exit 1
+    echo
+    echo "Using ${TMUX_CONF_FILE} from ${AIRFLOW_BREEZE_CONFIG_DIR}"
+    echo
+     # shellcheck disable=1090
+    cp "${AIRFLOW_BREEZE_CONFIG_DIR}/${TMUX_CONF_FILE}" ~
+
+    if [[ $? -ne 0 ]]; then
+        return 1;
+    fi
+    popd >/dev/null 2>&1 || exit 1
+else
+    echo
+    echo "You can add ${AIRFLOW_BREEZE_CONFIG_DIR} directory and place ${TMUX_CONF_FILE}"
+    echo "In it to make breeze will use your ${TMUX_CONF_FILE} for tmux"
     echo
 fi
