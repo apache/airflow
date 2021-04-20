@@ -59,10 +59,6 @@ if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
     echo
      # shellcheck disable=1090
     cp "${AIRFLOW_BREEZE_CONFIG_DIR}/${TMUX_CONF_FILE}" ~
-
-    if [[ $? -ne 0 ]]; then
-        return 1;
-    fi
     popd >/dev/null 2>&1 || exit 1
 else
     echo
