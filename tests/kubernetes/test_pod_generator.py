@@ -663,6 +663,9 @@ class TestPodGenerator(unittest.TestCase):
             ("pod-name-with-double-hyphen--", "pod-name-with-double-hyphen"),
             ("pod0-name", "pod0-name"),
             ("simple", "simple"),
+            ("pod-name-with-dot.", "pod-name-with-dot"),
+            ("pod-name-with-double-dot..", "pod-name-with-double-dot"),
+            ("pod-name-with-hyphen-dot-.", "pod-name-with-hyphen-dot"),
         )
     )
     def test_pod_name_is_valid(self, pod_id, expected_starts_with):
