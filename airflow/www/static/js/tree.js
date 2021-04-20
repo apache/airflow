@@ -259,9 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('dx', barHeight / 2)
       .text((d) => d.name);
 
-    const isBlur = getMetaValue('blur');
-    if (isBlur === 'True') text.attr('class', 'blur');
-
     nodeEnter.append('g')
       .attr('class', 'stateboxes')
       .attr('transform',

@@ -19,7 +19,11 @@
 from typing import Optional
 
 import boto3
-from cached_property import cached_property
+
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -136,9 +140,5 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
             value = response["Parameter"]["Value"]
             return value
         except self.client.exceptions.ParameterNotFound:
-            self.log.info(
-                "An error occurred (ParameterNotFound) when calling the GetParameter operation: "
-                "Parameter %s not found.",
-                ssm_path,
-            )
+            self.log.debug("Parameter %s not found.", ssm_path)
             return None

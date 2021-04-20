@@ -125,7 +125,7 @@ Committers/Maintainers
 Committers are community members that have write access to the project’s repositories, i.e., they can modify the code,
 documentation, and website by themselves and also accept other contributions.
 
-The official list of committers can be found `here <https://airflow.apache.org/docs/stable/project.html#committers>`__.
+The official list of committers can be found `here <https://airflow.apache.org/docs/apache-airflow/stable/project.html#committers>`__.
 
 Additionally, committers are listed in a few other places (some of these may only be visible to existing committers):
 
@@ -427,7 +427,7 @@ The production images are build in DockerHub from:
 * ``2.0.*``, ``2.0.*rc*`` releases from the ``v2-0-stable`` branch when we prepare release candidates and
   final releases. There are no production images prepared from v2-0-stable branch.
 
-Similar rules apply to ``1.10.x`` releases until June 2020. We have ``v1-10-test`` and ``v1-10-stable``
+Similar rules apply to ``1.10.x`` releases until June 2021. We have ``v1-10-test`` and ``v1-10-stable``
 branches there.
 
 Development Environments
@@ -585,17 +585,17 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 
-all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid, apache.hdfs,
-apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop,
-apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes,
-crypto, dask, databricks, datadog, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc,
-docker, druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github_enterprise, google,
-google_auth, grafana, grpc, hashicorp, hdfs, hive, http, imap, jdbc, jenkins, jira, kerberos,
-kubernetes, ldap, microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, neo4j,
-odbc, openfaas, opsgenie, oracle, pagerduty, papermill, password, pinot, plexus, postgres, presto,
-qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity,
-slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, vertica, virtualenv, webhdfs,
-winrm, yandex, zendesk
+airbyte, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid,
+apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark,
+apache.sqoop, apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant,
+cncf.kubernetes, crypto, dask, databricks, datadog, devel, devel_all, devel_ci, devel_hadoop,
+dingding, discord, doc, docker, druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api,
+github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, jdbc, jenkins,
+jira, kerberos, kubernetes, ldap, microsoft.azure, microsoft.mssql, microsoft.winrm, mongo, mssql,
+mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, papermill, password, pinot, plexus,
+postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry,
+sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica,
+virtualenv, webhdfs, winrm, yandex, zendesk
 
   .. END EXTRAS HERE
 
@@ -629,8 +629,8 @@ The dependency list is automatically used during PyPI packages generation.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
 the other provider package you can install it adding [extra] after the
-``apache-airflow-backport-providers-PROVIDER`` for example:
-``pip install apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP
+``apache-airflow-providers-PROVIDER`` for example:
+``pip install apache-airflow-providers-google[amazon]`` in case you want to use GCP
 transfer operators from Amazon ECS.
 
 If you add a new dependency between different providers packages, it will be detected automatically during
@@ -653,6 +653,7 @@ Here is the list of packages and their extras:
 ========================== ===========================
 Package                    Extras
 ========================== ===========================
+airbyte                    http
 amazon                     apache.hive,exasol,ftp,google,imap,mongo,mysql,postgres,ssh
 apache.beam                google
 apache.druid               apache.hive
@@ -660,11 +661,11 @@ apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
 apache.livy                http
 dingding                   http
 discord                    http
-google                     amazon,apache.beam,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,salesforce,sftp,ssh
+google                     amazon,apache.beam,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,salesforce,sftp,ssh,trino
 hashicorp                  google
 microsoft.azure            google,oracle
 microsoft.mssql            odbc
-mysql                      amazon,presto,vertica
+mysql                      amazon,presto,trino,vertica
 opsgenie                   http
 postgres                   amazon
 salesforce                 tableau
@@ -755,26 +756,13 @@ providers.
   not only "green path"
 
 * Integration tests where 'local' integration with a component is possible (for example tests with
-  MySQL/Postgres DB/Presto/Kerberos all have integration tests which run with real, dockerised components
+  MySQL/Postgres DB/Trino/Kerberos all have integration tests which run with real, dockerized components
 
 * System Tests which provide end-to-end testing, usually testing together several operators, sensors,
   transfers connecting to a real external system
 
 You can read more about out approach for tests in `TESTING.rst <TESTING.rst>`_ but here
 are some highlights.
-
-
-Backport providers
-------------------
-
-You can also build backport provider packages for Airflow 1.10. They aim to provide a bridge when users
-of Airflow 1.10 want to migrate to Airflow 2.0. The backport packages are named similarly to the
-provider packages, but with "backport" added:
-
-* ``apache-airflow-backport-provider-*``
-
-Those backport providers are automatically refactored to work with Airflow 1.10.* and have a few
-limitations described in those packages.
 
 Dependency management
 =====================
@@ -897,18 +885,25 @@ Manually generating constraint files
 ------------------------------------
 
 The constraint files are generated automatically by the CI job. Sometimes however it is needed to regenerate
-them manually (committers only). For example when master build did not succeed for quite some time). This can be done by
-running this:
+them manually (committers only). For example when master build did not succeed for quite some time).
+This can be done by running this (it utilizes parallel preparation of the constraints):
 
 .. code-block:: bash
 
-    for python_version in 3.6 3.7 3.8
+    export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING="3.6 3.7 3.8"
+    for python_version in $(echo "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}")
     do
-      ./breeze generate-constraints --generate-constraints-mode source-providers --python ${python_version} --build-cache-local
-      ./breeze generate-constraints --generate-constraints-mode pypi-providers --python ${python_version} --build-cache-local
-      ./breeze generate-constraints --generate-constraints-mode no-providers --python ${python_version} --build-cache-local
+      ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version} --build-cache-local
+      ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version} --build-cache-local
+      ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version} --build-cache-local
     done
+
+    GENERATE_CONSTRAINTS_MODE="pypi-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
+    GENERATE_CONSTRAINTS_MODE="source-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
+    GENERATE_CONSTRAINTS_MODE="no-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
+
     AIRFLOW_SOURCES=$(pwd)
+
 
 The constraints will be generated in "files/constraints-PYTHON_VERSION/constraints-*.txt files. You need to
 checkout the right 'constraints-' branch in a separate repository and then you can copy, commit and push the
@@ -930,7 +925,7 @@ Documentation
 
 Documentation for ``apache-airflow`` package and other packages that are closely related to it ie. providers packages are in ``/docs/`` directory. For detailed information on documentation development, see: `docs/README.rst <docs/README.rst>`_
 
-For Helm Chart documentation, see: `/chart/README.md <../chart/README.md>`__
+For Helm Chart documentation, see: `chart/README.md <chart/README.md>`__
 
 Static code checks
 ==================

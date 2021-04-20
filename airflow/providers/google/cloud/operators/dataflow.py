@@ -43,9 +43,9 @@ class CheckJobRunning(Enum):
     WaitForRun - wait for job to finish and then continue with new job
     """
 
-    IgnoreJob = 1
-    FinishIfRunning = 2
-    WaitForRun = 3
+    IgnoreJob = 1  # pylint: disable=invalid-name
+    FinishIfRunning = 2  # pylint: disable=invalid-name
+    WaitForRun = 3  # pylint: disable=invalid-name
 
 
 class DataflowConfiguration:
@@ -53,7 +53,7 @@ class DataflowConfiguration:
     :py:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` and
     :py:class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
 
-    :param job_name: The 'jobName' to use when executing the DataFlow job
+    :param job_name: The 'jobName' to use when executing the Dataflow job
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` or  ``'job_name'``in ``options`` will be overwritten.
     :type job_name: str
@@ -84,7 +84,7 @@ class DataflowConfiguration:
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of canceling during during killing task instance. See:
+        instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :type drain_pipeline: bool
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
@@ -173,7 +173,7 @@ class DataflowConfiguration:
 # pylint: disable=too-many-instance-attributes
 class DataflowCreateJavaJobOperator(BaseOperator):
     """
-    Start a Java Cloud DataFlow batch job. The parameters of the operation
+    Start a Java Cloud Dataflow batch job. The parameters of the operation
     will be passed to the job.
 
     This class is deprecated.
@@ -200,7 +200,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
         dag = DAG('test-dag', default_args=default_args)
 
-        task = DataFlowJavaOperator(
+        task = DataflowCreateJavaJobOperator(
             gcp_conn_id='gcp_default',
             task_id='normalize-cal',
             jar='{{var.value.gcp_dataflow_base}}pipeline-ingress-cal-normalize-1.0.jar',
@@ -221,9 +221,9 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataflowCreateJavaJobOperator`
 
-    :param jar: The reference to a self executing DataFlow jar (templated).
+    :param jar: The reference to a self executing Dataflow jar (templated).
     :type jar: str
-    :param job_name: The 'jobName' to use when executing the DataFlow job
+    :param job_name: The 'jobName' to use when executing the Dataflow job
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` in ``options`` will be overwritten.
     :type job_name: str
@@ -330,7 +330,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
     .. code-block:: python
 
-       t1 = DataFlowJavaOperator(
+       t1 = DataflowCreateJavaJobOperator(
            task_id='dataflow_example',
            jar='{{var.value.gcp_dataflow_base}}pipeline/build/libs/pipeline-example-1.0.jar',
            options={
@@ -481,17 +481,18 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 # pylint: disable=too-many-instance-attributes
 class DataflowTemplatedJobStartOperator(BaseOperator):
     """
-    Start a Templated Cloud DataFlow job. The parameters of the operation
+    Start a Templated Cloud Dataflow job. The parameters of the operation
     will be passed to the job.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataflowTemplatedJobStartOperator`
 
-    :param template: The reference to the DataFlow template.
+    :param template: The reference to the Dataflow template.
     :type template: str
-    :param job_name: The 'jobName' to use when executing the DataFlow template
+    :param job_name: The 'jobName' to use when executing the Dataflow template
         (templated).
+    :type job_name: Optional[str]
     :param options: Map of job runtime environment options.
         It will update environment argument if passed.
 
@@ -529,7 +530,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
-    :type environment: Optional, Map of job runtime environment options.
+    :param environment: Optional, Map of job runtime environment options.
 
         .. seealso::
             For more information on possible configurations, look at the API documentation
@@ -597,7 +598,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
     .. code-block:: python
 
-       t1 = DataflowTemplateOperator(
+       t1 = DataflowTemplatedJobStartOperator(
            task_id='dataflow_example',
            template='{{var.value.gcp_dataflow_base}}',
            parameters={
@@ -729,7 +730,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         domain-wide delegation enabled.
     :type delegate_to: str
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of canceling during during killing task instance. See:
+        instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :type drain_pipeline: bool
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
@@ -849,7 +850,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         <gcloud beta dataflow sql query>`__
         command reference
 
-    :param options: dict
+    :type options: dict
     :param location: The location of the Dataflow job (for example europe-west1)
     :type location: str
     :param project_id: The ID of the GCP project that owns the job.
@@ -863,7 +864,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         domain-wide delegation enabled.
     :type delegate_to: str
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of canceling during during killing task instance. See:
+        instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :type drain_pipeline: bool
     """
@@ -953,7 +954,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     :param py_file: Reference to the python dataflow pipeline file.py, e.g.,
         /some/local/file/path/to/your/python/pipeline/file. (templated)
     :type py_file: str
-    :param job_name: The 'job_name' to use when executing the DataFlow job
+    :param job_name: The 'job_name' to use when executing the Dataflow job
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` or ``'job_name'`` in ``options`` will be overwritten.
     :type job_name: str
@@ -1006,7 +1007,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
     :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
-        instead of canceling during during killing task instance. See:
+        instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :type drain_pipeline: bool
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be

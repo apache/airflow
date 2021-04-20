@@ -32,7 +32,8 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
     :type collection_name: str
     :param document: The document to insert
     :type document: dict
-    :param azure_cosmos_conn_id: reference to a CosmosDB connection.
+    :param azure_cosmos_conn_id: Reference to the
+        :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
     :type azure_cosmos_conn_id: str
     """
 

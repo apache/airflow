@@ -79,6 +79,7 @@ serialized_simple_dag_ground_truth = {
         },
         "is_paused_upon_creation": False,
         "_dag_id": "simple_dag",
+        "doc_md": "### DAG Tutorial Documentation",
         "fileloc": None,
         "tasks": [
             {
@@ -110,6 +111,7 @@ serialized_simple_dag_ground_truth = {
                         }
                     },
                 },
+                "doc_md": "### Task Tutorial Documentation",
             },
             {
                 "task_id": "custom_task",
@@ -142,6 +144,7 @@ serialized_simple_dag_ground_truth = {
                 }
             },
         },
+        "edge_info": {},
     },
 }
 
@@ -170,6 +173,7 @@ def make_simple_dag():
         start_date=datetime(2019, 8, 1),
         is_paused_upon_creation=False,
         access_control={"test_role": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
+        doc_md="### DAG Tutorial Documentation",
     ) as dag:
         CustomOperator(task_id='custom_task')
         BashOperator(
@@ -177,6 +181,7 @@ def make_simple_dag():
             bash_command='echo {{ task.task_id }}',
             owner='airflow',
             executor_config={"pod_override": executor_config_pod},
+            doc_md="### Task Tutorial Documentation",
         )
         return {'simple_dag': dag}
 
@@ -299,7 +304,6 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         assert sorted_serialized_dag(ground_truth_dag) == sorted_serialized_dag(json_dag)
 
-    @pytest.mark.quarantined
     def test_deserialization_across_process(self):
         """A serialized DAG can be deserialized in another process."""
 
@@ -852,6 +856,11 @@ class TestStringifiedDAGs(unittest.TestCase):
             '_upstream_task_ids': set(),
             'depends_on_past': False,
             'do_xcom_push': True,
+            'doc': None,
+            'doc_json': None,
+            'doc_md': None,
+            'doc_rst': None,
+            'doc_yaml': None,
             'email': None,
             'email_on_failure': True,
             'email_on_retry': True,
@@ -947,6 +956,27 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         check_task_group(serialized_dag.task_group)
 
+    def test_edge_info_serialization(self):
+        """
+        Tests edge_info serialization/deserialization.
+        """
+        from airflow.operators.dummy import DummyOperator
+        from airflow.utils.edgemodifier import Label
+
+        with DAG("test_edge_info_serialization", start_date=datetime(2020, 1, 1)) as dag:
+            task1 = DummyOperator(task_id="task1")
+            task2 = DummyOperator(task_id="task2")
+            task1 >> Label("test label") >> task2  # pylint: disable=W0106
+
+        dag_dict = SerializedDAG.to_dict(dag)
+        SerializedDAG.validate_schema(dag_dict)
+        json_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        self.validate_deserialized_dag(json_dag, dag)
+
+        serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+
+        assert serialized_dag.edge_info == dag.edge_info
+
     @parameterized.expand(
         [
             ("poke", False),
@@ -1026,6 +1056,56 @@ class TestStringifiedDAGs(unittest.TestCase):
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
 
         assert deserialized_dag.has_on_failure_callback is expected_value
+
+    @parameterized.expand(
+        [
+            (
+                ['task_1', 'task_5', 'task_2', 'task_4'],
+                ['task_1', 'task_5', 'task_2', 'task_4'],
+            ),
+            (
+                {'task_1', 'task_5', 'task_2', 'task_4'},
+                ['task_1', 'task_2', 'task_4', 'task_5'],
+            ),
+            (
+                ('task_1', 'task_5', 'task_2', 'task_4'),
+                ['task_1', 'task_5', 'task_2', 'task_4'],
+            ),
+            (
+                {
+                    "staging_schema": [
+                        {"key:": "foo", "value": "bar"},
+                        {"key:": "this", "value": "that"},
+                        "test_conf",
+                    ]
+                },
+                {
+                    "staging_schema": [
+                        {"__type": "dict", "__var": {"key:": "foo", "value": "bar"}},
+                        {
+                            "__type": "dict",
+                            "__var": {"key:": "this", "value": "that"},
+                        },
+                        "test_conf",
+                    ]
+                },
+            ),
+            (
+                {"task3": "test3", "task2": "test2", "task1": "test1"},
+                {"task1": "test1", "task2": "test2", "task3": "test3"},
+            ),
+            (
+                ('task_1', 'task_5', 'task_2', 3, ["x", "y"]),
+                ['task_1', 'task_5', 'task_2', 3, ["x", "y"]],
+            ),
+        ]
+    )
+    def test_serialized_objects_are_sorted(self, object_to_serialized, expected_output):
+        """Test Serialized Sets are sorted while list and tuple preserve order"""
+        serialized_obj = SerializedDAG._serialize(object_to_serialized)
+        if isinstance(serialized_obj, dict) and "__type" in serialized_obj:
+            serialized_obj = serialized_obj["__var"]
+        assert serialized_obj == expected_output
 
 
 def test_kubernetes_optional():

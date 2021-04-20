@@ -343,7 +343,7 @@ class SafeDogStatsdLogger:
         """Timer metric that can be cancelled"""
         if stat and self.allow_list_validator.test(stat):
             tags = tags or []
-            return Timer(self.dogstatsd.timer(stat, *args, tags=tags, **kwargs))
+            return Timer(self.dogstatsd.timed(stat, *args, tags=tags, **kwargs))
         return Timer()
 
 

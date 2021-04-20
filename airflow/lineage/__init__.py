@@ -25,6 +25,8 @@ import attr
 import jinja2
 from cattr import structure, unstructure
 
+from airflow.configuration import conf
+from airflow.lineage.backend import LineageBackend
 from airflow.utils.module_loading import import_string
 
 ENV = jinja2.Environment()
@@ -43,6 +45,22 @@ class Metadata:
     type_name: str = attr.ib()
     source: str = attr.ib()
     data: Dict = attr.ib()
+
+
+def get_backend() -> Optional[LineageBackend]:
+    """Gets the lineage backend if defined in the configs"""
+    clazz = conf.getimport("lineage", "backend", fallback=None)
+
+    if clazz:
+        if not issubclass(clazz, LineageBackend):
+            raise TypeError(
+                f"Your custom Lineage class `{clazz.__name__}` "
+                f"is not a subclass of `{LineageBackend.__name__}`."
+            )
+        else:
+            return clazz()
+
+    return None
 
 
 def _get_instance(meta: Metadata):
@@ -82,6 +100,7 @@ def apply_lineage(func: T) -> T:
     Saves the lineage to XCom and if configured to do so sends it
     to the backend.
     """
+    _backend = get_backend()
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
@@ -100,6 +119,9 @@ def apply_lineage(func: T) -> T:
             self.xcom_push(
                 context, key=PIPELINE_INLETS, value=inlets, execution_date=context['ti'].execution_date
             )
+
+        if _backend:
+            _backend.send_lineage(operator=self, inlets=self.inlets, outlets=self.outlets, context=context)
 
         return ret_val
 

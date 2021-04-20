@@ -576,7 +576,7 @@ class DagRun(Base, LoggingMixin):
         started task within the DAG and calculate the expected DagRun start time (based on
         dag.execution_date & dag.schedule_interval), and minus these two values to get the delay.
         The emitted data may contains outlier (e.g. when the first task was cleared, so
-        the second task's start_date will be used), but we can get rid of the the outliers
+        the second task's start_date will be used), but we can get rid of the outliers
         on the stats side through the dashboards tooling built.
         Note, the stat will only be emitted if the DagRun is a scheduler triggered one
         (i.e. external_trigger is False).
@@ -619,7 +619,7 @@ class DagRun(Base, LoggingMixin):
             return
 
         duration = self.end_date - self.start_date
-        if self.state is State.SUCCESS:
+        if self.state == State.SUCCESS:
             Stats.timing(f'dagrun.duration.success.{self.dag_id}', duration)
         elif self.state == State.FAILED:
             Stats.timing(f'dagrun.duration.failed.{self.dag_id}', duration)
@@ -647,7 +647,7 @@ class DagRun(Base, LoggingMixin):
             except AirflowException:
                 if ti.state == State.REMOVED:
                     pass  # ti has already been removed, just ignore it
-                elif self.state is not State.RUNNING and not dag.partial:
+                elif self.state != State.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
                     Stats.incr(f"task_removed_from_dag.{dag.dag_id}", 1, 1)
                     ti.state = State.REMOVED

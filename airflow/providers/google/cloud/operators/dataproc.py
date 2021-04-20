@@ -75,6 +75,10 @@ class ClusterGenerator:
     :param custom_image_project_id: project id for the custom Dataproc image, for more info see
         https://cloud.google.com/dataproc/docs/guides/dataproc-images
     :type custom_image_project_id: str
+    :param custom_image_family: family for the custom Dataproc image,
+        family name can be provide using --family flag while creating custom image, for more info see
+        https://cloud.google.com/dataproc/docs/guides/dataproc-images
+    :type custom_image_family: str
     :param autoscaling_policy: The autoscaling policy used by the cluster. Only resource names
         including projectid and location (region) are valid. Example:
         ``projects/[projectId]/locations/[dataproc_region]/autoscalingPolicies/[policy_id]``
@@ -163,6 +167,7 @@ class ClusterGenerator:
         metadata: Optional[Dict] = None,
         custom_image: Optional[str] = None,
         custom_image_project_id: Optional[str] = None,
+        custom_image_family: Optional[str] = None,
         image_version: Optional[str] = None,
         autoscaling_policy: Optional[str] = None,
         properties: Optional[Dict] = None,
@@ -194,6 +199,7 @@ class ClusterGenerator:
         self.metadata = metadata
         self.custom_image = custom_image
         self.custom_image_project_id = custom_image_project_id
+        self.custom_image_family = custom_image_family
         self.image_version = image_version
         self.properties = properties or {}
         self.optional_components = optional_components
@@ -219,6 +225,12 @@ class ClusterGenerator:
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
+
+        if self.custom_image_family and self.image_version:
+            raise ValueError("The image_version and custom_image_family can't be both set")
+
+        if self.custom_image_family and self.custom_image:
+            raise ValueError("The custom_image and custom_image_family can't be both set")
 
         if self.single_node and self.num_preemptible_workers > 0:
             raise ValueError("Single node cannot have preemptible workers.")
@@ -341,6 +353,16 @@ class ClusterGenerator:
             custom_image_url = (
                 'https://www.googleapis.com/compute/beta/projects/'
                 '{}/global/images/{}'.format(project_id, self.custom_image)
+            )
+            cluster_data['master_config']['image_uri'] = custom_image_url
+            if not self.single_node:
+                cluster_data['worker_config']['image_uri'] = custom_image_url
+
+        elif self.custom_image_family:
+            project_id = self.custom_image_project_id or self.project_id
+            custom_image_url = (
+                'https://www.googleapis.com/compute/beta/projects/'
+                f'{project_id}/global/images/family/{self.custom_image_family}'
             )
             cluster_data['master_config']['image_uri'] = custom_image_url
             if not self.single_node:
@@ -610,7 +632,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         # Check if cluster is not in ERROR state
         self._handle_error_state(hook, cluster)
         if cluster.status.state == cluster.status.State.CREATING:
-            # Wait for cluster to be be created
+            # Wait for cluster to be created
             cluster = self._wait_for_cluster_in_creating_state(hook)
             self._handle_error_state(hook, cluster)
         elif cluster.status.state == cluster.status.State.DELETING:
@@ -858,6 +880,9 @@ class DataprocJobBaseOperator(BaseOperator):
     :type job_name: str
     :param cluster_name: The name of the DataProc cluster.
     :type cluster_name: str
+    :param project_id: The ID of the Google Cloud project the cluster belongs to,
+        if not specified the project will be inferred from the provided GCP connection.
+    :type project_id: str
     :param dataproc_properties: Map for the Hive properties. Ideal to put in
         default arguments (templated)
     :type dataproc_properties: dict
@@ -912,6 +937,7 @@ class DataprocJobBaseOperator(BaseOperator):
         *,
         job_name: str = '{{task.task_id}}_{{ds_nodash}}',
         cluster_name: str = "cluster-1",
+        project_id: Optional[str] = None,
         dataproc_properties: Optional[Dict] = None,
         dataproc_jars: Optional[List[str]] = None,
         gcp_conn_id: str = 'google_cloud_default',
@@ -943,9 +969,8 @@ class DataprocJobBaseOperator(BaseOperator):
 
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
         self.impersonation_chain = impersonation_chain
-
         self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
-        self.project_id = self.hook.project_id
+        self.project_id = self.hook.project_id if project_id is None else project_id
         self.job_template = None
         self.job = None
         self.dataproc_job_id = None
@@ -1630,9 +1655,6 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         ``Job`` created and stored in the backend is returned.
         It is recommended to always set this value to a UUID.
     :type request_id: str
-    :param parameters: Optional. Map from parameter names to values that should be used for those
-        parameters. Values may not exceed 100 characters.
-    :type parameters: Dict[str, str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry
@@ -1733,9 +1755,6 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         ``Job`` created and stored in the backend is returned.
         It is recommended to always set this value to a UUID.
     :type request_id: str
-    :param parameters: Optional. Map from parameter names to values that should be used for those
-        parameters. Values may not exceed 100 characters.
-    :type parameters: Dict[str, str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :type retry: google.api_core.retry.Retry

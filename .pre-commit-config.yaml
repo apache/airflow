@@ -62,8 +62,8 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all JS/CSS/PUML files
-        files: \.(js|css|puml)$
+        name: Add license for all JS/TS/TSX/CSS/PUML files
+        files: \.(js|ts|tsx|css|puml)$
         exclude: ^\.github/.*$
         args:
           - --comment-style
@@ -171,17 +171,17 @@ repos:
         args:
           - --remove
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.7.4
+    rev: v2.10.0
     hooks:
       - id: pyupgrade
         args: ["--py36-plus"]
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.7.0
+    rev: v1.8.0
     hooks:
       - id: rst-backticks
       - id: python-no-log-warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.25.0
+    rev: v1.26.0
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
@@ -321,7 +321,9 @@ repos:
           ^airflow/providers/apache/hive/.*README.md$|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
-          ^docs/apache-airflow-providers-apache-hive/commits.rst$|git|
+          ^docs/apache-airflow-providers-apache-hive/commits.rst$|
+          git|
+          ^pylintrc |
           ^CHANGELOG.txt$
       - id: consistent-pylint
         language: pygrep
@@ -338,6 +340,7 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^airflow/decorators/.*$|
           ^airflow/gcp/.*$|
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
@@ -425,7 +428,7 @@ repos:
       - id: shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
-        entry: koalaman/shellcheck:stable -x -a
+        entry: koalaman/shellcheck:v0.7.2 -x -a
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
       - id: bats-tests
         name: Run BATS bash tests for changed Breeze bash files
@@ -560,7 +563,7 @@ repos:
         entry: flynt
         language: python
         language_version: python3
-        additional_dependencies: ['flynt']
+        additional_dependencies: ['flynt==0.63']
         files: \.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
@@ -617,6 +620,13 @@ repos:
         entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
         files: \.py$
         pass_filenames: true
+      - id: ui-lint
+        name: ESLint against airflow/ui
+        language: node
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/ui/
+        entry: "scripts/ci/static_checks/eslint.sh"
+        pass_filenames: false
       - id: bats-in-container-tests
         name: Run in container bats tests
         language: system

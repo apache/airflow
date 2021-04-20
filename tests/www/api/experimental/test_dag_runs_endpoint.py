@@ -16,20 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
-import unittest
+
+import pytest
 
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
-from airflow.www import app as application
-from tests.test_utils.config import conf_vars
 
 
-class TestDagRunsEndpoint(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+class TestDagRunsEndpoint:
+    @pytest.fixture(scope="class", autouse=True)
+    def _setup_session(self):
         session = Session()
         session.query(DagRun).delete()
         session.commit()
@@ -39,22 +37,14 @@ class TestDagRunsEndpoint(unittest.TestCase):
             dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
 
-    def setUp(self):
-        super().setUp()
-        with conf_vars(
-            {
-                ('api', 'enable_experimental_api'): 'true',
-            }
-        ):
-            app = application.create_app(testing=True)
-        self.app = app.test_client()
-
-    def tearDown(self):
+    @pytest.fixture(autouse=True)
+    def _reset_test_session(self, experiemental_api_app):
+        self.app = experiemental_api_app.test_client()
+        yield
         session = Session()
         session.query(DagRun).delete()
         session.commit()
         session.close()
-        super().tearDown()
 
     def test_get_dag_runs_success(self):
         url_template = '/api/experimental/dags/{}/dag_runs'

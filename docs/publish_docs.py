@@ -52,7 +52,7 @@ ALL_PROVIDER_YAMLS = load_package_data()
 def get_available_packages():
     """Get list of all available packages to build."""
     provider_package_names = [provider['package-name'] for provider in ALL_PROVIDER_YAMLS]
-    return ["apache-airflow", *provider_package_names, "apache-airflow-providers"]
+    return ["apache-airflow", "docker-stack", *provider_package_names, "apache-airflow-providers"]
 
 
 def _get_parser():

@@ -21,7 +21,7 @@
 
 # User and group of airflow user
 uid: 50000
-gid: 50000
+gid: 0
 
 # Airflow home directory
 # Used for mount paths
@@ -109,12 +109,13 @@ airflowPodAnnotations: {}
 rbacEnabled: true
 
 # Airflow executor
-# Options: SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor
+# Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
 executor: "KubernetesExecutor"
 
-# If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheduler's
+# If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
 # service account will have access to communicate with the api-server and launch pods.
-# If this is true and using the CeleryExecutor, the workers will be able to launch pods.
+# If this is true and using CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers
+# will be able to launch pods.
 allowPodLaunching: true
 
 # Images
@@ -166,7 +167,7 @@ secret: []
 # Extra secrets that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
 # The format is "key/value" where
-#    * key (can be templated) is the the name the secret that will be created
+#    * key (can be templated) is the name of the secret that will be created
 #    * value: an object with the standard 'data' or 'stringData' key (or both).
 #          The value associated with those keys must be a string (can be templated)
 extraSecrets: {}
@@ -185,7 +186,7 @@ extraSecrets: {}
 # Extra ConfigMaps that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
 # The format is "key/value" where
-#    * key (can be templated) is the the name the configmap that will be created
+#    * key (can be templated) is the name of the configmap that will be created
 #    * value: an object with the standard 'data' key.
 #          The value associated with this keys must be a string (can be templated)
 extraConfigMaps: {}
@@ -201,8 +202,8 @@ extraConfigMaps: {}
 extraEnv: ~
 # eg:
 # extraEnv: |
-#   - name: PLATFORM
-#     value: FR
+#   - name: AIRFLOW__CORE__LOAD_EXAMPLES
+#     value: 'True'
 
 # Extra envFrom 'items' that will be added to the definition of airflow containers
 # A string is expected (can be templated).
@@ -298,6 +299,11 @@ kerberos:
 workers:
   # Number of airflow celery workers in StatefulSet
   replicas: 1
+  updateStrategy:
+    strategy:
+      rollingUpdate:
+        maxSurge: "100%"
+        maxUnavailable: "50%"
 
   # Allow KEDA autoscaling.
   # Persistence.enabled must be set to false to use KEDA.
@@ -354,6 +360,10 @@ workers:
   safeToEvict: true
   # Annotations to add to worker kubernetes service account.
   serviceAccountAnnotations: {}
+
+  # Launch additional containers into worker.
+  extraContainers: []
+
   # Mount additional volumes into worker.
   extraVolumes: []
   extraVolumeMounts: []
@@ -362,9 +372,26 @@ workers:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  # hostAliases to use in worker pods.
+  # See:
+  # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
+  hostAliases: []
+  # - ip: "127.0.0.2"
+  #   hostnames:
+  #   - "test.hostname.one"
+  # - ip: "127.0.0.3"
+  #   hostnames:
+  #   - "test.hostname.two"
 
 # Airflow scheduler settings
 scheduler:
+  # If the scheduler stops heartbeating for 5 minutes (10*30s) kill the
+  # scheduler and let Kubernetes restart it
+  livenessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 10
+    periodSeconds: 30
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -394,6 +421,9 @@ scheduler:
 
   # Annotations to add to scheduler kubernetes service account.
   serviceAccountAnnotations: {}
+
+  # Launch additional containers into scheduler.
+  extraContainers: []
 
   # Mount additional volumes into scheduler.
   extraVolumes: []
@@ -442,6 +472,9 @@ webserver:
     firstName: admin
     lastName: user
     password: admin
+
+  # Launch additional containers into webserver.
+  extraContainers: []
 
   # Mount additional volumes into webserver.
   extraVolumes: []
@@ -540,6 +573,21 @@ pgbouncer:
 
   # Maximum clients that can connect to pgbouncer (higher = more file descriptors)
   maxClientConn: 100
+
+  # supply the name of existing secret with pgbouncer.ini and users.txt defined
+  # you can load them to a k8s secret like the one below
+  #  apiVersion: v1
+  #  kind: Secret
+  #  metadata:
+  #    name: pgbouncer-config-secret
+  #  data:
+  #     pgbouncer.ini: <base64_encoded pgbouncer.ini file content>
+  #     users.txt: <base64_encoded users.txt file content>
+  #  type: Opaque
+  #
+  #  configSecretName: pgbouncer-config-secret
+  #
+  configSecretName: ~
 
   # Pgbouner pod disruption budget
   podDisruptionBudget:
@@ -699,6 +747,7 @@ postgresql:
 config:
   core:
     dags_folder: '{{ include "airflow_dags" . }}'
+    # This is ignored when used with the official Docker image
     load_examples: 'False'
     executor: '{{ .Values.executor }}'
     # For Airflow 1.10, backward compatibility
@@ -716,11 +765,12 @@ config:
     statsd_port: 9125
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
+  operators:
+    default_queue: celery
   webserver:
     enable_proxy_fix: 'True'
     rbac: 'True'
   celery:
-    default_queue: celery
     worker_concurrency: 16
   scheduler:
     scheduler_heartbeat_sec: 5
@@ -773,6 +823,13 @@ dags:
     existingClaim:
   gitSync:
     enabled: false
+
+    # Change it to true when DAG Serialization is turned on. This will exclude git sync containers
+    # from Webserver as DAGs are fetched from the DB. DAG Serialization was introduced in
+    # 1.10.7 and is optional for <2.0.0.
+    # https://airflow.apache.org/docs/apache-airflow/1.10.15/dag-serialization.html
+    excludeWebserver: false
+
     # git repo clone url
     # ssh examples ssh://git@github.com/apache/airflow.git
     # git@github.com:apache/airflow.git
@@ -826,3 +883,4 @@ dags:
     wait: 60
     containerName: git-sync
     uid: 65533
+    extraVolumeMounts: []

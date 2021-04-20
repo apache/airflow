@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add dynamic fields to snowflake connection (#14724)``
+
 1.1.1
 .....
 
@@ -26,7 +34,7 @@ Bug fixes
 ~~~~~~~~~
 
 * ``Corrections in docs and tools after releasing provider RCs (#14082)``
-
+* ``Prepare to release the next wave of providers: (#14487)``
 
 1.1.0
 .....

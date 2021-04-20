@@ -38,6 +38,7 @@ from flask import (
     Markup,
     Response,
     abort,
+    before_render_template,
     current_app,
     escape,
     flash,
@@ -54,6 +55,21 @@ from flask_appbuilder import BaseView, ModelView, expose
 from flask_appbuilder.actions import action
 from flask_appbuilder.fieldwidgets import Select2Widget
 from flask_appbuilder.models.sqla.filters import BaseFilter  # noqa
+from flask_appbuilder.security.views import (
+    PermissionModelView,
+    PermissionViewModelView,
+    ResetMyPasswordView,
+    ResetPasswordView,
+    RoleModelView,
+    UserDBModelView,
+    UserInfoEditView,
+    UserLDAPModelView,
+    UserOAuthModelView,
+    UserOIDModelView,
+    UserRemoteUserModelView,
+    UserStatsChartView,
+    ViewMenuModelView,
+)
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
@@ -129,7 +145,13 @@ def get_safe_url(url):
 
     parsed = urlparse(url)
 
+    # If the url contains semicolon, redirect it to homepage to avoid
+    # potential XSS. (Similar to https://github.com/python/cpython/pull/24297/files (bpo-42967))
+    if ';' in unquote(url):
+        return url_for('Airflow.index')
+
     query = parse_qsl(parsed.query, keep_blank_values=True)
+
     url = parsed._replace(query=urlencode(query)).geturl()
 
     if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
@@ -341,10 +363,16 @@ def dag_edges(dag):
     for root in dag.roots:
         get_downstream(root)
 
-    return [
-        {'source_id': source_id, 'target_id': target_id}
-        for source_id, target_id in sorted(edges.union(edges_to_add) - edges_to_skip)
-    ]
+    result = []
+    # Build result dicts with the two ends of the edge, plus any extra metadata
+    # if we have it.
+    for source_id, target_id in sorted(edges.union(edges_to_add) - edges_to_skip):
+        record = {"source_id": source_id, "target_id": target_id}
+        label = dag.get_edge_info(source_id, target_id).get("label")
+        if label:
+            record["label"] = label
+        result.append(record)
+    return result
 
 
 ######################################################################################
@@ -407,6 +435,31 @@ class AirflowBaseView(BaseView):  # noqa: D101
             scheduler_job=lazy_object_proxy.Proxy(SchedulerJob.most_recent_job),
             **kwargs,
         )
+
+
+def add_user_permissions_to_dag(sender, template, context, **extra):  # noqa pylint: disable=unused-argument
+    """
+    Adds `.can_edit`, `.can_trigger`, and `.can_delete` properties
+    to DAG based on current user's permissions.
+    Located in `views.py` rather than the DAG model to keep
+    permissions logic out of the Airflow core.
+    """
+    if 'dag' in context:
+        dag = context['dag']
+        can_create_dag_run = current_app.appbuilder.sm.has_access(
+            permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN
+        )
+
+        dag.can_edit = current_app.appbuilder.sm.can_edit_dag(dag.dag_id)
+        dag.can_trigger = dag.can_edit and can_create_dag_run
+        dag.can_delete = current_app.appbuilder.sm.has_access(
+            permissions.ACTION_CAN_DELETE,
+            permissions.RESOURCE_DAG,
+        )
+        context['dag'] = dag
+
+
+before_render_template.connect(add_user_permissions_to_dag)
 
 
 class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-methods
@@ -600,6 +653,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 num_of_pages,
                 search=escape(arg_search_query) if arg_search_query else None,
                 status=arg_status_filter if arg_status_filter else None,
+                tags=arg_tags_filter if arg_tags_filter else None,
             ),
             num_runs=num_runs,
             tags=tags,
@@ -841,7 +895,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag=dag_orm,
             title=dag_id,
             root=request.args.get('root'),
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             wrapped=conf.getboolean('webserver', 'default_wrap'),
         )
 
@@ -857,6 +910,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Get Dag details."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
+
         title = "DAG Details"
         root = request.args.get('root', '')
 
@@ -1215,7 +1269,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # Color coding the special attributes that are code
         special_attrs_rendered = {}
         for attr_name in wwwutils.get_attr_renderer():
-            if hasattr(task, attr_name):
+            if getattr(task, attr_name, None) is not None:
                 source = getattr(task, attr_name)
                 special_attrs_rendered[attr_name] = wwwutils.get_attr_renderer()[attr_name](source)
 
@@ -1870,7 +1924,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     def tree(self):
         """Get Dag as tree."""
         dag_id = request.args.get('dag_id')
-        blur = conf.getboolean('webserver', 'demo_mode')
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
@@ -2015,7 +2068,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag=dag,
             doc_md=doc_md,
             data=data,
-            blur=blur,
             num_runs=num_runs,
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
@@ -2035,7 +2087,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     def graph(self, session=None):
         """Get DAG as Graph."""
         dag_id = request.args.get('dag_id')
-        blur = conf.getboolean('webserver', 'demo_mode')
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing.', "error")
@@ -2044,7 +2095,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-
         arrange = request.args.get('arrange', dag.orientation)
 
         nodes = task_group_to_dict(dag.task_group)
@@ -2101,7 +2151,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             doc_md=doc_md,
             arrange=arrange,
             operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
-            blur=blur,
             root=root or '',
             task_instances=task_instances,
             tasks=tasks,
@@ -2149,7 +2198,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(name="lineChart", x_is_date=True, height=chart_height, width="1200")
         cum_chart = nvd3.lineChart(name="cumLineChart", x_is_date=True, height=chart_height, width="1200")
@@ -2234,7 +2282,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         return self.render_template(
             'airflow/duration_chart.html',
             dag=dag,
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -2306,7 +2353,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         return self.render_template(
             'airflow/chart.html',
             dag=dag,
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -2392,7 +2438,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag=dag,
             chart=Markup(chart.htmlcontent),
             height=str(chart_height + 100) + "px",
-            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
             tab_title='Landing times',
@@ -2467,7 +2512,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Show GANTT chart."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
-        demo_mode = conf.getboolean('webserver', 'demo_mode')
 
         root = request.args.get('root')
         if root:
@@ -2546,7 +2590,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             form=form,
             data=data,
             base_date='',
-            demo_mode=demo_mode,
             root=root,
         )
 
@@ -3124,9 +3167,9 @@ class VariableModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['key', 'val', 'is_encrypted']
-    add_columns = ['key', 'val']
-    edit_columns = ['key', 'val']
+    list_columns = ['key', 'val', 'description', 'is_encrypted']
+    add_columns = ['key', 'val', 'description']
+    edit_columns = ['key', 'val', 'description']
     search_columns = ['key', 'val']
 
     base_order = ('key', 'asc')
@@ -3272,6 +3315,7 @@ class DagRunModelView(AirflowModelView):
     method_permission_name = {
         'add': 'create',
         'list': 'read',
+        'action_clear': 'delete',
         'action_muldelete': 'delete',
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
@@ -3306,7 +3350,6 @@ class DagRunModelView(AirflowModelView):
         'start_date',
         'end_date',
         'external_trigger',
-        'conf',
     ]
     edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
 
@@ -3582,6 +3625,7 @@ class TaskInstanceModelView(AirflowModelView):
         'operator',
         'start_date',
         'end_date',
+        'queued_dttm',
     ]
 
     edit_columns = [
@@ -3740,7 +3784,7 @@ class DagModelView(AirflowModelView):
     list_columns = [
         'dag_id',
         'is_paused',
-        'last_scheduler_run',
+        'last_parsed_time',
         'last_expired',
         'scheduler_lock',
         'fileloc',
@@ -3810,3 +3854,204 @@ class DagModelView(AirflowModelView):
         payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
 
         return wwwutils.json_response(payload)
+
+
+class CustomPermissionModelView(PermissionModelView):
+    """Customize permission names for FAB's builtin PermissionModelView."""
+
+    class_permission_name = permissions.RESOURCE_PERMISSION
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomPermissionViewModelView(PermissionViewModelView):
+    """Customize permission names for FAB's builtin PermissionViewModelView."""
+
+    class_permission_name = permissions.RESOURCE_PERMISSION_VIEW
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomResetMyPasswordView(ResetMyPasswordView):
+    """Customize permission names for FAB's builtin ResetMyPasswordView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PASSWORD
+    method_permission_name = {
+        'this_form_get': 'read',
+        'this_form_post': 'edit',
+    }
+    base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
+
+class CustomResetPasswordView(ResetPasswordView):
+    """Customize permission names for FAB's builtin ResetPasswordView."""
+
+    class_permission_name = permissions.RESOURCE_PASSWORD
+    method_permission_name = {
+        'this_form_get': 'read',
+        'this_form_post': 'edit',
+    }
+
+    base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
+
+class CustomRoleModelView(RoleModelView):
+    """Customize permission names for FAB's builtin RoleModelView."""
+
+    class_permission_name = permissions.RESOURCE_ROLE
+    method_permission_name = {
+        'delete': 'delete',
+        'download': 'read',
+        'show': 'read',
+        'list': 'read',
+        'edit': 'edit',
+        'add': 'create',
+        'copy_role': 'create',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+    ]
+
+
+class CustomViewMenuModelView(ViewMenuModelView):
+    """Customize permission names for FAB's builtin ViewMenuModelView."""
+
+    class_permission_name = permissions.RESOURCE_VIEW_MENU
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserDBModelView(UserDBModelView):
+    """Customize permission names for FAB's builtin UserDBModelView."""
+
+    _class_permission_name = permissions.RESOURCE_USER
+
+    class_permission_name_mapping = {
+        'resetmypassword': permissions.RESOURCE_MY_PASSWORD,
+        'resetpasswords': permissions.RESOURCE_PASSWORD,
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE,
+    }
+
+    method_permission_name = {
+        'add': 'create',
+        'userinfo': 'read',
+        'download': 'read',
+        'show': 'read',
+        'list': 'read',
+        'edit': 'edit',
+        'resetmypassword': 'read',
+        'resetpasswords': 'read',
+        'userinfoedit': 'edit',
+        'delete': 'delete',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+    ]
+
+    @property
+    def class_permission_name(self):
+        """Returns appropriate permission name depending on request method name."""
+        if request:
+            action_name = request.view_args.get("name")
+            _, method_name = request.url_rule.endpoint.split(".")
+            if method_name == 'action' and action_name:
+                return self.class_permission_name_mapping.get(action_name, self._class_permission_name)
+            if method_name:
+                return self.class_permission_name_mapping.get(method_name, self._class_permission_name)
+
+        return self._class_permission_name
+
+    @class_permission_name.setter
+    def class_permission_name(self, name):
+        self._class_permission_name = name
+
+
+class CustomUserInfoEditView(UserInfoEditView):
+    """Customize permission names for FAB's builtin UserInfoEditView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    route_base = "/userinfoeditview"
+    method_permission_name = {
+        'this_form_get': 'read',
+        'this_form_post': 'edit',
+    }
+    base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
+
+class CustomUserStatsChartView(UserStatsChartView):
+    """Customize permission names for FAB's builtin UserStatsChartView."""
+
+    class_permission_name = permissions.RESOURCE_USER_STATS_CHART
+    route_base = "/userstatschartview"
+    method_permission_name = {
+        'chart': 'read',
+    }
+    base_permissions = [permissions.ACTION_CAN_READ]
+
+
+class CustomUserLDAPModelView(UserLDAPModelView):
+    """Customize permission names for FAB's builtin UserLDAPModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserOAuthModelView(UserOAuthModelView):
+    """Customize permission names for FAB's builtin UserOAuthModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserOIDModelView(UserOIDModelView):
+    """Customize permission names for FAB's builtin UserOIDModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserRemoteUserModelView(UserRemoteUserModelView):
+    """Customize permission names for FAB's builtin UserRemoteUserModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]

@@ -18,7 +18,10 @@
 from distutils.util import strtobool
 from typing import Any, Dict, Iterable, List, Mapping, Optional, SupportsAbs, Union
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -250,11 +253,13 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     :type table: str
     :param conn_id: the connection ID used to connect to the database.
     :type conn_id: str
-    :param database: name of database which overwrite the defined one in connection
-    :type database: str
+    :param database: name of database which will overwrite the defined one in connection
+    :type database: Optional[str]
     :param days_back: number of days between ds and the ds we want to check
         against. Defaults to 7 days
-    :type days_back: int
+    :type days_back: Optional[int]
+    :param date_filter_column: The column name for the dates to filter on. Defaults to 'ds'
+    :type date_filter_column: Optional[str]
     :param ratio_formula: which formula to use to compute the ratio between
         the two metrics. Assuming cur is the metric of today and ref is
         the metric to today - days_back.
@@ -266,8 +271,8 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     :type ratio_formula: str
     :param ignore_zero: whether we should ignore zero metrics
     :type ignore_zero: bool
-    :param metrics_threshold: a dictionary of ratios indexed by metrics
-    :type metrics_threshold: dict
+    :param metrics_thresholds: a dictionary of ratios indexed by metrics
+    :type metrics_thresholds: dict
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
@@ -276,6 +281,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
+    template_fields_renderers = {"sql1": "sql", "sql2": "sql"}
     ui_color = "#fff7e6"
 
     ratio_formulas = {

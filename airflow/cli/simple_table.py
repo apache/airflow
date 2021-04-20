@@ -32,10 +32,13 @@ from airflow.utils.platform import is_tty
 class AirflowConsole(Console):
     """Airflow rich console"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, show_header: bool = True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Set the width to constant to pipe whole output from console
         self._width = 200 if not is_tty() else self._width
+
+        # If show header in tables
+        self.show_header = show_header
 
     def print_as_json(self, data: Dict):
         """Renders dict as json text representation"""
@@ -53,9 +56,7 @@ class AirflowConsole(Console):
             self.print("No data found")
             return
 
-        table = SimpleTable(
-            show_header=True,
-        )
+        table = SimpleTable(show_header=self.show_header)
         for col in data[0].keys():
             table.add_column(col)
 
@@ -126,5 +127,5 @@ class SimpleTable(Table):
 
     def add_column(self, *args, **kwargs) -> None:  # pylint: disable=signature-differs
         """Add a column to the table. We use different default"""
-        kwargs["overflow"] = kwargs.get("overflow", None)  # to avoid truncating
+        kwargs["overflow"] = kwargs.get("overflow")  # to avoid truncating
         super().add_column(*args, **kwargs)

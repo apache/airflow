@@ -20,11 +20,6 @@
 {% extends "airflow/dag.html" %}
 {% block page_title %}{{ dag.dag_id }} - Tree - {{ appbuilder.app_name }}{% endblock %}
 
-{% block head_meta %}
-  {{ super() }}
-  <meta name="blur" content="{{ blur }}">
-{% endblock %}
-
 {% block head_css %}
   {{ super() }}
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('tree.css') }}">
@@ -80,11 +75,7 @@
   <hr>
   <div id="svg_container">
     <img id='loading' width="50" src="{{ url_for('static', filename='loading.gif') }}">
-    <svg id="tree-svg" class='tree' width="100%">
-      <filter id="blur-effect-1">
-        <feGaussianBlur stdDeviation="3"></feGaussianBlur>
-      </filter>
-    </svg>
+    <svg id="tree-svg" class='tree' width="100%"></svg>
   </div>
 {% endblock %}
 

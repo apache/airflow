@@ -56,7 +56,7 @@ Package apache-airflow-providers-hashicorp
 Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
 
-Release: 1.0.1
+Release: 1.0.2
 
 Provider package
 ----------------
@@ -92,7 +92,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified backport providers package in order to use them.
+You need to install the specified provider packages in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -127,6 +127,14 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+1.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deprecated warning hvac auth (#15216)``
 
 1.0.1
 .....

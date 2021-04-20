@@ -57,6 +57,7 @@ class SSHOperator(BaseOperator):
 
     template_fields = ('command', 'remote_host')
     template_ext = ('.sh',)
+    template_fields_renderers = {"command": "bash"}
 
     @apply_defaults
     def __init__(

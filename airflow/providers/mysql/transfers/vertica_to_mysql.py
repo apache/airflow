@@ -60,6 +60,10 @@ class VerticaToMySqlOperator(BaseOperator):
 
     template_fields = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
     template_ext = ('.sql',)
+    template_fields_renderers = {
+        "mysql_preoperator": "sql",
+        "mysql_postoperator": "sql",
+    }
     ui_color = '#a0e08c'
 
     @apply_defaults

@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import contextlib
-import getpass
 import hashlib
 import logging
 import math
@@ -68,6 +67,7 @@ from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import State
@@ -272,7 +272,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     hostname = Column(String(1000))
     unixname = Column(String(1000))
     job_id = Column(Integer)
-    pool = Column(String(50), nullable=False)
+    pool = Column(String(256), nullable=False)
     pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
     priority_weight = Column(Integer)
@@ -327,7 +327,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.execution_date = execution_date
 
         self.try_number = 0
-        self.unixname = getpass.getuser()
+        self.unixname = getuser()
         if state:
             self.state = state
         self.hostname = ''
@@ -2155,8 +2155,6 @@ class SimpleTaskInstance:
 STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    # Let pylint know about these relationships, without introducing an import cycle
-    from sqlalchemy.orm import relationship
 
     from airflow.job.base_job import BaseJob
     from airflow.models.dagrun import DagRun

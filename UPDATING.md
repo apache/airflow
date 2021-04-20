@@ -27,8 +27,10 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Master](#master)
+- [Airflow 2.0.2](#airflow-202)
 - [Airflow 2.0.1](#airflow-201)
 - [Airflow 2.0.0](#airflow-200)
+- [Airflow 1.10.15](#airflow-11015)
 - [Airflow 1.10.14](#airflow-11014)
 - [Airflow 1.10.13](#airflow-11013)
 - [Airflow 1.10.12](#airflow-11012)
@@ -69,6 +71,38 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Removed pod_launcher from core airflow
+
+Moved the pod launcher from `airflow.kubernetes.pod_launcher` to `airflow.providers.cncf.kubernetes.utils.pod_launcher`
+
+This will allow users to update the pod_launcher for the KubernetesPodOperator without requiring an airflow upgrade
+
+### Default `[webserver] worker_refresh_interval` is changed to `6000` seconds
+
+The default value for `[webserver] worker_refresh_interval` was `30` seconds for
+Airflow <=2.0.1. However, since Airflow 2.0 DAG Serialization is a hard requirement
+and the Webserver used the serialized DAGs, there is no need to kill an existing
+worker and create a new one as frequently as `30` seconds.
+
+This setting can be raised to an even higher value, currently it is
+set to `6000` seconds (10 minutes) to
+serve as a DagBag cache burst time.
+
+### `default_queue` configuration has been moved to the `operators` section.
+
+The `default_queue` configuration option has been moved from `[celery]` section to `[operators]` section to allow for re-use between different executors.
+
+## Airflow 2.0.2
+
+### Default `[kubernetes] enable_tcp_keepalive` is changed to `True`
+
+This allows Airflow to work more reliably with some environments (like Azure) by default.
+
+### `sync-perm` CLI no longer syncs DAG specific permissions by default
+
+The `sync-perm` CLI command will no longer sync DAG specific permissions by default as they are now being handled during
+DAG parsing. If you need or want the old behavior, you can pass `--include-dags` to have `sync-perm` also sync DAG
+specific permissions.
 
 ## Airflow 2.0.1
 
@@ -208,7 +242,7 @@ from my_plugin import MyOperator
 
 The name under `airflow.operators.` was the plugin name, where as in the second example it is the python module name where the operator is defined.
 
-See https://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+See https://airflow.apache.org/docs/apache-airflow/stable/howto/custom-operator.html for more info.
 
 ### Importing Hooks via plugins is no longer supported
 
@@ -226,7 +260,7 @@ from my_plugin import MyHook
 
 It is still possible (but not required) to "register" hooks in plugins. This is to allow future support for dynamically populating the Connections form in the UI.
 
-See https://airflow.apache.org/docs/stable/howto/custom-operator.html for more info.
+See https://airflow.apache.org/docs/apache-airflow/stable/howto/custom-operator.html for more info.
 
 ### Adding Operators and Sensors via plugins is no longer supported
 
@@ -1820,6 +1854,10 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 ...
 }
 ```
+
+## Airflow 1.10.15
+
+No breaking changes.
 
 ## Airflow 1.10.14
 

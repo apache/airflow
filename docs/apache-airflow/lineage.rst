@@ -95,3 +95,24 @@ has outlets defined (e.g. by using ``add_outlets(..)`` or has out of the box sup
     f_in > run_this | (run_this_last > outlets)
 
 .. _precedence: https://docs.python.org/3/reference/expressions.html
+
+
+Lineage Backend
+---------------
+
+It's possible to push the lineage metrics to a custom backend by providing an instance of a LinageBackend in the config:
+
+.. code-block:: ini
+
+  [lineage]
+  backend = my.lineage.CustomBackend
+
+The backend should inherit from ``airflow.lineage.LineageBackend``.
+
+.. code-block:: python
+
+  from airflow.lineage.backend import LineageBackend
+
+  class ExampleBackend(LineageBackend):
+    def send_lineage(self, operator, inlets=None, outlets=None, context=None):
+      # Send the info to some external service

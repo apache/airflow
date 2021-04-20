@@ -89,6 +89,8 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     :type uri: str
     """
 
+    EXTRA_KEY = '__extra__'
+
     __tablename__ = "connection"
 
     id = Column(Integer(), primary_key=True)
@@ -161,7 +163,11 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         self.password = unquote(uri_parts.password) if uri_parts.password else uri_parts.password
         self.port = uri_parts.port
         if uri_parts.query:
-            self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
+            query = dict(parse_qsl(uri_parts.query, keep_blank_values=True))
+            if self.EXTRA_KEY in query:
+                self.extra = query[self.EXTRA_KEY]
+            else:
+                self.extra = json.dumps(query)
 
     def get_uri(self) -> str:
         """Return connection in URI format"""
@@ -194,8 +200,15 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
         uri += host_block
 
-        if self.extra_dejson:
-            uri += f'?{urlencode(self.extra_dejson)}'
+        if self.extra:
+            try:
+                query = urlencode(self.extra_dejson)
+            except TypeError:
+                query = None
+            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+                uri += '?' + query
+            else:
+                uri += '?' + urlencode({self.EXTRA_KEY: self.extra})
 
         return uri
 

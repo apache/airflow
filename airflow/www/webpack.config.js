@@ -40,10 +40,10 @@ const config = {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
     dagCode: `${JS_DIR}/dag_code.js`,
-    dags: `${CSS_DIR}/dags.css`,
+    dags: [`${CSS_DIR}/dags.css`, `${JS_DIR}/dags.js`],
     flash: `${CSS_DIR}/flash.css`,
     gantt: [`${CSS_DIR}/gantt.css`, `${JS_DIR}/gantt.js`],
-    graph: `${CSS_DIR}/graph.css`,
+    graph: [`${CSS_DIR}/graph.css`, `${JS_DIR}/graph.js`],
     ie: `${JS_DIR}/ie.js`,
     loadingDots: `${CSS_DIR}/loading-dots.css`,
     main: [`${CSS_DIR}/main.css`, `${JS_DIR}/main.js`],
@@ -52,6 +52,7 @@ const config = {
     switch: `${CSS_DIR}/switch.css`,
     taskInstances: `${JS_DIR}/task_instances.js`,
     taskInstance: `${JS_DIR}/task_instance.js`,
+    tiLog: `${JS_DIR}/ti_log.js`,
     tree: [`${CSS_DIR}/tree.css`, `${JS_DIR}/tree.js`],
     circles: `${JS_DIR}/circles.js`,
     durationChart: `${JS_DIR}/duration_chart.js`,
@@ -162,6 +163,10 @@ const config = {
         },
         {
           from: 'node_modules/dagre-d3/dist/*.min.*',
+          flatten: true,
+        },
+        {
+          from: 'node_modules/d3-shape/dist/*.min.*',
           flatten: true,
         },
         {

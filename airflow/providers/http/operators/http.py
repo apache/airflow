@@ -31,7 +31,8 @@ class SimpleHttpOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SimpleHttpOperator`
 
-    :param http_conn_id: The connection to run the operator against
+    :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run
+        the operator against
     :type http_conn_id: str
     :param endpoint: The relative part of the full url. (templated)
     :type endpoint: str

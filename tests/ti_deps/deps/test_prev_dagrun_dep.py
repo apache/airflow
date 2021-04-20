@@ -111,7 +111,7 @@ class TestPrevDagrunDep(unittest.TestCase):
 
     def test_all_met(self):
         """
-        Test to make sure all of the conditions for the dep are met
+        Test to make sure all the conditions for the dep are met
         """
         task = self._get_task(depends_on_past=True, start_date=datetime(2016, 1, 1), wait_for_downstream=True)
         prev_ti = Mock(state=State.SUCCESS, are_dependents_done=Mock(return_value=True))

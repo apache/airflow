@@ -27,7 +27,7 @@ except ImportError:
     import yaml
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import kube_client, pod_generator, pod_launcher
+from airflow.kubernetes import kube_client, pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.models import BaseOperator
@@ -44,6 +44,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
+from airflow.providers.cncf.kubernetes.utils import pod_launcher
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
@@ -415,7 +416,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     def _set_name(self, name):
         if name is None:
-            return None
+            if self.pod_template_file or self.full_pod_spec:
+                return None
+            raise AirflowException("`name` is required unless `pod_template_file` or `full_pod_spec` is set")
+
         validate_key(name, max_length=220)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
 

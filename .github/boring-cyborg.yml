@@ -42,8 +42,12 @@ labelPRBasedOnFilePath:
   provider:Snowflake:
     - airflow/providers/snowflake/**/*
     - docs/howto/operator/snowflake/*
-    - tests/providers/snowflake/*
     - tests/providers/snowflake/**/*
+
+  area:providers:
+    - airflow/providers/**/*
+    - docs/apache-airflow-providers-*/**/*
+    - tests/providers/**/*
 
   area:kubernetes:
     - airflow/**/kubernetes_*.py
@@ -52,9 +56,12 @@ labelPRBasedOnFilePath:
     - airflow/providers/cncf/kubernetes/**/*
     - airflow/kubernetes/**/*
     - airflow/kubernetes_executor_templates/**/*
+    - airflow/executors/kubernetes_executor.py
+    - airflow/executors/celery_kubernetes_executor.py
     - docs/apache-airflow/executor/kubernetes.rst
     - docs/apache-airflow/executor/celery_kubernetes.rst
     - docs/apache-airflow-providers-cncf-kubernetes/**/*
+    - kubernetes_tests/**/*
 
   area:API:
     - airflow/api/**/*
@@ -89,7 +96,6 @@ labelPRBasedOnFilePath:
     - .pre-commit-config.yaml
     - .rat-excludes
     - .readthedocs.yml
-    - .travis.yml
     - airflow/www/.eslintignore
     - airflow/www/.eslintrc
     - airflow/www/.stylelintignore
@@ -104,10 +110,8 @@ labelPRBasedOnFilePath:
   area:Webserver:
     - airflow/cli/commands/webserver_command.py
     - airflow/www/**/*
-    - airflow/www_rbac/**/*
     - tests/cli/commands/test_webserver_command.py
     - tests/www/**/*
-    - tests/www_rbac/**/*
 
   area:UI:
     - airflow/www/static/**/*
@@ -121,6 +125,7 @@ labelPRBasedOnFilePath:
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
+    - airflow/ui/**/*
 
   area:CLI:
     - airflow/bin/cli.py
@@ -171,6 +176,16 @@ labelPRBasedOnFilePath:
     - tests/serialization/**/*
     - tests/models/test_serialized_dag.py
     - docs/apache-airflow/dag-serialization.rst
+
+  area:core-operators:
+    - airflow/operators/**/*
+    - airflow/hooks/**/*
+    - airflow/sensors/**/*
+    - tests/operators/**/*
+    - tests/hooks/**/*
+    - tests/sensors/**/*
+    - docs/apache-airflow/operators-and-hooks-ref.rst
+    - docs/apache-airflow/howto/operator/*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:

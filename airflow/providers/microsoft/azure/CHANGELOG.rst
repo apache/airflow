@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``A bunch of template_fields_renderers additions (#15130)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Fix attributes for AzureDataFactory hook (#14704)``
+
 1.2.0
 .....
 
@@ -31,6 +44,7 @@ Bug fixes
 ~~~~~~~~~
 
 * ``BugFix: Fix remote log in azure storage blob displays in one line (#14313)``
+* ``Fix AzureDataFactoryHook failing to instantiate its connection (#14565)``
 
 1.1.0
 .....

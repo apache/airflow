@@ -56,7 +56,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-@pytest.mark.heisentests
 class TestBackfillJob(unittest.TestCase):
     def _get_dummy_dag(self, dag_id, pool=Pool.DEFAULT_POOL_NAME, task_concurrency=None):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
@@ -809,6 +808,7 @@ class TestBackfillJob(unittest.TestCase):
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    @pytest.mark.quarantined
     def test_backfill_depends_on_past(self):
         """
         Test that backfill respects ignore_depends_on_past

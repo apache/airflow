@@ -33,6 +33,7 @@ import kubernetes
 from dateutil import parser
 from kubernetes import client, watch
 from kubernetes.client import Configuration, models as k8s
+from kubernetes.client.models import V1Pod
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
@@ -43,9 +44,9 @@ from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.kube_config import KubeConfig
 from airflow.kubernetes.kubernetes_helper_functions import create_pod_id
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.models import TaskInstance
 from airflow.models.taskinstance import TaskInstanceKey
+from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -194,10 +195,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         """Process status response"""
         if status == 'Pending':
             if event['type'] == 'DELETED':
-                self.log.info('Event: Failed to start pod %s, will reschedule', pod_id)
-                self.watcher_queue.put(
-                    (pod_id, namespace, State.UP_FOR_RESCHEDULE, annotations, resource_version)
-                )
+                self.log.info('Event: Failed to start pod %s', pod_id)
+                self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
             else:
                 self.log.info('Event: %s Pending', pod_id)
         elif status == 'Failed':
@@ -239,11 +238,28 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.namespace = self.kube_config.kube_namespace
         self.log.debug("Kubernetes using namespace %s", self.namespace)
         self.kube_client = kube_client
-        self.launcher = PodLauncher(kube_client=self.kube_client)
         self._manager = multiprocessing.Manager()
         self.watcher_queue = self._manager.Queue()
         self.scheduler_job_id = scheduler_job_id
         self.kube_watcher = self._make_kube_watcher()
+
+    def run_pod_async(self, pod: V1Pod, **kwargs):
+        """Runs POD asynchronously"""
+        pod_mutation_hook(pod)
+
+        sanitized_pod = self.kube_client.api_client.sanitize_for_serialization(pod)
+        json_pod = json.dumps(sanitized_pod, indent=2)
+
+        self.log.debug('Pod Creation Request: \n%s', json_pod)
+        try:
+            resp = self.kube_client.create_namespaced_pod(
+                body=sanitized_pod, namespace=pod.metadata.namespace, **kwargs
+            )
+            self.log.debug('Pod Creation Response: %s', resp)
+        except Exception as e:
+            self.log.exception('Exception when attempting to create Namespaced Pod: %s', json_pod)
+            raise e
+        return resp
 
     def _make_kube_watcher(self) -> KubernetesJobWatcher:
         resource_version = ResourceVersion().resource_version
@@ -307,7 +323,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.debug("Kubernetes launching image %s", pod.spec.containers[0].image)
 
         # the watcher will monitor pods, so we do not block.
-        self.launcher.run_pod_async(pod, **self.kube_config.kube_client_request_args)
+        self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
         self.log.debug("Kubernetes Job created!")
 
     def delete_pod(self, pod_id: str, namespace: str) -> None:
@@ -498,7 +514,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             return
 
         if executor_config:
-            pod_template_file = executor_config.get("pod_template_override", None)
+            pod_template_file = executor_config.get("pod_template_file", None)
         else:
             pod_template_file = None
         if not self.task_queue:
@@ -578,7 +594,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             if self.kube_config.delete_worker_pods:
                 if not self.kube_scheduler:
                     raise AirflowException(NOT_STARTED_MESSAGE)
-                if state is not State.FAILED or self.kube_config.delete_worker_pods_on_failure:
+                if state != State.FAILED or self.kube_config.delete_worker_pods_on_failure:
                     self.kube_scheduler.delete_pod(pod_id, namespace)
                     self.log.info('Deleted pod: %s in namespace %s', str(key), str(namespace))
             try:

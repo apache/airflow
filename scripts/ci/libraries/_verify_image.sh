@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 function verify_image::run_command_in_image() {
-    docker run --rm \
+    docker_v run --rm \
             -e COLUMNS=180 \
             --entrypoint /bin/bash "${DOCKER_IMAGE}" \
             -c "${@}"
@@ -83,7 +83,7 @@ function verify_image::verify_prod_image_has_airflow_and_providers() {
 function verify_image::verify_ci_image_dependencies() {
     start_end::group_start "Checking if Airflow dependencies are non-conflicting in ${DOCKER_IMAGE} image."
     set +e
-    docker run --rm --entrypoint /bin/bash "${DOCKER_IMAGE}" -c 'pip check'
+    docker_v run --rm --entrypoint /bin/bash "${DOCKER_IMAGE}" -c 'pip check'
     local res=$?
     if [[ ${res} != "0" ]]; then
         echo  "${COLOR_RED}ERROR: ^^^ Some dependencies are conflicting. See instructions below on how to deal with it.  ${COLOR_RESET}"
@@ -98,6 +98,15 @@ function verify_image::verify_ci_image_dependencies() {
     set -e
     start_end::group_end
 }
+
+function verify_image::verify_ci_image_has_dist_folder() {
+    start_end::group_start "Verify CI image dist folder (compiled www assets): ${DOCKER_IMAGE}"
+
+    verify_image::check_command "Dist folder" '[ -f /opt/airflow/airflow/www/static/dist/manifest.json ] || exit 1'
+
+    start_end::group_end
+}
+
 
 function verify_image::verify_prod_image_dependencies() {
     start_end::group_start "Checking if Airflow dependencies are non-conflicting in ${DOCKER_IMAGE} image."
@@ -203,7 +212,7 @@ function verify_image::verify_prod_image_as_root() {
     echo "Checking airflow as root"
     local output
     local res
-    output=$(docker run --rm --user 0 "${DOCKER_IMAGE}" "airflow" "info" 2>&1)
+    output=$(docker_v run --rm --user 0 "${DOCKER_IMAGE}" "airflow" "info" 2>&1)
     res=$?
     if [[ ${res} == "0" ]]; then
         echo "${COLOR_GREEN}OK${COLOR_RESET}"
@@ -220,7 +229,7 @@ function verify_image::verify_prod_image_as_root() {
     tmp_dir="$(mktemp -d)"
     touch "${tmp_dir}/__init__.py"
     echo 'print("Awesome")' >> "${tmp_dir}/awesome.py"
-    output=$(docker run \
+    output=$(docker_v run \
         --rm \
         -e "PYTHONPATH=${tmp_dir}" \
         -v "${tmp_dir}:${tmp_dir}" \
@@ -239,6 +248,14 @@ function verify_image::verify_prod_image_as_root() {
     fi
     rm -rf "${tmp_dir}"
     set -e
+}
+
+function verify_image::verify_production_image_has_dist_folder() {
+    start_end::group_start "Verify prod image has dist folder (compiled www assets): ${DOCKER_IMAGE}"
+    # shellcheck disable=SC2016
+    verify_image::check_command "Dist folder" '[ -f $(python -m site --user-site)/airflow/www/static/dist/manifest.json ] || exit 1'
+
+    start_end::group_end
 }
 
 function verify_image::display_result {
@@ -265,6 +282,8 @@ function verify_image::verify_prod_image {
 
     verify_image::verify_prod_image_as_root
 
+    verify_image::verify_production_image_has_dist_folder
+
     verify_image::display_result
 }
 
@@ -272,6 +291,8 @@ function verify_image::verify_ci_image {
     IMAGE_VALID="true"
     DOCKER_IMAGE="${1}"
     verify_image::verify_ci_image_dependencies
+
+    verify_image::verify_ci_image_has_dist_folder
 
     verify_image::display_result
 }

@@ -160,10 +160,11 @@
         },
         "executor": {
             "description": "Airflow executor.",
-            "type": "string"
+            "type": "string",
+            "enum": ["LocalExecutor", "CeleryExecutor", "KubernetesExecutor", "CeleryKubernetesExecutor"]
         },
         "allowPodLaunching": {
-            "description": "If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheduler's service account will have access to communicate with the api-server and launch pods. If this is true and using the CeleryExecutor, the workers will be able to launch pods.",
+            "description": "If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's service account will have access to communicate with the api-server and launch pods. \nIf this is true and using the CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers will be able to launch pods.",
             "type": "boolean"
         },
         "images": {
@@ -191,7 +192,8 @@
                         },
                         "pullPolicy": {
                             "description": "The airflow image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -215,7 +217,8 @@
                         },
                         "pullPolicy": {
                             "description": "The pod_template image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -239,7 +242,8 @@
                         },
                         "pullPolicy": {
                             "description": "The flower image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -257,7 +261,8 @@
                         },
                         "pullPolicy": {
                             "description": "The statsd image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -275,43 +280,46 @@
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
                 "pgbouncer": {
-                    "description": "Configuration of the pgbouncer image.",
+                    "description": "Configuration of the PgBouncer image.",
                     "type": "object",
                     "properties": {
                         "repository": {
-                            "description": "The pgbouncer image repository.",
+                            "description": "The PgBouncer image repository.",
                             "type": "string"
                         },
                         "tag": {
-                            "description": "The pgbouncer image tag.",
+                            "description": "The PgBouncer image tag.",
                             "type": "string"
                         },
                         "pullPolicy": {
-                            "description": "The pgbouncer image pull policy.",
-                            "type": "string"
+                            "description": "The PgBouncer image pull policy.",
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
                 "pgbouncerExporter": {
-                    "description": "Configuration of the pgbouncerExporter image.",
+                    "description": "Configuration of the PgBouncer exporter image.",
                     "type": "object",
                     "properties": {
                         "repository": {
-                            "description": "The pgbouncerExporter image repository.",
+                            "description": "The PgBouncer exporter image repository.",
                             "type": "string"
                         },
                         "tag": {
-                            "description": "The pgbouncerExporter image tag.",
+                            "description": "The PgBouncer exporter image tag.",
                             "type": "string"
                         },
                         "pullPolicy": {
-                            "description": "The pgbouncerExporter image pull policy.",
-                            "type": "string"
+                            "description": "The PgBouncer exporter image pull policy.",
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 },
@@ -329,7 +337,8 @@
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["Always", "Never", "IfNotPresent"]
                         }
                     }
                 }
@@ -551,6 +560,10 @@
                     "description": "Number of airflow celery workers in StatefulSet.",
                     "type": "integer"
                 },
+                "updateStrategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones.",
+                    "type": "object"
+                },
                 "keda": {
                     "description": "KEDA configuration.",
                     "type": "object",
@@ -631,6 +644,10 @@
                   "description": "Annotations to add to the worker kubernetes service account.",
                   "type": "object"
                 },
+                "extraContainers": {
+                    "description": "Launch additional containers into workers.",
+                    "type": "array"
+                },
                 "extraVolumes": {
                     "description": "Mount additional volumes into workers.",
                     "type": "array"
@@ -653,6 +670,10 @@
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "array"
+                },
+                "hostAliases": {
+                    "description": "Specify hostAliases for workers.",
+                    "type": "array"
                 }
             }
         },
@@ -661,6 +682,29 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "livenessProbe": {
+                    "description": "Liveness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Scheduler Liveness probe initial delay.",
+                            "type": "integer"
+                        },
+                        "timeoutSeconds": {
+                            "description": "Scheduler Liveness probe timeout seconds.",
+                            "type": "integer"
+                        },
+                        "failureThreshold": {
+                            "description": "Scheduler Liveness probe failure threshold.",
+                            "type": "integer"
+                        },
+                        "periodSeconds": {
+                            "description": "Webserver Liveness probe period seconds.",
+                            "type": "integer"
+                        }
+                    }
+                },
                 "replicas": {
                   "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
                   "type": "integer"
@@ -704,6 +748,10 @@
                 "serviceAccountAnnotations": {
                   "description": "Annotations to add to the scheduler kubernetes service account.",
                   "type": "object"
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into scheduler.",
+                    "type": "array"
                 },
                 "extraVolumes": {
                     "description": "Mount additional volumes into scheduler.",
@@ -830,6 +878,10 @@
                             "type": "string"
                         }
                     }
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into webserver.",
+                    "type": "array"
                 },
                 "extraVolumes": {
                     "description": "Mount additional volumes into webserver.",
@@ -1019,6 +1071,13 @@
                 "maxClientConn": {
                     "description": "Maximum clients that can connect to pgbouncer (higher = more file descriptors).",
                     "type": "integer"
+                },
+                "configSecretName": {
+                    "description": "The PgBouncer config secret name.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
                 },
                 "podDisruptionBudget": {
                     "description": "Pgbouner pod disruption budget.",
@@ -1369,7 +1428,8 @@
                         },
                         "accessMode": {
                             "description": "Access mode of the persistent volume.",
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
@@ -1387,6 +1447,10 @@
                     "properties": {
                         "enabled": {
                             "description": "Enable Git sync.",
+                            "type": "boolean"
+                        },
+                        "excludeWebserver": {
+                            "description": "Disable Git sync on webserver as it is not needed when DAG Serialization is enabled.",
                             "type": "boolean"
                         },
                         "repo": {
@@ -1432,6 +1496,10 @@
                         "uid": {
                             "description": "Git sync container run as user parameter.",
                             "type": "integer"
+                        },
+                        "extraVolumeMounts": {
+                            "description": "Mount additional volumes into git sync container.",
+                            "type": "array"
                         },
                         "credentialsSecret": {
                             "description": "TODO",
