@@ -27,20 +27,8 @@ The Slack connection type enables Slack Integrations.
 Authenticating to Slack
 -----------------------
 
-There are three ways to connect to Azure using Airflow.
-
-1. Use `token credentials
-   <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
-   i.e. add specific credentials (client_id, secret, tenant) and subscription id to the Airflow connection.
-2. Use a `JSON file
-   <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-a-json-file>`_
-   i.e. create a key file on disk and link to it in the Airflow connection.
-3. Use a `JSON dictionary
-   <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-a-json-dictionary>`_
-   i.e. add a key config directly into the Airflow connection.
-
-Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
-configure multiple connections.
+Authenticate to Slack using a `Slack API token
+<https://slack.com/help/articles/215770388-Create-and-regenerate-API-tokens>`_.
 
 Default Connection IDs
 ----------------------
@@ -50,26 +38,8 @@ The SlackHook and SlackAPIOperator use ``slack_default`` by default.
 Configuring the Connection
 --------------------------
 
-Login (optional)
-    Specify the ``client_id`` used for the initial connection.
-    This is only needed for *token credentials* authentication mechanism.
-
 Password (optional)
-    Specify the ``secret`` used for the initial connection.
-    This is only needed for *token credentials* authentication mechanism.
-
-Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in slack connection.
-    The following parameters are all optional:
-
-    * ``tenantId``: Specify the tenant to use.
-      This is only needed for *token credentials* authentication mechanism.
-    * ``subscriptionId``: Specify the subscription id to use.
-      This is only needed for *token credentials* authentication mechanism.
-    * ``key_path``: If set, it uses the *JSON file* authentication mechanism.
-      It specifies the path to the json file that contains the authentication information.
-    * ``key_json``: If set, it uses the *JSON dictionary* authentication mechanism.
-      It specifies the json that contains the authentication information.
+    Specify the Slack API token.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -80,4 +50,4 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_AZURE_DEFAULT='azure://?key_path=%2Fkeys%2Fkey.json'
+   export AIRFLOW_CONN_SLACK_DEFAULT='slack://:token@'

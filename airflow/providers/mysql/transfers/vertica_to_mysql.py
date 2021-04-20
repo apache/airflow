@@ -40,7 +40,7 @@ class VerticaToMySqlOperator(BaseOperator):
     :param mysql_table: target MySQL table, use dot notation to target a
         specific database. (templated)
     :type mysql_table: str
-    :param mysql_conn_id: source mysql connection
+    :param mysql_conn_id: :ref:Reference to `mysql connection id<howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param mysql_preoperator: sql statement to run against MySQL prior to
         import, typically use to truncate of delete in place of the data
