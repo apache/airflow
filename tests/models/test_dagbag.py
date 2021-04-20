@@ -35,11 +35,13 @@ from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
+from airflow.www.security import ApplessAirflowSecurityManager
 from tests import cluster_policies
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
+from tests.test_utils.permissions import delete_dag_specific_permissions
 
 
 class TestDagBag(unittest.TestCase):
@@ -689,40 +691,57 @@ class TestDagBag(unittest.TestCase):
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.www.security.ApplessAirflowSecurityManager")
-    def test_sync_to_db_handles_dag_specific_permissions(self, mock_security_manager):
+    @freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0), as_kwarg="frozen_time")
+    def test_sync_to_db_handles_dag_specific_permissions_fixed(self, mock_security_manager, frozen_time):
         """
-        Test that when dagbag.sync_to_db is called new DAGs and updates DAGs have their
-        DAG specific permissions synced
+        Test that when dagbag.sync_to_db is called, DAG specific permissions are
+        created as needed
         """
+        delete_dag_specific_permissions()
         with create_session() as session:
+            security_manager = ApplessAirflowSecurityManager(session)
+            mock_sync_perm_for_dag = mock_security_manager.return_value.sync_perm_for_dag
+            mock_sync_perm_for_dag.side_effect = security_manager.sync_perm_for_dag
+
+            def _sync_to_db():
+                mock_sync_perm_for_dag.reset_mock()
+                frozen_time.tick(20)
+                dagbag.sync_to_db(session=session)
+
             # New DAG
             dagbag = DagBag(
                 dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
                 include_examples=False,
             )
-            with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)):
-                dagbag.sync_to_db(session=session)
-
-            mock_security_manager.return_value.sync_perm_for_dag.assert_called_once_with(
-                "test_example_bash_operator", None
-            )
-
-            # DAG is updated
-            mock_security_manager.reset_mock()
-            dagbag.dags["test_example_bash_operator"].tags = ["new_tag"]
-            with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 20)):
-                dagbag.sync_to_db(session=session)
-
-            mock_security_manager.return_value.sync_perm_for_dag.assert_called_once_with(
-                "test_example_bash_operator", None
-            )
+            dag = dagbag.dags["test_example_bash_operator"]
+            _sync_to_db()
+            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
 
             # DAG isn't updated
-            mock_security_manager.reset_mock()
-            with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 40)):
-                dagbag.sync_to_db(session=session)
+            _sync_to_db()
+            mock_sync_perm_for_dag.assert_not_called()
 
-            mock_security_manager.return_value.sync_perm_for_dag.assert_not_called()
+            # DAG is updated; permviews exist
+            dag.tags = ["new_tag"]
+            _sync_to_db()
+            mock_sync_perm_for_dag.assert_not_called()
+
+            # DAG is updated; permviews don't exist
+            delete_dag_specific_permissions()
+            dag.tags = ["new_tag2"]
+            _sync_to_db()
+            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
+
+            # Always sync after update if we have access_control
+            dag.access_control = {"Public": {"can_read"}}
+            _sync_to_db()
+            mock_sync_perm_for_dag.assert_called_once_with(
+                "test_example_bash_operator", {"Public": {"can_read"}}
+            )
+
+            # No update with access_control
+            _sync_to_db()
+            mock_sync_perm_for_dag.assert_not_called()
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)

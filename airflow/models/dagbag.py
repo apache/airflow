@@ -545,11 +545,30 @@ class DagBag(LoggingMixin):
                     session=session,
                 )
                 if dag_was_updated:
-                    self.log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
-                    from airflow.www.security import ApplessAirflowSecurityManager
+                    from flask_appbuilder.security.sqla import models as sqla_models
 
-                    security_manager = ApplessAirflowSecurityManager(session=session)
-                    security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
+                    from airflow.security.permissions import DAG_PERMS, prefixed_dag_id
+
+                    def needs_perm_views(dag_id: str) -> bool:
+                        view_menu_name = prefixed_dag_id(dag_id)
+                        for permission_name in DAG_PERMS:
+                            if not (
+                                session.query(sqla_models.PermissionView)
+                                .join(sqla_models.Permission)
+                                .join(sqla_models.ViewMenu)
+                                .filter(sqla_models.Permission.name == permission_name)
+                                .filter(sqla_models.ViewMenu.name == view_menu_name)
+                                .one_or_none()
+                            ):
+                                return True
+                        return False
+
+                    if dag.access_control or needs_perm_views(dag.dag_id):
+                        self.log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
+                        from airflow.www.security import ApplessAirflowSecurityManager
+
+                        security_manager = ApplessAirflowSecurityManager(session=session)
+                        security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
                 return []
             except OperationalError:
                 raise

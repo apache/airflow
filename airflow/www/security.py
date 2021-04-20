@@ -143,7 +143,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     DAG_VMS = {permissions.RESOURCE_DAG}
 
     READ_DAG_PERMS = {permissions.ACTION_CAN_READ}
-    DAG_PERMS = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
+    DAG_PERMS = permissions.DAG_PERMS
 
     ###########################################################################
     #                     DEFAULT ROLE CONFIGURATIONS
@@ -362,12 +362,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     def prefixed_dag_id(self, dag_id):
         """Returns the permission name for a DAG id."""
-        if dag_id == permissions.RESOURCE_DAG:
-            return dag_id
-
-        if dag_id.startswith(permissions.RESOURCE_DAG_PREFIX):
-            return dag_id
-        return f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}"
+        return permissions.prefixed_dag_id(dag_id)
 
     def is_dag_resource(self, resource_name):
         """Determines if a permission belongs to a DAG or all DAGs."""
