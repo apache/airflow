@@ -43,12 +43,12 @@ class SqlSensor(BaseSensorOperator):
     :type parameters: dict or iterable
     :param success: Success criteria for the sensor is a Callable that takes first_cell
         as the only argument, and returns a boolean (optional).
-    :type: success: Optional<Callable[[Any], bool]>
+    :type success: Optional<Callable[[Any], bool]>
     :param failure: Failure criteria for the sensor is a Callable that takes first_cell
         as the only argument and return a boolean (optional).
-    :type: failure: Optional<Callable[[Any], bool]>
+    :type failure: Optional<Callable[[Any], bool]>
     :param fail_on_empty: Explicitly fail on no rows returned.
-    :type: fail_on_empty: bool
+    :type fail_on_empty: bool
     """
 
     template_fields: Iterable[str] = ('sql',)
