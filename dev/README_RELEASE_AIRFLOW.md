@@ -705,7 +705,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    ./breeze build-docs -- --package-filter apache-airflow --for-production
+    ./breeze build-docs -- --package-filter apache-airflow --package-filter docker-stack --for-production
     ```
 
 - Now you can preview the documentation.
@@ -717,7 +717,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 - Copy the documentation to the ``airflow-site`` repository, create commit and push changes.
 
     ```shell script
-    ./docs/publish_docs.py --package apache-airflow
+    ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
     cd "${AIRFLOW_SITE_DIRECTORY}"
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
