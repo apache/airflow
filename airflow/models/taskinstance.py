@@ -1168,7 +1168,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             self.refresh_from_db()
             # for case when task is marked as success/failed externally
             # current behavior doesn't hit the success callback
-            if self.state == State.SUCCESS:
+            if self.state in {State.SUCCESS, State.FAILED}:
                 return
             else:
                 self.handle_failure(e, test_mode, error_file=error_file)
@@ -1359,7 +1359,13 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         NOTE: Only invoke this function from caller of self._run_raw_task or
         self.run
         """
-        if self.state == State.SUCCESS:
+        if self.state == State.FAILED:
+            task = self.task
+            if task.on_failure_callback is not None:
+                context = self.get_template_context()
+                context["exception"] = error
+                task.on_failure_callback(context)
+        elif self.state == State.SUCCESS:
             task = self.task
             if task.on_success_callback is not None:
                 context = self.get_template_context()
@@ -1370,15 +1376,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 context = self.get_template_context()
                 context["exception"] = error
                 task.on_retry_callback(context)
-
-    def _run_failure_callback(self, error: Optional[Union[str, Exception]] = None) -> None:
-        """Call failure callback when there's exception or task failure"""
-        if self.state == State.FAILED:
-            task = self.task
-            if task.on_failure_callback is not None:
-                context = self.get_template_context()
-                context["exception"] = error
-                task.on_failure_callback(context)
 
     @provide_session
     def run(  # pylint: disable=too-many-arguments
@@ -1539,7 +1536,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             except Exception as exec2:  # pylint: disable=broad-except
                 self.log.error('Failed to send email to: %s', task.email)
                 self.log.exception(exec2)
-        self._run_failure_callback(error=error)
+
         if not test_mode:
             session.merge(self)
         session.commit()

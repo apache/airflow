@@ -520,7 +520,6 @@ class TestLocalTaskJob(unittest.TestCase):
             # This should not happen -- the state change should be noticed and the task should get killed
             with shared_mem_lock:
                 task_terminated_externally.value = 0
-            raise Exception
 
         task = PythonOperator(
             task_id='test_on_failure',
