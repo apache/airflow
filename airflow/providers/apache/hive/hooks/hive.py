@@ -377,11 +377,13 @@ class HiveCliHook(BaseHook):
                     filepath=f.name, table=table, delimiter=delimiter, field_dict=field_dict, **kwargs
                 )
 
+    # pylint: disable=too-many-arguments
     def load_file(
         self,
         filepath: str,
         table: str,
         delimiter: str = ",",
+        quotechar: str = '\\"',
         field_dict: Optional[Dict[Any, Any]] = None,
         create: bool = True,
         overwrite: bool = True,
@@ -406,6 +408,8 @@ class HiveCliHook(BaseHook):
         :type table: str
         :param delimiter: field delimiter in the file
         :type delimiter: str
+        :param quotechar: field quotechar in the file
+        :type quotechar: str
         :param field_dict: A dictionary of the fields name in the file
             as keys and their Hive types as values.
             Note that it must be OrderedDict so as to keep columns' order.
@@ -434,8 +438,12 @@ class HiveCliHook(BaseHook):
             if partition:
                 pfields = ",\n    ".join([p + " STRING" for p in partition])
                 hql += f"PARTITIONED BY ({pfields})\n"
-            hql += "ROW FORMAT DELIMITED\n"
-            hql += f"FIELDS TERMINATED BY '{delimiter}'\n"
+            hql += "ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'\n"
+            hql += "WITH SERDEPROPERTIES (\n"
+            hql += f'    "separatorChar" = "{delimiter}",\n'
+            hql += f'    "quoteChar" = "{quotechar}",\n'
+            hql += '    "escapeChar" = "\\\\"\n'
+            hql += ")\n"
             hql += "STORED AS textfile\n"
             if tblproperties is not None:
                 tprops = ", ".join([f"'{k}'='{v}'" for k, v in tblproperties.items()])
