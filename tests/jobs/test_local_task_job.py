@@ -29,7 +29,6 @@ import pytest
 
 from airflow import settings
 from airflow.exceptions import AirflowException, AirflowFailException
-from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models.dag import DAG
@@ -540,7 +539,7 @@ class TestLocalTaskJob(unittest.TestCase):
         )
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=KubernetesExecutor())
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         job1.task_runner = StandardTaskRunner(job1)
 
         settings.engine.dispose()
