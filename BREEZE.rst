@@ -1314,7 +1314,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses differen version of Airflow when building PROD image.
 
-                 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist
+                 2.0.2 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
@@ -1827,7 +1827,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           airflow is just removed. In this case airflow package should be added to dist folder
           and --use-packages-from-dist flag should be used.
 
-                 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist none
+                 2.0.2 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist none
 
   --use-packages-from-dist
           In CI image, if specified it will look for packages placed in dist folder and
@@ -2529,7 +2529,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses differen version of Airflow when building PROD image.
 
-                 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist
+                 2.0.2 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
@@ -2557,7 +2557,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           airflow is just removed. In this case airflow package should be added to dist folder
           and --use-packages-from-dist flag should be used.
 
-                 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist none
+                 2.0.2 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist none
 
   --use-packages-from-dist
           In CI image, if specified it will look for packages placed in dist folder and
