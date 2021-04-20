@@ -57,7 +57,7 @@ class KubernetesHook(BaseHook):
         For more information about Kubernetes connection:
         :doc:`/connections/kubernetes`
 
-    :param conn_id: The :ref:`kubernetes connection<howto/connection:kubernetes>`
+    :param conn_id: The :ref:`kubernetes connection <howto/connection:kubernetes>`
         to Kubernetes cluster.
     :type conn_id: str
     """

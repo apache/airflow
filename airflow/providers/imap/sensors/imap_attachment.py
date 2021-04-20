@@ -36,7 +36,7 @@ class ImapAttachmentSensor(BaseSensorOperator):
     :param mail_filter: If set other than 'All' only specific mails will be checked.
         See :py:meth:`imaplib.IMAP4.search` for details.
     :type mail_filter: str
-    :param imap_conn_id: The :ref:`imap connection id<howto/connection:imap>` to run the sensor against.
+    :param imap_conn_id: The :ref:`imap connection id <howto/connection:imap>` to run the sensor against.
     :type imap_conn_id: str
     """
 

@@ -54,7 +54,7 @@ class PostgresHook(DbApiHook):
     the host field, so is optional. It can however be overridden in the extra field.
     extras example: ``{"iam":true, "redshift":true, "cluster-identifier": "my_cluster_id"}``
 
-    :param postgres_conn_id: The :ref:`postgres conn id<howto/connection:postgres>`
+    :param postgres_conn_id: The :ref:`postgres conn id <howto/connection:postgres>`
         reference to a specific postgres database.
     :type postgres_conn_id: str
     """
