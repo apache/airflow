@@ -308,12 +308,12 @@ class SerializedDagModel(Base):
         dependencies = {}
 
         if session.bind.dialect.name in ["sqlite", "mysql"]:
-            for row in session.query(cls.dag_id, func.json_extract(cls.data, "$.dag.dependencies")).all():
+            for row in session.query(cls.dag_id, func.json_extract(cls.data, "$.dag.dag_dependencies")).all():
                 dependencies[row[0]] = [DagDependency(**d) for d in json.loads(row[1])]
 
         else:
             for row in session.query(
-                cls.dag_id, func.json_extract_path(cls.data, "dag", "dependencies")
+                cls.dag_id, func.json_extract_path(cls.data, "dag", "dag_dependencies")
             ).all():
                 dependencies[row[0]] = [DagDependency(**d) for d in row[1]]
 

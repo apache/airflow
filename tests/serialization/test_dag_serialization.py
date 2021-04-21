@@ -145,7 +145,7 @@ serialized_simple_dag_ground_truth = {
             },
         },
         "edge_info": {},
-        "dependencies": [],
+        "dag_dependencies": [],
     },
 }
 
@@ -823,7 +823,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             "tasks",
             "has_on_success_callback",
             "has_on_failure_callback",
-            "dependencies",
+            "dag_dependencies",
         }
         dag_params: set = set(dag_schema.keys()) - ignored_keys
         assert set(DAG.get_serialized_fields()) == dag_params

@@ -374,7 +374,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if v.default is not v.empty
     }
 
-    dependency_detector = DependencyDetector()
+    dependency_detector = DependencyDetector
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -679,7 +679,7 @@ class SerializedDAG(DAG, BaseSerialization):
             serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
             serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
-            serialize_dag["dependencies"] = [
+            serialize_dag["dag_dependencies"] = [
                 vars(t)
                 for t in (SerializedBaseOperator.detect_dependencies(task) for task in dag.task_dict.values())
                 if t is not None
