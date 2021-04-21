@@ -33,10 +33,8 @@ from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from airflow.api_connexion.exceptions import Unauthenticated
-from airflow.api_connexion.schemas.auth_schema import auth_schema
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel
-from airflow.models.auth import JwtToken
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -64,6 +62,8 @@ EXISTING_ROLES = {
     'Op',
     'Public',
 }
+
+AUTH_TYPE_MISMATCH_MESSAGE = "Authentication type does not match"
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=too-many-public-methods
@@ -748,7 +748,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """Convenience method for user login through the API"""
         self.is_user_logged_in()
         if self.auth_type not in (AUTH_DB, AUTH_LDAP):
-            raise Unauthenticated(detail="Authentication type does not match")
+            raise Unauthenticated(detail=AUTH_TYPE_MISMATCH_MESSAGE)
         user = None
         if self.auth_type == AUTH_DB:
             user = self.auth_user_db(username, password)
@@ -760,7 +760,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """Get authorization url for oauth"""
         self.is_user_logged_in()
         if self.auth_type != AUTH_OAUTH:
-            raise Unauthenticated(detail="Authentication type does not match")
+            raise Unauthenticated(detail=AUTH_TYPE_MISMATCH_MESSAGE)
         state = jwt.encode(
             request.args.to_dict(flat=False),
             app.config["SECRET_KEY"],
@@ -815,7 +815,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """Login user using remote auth"""
         self.is_user_logged_in()
         if self.auth_type != AUTH_REMOTE_USER:
-            raise Unauthenticated(detail="Authentication type does not match")
+            raise Unauthenticated(detail=AUTH_TYPE_MISMATCH_MESSAGE)
         user = self.auth_user_remote_user(username)
         if user is None:
             raise Unauthenticated(detail="Invalid login")
@@ -831,11 +831,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         jwt_manager.user_loader_callback_loader(self.load_user_jwt)
         return jwt_manager
 
-    def create_tokens_and_dump(self, user):
+    def create_tokens_and_dump(self, user, schema):
         """Creates access and refresh token, return user data alongside tokens"""
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id)
-        return auth_schema.dump({'user': user, 'token': access_token, 'refresh_token': refresh_token})
+        return schema.dump({'user': user, 'token': access_token, 'refresh_token': refresh_token})
 
 
 class ApplessAirflowSecurityManager(AirflowSecurityManager):

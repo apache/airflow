@@ -31,7 +31,12 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from airflow.api_connexion.exceptions import BadRequest, Unauthenticated
-from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_schema, token_schema
+from airflow.api_connexion.schemas.auth_schema import (
+    auth_schema,
+    info_schema,
+    login_form_schema,
+    token_schema,
+)
 from airflow.models.auth import TokenBlockList
 
 log = logging.getLogger(__name__)
@@ -72,7 +77,7 @@ def auth_login():
     if not user:
         raise Unauthenticated(detail="Invalid login")
     login_user(user, remember=False)
-    return security_manager.create_tokens_and_dump(user)
+    return security_manager.create_tokens_and_dump(user, auth_schema)
 
 
 def auth_oauthlogin(provider, register=None, redirect_url=None):
@@ -87,7 +92,7 @@ def authorize_oauth(provider, state):
     """Callback to authorize Oauth."""
     appbuilder = current_app.appbuilder
     user = appbuilder.sm.oauth_login_user(appbuilder.app, provider, state)
-    return appbuilder.sm.create_tokens_and_dump(user)
+    return appbuilder.sm.create_tokens_and_dump(user, auth_schema)
 
 
 def auth_remoteuser():
@@ -98,7 +103,7 @@ def auth_remoteuser():
         user = appbuilder.sm.login_remote_user(username)
     else:
         raise Unauthenticated(detail="Invalid login")
-    return appbuilder.sm.create_tokens_and_dump(user)
+    return appbuilder.sm.create_tokens_and_dump(user, auth_schema)
 
 
 @jwt_refresh_token_required

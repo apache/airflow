@@ -22,6 +22,7 @@ from sqlalchemy import func
 
 from airflow.models.auth import TokenBlockList
 from airflow.utils.session import provide_session
+from airflow.www.security import AUTH_TYPE_MISMATCH_MESSAGE
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 
 OAUTH_PROVIDERS = [
@@ -155,7 +156,7 @@ class TestDBLoginEndpoint(TestLoginEndpoint):
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth/login', json=payload)
         assert response.status_code == 401
-        assert response.json['detail'] == 'Authentication type do not match'
+        assert response.json['detail'] == AUTH_TYPE_MISMATCH_MESSAGE
 
 
 class TestLDAPLoginEndpoint(TestLoginEndpoint):
@@ -203,11 +204,11 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
         payload = {"username": "test", "password": "test"}
         response = self.client.post('api/v1/auth/login', json=payload)
         assert response.status_code == 401
-        assert response.json['detail'] == 'Authentication type do not match'
+        assert response.json['detail'] == AUTH_TYPE_MISMATCH_MESSAGE
 
 
 class TestOauthAuthorizationURLEndpoint(TestLoginEndpoint):
-    @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt.encode")
+    @mock.patch("airflow.www.security.jwt.encode")
     def test_can_generate_authorization_url(self, mock_jwt_encode):
         self.auth_type(AUTH_OAUTH)
         mock_jwt_encode.return_value = "state"
@@ -221,7 +222,7 @@ class TestOauthAuthorizationURLEndpoint(TestLoginEndpoint):
         self.client.get(f'api/v1/auth-oauth/google?register=True&redirect_url={redirect_url}')
         mock_auth.assert_called_once_with(redirect_uri=redirect_url, state="state")
 
-    @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt.encode")
+    @mock.patch("airflow.www.security.jwt.encode")
     def test_can_generate_authorization_url_for_twitter(self, mock_jwt_encode):
         self.auth_type(AUTH_OAUTH)
         mock_jwt_encode.return_value = "state"
@@ -240,7 +241,7 @@ class TestOauthAuthorizationURLEndpoint(TestLoginEndpoint):
         redirect_url = "http://localhost:8080"
         resp = self.client.get(f'api/v1/auth-oauth/google?register=True&redirect_url={redirect_url}')
         assert resp.status_code == 401
-        assert resp.json['detail'] == "Authentication type do not match"
+        assert resp.json['detail'] == AUTH_TYPE_MISMATCH_MESSAGE
 
 
 class TestAuthorizeOauth(TestLoginEndpoint):
@@ -266,7 +267,7 @@ class TestAuthorizeOauth(TestLoginEndpoint):
         assert response.status_code == 401
         assert response.json['detail'] == "State signature is not valid!"
 
-    @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt.decode")
+    @mock.patch("airflow.www.security.jwt.decode")
     def test_successful_authorization(self, mock_jwt_decode):
         self.auth_type(AUTH_OAUTH)
         mock_jwt_decode.return_value = {'some': 'payload'}
@@ -315,7 +316,7 @@ class TestRemoteUserLoginEndpoint(TestLoginEndpoint):
         self.auth_type(AUTH_DB)
         resp = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
         assert resp.status_code == 401
-        assert resp.json['detail'] == "Authentication type do not match"
+        assert resp.json['detail'] == AUTH_TYPE_MISMATCH_MESSAGE
 
 
 class TestRefreshTokenEndpoint(TestLoginEndpoint):
@@ -349,7 +350,7 @@ class TestRevokeAccessTokenEndpoint(TestLoginEndpoint):
             "api/v1/revoke_access_token", headers={"Authorization": f"Bearer {token}"}
         )
         assert response2.json == {'revoked': True}
-        total_tokens_in_db = session.query(func.count(TokenBlockList.id)).scalar()
+        total_tokens_in_db = session.query(func.count(TokenBlockList.jti)).scalar()
         assert total_tokens_in_db == 1
 
 
@@ -364,7 +365,7 @@ class TestRevokeRefreshTokenEndpoint(TestLoginEndpoint):
             "api/v1/revoke_refresh_token", headers={"Authorization": f"Bearer {refresh_token}"}
         )
         assert response2.json == {'revoked': True}
-        total_tokens_in_db = session.query(func.count(TokenBlockList.id)).scalar()
+        total_tokens_in_db = session.query(func.count(TokenBlockList.jti)).scalar()
         assert total_tokens_in_db == 1
 
 
@@ -379,5 +380,5 @@ class TestTokenRevokeEndpoint(TestLoginEndpoint):
         self.client.post(
             "api/v1/revoke", json={"token": refresh}, headers={"Authorization": f"Bearer {token}"}
         )
-        total_tokens_in_db = session.query(func.count(TokenBlockList.id)).scalar()
+        total_tokens_in_db = session.query(func.count(TokenBlockList.jti)).scalar()
         assert total_tokens_in_db == 1
