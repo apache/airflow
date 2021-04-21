@@ -128,15 +128,6 @@ class TestDBLoginEndpoint(TestLoginEndpoint):
         assert isinstance(response.json['token'], str)
         assert isinstance(response.json['refresh_token'], str)
 
-    def test_logged_in_user_cant_relogin(self):
-        self.auth_type(AUTH_DB)
-        payload = {"username": "test", "password": "test"}
-        response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.json['user']['username'] == 'test'
-        response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.status_code == 401
-        assert response.json['detail'] == "Client already authenticated"
-
     def test_incorrect_username_raises(self):
         self.auth_type(AUTH_DB)
         payload = {"username": "tests", "password": "test"}
@@ -170,18 +161,6 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
         assert response.json['user']['username'] == 'test'
         assert isinstance(response.json['token'], str)
         assert isinstance(response.json['refresh_token'], str)
-
-    def test_logged_in_user_cant_relogin(self):
-        self.auth_type(AUTH_LDAP)
-        self.app.appbuilder.sm.auth_user_ldap = mock.Mock()
-        user = self.app.appbuilder.sm.find_user(username='test')
-        self.app.appbuilder.sm.auth_user_ldap.return_value = user
-        payload = {"username": "test", "password": "test"}
-        response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.json['user']['username'] == 'test'
-        response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.status_code == 401
-        assert response.json['detail'] == "Client already authenticated"
 
     def test_incorrect_username_raises(self):
         self.auth_type(AUTH_LDAP)
@@ -297,14 +276,6 @@ class TestRemoteUserLoginEndpoint(TestLoginEndpoint):
         response = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json['user']['username'] == 'test'
-
-    def test_remote_user_cant_relogin(self):
-        self.auth_type(AUTH_REMOTE_USER)
-        response = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
-        assert response.status_code == 200
-        response = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
-        assert response.status_code == 401
-        assert response.json['detail'] == "Client already authenticated"
 
     def test_incorrect_username_raises(self):
         self.auth_type(AUTH_REMOTE_USER)

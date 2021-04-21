@@ -739,14 +739,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         return True
 
     # TODO: Whether to create APISecurityManager and move api related code to it?
-    def is_user_logged_in(self):
-        """Raise if user already logged in"""
-        if g.user is not None and g.user.is_authenticated:
-            raise Unauthenticated(detail="Client already authenticated")  # For security
-
     def login_with_user_pass(self, username, password):
         """Convenience method for user login through the API"""
-        self.is_user_logged_in()
         if self.auth_type not in (AUTH_DB, AUTH_LDAP):
             raise Unauthenticated(detail=AUTH_TYPE_MISMATCH_MESSAGE)
         user = None
@@ -758,7 +752,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     def oauth_authorization_url(self, app, provider, redirect_url):
         """Get authorization url for oauth"""
-        self.is_user_logged_in()
         if self.auth_type != AUTH_OAUTH:
             raise Unauthenticated(detail=AUTH_TYPE_MISMATCH_MESSAGE)
         state = jwt.encode(
@@ -813,7 +806,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     def login_remote_user(self, username):
         """Login user using remote auth"""
-        self.is_user_logged_in()
         if self.auth_type != AUTH_REMOTE_USER:
             raise Unauthenticated(detail=AUTH_TYPE_MISMATCH_MESSAGE)
         user = self.auth_user_remote_user(username)
