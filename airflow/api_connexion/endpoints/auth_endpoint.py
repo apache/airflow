@@ -102,10 +102,9 @@ def auth_remoteuser():
     """Handle remote user auth"""
     appbuilder = current_app.appbuilder
     username = request.environ.get("REMOTE_USER")
-    if username:
-        user = appbuilder.sm.login_remote_user(username)
-    else:
+    if not username:
         raise Unauthenticated(detail="Invalid login")
+    user = appbuilder.sm.login_remote_user(username)
     return appbuilder.sm.create_tokens_and_dump(appbuilder.app, user, auth_schema)
 
 
