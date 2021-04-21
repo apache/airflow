@@ -133,8 +133,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         def sorter(log):
             return getattr(log, 'asctime', '_')
 
-        for logs in grouped_logs.values():
-            logs.sort(key=sorter)
+        for host_logs in grouped_logs.values():
+            host_logs.sort(key=sorter)
 
         return grouped_logs.items()
 
