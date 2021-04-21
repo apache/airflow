@@ -80,7 +80,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     :type bigquery_conn_id: Optional[str]
     :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
     :type api_resource_configs: Optional[Dict]
-    :param impersonation_chain: This is the optional service account to impersonate using short term 
+    :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
     :type impersonation_chain: Optional[Union[str, Sequence[str]]]
     :param labels: The BigQuery resource label.

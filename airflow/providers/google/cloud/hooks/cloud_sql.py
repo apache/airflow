@@ -81,7 +81,7 @@ class CloudSQLHook(GoogleBaseHook):
     :type gcp_conn_id: str
     :param delegate_to: This performs a task on one host with reference to other hosts.
     :type delegate_to: Optional[str]
-    :param impersonation_chain: This is the optional service account to impersonate using short term 
+    :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
     :type impersonation_chain: Optional[str]
     """
