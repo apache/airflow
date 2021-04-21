@@ -28,6 +28,7 @@ from flask_jwt_extended import (
 )
 from flask_login import login_user
 from marshmallow import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from airflow.api_connexion.exceptions import BadRequest, Unauthenticated
 from airflow.api_connexion.schemas.auth_schema import info_schema, login_form_schema, token_schema
@@ -105,8 +106,7 @@ def refresh_token():
     """Refresh token"""
     user = get_jwt_identity()
     access_token = create_access_token(identity=user)
-    ret = {'access_token': access_token}
-    return jsonify(ret), 200
+    return {'access_token': access_token}
 
 
 @jwt_required
@@ -117,17 +117,17 @@ def revoke_token():
     This is intended for a case where a logged in user want to revoke
     another user's tokens
     """
-    resp = jsonify({"revoked": True})
     body = request.json
     try:
         data = token_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
     token = decode_token(data['token'])
-    tkn = TokenBlockList.get_token(token['jti'])
-    if not tkn:
+    try:
         TokenBlockList.add_token(jti=token['jti'], expiry_delta=token['exp'])
-    return resp
+    except IntegrityError:
+        pass
+    return jsonify({"revoked": True})
 
 
 @jwt_required
@@ -136,12 +136,12 @@ def revoke_current_user_token():
     An endpoint for revoking current user access token
     This should be called during current user logout
     """
-    resp = jsonify({"revoked": True})
     raw_jwt = get_raw_jwt()
-    token = TokenBlockList.get_token(raw_jwt['jti'])
-    if not token:
+    try:
         TokenBlockList.add_token(jti=raw_jwt['jti'], expiry_delta=raw_jwt['exp'])
-    return resp
+    except IntegrityError:
+        pass
+    return jsonify({"revoked": True})
 
 
 @jwt_refresh_token_required
@@ -150,9 +150,9 @@ def revoke_current_user_refresh_token():
     An endpoint for revoking current user refresh token
     This should be called during current user logout
     """
-    resp = jsonify({"revoked": True})
     raw_jwt = get_raw_jwt()
-    token = TokenBlockList.get_token(raw_jwt['jti'])
-    if not token:
+    try:
         TokenBlockList.add_token(jti=raw_jwt['jti'], expiry_delta=raw_jwt['exp'])
-    return resp
+    except IntegrityError:
+        pass
+    return jsonify({"revoked": True})

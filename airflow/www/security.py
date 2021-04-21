@@ -748,7 +748,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """Convenience method for user login through the API"""
         self.is_user_logged_in()
         if self.auth_type not in (AUTH_DB, AUTH_LDAP):
-            raise Unauthenticated(detail="Authentication type do not match")
+            raise Unauthenticated(detail="Authentication type does not match")
         user = None
         if self.auth_type == AUTH_DB:
             user = self.auth_user_db(username, password)
@@ -760,7 +760,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """Get authorization url for oauth"""
         self.is_user_logged_in()
         if self.auth_type != AUTH_OAUTH:
-            raise Unauthenticated(detail="Authentication type do not match")
+            raise Unauthenticated(detail="Authentication type does not match")
         state = jwt.encode(
             request.args.to_dict(flat=False),
             app.config["SECRET_KEY"],
@@ -815,7 +815,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """Login user using remote auth"""
         self.is_user_logged_in()
         if self.auth_type != AUTH_REMOTE_USER:
-            raise Unauthenticated(detail="Authentication type do not match")
+            raise Unauthenticated(detail="Authentication type does not match")
         user = self.auth_user_remote_user(username)
         if user is None:
             raise Unauthenticated(detail="Invalid login")
@@ -823,7 +823,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         return user
 
     def create_jwt_manager(self, app) -> JWTManager:
-        """JWT Manager"""
+        """Called by FAB for us when it wants a configured JWT manager"""
         jwt_manager = JWTManager()
         app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
         app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
@@ -832,7 +832,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         return jwt_manager
 
     def create_tokens_and_dump(self, user):
-        """Creates access token, return user data alongside tokens"""
+        """Creates access and refresh token, return user data alongside tokens"""
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id)
         return auth_schema.dump({'user': user, 'token': access_token, 'refresh_token': refresh_token})

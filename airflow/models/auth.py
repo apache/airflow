@@ -16,7 +16,7 @@
 # under the License.
 
 from pendulum import from_timestamp
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Column, DateTime, String
 
 from airflow.models.base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -34,35 +34,26 @@ class TokenBlockList(Base, LoggingMixin):
     """
 
     __tablename__ = 'token_blocklist'
-    id = Column(Integer, primary_key=True)
-    jti = Column(String(50), unique=True, nullable=False)
+    jti = Column(String(50), nullable=False, primary_key=True)
     expiry_date = Column(DateTime(), nullable=False, index=True)
-
-    def __init__(self, jti: str, expiry_date: DateTime):
-        super().__init__()
-        self.jti = jti
-        self.expiry_date = expiry_date
 
     @classmethod
     @provide_session
     def get_token(cls, token, session=None):
         """Get a token"""
-        tkn = session.query(cls).filter(cls.jti == token).first()
-        return tkn
+        return session.query(cls).get(token)
 
     @classmethod
     @provide_session
     def delete_token(cls, token, session=None):
         """Delete a token"""
-        tkn = session.query(cls).filter(cls.jti == token).first()
-        if tkn:
-            session.delete(tkn)
-            session.commit()
+        session.query(cls).get(token).delete()
 
     @classmethod
     @provide_session
     def add_token(cls, jti, expiry_delta, session=None):
         """Add a token to blocklist"""
+        # pylint: disable=unexpected-keyword-arg
         token = cls(jti=jti, expiry_date=from_timestamp(expiry_delta))
         session.add(token)
         session.commit()

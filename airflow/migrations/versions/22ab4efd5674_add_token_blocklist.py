@@ -33,17 +33,21 @@ down_revision = 'a13f7613ad25'
 branch_labels = None
 depends_on = None
 
+INDEX_NAME = "idx_expiry_date_token_blocklist"
+TABLE_NAME = "token_blocklist"
+
 
 def upgrade():
     """Apply Add token blocklist table"""
     op.create_table(
-        "token_blocklist",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("jti", sa.String(50), nullable=False, unique=True),
-        sa.Column("expiry_date", sa.DateTime(), nullable=False, index=True),
+        TABLE_NAME,
+        sa.Column("jti", sa.String(50), nullable=False, primary_key=True),
+        sa.Column("expiry_date", sa.DateTime(), nullable=False),
     )
+    op.create_index(INDEX_NAME, TABLE_NAME, ['expiry_date'], unique=False)
 
 
 def downgrade():  # noqa: D103
     """Unapply Add token blocklist table"""
-    op.drop_table('token_blocklist')
+    op.drop_index(INDEX_NAME, table_name=TABLE_NAME)
+    op.drop_table(TABLE_NAME)
