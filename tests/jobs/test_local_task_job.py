@@ -497,7 +497,7 @@ class TestLocalTaskJob(unittest.TestCase):
 
     def test_process_kill_call_on_failure_callback(self):
         """
-        Test that ensures that where a task is killed with sigterm
+        Test that ensures that when a task is killed with sigterm
         on_failure_callback gets executed
         """
         # use shared memory value so we can properly track value change even if
