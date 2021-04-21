@@ -18,6 +18,7 @@
 #
 import multiprocessing
 import os
+import signal
 import time
 import unittest
 import uuid
@@ -552,7 +553,7 @@ class TestLocalTaskJob(unittest.TestCase):
                 break
             time.sleep(0.2)
         assert ti.state == State.RUNNING
-        os.kill(ti.pid, 15)
+        os.kill(ti.pid, signal.SIGTERM)
         process.join(timeout=10)
         assert failure_callback_called.value == 1
         assert task_terminated_externally.value == 1
