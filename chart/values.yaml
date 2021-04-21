@@ -299,11 +299,13 @@ kerberos:
 workers:
   # Number of airflow celery workers in StatefulSet
   replicas: 1
-  updateStrategy:
-    strategy:
-      rollingUpdate:
-        maxSurge: "100%"
-        maxUnavailable: "50%"
+  # Update Strategy when worker is deployed as a StatefulSet
+  updateStrategy: ~
+  # Update Strategy when worker is deployed as a Deployment
+  strategy:
+    rollingUpdate:
+      maxSurge: "100%"
+      maxUnavailable: "50%"
 
   # Allow KEDA autoscaling.
   # Persistence.enabled must be set to false to use KEDA.
