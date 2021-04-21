@@ -74,7 +74,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             'asctime': '2020-12-24 19:25:00,962',
             'message': self.test_message,
             'log_id': self.LOG_ID,
-            'offset': 1
+            'offset': 1,
         }
 
         self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=1)
