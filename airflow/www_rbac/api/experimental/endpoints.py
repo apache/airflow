@@ -145,7 +145,6 @@ def put_anaylysis_result():
             ti.result = rresult
             ti.measure_result = measure_result
             ti.entity_id = entity_id
-            ti.error_code = curve_mode
             if curve_mode[0] is not 0:
                 ti.error_tag = json.dumps(curve_mode)
             else:
