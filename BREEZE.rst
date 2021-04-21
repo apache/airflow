@@ -268,6 +268,16 @@ to make available for the Breeze container.
 You can also add your local tmux configuration in ``files/airflow-breeze-config/.tmux.conf`` and
 these configurations will be available for your tmux environment.
 
+there is a symlink between ``files/airflow-breeze-config/.tmux.conf`` and ``~/.tmux.conf`` in the container,
+so you can change it at any place, and run
+
+.. code-block:: bash
+
+  tmux source ~/.tmux.conf
+
+inside container, to enable modified tmux configurations.
+
+
 .. raw:: html
 
     <div align="center">
