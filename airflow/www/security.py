@@ -362,7 +362,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     def prefixed_dag_id(self, dag_id):
         """Returns the permission name for a DAG id."""
-        return permissions.prefixed_dag_id(dag_id)
+        return permissions.permission_name_for_dag(dag_id)
 
     def is_dag_resource(self, resource_name):
         """Determines if a permission belongs to a DAG or all DAGs."""

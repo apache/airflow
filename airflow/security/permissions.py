@@ -63,7 +63,7 @@ DEPRECATED_ACTION_CAN_DAG_EDIT = "can_dag_edit"
 DAG_PERMS = {ACTION_CAN_READ, ACTION_CAN_EDIT}
 
 
-def prefixed_dag_id(dag_id):
+def permission_name_for_dag(dag_id):
     """Returns the permission name for a DAG id."""
     if dag_id == RESOURCE_DAG:
         return dag_id
