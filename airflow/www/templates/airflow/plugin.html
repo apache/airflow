@@ -27,7 +27,7 @@ under the License.
   <h2>{{ title }}</h2>
   {% if plugins|length == 0 %}
     <p>No plugins loaded. Learn more in the
-      <a href="https://airflow.apache.org/docs/apache-airflow/stable/plugins.html" target="_blank">plugins documentation</a>.
+      <a href="{{ doc_url }}" target="_blank">plugins documentation</a>.
     </p>
   {% endif %}
   {% for plugin in plugins %}

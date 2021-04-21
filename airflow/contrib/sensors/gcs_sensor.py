@@ -15,13 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.cloud.sensors.gcs`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.google.cloud.sensors.gcs`."""
 
 import warnings
 
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceSensor,
-    GCSObjectsWtihPrefixExistenceSensor,
+    GCSObjectsWithPrefixExistenceSensor,
     GCSObjectUpdateSensor,
     GCSUploadSessionCompleteSensor,
 )
@@ -65,16 +65,16 @@ class GoogleCloudStorageObjectUpdatedSensor(GCSObjectUpdateSensor):
         super().__init__(*args, **kwargs)
 
 
-class GoogleCloudStoragePrefixSensor(GCSObjectsWtihPrefixExistenceSensor):
+class GoogleCloudStoragePrefixSensor(GCSObjectsWithPrefixExistenceSensor):
     """
     This class is deprecated.
-    Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor`.
+    Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor`.""",
+            Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor`.""",
             DeprecationWarning,
             stacklevel=3,
         )

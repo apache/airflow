@@ -57,6 +57,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     """
 
     template_fields = ('filename', 'sql', 'sql_params')
+    template_fields_renderers = {"sql_params": "py"}
     ui_color = '#e08c8c'
 
     # pylint: disable=too-many-arguments

@@ -26,11 +26,12 @@ import shutil
 from functools import wraps
 from inspect import signature
 from io import BytesIO
+from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
-from boto3.s3.transfer import S3Transfer
+from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
@@ -115,6 +116,14 @@ class S3Hook(AwsBaseHook):
             if not isinstance(self.extra_args, dict):
                 raise ValueError(f"extra_args '{self.extra_args!r}' must be of type {dict}")
             del kwargs['extra_args']
+
+        self.transfer_config = TransferConfig()
+        if 'transfer_config_args' in kwargs:
+            transport_config_args = kwargs['transfer_config_args']
+            if not isinstance(transport_config_args, dict):
+                raise ValueError(f"transfer_config_args '{transport_config_args!r} must be of type {dict}")
+            self.transfer_config = TransferConfig(**transport_config_args)
+            del kwargs['transfer_config_args']
 
         super().__init__(*args, **kwargs)
 
@@ -456,7 +465,7 @@ class S3Hook(AwsBaseHook):
     @unify_bucket_name_and_key
     def load_file(
         self,
-        filename: str,
+        filename: Union[Path, str],
         key: str,
         bucket_name: Optional[str] = None,
         replace: bool = False,
@@ -467,8 +476,8 @@ class S3Hook(AwsBaseHook):
         """
         Loads a local file to S3
 
-        :param filename: name of the file to load.
-        :type filename: str
+        :param filename: path to the file to load.
+        :type filename: Union[Path, str]
         :param key: S3 key that will point to the file
         :type key: str
         :param bucket_name: Name of the bucket in which to store the file
@@ -486,6 +495,7 @@ class S3Hook(AwsBaseHook):
             uploaded to the S3 bucket.
         :type acl_policy: str
         """
+        filename = str(filename)
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError(f"The key {key} already exists.")
 
@@ -502,7 +512,7 @@ class S3Hook(AwsBaseHook):
             extra_args['ACL'] = acl_policy
 
         client = self.get_conn()
-        client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args)
+        client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args, Config=self.transfer_config)
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -651,7 +661,13 @@ class S3Hook(AwsBaseHook):
             extra_args['ACL'] = acl_policy
 
         client = self.get_conn()
-        client.upload_fileobj(file_obj, bucket_name, key, ExtraArgs=extra_args)
+        client.upload_fileobj(
+            file_obj,
+            bucket_name,
+            key,
+            ExtraArgs=extra_args,
+            Config=self.transfer_config,
+        )
 
     def copy_object(
         self,
@@ -834,3 +850,74 @@ class S3Hook(AwsBaseHook):
         except ClientError as e:
             self.log.error(e.response["Error"]["Message"])
             return None
+
+    @provide_bucket_name
+    def get_bucket_tagging(self, bucket_name: Optional[str] = None) -> Optional[List[Dict[str, str]]]:
+        """
+        Gets a List of tags from a bucket.
+
+        :param bucket_name: The name of the bucket.
+        :type bucket_name: str
+        :return: A List containing the key/value pairs for the tags
+        :rtype: Optional[List[Dict[str, str]]]
+        """
+        try:
+            s3_client = self.get_conn()
+            result = s3_client.get_bucket_tagging(Bucket=bucket_name)['TagSet']
+            self.log.info("S3 Bucket Tag Info: %s", result)
+            return result
+        except ClientError as e:
+            self.log.error(e)
+            raise e
+
+    @provide_bucket_name
+    def put_bucket_tagging(
+        self,
+        tag_set: Optional[List[Dict[str, str]]] = None,
+        key: Optional[str] = None,
+        value: Optional[str] = None,
+        bucket_name: Optional[str] = None,
+    ) -> None:
+        """
+        Overwrites the existing TagSet with provided tags.  Must provide either a TagSet or a key/value pair.
+
+        :param tag_set: A List containing the key/value pairs for the tags.
+        :type tag_set: List[Dict[str, str]]
+        :param key: The Key for the new TagSet entry.
+        :type key: str
+        :param value: The Value for the new TagSet entry.
+        :type value: str
+        :param bucket_name: The name of the bucket.
+        :type bucket_name: str
+        :return: None
+        :rtype: None
+        """
+        self.log.info("S3 Bucket Tag Info:\tKey: %s\tValue: %s\tSet: %s", key, value, tag_set)
+        if not tag_set:
+            tag_set = []
+        if key and value:
+            tag_set.append({'Key': key, 'Value': value})
+        elif not tag_set or (key or value):
+            message = 'put_bucket_tagging() requires either a predefined TagSet or a key/value pair.'
+            self.log.error(message)
+            raise ValueError(message)
+
+        try:
+            s3_client = self.get_conn()
+            s3_client.put_bucket_tagging(Bucket=bucket_name, Tagging={'TagSet': tag_set})
+        except ClientError as e:
+            self.log.error(e)
+            raise e
+
+    @provide_bucket_name
+    def delete_bucket_tagging(self, bucket_name: Optional[str] = None) -> None:
+        """
+        Deletes all tags from a bucket.
+
+        :param bucket_name: The name of the bucket.
+        :type bucket_name: str
+        :return: None
+        :rtype: None
+        """
+        s3_client = self.get_conn()
+        s3_client.delete_bucket_tagging(Bucket=bucket_name)

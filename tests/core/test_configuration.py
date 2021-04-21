@@ -19,6 +19,7 @@ import io
 import os
 import re
 import tempfile
+import textwrap
 import unittest
 import warnings
 from collections import OrderedDict
@@ -28,7 +29,6 @@ import pytest
 
 from airflow import configuration
 from airflow.configuration import (
-    DEFAULT_CONFIG,
     AirflowConfigException,
     AirflowConfigParser,
     conf,
@@ -79,6 +79,15 @@ class TestConf(unittest.TestCase):
         assert conf.get("core", "percent") == "with%inside"
         assert conf.get("core", "PERCENT") == "with%inside"
         assert conf.get("CORE", "PERCENT") == "with%inside"
+
+    def test_config_as_dict(self):
+        """Test that getting config as dict works even if
+        environment has non-legal env vars"""
+        with unittest.mock.patch.dict('os.environ'):
+            os.environ['AIRFLOW__VAR__broken'] = "not_ok"
+            asdict = conf.as_dict(raw=True, display_sensitive=True)
+        assert asdict.get('VAR') is None
+        assert asdict['testsection']['testkey'] == 'testvalue'
 
     def test_env_var_config(self):
         opt = conf.get('testsection', 'testkey')
@@ -424,7 +433,7 @@ AIRFLOW_HOME = /root/airflow
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
         conf.deprecated_options = {
-            ('celery', 'worker_concurrency'): ('celery', 'celeryd_concurrency'),
+            ('celery', 'worker_concurrency'): ('celery', 'celeryd_concurrency', '2.0.0'),
         }
 
         # Remove it so we are sure we use the right setting
@@ -447,7 +456,7 @@ AIRFLOW_HOME = /root/airflow
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
         conf.deprecated_options = {
-            ('logging', 'logging_level'): ('core', 'logging_level'),
+            ('logging', 'logging_level'): ('core', 'logging_level', '2.0.0'),
         }
 
         # Remove it so we are sure we use the right setting
@@ -471,7 +480,7 @@ AIRFLOW_HOME = /root/airflow
     def test_deprecated_options_cmd(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
-        conf.deprecated_options[('celery', "result_backend")] = ('celery', 'celery_result_backend')
+        conf.deprecated_options[('celery', "result_backend")] = 'celery', 'celery_result_backend', '2.0.0'
         conf.sensitive_config_values.add(('celery', 'celery_result_backend'))
 
         conf.remove_option('celery', 'result_backend')
@@ -561,8 +570,17 @@ notacommand = OK
             assert test_cmdenv_conf.get('testcmdenv', 'notacommand') == 'OK'
 
     def test_parameterized_config_gen(self):
+        config = textwrap.dedent(
+            """
+            [core]
+            dags_folder = {AIRFLOW_HOME}/dags
+            sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/airflow.db
+            parallelism = 32
+            fernet_key = {FERNET_KEY}
+        """
+        )
 
-        cfg = parameterized_config(DEFAULT_CONFIG)
+        cfg = parameterized_config(config)
 
         # making sure some basic building blocks are present:
         assert "[core]" in cfg

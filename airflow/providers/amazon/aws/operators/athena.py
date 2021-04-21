@@ -19,7 +19,10 @@
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
@@ -55,6 +58,7 @@ class AWSAthenaOperator(BaseOperator):
     ui_color = '#44b5e2'
     template_fields = ('query', 'database', 'output_location')
     template_ext = ('.sql',)
+    template_fields_renderers = {"query": "sql"}
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments

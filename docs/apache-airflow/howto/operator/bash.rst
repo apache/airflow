@@ -74,6 +74,19 @@ inside the bash_command, as below:
         env={'message': '{{ dag_run.conf["message"] if dag_run else "" }}'},
     )
 
+Skipping
+--------
+
+In general a non-zero exit code produces an AirflowException and thus a task failure.  In cases where it is desirable
+to instead have the task end in a ``skipped`` state, you can exit with code ``99`` (or with another exit code if you
+pass ``skip_exit_code``).
+
+.. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
+    :language: python
+    :start-after: [START howto_operator_bash_skip]
+    :end-before: [END howto_operator_bash_skip]
+
+
 Troubleshooting
 ---------------
 

@@ -22,7 +22,10 @@ description: |
     `Presto <https://prestodb.github.io/>`__
 
 versions:
+  - 1.0.2
+  - 1.0.1
   - 1.0.0
+
 integrations:
   - integration-name: Presto
     external-doc-url: http://prestodb.github.io/

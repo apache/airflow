@@ -51,6 +51,7 @@ class GrpcOperator(BaseOperator):
     """
 
     template_fields = ('stub_class', 'call_func', 'data')
+    template_fields_renderers = {"data": "py"}
 
     @apply_defaults
     def __init__(

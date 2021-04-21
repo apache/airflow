@@ -102,6 +102,7 @@ class PostgresHook(DbApiHook):
                 'iam',
                 'redshift',
                 'cursor',
+                'cluster-identifier',
             ]:
                 conn_args[arg_name] = arg_val
 

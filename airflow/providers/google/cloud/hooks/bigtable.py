@@ -169,7 +169,14 @@ class BigtableHook(GoogleBaseHook):
             instance_labels,
         )
 
-        clusters = [instance.cluster(main_cluster_id, main_cluster_zone, cluster_nodes, cluster_storage_type)]
+        cluster_kwargs = dict(
+            cluster_id=main_cluster_id,
+            location_id=main_cluster_zone,
+            default_storage_type=cluster_storage_type,
+        )
+        if instance_type != enums.Instance.Type.DEVELOPMENT and cluster_nodes:
+            cluster_kwargs["serve_nodes"] = cluster_nodes
+        clusters = [instance.cluster(**cluster_kwargs)]
         if replica_cluster_id and replica_cluster_zone:
             warnings.warn(
                 "The replica_cluster_id and replica_cluster_zone parameter have been deprecated."

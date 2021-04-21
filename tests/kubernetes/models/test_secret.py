@@ -83,7 +83,7 @@ class TestSecret(unittest.TestCase):
             'kind': 'Pod',
             'metadata': {
                 'labels': {'app': 'myapp'},
-                'name': 'myapp-pod-cf4a56d281014217b0272af6216feb48',
+                'name': 'myapp-pod.cf4a56d281014217b0272af6216feb48',
                 'namespace': 'default',
             },
             'spec': {

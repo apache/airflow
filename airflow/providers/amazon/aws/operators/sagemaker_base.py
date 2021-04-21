@@ -19,7 +19,10 @@
 import json
 from typing import Iterable
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -38,6 +41,7 @@ class SageMakerBaseOperator(BaseOperator):
 
     template_fields = ['config']
     template_ext = ()
+    template_fields_renderers = {"config": "py"}
     ui_color = '#ededed'
 
     integer_fields = []  # type: Iterable[Iterable[str]]

@@ -22,6 +22,7 @@ import signal
 import unittest
 from datetime import timedelta
 from time import sleep
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -187,23 +188,17 @@ class TestCore(unittest.TestCase):
             self.fail("BashOperator's subprocess still running after stopping on timeout!")
 
     def test_on_failure_callback(self):
-        # Annoying workaround for nonlocal not existing in python 2
-        data = {'called': False}
-
-        def check_failure(context, test_case=self):  # pylint: disable=unused-argument
-            data['called'] = True
-            error = context.get("exception")
-            test_case.assertIsInstance(error, AirflowException)
+        mock_failure_callback = MagicMock()
 
         op = BashOperator(
             task_id='check_on_failure_callback',
             bash_command="exit 1",
             dag=self.dag,
-            on_failure_callback=check_failure,
+            on_failure_callback=mock_failure_callback,
         )
         with pytest.raises(AirflowException):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        assert data['called']
+        mock_failure_callback.assert_called_once()
 
     def test_dryrun(self):
         op = BashOperator(task_id='test_dryrun', bash_command="echo success", dag=self.dag)
@@ -421,3 +416,40 @@ class TestCore(unittest.TestCase):
 
         assert context['prev_ds'] == execution_ds
         assert context['prev_ds_nodash'] == execution_ds_nodash
+
+    def test_dag_params_and_task_params(self):
+        # This test case guards how params of DAG and Operator work together.
+        # - If any key exists in either DAG's or Operator's params,
+        #   it is guaranteed to be available eventually.
+        # - If any key exists in both DAG's params and Operator's params,
+        #   the latter has precedence.
+        TI = TaskInstance
+
+        dag = DAG(
+            TEST_DAG_ID,
+            default_args=self.args,
+            schedule_interval=timedelta(weeks=1),
+            start_date=DEFAULT_DATE,
+            params={'key_1': 'value_1', 'key_2': 'value_2_old'},
+        )
+        task1 = DummyOperator(
+            task_id='task1',
+            dag=dag,
+            params={'key_2': 'value_2_new', 'key_3': 'value_3'},
+        )
+        task2 = DummyOperator(task_id='task2', dag=dag)
+        dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=True,
+        )
+        task1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        task2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        ti2 = TI(task=task2, execution_date=DEFAULT_DATE)
+        context1 = ti1.get_template_context()
+        context2 = ti2.get_template_context()
+
+        assert context1['params'] == {'key_1': 'value_1', 'key_2': 'value_2_new', 'key_3': 'value_3'}
+        assert context2['params'] == {'key_1': 'value_1', 'key_2': 'value_2_old'}

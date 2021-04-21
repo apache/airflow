@@ -31,9 +31,9 @@ class HttpHook(BaseHook):
 
     :param method: the API method to be called
     :type method: str
-    :param http_conn_id: connection that has the base API url i.e https://www.google.com/
-        and optional authentication credentials. Default headers can also be specified in
-        the Extra field in json format.
+    :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
+        API url i.e https://www.google.com/ and optional authentication credentials. Default
+        headers can also be specified in the Extra field in json format.
     :type http_conn_id: str
     :param auth_type: The auth type for the service
     :type auth_type: AuthBase of python requests lib

@@ -43,6 +43,7 @@ class OracleToOracleOperator(BaseOperator):
     """
 
     template_fields = ('source_sql', 'source_sql_params')
+    template_fields_renderers = {"source_sql": "sql", "source_sql_params": "py"}
     ui_color = '#e08c8c'
 
     @apply_defaults

@@ -323,27 +323,27 @@ class TestDagBag(unittest.TestCase):
             from airflow.operators.dummy import DummyOperator
             from airflow.operators.subdag import SubDagOperator
 
-            dag_name = 'master'
+            dag_name = 'parent'
             default_args = {'owner': 'owner1', 'start_date': datetime.datetime(2016, 1, 1)}
             dag = DAG(dag_name, default_args=default_args)
 
-            # master:
+            # parent:
             #     A -> opSubDag_0
-            #          master.opsubdag_0:
+            #          parent.opsubdag_0:
             #              -> subdag_0.task
             #     A -> opSubDag_1
-            #          master.opsubdag_1:
+            #          parent.opsubdag_1:
             #              -> subdag_1.task
 
             with dag:
 
                 def subdag_0():
-                    subdag_0 = DAG('master.op_subdag_0', default_args=default_args)
+                    subdag_0 = DAG('parent.op_subdag_0', default_args=default_args)
                     DummyOperator(task_id='subdag_0.task', dag=subdag_0)
                     return subdag_0
 
                 def subdag_1():
-                    subdag_1 = DAG('master.op_subdag_1', default_args=default_args)
+                    subdag_1 = DAG('parent.op_subdag_1', default_args=default_args)
                     DummyOperator(task_id='subdag_1.task', dag=subdag_1)
                     return subdag_1
 
@@ -374,58 +374,58 @@ class TestDagBag(unittest.TestCase):
             from airflow.operators.dummy import DummyOperator
             from airflow.operators.subdag import SubDagOperator
 
-            dag_name = 'master'
+            dag_name = 'parent'
             default_args = {'owner': 'owner1', 'start_date': datetime.datetime(2016, 1, 1)}
             dag = DAG(dag_name, default_args=default_args)
 
-            # master:
+            # parent:
             #     A -> op_subdag_0
-            #          master.op_subdag_0:
+            #          parent.op_subdag_0:
             #              -> opSubDag_A
-            #                 master.op_subdag_0.opSubdag_A:
+            #                 parent.op_subdag_0.opSubdag_A:
             #                     -> subdag_a.task
             #              -> opSubdag_B
-            #                 master.op_subdag_0.opSubdag_B:
+            #                 parent.op_subdag_0.opSubdag_B:
             #                     -> subdag_b.task
             #     A -> op_subdag_1
-            #          master.op_subdag_1:
+            #          parent.op_subdag_1:
             #              -> opSubdag_C
-            #                 master.op_subdag_1.opSubdag_C:
+            #                 parent.op_subdag_1.opSubdag_C:
             #                     -> subdag_c.task
             #              -> opSubDag_D
-            #                 master.op_subdag_1.opSubdag_D:
+            #                 parent.op_subdag_1.opSubdag_D:
             #                     -> subdag_d.task
 
             with dag:
 
                 def subdag_a():
-                    subdag_a = DAG('master.op_subdag_0.opSubdag_A', default_args=default_args)
+                    subdag_a = DAG('parent.op_subdag_0.opSubdag_A', default_args=default_args)
                     DummyOperator(task_id='subdag_a.task', dag=subdag_a)
                     return subdag_a
 
                 def subdag_b():
-                    subdag_b = DAG('master.op_subdag_0.opSubdag_B', default_args=default_args)
+                    subdag_b = DAG('parent.op_subdag_0.opSubdag_B', default_args=default_args)
                     DummyOperator(task_id='subdag_b.task', dag=subdag_b)
                     return subdag_b
 
                 def subdag_c():
-                    subdag_c = DAG('master.op_subdag_1.opSubdag_C', default_args=default_args)
+                    subdag_c = DAG('parent.op_subdag_1.opSubdag_C', default_args=default_args)
                     DummyOperator(task_id='subdag_c.task', dag=subdag_c)
                     return subdag_c
 
                 def subdag_d():
-                    subdag_d = DAG('master.op_subdag_1.opSubdag_D', default_args=default_args)
+                    subdag_d = DAG('parent.op_subdag_1.opSubdag_D', default_args=default_args)
                     DummyOperator(task_id='subdag_d.task', dag=subdag_d)
                     return subdag_d
 
                 def subdag_0():
-                    subdag_0 = DAG('master.op_subdag_0', default_args=default_args)
+                    subdag_0 = DAG('parent.op_subdag_0', default_args=default_args)
                     SubDagOperator(task_id='opSubdag_A', dag=subdag_0, subdag=subdag_a())
                     SubDagOperator(task_id='opSubdag_B', dag=subdag_0, subdag=subdag_b())
                     return subdag_0
 
                 def subdag_1():
-                    subdag_1 = DAG('master.op_subdag_1', default_args=default_args)
+                    subdag_1 = DAG('parent.op_subdag_1', default_args=default_args)
                     SubDagOperator(task_id='opSubdag_C', dag=subdag_1, subdag=subdag_c())
                     SubDagOperator(task_id='opSubdag_D', dag=subdag_1, subdag=subdag_d())
                     return subdag_1
@@ -686,6 +686,43 @@ class TestDagBag(unittest.TestCase):
                 mock.call(mock_dag, min_update_interval=mock.ANY, session=mock_session),
             ]
         )
+
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
+    @patch("airflow.www.security.ApplessAirflowSecurityManager")
+    def test_sync_to_db_handles_dag_specific_permissions(self, mock_security_manager):
+        """
+        Test that when dagbag.sync_to_db is called new DAGs and updates DAGs have their
+        DAG specific permissions synced
+        """
+        with create_session() as session:
+            # New DAG
+            dagbag = DagBag(
+                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
+                include_examples=False,
+            )
+            with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)):
+                dagbag.sync_to_db(session=session)
+
+            mock_security_manager.return_value.sync_perm_for_dag.assert_called_once_with(
+                "test_example_bash_operator", None
+            )
+
+            # DAG is updated
+            mock_security_manager.reset_mock()
+            dagbag.dags["test_example_bash_operator"].tags = ["new_tag"]
+            with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 20)):
+                dagbag.sync_to_db(session=session)
+
+            mock_security_manager.return_value.sync_perm_for_dag.assert_called_once_with(
+                "test_example_bash_operator", None
+            )
+
+            # DAG isn't updated
+            mock_security_manager.reset_mock()
+            with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 40)):
+                dagbag.sync_to_db(session=session)
+
+            mock_security_manager.return_value.sync_perm_for_dag.assert_not_called()
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)

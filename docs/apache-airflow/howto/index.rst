@@ -20,7 +20,7 @@
 How-to Guides
 =============
 
-Setting up the sandbox in the :doc:`../start` section was easy;
+Setting up the sandbox in the :doc:`/start/index` section was easy;
 building a production-grade environment requires a bit more work!
 
 These how-to guides will step you through common tasks in using and
@@ -34,6 +34,7 @@ configuring an Airflow environment.
     set-up-database
     operator/index
     customize-state-colors-ui
+    customize-dag-ui-page-instance-name
     custom-operator
     connection
     variable

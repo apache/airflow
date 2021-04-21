@@ -128,8 +128,13 @@ class TestUtils(unittest.TestCase):
         assert ['a=0', 'c=true'] == pairs
 
     def test_params_all(self):
-        query = utils.get_params(status='active', page=3, search='bash_')
-        assert {'page': ['3'], 'search': ['bash_'], 'status': ['active']} == parse_qs(query)
+        query = utils.get_params(tags=['tag1', 'tag2'], status='active', page=3, search='bash_')
+        assert {
+            'tags': ['tag1', 'tag2'],
+            'page': ['3'],
+            'search': ['bash_'],
+            'status': ['active'],
+        } == parse_qs(query)
 
     def test_params_escape(self):
         assert 'search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E' == utils.get_params(
@@ -240,8 +245,19 @@ class TestWrappedMarkdown(unittest.TestCase):
         )
 
         assert (
-            '<div class="None" ><table>\n<thead>\n<tr>\n<th>Job</th>\n'
+            '<div class="rich_doc" ><table>\n<thead>\n<tr>\n<th>Job</th>\n'
             '<th>Duration</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ETL'
             '</td>\n<td>14m</td>\n</tr>\n</tbody>\n'
             '</table></div>'
         ) == rendered
+
+    def test_wrapped_markdown_with_indented_lines(self):
+        rendered = wrapped_markdown(
+            """
+                # header
+                1st line
+                2nd line
+            """
+        )
+
+        assert '<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p></div>' == rendered

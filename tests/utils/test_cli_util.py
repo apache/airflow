@@ -112,9 +112,19 @@ class TestCliUtil(unittest.TestCase):
                 "airflow connections add dsfs --conn-login asd --conn-password test --conn-type google",
                 "airflow connections add dsfs --conn-login asd --conn-password ******** --conn-type google",
             ),
+            (
+                "airflow scheduler -p",
+                "airflow scheduler -p",
+            ),
+            (
+                "airflow celery flower -p 8888",
+                "airflow celery flower -p 8888",
+            ),
         ]
     )
     def test_cli_create_user_supplied_password_is_masked(self, given_command, expected_masked_command):
+        # '-p' value which is not password, like 'airflow scheduler -p'
+        # or 'airflow celery flower -p 8888', should not be masked
         args = given_command.split()
 
         expected_command = expected_masked_command.split()

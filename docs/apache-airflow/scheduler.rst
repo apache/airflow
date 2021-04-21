@@ -66,10 +66,10 @@ This only has effect if your DAG has no ``schedule_interval``.
 If you keep default ``allow_trigger_in_future = False`` and try 'external trigger' to run future-dated execution dates,
 the scheduler won't execute it now but the scheduler will execute it in the future once the current date rolls over to the execution date.
 
+.. _scheduler:ha:
+
 Running More Than One Scheduler
 -------------------------------
-
-.. _scheduler:ha:
 
 .. versionadded: 2.0.0
 

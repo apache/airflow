@@ -33,6 +33,31 @@ class GCSToSFTPOperator(BaseOperator):
     """
     Transfer files from a Google Cloud Storage bucket to SFTP server.
 
+    **Example**: ::
+
+        with models.DAG(
+            "example_gcs_to_sftp",
+            start_date=datetime(2020, 6, 19),
+            schedule_interval=None,
+        ) as dag:
+            # downloads file to /tmp/sftp/folder/subfolder/file.txt
+            copy_file_from_gcs_to_sftp = GCSToSFTPOperator(
+                task_id="file-copy-gsc-to-sftp",
+                source_bucket="test-gcs-sftp-bucket-name",
+                source_object="folder/subfolder/file.txt",
+                destination_path="/tmp/sftp",
+            )
+
+            # moves file to /tmp/data.txt
+            move_file_from_gcs_to_sftp = GCSToSFTPOperator(
+                task_id="file-move-gsc-to-sftp",
+                source_bucket="test-gcs-sftp-bucket-name",
+                source_object="folder/subfolder/data.txt",
+                destination_path="/tmp",
+                move_object=True,
+                keep_directory_structure=False,
+            )
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GCSToSFTPOperator`
@@ -50,6 +75,9 @@ class GCSToSFTPOperator(BaseOperator):
     :param destination_path: The sftp remote path. This is the specified directory path for
         uploading to the SFTP server.
     :type destination_path: str
+    :param keep_directory_structure: (Optional) When set to False the path of the file
+         on the bucket is recreated within path passed in destination_path.
+    :type keep_directory_structure: bool
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
@@ -90,6 +118,7 @@ class GCSToSFTPOperator(BaseOperator):
         source_bucket: str,
         source_object: str,
         destination_path: str,
+        keep_directory_structure: bool = True,
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         sftp_conn_id: str = "ssh_default",
@@ -102,6 +131,7 @@ class GCSToSFTPOperator(BaseOperator):
         self.source_bucket = source_bucket
         self.source_object = source_object
         self.destination_path = destination_path
+        self.keep_directory_structure = keep_directory_structure
         self.move_object = move_object
         self.gcp_conn_id = gcp_conn_id
         self.sftp_conn_id = sftp_conn_id
@@ -127,17 +157,27 @@ class GCSToSFTPOperator(BaseOperator):
                 )
 
             prefix, delimiter = self.source_object.split(WILDCARD, 1)
+            prefix_dirname = os.path.dirname(prefix)
+
             objects = gcs_hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
 
             for source_object in objects:
-                destination_path = os.path.join(self.destination_path, source_object)
+                destination_path = self._resolve_destination_path(source_object, prefix=prefix_dirname)
                 self._copy_single_object(gcs_hook, sftp_hook, source_object, destination_path)
 
             self.log.info("Done. Uploaded '%d' files to %s", len(objects), self.destination_path)
         else:
-            destination_path = os.path.join(self.destination_path, self.source_object)
+            destination_path = self._resolve_destination_path(self.source_object)
             self._copy_single_object(gcs_hook, sftp_hook, self.source_object, destination_path)
             self.log.info("Done. Uploaded '%s' file to %s", self.source_object, destination_path)
+
+    def _resolve_destination_path(self, source_object: str, prefix: Optional[str] = None) -> str:
+        if not self.keep_directory_structure:
+            if prefix:
+                source_object = os.path.relpath(source_object, start=prefix)
+            else:
+                source_object = os.path.basename(source_object)
+        return os.path.join(self.destination_path, source_object)
 
     def _copy_single_object(
         self,

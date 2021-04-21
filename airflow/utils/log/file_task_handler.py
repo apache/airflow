@@ -207,7 +207,7 @@ class FileTaskHandler(logging.Handler):
             logs = [
                 [('default_host', f'Error fetching the logs. Try number {try_number} is invalid.')],
             ]
-            return logs
+            return logs, [{'end_of_log': True}]
         else:
             try_numbers = [try_number]
 
@@ -255,6 +255,9 @@ class FileTaskHandler(logging.Handler):
         if not os.path.exists(full_path):
             open(full_path, "a").close()
             # TODO: Investigate using 444 instead of 666.
-            os.chmod(full_path, 0o666)
+            try:
+                os.chmod(full_path, 0o666)
+            except OSError:
+                logging.warning("OSError while change ownership of the log file")
 
         return full_path

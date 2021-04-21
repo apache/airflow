@@ -21,6 +21,7 @@ import base64
 import logging
 import mimetypes
 import os
+import warnings
 from typing import Dict, Iterable, Optional, Union
 
 import sendgrid
@@ -36,6 +37,8 @@ from sendgrid.helpers.mail import (
     SandBoxMode,
 )
 
+from airflow.exceptions import AirflowException
+from airflow.hooks.base import BaseHook
 from airflow.utils.email import get_email_address_list
 
 log = logging.getLogger(__name__)
@@ -43,7 +46,7 @@ log = logging.getLogger(__name__)
 AddressesType = Union[str, Iterable[str]]
 
 
-def send_email(
+def send_email(  # pylint: disable=too-many-locals
     to: AddressesType,
     subject: str,
     html_content: str,
@@ -51,6 +54,7 @@ def send_email(
     cc: Optional[AddressesType] = None,
     bcc: Optional[AddressesType] = None,
     sandbox_mode: bool = False,
+    conn_id: str = "sendgrid_default",
     **kwargs,
 ) -> None:
     """
@@ -115,11 +119,25 @@ def send_email(
         )
 
         mail.add_attachment(attachment)
-    _post_sendgrid_mail(mail.get())
+    _post_sendgrid_mail(mail.get(), conn_id)
 
 
-def _post_sendgrid_mail(mail_data: Dict) -> None:
-    sendgrid_client = sendgrid.SendGridAPIClient(api_key=os.environ.get('SENDGRID_API_KEY'))
+def _post_sendgrid_mail(mail_data: Dict, conn_id: str = "sendgrid_default") -> None:
+    api_key = None
+    try:
+        conn = BaseHook.get_connection(conn_id)
+        api_key = conn.password
+    except AirflowException:
+        pass
+    if api_key is None:
+        warnings.warn(
+            "Fetching Sendgrid credentials from environment variables will be deprecated in a future "
+            "release. Please set credentials using a connection instead.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        api_key = os.environ.get('SENDGRID_API_KEY')
+    sendgrid_client = sendgrid.SendGridAPIClient(api_key=api_key)
     response = sendgrid_client.client.mail.send.post(request_body=mail_data)
     # 2xx status code.
     if 200 <= response.status_code < 300:

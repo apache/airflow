@@ -19,7 +19,7 @@
 from typing import Optional, Sequence, Union
 
 from google.api_core.gapic_v1.method import DEFAULT
-from google.protobuf.json_format import MessageToDict
+from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
@@ -150,7 +150,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return [MessageToDict(policy) for policy in result]
+        return [AlertPolicy.to_dict(policy) for policy in result]
 
 
 class StackdriverEnableAlertPoliciesOperator(BaseOperator):
@@ -639,7 +639,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = [MessageToDict(channel) for channel in channels]
+        result = [NotificationChannel.to_dict(channel) for channel in channels]
         return result
 
 
