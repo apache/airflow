@@ -258,10 +258,25 @@ You should set up the autocomplete option automatically by running:
 
 You get the auto-completion working when you re-enter the shell.
 
+Customize your environment
+--------------------------
 When you enter the Breeze environment, automatically an environment file is sourced from
 ``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
 automatically mounted to the container under ``/files`` path and you can put there any files you want
 to make available for the Breeze container.
+
+You can also add your local tmux configuration in ``files/airflow-breeze-config/.tmux.conf`` and
+these configurations will be available for your tmux environment.
+
+there is a symlink between ``files/airflow-breeze-config/.tmux.conf`` and ``~/.tmux.conf`` in the container,
+so you can change it at any place, and run
+
+.. code-block:: bash
+
+  tmux source ~/.tmux.conf
+
+inside container, to enable modified tmux configurations.
+
 
 .. raw:: html
 
