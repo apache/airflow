@@ -58,13 +58,6 @@ class AuthSchema(Schema):
     user = fields.Nested(UserCollectionItemSchema)
 
 
-class LogoutSchema(Schema):
-    """Schema for logout"""
-
-    token = fields.String()
-    refresh_token = fields.String()
-
-
 class RevokeTokenSchema(Schema):
     """Schema to revoke tokens"""
 
@@ -74,5 +67,4 @@ class RevokeTokenSchema(Schema):
 info_schema = InfoSchema()
 login_form_schema = LoginForm()
 auth_schema = AuthSchema()
-logout_schema = LogoutSchema()
 token_schema = RevokeTokenSchema()

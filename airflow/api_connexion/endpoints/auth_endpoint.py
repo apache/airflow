@@ -25,6 +25,8 @@ from flask_jwt_extended import (
     get_raw_jwt,
     jwt_refresh_token_required,
     jwt_required,
+    set_access_cookies,
+    unset_jwt_cookies,
 )
 from flask_login import login_user
 from marshmallow import ValidationError
@@ -67,17 +69,18 @@ def get_auth_info():
 
 def auth_login():
     """Handle DB login"""
+    appbuilder = current_app.appbuilder
     body = request.json
     try:
         data = login_form_schema.load(body)
     except ValidationError as err:
         raise Unauthenticated(detail=str(err.messages))
-    security_manager = current_app.appbuilder.sm
+    security_manager = appbuilder.sm
     user = security_manager.login_with_user_pass(data['username'], data['password'])
     if not user:
         raise Unauthenticated(detail="Invalid login")
     login_user(user, remember=False)
-    return security_manager.create_tokens_and_dump(user, auth_schema)
+    return security_manager.create_tokens_and_dump(appbuilder.app, user, auth_schema)
 
 
 def auth_oauthlogin(provider, register=None, redirect_url=None):
@@ -85,14 +88,14 @@ def auth_oauthlogin(provider, register=None, redirect_url=None):
     appbuilder = current_app.appbuilder
     if register:
         c_session["register"] = True
-    return appbuilder.sm.oauth_authorization_url(appbuilder.app, provider, redirect_url)
+    return appbuilder.sm.oauth_authorization_url(current_app.appbuilder.app, provider, redirect_url)
 
 
 def authorize_oauth(provider, state):
     """Callback to authorize Oauth."""
     appbuilder = current_app.appbuilder
     user = appbuilder.sm.oauth_login_user(appbuilder.app, provider, state)
-    return appbuilder.sm.create_tokens_and_dump(user, auth_schema)
+    return appbuilder.sm.create_tokens_and_dump(appbuilder.app, user, auth_schema)
 
 
 def auth_remoteuser():
@@ -103,7 +106,7 @@ def auth_remoteuser():
         user = appbuilder.sm.login_remote_user(username)
     else:
         raise Unauthenticated(detail="Invalid login")
-    return appbuilder.sm.create_tokens_and_dump(user, auth_schema)
+    return appbuilder.sm.create_tokens_and_dump(appbuilder.app, user, auth_schema)
 
 
 @jwt_refresh_token_required
@@ -111,6 +114,10 @@ def refresh_token():
     """Refresh token"""
     user = get_jwt_identity()
     access_token = create_access_token(identity=user)
+    if 'cookies' in current_app.appbuilder.app.config['JWT_TOKEN_LOCATION']:
+        resp = jsonify({'access_token': ""})  # empty string to comply to spec
+        set_access_cookies(resp, access_token)
+        return resp
     return {'access_token': access_token}
 
 
@@ -146,7 +153,10 @@ def revoke_current_user_token():
         TokenBlockList.add_token(jti=raw_jwt['jti'], expiry_delta=raw_jwt['exp'])
     except IntegrityError:
         pass
-    return jsonify({"revoked": True})
+    resp = jsonify({"revoked": True})
+    if 'cookies' in current_app.appbuilder.app.config['JWT_TOKEN_LOCATION']:
+        unset_jwt_cookies(resp)
+    return resp
 
 
 @jwt_refresh_token_required
@@ -160,4 +170,7 @@ def revoke_current_user_refresh_token():
         TokenBlockList.add_token(jti=raw_jwt['jti'], expiry_delta=raw_jwt['exp'])
     except IntegrityError:
         pass
-    return jsonify({"revoked": True})
+    resp = jsonify({"revoked": True})
+    if 'cookies' in current_app.appbuilder.app.config['JWT_TOKEN_LOCATION']:
+        unset_jwt_cookies(resp)
+    return resp

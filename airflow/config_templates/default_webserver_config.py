@@ -17,6 +17,7 @@
 # under the License.
 """Default configuration for the Airflow webserver"""
 import os
+from datetime import timedelta
 
 from flask_appbuilder.security.manager import AUTH_DB
 
@@ -126,3 +127,15 @@ AUTH_TYPE = AUTH_DB
 # APP_THEME = "superhero.css"
 # APP_THEME = "united.css"
 # APP_THEME = "yeti.css"
+# ----------------------------------------------------
+# JWT CONFIGURATION
+# ----------------------------------------------------
+# Airflow uses flask_jwt_extended for handling JWT Authentication.
+# Please refer to https://flask-jwt-extended.readthedocs.io/en/3.0.0_release/options/
+# for more configuration options.
+# Note that storing token in query string is not supported
+JWT_TOKEN_LOCATION = ['headers']
+JWT_HEADER_NAME = "Authorization"
+JWT_HEADER_TYPE = 'Bearer'
+JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=30)
+JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)

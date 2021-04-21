@@ -18,16 +18,21 @@
 #
 
 import warnings
-from datetime import timedelta
 from typing import Dict, Optional, Sequence, Set, Tuple
 
 import jwt
-from flask import current_app, g, request
+from flask import current_app, g, jsonify, request
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
-from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    create_refresh_token,
+    set_access_cookies,
+    set_refresh_cookies,
+)
 from flask_login import login_user
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
@@ -754,10 +759,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """Get authorization url for oauth"""
         if self.auth_type != AUTH_OAUTH:
             raise Unauthenticated(detail=AUTH_TYPE_MISMATCH_MESSAGE)
+        secret_key = app.config['SECRET_KEY']
         state = jwt.encode(
             request.args.to_dict(flat=False),
-            app.config["SECRET_KEY"],
-            algorithm="HS256",
+            app.config.get("JWT_SECRET_KEY", secret_key),
+            algorithm=app.config["JWT_ALGORITHM"],
         )
         auth_provider = self.oauth_remotes[provider]
         try:
@@ -784,11 +790,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         if resp is None:
             raise Unauthenticated(detail="You denied the request to sign in")
         # Verify state
+        secret_key = app.config['SECRET_KEY']
         try:
             jwt.decode(
                 state,
-                app.config["SECRET_KEY"],
-                algorithms=["HS256"],
+                app.config.get("JWT_SECRET_KEY", secret_key),
+                algorithms=app.config["JWT_ALGORITHM"],
             )
         except jwt.InvalidTokenError:
             raise Unauthenticated(detail="State signature is not valid!")
@@ -817,16 +824,19 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     def create_jwt_manager(self, app) -> JWTManager:
         """Called by FAB for us when it wants a configured JWT manager"""
         jwt_manager = JWTManager()
-        app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
-        app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
         jwt_manager.init_app(app)
         jwt_manager.user_loader_callback_loader(self.load_user_jwt)
         return jwt_manager
 
-    def create_tokens_and_dump(self, user, schema):
+    def create_tokens_and_dump(self, app, user, schema):
         """Creates access and refresh token, return user data alongside tokens"""
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id)
+        if 'cookies' in app.config['JWT_TOKEN_LOCATION']:
+            resp = jsonify(schema.dump({'user': user}))
+            set_access_cookies(resp, access_token)
+            set_refresh_cookies(resp, refresh_token)
+            return resp
         return schema.dump({'user': user, 'token': access_token, 'refresh_token': refresh_token})
 
 

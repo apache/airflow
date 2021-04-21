@@ -1668,7 +1668,7 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
 
   /refresh:
-    post:
+    get:
       summary: Refresh a token
       description: Accepts refresh token and creates access token
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
