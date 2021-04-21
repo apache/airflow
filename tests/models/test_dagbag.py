@@ -692,7 +692,7 @@ class TestDagBag(unittest.TestCase):
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.www.security.ApplessAirflowSecurityManager")
     @freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0), as_kwarg="frozen_time")
-    def test_sync_to_db_handles_dag_specific_permissions_fixed(self, mock_security_manager, frozen_time):
+    def test_sync_to_db_handles_dag_specific_permissions(self, mock_security_manager, frozen_time):
         """
         Test that when dagbag.sync_to_db is called, DAG specific permissions are
         created as needed
