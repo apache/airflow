@@ -63,6 +63,17 @@ registered_operator_link_classes: Optional[Dict[str, Type]] = None
 Used by the DAG serialization code to only allow specific classes to be created
 during deserialization
 """
+PLUGINS_ATTRIBUTES_TO_DUMP = {
+    "hooks",
+    "executors",
+    "macros",
+    "flask_blueprints",
+    "appbuilder_views",
+    "appbuilder_menu_items",
+    "global_operator_extra_links",
+    "operator_extra_links",
+    "source",
+}
 
 
 class AirflowPluginSource:
@@ -173,13 +184,23 @@ def is_valid_plugin(plugin_obj):
     return False
 
 
+def register_plugin(plugin_instance):
+    """
+    Start plugin load and register it after success initialization
+
+    :param plugin_instance: subclass of AirflowPlugin
+    """
+    global plugins  # pylint: disable=global-statement
+    plugin_instance.on_load()
+    plugins.append(plugin_instance)
+
+
 def load_entrypoint_plugins():
     """
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
     The entry_point group should be 'airflow.plugins'.
     """
     global import_errors  # pylint: disable=global-statement
-    global plugins  # pylint: disable=global-statement
 
     log.debug("Loading plugins from entrypoints")
 
@@ -191,10 +212,8 @@ def load_entrypoint_plugins():
                 continue
 
             plugin_instance = plugin_class()
-            if callable(getattr(plugin_instance, 'on_load', None)):
-                plugin_instance.on_load()
-                plugin_instance.source = EntryPointSource(entry_point, dist)
-                plugins.append(plugin_instance)
+            plugin_instance.source = EntryPointSource(entry_point, dist)
+            register_plugin(plugin_instance)
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module] = str(e)
@@ -203,11 +222,9 @@ def load_entrypoint_plugins():
 def load_plugins_from_plugin_directory():
     """Load and register Airflow Plugins from plugins directory"""
     global import_errors  # pylint: disable=global-statement
-    global plugins  # pylint: disable=global-statement
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
     for file_path in find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore"):
-
         if not os.path.isfile(file_path):
             continue
         mod_name, file_ext = os.path.splitext(os.path.split(file_path)[-1])
@@ -225,8 +242,7 @@ def load_plugins_from_plugin_directory():
             for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
                 plugin_instance = mod_attr_value()
                 plugin_instance.source = PluginsDirectorySource(file_path)
-                plugins.append(plugin_instance)
-
+                register_plugin(plugin_instance)
         except Exception as e:  # pylint: disable=broad-except
             log.exception(e)
             log.error('Failed to import plugin %s', file_path)
@@ -427,3 +443,26 @@ def integrate_macros_plugins() -> None:
             # Register the newly created module on airflow.macros such that it
             # can be accessed when rendering templates.
             setattr(macros, plugin.name, macros_module)
+
+
+def get_plugin_info(attrs_to_dump: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    """
+    Dump plugins attributes
+
+    :param attrs_to_dump: A list of plugin attributes to dump
+    :type attrs_to_dump: List
+    """
+    ensure_plugins_loaded()
+    integrate_executor_plugins()
+    integrate_macros_plugins()
+    initialize_web_ui_plugins()
+    initialize_extra_operators_links_plugins()
+    if not attrs_to_dump:
+        attrs_to_dump = PLUGINS_ATTRIBUTES_TO_DUMP
+    plugins_info = []
+    if plugins:
+        for plugin in plugins:
+            info = {"name": plugin.name}
+            info.update({n: getattr(plugin, n) for n in attrs_to_dump})
+            plugins_info.append(info)
+    return plugins_info

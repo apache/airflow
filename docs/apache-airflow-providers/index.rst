@@ -51,8 +51,13 @@ provider packages are automatically documented in the release notes of every pro
 
 .. note::
     We also provide ``apache-airflow-backport-providers`` packages that can be installed for Airflow 1.10.
-    Those are the same providers as for 2.0 but automatically back-ported to work for Airflow 1.10. Those
-    backport providers are going to be updated and released for 3 months after Apache Airflow 2.0 release.
+    Those are the same providers as for 2.0 but automatically back-ported to work for Airflow 1.10. The
+    last release of backport providers was done on March 17, 2021.
+
+Creating and maintaining community providers
+""""""""""""""""""""""""""""""""""""""""""""
+
+See :doc:`howto/create-update-providers` for more information.
 
 
 Provider packages functionality
@@ -124,7 +129,8 @@ Displaying package information in CLI/API:
 * ``description`` - Additional description of the provider.
 
 * ``version`` - List of versions of the package (in reverse-chronological order). The first version in the
-  list is the current package version.
+  list is the current package version. It is taken from the version of package installed, not from the
+  provider_info information.
 
 Exposing customized functionality to the Airflow's core:
 
@@ -169,15 +175,10 @@ Using Backport Providers in Airflow 1.10
 I would like to upgrade the provider package. If I don't need to upgrade the Airflow version anymore,
 how do I know that this provider version is compatible with my Airflow version?**
 
-Backport Provider Packages (those are needed in 1.10.* Airflow series) are going to be released for
-3 months after the release. We will stop releasing new updates to the backport providers afterwards.
-You will be able to continue using the provider packages that you already use and unless you need to
-get some new release of the provider that is only released for 2.0, there is no need to upgrade
-Airflow. This might happen if for example the provider is migrated to use newer version of client
-libraries or when new features/operators/hooks are added to it. Those changes will only be
-backported to 1.10.* compatible backport providers up to 3 months after releasing Airflow 2.0.
-Also we expect more providers, changes and fixes added to the existing providers to come after the
-3 months pass. Eventually you will have to upgrade to Airflow 2.0 if you would like to make use of those.
+We have Backport Providers are compatible with 1.10 but they stopped being released on
+March 17, 2021. Since then, no new changes to providers for Airflow 2.0 are going to be
+released as backport packages. It's the highest time to upgrade to Airflow 2.0.
+
 When it comes to compatibility of providers with different Airflow 2 versions, each
 provider package will keep its own dependencies, and while we expect those providers to be generally
 backwards-compatible, particular versions of particular providers might introduce dependencies on
@@ -217,9 +218,12 @@ You need to do the following to turn an existing Python package into a provider 
 * Create the function that you refer to in the first step as part of your package: this functions returns a
   dictionary that contains all meta-data about your provider package
 * note that the dictionary should be compliant with ``airflow/provider_info.schema.json`` JSON-schema
-  specification and the community-managed providers have more fields there that are used to build
-  documentation, but the requirement for runtime information only contains several fields from the
-  runtime schema. See below for examples.
+  specification. The community-managed providers have more fields there that are used to build
+  documentation, but the requirement for runtime information only contains several fields which are defined
+  in the schema:
+
+.. exampleinclude:: /../../airflow/provider_info.schema.json
+    :language: json
 
 Example ``setup.cfg``:
 
@@ -242,18 +246,17 @@ Example ``myproviderpackage/somemodule.py``:
           "hook-class-names": [
               "myproviderpackage.hooks.source.SourceHook",
           ],
-          'versions': ["1.0.0"],
       }
 
 **How do provider packages work under the hood?**
 
-When running airflow with your provider package, there will be (at least) three components to your airflow installation:
+When running Airflow with your provider package, there will be (at least) three components to your airflow installation:
 
 * The installation itself (for example, a ``venv`` where you installed airflow with ``pip install apache-airflow``)
   together with the related files (e.g. ``dags`` folder)
 * The ``apache-airflow`` package
 * Your own ``myproviderpackage`` package that is independent of ``apache-airflow`` or your airflow installation, which
-  can be a local Python package (that you install via ``pip pip install -e /path/to/my-package``), a normal pip package
+  can be a local Python package (that you install via ``pip install -e /path/to/my-package``), a normal pip package
   (``pip install myproviderpackage``), or any other type of Python package
 
 In the ``myproviderpackage`` package you need to add the entry point and provide the appropriate metadata as described above.
@@ -301,6 +304,12 @@ The Community only accepts providers that are generic enough, are well documente
 and with capabilities of being tested by people in the community. So we might not always be in the
 position to accept such contributions.
 
+
+After you think that your provider matches the expected values above,  you can read
+:doc:`howto/create-update-providers` to check all prerequisites for a new
+community Provider and discuss it at the `Devlist <http://airflow.apache.org/community/>`_.
+
+
 However, in case you have your own, specific provider, which you can maintain on your own or by your
 team, you are free to publish the providers in whatever form you find appropriate. The custom and
 community-managed providers have exactly the same capabilities.
@@ -328,3 +337,4 @@ Content
 
     Packages <packages-ref>
     Operators and hooks <operators-and-hooks-ref/index>
+    Howto create and update community providers <howto/create-update-providers>

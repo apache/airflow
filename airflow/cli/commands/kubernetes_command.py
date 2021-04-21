@@ -18,11 +18,11 @@
 import os
 import sys
 
-import yaml
 from kubernetes import client
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
+import airflow.utils.yaml as yaml
 from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
@@ -90,7 +90,23 @@ def cleanup_pods(args):
     print('Loading Kubernetes configuration')
     kube_client = get_kube_client()
     print(f'Listing pods in namespace {namespace}')
-    list_kwargs = {"namespace": namespace, "limit": 500}
+    airflow_pod_labels = [
+        'dag_id',
+        'task_id',
+        'execution_date',
+        'try_number',
+        'airflow_version',
+    ]
+    list_kwargs = {
+        "namespace": namespace,
+        "limit": 500,
+        "label_selector": client.V1LabelSelector(
+            match_expressions=[
+                client.V1LabelSelectorRequirement(key=label, operator="Exists")
+                for label in airflow_pod_labels
+            ]
+        ),
+    }
     while True:  # pylint: disable=too-many-nested-blocks
         pod_list = kube_client.list_namespaced_pod(**list_kwargs)
         for pod in pod_list.items:

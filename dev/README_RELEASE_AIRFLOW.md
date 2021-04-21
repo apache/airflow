@@ -101,12 +101,31 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Rename the sdist
 
+    **Airflow 2+**:
+
+    ```shell script
+    mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
+    mv dist/apache_airflow-${VERSION%rc?}-py3-none-any.whl apache_airflow-${VERSION}-py3-none-any.whl
+    ```
+
+    **Airflow 1.10.x**:
+
     ```shell script
     mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
     mv dist/apache_airflow-${VERSION%rc?}-py2.py3-none-any.whl apache_airflow-${VERSION}-py2.py3-none-any.whl
     ```
 
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
+
+    **Airflow 2+**:
+
+    ```shell script
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-bin.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py3-none-any.whl
+    ```
+
+    **Airflow 1.10.x**:
 
     ```shell script
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
@@ -115,6 +134,16 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```
 
 - Tag & Push latest constraints files. This pushes constraints with rc suffix (this is expected)!
+
+    **Airflow 2+**:
+
+    ```shell script
+    git checkout constraints-2-0
+    git tag -s "constraints-${VERSION}"
+    git push origin "constraints-${VERSION}"
+    ```
+
+    **Airflow 1.10.x**:
 
     ```shell script
     git checkout constraints-1-10
@@ -332,18 +361,27 @@ Or update it if you already checked it out:
 svn update .
 ```
 
+Optionally you can use `check.files.py` script to verify that all expected files are
+present in SVN. This script may help also with verifying installation of the packages.
+
+```shell script
+python check_files.py -v {VERSION} -t airflow -p {PATH_TO_SVN}
+```
+
 ## Licence check
 
 This can be done with the Apache RAT tool.
 
-* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the sources,
+* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the -source.tar.gz to a folder
+* Unpack the binary (`-bin.tar.gz`) to a folder
 * Enter the folder and run the check (point to the place where you extracted the .jar)
 
 ```shell script
 java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
 ```
+
+where `.rat-excludes` is the file in the root of Airflow source code.
 
 ## Signature check
 
@@ -464,13 +502,13 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-./breeze start-airflow --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
+./breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
 ```
 
 For 1.10 releases you can also use `--no-rbac-ui` flag disable RBAC UI of Airflow:
 
 ```shell script
-./breeze start-airflow --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres --no-rbac-ui
+./breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres --no-rbac-ui
 ```
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check
@@ -667,7 +705,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    ./breeze build-docs -- --package-filter apache-airflow --for-production
+    ./breeze build-docs -- --package-filter apache-airflow --package-filter docker-stack --for-production
     ```
 
 - Now you can preview the documentation.
@@ -679,7 +717,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 - Copy the documentation to the ``airflow-site`` repository, create commit and push changes.
 
     ```shell script
-    ./docs/publish_docs.py --package apache-airflow
+    ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
     cd "${AIRFLOW_SITE_DIRECTORY}"
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push

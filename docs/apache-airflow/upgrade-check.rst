@@ -33,7 +33,7 @@ a period of time and specifically only for upgrading from Airflow 1.10 releases 
 While there has been a lot of work put into making this upgrade as easy as possible, there are some
 changes which are compatible between Airflow 1.10 and Airflow 2.0. In order to make this as simple to
 navigate, we recommend that people first upgrade to the latest release in the 1.10 series (at the
-time of writing: 1.10.14) and then to download this package and run the script as detailed below.
+time of writing: 1.10.15) and then to download this package and run the script as detailed below.
 
 
 .. note::
@@ -173,7 +173,7 @@ statement for the Python Operator to be as follows will make this DAG work in Ai
 
     from airflow.operators.python import PythonOperator
 
-However, at the time of writing, this is incompatible in Airflow 1.10.14. So, this change
+However, at the time of writing, this is incompatible in Airflow 1.10.15. So, this change
 can only be made while moving to Airflow 2.0.
 
 
@@ -182,7 +182,7 @@ Turning off checks
 
 Advanced Airflow users or those with multiple Airflow deployments may want to
 customize the Upgrade Checks to their environment by turning off certain
-checks which are not applicable to them. And example of this is users with
+checks which are not applicable to them. An example of this is users with
 Airflow deployments not using the ``KubernetesPodOperator`` may want to turn off upgrade
 checks related to the ``KubernetesPodOperator``.
 
@@ -193,7 +193,7 @@ This can be done by creating an "upgrade config file" in YAML as shown below:
     ignored_rules:
         - PodTemplateFileRule
 
-To use this configuration file (named ```upgrade-configuration.yaml`` for  this
+To use this configuration file (named ``upgrade-configuration.yaml`` for  this
 example) while running the upgrade check script, use the following command syntax:
 
 .. code-block:: bash

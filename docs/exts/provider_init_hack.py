@@ -34,15 +34,10 @@ PROVIDER_INIT_FILE = os.path.join(ROOT_PROJECT_DIR, "airflow", "providers", "__i
 def _create_init_py(app, config):
     del app
     del config
+    # This file is deleted by /docs/build_docs.py. If you are not using the script, the file will be
+    # deleted by pre-commit.
     with open(PROVIDER_INIT_FILE, "wt"):
         pass
-
-
-def _delete_init_py(app, exception):
-    del app
-    del exception
-    if os.path.exists(PROVIDER_INIT_FILE):
-        os.remove(PROVIDER_INIT_FILE)
 
 
 def setup(app: Sphinx):
@@ -53,6 +48,5 @@ def setup(app: Sphinx):
     :return json description of the configuration that is needed by the plugin.
     """
     app.connect("config-inited", _create_init_py)
-    app.connect("build-finished", _delete_init_py)
 
     return {"version": "builtin", "parallel_read_safe": True, "parallel_write_safe": True}

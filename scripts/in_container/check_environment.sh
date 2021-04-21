@@ -24,7 +24,7 @@ DISABLED_INTEGRATIONS=""
 # We want to avoid misleading messages and perform only forward lookup of the service IP address.
 # Netcat when run without -n performs both forward and reverse lookup and fails if the reverse
 # lookup name does not match the original name even if the host is reachable via IP. This happens
-# randomly with docker-compose in Github Actions.
+# randomly with docker-compose in GitHub Actions.
 # Since we are not using reverse lookup elsewhere, we can perform forward lookup in python
 # And use the IP in NC and add '-n' switch to disable any DNS use.
 # Even if this message might be harmless, it might hide the real reason for the problem
@@ -160,17 +160,17 @@ check_integration "MongoDB" "mongo" "run_nc mongo 27017" 50
 check_integration "Redis" "redis" "run_nc redis 6379" 50
 check_integration "Cassandra" "cassandra" "run_nc cassandra 9042" 50
 check_integration "OpenLDAP" "openldap" "run_nc openldap 389" 50
-check_integration "Presto (HTTP)" "presto" "run_nc presto 8080" 50
-check_integration "Presto (HTTPS)" "presto" "run_nc presto 7778" 50
-check_integration "Presto (API)" "presto" \
-    "curl --max-time 1 http://presto:8080/v1/info/ | grep '\"starting\":false'" 50
+check_integration "Trino (HTTP)" "trino" "run_nc trino 8080" 50
+check_integration "Trino (HTTPS)" "trino" "run_nc trino 7778" 50
+check_integration "Trino (API)" "trino" \
+    "curl --max-time 1 http://trino:8080/v1/info/ | grep '\"starting\":false'" 50
 check_integration "Pinot (HTTP)" "pinot" "run_nc pinot 9000" 50
 CMD="curl --max-time 1 -X GET 'http://pinot:9000/health' -H 'accept: text/plain' | grep OK"
-check_integration "Presto (Controller API)" "pinot" "${CMD}" 50
+check_integration "Pinot (Controller API)" "pinot" "${CMD}" 50
 CMD="curl --max-time 1 -X GET 'http://pinot:9000/pinot-controller/admin' -H 'accept: text/plain' | grep GOOD"
-check_integration "Presto (Controller API)" "pinot" "${CMD}" 50
+check_integration "Pinot (Controller API)" "pinot" "${CMD}" 50
 CMD="curl --max-time 1 -X GET 'http://pinot:8000/health' -H 'accept: text/plain' | grep OK"
-check_integration "Presto (Broker API)" "pinot" "${CMD}" 50
+check_integration "Pinot (Broker API)" "pinot" "${CMD}" 50
 check_integration "RabbitMQ" "rabbitmq" "run_nc rabbitmq 5672" 50
 
 echo "-----------------------------------------------------------------------------------------------"

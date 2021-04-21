@@ -18,11 +18,53 @@
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
 
 class WorkerTest(unittest.TestCase):
+    @parameterized.expand(
+        [
+            ("CeleryExecutor", False, "Deployment"),
+            ("CeleryExecutor", True, "StatefulSet"),
+            ("CeleryKubernetesExecutor", False, "Deployment"),
+            ("CeleryKubernetesExecutor", True, "StatefulSet"),
+        ]
+    )
+    def test_worker_kind(self, executor, persistence, kind):
+        """
+        Test worker kind is StatefulSet when worker persistence is enabled.
+        """
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {"persistence": {"enabled": persistence}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert kind == jmespath.search("kind", docs[0])
+
+    def test_should_add_extra_containers(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "extraContainers": [
+                        {
+                            "name": "test-container",
+                            "image": "test-registry/test-repo:test-tag",
+                            "imagePullPolicy": "Always",
+                        }
+                    ],
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "test-container" == jmespath.search("spec.template.spec.containers[-1].name", docs[0])
+
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
             values={
@@ -38,4 +80,79 @@ class WorkerTest(unittest.TestCase):
         assert "test-volume" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
         assert "test-volume" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+        )
+
+    def test_workers_host_aliases(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "127.0.0.2" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
+        assert "test.hostname" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+
+    def test_workers_update_strategy(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "updateStrategy": {
+                        "strategy": {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}}
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "100%" == jmespath.search("spec.strategy.rollingUpdate.maxSurge", docs[0])
+        assert "50%" == jmespath.search("spec.strategy.rollingUpdate.maxUnavailable", docs[0])
+
+    def test_should_create_valid_affinity_tolerations_and_node_selector(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "affinity": {
+                        "nodeAffinity": {
+                            "requiredDuringSchedulingIgnoredDuringExecution": {
+                                "nodeSelectorTerms": [
+                                    {
+                                        "matchExpressions": [
+                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "nodeSelector": {"diskType": "ssd"},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "StatefulSet" == jmespath.search("kind", docs[0])
+        assert "foo" == jmespath.search(
+            "spec.template.spec.affinity.nodeAffinity."
+            "requiredDuringSchedulingIgnoredDuringExecution."
+            "nodeSelectorTerms[0]."
+            "matchExpressions[0]."
+            "key",
+            docs[0],
+        )
+        assert "ssd" == jmespath.search(
+            "spec.template.spec.nodeSelector.diskType",
+            docs[0],
+        )
+        assert "dynamic-pods" == jmespath.search(
+            "spec.template.spec.tolerations[0].key",
+            docs[0],
         )

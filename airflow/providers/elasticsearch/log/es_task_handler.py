@@ -183,11 +183,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             if (
                 cur_ts.diff(last_log_ts).in_minutes() >= 5
                 or 'max_offset' in metadata
-                and offset >= metadata['max_offset']
+                and int(offset) >= int(metadata['max_offset'])
             ):
                 metadata['end_of_log'] = True
 
-        if offset != next_offset or 'last_log_timestamp' not in metadata:
+        if int(offset) != int(next_offset) or 'last_log_timestamp' not in metadata:
             metadata['last_log_timestamp'] = str(cur_ts)
 
         # If we hit the end of the log, remove the actual end_of_log message
@@ -207,7 +207,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         if self.json_format:
             try:
                 # pylint: disable=protected-access
-                return self.formatter._style.format(_ESJsonLogFmt(**log_line.to_dict()))
+                return self.formatter._style.format(_ESJsonLogFmt(self.json_fields, **log_line.to_dict()))
             except Exception:  # noqa pylint: disable=broad-except
                 pass
 
@@ -349,5 +349,7 @@ class _ESJsonLogFmt:
     """Helper class to read ES Logs and re-format it to match settings.LOG_FORMAT"""
 
     # A separate class is needed because 'self.formatter._style.format' uses '.__dict__'
-    def __init__(self, **kwargs):
+    def __init__(self, json_fields: List, **kwargs):
+        for field in json_fields:
+            self.__setattr__(field, '')
         self.__dict__.update(kwargs)

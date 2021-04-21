@@ -27,6 +27,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import func
 from sqlalchemy.dialects import mysql
+from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = 'e38be357a868'
@@ -50,6 +51,11 @@ def sa_timestamp():  # noqa: D103
 def upgrade():  # noqa: D103
 
     conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+    if 'sensor_instance' in tables:
+        return
+
     if conn.dialect.name == 'mysql':
         timestamp = mysql_timestamp
     elif conn.dialect.name == 'mssql':
@@ -84,4 +90,8 @@ def upgrade():  # noqa: D103
 
 
 def downgrade():  # noqa: D103
-    op.drop_table('sensor_instance')
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+    if 'sensor_instance' in tables:
+        op.drop_table('sensor_instance')

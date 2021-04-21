@@ -20,12 +20,12 @@
 
 function run_pylint() {
     if [[ "${#@}" == "0" ]]; then
-       docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+       docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/in_container/run_pylint.sh"
     else
-        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init" \
             "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/in_container/run_pylint.sh" "${@}"
@@ -36,14 +36,21 @@ build_images::prepare_ci_build
 
 build_images::rebuild_ci_image_if_needed
 
+# Bug: Pylint only looks at PYLINTRC if it can't find a file in the _default_
+# locations, meaning we can't use this env var to over-ride it
+args=()
+
+if [[ -n "${PYLINTRC:-}" ]]; then
+  args=(--rcfile "${PYLINTRC}")
+fi
+
 if [[ "${#@}" != "0" ]]; then
     pylint::filter_out_files_from_pylint_todo_list "$@"
 
     if [[ "${#FILTERED_FILES[@]}" == "0" ]]; then
         echo "Filtered out all files. Skipping pylint."
-    else
-        run_pylint "${FILTERED_FILES[@]}"
+        exit 0
     fi
-else
-    run_pylint
+    args+=("${FILTERED_FILES[@]}")
 fi
+run_pylint "${args[@]}"

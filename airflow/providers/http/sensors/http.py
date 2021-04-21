@@ -50,7 +50,8 @@ class HttpSensor(BaseSensorOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:HttpSensor`
 
-    :param http_conn_id: The connection to run the sensor against
+    :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run the
+        sensor against
     :type http_conn_id: str
     :param method: The HTTP request method to use
     :type method: str

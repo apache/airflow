@@ -66,7 +66,7 @@ class AirflowJsonEncoder(JSONEncoder):
             obj, (np.float_, np.float16, np.float32, np.float64, np.complex_, np.complex64, np.complex128)
         ):
             return float(obj)
-        elif k8s is not None and isinstance(obj, k8s.V1Pod):
+        elif k8s is not None and isinstance(obj, (k8s.V1Pod, k8s.V1ResourceRequirements)):
             from airflow.kubernetes.pod_generator import PodGenerator
 
             return PodGenerator.serialize_pod(obj)

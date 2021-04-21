@@ -22,7 +22,7 @@ A DAG Run is an object representing an instantiation of the DAG in time.
 Each DAG may or may not have a schedule, which informs how DAG Runs are
 created. ``schedule_interval`` is defined as a DAG argument, which can be passed a
 `cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_ as
-a ``str``, a ``datetime.timedelta`` object, or one of of the following cron "presets".
+a ``str``, a ``datetime.timedelta`` object, or one of the following cron "presets".
 
 .. tip::
     You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
@@ -80,7 +80,7 @@ An Airflow DAG with a ``start_date``, possibly an ``end_date``, and a ``sched
 series of intervals which the scheduler turns into individual DAG Runs and executes. The scheduler, by default, will
 kick off a DAG Run for any interval that has not been run since the last execution date (or has been cleared). This concept is called Catchup.
 
-If your DAG is written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
+If your DAG is not written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
 then you will want to turn catchup off. This can be done by setting ``catchup = False`` in DAG  or ``catchup_by_default = False``
 in the configuration file. When turned off, the scheduler creates a DAG run only for the latest interval.
 
@@ -208,10 +208,10 @@ Example of a parameterized DAG:
 .. code-block:: python
 
     from airflow import DAG
-    from airflow.operators.bash_operator import BashOperator
+    from airflow.operators.bash import BashOperator
     from airflow.utils.dates import days_ago
 
-    dag = DAG("example_parametrized_dag", schedule_interval=None, start_date=days_ago(2))
+    dag = DAG("example_parameterized_dag", schedule_interval=None, start_date=days_ago(2))
 
     parameterized_task = BashOperator(
         task_id='parameterized_task',
@@ -227,7 +227,7 @@ Using CLI
 
 .. code-block:: bash
 
-    airflow dags trigger --conf '{"conf1": "value1"}' example_parametrized_dag
+    airflow dags trigger --conf '{"conf1": "value1"}' example_parameterized_dag
 
 Using UI
 ^^^^^^^^^^

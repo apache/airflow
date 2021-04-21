@@ -1,4 +1,7 @@
 {
+  "airbyte": [
+    "http"
+  ],
   "amazon": [
     "apache.hive",
     "exasol",
@@ -9,6 +12,9 @@
     "mysql",
     "postgres",
     "ssh"
+  ],
+  "apache.beam": [
+    "google"
   ],
   "apache.druid": [
     "apache.hive"
@@ -32,6 +38,7 @@
   ],
   "google": [
     "amazon",
+    "apache.beam",
     "apache.cassandra",
     "cncf.kubernetes",
     "facebook",
@@ -43,7 +50,8 @@
     "presto",
     "salesforce",
     "sftp",
-    "ssh"
+    "ssh",
+    "trino"
   ],
   "hashicorp": [
     "google"
@@ -58,6 +66,7 @@
   "mysql": [
     "amazon",
     "presto",
+    "trino",
     "vertica"
   ],
   "opsgenie": [
@@ -65,6 +74,9 @@
   ],
   "postgres": [
     "amazon"
+  ],
+  "salesforce": [
+    "tableau"
   ],
   "sftp": [
     "ssh"

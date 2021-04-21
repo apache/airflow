@@ -136,7 +136,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         # Wait some time for the operator to complete
         while tries < max_tries:
             time.sleep(5)
-            get_string = f'http://{host}/api/experimental/dags/{dag_id}/' f'dag_runs/{execution_date}'
+            get_string = f'http://{host}/api/experimental/dags/{dag_id}/dag_runs/{execution_date}'
             print(f"Calling {get_string}")
             # Trigger a new dagrun
             result = self.session.get(get_string)
@@ -157,7 +157,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
-        get_string = f'http://{host}/api/experimental/' f'dags/{dag_id}/paused/false'
+        get_string = f'http://{host}/api/experimental/dags/{dag_id}/paused/false'
         print(f"Calling [start_dag]#1 {get_string}")
         result = self.session.get(get_string)
         try:
@@ -166,7 +166,7 @@ class TestKubernetesExecutor(unittest.TestCase):
             result_json = str(result)
         print(f"Received [start_dag]#1 {result_json}")
         assert result.status_code == 200, f"Could not enable DAG: {result_json}"
-        post_string = f'http://{host}/api/experimental/' f'dags/{dag_id}/dag_runs'
+        post_string = f'http://{host}/api/experimental/dags/{dag_id}/dag_runs'
         print(f"Calling [start_dag]#2 {post_string}")
         # Trigger a new dagrun
         result = self.session.post(post_string, json={})
@@ -182,9 +182,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         get_string = f'http://{host}/api/experimental/latest_runs'
         print(f"Calling [start_dag]#3 {get_string}")
         result = self.session.get(get_string)
-        assert result.status_code == 200, "Could not get the latest DAG-run:" " {result}".format(
-            result=result.json()
-        )
+        assert result.status_code == 200, f"Could not get the latest DAG-run: {result.json()}"
         result_json = result.json()
         print(f"Received: [start_dag]#3 {result_json}")
         return result_json

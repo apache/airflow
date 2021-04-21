@@ -76,7 +76,7 @@ unit of work and continuity.
     Home <self>
     project
     license
-    start
+    start/index
     installation
     upgrading-to-2
     upgrade-check
@@ -99,6 +99,7 @@ unit of work and continuity.
     dag-serialization
     modules_management
     smart-sensor
+    Release policies <release-process>
     changelog
     best-practices
     production-deployment

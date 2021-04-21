@@ -22,7 +22,10 @@ description: |
     `Dingding <https://oapi.dingtalk.com/>`__
 
 versions:
+  - 1.0.2
+  - 1.0.1
   - 1.0.0
+
 integrations:
   - integration-name: Dingding
     external-doc-url: https://oapi.dingtalk.com

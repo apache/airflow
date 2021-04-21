@@ -63,12 +63,16 @@ TEST_PKEY = paramiko.RSAKey.generate(4096)
 TEST_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY)
 TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
 
+TEST_PKEY_ECDSA = paramiko.ECDSAKey.generate()
+TEST_PRIVATE_KEY_ECDSA = generate_key_string(pkey=TEST_PKEY_ECDSA)
+
 PASSPHRASE = ''.join(random.choice(string.ascii_letters) for i in range(10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
 
 
 class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_PRIVATE_KEY_EXTRA = 'ssh_with_private_key_extra'
+    CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA = 'ssh_with_private_key_ecdsa_extra'
     CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA = 'ssh_with_private_key_passphrase_extra'
     CONN_SSH_WITH_EXTRA = 'ssh_with_extra'
     CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS = 'ssh_with_extra_false_look_for_keys'
@@ -83,6 +87,7 @@ class TestSSHHook(unittest.TestCase):
             conns_to_reset = [
                 cls.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
                 cls.CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA,
+                cls.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
                 cls.CONN_SSH_WITH_EXTRA,
                 cls.CONN_SSH_WITH_HOST_KEY_EXTRA,
                 cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
@@ -132,6 +137,14 @@ class TestSSHHook(unittest.TestCase):
                 extra=json.dumps(
                     {"private_key": TEST_ENCRYPTED_PRIVATE_KEY, "private_key_passphrase": PASSPHRASE}
                 ),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
+                host='localhost',
+                conn_type='ssh',
+                extra=json.dumps({"private_key": TEST_PRIVATE_KEY_ECDSA}),
             )
         )
         db.merge_conn(
@@ -306,6 +319,29 @@ class TestSSHHook(unittest.TestCase):
                 ssh_port='port',
                 ssh_username='username',
                 ssh_pkey=TEST_PKEY,
+                ssh_proxy=None,
+                local_bind_address=('localhost',),
+                remote_bind_address=('localhost', 1234),
+                host_pkey_directories=[],
+                logger=hook.log,
+            )
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
+    def test_tunnel_with_private_key_ecdsa(self, ssh_mock):
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
+            remote_host='remote_host',
+            port='port',
+            username='username',
+            timeout=10,
+        )
+
+        with hook.get_tunnel(1234):
+            ssh_mock.assert_called_once_with(
+                'remote_host',
+                ssh_port='port',
+                ssh_username='username',
+                ssh_pkey=TEST_PKEY_ECDSA,
                 ssh_proxy=None,
                 local_bind_address=('localhost',),
                 remote_bind_address=('localhost', 1234),

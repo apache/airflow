@@ -20,7 +20,7 @@
 {% extends base_template %}
 {% from 'appbuilder/dag_docs.html' import dag_docs %}
 
-{% block page_title %}{{ dag.dag_id }} - Airflow{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - {{ appbuilder.app_name }}{% endblock %}
 
 {% block head_css %}
   {{ super() }}
@@ -109,13 +109,13 @@
       </div>
       <div class="col-md-2">
         <div class="btn-group pull-right">
-          <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id)) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-default btn-icon-only">
+          <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id)) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }}">
             <span class="material-icons" aria-hidden="true">play_arrow</span>
           </a>
-          <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh DAG" aria-label="Refresh DAG" onclick="postAsForm(this.href); return false" class="btn btn-default btn-icon-only">
+          <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh DAG" aria-label="Refresh DAG" onclick="postAsForm(this.href); return false" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_edit }}">
             <span class="material-icons" aria-hidden="true">refresh</span>
           </a>
-          <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" title="Delete&nbsp;DAG" class="btn btn-default btn-icon-only"
+          <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" title="Delete&nbsp;DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}"
             onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')" aria-label="Delete DAG">
             <span class="material-icons text-danger" aria-hidden="true">delete_outline</span>
           </a>
@@ -375,13 +375,13 @@
   {{ super() }}
   <script>
     function updateQueryStringParameter(uri, key, value) {
-      var re = new RegExp('([?&])' + key + '=.*?(&|$)', 'i');
+      var re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
       var separator = uri.indexOf('?') !== -1 ? '&' : '?';
       if (uri.match(re)) {
-        return uri.replace(re, '$1' + key + "=" + value + '$2');
+        return uri.replace(re, `$1${key}=${value}$2`);
       }
       else {
-        return uri + separator + key + '=' + value;
+        return `${uri}${separator}${key}=${value}`;
       }
     }
 
@@ -393,7 +393,7 @@
 
     var id = '';
     var dag_id = '{{ dag.dag_id }}';
-    var dagTZ = '{{ dag.timezone.name }}'; // Being used in datetime-utils.js
+    var dagTZ = '{{ dag.timezone.name }}'; // Being used in datetime_utils.js
     var task_id = '';
     var execution_date = '';
     var subdag_id = '';
@@ -415,7 +415,7 @@
     });
 
     function updateButtonUrl(elm, params) {
-      elm.setAttribute('href', elm.dataset.baseUrl + '?' + $.param(params));
+      elm.setAttribute('href',  `${elm.dataset.baseUrl}?${$.param(params)}`);
     }
 
     function updateModalUrls() {
@@ -475,7 +475,7 @@
           $('#div_btn_subdag').hide();
       else {
           $('#div_btn_subdag').show();
-          subdag_id = '{{ dag.dag_id }}.' + t;
+          subdag_id = `{{ dag.dag_id }}.${t}`;
       }
 
       $('#dag_dl_logs').hide();
@@ -502,7 +502,7 @@
 
         var showLabel = index;
         if (index != 0) {
-          url += '&try_number=' + index;
+          url += `&try_number=${index}`;
         } else {
           showLabel = 'All';
         }
@@ -542,7 +542,7 @@
           $.ajax(
             {url: url,
              cache: false,
-             success: function (data, textStatus, jqXHR) {
+             success: function (data) {
                external_link.attr('href', data['url']);
                external_link.removeClass('disabled');
                link_tooltip.tooltip('disable');
@@ -597,7 +597,7 @@
     })
 
     // DAG Modal actions
-    $('form button[data-action]').click(function (e) {
+    $('form button[data-action]').click(function () {
       var form = $(this).closest('form').get(0);
       form.execution_date.value = execution_date;
       form.origin.value = window.location;

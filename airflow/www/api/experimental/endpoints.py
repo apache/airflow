@@ -59,7 +59,7 @@ def add_deprecation_headers(response: Response):
     <https://tools.ietf.org/id/draft-dalal-deprecation-header-03.html>`__.
     """
     response.headers['Deprecation'] = 'true'
-    doc_url = get_docs_url("stable-rest-api/migration.html")
+    doc_url = get_docs_url("upgrading-to-2.html#migration-guide-from-experimental-api-to-stable-api-v1")
     deprecation_link = f'<{doc_url}>; rel="deprecation"; type="text/html"'
     if 'link' in response.headers:
         response.headers['Link'] += f', {deprecation_link}'
@@ -389,6 +389,7 @@ def delete_pool(name):
 
 
 @api_experimental.route('/lineage/<string:dag_id>/<string:execution_date>', methods=['GET'])
+@requires_authentication
 def get_lineage(dag_id: str, execution_date: str):
     """Get Lineage details for a DagRun"""
     # Convert string datetime into actual datetime

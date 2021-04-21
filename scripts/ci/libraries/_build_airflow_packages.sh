@@ -34,14 +34,14 @@ function build_airflow_packages::build_airflow_packages() {
     fi
 
     # Prepare airflow's wheel
-    python setup.py compile_assets "${packages[@]}"
+    PYTHONUNBUFFERED=1 python setup.py compile_assets "${packages[@]}"
 
     # clean-up
     rm -rf -- *egg-info*
     rm -rf -- build
 
     echo
-    echo "Airflow package prepared: ${PACKAGE_FORMAT}"
+    echo "${COLOR_GREEN}Airflow package prepared in format: ${PACKAGE_FORMAT}${COLOR_RESET}"
     echo
     start_end::group_end
 }

@@ -14,27 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
-
 import jmespath
 from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
 
-class KedaTest(unittest.TestCase):
+class TestKeda:
     def test_keda_disabled_by_default(self):
         """disabled by default"""
         docs = render_chart(
             values={},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
-            validate_schema=False,
         )
         assert docs == []
 
     @parameterized.expand(
         [
-            ('SequentialExecutor', False),
             ('CeleryExecutor', True),
             ('CeleryKubernetesExecutor', True),
         ]
@@ -49,9 +45,54 @@ class KedaTest(unittest.TestCase):
                 'executor': executor,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
-            validate_schema=False,
         )
         if is_created:
-            assert "RELEASE-NAME-worker" == jmespath.search("metadata.name", docs[0])
+            assert jmespath.search("metadata.name", docs[0]) == "RELEASE-NAME-worker"
         else:
             assert docs == []
+
+    @parameterized.expand(
+        [
+            ("CeleryExecutor", 8),
+            ("CeleryExecutor", 16),
+            ("CeleryKubernetesExecutor", 8),
+            ("CeleryKubernetesExecutor", 16),
+        ]
+    )
+    def test_keda_concurrency(self, executor, concurrency):
+        """
+        ScaledObject should only be created when set to enabled and executor is Celery or CeleryKubernetes
+        """
+        docs = render_chart(
+            values={
+                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+                "executor": executor,
+                "config": {"celery": {"worker_concurrency": concurrency}},
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        expected_query = (
+            f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
+            "FROM task_instance WHERE state='running' OR state='queued'"
+        )
+        assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
+
+    @parameterized.expand(
+        [
+            ('enabled', 'StatefulSet'),
+            ('not_enabled', 'Deployment'),
+        ]
+    )
+    def test_persistence(self, enabled, kind):
+        """
+        If worker persistence is enabled, scaleTargetRef should be StatefulSet else Deployment.
+        """
+        is_enabled = enabled == 'enabled'
+        docs = render_chart(
+            values={
+                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": is_enabled}},
+                'executor': 'CeleryExecutor',
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert jmespath.search("spec.scaleTargetRef.kind", docs[0]) == kind

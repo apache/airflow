@@ -22,7 +22,7 @@ Example Airflow DAG that interacts with Google Data Catalog service
 from google.cloud.datacatalog_v1beta1 import FieldType, TagField, TagTemplateField
 
 from airflow import models
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogCreateEntryGroupOperator,
     CloudDataCatalogCreateEntryOperator,

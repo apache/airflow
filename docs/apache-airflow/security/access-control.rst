@@ -138,7 +138,7 @@ Stable API Permissions
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Endpoint                                                                           Method Permissions                                                       Minimum Role
 ================================================================================== ====== ================================================================= ============
-/config                                                                            GET    Configurations.can_read                                           Viewer
+/config                                                                            GET    Configurations.can_read                                           Op
 /connections                                                                       GET    Connections.can_read                                              Op
 /connections                                                                       POST   Connections.can_create                                            Op
 /connections/{connection_id}                                                       DELETE Connections.can_delete                                            Op
@@ -153,7 +153,7 @@ Endpoint                                                                        
 /dags/{dag_id}/tasks                                                               GET    DAGs.can_read, Task Instances.can_read                            Viewer
 /dags/{dag_id}/tasks/{task_id}                                                     GET    DAGs.can_read, Task Instances.can_read                            Viewer
 /dags/{dag_id}/dagRuns                                                             GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
-/dags/{dag_id}/dagRuns                                                             POST   DAGs.can_read, DAG Runs.can_create                                User
+/dags/{dag_id}/dagRuns                                                             POST   DAGs.can_edit, DAG Runs.can_create                                User
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE DAGs.can_read, DAG Runs.can_delete                                User
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
 /dags/~/dagRuns/list                                                               POST   DAGs.can_read, DAG Runs.can_read                                  Viewer
@@ -182,6 +182,8 @@ Endpoint                                                                        
                                                                                           Task Instances.can_read, XComs.can_read
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} GET    DAGs.can_read, DAG Runs.can_read,                                 Viewer
                                                                                           Task Instances.can_read, XComs.can_read
+/users                                                                             GET    Users.can_read                                                    Admin
+/users/{username}                                                                  GET    Users.can_read                                                    Admin
 ================================================================================== ====== ================================================================= ============
 
 
@@ -204,7 +206,7 @@ Get Task                               DAGs.can_read, Task Instances.can_read   
 Get XCom                               DAGs.can_read, Task Instances.can_read, XComs.can_read                  Viewer
 Triggers Task Instance                 DAGs.can_read, Task Instances.can_create                                User
 Delete DAG                             DAGs.can_delete                                                         User
-Trigger DAG run                        Dags.can_read, DAG Runs.can_create                                      User
+Trigger DAG run                        Dags.can_edit, DAG Runs.can_create                                      User
 Clear DAG                              DAGs.can_read, Task Instances.can_delete                                User
 Clear DAG Run                          DAGs.can_read, Task Instances.can_delete                                User
 Mark DAG as blocked                    Dags.can_read, DAG Runs.can_read                                        User

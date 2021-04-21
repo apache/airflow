@@ -35,7 +35,7 @@ from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tupl
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
-from celery.backends.database import DatabaseBackend, session_cleanup
+from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cleanup
 from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
@@ -116,7 +116,7 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
         args.func(args)
         ret = 0
     except Exception as e:  # pylint: disable=broad-except
-        log.error("Failed to execute task %s.", str(e))
+        log.exception("Failed to execute task %s.", str(e))
         ret = 1
     finally:
         Sentry.flush()
@@ -363,7 +363,7 @@ class CeleryExecutor(BaseExecutor):
             # If the task gets updated to STARTED (which Celery does) or has
             # already finished, then it will be removed from this list -- so
             # the only time it's still in this list is when it a) never made it
-            # to celery in the first place (i.e. race condition somehwere in
+            # to celery in the first place (i.e. race condition somewhere in
             # the dying executor) or b) a really long celery queue and it just
             # hasn't started yet -- better cancel it and let the scheduler
             # re-queue rather than have this task risk stalling for ever
@@ -476,7 +476,7 @@ class CeleryExecutor(BaseExecutor):
             return tis
 
         states_by_celery_task_id = self.bulk_state_fetcher.get_many(
-            map(operator.itemgetter(0), celery_tasks.values())
+            list(map(operator.itemgetter(0), celery_tasks.values()))
         )
 
         adopted = []
@@ -526,10 +526,6 @@ def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, 
         return async_result.task_id, ExceptionWithTraceback(e, exception_traceback), None
 
 
-def _tasks_list_to_task_ids(async_tasks) -> Set[str]:
-    return {a.task_id for a in async_tasks}
-
-
 class BulkStateFetcher(LoggingMixin):
     """
     Gets status for many Celery tasks using the best method available
@@ -539,24 +535,26 @@ class BulkStateFetcher(LoggingMixin):
     Otherwise, multiprocessing.Pool will be used. Each task status will be downloaded individually.
     """
 
-    def __init__(self, sync_parralelism=None):
+    def __init__(self, sync_parallelism=None):
         super().__init__()
-        self._sync_parallelism = sync_parralelism
+        self._sync_parallelism = sync_parallelism
+
+    def _tasks_list_to_task_ids(self, async_tasks) -> Set[str]:
+        return {a.task_id for a in async_tasks}
 
     def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
         """Gets status for many Celery tasks using the best method available."""
         if isinstance(app.backend, BaseKeyValueStoreBackend):
             result = self._get_many_from_kv_backend(async_results)
-            return result
-        if isinstance(app.backend, DatabaseBackend):
+        elif isinstance(app.backend, DatabaseBackend):
             result = self._get_many_from_db_backend(async_results)
-            return result
-        result = self._get_many_using_multiprocessing(async_results)
-        self.log.debug("Fetched %d states for %d task", len(result), len(async_results))
+        else:
+            result = self._get_many_using_multiprocessing(async_results)
+        self.log.debug("Fetched %d state(s) for %d task(s)", len(result), len(async_results))
         return result
 
     def _get_many_from_kv_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
-        task_ids = _tasks_list_to_task_ids(async_tasks)
+        task_ids = self._tasks_list_to_task_ids(async_tasks)
         keys = [app.backend.get_key_for_task(k) for k in task_ids]
         values = app.backend.mget(keys)
         task_results = [app.backend.decode_result(v) for v in values if v]
@@ -565,9 +563,9 @@ class BulkStateFetcher(LoggingMixin):
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
     def _get_many_from_db_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
-        task_ids = _tasks_list_to_task_ids(async_tasks)
+        task_ids = self._tasks_list_to_task_ids(async_tasks)
         session = app.backend.ResultSession()
-        task_cls = app.backend.task_cls
+        task_cls = getattr(app.backend, "task_cls", TaskDb)
         with session_cleanup(session):
             tasks = session.query(task_cls).filter(task_cls.task_id.in_(task_ids)).all()
 

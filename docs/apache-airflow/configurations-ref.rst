@@ -79,4 +79,18 @@ can set in ``airflow.cfg`` file or using environment variables.
     {% endif %}
 
     {% endfor %}
+
+    {% if section["name"] in deprecated_options %}
+
+    {% for deprecated_option_name, (new_section_name, new_option_name, since_version) in deprecated_options[section["name"]].items() %}
+    .. _config:{{ section["name"] }}__{{ deprecated_option_name }}:
+
+    {{ deprecated_option_name }} (Deprecated)
+    {{ "-" * (deprecated_option_name + " (Deprecated)")|length }}
+
+    .. deprecated:: {{ since_version }}
+       The option has been moved to :ref:`{{ new_section_name }}.{{ new_option_name }} <config:{{ new_section_name }}__{{ new_option_name }}>`
+    {% endfor %}
+    {% endif %}
+
     {% endfor %}

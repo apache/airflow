@@ -160,6 +160,26 @@ the dependencies as shown below.
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
+Using the Taskflow API with Virtual Environments
+----------------------------------------------------------
+
+As of Airflow 2.0.3, you will have the ability to use the Taskflow API with a
+virtual environment. This added functionality will allow a much more
+comprehensive range of use-cases for the Taskflow API, as you will not be limited to the
+packages and system libraries of the Airflow worker.
+
+To run your Airflow task in a virtual environment, switch your ``@task`` decorator to a ``@task.virtualenv``
+decorator. The ``@task.virtualenv`` decorator will allow you to create a new virtualenv with custom libraries
+and even a different python version to run your function.
+
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl_virtualenv.py
+    :language: python
+    :dedent: 4
+    :start-after: [START extract_virtualenv]
+    :end-before: [END extract_virtualenv]
+
+This option should allow for far greater flexibility for users who wish to keep their workflows more simple
+and pythonic.
 
 Multiple outputs inference
 --------------------------
@@ -176,6 +196,40 @@ is automatically set to true.
 
 Note, If you manually set the ``multiple_outputs`` parameter the inference is disabled and
 the parameter value is used.
+
+Adding dependencies to decorated tasks from regular tasks
+---------------------------------------------------------
+The above tutorial shows how to create dependencies between python-based tasks. However, it is
+quite possible while writing a DAG to have some pre-existing tasks such as :class:`~airflow.operators.bash.BashOperator` or :class:`~airflow.sensors.filesystem.FileSensor`
+based tasks which need to be run first before a python-based task is run.
+
+Building this dependency is shown in the code below:
+
+.. code-block:: python
+
+    @task()
+    def extract_from_file():
+        """
+        #### Extract from file task
+        A simple Extract task to get data ready for the rest of the data
+        pipeline, by reading the data from a file into a pandas dataframe
+        """
+        order_data_file = '/tmp/order_data.csv'
+        order_data_df = pd.read_csv(order_data_file)
+
+
+    file_task = FileSensor(task_id='check_file', filepath='/tmp/order_data.csv')
+    order_data = extract_from_file()
+
+    file_task >> order_data
+
+
+In the above code block, a new python-based task is defined as ``extract_from_file`` which
+reads the data from a known file location.
+In the main DAG, a new ``FileSensor`` task is defined to check for this file. Please note
+that this is a Sensor task which waits for the file.
+Finally, a dependency between this Sensor task and the python-based task is specified.
+
 
 What's Next?
 ------------

@@ -266,5 +266,5 @@ if REMOTE_LOGGING:
         raise AirflowException(
             "Incorrect remote log configuration. Please check the configuration of option 'host' in "
             "section 'elasticsearch' if you are using Elasticsearch. In the other case, "
-            "'remote_base_log_folder' option in 'core' section."
+            "'remote_base_log_folder' option in the 'logging' section."
         )

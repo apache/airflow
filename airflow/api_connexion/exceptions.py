@@ -19,15 +19,9 @@ from typing import Dict, Optional
 import werkzeug
 from connexion import FlaskApi, ProblemException, problem
 
-from airflow import version
+from airflow.utils.docs import get_docs_url
 
-if any(suffix in version.version for suffix in ['dev', 'a', 'b']):
-    doc_link = (
-        "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest"
-        "/stable-rest-api-ref.html"
-    )
-else:
-    doc_link = f'https://airflow.apache.org/docs/{version.version}/stable-rest-api-ref.html'
+doc_link = get_docs_url("stable-rest-api-ref.html")
 
 EXCEPTIONS_LINK_MAP = {
     400: f"{doc_link}#section/Errors/BadRequest",

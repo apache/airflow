@@ -34,12 +34,18 @@
 import glob
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
+try:
+    from yaml import CSafeLoader as SafeLoader
+except ImportError:
+    from yaml import SafeLoader  # type: ignore[misc]
+
 import airflow
-from airflow.configuration import default_config_yaml
+from airflow.configuration import AirflowConfigParser, default_config_yaml
 from docs.exts.docs_build.third_party_inventories import (  # pylint: disable=no-name-in-module,wrong-import-order
     THIRD_PARTY_INDEXES,
 )
@@ -70,10 +76,10 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     except StopIteration:
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
-    PACKAGE_VERSION = 'master'
+    PACKAGE_VERSION = 'devel'
 else:
     PACKAGE_DIR = None
-    PACKAGE_VERSION = 'master'
+    PACKAGE_VERSION = 'devel'
 # Adds to environment variables for easy access from other plugins like airflow_intersphinx.
 os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
 if PACKAGE_DIR:
@@ -139,6 +145,9 @@ if PACKAGE_NAME == "apache-airflow-providers":
             'providers_packages_ref',
         ]
     )
+elif PACKAGE_NAME in ("helm-chart", "docker-stack"):
+    # No extra extensions
+    pass
 else:
     extensions.append('autoapi.extension')
 # List of patterns, relative to source directory, that match files and
@@ -151,9 +160,7 @@ if PACKAGE_NAME == 'apache-airflow':
         'README.rst',
     ]
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
-    exclude_patterns = [
-        'operators/_partials',
-    ]
+    exclude_patterns = ['operators/_partials']
 else:
     exclude_patterns = []
 
@@ -231,6 +238,11 @@ if PACKAGE_NAME == 'apache-airflow':
     html_js_files = ['jira-links.js']
 else:
     html_js_files = []
+if PACKAGE_NAME == 'apache-airflow':
+    html_extra_path = [
+        f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
+        f"{ROOT_DIR}/docs/apache-airflow/start/airflow.sh",
+    ]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
@@ -291,8 +303,8 @@ html_context = {
     'conf_py_path': f'/docs/{PACKAGE_NAME}/',
     'github_user': 'apache',
     'github_repo': 'airflow',
-    'github_version': 'master',
-    'display_github': 'master',
+    'github_version': 'devel',
+    'display_github': 'devel',
     'suffix': '.rst',
 }
 
@@ -303,7 +315,22 @@ html_context = {
 
 # Jinja context
 if PACKAGE_NAME == 'apache-airflow':
-    jinja_contexts = {'config_ctx': {"configs": default_config_yaml()}}
+    deprecated_options: Dict[str, Dict[str, Tuple[str, str, str]]] = defaultdict(dict)
+    for (section, key), (
+        (deprecated_section, deprecated_key, since_version)
+    ) in AirflowConfigParser.deprecated_options.items():
+        deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
+
+    jinja_contexts = {
+        'config_ctx': {"configs": default_config_yaml(), "deprecated_options": deprecated_options},
+        'quick_start_ctx': {
+            'doc_root_url': f'https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/'
+            if FOR_PRODUCTION
+            else (
+                'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/'
+            )
+        },
+    }
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
 
     def _load_config():
@@ -313,7 +340,7 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
             return {}
 
         with open(file_path) as config_file:
-            return yaml.safe_load(config_file)
+            return yaml.load(config_file, SafeLoader)
 
     config = _load_config()
     if config:
@@ -371,7 +398,7 @@ autodoc_mock_imports = [
     'qds_sdk',
     'redis',
     'simple_salesforce',
-    'slackclient',
+    'slack_sdk',
     'smbclient',
     'snowflake',
     'sshtunnel',
@@ -478,7 +505,7 @@ autoapi_keep_files = True
 
 # Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
 # anywhere in your documentation hierarchy.
-autoapi_root = f'{PACKAGE_NAME}/_api'
+autoapi_root = '_api'
 
 # Whether to insert the generated documentation into the TOC tree. If this is False, the default AutoAPI
 # index page is not generated and you will need to include the generated documentation in a
@@ -513,4 +540,4 @@ if PACKAGE_NAME == 'apache-airflow':
     ]
 
     # Options for script updater
-    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.30/bundles/redoc.standalone.js"
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"

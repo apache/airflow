@@ -67,7 +67,7 @@ def process_all_files(directory: str, suffix: str, execute: bool):
             versioned_file = package_types[0]
             print(
                 "Leaving the only version: "
-                f"${versioned_file.base + versioned_file.version + versioned_file.suffix}"
+                f"{versioned_file.base + versioned_file.version + versioned_file.suffix}"
             )
         # Leave only last version from each type
         for versioned_file in package_types[:-1]:
@@ -95,12 +95,9 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == '__main__':
     args = parse_args()
-    process_all_files(args.directory, "-bin.tar.gz", args.execute)
-    process_all_files(args.directory, "-bin.tar.gz.sha512", args.execute)
-    process_all_files(args.directory, "-bin.tar.gz.asc", args.execute)
-    process_all_files(args.directory, "-source.tar.gz", args.execute)
-    process_all_files(args.directory, "-source.tar.gz.sha512", args.execute)
-    process_all_files(args.directory, "-source.tar.gz.asc", args.execute)
+    process_all_files(args.directory, ".tar.gz", args.execute)
+    process_all_files(args.directory, ".tar.gz.sha512", args.execute)
+    process_all_files(args.directory, ".tar.gz.asc", args.execute)
     process_all_files(args.directory, "-py3-none-any.whl", args.execute)
     process_all_files(args.directory, "-py3-none-any.whl.sha512", args.execute)
     process_all_files(args.directory, "-py3-none-any.whl.asc", args.execute)

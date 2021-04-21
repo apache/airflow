@@ -18,10 +18,11 @@
 import json
 import os
 import re
-import unittest
 from datetime import timedelta
 from unittest import mock
 from urllib.parse import quote_plus
+
+import pytest
 
 from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
@@ -30,8 +31,6 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
 from airflow.version import version
-from airflow.www import app as application
-from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 
 ROOT_FOLDER = os.path.realpath(
@@ -39,31 +38,32 @@ ROOT_FOLDER = os.path.realpath(
 )
 
 
-class TestBase(unittest.TestCase):
-    @conf_vars({('api', 'enable_experimental_api'): 'true'})
-    def setUp(self):
-        self.app = application.create_app(testing=True)
+@pytest.fixture(scope="module")
+def configured_session():
+    settings.configure_orm()
+    return Session
+
+
+class TestBase:
+    @pytest.fixture(autouse=True)
+    def _setup_attrs_base(self, experiemental_api_app, configured_session):
+        self.app = experiemental_api_app
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
-        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'
-        self.app.config['SECRET_KEY'] = 'secret_key'
-        self.app.config['CSRF_ENABLED'] = False
-        self.app.config['WTF_CSRF_ENABLED'] = False
         self.client = self.app.test_client()
-        settings.configure_orm()
-        self.session = Session
+        self.session = configured_session
 
     def assert_deprecated(self, resp):
         assert 'true' == resp.headers['Deprecation']
         assert re.search(
-            r'\<.+/stable-rest-api/migration.html\>; ' 'rel="deprecation"; type="text/html"',
+            r'\<.+/upgrading-to-2.html#migration-guide-from-experimental-api-to-stable-api-v1\>; '
+            'rel="deprecation"; type="text/html"',
             resp.headers['Link'],
         )
 
 
 class TestApiExperimental(TestBase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    @pytest.fixture(scope="class", autouse=True)
+    def _populate_db(self):
         session = Session()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
@@ -75,13 +75,13 @@ class TestApiExperimental(TestBase):
             dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
 
-    def tearDown(self):
+    @pytest.fixture(autouse=True)
+    def _reset_db(self):
         session = Session()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
         session.commit()
         session.close()
-        super().tearDown()
 
     def test_info(self):
         url = '/api/experimental/info'
@@ -304,16 +304,18 @@ class TestApiExperimental(TestBase):
 class TestLineageApiExperimental(TestBase):
     PAPERMILL_EXAMPLE_DAGS = os.path.join(ROOT_FOLDER, "airflow", "providers", "papermill", "example_dags")
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    @pytest.fixture(scope="class", autouse=True)
+    def _populate_db(self):
         session = Session()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
         session.commit()
         session.close()
 
-        dagbag = DagBag(include_examples=False, dag_folder=cls.PAPERMILL_EXAMPLE_DAGS)
+        dagbag = DagBag(
+            include_examples=True,
+            dag_folder=self.PAPERMILL_EXAMPLE_DAGS,
+        )
         for dag in dagbag.dags.values():
             dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
@@ -359,12 +361,8 @@ class TestPoolApiExperimental(TestBase):
     USER_POOL_COUNT = 2
     TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
-    def setUp(self):
-        super().setUp()
+    @pytest.fixture(autouse=True)
+    def _setup_attrs(self, _setup_attrs_base):
         clear_db_pools()
         self.pools = [Pool.get_default_pool()]
         for i in range(self.USER_POOL_COUNT):

@@ -19,11 +19,10 @@ import io
 import json
 import os
 import tempfile
-import unittest
 from contextlib import redirect_stdout
 
-from airflow import models
-from airflow.cli import cli_parser
+import pytest
+
 from airflow.cli.commands import user_command
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
@@ -39,20 +38,15 @@ def _does_user_belong_to_role(appbuilder, email, rolename):
     return False
 
 
-class TestCliUsers(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli_parser.get_parser()
-
-    def setUp(self):
-        from airflow.www import app as application
-
-        self.app = application.create_app(testing=True)
+class TestCliUsers:
+    @pytest.fixture(autouse=True)
+    def _set_attrs(self, app, dagbag, parser):
+        self.app = app
+        self.dagbag = dagbag
+        self.parser = parser
         self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
         self.clear_roles_and_roles()
-
-    def tearDown(self):
+        yield
         self.clear_roles_and_roles()
 
     def clear_roles_and_roles(self):
@@ -245,8 +239,7 @@ class TestCliUsers(unittest.TestCase):
 
         def find_by_username(username):
             matches = [u for u in retrieved_users if u['username'] == username]
-            if not matches:
-                self.fail(f"Couldn't find user with username {username}")
+            assert matches, f"Couldn't find user with username {username}"
             matches[0].pop('id')  # this key not required for import
             return matches[0]
 
