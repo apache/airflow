@@ -130,8 +130,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             grouped_logs[key].append(log)
 
         # return items sorted by asctime.
-        for host in grouped_logs:
-            grouped_logs[host].sort(key=lambda log: getattr(log, 'asctime', '_'))
+        def sorter(log):
+            return getattr(log, 'asctime', '_')
+
+        for logs in grouped_logs.values():
+            logs.sort(key=sorter)
 
         return grouped_logs.items()
 
