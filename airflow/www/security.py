@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import logging
+import re
 import warnings
 from typing import Dict, Optional, Sequence, Set, Tuple
 
@@ -38,6 +39,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from airflow.api_connexion.exceptions import Unauthenticated
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
@@ -69,6 +71,8 @@ EXISTING_ROLES = {
 }
 
 AUTH_TYPE_MISMATCH_MESSAGE = "Authentication type does not match"
+
+log = logging.getLogger(__name__)
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=too-many-public-methods
@@ -755,60 +759,74 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             user = self.auth_user_ldap(username, password)
         return user
 
-    def oauth_authorization_url(self, app, provider, redirect_url):
+    def oauth_authorize_redirect(self, app, provider):
         """Get authorization url for oauth"""
+        api_base_path = "/api/v1/"
+        base_url = conf.get("webserver", "base_url") + api_base_path
+        redirect_uri = base_url + "oauth-authorized?provider=" + provider
         if self.auth_type != AUTH_OAUTH:
             raise Unauthenticated(detail=AUTH_TYPE_MISMATCH_MESSAGE)
-        secret_key = app.config['SECRET_KEY']
         state = jwt.encode(
             request.args.to_dict(flat=False),
-            app.config.get("JWT_SECRET_KEY", secret_key),
-            algorithm=app.config["JWT_ALGORITHM"],
+            key=app.config['SECRET_KEY'],
+            algorithm='HS256',
         )
         auth_provider = self.oauth_remotes[provider]
         try:
-
             if provider == "twitter":
-                redirect_uri = redirect_url + f"&state={state}"
-                auth_data = auth_provider.create_authorization_url(redirect_uri=redirect_uri)
-                auth_provider.save_authorize_data(request, redirect_uri=redirect_uri, **auth_data)
-                return dict(auth_url=auth_data['url'])
+                redirect_uri = redirect_uri + f"&state={state}"
+
+                return auth_provider.authorize_redirect(redirect_uri=redirect_uri)
             else:
                 state = state.decode("ascii") if isinstance(state, bytes) else state
-                auth_data = auth_provider.create_authorization_url(
-                    redirect_uri=redirect_url,
+                return auth_provider.authorize_redirect(
+                    redirect_uri=redirect_uri,
                     state=state,
                 )
-                auth_provider.save_authorize_data(request, redirect_uri=redirect_url, **auth_data)
-                return dict(auth_url=auth_data['url'])
         except Exception as err:  # pylint: disable=broad-except
+            log.error("Error on OAuth authorize: %s", err)
             raise Unauthenticated(detail=str(err))
 
     def oauth_login_user(self, app, provider, state):
         """Oauth login"""
+        log.debug("Authorized init")
         resp = self.oauth_remotes[provider].authorize_access_token()
         if resp is None:
             raise Unauthenticated(detail="You denied the request to sign in")
         # Verify state
-        secret_key = app.config['SECRET_KEY']
         try:
             jwt.decode(
                 state,
-                app.config.get("JWT_SECRET_KEY", secret_key),
-                algorithms=app.config["JWT_ALGORITHM"],
+                key=app.config['SECRET_KEY'],
+                algorithms='HS256',
             )
         except jwt.InvalidTokenError:
             raise Unauthenticated(detail="State signature is not valid!")
+        log.debug("OAUTH Authorized resp: %s", resp)
         # Retrieves specific user info from the provider
-        try:
+        try:  # pylint: disable=too-many-nested-blocks
             userinfo = self.oauth_user_info(provider, resp)
         except Exception:  # pylint: disable=broad-except
             user = None
         else:
+            log.debug("User info retrieved from %s: %s", provider, userinfo)
+            # User email is not whitelisted
+            if provider in self.oauth_whitelists:
+                whitelist = self.oauth_whitelists[provider]
+                allow = False
+                for e in whitelist:
+                    if re.search(e, userinfo["email"]):
+                        allow = True
+                        break
+                if not allow:
+                    raise Unauthenticated(detail="You are not authorized.")
+            else:
+                log.debug("No allow list for OAuth provider")
             user = self.auth_user_oauth(userinfo)
+            log.debug("User is %s", user)
         if user is None:
             raise Unauthenticated(detail="Invalid login")
-        login_user(user)
+        login_user(user, remember=False)
         return user
 
     def login_remote_user(self, username):
@@ -818,7 +836,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         user = self.auth_user_remote_user(username)
         if user is None:
             raise Unauthenticated(detail="Invalid login")
-        login_user(user)
+        login_user(user, remember=False)
         return user
 
     def create_jwt_manager(self, app) -> JWTManager:

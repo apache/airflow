@@ -1618,28 +1618,24 @@ paths:
       parameters:
         - $ref: '#/components/parameters/ShouldRegister'
         - $ref: '#/components/parameters/OauthProvider'
-        - $ref: '#/components/parameters/RedirectUrl'
       responses:
-        '200':
-          description: Success.
-          content:
-            application/json:
+        '302':
+          description: Redirect.
+          headers:
+            Location:
               schema:
-                $ref: '#/components/schemas/AuthorizationUrl'
+                type: string
+                format: uri
 
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
-  /oauth-authorized/{provider}:
-    parameters:
-      - $ref: '#/components/parameters/OauthProvider'
+  /oauth-authorized:
     get:
       summary: Oauth authentication
       x-openapi-router-controller: airflow.api_connexion.endpoints.auth_endpoint
       operationId: authorize_oauth
       tags: [Authentication]
-      parameters:
-        - $ref: '#/components/parameters/AuthState'
       responses:
         '200':
           description: Success.
@@ -3541,23 +3537,6 @@ components:
         type: string
       required: true
       description: The name of the provider to authenticate
-
-    AuthState:
-      in: query
-      name: state
-      schema:
-        type: string
-      required: true
-      description: The auth state from provider
-
-    RedirectUrl:
-      in: query
-      name: redirect_url
-      schema:
-        type: string
-        format: url
-      required: true
-      description: The oauth redirect url from the frontend
 
     ShouldRegister:
       in: query

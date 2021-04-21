@@ -16,7 +16,7 @@
 # under the License.
 import logging
 
-from flask import current_app, jsonify, request, session as c_session
+from flask import current_app, jsonify, request
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
 from flask_jwt_extended import (
     create_access_token,
@@ -83,16 +83,19 @@ def auth_login():
     return security_manager.create_tokens_and_dump(appbuilder.app, user, auth_schema)
 
 
-def auth_oauthlogin(provider, register=None, redirect_url=None):
+def auth_oauthlogin(provider):
     """Returns OAUTH authorization url"""
     appbuilder = current_app.appbuilder
-    if register:
-        c_session["register"] = True
-    return appbuilder.sm.oauth_authorization_url(current_app.appbuilder.app, provider, redirect_url)
+    return appbuilder.sm.oauth_authorize_redirect(current_app.appbuilder.app, provider)
 
 
-def authorize_oauth(provider, state):
+def authorize_oauth():
     """Callback to authorize Oauth."""
+    args = request.args
+    provider = args.get('provider', None)
+    state = args.get('state', None)
+    if not (provider and state):
+        raise BadRequest(detail="Missing required parameters: provider and state")
     appbuilder = current_app.appbuilder
     user = appbuilder.sm.oauth_login_user(appbuilder.app, provider, state)
     return appbuilder.sm.create_tokens_and_dump(appbuilder.app, user, auth_schema)

@@ -26,6 +26,7 @@ from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.www.security import AUTH_TYPE_MISMATCH_MESSAGE
 from tests.test_utils.api_connexion_utils import create_user, delete_user
+from tests.test_utils.config import conf_vars
 
 OAUTH_PROVIDERS = [
     {
@@ -195,39 +196,40 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
         assert response.json['detail'] == AUTH_TYPE_MISMATCH_MESSAGE
 
 
-class TestOauthAuthorizationURLEndpoint(TestLoginEndpoint):
+class TestOauthAuthorizationEndpoint(TestLoginEndpoint):
+    @conf_vars({("webserver", 'base_url'): 'http://localhost:8080'})
     @mock.patch("airflow.www.security.jwt.encode")
-    def test_can_generate_authorization_url(self, mock_jwt_encode):
+    def test_can_redirect_for_google(self, mock_jwt_encode):
         self.auth_type(AUTH_OAUTH)
         mock_jwt_encode.return_value = "state"
         mock_google_auth_provider = mock.Mock()
         self.app.appbuilder.sm.oauth_remotes = {
             "google": mock_google_auth_provider,
         }
-        mock_auth = mock.MagicMock(return_value={"state": "state", "url": "authurl"})
-        mock_google_auth_provider.create_authorization_url = mock_auth
-        redirect_url = "http://localhost:8080"
-        self.client.get(f'api/v1/auth-oauth/google?register=True&redirect_url={redirect_url}')
-        mock_auth.assert_called_once_with(redirect_uri=redirect_url, state="state")
+        mock_auth = mock.MagicMock(return_value="test-val")
+        mock_google_auth_provider.authorize_redirect = mock_auth
+        redirect_url = "http://localhost:8080/api/v1/oauth-authorized?provider=google"
+        self.client.get('api/v1/auth-oauth/google?register=True')
+        mock_auth.assert_called_once_with(redirect_uri=redirect_url, state='state')
 
+    @conf_vars({("webserver", 'base_url'): 'http://localhost:8080'})
     @mock.patch("airflow.www.security.jwt.encode")
-    def test_can_generate_authorization_url_for_twitter(self, mock_jwt_encode):
+    def test_can_redirect_for_twitter(self, mock_jwt_encode):
         self.auth_type(AUTH_OAUTH)
         mock_jwt_encode.return_value = "state"
         mock_twitter_auth_provider = mock.Mock()
         self.app.appbuilder.sm.oauth_remotes = {
             "twitter": mock_twitter_auth_provider,
         }
-        mock_auth = mock.MagicMock(return_value={"state": "state", "url": "authurl"})
-        mock_twitter_auth_provider.create_authorization_url = mock_auth
-        redirect_url = "http://localhost:8080"
-        self.client.get(f'api/v1/auth-oauth/twitter?register=True&redirect_url={redirect_url}')
+        mock_auth = mock.MagicMock(return_value='val')
+        mock_twitter_auth_provider.authorize_redirect = mock_auth
+        redirect_url = "http://localhost:8080/api/v1/oauth-authorized?provider=twitter"
+        self.client.get('api/v1/auth-oauth/twitter?register=True')
         mock_auth.assert_called_once_with(redirect_uri=redirect_url + "&state=state")
 
     def test_incorrect_auth_type_raises(self):
         self.auth_type(AUTH_DB)
-        redirect_url = "http://localhost:8080"
-        resp = self.client.get(f'api/v1/auth-oauth/google?register=True&redirect_url={redirect_url}')
+        resp = self.client.get('api/v1/auth-oauth/google?register=True')
         assert resp.status_code == 401
         assert resp.json['detail'] == AUTH_TYPE_MISMATCH_MESSAGE
 
@@ -240,7 +242,7 @@ class TestAuthorizeOauth(TestLoginEndpoint):
             "twitter": mock_twitter_auth_provider,
         }
         mock_twitter_auth_provider.authorize_access_token.return_value = None
-        response = self.client.get('api/v1/oauth-authorized/twitter?state=state')
+        response = self.client.get('api/v1/oauth-authorized?provider=twitter&state=state')
         assert response.status_code == 401
         assert response.json['detail'] == "You denied the request to sign in"
 
@@ -251,7 +253,7 @@ class TestAuthorizeOauth(TestLoginEndpoint):
             "twitter": mock_twitter_auth_provider,
         }
         mock_twitter_auth_provider.authorize_access_token.return_value = mock.MagicMock()
-        response = self.client.get('api/v1/oauth-authorized/twitter?state=state')
+        response = self.client.get('api/v1/oauth-authorized?provider=twitter&state=state')
         assert response.status_code == 401
         assert response.json['detail'] == "State signature is not valid!"
 
@@ -273,7 +275,7 @@ class TestAuthorizeOauth(TestLoginEndpoint):
         }
         mock_authorized = mock.MagicMock()
         mock_twitter_auth_provider.authorize_access_token.return_value = mock_authorized
-        self.client.get('api/v1/oauth-authorized/twitter?state=state')
+        self.client.get('api/v1/oauth-authorized?provider=twitter&state=state')
         mock_oauth_session.assert_not_called()
         mock_user_info.assert_called_once_with('twitter', mock_authorized)
         mock_user_oauth.assert_called_once_with(mock_user_info.return_value)
@@ -288,13 +290,14 @@ class TestRemoteUserLoginEndpoint(TestLoginEndpoint):
 
     def test_incorrect_username_raises(self):
         self.auth_type(AUTH_REMOTE_USER)
-        response = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "tes"})
+        self.app.config['AUTH_USER_REGISTRATION'] = False
+        response = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "fakeuser"})
         assert response.status_code == 401
         assert response.json['detail'] == 'Invalid login'
 
     def test_incorrect_auth_type_raises(self):
         self.auth_type(AUTH_DB)
-        resp = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "test"})
+        resp = self.client.get('api/v1/auth-remoteuser', environ_overrides={"REMOTE_USER": "tes"})
         assert resp.status_code == 401
         assert resp.json['detail'] == AUTH_TYPE_MISMATCH_MESSAGE
 
