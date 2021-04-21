@@ -162,7 +162,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             'asctime': '2020-12-24 19:25:00,862',
             'message': another_test_message,
             'log_id': self.LOG_ID,
-            'offset': 1
+            'offset': 1,
         }
         self.es.index(index=self.index_name, doc_type=self.doc_type, body=outdated_body, id=1)
         logs, metadatas = self.es_task_handler.read(self.ti, 1)
