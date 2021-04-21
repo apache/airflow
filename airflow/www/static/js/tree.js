@@ -19,10 +19,12 @@
  * under the License.
  */
 
-/* global treeData, document, window, $, d3, moment, call_modal_dag, call_modal, */
+/* global treeData, document, window, $, d3, moment, call_modal_dag, call_modal, localStorage */
 import { escapeHtml } from './main';
 import tiTooltip from './task_instances';
 import getMetaValue from './meta_value';
+
+const dagId = getMetaValue('dag_id');
 
 function toDateString(ts) {
   const dt = new Date(ts * 1000);
@@ -48,10 +50,11 @@ document.addEventListener('DOMContentLoaded', () => {
   $('span.status_square').tooltip({ html: true });
 
   // JSON.parse is faster for large payloads than an object literal
-  const data = JSON.parse(treeData);
+  let data = JSON.parse(treeData);
   const tree = d3.layout.tree().nodeSize([0, 25]);
-  const nodes = tree.nodes(data);
+  let nodes = tree.nodes(data);
   const nodeobj = {};
+  const getActiveRuns = () => data.instances.filter((run) => run.state === 'running').length > 0;
 
   const now = Date.now() / 1000;
   const devicePixelRatio = window.devicePixelRatio || 1;
@@ -117,27 +120,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  for (i = 0; i < nodes.length; i += 1) {
-    const node = nodes[i];
+  const renderNode = (node) => {
     nodeobj[node.name] = node;
 
-    if (node.name === '[DAG]') {
+    if (node.name !== '[DAG]') {
     // skip synthetic root node since it's doesn't contain actual task instances
-      continue;
-    }
+      if (node.start_ts !== undefined) {
+        node.start_date = toDateString(node.start_ts);
+      }
+      if (node.end_ts !== undefined) {
+        node.end_date = toDateString(node.end_ts);
+      }
+      if (node.depends_on_past === undefined) {
+        node.depends_on_past = false;
+      }
 
-    if (node.start_ts !== undefined) {
-      node.start_date = toDateString(node.start_ts);
+      populateTaskInstanceProperties(node);
     }
-    if (node.end_ts !== undefined) {
-      node.end_date = toDateString(node.end_ts);
-    }
-    if (node.depends_on_past === undefined) {
-      node.depends_on_past = false;
-    }
+  };
 
-    populateTaskInstanceProperties(node);
-  }
+  nodes.forEach((node) => renderNode(node));
 
   const diagonal = d3.svg.diagonal()
     .projection((d) => [d.y, d.x]);
@@ -190,30 +192,28 @@ document.addEventListener('DOMContentLoaded', () => {
     .call(taskTip);
 
   function update(source) {
-  // Compute the flattened node list. TODO use d3.layout.hierarchy.
-    const nodes = tree.nodes(root);
+    // Compute the flattened node list. TODO use d3.layout.hierarchy.
+    const updateNodes = tree.nodes(root);
 
-    const height = Math.max(500, nodes.length * barHeight + margin.top + margin.bottom);
-    const width = squareX
+    const height = Math.max(500, updateNodes.length * barHeight + margin.top + margin.bottom);
+    const updateWidth = squareX
       + (numSquare * (squareSize + squareSpacing))
       + margin.left + margin.right + 50;
-    d3.select('#tree-svg').transition()
-      .duration(duration)
+    d3.select('#tree-svg')
       .attr('height', height)
-      .attr('width', width);
+      .attr('width', updateWidth);
 
-    d3.select(self.frameElement).transition()
-      .duration(duration)
+    d3.select(self.frameElement)
       .style('height', `${height}px`);
 
     // Compute the "layout".
-    nodes.forEach((n, i) => {
-      n.x = i * barHeight;
+    updateNodes.forEach((n, j) => {
+      n.x = j * barHeight;
     });
 
     // Update the nodes…
     const node = svg.selectAll('g.node')
-      .data(nodes, (d) => d.id || (d.id = ++i));
+      .data(updateNodes, (d) => d.id || (d.id = ++i));
 
     const nodeEnter = node.enter().append('g')
       .attr('class', nodeClass)
@@ -240,12 +240,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         taskTip.direction('e');
         taskTip.show(tt, this);
-        d3.select(this).transition()
+        d3.select(this)
           .style('stroke-width', 3);
       })
       .on('mouseout', function (d) {
         taskTip.hide(d);
-        d3.select(this).transition()
+        d3.select(this)
           .style('stroke-width', (dd) => (isDagRun(dd) ? '2' : '1'));
       })
       .attr('height', barHeight)
@@ -288,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
           );
         }
       })
-      .attr('class', (d) => `state ${d.state}`)
+      // .attr('class', (d) => `state ${d.state}`)
       .attr('data-toggle', 'tooltip')
       .attr('rx', (d) => (isDagRun(d) ? '5' : '1'))
       .attr('ry', (d) => (isDagRun(d) ? '5' : '1'))
@@ -300,12 +300,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const tt = tiTooltip({ ...d, duration: d.duration || moment(d.end_date).diff(d.start_date, 'seconds') });
         taskTip.direction('n');
         taskTip.show(tt, this);
-        d3.select(this).transition()
+        d3.select(this)
           .style('stroke-width', 3);
       })
       .on('mouseout', function (d) {
         taskTip.hide(d);
-        d3.select(this).transition()
+        d3.select(this)
           .style('stroke-width', (dd) => (isDagRun(dd) ? '2' : '1'));
       })
       .attr('x', (d, j) => (j * (squareSize + squareSpacing)))
@@ -313,28 +313,29 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('width', 10)
       .attr('height', 10);
 
+    node.selectAll('rect')
+      .data((d) => d.instances)
+      .attr('class', (d) => `state ${d.state}`);
+
     // Transition nodes to their new position.
-    nodeEnter.transition()
-      .duration(duration)
+    nodeEnter
       .attr('transform', (d) => `translate(${d.y},${d.x})`)
       .style('opacity', 1);
 
-    node.transition()
-      .duration(duration)
+    node
       .attr('class', nodeClass)
       .attr('transform', (d) => `translate(${d.y},${d.x})`)
       .style('opacity', 1);
 
     // Transition exiting nodes to the parent's new position.
-    node.exit().transition()
-      .duration(duration)
+    node.exit()
       .attr('transform', () => `translate(${source.y},${source.x})`)
       .style('opacity', 1e-6)
       .remove();
 
     // Update the links…
     const link = svg.selectAll('path.link')
-      .data(tree.links(nodes), (d) => d.target.id);
+      .data(tree.links(updateNodes), (d) => d.target.id);
 
     // Enter any new links at the parent's previous position.
     link.enter().insert('path', 'g')
@@ -343,18 +344,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const o = { x: source.x0, y: source.y0 };
         return diagonal({ source: o, target: o });
       })
-      .transition()
-      .duration(duration)
       .attr('d', diagonal);
 
     // Transition links to their new position.
-    link.transition()
-      .duration(duration)
+    link
       .attr('d', diagonal);
 
     // Transition exiting nodes to the parent's new position.
-    link.exit().transition()
-      .duration(duration)
+    link.exit()
       .attr('d', () => {
         const o = { x: source.x, y: source.y };
         return diagonal({ source: o, target: o });
@@ -362,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .remove();
 
     // Stash the old positions for transition.
-    nodes.forEach((d) => {
+    updateNodes.forEach((d) => {
       d.x0 = d.x;
       d.y0 = d.y;
     });
@@ -392,4 +389,70 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     update(clicked);
   }
+
+  function handleRefresh() {
+    $('#loading-dots').css('display', 'inline-block');
+    $.get(`/object/tree_data?dag_id=${dagId}`)
+      .done(
+        (runs) => {
+          const newData = {
+            ...data,
+            ...JSON.parse(runs),
+          };
+          // only rerender the graph if the instances have changed
+          if (JSON.stringify(data.instances) !== JSON.stringify(newData.instances)) {
+            nodes = tree.nodes(newData);
+            nodes.forEach((node) => renderNode(node));
+            update(root = newData);
+            data = newData;
+          }
+          setTimeout(() => { $('#loading-dots').hide(); }, 500);
+          $('#error').hide();
+        },
+      ).fail((_, textStatus, err) => {
+        $('#error_msg').text(`${textStatus}: ${err}`);
+        $('#error').show();
+        setTimeout(() => { $('#loading-dots').hide(); }, 500);
+      });
+  }
+
+  let refreshInterval;
+
+  function startOrStopRefresh() {
+    if ($('#auto_refresh').is(':checked')) {
+      refreshInterval = setInterval(() => {
+        // only do a refresh if there are any active dag runs
+        if (getActiveRuns()) {
+          handleRefresh();
+        } else {
+          $('#auto_refresh').removeAttr('checked');
+        }
+      }, 3000); // run refresh every 3 seconds
+    } else {
+      clearInterval(refreshInterval);
+    }
+  }
+
+  $('#auto_refresh').change(() => {
+    if ($('#auto_refresh').is(':checked')) {
+      // Run an initial refesh before starting interval if manually turned on
+
+      handleRefresh();
+      localStorage.removeItem('disableAutoRefresh');
+    } else {
+      localStorage.setItem('disableAutoRefresh', 'true');
+    }
+    startOrStopRefresh();
+  });
+
+  function initRefresh() {
+    // default to autorefresh if there are any active dag runs
+    if (getActiveRuns() && !localStorage.getItem('disableAutoRefresh')) {
+      $('#auto_refresh').attr('checked', true);
+    }
+    startOrStopRefresh();
+    d3.select('#refresh_button').on('click', () => handleRefresh());
+  }
+
+  initRefresh();
 });
