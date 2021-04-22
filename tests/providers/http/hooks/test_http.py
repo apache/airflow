@@ -76,7 +76,9 @@ class TestHttpHook(unittest.TestCase):
                 except MissingSchema:
                     pass
 
-                request_mock.assert_called_once_with(mock.ANY, expected_url, mock.ANY, mock.ANY)
+                request_mock.assert_called_once_with(
+                    mock.ANY, expected_url, headers=mock.ANY, params=mock.ANY
+                )
 
                 request_mock.reset_mock()
 
