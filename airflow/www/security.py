@@ -22,7 +22,7 @@ import warnings
 from typing import Dict, Optional, Sequence, Set, Tuple
 
 import jwt
-from flask import current_app, g, jsonify, request
+from flask import current_app, g, jsonify
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
@@ -759,15 +759,16 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             user = self.auth_user_ldap(username, password)
         return user
 
-    def oauth_authorize_redirect(self, app, provider):
+    def oauth_authorize_redirect(self, app, provider, register=False):
         """Get authorization url for oauth"""
         api_base_path = "/api/v1/"
         base_url = conf.get("webserver", "base_url") + api_base_path
         redirect_uri = base_url + "oauth-authorized?provider=" + provider
         if self.auth_type != AUTH_OAUTH:
             raise Unauthenticated(detail=AUTH_TYPE_MISMATCH_MESSAGE)
+        arg = {'register': [str(register)]} if register else {}
         state = jwt.encode(
-            request.args.to_dict(flat=False),
+            arg,
             key=app.config['SECRET_KEY'],
             algorithm='HS256',
         )
@@ -851,9 +852,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id)
         if 'cookies' in app.config['JWT_TOKEN_LOCATION']:
-            resp = jsonify(schema.dump({'user': user}))
-            set_access_cookies(resp, access_token)
-            set_refresh_cookies(resp, refresh_token)
+            resp = schema.dump({'user': user})
+            set_access_cookies(jsonify(resp), access_token)
+            set_refresh_cookies(jsonify(resp), refresh_token)
             return resp
         return schema.dump({'user': user, 'token': access_token, 'refresh_token': refresh_token})
 
