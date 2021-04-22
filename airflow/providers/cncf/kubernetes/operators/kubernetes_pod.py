@@ -385,7 +385,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :param try_numbers_match: do the try numbers match? Only needed for logging purposes
         :type try_numbers_match: bool
         :param launcher: PodLauncher
-        :param pod_list: list of pods found
+        :param pod: Pod found with matching labels
         """
         if try_numbers_match:
             log_line = f"found a running pod with labels {labels} and the same try_number."
@@ -429,7 +429,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         will supersede all other values.
 
         """
-        self.log.debug("Creating pod for K8sPodOperator task %s", self.task_id)
+        self.log.debug("Creating pod for KubernetesPodOperator task %s", self.task_id)
         if self.pod_template_file:
             self.log.debug("Pod template file found, will parse for base pod")
             pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
@@ -498,18 +498,21 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :param launcher: pod launcher that will manage launching and monitoring pods
         :return:
         """
-        if not (self.full_pod_spec or self.pod_template_file):
-            # Add Airflow Version to the label
-            # And a label to identify that pod is launched by KubernetesPodOperator
-            self.log.debug("Adding k8spodoperator labels to pod before launch for task %s", self.task_id)
-            self.labels.update(
-                {
-                    'airflow_version': airflow_version.replace('+', '-'),
-                    'kubernetes_pod_operator': 'True',
-                }
-            )
-            self.labels.update(labels)
-            self.pod.metadata.labels = self.labels
+        self.log.debug(
+            "Adding KubernetesPodOperator labels to pod before launch for task %s", self.task_id
+        )
+
+        # Merge Pod Identifying labels with labels passed to operator
+        self.pod.metadata.labels.update(labels)
+        # Add Airflow Version to the label
+        # And a label to identify that pod is launched by KubernetesPodOperator
+        self.pod.metadata.labels.update(
+            {
+                'airflow_version': airflow_version.replace('+', '-'),
+                'kubernetes_pod_operator': 'True',
+            }
+        )
+
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(self.pod.to_dict()))
         try:
             launcher.start_pod(self.pod, startup_timeout=self.startup_timeout_seconds)

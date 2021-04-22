@@ -692,7 +692,16 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
         result = k.execute(context)
         assert result is not None
-        assert k.pod.metadata.labels == {'fizz': 'buzz', 'foo': 'bar'}
+        assert k.pod.metadata.labels == {
+            'fizz': 'buzz',
+            'foo': 'bar',
+            'airflow_version': mock.ANY,
+            'dag_id': 'dag',
+            'execution_date': mock.ANY,
+            'kubernetes_pod_operator': 'True',
+            'task_id': mock.ANY,
+            'try_number': '1',
+        }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
@@ -722,7 +731,16 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
         result = k.execute(context)
         assert result is not None
-        assert k.pod.metadata.labels == {'fizz': 'buzz', 'foo': 'bar'}
+        assert k.pod.metadata.labels == {
+            'fizz': 'buzz',
+            'foo': 'bar',
+            'airflow_version': mock.ANY,
+            'dag_id': 'dag',
+            'execution_date': mock.ANY,
+            'kubernetes_pod_operator': 'True',
+            'task_id': mock.ANY,
+            'try_number': '1',
+        }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
@@ -754,7 +772,16 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
         result = k.execute(context)
         assert result is not None
-        assert k.pod.metadata.labels == {'fizz': 'buzz', 'foo': 'bar'}
+        assert k.pod.metadata.labels == {
+            'fizz': 'buzz',
+            'foo': 'bar',
+            'airflow_version': mock.ANY,
+            'dag_id': 'dag',
+            'execution_date': mock.ANY,
+            'kubernetes_pod_operator': 'True',
+            'task_id': mock.ANY,
+            'try_number': '1',
+        }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
@@ -848,7 +875,19 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         expected_dict = {
             'apiVersion': 'v1',
             'kind': 'Pod',
-            'metadata': {'annotations': {}, 'labels': {}, 'name': 'memory-demo', 'namespace': 'mem-example'},
+            'metadata': {
+                'annotations': {},
+                'labels': {
+                    'airflow_version': '2.1.0.dev0',
+                    'dag_id': 'dag',
+                    'execution_date': mock.ANY,
+                    'kubernetes_pod_operator': 'True',
+                    'task_id': mock.ANY,
+                    'try_number': '1',
+                },
+                'name': 'memory-demo',
+                'namespace': 'mem-example',
+            },
             'spec': {
                 'affinity': {},
                 'containers': [

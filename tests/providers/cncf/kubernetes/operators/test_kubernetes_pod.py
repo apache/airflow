@@ -110,6 +110,28 @@ class TestKubernetesPodOperator(unittest.TestCase):
         assert k.env_vars[0].value == "footemplated"
         assert k.env_vars[0].name == "bartemplated"
 
+    def test_labels(self):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        pod = self.run_pod(k)
+        assert pod.metadata.labels == {
+            "foo": "bar",
+            "dag_id": "dag",
+            "kubernetes_pod_operator": "True",
+            "task_id": "task",
+            "try_number": "1",
+            "airflow_version": mock.ANY,
+            "execution_date": mock.ANY,
+        }
+
     def test_image_pull_secrets_correctly_set(self):
         fake_pull_secrets = "fakeSecret"
         k = KubernetesPodOperator(
@@ -231,13 +253,23 @@ class TestKubernetesPodOperator(unittest.TestCase):
             cluster_context="default",
             full_pod_spec=pod_spec,
         )
-        pod = k.create_pod_request_obj()
+        pod = self.run_pod(k)
 
         assert pod.metadata.name == pod_spec.metadata.name
-        assert pod.metadata.labels == pod_spec.metadata.labels
         assert pod.metadata.namespace == pod_spec.metadata.namespace
         assert pod.spec.containers[0].image == pod_spec.spec.containers[0].image
         assert pod.spec.containers[0].command == pod_spec.spec.containers[0].command
+        # Check labels are added from pod_template_file and
+        # the pod identifying labels including Airflow version
+        assert pod.metadata.labels == {
+            "foo": "bar",
+            "dag_id": "dag",
+            "kubernetes_pod_operator": "True",
+            "task_id": "task",
+            "try_number": "1",
+            "airflow_version": mock.ANY,
+            "execution_date": mock.ANY,
+        }
 
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
@@ -250,13 +282,26 @@ class TestKubernetesPodOperator(unittest.TestCase):
             full_pod_spec=pod_spec,
             name=name_base,
             image=image,
+            labels={"hello": "world"},
         )
-        pod = k.create_pod_request_obj()
+        pod = self.run_pod(k)
 
         # make sure the kwargs takes precedence (and that name is randomized)
         assert pod.metadata.name.startswith(name_base)
         assert pod.metadata.name != name_base
         assert pod.spec.containers[0].image == image
+        # Check labels are added from pod_template_file, the operator itself and
+        # the pod identifying labels including Airflow version
+        assert pod.metadata.labels == {
+            "foo": "bar",
+            "hello": "world",
+            "dag_id": "dag",
+            "kubernetes_pod_operator": "True",
+            "task_id": "task",
+            "try_number": "1",
+            "airflow_version": mock.ANY,
+            "execution_date": mock.ANY,
+        }
 
     def test_pod_template_file(self):
         pod_template_yaml = b"""
@@ -283,10 +328,20 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 task_id="task",
                 pod_template_file=tpl_file.name,
             )
-            pod = k.create_pod_request_obj()
+            pod = self.run_pod(k)
 
             assert pod.metadata.name == "hello"
-            assert pod.metadata.labels == {"foo": "bar"}
+            # Check labels are added from pod_template_file and
+            # the pod identifying labels including Airflow version
+            assert pod.metadata.labels == {
+                "foo": "bar",
+                "dag_id": "dag",
+                "kubernetes_pod_operator": "True",
+                "task_id": "task",
+                "try_number": "1",
+                "airflow_version": mock.ANY,
+                "execution_date": mock.ANY,
+            }
             assert pod.metadata.namespace == "mynamespace"
             assert pod.spec.containers[0].image == "ubuntu:16.04"
             assert pod.spec.containers[0].command == ["something"]
@@ -299,13 +354,26 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 pod_template_file=tpl_file.name,
                 name=name_base,
                 image=image,
+                labels={"hello": "world"},
             )
-            pod = k.create_pod_request_obj()
+            pod = self.run_pod(k)
 
             # make sure the kwargs takes precedence (and that name is randomized)
             assert pod.metadata.name.startswith(name_base)
             assert pod.metadata.name != name_base
             assert pod.spec.containers[0].image == image
+            # Check labels are added from pod_template_file, the operator itself and
+            # the pod identifying labels including Airflow version
+            assert pod.metadata.labels == {
+                "foo": "bar",
+                "hello": "world",
+                "dag_id": "dag",
+                "kubernetes_pod_operator": "True",
+                "task_id": "task",
+                "try_number": "1",
+                "airflow_version": mock.ANY,
+                "execution_date": mock.ANY,
+            }
 
     def test_describes_pod_on_failure(self):
         name_base = "test"

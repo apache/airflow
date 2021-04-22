@@ -583,7 +583,16 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
         result = k.execute(context)
         assert result is not None
-        assert k.pod.metadata.labels == {'fizz': 'buzz', 'foo': 'bar'}
+        assert k.pod.metadata.labels == {
+            'fizz': 'buzz',
+            'foo': 'bar',
+            'airflow_version': mock.ANY,
+            'dag_id': 'dag',
+            'execution_date': mock.ANY,
+            'kubernetes_pod_operator': 'True',
+            'task_id': mock.ANY,
+            'try_number': '1',
+        }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
