@@ -447,6 +447,8 @@ label[for="timezone-other"],
 }
 
 .refresh-actions {
+  justify-content: flex-end;
+  min-width: 225px;
   float: right;
   display: inline-flex;
   align-items: center;
