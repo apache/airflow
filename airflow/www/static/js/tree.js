@@ -77,7 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const barWidth = width * 0.9;
 
   let i = 0;
-  const duration = 400;
   let root;
 
   function populateTaskInstanceProperties(node) {
@@ -149,7 +148,6 @@ document.addEventListener('DOMContentLoaded', () => {
     .html((toolTipHtml) => toolTipHtml);
 
   const svg = d3.select('#tree-svg')
-  // .attr("width", width + margin.left + margin.right)
     .append('g')
     .attr('class', 'level')
     .attr('transform', `translate(${margin.left},${margin.top})`);
@@ -191,19 +189,23 @@ document.addEventListener('DOMContentLoaded', () => {
     .style('text-anchor', 'start')
     .call(taskTip);
 
-  function update(source) {
+  function update(source, showTransition = true) {
     // Compute the flattened node list. TODO use d3.layout.hierarchy.
     const updateNodes = tree.nodes(root);
+    const duration = showTransition ? 400 : 0;
 
     const height = Math.max(500, updateNodes.length * barHeight + margin.top + margin.bottom);
     const updateWidth = squareX
       + (numSquare * (squareSize + squareSpacing))
       + margin.left + margin.right + 50;
     d3.select('#tree-svg')
+      .transition()
+      .duration(duration)
       .attr('height', height)
       .attr('width', updateWidth);
 
-    d3.select(self.frameElement)
+    d3.select(self.frameElement).transition()
+      .duration(duration)
       .style('height', `${height}px`);
 
     // Compute the "layout".
@@ -288,7 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
           );
         }
       })
-      // .attr('class', (d) => `state ${d.state}`)
       .attr('data-toggle', 'tooltip')
       .attr('rx', (d) => (isDagRun(d) ? '5' : '1'))
       .attr('ry', (d) => (isDagRun(d) ? '5' : '1'))
@@ -300,12 +301,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const tt = tiTooltip({ ...d, duration: d.duration || moment(d.end_date).diff(d.start_date, 'seconds') });
         taskTip.direction('n');
         taskTip.show(tt, this);
-        d3.select(this)
+        d3.select(this).transition().duration(duration)
           .style('stroke-width', 3);
       })
       .on('mouseout', function (d) {
         taskTip.hide(d);
-        d3.select(this)
+        d3.select(this).transition().duration(duration)
           .style('stroke-width', (dd) => (isDagRun(dd) ? '2' : '1'));
       })
       .attr('x', (d, j) => (j * (squareSize + squareSpacing)))
@@ -319,16 +320,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Transition nodes to their new position.
     nodeEnter
+      .transition()
+      .duration(duration)
       .attr('transform', (d) => `translate(${d.y},${d.x})`)
       .style('opacity', 1);
 
     node
+      .transition()
+      .duration(duration)
       .attr('class', nodeClass)
       .attr('transform', (d) => `translate(${d.y},${d.x})`)
       .style('opacity', 1);
 
     // Transition exiting nodes to the parent's new position.
     node.exit()
+      .transition()
+      .duration(duration)
       .attr('transform', () => `translate(${source.y},${source.x})`)
       .style('opacity', 1e-6)
       .remove();
@@ -344,6 +351,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const o = { x: source.x0, y: source.y0 };
         return diagonal({ source: o, target: o });
       })
+      .transition()
+      .duration(duration)
       .attr('d', diagonal);
 
     // Transition links to their new position.
@@ -352,6 +361,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Transition exiting nodes to the parent's new position.
     link.exit()
+      .transition()
+      .duration(duration)
       .attr('d', () => {
         const o = { x: source.x, y: source.y };
         return diagonal({ source: o, target: o });
@@ -367,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#loading').remove();
   }
 
-  update(root = data);
+  update(root = data, false);
 
   function toggles(clicked) {
   // Collapse nodes with the same task id
@@ -403,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (JSON.stringify(data.instances) !== JSON.stringify(newData.instances)) {
             nodes = tree.nodes(newData);
             nodes.forEach((node) => renderNode(node));
-            update(root = newData);
+            update(root = newData, false);
             data = newData;
           }
           setTimeout(() => { $('#loading-dots').hide(); }, 500);
@@ -446,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function initRefresh() {
-    // default to autorefresh if there are any active dag runs
+    // default to auto-refresh if there are any active dag runs
     if (getActiveRuns() && !localStorage.getItem('disableAutoRefresh')) {
       $('#auto_refresh').attr('checked', true);
     }
