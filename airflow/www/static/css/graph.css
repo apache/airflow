@@ -165,20 +165,3 @@ g.node.removed rect {
   background-color: #f0f0f0;
   cursor: move;
 }
-
-.refresh-actions {
-  float: right;
-  display: inline-flex;
-  align-items: center;
-  top: 10px;
-  right: 10px;
-  position: relative;
-}
-
-.refresh-actions > .switch-label {
-  margin: 0 10px 0 20px;
-}
-
-.loading-dots.refresh-loading {
-  display: none;
-}
