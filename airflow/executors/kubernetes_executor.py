@@ -652,7 +652,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
         tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
-        scheduler_job_ids = [ti.queued_by_job_id for ti in tis]
+        scheduler_job_ids = {ti.queued_by_job_id for ti in tis}
         pod_ids = {
             create_pod_id(
                 dag_id=pod_generator.make_safe_label_value(ti.dag_id),
