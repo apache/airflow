@@ -22,6 +22,11 @@
 
 {% block page_title %}{{ dag.dag_id }} - {{ appbuilder.app_name }}{% endblock %}
 
+{% block head_meta %}
+  {{ super() }}
+  <meta name="dag_id" content="{{ dag.dag_id }}">
+{% endblock %}
+
 {% block head_css %}
   {{ super() }}
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('switch.css') }}">

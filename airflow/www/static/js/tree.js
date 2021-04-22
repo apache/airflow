@@ -24,6 +24,7 @@ import { escapeHtml } from './main';
 import tiTooltip from './task_instances';
 import getMetaValue from './meta_value';
 
+// dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
 
 function toDateString(ts) {
