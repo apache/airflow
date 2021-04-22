@@ -76,9 +76,7 @@ class TestHttpHook(unittest.TestCase):
                 except MissingSchema:
                     pass
 
-                request_mock.assert_called_once_with(
-                    method=mock.ANY, url=expected_url, headers=mock.ANY, params=mock.ANY
-                )
+                request_mock.assert_called_once_with(mock.ANY, expected_url, mock.ANY, mock.ANY)
 
                 request_mock.reset_mock()
 
@@ -117,7 +115,7 @@ class TestHttpHook(unittest.TestCase):
                 self.get_lowercase_hook.run('v1/test', data=data)
             except (MissingSchema, InvalidURL):
                 pass
-            request_mock.assert_called_once_with(method=mock.ANY, url=mock.ANY, headers=mock.ANY, params=data)
+            request_mock.assert_called_once_with(mock.ANY, mock.ANY, headers=mock.ANY, params=data)
 
     @requests_mock.mock()
     def test_hook_uses_provided_header(self, mock_requests):
