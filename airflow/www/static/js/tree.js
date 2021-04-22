@@ -242,12 +242,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         taskTip.direction('e');
         taskTip.show(tt, this);
-        d3.select(this)
+        d3.select(this).transition().duration(duration)
           .style('stroke-width', 3);
       })
       .on('mouseout', function (d) {
         taskTip.hide(d);
-        d3.select(this)
+        d3.select(this).transition().duration(duration)
           .style('stroke-width', (dd) => (isDagRun(dd) ? '2' : '1'));
       })
       .attr('height', barHeight)
@@ -357,6 +357,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Transition links to their new position.
     link
+      .transition()
+      .duration(duration)
       .attr('d', diagonal);
 
     // Transition exiting nodes to the parent's new position.
