@@ -87,35 +87,34 @@ document.addEventListener('DOMContentLoaded', () => {
       const dataInstance = data.instances[j];
       const row = node.instances[j];
 
-      if (row === null) {
+      if (row) {
+        const taskInstance = {
+          state: row[0],
+          try_number: row[1],
+          start_ts: row[2],
+          duration: row[3],
+        };
+        node.instances[j] = taskInstance;
+
+        taskInstance.task_id = node.name;
+        taskInstance.operator = node.operator;
+        taskInstance.execution_date = dataInstance.execution_date;
+        taskInstance.external_trigger = dataInstance.external_trigger;
+
+        // compute start_date and end_date if applicable
+        if (taskInstance.start_ts !== null) {
+          taskInstance.start_date = toDateString(taskInstance.start_ts);
+          if (taskInstance.state === 'running') {
+            taskInstance.duration = now - taskInstance.start_ts;
+          } else if (taskInstance.duration !== null) {
+            taskInstance.end_date = toDateString(taskInstance.start_ts + taskInstance.duration);
+          }
+        }
+      } else {
         node.instances[j] = {
           task_id: node.name,
           execution_date: dataInstance.execution_date,
         };
-        continue;
-      }
-
-      const taskInstance = {
-        state: row[0],
-        try_number: row[1],
-        start_ts: row[2],
-        duration: row[3],
-      };
-      node.instances[j] = taskInstance;
-
-      taskInstance.task_id = node.name;
-      taskInstance.operator = node.operator;
-      taskInstance.execution_date = dataInstance.execution_date;
-      taskInstance.external_trigger = dataInstance.external_trigger;
-
-      // compute start_date and end_date if applicable
-      if (taskInstance.start_ts !== null) {
-        taskInstance.start_date = toDateString(taskInstance.start_ts);
-        if (taskInstance.state === 'running') {
-          taskInstance.duration = now - taskInstance.start_ts;
-        } else if (taskInstance.duration !== null) {
-          taskInstance.end_date = toDateString(taskInstance.start_ts + taskInstance.duration);
-        }
       }
     }
   }

@@ -28,7 +28,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -73,6 +73,7 @@ from flask_appbuilder.security.views import (
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
+from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
 from sqlalchemy import and_, desc, func, or_, union_all
@@ -92,7 +93,7 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
@@ -457,97 +458,6 @@ def add_user_permissions_to_dag(sender, template, context, **extra):  # noqa pyl
             permissions.RESOURCE_DAG,
         )
         context['dag'] = dag
-
-
-def get_tree_data(dag_runs, dag, base_date):
-    """Returns formatted dag_runs for Tree View"""
-    dates = sorted(dag_runs.keys())
-    min_date = min(dates) if dates else None
-
-    tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-    task_instances: Dict[Tuple[str, datetime], models.TaskInstance] = {}
-    for ti in tis:
-        task_instances[(ti.task_id, ti.execution_date)] = ti
-
-    expanded = set()
-    # The default recursion traces every path so that tree view has full
-    # expand/collapse functionality. After 5,000 nodes we stop and fall
-    # back on a quick DFS search for performance. See PR #320.
-    node_count = 0
-    node_limit = 5000 / max(1, len(dag.leaves))
-
-    def encode_ti(task_instance: Optional[models.TaskInstance]) -> Optional[List]:
-        if not task_instance:
-            return None
-
-        # NOTE: order of entry is important here because client JS relies on it for
-        # tree node reconstruction. Remember to change JS code in tree.html
-        # whenever order is altered.
-        task_instance_data = [
-            task_instance.state,
-            task_instance.try_number,
-            None,  # start_ts
-            None,  # duration
-        ]
-
-        if task_instance.start_date:
-            # round to seconds to reduce payload size
-            task_instance_data[2] = int(task_instance.start_date.timestamp())
-            if task_instance.duration is not None:
-                task_instance_data[3] = truncate_task_duration(task_instance.duration)
-
-        return task_instance_data
-
-    def recurse_nodes(task, visited):
-        nonlocal node_count
-        node_count += 1
-        visited.add(task)
-        task_id = task.task_id
-
-        node = {
-            'name': task.task_id,
-            'instances': [encode_ti(task_instances.get((task_id, d))) for d in dates],
-            'num_dep': len(task.downstream_list),
-            'operator': task.task_type,
-            'retries': task.retries,
-            'owner': task.owner,
-            'ui_color': task.ui_color,
-        }
-
-        if task.downstream_list:
-            children = [
-                recurse_nodes(t, visited)
-                for t in task.downstream_list
-                if node_count < node_limit or t not in visited
-            ]
-
-            # D3 tree uses children vs _children to define what is
-            # expanded or not. The following block makes it such that
-            # repeated nodes are collapsed by default.
-            if task.task_id not in expanded:
-                children_key = 'children'
-                expanded.add(task.task_id)
-            else:
-                children_key = "_children"
-            node[children_key] = children
-
-        if task.depends_on_past:
-            node['depends_on_past'] = task.depends_on_past
-        if task.start_date:
-            # round to seconds to reduce payload size
-            node['start_ts'] = int(task.start_date.timestamp())
-            if task.end_date:
-                # round to seconds to reduce payload size
-                node['end_ts'] = int(task.end_date.timestamp())
-        if task.extra_links:
-            node['extra_links'] = task.extra_links
-        return node
-
-    return {
-        'name': '[DAG]',
-        'children': [recurse_nodes(t, set()) for t in dag.roots],
-        'instances': [dag_runs.get(d) or {'execution_date': d.isoformat()} for d in dates],
-    }
 
 
 before_render_template.connect(add_user_permissions_to_dag)
@@ -2002,6 +1912,96 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             State.SUCCESS,
         )
 
+    def _get_tree_data(self, dag_runs: Iterable[DagRun], dag: DAG, base_date: DateTime):
+        """Returns formatted dag_runs for Tree View"""
+        dates = sorted(dag_runs.keys())
+        min_date = min(dates) if dates else None
+
+        tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
+        task_instances: Dict[Tuple[str, datetime], models.TaskInstance] = {}
+        for ti in tis:
+            task_instances[(ti.task_id, ti.execution_date)] = ti
+
+        expanded = set()
+        # The default recursion traces every path so that tree view has full
+        # expand/collapse functionality. After 5,000 nodes we stop and fall
+        # back on a quick DFS search for performance. See PR #320.
+        node_count = 0
+        node_limit = 5000 / max(1, len(dag.leaves))
+
+        def encode_ti(task_instance: Optional[models.TaskInstance]) -> Optional[List]:
+            if not task_instance:
+                return None
+
+            # NOTE: order of entry is important here because client JS relies on it for
+            # tree node reconstruction. Remember to change JS code in tree.html
+            # whenever order is altered.
+            task_instance_data = [
+                task_instance.state,
+                task_instance.try_number,
+                None,  # start_ts
+                None,  # duration
+            ]
+
+            if task_instance.start_date:
+                # round to seconds to reduce payload size
+                task_instance_data[2] = int(task_instance.start_date.timestamp())
+                if task_instance.duration is not None:
+                    task_instance_data[3] = truncate_task_duration(task_instance.duration)
+
+            return task_instance_data
+
+        def recurse_nodes(task, visited):
+            nonlocal node_count
+            node_count += 1
+            visited.add(task)
+            task_id = task.task_id
+
+            node = {
+                'name': task.task_id,
+                'instances': [encode_ti(task_instances.get((task_id, d))) for d in dates],
+                'num_dep': len(task.downstream_list),
+                'operator': task.task_type,
+                'retries': task.retries,
+                'owner': task.owner,
+                'ui_color': task.ui_color,
+            }
+
+            if task.downstream_list:
+                children = [
+                    recurse_nodes(t, visited)
+                    for t in task.downstream_list
+                    if node_count < node_limit or t not in visited
+                ]
+
+                # D3 tree uses children vs _children to define what is
+                # expanded or not. The following block makes it such that
+                # repeated nodes are collapsed by default.
+                if task.task_id not in expanded:
+                    children_key = 'children'
+                    expanded.add(task.task_id)
+                else:
+                    children_key = "_children"
+                node[children_key] = children
+
+            if task.depends_on_past:
+                node['depends_on_past'] = task.depends_on_past
+            if task.start_date:
+                # round to seconds to reduce payload size
+                node['start_ts'] = int(task.start_date.timestamp())
+                if task.end_date:
+                    # round to seconds to reduce payload size
+                    node['end_ts'] = int(task.end_date.timestamp())
+            if task.extra_links:
+                node['extra_links'] = task.extra_links
+            return node
+
+        return {
+            'name': '[DAG]',
+            'children': [recurse_nodes(t, set()) for t in dag.roots],
+            'instances': [dag_runs.get(d) or {'execution_date': d.isoformat()} for d in dates],
+        }
+
     @expose('/tree')
     @auth.has_access(
         [
@@ -2068,7 +2068,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         else:
             external_log_name = None
 
-        data = get_tree_data(dag_runs, dag, base_date)
+        data = self._get_tree_data(dag_runs, dag, base_date)
 
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
@@ -2703,14 +2703,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
-            response = jsonify(
-                {
-                    'error': f"can't find dag {dag_id}"
-                }
-            )
+            response = jsonify({'error': f"can't find dag {dag_id}"})
             response.status_code = 404
             return response
-
 
         root = request.args.get('root')
         if root:
@@ -2736,7 +2731,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
         dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
-        tree_data = get_tree_data(dag_runs, dag, base_date)
+        tree_data = self._get_tree_data(dag_runs, dag, base_date)
 
         # avoid spaces to reduce payload size
         return htmlsafe_json_dumps(tree_data, separators=(',', ':'))
