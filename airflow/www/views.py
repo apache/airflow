@@ -2703,8 +2703,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
-            return redirect(url_for('Airflow.index'))
+            response = jsonify(
+                {
+                    'error': f"can't find dag {dag_id}"
+                }
+            )
+            response.status_code = 404
+            return response
+
 
         root = request.args.get('root')
         if root:
