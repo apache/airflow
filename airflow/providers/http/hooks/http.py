@@ -126,20 +126,15 @@ class HttpHook(BaseHook):
         else:
             url = (self.base_url or '') + (endpoint or '')
 
-        request_parameters = dict(method=self.method.upper(), url=url, headers=headers)
-        request_parameters.update(request_kwargs)
-
         if self.method == 'GET':
             # GET uses params
-            request_parameters["params"] = data
+            req = requests.Request(self.method, url, params=data, headers=headers, **request_kwargs)
         elif self.method == 'HEAD':
             # HEAD doesn't use params
-            pass
+            req = requests.Request(self.method, url, headers=headers, **request_kwargs)
         else:
             # Others use data
-            request_parameters["data"] = data
-
-        req = requests.Request(**request_parameters)
+            req = requests.Request(self.method, url, data=data, headers=headers, **request_kwargs)
 
         prepped_request = session.prepare_request(req)
         self.log.info("Sending '%s' to url: %s", self.method, url)
